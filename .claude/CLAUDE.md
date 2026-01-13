@@ -28,9 +28,12 @@
 
 ### Frontend
 - 言語: TypeScript 5.7
-- フレームワーク: React 19
+- フレームワーク: React 18
 - ビルドツール: Vite 6
-- ルーティング: React Router 7
+- スタイル: Tailwind CSS 4
+- UIライブラリ: shadcn/ui (Radix UI)
+- ルーティング: React Router 6
+- アイコン: lucide-react
 
 ### Infrastructure
 - データベース: PostgreSQL 18
@@ -60,19 +63,29 @@ AnimalEkarte/
 │   └── Dockerfile.dev
 ├── frontend/
 │   ├── src/
-│   │   ├── app/          # アプリケーション層
-│   │   │   ├── layouts/  # レイアウト
-│   │   │   ├── routes/   # ルーティング
-│   │   │   └── provider.tsx
-│   │   ├── features/     # 機能別モジュール (bulletproof-react)
-│   │   │   └── pets/     # 例: ペット機能
-│   │   │       ├── api/
-│   │   │       ├── components/
-│   │   │       ├── hooks/
-│   │   │       └── types/
-│   │   ├── lib/          # 共通ライブラリ
-│   │   ├── config/       # 設定
-│   │   └── styles/       # グローバルスタイル
+│   │   ├── components/   # 共通コンポーネント
+│   │   │   ├── ui/       # shadcn/ui コンポーネント
+│   │   │   ├── shared/   # 共有UIコンポーネント
+│   │   │   ├── figma/    # Figma生成コンポーネント
+│   │   │   └── Sidebar.tsx
+│   │   ├── features/     # 機能別モジュール
+│   │   │   ├── dashboard/      # ダッシュボード
+│   │   │   ├── owners/         # 飼い主管理
+│   │   │   ├── medical-records/# カルテ管理
+│   │   │   ├── reservations/   # 予約管理
+│   │   │   ├── hospitalization/# 入院管理
+│   │   │   ├── examinations/   # 検査管理
+│   │   │   ├── accounting/     # 会計
+│   │   │   ├── vaccinations/   # ワクチン
+│   │   │   ├── trimming/       # トリミング
+│   │   │   ├── master/         # マスタ設定
+│   │   │   └── clinic/         # クリニック設定
+│   │   ├── lib/          # ユーティリティ
+│   │   ├── types/        # 型定義
+│   │   ├── styles/       # グローバルスタイル
+│   │   ├── assets/       # 画像等のアセット
+│   │   ├── App.tsx       # ルーティング定義
+│   │   └── main.tsx      # エントリーポイント
 │   ├── package.json
 │   └── Dockerfile
 ├── docker-compose.yml
@@ -260,6 +273,31 @@ const fetchPatient = async (id: string): Promise<Patient> => {
 ---
 
 ## 🔧 Docker操作
+
+### ⚠️ 重要: コマンド実行ルール
+
+**npmやgoコマンドはローカルで実行しないこと。必ずDocker経由で実行する。**
+
+```bash
+# ❌ NG - ローカル実行
+npm run build
+go test ./...
+
+# ✅ OK - Docker経由
+docker compose exec frontend npm run build
+docker compose exec backend go test ./...
+```
+
+### コンテナ別コマンド
+
+| タスク | コマンド |
+|--------|---------|
+| Frontend ビルド | `docker compose exec frontend npm run build` |
+| Frontend Lint | `docker compose exec frontend npm run lint` |
+| Frontend テスト | `docker compose exec frontend npm run test:run` |
+| Backend テスト | `docker compose exec backend go test ./... -v` |
+| Backend Lint | `docker compose exec backend golangci-lint run ./...` |
+| Backend モジュール更新 | `docker compose exec backend go mod tidy` |
 
 ### コンテナ構成
 - `ekarte-db`: PostgreSQL 18

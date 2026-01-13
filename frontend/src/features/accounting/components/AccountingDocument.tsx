@@ -1,4 +1,4 @@
-import { Accounting, AccountingItem } from "../types";
+import { Accounting } from "../types";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { useClinicInfo } from "../../clinic/hooks/useClinicInfo";

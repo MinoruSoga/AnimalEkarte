@@ -10,16 +10,18 @@ import {
 } from "../../../components/ui/dialog";
 import { Button } from "../../../components/ui/button";
 import { Badge } from "../../../components/ui/badge";
-import { 
-  Clock, 
-  User, 
-  Dog, 
-  Stethoscope, 
+import {
+  Clock,
+  User,
+  Dog,
+  Stethoscope,
   AlertCircle,
   FileText,
   CreditCard,
   Scissors,
-  Bed
+  Bed,
+  Trash2,
+  Pencil
 } from "lucide-react";
 import { Appointment } from "../../../types";
 

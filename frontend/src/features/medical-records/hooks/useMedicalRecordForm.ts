@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { Pet } from "../../../types";
 import { MOCK_PETS, MOCK_MEDICAL_RECORDS } from "../../../lib/constants";
 import { TreatmentItem } from "../components/TreatmentTable";

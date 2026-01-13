@@ -6,7 +6,9 @@
       "Bash(go test *)",
       "Bash(go build *)",
       "WebSearch",
-      "mcp__serena__list_dir"
+      "mcp__serena__list_dir",
+      "Bash(xargs perl:*)",
+      "Bash(curl:*)"
     ]
   },
   "enableAllProjectMcpServers": true

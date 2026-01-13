@@ -3,7 +3,13 @@ import { Button } from "../../../components/ui/button";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 
-export function MedicalRecordBillCheck({ isNewRecord = false }: { isNewRecord?: boolean }) {
+interface BillCheckProps {
+  isNewRecord?: boolean;
+  petId?: string;
+  completedItems?: TreatmentItem[];
+}
+
+export function MedicalRecordBillCheck({ isNewRecord = false }: BillCheckProps) {
   const [globalDiscountRate, setGlobalDiscountRate] = useState(0);
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
 

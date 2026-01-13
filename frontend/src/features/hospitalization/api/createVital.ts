@@ -1,4 +1,4 @@
-import { CreateVitalDTO, DailyRecord } from "../../types";
+import { CreateVitalDTO, DailyRecord } from "../types";
 import { getStoredRecords, setStoredRecords } from "./store";
 
 export const createVital = async (hospitalizationId: string, date: string, data: CreateVitalDTO): Promise<DailyRecord["vitals"][0]> => {

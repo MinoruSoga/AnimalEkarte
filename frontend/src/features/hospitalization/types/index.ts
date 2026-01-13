@@ -55,5 +55,5 @@ export interface HospitalizationFormData {
     cageId: string;
 }
 
-// Re-export common types if needed for convenience in the feature
-export type { CarePlanItem, DailyRecord };
+// Re-export common types for convenience in the feature
+export type { CarePlanItem, DailyRecord, Hospitalization };

@@ -67,13 +67,13 @@ const INITIAL_MASTER_ITEMS: MasterItem[] = [
   { id: "in_002", code: "IN-002", name: "アイペット", price: 0, category: "保険", status: "active" },
 
   // --- Cage (ケージ) ---
-  { id: "c1", code: "ICU-01", name: "ICU-1", category: "ケージ", description: "ICU - 酸素室対応", status: "active" },
-  { id: "c2", code: "ICU-02", name: "ICU-2", category: "ケージ", description: "ICU - 酸素室対応", status: "active" },
-  { id: "c3", code: "DOG-01", name: "犬舎1", category: "ケージ", description: "犬舎 - 大型", status: "active" },
-  { id: "c4", code: "DOG-02", name: "犬舎2", category: "ケージ", description: "犬舎 - 中型", status: "active" },
-  { id: "c5", code: "DOG-03", name: "犬舎3", category: "ケージ", description: "犬舎 - 中型", status: "active" },
-  { id: "c6", code: "CAT-01", name: "猫舎1", category: "ケージ", description: "猫舎 - 防音", status: "active" },
-  { id: "c7", code: "CAT-02", name: "猫舎2", category: "ケージ", description: "猫舎 - 防音", status: "active" },
+  { id: "c1", code: "ICU-01", name: "ICU-1", price: 0, category: "ケージ", description: "ICU - 酸素室対応", status: "active" },
+  { id: "c2", code: "ICU-02", name: "ICU-2", price: 0, category: "ケージ", description: "ICU - 酸素室対応", status: "active" },
+  { id: "c3", code: "DOG-01", name: "犬舎1", price: 0, category: "ケージ", description: "犬舎 - 大型", status: "active" },
+  { id: "c4", code: "DOG-02", name: "犬舎2", price: 0, category: "ケージ", description: "犬舎 - 中型", status: "active" },
+  { id: "c5", code: "DOG-03", name: "犬舎3", price: 0, category: "ケージ", description: "犬舎 - 中型", status: "active" },
+  { id: "c6", code: "CAT-01", name: "猫舎1", price: 0, category: "ケージ", description: "猫舎 - 防音", status: "active" },
+  { id: "c7", code: "CAT-02", name: "猫舎2", price: 0, category: "ケージ", description: "猫舎 - 防音", status: "active" },
 
   // --- Trimming Course (トリミングコース) ---
   { id: "tc_001", code: "TC-001", name: "シャンプーコース(小型)", price: 4000, category: "トリミングコース", status: "active" },

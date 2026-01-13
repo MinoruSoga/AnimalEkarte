@@ -1,4 +1,4 @@
-import { CarePlanItem, UpdateCarePlanDTO } from "../../types";
+import { CarePlanItem, UpdateCarePlanDTO } from "../types";
 import { getAllStoredPlans, setStoredPlans } from "./store";
 
 export const updateCarePlan = async (id: string, data: UpdateCarePlanDTO): Promise<CarePlanItem> => {

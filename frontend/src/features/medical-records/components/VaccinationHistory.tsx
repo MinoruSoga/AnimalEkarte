@@ -35,7 +35,7 @@ export const VaccinationHistory = React.memo(function VaccinationHistory({
       // Simplify date filtering for mock
       return matchesSearch;
     })
-    .sort((a, b) => {
+    .sort((_a, _b) => {
       // Simplify sort for mock
       return sortOrder === "desc" ? 1 : -1;
     });

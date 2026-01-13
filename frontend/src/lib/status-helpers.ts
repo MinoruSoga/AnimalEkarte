@@ -1,4 +1,4 @@
-import { Hospitalization, MedicalRecord, ReservationAppointment } from "../types";
+import { Hospitalization, MedicalRecord } from "../types";
 
 export const getMedicalRecordStatusColor = (status: MedicalRecord["status"]) => {
   switch (status) {

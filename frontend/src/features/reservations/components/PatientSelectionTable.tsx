@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { Search, Check, Filter } from "lucide-react";
+import { Check, Filter } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
-import { Badge } from "../../../components/ui/badge";
 import {
   Table,
   TableBody,
@@ -154,7 +153,7 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
                         </TableCell>
                     </TableRow>
                 ) : (
-                    filteredPets.map((pet, index) => (
+                    filteredPets.map((pet) => (
                     <TableRow
                         key={pet.id}
                         className={`transition-colors hover:bg-[rgba(55,53,47,0.06)] cursor-pointer h-10 ${

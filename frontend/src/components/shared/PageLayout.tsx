@@ -4,6 +4,7 @@ import FormHeader from "./FormHeader";
 interface PageLayoutProps {
   children: ReactNode;
   title: string;
+  description?: string;
   onBack?: () => void;
   icon?: ReactNode;
   headerAction?: ReactNode;
@@ -15,6 +16,7 @@ interface PageLayoutProps {
 export const PageLayout = ({
   children,
   title,
+  description: _description,
   onBack,
   icon,
   headerAction,

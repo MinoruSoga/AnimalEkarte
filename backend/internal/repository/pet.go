@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 func (r *Repository) GetAllPets(ctx context.Context) ([]model.Pet, error) {

@@ -41,7 +41,7 @@ func Wrap(err error, message string) error {
 	return fmt.Errorf("%s: %w", message, err)
 }
 
-func WrapNotFound(resource string, id string) error {
+func WrapNotFound(resource, id string) error {
 	return &AppError{
 		Code:    "NOT_FOUND",
 		Message: fmt.Sprintf("%s with id %s not found", resource, id),
@@ -62,7 +62,7 @@ func Is(err, target error) bool {
 	return errors.Is(err, target)
 }
 
-func As(err error, target interface{}) bool {
+func As(err error, target any) bool {
 	return errors.As(err, target)
 }
 

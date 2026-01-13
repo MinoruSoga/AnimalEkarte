@@ -9,7 +9,7 @@ import { Checkbox } from "../../../components/ui/checkbox";
 import { Label } from "../../../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { Filter } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { useDashboardKanban } from "../hooks/useDashboardKanban";
 import { format, addHours } from "date-fns";
 import { ja } from "date-fns/locale";

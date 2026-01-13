@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { PageLayout } from "../../../components/shared/PageLayout";
 import { Button } from "../../../components/ui/button";
@@ -32,25 +32,78 @@ import {
   DialogDescription,
 } from "../../../components/ui/dialog";
 import { Separator } from "../../../components/ui/separator";
-import { Plus, Trash2, Calculator, Save, ArrowLeft, CreditCard, Printer, FileText } from "lucide-react";
+import { Plus, Trash2, Save, CreditCard, Printer, FileText } from "lucide-react";
 import { MOCK_ACCOUNTING_LIST } from "../mockData";
 import { Accounting, AccountingItem, PaymentInfo } from "../types";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { AccountingDocument } from "../components/AccountingDocument";
+
+// Helper to create initial accounting data
+function createInitialAccounting(
+  id: string | undefined,
+  locationState: { accountingItems?: AccountingItem[] } | null,
+  locationSearch: string
+): { accounting: Accounting | null; insurance: boolean; received: string; method: string } {
+  // 新規作成
+  if (!id) {
+    const stateItems = locationState?.accountingItems || [];
+    const searchParams = new URLSearchParams(locationSearch);
+    const petId = searchParams.get('petId');
+
+    return {
+      accounting: {
+        id: `acc_new_${Date.now()}`,
+        ownerId: 'own_mock',
+        ownerName: '新規 飼い主様',
+        petId: petId || 'pet_mock',
+        petName: '新規 ペットちゃん',
+        petSpecies: '犬',
+        status: 'waiting',
+        scheduledDate: new Date().toISOString().split('T')[0],
+        items: stateItems,
+        payment: undefined
+      },
+      insurance: false,
+      received: "",
+      method: "cash"
+    };
+  }
+
+  // 既存データ編集
+  const data = MOCK_ACCOUNTING_LIST.find((a) => a.id === id);
+  if (data) {
+    return {
+      accounting: { ...data },
+      insurance: data.payment ? data.payment.insuranceAmount < 0 : false,
+      received: data.payment ? data.payment.receivedAmount.toString() : "",
+      method: data.payment ? data.payment.method : "cash"
+    };
+  }
+
+  return { accounting: null, insurance: false, received: "", method: "cash" };
+}
 
 export const AccountingDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [accounting, setAccounting] = useState<Accounting | null>(null);
-  
+
+  // Compute initial values
+  const locationState = location.state as { accountingItems?: AccountingItem[] } | null;
+  const initialValues = useMemo(
+    () => createInitialAccounting(id, locationState, location.search),
+    [id, locationState, location.search]
+  );
+
+  const [accounting, setAccounting] = useState<Accounting | null>(initialValues.accounting);
+
   // 保険設定
-  const [useInsurance, setUseInsurance] = useState(false);
+  const [useInsurance, setUseInsurance] = useState(initialValues.insurance);
   const [insuranceRatio, setInsuranceRatio] = useState<string>("0.5"); // 50%, 70%
 
   // 支払い入力
-  const [receivedAmount, setReceivedAmount] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState<string>("cash");
+  const [receivedAmount, setReceivedAmount] = useState<string>(initialValues.received);
+  const [paymentMethod, setPaymentMethod] = useState<string>(initialValues.method);
 
   // 追加アイテム用State
   const [newItemOpen, setNewItemOpen] = useState(false);
@@ -61,43 +114,6 @@ export const AccountingDetail = () => {
   // Document Preview State
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewType, setPreviewType] = useState<"receipt" | "statement">("receipt");
-
-  useEffect(() => {
-    // データロードロジック
-    // 新規作成
-    if (!id) {
-      const stateItems = (location.state?.accountingItems as AccountingItem[]) || [];
-      const searchParams = new URLSearchParams(location.search);
-      const petId = searchParams.get('petId');
-      
-      // モックの新規データ作成
-      setAccounting({
-        id: `acc_new_${Date.now()}`,
-        ownerId: 'own_mock',
-        ownerName: '新規 飼い主様', // 実際はpetIdから取得
-        petId: petId || 'pet_mock',
-        petName: '新規 ペットちゃん',
-        petSpecies: '犬',
-        status: 'waiting',
-        scheduledDate: new Date().toISOString().split('T')[0],
-        items: stateItems,
-        payment: undefined // 未決済
-      });
-      return;
-    }
-
-    // 既存データ編集
-    const data = MOCK_ACCOUNTING_LIST.find((a) => a.id === id);
-    if (data) {
-      setAccounting({ ...data }); // Deep copy的な
-      // 既存の支払い情報があれば反映
-      if (data.payment) {
-        setUseInsurance(data.payment.insuranceAmount < 0);
-        setReceivedAmount(data.payment.receivedAmount.toString());
-        setPaymentMethod(data.payment.method);
-      }
-    }
-  }, [id, location.state, location.search]);
 
   // 金額計算
   const calculation = useMemo(() => {

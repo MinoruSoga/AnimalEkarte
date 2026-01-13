@@ -43,7 +43,7 @@ export const getAllStoredPlans = (): Record<string, CarePlanItem[]> => {
     try {
         const saved = localStorage.getItem(PLANS_KEY);
         return saved ? JSON.parse(saved) : {};
-    } catch (e) {
+    } catch {
         return {};
     }
 }
@@ -72,7 +72,7 @@ export const getAllStoredRecords = (): Record<string, DailyRecord[]> => {
     try {
         const saved = localStorage.getItem(RECORDS_KEY);
         return saved ? JSON.parse(saved) : {};
-    } catch (e) {
+    } catch {
         return {};
     }
 }

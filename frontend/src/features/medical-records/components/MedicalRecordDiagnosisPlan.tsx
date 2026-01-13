@@ -4,8 +4,10 @@ import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { DiagnosisHeader } from "./DiagnosisHeader";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 
-interface DiagnosisPlanProps {
+export interface DiagnosisPlanProps {
   isNewRecord?: boolean;
+  items?: TreatmentItem[];
+  setItems?: React.Dispatch<React.SetStateAction<TreatmentItem[]>>;
 }
 
 export function MedicalRecordDiagnosisPlan({ isNewRecord = false }: DiagnosisPlanProps) {

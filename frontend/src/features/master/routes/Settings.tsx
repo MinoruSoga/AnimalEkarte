@@ -5,11 +5,10 @@ import { Label } from "../../../components/ui/label";
 import { TableCell } from "../../../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { Plus, Settings as SettingsIcon, Save, Trash2, Package } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { MasterItem } from "../../../types";
 import { getMasterStatusColor } from "../../../lib/status-helpers";
 import { useMasterItems } from "../hooks/useMasterItems";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 import { PageLayout } from "../../../components/shared/PageLayout";
 import { SearchFilterBar } from "../../../components/shared/SearchFilterBar";
@@ -24,7 +23,6 @@ interface SettingsPageProps {
 }
 
 export const Settings = ({ category: propCategory }: SettingsPageProps) => {
-  const navigate = useNavigate();
   const category = propCategory || "examination"; 
   
   const [isEditing, setIsEditing] = useState(false);
@@ -72,7 +70,7 @@ export const Settings = ({ category: propCategory }: SettingsPageProps) => {
       return !["staff", "cage", "insurance"].includes(cat);
   }
 
-  const shouldShowInventory = (cat: string) => {
+  const shouldShowInventory = (_cat: string) => {
       return false; // Inventory management is disabled
       // return ["examination", "vaccine", "medicine", "procedure", "hospitalization"].includes(cat);
   }

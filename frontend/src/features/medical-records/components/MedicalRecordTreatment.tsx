@@ -2,7 +2,15 @@ import React, { useState, useMemo, useCallback } from "react";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 
-export function MedicalRecordTreatment({ isNewRecord = false }: { isNewRecord?: boolean }) {
+interface TreatmentProps {
+  isNewRecord?: boolean;
+  planItems?: TreatmentItem[];
+  setPlanItems?: React.Dispatch<React.SetStateAction<TreatmentItem[]>>;
+  completedItems?: TreatmentItem[];
+  setCompletedItems?: React.Dispatch<React.SetStateAction<TreatmentItem[]>>;
+}
+
+export function MedicalRecordTreatment({ isNewRecord = false }: TreatmentProps) {
   // Mock data for "Treatment Plan" table
   const [planItems, setPlanItems] = useState<TreatmentItem[]>(
     isNewRecord

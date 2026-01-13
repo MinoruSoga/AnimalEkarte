@@ -1,9 +1,7 @@
-import { useNavigate } from "react-router-dom";
 import { MasterItem, Hospitalization } from "../../../types";
-import { Card, CardHeader, CardTitle, CardContent } from "../../../components/ui/card";
+import { Card, CardHeader, CardContent } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
-import { Avatar, AvatarFallback } from "../../../components/ui/avatar";
 import { Plus, GripVertical } from "lucide-react";
 import { getHospitalizationTypeColor } from "../../../lib/status-helpers";
 import { useDrag, useDrop } from "react-dnd";

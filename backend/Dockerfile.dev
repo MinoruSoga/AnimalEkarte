@@ -2,8 +2,9 @@ FROM golang:1.25-alpine
 
 WORKDIR /app
 
-# ホットリロード用ツール
-RUN go install github.com/air-verse/air@latest
+# 開発ツール
+RUN go install github.com/air-verse/air@latest && \
+    go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
 COPY go.mod ./
 COPY entrypoint.sh ./

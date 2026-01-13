@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { Pet } from "../../../types";
 import { MOCK_PETS } from "../../../lib/constants";
 
 export function usePets(searchTerm: string) {

@@ -6,13 +6,13 @@ import (
 )
 
 type Config struct {
-	Port     string
-	DBHost   string
-	DBPort   string
-	DBUser   string
-	DBPass   string
-	DBName   string
-	GinMode  string
+	Port    string
+	DBHost  string
+	DBPort  string
+	DBUser  string
+	DBPass  string
+	DBName  string
+	GinMode string
 }
 
 func Load() *Config {

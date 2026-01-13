@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { MOCK_PETS } from "../../../lib/constants";
 import { usePetSelection } from "../../pets/hooks/usePetSelection";
 

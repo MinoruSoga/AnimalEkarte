@@ -5,83 +5,100 @@
 ## 技術スタック
 
 - **言語**: TypeScript 5.7
-- **フレームワーク**: React 19
+- **フレームワーク**: React 18
 - **ビルドツール**: Vite 6
-- **ルーティング**: React Router v7
-- **スタイリング**: CSS（カスタム）
-- **アーキテクチャ**: bulletproof-react
+- **スタイル**: Tailwind CSS 4
+- **UIライブラリ**: shadcn/ui (Radix UI)
+- **ルーティング**: React Router v6
+- **アイコン**: lucide-react
 
-## ディレクトリ構成（bulletproof-react）
+## ディレクトリ構成
 
 ```
 frontend/src/
-├── app/                    # アプリケーション層
-│   ├── index.tsx           # Appコンポーネント
-│   ├── provider.tsx        # プロバイダー設定
-│   ├── layouts/            # レイアウトコンポーネント
-│   │   └── app-layout.tsx
-│   └── routes/             # ルーティング設定
-│       └── index.tsx
+├── components/           # 共通コンポーネント
+│   ├── ui/               # shadcn/ui コンポーネント (40+)
+│   │   ├── button.tsx
+│   │   ├── dialog.tsx
+│   │   ├── select.tsx
+│   │   └── ...
+│   ├── shared/           # 共有UIコンポーネント
+│   │   ├── PageLayout.tsx
+│   │   ├── PatientInfoCard.tsx
+│   │   ├── DataTable.tsx
+│   │   └── ...
+│   ├── figma/            # Figma生成ヘルパー
+│   └── Sidebar.tsx       # サイドバーナビゲーション
 │
-├── config/                 # グローバル設定
-│   └── index.ts
+├── features/             # 機能別モジュール
+│   ├── dashboard/        # ダッシュボード（カンバン）
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   └── routes/
+│   ├── owners/           # 飼い主管理
+│   ├── medical-records/  # カルテ管理
+│   ├── reservations/     # 予約管理
+│   ├── hospitalization/  # 入院管理
+│   ├── examinations/     # 検査管理
+│   ├── accounting/       # 会計
+│   ├── vaccinations/     # ワクチン管理
+│   ├── trimming/         # トリミング
+│   ├── master/           # マスタ設定
+│   ├── clinic/           # クリニック設定
+│   └── inventory/        # 在庫管理（スタブ）
 │
-├── features/               # 機能別モジュール
-│   └── pets/               # ペット機能
-│       ├── api/            # API呼び出し
-│       │   ├── index.ts
-│       │   ├── get-pets.ts
-│       │   ├── get-pet.ts
-│       │   ├── create-pet.ts
-│       │   ├── update-pet.ts
-│       │   └── delete-pet.ts
-│       ├── components/     # 機能固有コンポーネント
-│       │   ├── index.ts
-│       │   ├── pet-form.tsx
-│       │   ├── pet-list.tsx
-│       │   └── pets-page.tsx
-│       ├── hooks/          # カスタムフック
-│       │   ├── index.ts
-│       │   ├── use-pets.ts
-│       │   └── use-pet-mutations.ts
-│       ├── types/          # 型定義
-│       │   └── index.ts
-│       └── index.ts        # バレルエクスポート
+├── lib/                  # ユーティリティ
+│   ├── constants.ts      # 定数・モックデータ
+│   └── utils.ts          # ヘルパー関数
 │
-├── lib/                    # 共通ライブラリ
-│   └── api-client.ts       # APIクライアント
+├── types/                # 型定義
+│   └── index.ts          # 共通型定義
 │
-├── styles/                 # グローバルスタイル
-│   └── index.css
+├── styles/               # グローバルスタイル
+│   └── index.css         # Tailwind CSS
 │
-└── main.tsx                # エントリーポイント
+├── assets/               # 画像等のアセット
+│
+├── App.tsx               # ルーティング定義
+└── main.tsx              # エントリーポイント
 ```
 
-## bulletproof-react の原則
+## 機能一覧
 
-### 1. Feature-Based Architecture
-機能ごとにモジュールを分離し、関連するコードを同じ場所に配置:
-- `api/` - データ取得・更新
-- `components/` - UIコンポーネント
-- `hooks/` - ビジネスロジック
-- `types/` - 型定義
+| 機能 | パス | 説明 |
+|------|------|------|
+| ダッシュボード | `/` | 予約カンバン、本日の予定 |
+| 飼い主管理 | `/owners` | 飼い主・ペット情報管理 |
+| カルテ管理 | `/medical-records` | 診察記録、治療計画 |
+| 予約管理 | `/reservations` | 予約の登録・変更 |
+| 入院管理 | `/hospitalization` | 入院・ホテル管理 |
+| 検査 | `/examinations` | 検査記録 |
+| 会計 | `/accounting` | 精算処理 |
+| ワクチン | `/vaccinations` | 予防接種管理 |
+| トリミング | `/trimming` | トリミング予約 |
+| マスタ設定 | `/settings/*` | 各種マスタ管理 |
 
-### 2. Barrel Exports（index.ts）
-各ディレクトリに `index.ts` を配置し、パブリックAPIを明示:
-```typescript
-// features/pets/index.ts
-export * from './components/pets-page';
-export * from './types';
-```
+## コンポーネント構成
 
-### 3. Absolute Imports
-`@/` エイリアスを使用した絶対パス:
-```typescript
-import { apiClient } from '@/lib/api-client';
-import { PetsPage } from '@/features/pets';
-```
+### shadcn/ui コンポーネント (`components/ui/`)
 
-## 開発環境セットアップ
+Radix UIベースの再利用可能なコンポーネント:
+- Button, Input, Select, Checkbox
+- Dialog, Sheet, Popover
+- Table, Tabs, Accordion
+- Calendar, DatePicker
+- Toast (Sonner)
+- その他40以上
+
+### 共有コンポーネント (`components/shared/`)
+
+- `PageLayout` - ページレイアウト
+- `FormHeader` - フォームヘッダー
+- `PatientInfoCard` - 患者情報カード
+- `DataTable` - データテーブル
+- `PrimaryButton` - プライマリボタン
+
+## 開発環境
 
 ### Docker使用
 
@@ -103,134 +120,24 @@ npm install
 npm run dev
 ```
 
-## 新しい機能（Feature）の追加手順
-
-### 1. Feature ディレクトリ作成
+## ビルド
 
 ```bash
-mkdir -p src/features/owners/{api,components,hooks,types}
-```
+# 本番ビルド
+npm run build
 
-### 2. 型定義（types/index.ts）
+# 型チェック
+npx tsc --noEmit
 
-```typescript
-// src/features/owners/types/index.ts
-export type Owner = {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-  created_at: string;
-  updated_at: string;
-};
-
-export type CreateOwnerInput = {
-  name: string;
-  phone?: string;
-  email?: string;
-};
-```
-
-### 3. API関数（api/）
-
-```typescript
-// src/features/owners/api/get-owners.ts
-import { apiClient } from '@/lib/api-client';
-import type { Owner } from '../types';
-
-export const getOwners = (): Promise<Owner[]> => {
-  return apiClient.get<Owner[]>('/owners');
-};
-```
-
-```typescript
-// src/features/owners/api/index.ts
-export * from './get-owners';
-export * from './create-owner';
-// ...
-```
-
-### 4. カスタムフック（hooks/）
-
-```typescript
-// src/features/owners/hooks/use-owners.ts
-import { useState, useEffect, useCallback } from 'react';
-import type { Owner } from '../types';
-import { getOwners } from '../api';
-
-export const useOwners = () => {
-  const [owners, setOwners] = useState<Owner[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchOwners = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const data = await getOwners();
-      setOwners(data || []);
-    } catch {
-      setError('飼い主一覧の取得に失敗しました');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchOwners();
-  }, [fetchOwners]);
-
-  return { owners, isLoading, error, refetch: fetchOwners };
-};
-```
-
-### 5. コンポーネント（components/）
-
-```typescript
-// src/features/owners/components/owners-page.tsx
-import { useOwners } from '../hooks';
-import { OwnerList } from './owner-list';
-
-export const OwnersPage = () => {
-  const { owners, isLoading, error } = useOwners();
-
-  if (isLoading) return <p>読み込み中...</p>;
-  if (error) return <p className="error-message">{error}</p>;
-
-  return <OwnerList owners={owners} />;
-};
-```
-
-### 6. バレルエクスポート（index.ts）
-
-```typescript
-// src/features/owners/index.ts
-export * from './components/owners-page';
-export * from './types';
-```
-
-### 7. ルーティング追加
-
-```typescript
-// src/app/routes/index.tsx
-import { OwnersPage } from '@/features/owners';
-
-const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <AppLayout />,
-    children: [
-      { index: true, element: <PetsPage /> },
-      { path: 'owners', element: <OwnersPage /> },  // 追加
-    ],
-  },
-]);
+# Lint
+npm run lint
 ```
 
 ## コード規約
 
 ### ファイル命名
-- コンポーネント: `kebab-case.tsx`（例: `pet-form.tsx`）
-- フック: `use-*.ts`（例: `use-pets.ts`）
+- コンポーネント: `PascalCase.tsx`（例: `PatientInfoCard.tsx`）
+- フック: `use*.ts`（例: `usePets.ts`）
 - 型: `index.ts`（ディレクトリ内）
 
 ### インポート順序
@@ -243,28 +150,17 @@ const router = createBrowserRouter([
 ```typescript
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiClient } from '@/lib/api-client';
-import { PetForm } from './pet-form';
-import type { Pet } from '../types';
+import { Button } from '@/components/ui/button';
+import { PatientInfoCard } from '../components';
+import type { Pet } from '@/types';
 ```
 
-### 禁止事項
-- `any` 型の使用
-- 未使用のインポート
-- 本番コードでの `console.log`
-- ハードコードされた値（環境変数または定数を使用）
+### Absolute Imports
 
-## ビルド
-
-```bash
-# 本番ビルド
-npm run build
-
-# プレビュー
-npm run preview
-
-# 型チェック
-npx tsc --noEmit
+`@/` エイリアスを使用:
+```typescript
+import { Button } from '@/components/ui/button';
+import { Pet } from '@/types';
 ```
 
 ## トラブルシューティング
@@ -274,3 +170,10 @@ npx tsc --noEmit
 
 ### APIエラー
 バックエンドが起動しているか確認し、`vite.config.ts` のプロキシ設定を確認。
+
+### ビルドエラー
+```bash
+# node_modules再インストール
+rm -rf node_modules
+npm install
+```

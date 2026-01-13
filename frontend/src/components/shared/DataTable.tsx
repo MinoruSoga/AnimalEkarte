@@ -57,7 +57,7 @@ export function DataTable<T>({
                 </TableCell>
               </TableRow>
             ) : (
-              data.map((item, index) => renderRow(item))
+              data.map((item) => renderRow(item))
             )}
           </TableBody>
         </Table>

@@ -1,4 +1,4 @@
-import { Hospitalization, MedicalRecord, ReservationAppointment, TrimmingRecord, ColumnData, Pet, ExaminationRecord, AccountingRecord, VaccinationRecord, MasterItem } from "../types";
+import { Hospitalization, MedicalRecord, ReservationAppointment, TrimmingRecord, ColumnData, Pet, ExaminationRecord, AccountingRecord, VaccinationRecord } from "../types";
 
 export const INITIAL_DASHBOARD_COLUMNS: ColumnData[] = [
     {
@@ -40,7 +40,7 @@ export const INITIAL_DASHBOARD_COLUMNS: ColumnData[] = [
           petType: "猫",
           petName: "ミケ",
           petId: "3",
-          visitType: "��診",
+          visitType: "再診",
           serviceType: "診療",
           isDesignated: false,
           doctor: "医師B",

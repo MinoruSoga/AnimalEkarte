@@ -3,15 +3,18 @@ package handler
 import (
 	"net/http"
 
-	"github.com/animal-ekarte/backend/internal/service"
 	"github.com/gin-gonic/gin"
+
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
+// Handler contains the HTTP handlers.
 type Handler struct {
-	svc *service.Service
+	svc service.PetService
 }
 
-func New(svc *service.Service) *Handler {
+// New creates a new Handler with the given service.
+func New(svc service.PetService) *Handler {
 	return &Handler{svc: svc}
 }
 
@@ -34,16 +37,14 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 
 	// API v1
 	v1 := r.Group("/api/v1")
-	{
-		v1.GET("/", h.Welcome)
+	v1.GET("/", h.Welcome)
 
-		// Pets CRUD
-		v1.GET("/pets", h.GetPets)
-		v1.GET("/pets/:id", h.GetPet)
-		v1.POST("/pets", h.CreatePet)
-		v1.PUT("/pets/:id", h.UpdatePet)
-		v1.DELETE("/pets/:id", h.DeletePet)
-	}
+	// Pets CRUD
+	v1.GET("/pets", h.GetPets)
+	v1.GET("/pets/:id", h.GetPet)
+	v1.POST("/pets", h.CreatePet)
+	v1.PUT("/pets/:id", h.UpdatePet)
+	v1.DELETE("/pets/:id", h.DeletePet)
 }
 
 // Health godoc

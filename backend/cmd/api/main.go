@@ -8,17 +8,19 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/handler"
 	"github.com/animal-ekarte/backend/internal/logger"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
-	"github.com/gin-gonic/gin"
 
-	_ "github.com/animal-ekarte/backend/docs"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+
+	_ "github.com/animal-ekarte/backend/docs"
 )
 
 // @title Animal Ekarte API

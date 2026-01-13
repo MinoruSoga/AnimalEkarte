@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { 
     CarePlanItem, 
     DailyRecord, 
@@ -47,7 +47,7 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
     const handleAddPlan = async (plan: CreateCarePlanDTO) => {
         if (!hospitalizationId) return;
         try {
-            const newPlan = await createCarePlan(plan);
+            const newPlan = await createCarePlan(hospitalizationId, plan);
             setPlans(prev => [...prev, newPlan]);
             toast.success("ケアプランを作成しました");
         } catch (error) {

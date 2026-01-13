@@ -28,7 +28,7 @@ export const HospitalizationCostSummary = ({
       <div className="space-y-2">
         {/* 小計 */}
         <div className="flex items-center justify-between py-1.5 border-b border-[rgba(55,53,47,0.09)]">
-          <span className={`${H_STYLES.text.base} text-[#37352F]/60`}>診療費　小計</span>
+          <span className={`${H_STYLES.text.base} text-[#37352F]/60`}>診療費 小計</span>
           <span className={`${H_STYLES.text.base} font-medium tabular-nums text-[#37352F]`}>
             ￥{totals.subtotalBeforeDiscount.toLocaleString()}
           </span>

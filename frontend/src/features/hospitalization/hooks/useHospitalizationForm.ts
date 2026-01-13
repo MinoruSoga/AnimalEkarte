@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { toast } from "sonner@2.0.3";
-import { TreatmentPlan, Pet, Hospitalization } from "../../../types";
+import { toast } from "sonner";
+import { TreatmentPlan, Pet } from "../../../types";
 import { HospitalizationFormData } from "../types";
 import { MOCK_PETS } from "../../../lib/constants";
 import { usePetSelection } from "../../pets/hooks/usePetSelection";
@@ -191,7 +191,7 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
       const today = new Date().toISOString().split('T')[0];
       const endDate = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
 
-      const saveDto: Partial<Hospitalization> = {
+      const baseData = {
           hospitalizationType: formData.hospitalizationType as "入院" | "ホテル",
           ownerName: formData.ownerName,
           petName: formData.petName,
@@ -199,15 +199,14 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
           cageId: formData.cageId,
           startDate: formData.displayDate || today,
           endDate: endDate,
-          status: isEdit ? undefined : "予約",
       };
 
       try {
           if (isEdit && id) {
-              await updateHospitalization(id, saveDto);
+              await updateHospitalization(id, baseData);
               toast.success("入院情報を更新しました");
           } else {
-              await createHospitalization(saveDto);
+              await createHospitalization(baseData);
               toast.success("入院情報を登録しました");
           }
           

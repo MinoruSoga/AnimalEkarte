@@ -4,9 +4,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
+
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/google/uuid"
 )
 
 func (s *Service) GetAllPets(ctx context.Context) ([]model.Pet, error) {

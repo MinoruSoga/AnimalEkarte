@@ -11,7 +11,8 @@ interface PatientInfoCardProps {
   staffName?: string;
   staffLabel?: string;
   serviceType?: string;
-  
+  className?: string;
+
   // New optional props for dynamic data
   petDetails?: string; // e.g. "9才5ヶ月 / メス / 避妊済"
   insuranceName?: string; // e.g. "ペット保険Aプラン"
@@ -28,6 +29,7 @@ export function PatientInfoCard({
   staffName = "医師A",
   staffLabel = "",
   serviceType = "診療",
+  className: _className,
   petDetails = "9才5ヶ月 / メス / 避妊済",
   insuranceName = "ペット保険Aプラン",
   insuranceDetails = "普通or危険",

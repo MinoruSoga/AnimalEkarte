@@ -1,10 +1,31 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { format } from "date-fns";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { AccountingRecord } from "../../../types";
+import { AccountingItem } from "../types";
 import { MOCK_ACCOUNTING_RECORDS, MOCK_PETS } from "../../../lib/constants";
 import { usePetSelection } from "../../pets/hooks/usePetSelection";
+
+// Helper to calculate amount from accounting items
+function calculateAmountFromItems(items: AccountingItem[]): number {
+  const subtotal = items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+  const tax = Math.floor(subtotal * 0.1);
+  return subtotal + tax;
+}
+
+// Helper to find pet from record
+function findPetFromRecord(record: AccountingRecord) {
+  const normalize = (s: string) => s.replace(/[\s\u3000]/g, "");
+  return MOCK_PETS.find(p => {
+    const pName = normalize(p.name);
+    const rName = normalize(record.petName);
+    const pOwner = normalize(p.ownerName);
+    const rOwner = normalize(record.ownerName);
+    return (pName.includes(rName) || rName.includes(pName)) &&
+           (pOwner.includes(rOwner) || rOwner.includes(pOwner));
+  });
+}
 
 export function useAccountingForm(id?: string) {
   const navigate = useNavigate();
@@ -13,82 +34,81 @@ export function useAccountingForm(id?: string) {
   const petId = searchParams.get("petId");
   const isEdit = !!id;
 
+  // Compute initial values from location state and params
+  const locationState = location.state as { accountingItems?: AccountingItem[] } | null;
+  const initialData = useMemo(() => {
+    const baseData: Partial<AccountingRecord> = {
+      status: "未収",
+      method: "-",
+      ownerName: "",
+      petName: "",
+      date: format(new Date(), "yyyy/MM/dd HH:mm"),
+      amount: 0,
+      note: ""
+    };
+
+    // Handle passed accounting items from Medical Record
+    if (locationState?.accountingItems) {
+      baseData.amount = calculateAmountFromItems(locationState.accountingItems);
+    }
+
+    // Handle edit mode
+    if (isEdit && id) {
+      const record = MOCK_ACCOUNTING_RECORDS.find(r => r.id === id);
+      if (record) {
+        return record;
+      }
+    }
+
+    return baseData;
+  }, [id, isEdit, locationState]);
+
+  // Compute initial pet selection
+  const initialPet = useMemo(() => {
+    if (isEdit && id) {
+      const record = MOCK_ACCOUNTING_RECORDS.find(r => r.id === id);
+      if (record) {
+        return findPetFromRecord(record);
+      }
+    } else if (petId) {
+      return MOCK_PETS.find(p => p.id === petId);
+    }
+    return undefined;
+  }, [id, isEdit, petId]);
+
   const petSelection = usePetSelection();
   const { selectedPets, setSelectedPets } = petSelection;
 
-  const [formData, setFormData] = useState<Partial<AccountingRecord>>({
-    status: "未収",
-    method: "-",
-    ownerName: "",
-    petName: "",
-    date: format(new Date(), "yyyy/MM/dd HH:mm"),
-    amount: 0,
-    note: ""
-  });
+  const [formData, setFormData] = useState<Partial<AccountingRecord>>(initialData);
 
+  // Track if we've done initial setup
+  const initializedRef = useRef(false);
+
+  // Initialize pet selection and handle navigation (only once)
   useEffect(() => {
-    // Handle passed accounting items from Medical Record
-    if (location.state?.accountingItems) {
-        const items = location.state.accountingItems as any[];
-        // Calculate total consistent with MedicalRecordBillCheck (Subtotal * 1.1)
-        // Assuming 10% tax for now as per MedicalRecordBillCheck implementation
-        const subtotal = items.reduce((sum, item) => {
-            return sum + (item.unitPrice * item.quantity);
-        }, 0);
-        
-        const tax = Math.floor(subtotal * 0.1);
-        const totalAmount = subtotal + tax;
+    if (initializedRef.current) return;
+    initializedRef.current = true;
 
-        setFormData(prev => ({
-            ...prev,
-            amount: totalAmount,
-            status: "未収" // Ensure status is reset or set correctly for new bill
-        }));
+    if (initialPet) {
+      setSelectedPets([initialPet]);
+    } else if (!isEdit && petId) {
+      // Pet ID provided but not found - redirect
+      navigate("/accounting/select-pet");
     }
+  }, [initialPet, isEdit, petId, setSelectedPets, navigate]);
 
-    if (isEdit && id) {
-        const record = MOCK_ACCOUNTING_RECORDS.find(r => r.id === id);
-        if (record) {
-            setFormData(record);
-            
-            const normalize = (s: string) => s.replace(/[\s\u3000]/g, "");
-            
-            const pet = MOCK_PETS.find(p => {
-                const pName = normalize(p.name);
-                const rName = normalize(record.petName);
-                const pOwner = normalize(p.ownerName);
-                const rOwner = normalize(record.ownerName);
-                
-                return (pName.includes(rName) || rName.includes(pName)) && 
-                       (pOwner.includes(rOwner) || rOwner.includes(pOwner));
-            });
-
-            if (pet) {
-                setSelectedPets([pet]);
-            }
-        }
-    } else {
-        if (petId) {
-            const foundPet = MOCK_PETS.find(p => p.id === petId);
-            if (foundPet) {
-                setSelectedPets([foundPet]);
-            } else {
-                navigate("/accounting/select-pet");
-            }
-        }
-    }
-  }, [id, isEdit, petId, setSelectedPets]);
-
-  useEffect(() => {
+  // Sync form data with selected pet (derived state pattern)
+  const formDataWithPet = useMemo(() => {
     if (selectedPets.length > 0) {
       const pet = selectedPets[0];
-      setFormData((prev) => ({
-        ...prev,
+      return {
+        ...formData,
         ownerName: pet.ownerName,
         petName: pet.name,
-      }));
+      };
     }
-  }, [selectedPets]);
+    return formData;
+  }, [formData, selectedPets]);
 
   const handleSave = () => {
       toast.success(isEdit ? "会計情報を更新しました" : "会計情報を登録しました");
@@ -102,7 +122,7 @@ export function useAccountingForm(id?: string) {
   };
 
   return {
-    formData,
+    formData: formDataWithPet,
     setFormData,
     petSelection,
     handleSave,

@@ -22,6 +22,8 @@ export interface TreatmentItem {
   quantity: number;
   discountRate: number;
   discountAmount: number;
+  selected?: boolean;
+  inventoryId?: string;
 }
 
 interface TreatmentTableProps {

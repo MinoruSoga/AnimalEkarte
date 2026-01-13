@@ -1,13 +1,13 @@
-import { 
-  LayoutDashboard, 
-  Users, 
-  Calendar, 
-  FileText, 
-  TestTube, 
-  CreditCard, 
-  Bed, 
-  Syringe, 
-  Scissors, 
+import {
+  LayoutDashboard,
+  Users,
+  Calendar,
+  FileText,
+  TestTube,
+  CreditCard,
+  Bed,
+  Syringe,
+  Scissors,
   Settings,
   ChevronDown,
   PanelLeftClose,
@@ -15,12 +15,11 @@ import {
   Pill,
   ShieldCheck,
   Building2,
-  Package,
   Stethoscope,
   Activity,
 } from "lucide-react";
 import { Button } from "./ui/button";
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { MenuItem } from "../types";
 import { useClinicInfo } from "../features/clinic/hooks/useClinicInfo";
@@ -33,26 +32,30 @@ interface SidebarItemProps {
 
 const SidebarItem = ({ item, collapsed = false, level = 0 }: SidebarItemProps) => {
   const location = useLocation();
-  const [isExpanded, setIsExpanded] = useState(false);
-  
-  // Expand if any child is active
-  useEffect(() => {
-    if (item.subItems?.some(sub => sub.path === location.pathname)) {
-        setIsExpanded(true);
-    }
-  }, [location.pathname, item.subItems]);
 
-  const isActive = item.path === "/" 
+  // Track manual toggle state (null = auto, true/false = user toggled)
+  const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
+
+  // Compute if any child is active
+  const hasActiveChild = useMemo(
+    () => item.subItems?.some(sub => sub.path === location.pathname) ?? false,
+    [item.subItems, location.pathname]
+  );
+
+  // Auto-expand if child is active, unless manually collapsed
+  const isExpanded = manualExpanded ?? hasActiveChild;
+
+  const isActive = item.path === "/"
     ? location.pathname === "/"
     : location.pathname.startsWith(item.path || "");
 
   const hasSubItems = item.subItems && item.subItems.length > 0;
   
   const handleClick = (e: React.MouseEvent) => {
-      if (hasSubItems) {
-          e.preventDefault();
-          setIsExpanded(!isExpanded);
-      }
+    if (hasSubItems) {
+      e.preventDefault();
+      setManualExpanded(!isExpanded);
+    }
   };
 
   const content = (

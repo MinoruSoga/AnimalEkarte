@@ -1,9 +1,8 @@
 import { startOfWeek, addDays, format, isSameDay } from "date-fns";
 import { ja } from "date-fns/locale";
-import { Clock, User, Info } from "lucide-react";
 import { ReservationAppointment } from "../../../types";
 import { getReservationTypeColor, getReservationTypeName } from "../../../lib/status-helpers";
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { motion } from "motion/react";
 
 // Reduced height for High Density UI

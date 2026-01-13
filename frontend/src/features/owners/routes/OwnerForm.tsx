@@ -2,7 +2,6 @@ import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { Textarea } from "../../../components/ui/textarea";
-import { Checkbox } from "../../../components/ui/checkbox";
 import { Switch } from "../../../components/ui/switch";
 import {
   Table,
@@ -324,7 +323,7 @@ export const OwnerForm = () => {
             </div>
             <div className="space-y-1.5 col-span-1 lg:col-span-2">
               <Label htmlFor="companyPhone" className="text-sm text-[#37352F]/60">
-                会社　電話番号
+                会社 電話番号
               </Label>
               <Input
                 id="companyPhone"
@@ -406,7 +405,7 @@ export const OwnerForm = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  pets.map((pet, index) => (
+                  pets.map((pet) => (
                     <TableRow
                       key={pet.id}
                       className="transition-colors border-b-[rgba(55,53,47,0.09)] hover:bg-[#F7F6F3]/50 h-12"

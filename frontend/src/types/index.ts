@@ -53,7 +53,7 @@ export interface Hospitalization {
   hospitalizationType: "入院" | "ホテル";
   startDate: string;
   endDate: string;
-  status: "入院中" | "退院済" | "予約";
+  status: "入院中" | "退院済" | "予約" | "一時帰宅";
   cageId?: string;
 }
 
@@ -126,6 +126,8 @@ export interface Pet {
   petNumber?: string; // Optional for mocks that might not have it
   name: string; // Unified name
   species: string;
+  breed?: string;
+  gender?: string;
   status?: "生存" | "死亡";
   birthDate?: string;
   weight?: string;

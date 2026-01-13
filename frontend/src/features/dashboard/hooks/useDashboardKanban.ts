@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from "react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { Appointment, ColumnData } from "../../../types";
 import { INITIAL_DASHBOARD_COLUMNS } from "../../../lib/constants";
 

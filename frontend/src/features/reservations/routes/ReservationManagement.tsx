@@ -16,7 +16,7 @@ import {
 } from "../../../components/ui/select";
 import { format, addWeeks, subWeeks, addMonths, subMonths, addHours } from "date-fns";
 import { ja } from "date-fns/locale";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { ReservationAppointment, Pet } from "../../../types";
 import { generateMockAppointments, MOCK_PETS } from "../../../lib/constants";
 import { ReservationFormModal } from "../components/ReservationFormModal";
@@ -179,8 +179,8 @@ export const ReservationManagement = () => {
         // Create new mode: One per pet
         selectedPets.forEach(pet => {
             const newAppointment: ReservationAppointment = {
-                id: Math.random().toString(36).substr(2, 9),
                 ...data as ReservationAppointment,
+                id: Math.random().toString(36).substr(2, 9),
                 ownerName: pet.ownerName,
                 petName: pet.name,
                 petId: pet.id

@@ -1,4 +1,4 @@
-import { CreateCareLogDTO, DailyRecord } from "../../types";
+import { CreateCareLogDTO, DailyRecord } from "../types";
 import { getStoredRecords, setStoredRecords } from "./store";
 
 export const createCareLog = async (hospitalizationId: string, date: string, data: CreateCareLogDTO): Promise<DailyRecord["careLogs"][0]> => {

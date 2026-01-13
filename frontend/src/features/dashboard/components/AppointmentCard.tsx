@@ -76,6 +76,7 @@ export const AppointmentCard = ({
     }),
   }));
 
+  // eslint-disable-next-line react-hooks/refs -- react-dnd connector pattern requires this
   drag(drop(ref));
 
   const getServiceIcon = (service: string) => {

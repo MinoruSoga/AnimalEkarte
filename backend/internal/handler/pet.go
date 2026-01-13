@@ -4,9 +4,10 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/gin-gonic/gin"
 )
 
 // GetPets godoc
@@ -142,6 +143,7 @@ func (h *Handler) DeletePet(c *gin.Context) {
 }
 
 // handleError はエラータイプに応じて適切なHTTPレスポンスを返す
+// nolint:unparam // resource is kept for future extensibility with other resource types
 func (h *Handler) handleError(c *gin.Context, err error, resource, id string) {
 	ctx := c.Request.Context()
 
