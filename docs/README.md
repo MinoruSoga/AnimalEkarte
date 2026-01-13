@@ -7,7 +7,20 @@ Animal Ekarte（動物病院電子カルテシステム）の技術ドキュメ�
 | ドキュメント | 説明 |
 |-------------|------|
 | [ERD.md](./ERD.md) | データベース設計書（ER図、テーブル定義、ステータス定義） |
-| [API.md](./API.md) | REST API仕様書（エンドポイント、リクエスト/レスポンス例） |
+| [API-ROADMAP.md](./API-ROADMAP.md) | 未実装API設計書（将来実装予定のエンドポイント） |
+
+## API仕様
+
+### 実装済みAPI（Swagger）
+
+実装済みAPIの仕様は Swagger UI で確認できます：
+
+- **Swagger UI:** http://localhost:8080/swagger/index.html
+- **OpenAPI仕様:** `backend/docs/swagger.yaml`
+
+### 未実装API（設計のみ）
+
+- [API-ROADMAP.md](./API-ROADMAP.md) - 将来実装予定のエンドポイント一覧
 
 ## クイックリンク
 
@@ -17,17 +30,6 @@ Animal Ekarte（動物病院電子カルテシステム）の技術ドキュメ�
 - [テーブル一覧](./ERD.md#テーブル一覧)
 - [ステータス定義](./ERD.md#ステータス定義)
 - [インデックス設計](./ERD.md#インデックス設計)
-
-### API仕様
-
-- [エンドポイント一覧](./API.md#エンドポイント一覧)
-- [飼い主 API](./API.md#飼い主-api)
-- [ペット API](./API.md#ペット-api)
-- [電子カルテ API](./API.md#電子カルテ-api)
-- [予約 API](./API.md#予約-api)
-- [入院 API](./API.md#入院-api)
-- [会計 API](./API.md#会計-api)
-- [ダッシュボード API](./API.md#ダッシュボード-api)
 
 ## 関連ドキュメント
 

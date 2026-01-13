@@ -22,7 +22,8 @@ docker compose exec backend go <command>
 
 - [ドキュメント目次](docs/README.md)
 - [ERD（データベース設計）](docs/ERD.md)
-- [API仕様書](docs/API.md)
+- [API仕様（Swagger）](http://localhost:8080/swagger/index.html)
+- [API設計ロードマップ](docs/API-ROADMAP.md)
 - [仕様定義書](spec.md)
 
 ## クイックリファレンス
