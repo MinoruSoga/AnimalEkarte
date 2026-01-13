@@ -1,0 +1,67 @@
+{
+  "project": "Animal Ekarte",
+  "version": "0.1.0",
+  "lastUpdated": "2025-01-13",
+  "features": [
+    {
+      "id": "SETUP-001",
+      "name": "プロジェクト初期設定",
+      "description": "Docker環境、Go/React基本構成",
+      "status": "passing",
+      "priority": "high",
+      "dependencies": [],
+      "commit": null,
+      "completedAt": "2025-01-13"
+    },
+    {
+      "id": "DB-001",
+      "name": "データベース設計",
+      "description": "患者、診療記録、薬剤等のスキーマ設計",
+      "status": "failing",
+      "priority": "high",
+      "dependencies": ["SETUP-001"],
+      "commit": null,
+      "completedAt": null
+    },
+    {
+      "id": "API-001",
+      "name": "患者管理API",
+      "description": "患者CRUD操作のAPIエンドポイント",
+      "status": "failing",
+      "priority": "high",
+      "dependencies": ["DB-001"],
+      "commit": null,
+      "completedAt": null
+    },
+    {
+      "id": "API-002",
+      "name": "診療記録API",
+      "description": "診療記録CRUD操作のAPIエンドポイント",
+      "status": "failing",
+      "priority": "high",
+      "dependencies": ["DB-001"],
+      "commit": null,
+      "completedAt": null
+    },
+    {
+      "id": "UI-001",
+      "name": "患者一覧画面",
+      "description": "患者の検索・一覧表示UI",
+      "status": "failing",
+      "priority": "medium",
+      "dependencies": ["API-001"],
+      "commit": null,
+      "completedAt": null
+    },
+    {
+      "id": "UI-002",
+      "name": "カルテ入力画面",
+      "description": "診療記録の入力・編集UI",
+      "status": "failing",
+      "priority": "medium",
+      "dependencies": ["API-002"],
+      "commit": null,
+      "completedAt": null
+    }
+  ]
+}

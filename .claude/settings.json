@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "outputStyle": "senior-engineer",
+  "statusLine": {
+    "enabled": true
+  },
+  "env": {
+    "USE_DOCKER": "true",
+    "DOCKER_PROJECT": "your-project-name",
+    "MAX_THINKING_TOKENS": "10000",
+    "BASH_DEFAULT_TIMEOUT_MS": "60000",
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
+    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1"
+  },
+  "plansPath": ".claude/plans",
+  "sessionsPath": ".claude/sessions",
+  "fileHistoryPath": ".claude/file-history",
+  "outputStylesPath": ".claude/output-styles",
+  "skillsPath": ".claude/skills",
+  "agentsPath": ".claude/agents",
+  "designSystemPath": ".claude/design_system",
+  "docsPath": ".claude/docs",
+  "readmePath": ".claude/README.md",
+  "claudePath": ".claude",
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "excludedCommands": ["docker", "docker-compose", "make", "git"],
+    "allowUnsandboxedCommands": true,
+    "network": {
+      "allowLocalBinding": true,
+      "allowUnixSockets": []
+    }
+  },
+  "enableAllProjectMcpServers": true,
+  "permissions": {
+    "deny": [
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(pnpm:*)",
+      "Bash(yarn:*)",
+      "Bash(node:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(rm -rf:*)",
+      "Bash(*|bash:*)",
+      "Bash(*|sh:*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.kube/**)",
+      "Read(~/.gnupg/**)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(./api-keys.json)",
+      "Read(./secrets.json)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Read(./**/*.crt)",
+      "Read(./**/*.p12)",
+      "Read(./**/*.pfx)",
+      "Read(./node_modules/**)",
+      "Read(./.next/**)",
+      "Read(./out/**)",
+      "Read(./dist/**)",
+      "Read(./build/**)",
+      "Read(./coverage/**)",
+      "Read(./.cache/**)",
+      "Read(./**/*.db)",
+      "Read(./**/*.log)",
+      "Read(./logs/**)",
+      "Read(./.git/**)",
+      "Read(./tmp/**)",
+      "Read(./temp/**)",
+      "Write(./.env)",
+      "Write(./.env.*)",
+      "Write(./secrets/**)",
+      "Write(./**/*.pem)",
+      "Write(./**/*.key)",
+      "Write(./.git/**)",
+      "Write(./node_modules/**)"
+    ],
+    "allow": [
+      "Bash(make:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker images:*)",
+      "Bash(docker inspect:*)",
+      "Bash(gh:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git status:*)",
+      "Bash(git branch:*)",
+      "Bash(git show:*)",
+      "Bash(git stash:*)",
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(pwd:*)",
+      "Bash(echo:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Read(src/**)",
+      "Read(public/**)",
+      "Read(tests/**)",
+      "Read(docs/**)",
+      "Write(src/**)",
+      "Write(tests/**)"
+    ],
+    "ask": [
+      "Bash(rm:*)",
+      "Bash(make clean:*)",
+      "Bash(docker-compose down:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker restart:*)",
+      "Bash(docker volume rm:*)",
+      "Bash(docker system prune:*)",
+      "Bash(git push --force:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git rebase:*)",
+      "Bash(git push origin --delete:*)",
+      "Bash(sudo:*)"
+    ],
+    "defaultMode": "default"
+  },
+  "cleanupPeriodDays": 30,
+  "includeCoAuthoredBy": true,
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-dangerous.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/log-commands.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/auto-format.sh"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/notify-slack.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-init.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/cleanup.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

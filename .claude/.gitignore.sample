@@ -1,0 +1,11 @@
+# Claude Code セッション履歴
+sessions/
+
+# Claude Code プラン履歴
+plans/
+
+# macOS システムファイル
+.DS_Store
+
+# ファイル変更履歴（自動生成）
+file-history/

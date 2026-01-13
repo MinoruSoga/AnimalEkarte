@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make *)",
+      "Bash(docker compose *)",
+      "Bash(go test *)",
+      "Bash(go build *)",
+      "WebSearch",
+      "mcp__serena__list_dir"
+    ]
+  },
+  "enableAllProjectMcpServers": true
+}

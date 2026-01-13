@@ -1,0 +1,243 @@
+basePath: /api/v1
+definitions:
+  model.CreatePetRequest:
+    properties:
+      birth_date:
+        type: string
+      breed:
+        type: string
+      gender:
+        type: string
+      name:
+        type: string
+      species:
+        type: string
+      weight:
+        type: number
+    required:
+    - name
+    - species
+    type: object
+  model.Pet:
+    properties:
+      birth_date:
+        type: string
+      breed:
+        type: string
+      created_at:
+        type: string
+      gender:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      species:
+        type: string
+      updated_at:
+        type: string
+      weight:
+        type: number
+    type: object
+  model.UpdatePetRequest:
+    properties:
+      birth_date:
+        type: string
+      breed:
+        type: string
+      gender:
+        type: string
+      name:
+        type: string
+      species:
+        type: string
+      weight:
+        type: number
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: 動物病院 電子カルテシステム API
+  title: Animal Ekarte API
+  version: "1.0"
+paths:
+  /:
+    get:
+      description: APIのウェルカムメッセージを返します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ウェルカムメッセージ
+      tags:
+      - system
+  /health:
+    get:
+      description: APIの稼働状態を確認します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ヘルスチェック
+      tags:
+      - system
+  /pets:
+    get:
+      consumes:
+      - application/json
+      description: 登録されているペットの一覧を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Pet'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ペット一覧取得
+      tags:
+      - pets
+    post:
+      consumes:
+      - application/json
+      description: 新しいペットを登録します
+      parameters:
+      - description: ペット情報
+        in: body
+        name: pet
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreatePetRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Pet'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ペット新規登録
+      tags:
+      - pets
+  /pets/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定されたIDのペットを削除します
+      parameters:
+      - description: ペットID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ペット削除
+      tags:
+      - pets
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDのペット情報を取得します
+      parameters:
+      - description: ペットID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Pet'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ペット詳細取得
+      tags:
+      - pets
+    put:
+      consumes:
+      - application/json
+      description: 指定されたIDのペット情報を更新します
+      parameters:
+      - description: ペットID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新するペット情報
+        in: body
+        name: pet
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdatePetRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Pet'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ペット情報更新
+      tags:
+      - pets
+swagger: "2.0"

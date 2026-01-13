@@ -1,0 +1,86 @@
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    # デフォルト
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    # 追加推奨
+    - gofmt
+    - goimports
+    - gocritic
+    - gosec
+    - misspell
+    - prealloc
+    - revive
+    - unconvert
+    - unparam
+    - errorlint      # エラーハンドリング改善
+    - nilerr         # nilエラーチェック
+    - contextcheck   # Context伝播チェック
+    - wrapcheck      # エラーラッピングチェック
+
+linters-settings:
+  goimports:
+    local-prefixes: github.com/animal-ekarte/backend
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      - name: increment-decrement
+      - name: var-naming
+      - name: package-comments
+        disabled: true
+      - name: unexported-return
+
+  errorlint:
+    errorf: true
+    asserts: true
+    comparison: true
+
+  gosec:
+    excludes:
+      - G104  # エラー無視（errcheckでカバー）
+
+  wrapcheck:
+    ignoreSigs:
+      - .Errorf(
+      - errors.New(
+      - errors.Unwrap(
+    ignorePackageGlobs:
+      - github.com/animal-ekarte/backend/internal/*
+
+issues:
+  exclude-rules:
+    # テストファイルは一部緩和
+    - path: _test\.go
+      linters:
+        - gosec
+        - wrapcheck
+        - errcheck
+
+    # main.goはwrapcheck緩和
+    - path: cmd/
+      linters:
+        - wrapcheck
+
+  max-issues-per-linter: 50
+  max-same-issues: 10
