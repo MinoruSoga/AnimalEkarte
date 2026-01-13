@@ -7,6 +7,7 @@ Animal Ekarte（動物病院電子カルテシステム）の技術ドキュメ�
 | ドキュメント | 説明 |
 |-------------|------|
 | [ERD.md](./ERD.md) | データベース設計書（ER図、テーブル定義、ステータス定義） |
+| [MIGRATION.md](./MIGRATION.md) | マイグレーションシステム（DB作成・管理方法） |
 | [API-ROADMAP.md](./API-ROADMAP.md) | 未実装API設計書（将来実装予定のエンドポイント） |
 
 ## API仕様
