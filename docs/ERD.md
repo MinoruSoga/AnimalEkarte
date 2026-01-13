@@ -294,7 +294,7 @@ erDiagram
         uuid owner_id FK "飼い主ID"
         date scheduled_date "会計予定日"
         timestamp completed_at "会計完了日時"
-        varchar(20) status "ステータス (waiting, pending, completed, canceled)"
+        varchar(20) status "ステータス (未収, 保留, 回収済, キャンセル)"
         decimal(10_2) subtotal "税抜小計"
         decimal(10_2) tax_total "消費税合計"
         decimal(10_2) total_amount "税込合計"
@@ -439,7 +439,7 @@ erDiagram
 | `in_consultation` | 診療中 |
 | `accounting` | 会計待ち |
 | `completed` | 完了 |
-| `cancelled` | キャンセル |
+| `canceled` | キャンセル |
 
 ### reservations.service_type
 | 値 | 説明 |
@@ -456,10 +456,10 @@ erDiagram
 ### accountings.status
 | 値 | 説明 |
 |----|------|
-| `waiting` | 会計待ち |
-| `pending` | 保留 |
-| `completed` | 会計完了 |
-| `canceled` | キャンセル |
+| `未収` | 会計待ち |
+| `保留` | 保留 |
+| `回収済` | 会計完了 |
+| `キャンセル` | キャンセル |
 
 ### trimmings.status
 | 値 | 説明 |
