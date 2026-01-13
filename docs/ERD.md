@@ -305,7 +305,7 @@ erDiagram
         decimal(10_2) billing_amount "請求金額"
         decimal(10_2) received_amount "預り金額"
         decimal(10_2) change_amount "お釣り"
-        varchar(30) payment_method "支払方法 (cash, credit_card, electronic_money)"
+        varchar(30) payment_method "支払方法 (現金, クレジットカード, 電子マネー)"
         text memo "備考"
         timestamp created_at
         timestamp updated_at
