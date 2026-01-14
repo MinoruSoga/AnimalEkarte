@@ -87,7 +87,7 @@ func main() {
 		logger.Error("failed to migrate database", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
-	logger.Info("database migrated successfully (22 tables)")
+	logger.Info("database migrated successfully (20 tables)")
 
 	// レイヤー初期化
 	repo := repository.New(db)

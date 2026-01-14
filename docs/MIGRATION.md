@@ -19,7 +19,7 @@ if err := db.AutoMigrate(
     &model.Clinic{},
     &model.Owner{},
     &model.Pet{},
-    // ... 全22モデル
+    // ... 全20モデル
 ); err != nil {
     logger.Error("failed to migrate database", ...)
     os.Exit(1)
@@ -102,7 +102,7 @@ make up / make build
 ┌─────────────────────────────────────┐
 │  3. Backend コンテナ起動            │
 │     └─ GORM AutoMigrate 実行        │
-│        （22テーブル自動作成/同期）    │
+│        （20テーブル自動作成/同期）    │
 └─────────────────────────────────────┘
         │
         ▼
@@ -192,7 +192,7 @@ make build
 
 ---
 
-## 6. テーブル一覧（22テーブル）
+## 6. テーブル一覧（20テーブル）
 
 ### コアテーブル
 
