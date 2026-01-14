@@ -2,55 +2,12 @@
 
 ## 概要
 
-本プロジェクトでは**ハイブリッドマイグレーション方式**を採用しています。
-
-| 方式 | 用途 | タイミング |
-|------|------|-----------|
-| SQL ファイル | 初期スキーマ作成 | Docker初回起動時 |
-| GORM AutoMigrate | アプリケーションモデル同期 | アプリ起動時 |
+本プロジェクトでは **GORM AutoMigrate** を採用しています。
+Go のモデル定義が唯一の真実の源（Single Source of Truth）となり、アプリケーション起動時に自動的にスキーマが同期されます。
 
 ---
 
-## 1. SQL マイグレーション（Docker自動実行）
-
-### 仕組み
-
-PostgreSQL コンテナは `/docker-entrypoint-initdb.d/` ディレクトリ内の SQL ファイルを**初回起動時のみ**自動実行します。
-
-```yaml
-# docker-compose.yml
-db:
-  image: postgres:18-alpine
-  volumes:
-    - ./backend/migrations:/docker-entrypoint-initdb.d
-```
-
-### マイグレーションファイル
-
-```
-backend/migrations/
-└── 001_init.sql    # 初期スキーマ（owners, pets, medical_records）
-```
-
-### 命名規則
-
-```
-{番号}_{説明}.sql
-
-例:
-001_init.sql
-002_add_reservations.sql
-003_add_hospitalizations.sql
-```
-
-### 実行順序
-
-- ファイル名のアルファベット順（数字プレフィックスで制御）
-- **初回起動時のみ実行**（データボリュームが存在する場合はスキップ）
-
----
-
-## 2. GORM AutoMigrate（アプリケーションレベル）
+## 1. GORM AutoMigrate
 
 ### 仕組み
 
@@ -58,26 +15,69 @@ backend/migrations/
 
 ```go
 // backend/cmd/api/main.go
-if err := db.AutoMigrate(&model.Pet{}); err != nil {
-    logger.Error("failed to migrate database", slog.String("error", err.Error()))
+if err := db.AutoMigrate(
+    &model.Clinic{},
+    &model.Owner{},
+    &model.Pet{},
+    // ... 全22モデル
+); err != nil {
+    logger.Error("failed to migrate database", ...)
     os.Exit(1)
 }
 ```
 
-### 現在の対象モデル
-
-| モデル | テーブル | 状態 |
-|--------|---------|------|
-| Pet | pets | ✅ AutoMigrate対象 |
-| Owner | owners | 📋 SQL のみ |
-| MedicalRecord | medical_records | 📋 SQL のみ |
-
 ### AutoMigrate の動作
 
-- テーブルが存在しない → 作成
-- カラムが不足 → 追加
-- カラムの削除 → **しない**（安全のため）
-- インデックス → 追加のみ
+| 操作 | 動作 |
+|------|------|
+| テーブル不存在 | → 作成 |
+| カラム不足 | → 追加 |
+| カラム削除 | → **しない**（安全のため） |
+| インデックス | → 追加のみ |
+
+---
+
+## 2. モデル定義
+
+### インデックス定義
+
+GORM の構造体タグでインデックスを定義します。
+
+```go
+type Pet struct {
+    ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+    OwnerID   uuid.UUID `gorm:"type:uuid;not null;index:idx_pets_owner_id"`
+    PetNumber string    `gorm:"type:varchar(20);uniqueIndex:idx_pets_pet_number"`
+    // ...
+}
+```
+
+### サポートされるインデックス機能
+
+| 機能 | タグ例 |
+|------|--------|
+| 単一インデックス | `gorm:"index"` |
+| ユニークインデックス | `gorm:"uniqueIndex"` |
+| 名前付きインデックス | `gorm:"index:idx_name"` |
+| 複合インデックス | `gorm:"index:idx_name,priority:1"` |
+| 降順インデックス | `gorm:"index:idx_name,sort:desc"` |
+
+### モデルファイル一覧
+
+```
+backend/internal/model/
+├── owner.go           # 飼い主
+├── pet.go             # ペット
+├── medical_record.go  # 電子カルテ
+├── reservation.go     # 予約
+├── hospitalization.go # 入院/ホテル（Cage, CarePlanItem, DailyRecord, Vital, CareLog, StaffNote含む）
+├── accounting.go      # 会計（AccountingItem含む）
+├── vaccination.go     # ワクチン
+├── trimming.go        # トリミング
+├── examination.go     # 検査
+├── master.go          # マスタ/在庫（MasterItem, InventoryItem）
+└── clinic.go          # クリニック/スタッフ（Clinic, Staff）
+```
 
 ---
 
@@ -89,7 +89,7 @@ make up / make build
         ▼
 ┌─────────────────────────────────────┐
 │  1. PostgreSQL コンテナ起動         │
-│     └─ 初回: migrations/*.sql 実行  │
+│     └─ uuid-ossp 拡張有効化         │
 └─────────────────────────────────────┘
         │
         ▼
@@ -102,6 +102,7 @@ make up / make build
 ┌─────────────────────────────────────┐
 │  3. Backend コンテナ起動            │
 │     └─ GORM AutoMigrate 実行        │
+│        （22テーブル自動作成/同期）    │
 └─────────────────────────────────────┘
         │
         ▼
@@ -119,7 +120,7 @@ make up / make build
 
 | コマンド | 説明 |
 |---------|------|
-| `make up` | コンテナ起動（初回は自動マイグレーション） |
+| `make up` | コンテナ起動（自動マイグレーション） |
 | `make build` | 再ビルド＆起動 |
 | `make down` | コンテナ停止 |
 | `make db` | PostgreSQL に接続（psql） |
@@ -135,59 +136,112 @@ make up / make build
 
 ```bash
 # マイグレーション実行ログ確認
-make logs
+make logs-api | grep -i migrate
 
 # DB 接続してテーブル確認
 make db
 \dt              # テーブル一覧
 \d pets          # pets テーブル構造
+\di              # インデックス一覧
 ```
 
 ---
 
-## 5. 新規マイグレーション追加手順
+## 5. 新規モデル追加手順
 
-### 方法 A: SQL ファイル追加
+### 手順
 
-```bash
-# 1. マイグレーションファイル作成
-touch backend/migrations/002_add_reservations.sql
-
-# 2. SQL 記述
-cat << 'EOF' > backend/migrations/002_add_reservations.sql
--- 予約テーブル追加
-CREATE TABLE IF NOT EXISTS reservations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    pet_id UUID REFERENCES pets(id) ON DELETE CASCADE,
-    -- ... 他のカラム
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-EOF
-
-# 3. DB リセット（初回実行のみSQL適用されるため）
-make reset
-```
-
-### 方法 B: GORM モデル追加
+1. **モデル定義ファイル作成**
 
 ```go
-// 1. モデル定義 (backend/internal/model/reservation.go)
-type Reservation struct {
-    ID        uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
-    PetID     uuid.UUID `gorm:"type:uuid;not null"`
-    // ... 他のフィールド
+// backend/internal/model/new_feature.go
+package model
+
+type NewFeature struct {
+    ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+    Name      string    `gorm:"type:varchar(100);not null;index:idx_new_feature_name"`
+    Status    string    `gorm:"type:varchar(20);default:'active'"`
     CreatedAt time.Time
+    UpdatedAt time.Time
 }
 
-// 2. AutoMigrate に追加 (backend/cmd/api/main.go)
-if err := db.AutoMigrate(&model.Pet{}, &model.Reservation{}); err != nil {
+func (NewFeature) TableName() string {
+    return "new_features"
+}
+```
+
+2. **AutoMigrate に追加**
+
+```go
+// backend/cmd/api/main.go
+if err := db.AutoMigrate(
+    // ... 既存モデル
+    &model.NewFeature{}, // 追加
+); err != nil {
     // ...
 }
 ```
 
+3. **アプリケーション再起動**
+
+```bash
+make restart-api
+# または
+make build
+```
+
 ---
 
-## 6. 環境変数
+## 6. テーブル一覧（22テーブル）
+
+### コアテーブル
+
+| テーブル | モデル | 説明 |
+|---------|--------|------|
+| clinics | Clinic | クリニック情報 |
+| staffs | Staff | スタッフ |
+| owners | Owner | 飼い主 |
+| pets | Pet | ペット |
+
+### 診療関連
+
+| テーブル | モデル | 説明 |
+|---------|--------|------|
+| medical_records | MedicalRecord | 電子カルテ |
+| reservations | Reservation | 予約 |
+| examinations | Examination | 検査 |
+| vaccinations | Vaccination | ワクチン |
+
+### 入院関連
+
+| テーブル | モデル | 説明 |
+|---------|--------|------|
+| hospitalizations | Hospitalization | 入院/ホテル |
+| cages | Cage | ケージ |
+| care_plan_items | CarePlanItem | ケアプラン |
+| daily_records | DailyRecord | 日次記録 |
+| vitals | Vital | バイタル |
+| care_logs | CareLog | ケアログ |
+| staff_notes | StaffNote | スタッフメモ |
+
+### 会計関連
+
+| テーブル | モデル | 説明 |
+|---------|--------|------|
+| accountings | Accounting | 会計 |
+| accounting_items | AccountingItem | 会計明細 |
+
+### その他
+
+| テーブル | モデル | 説明 |
+|---------|--------|------|
+| trimmings | Trimming | トリミング |
+| master_items | MasterItem | マスタ |
+| inventory_items | InventoryItem | 在庫 |
+
+---
+
+## 7. 環境変数
 
 ```bash
 # .env
@@ -204,92 +258,70 @@ DB_PORT=5432
 
 ---
 
-## 7. 実装状況
-
-### 現在実装済み（SQL + GORM）
-
-| テーブル | SQL | GORM Model | Repository | Handler |
-|---------|:---:|:----------:|:----------:|:-------:|
-| owners | ✅ | ❌ | ❌ | ❌ |
-| pets | ✅ | ✅ | ✅ | ✅ |
-| medical_records | ✅ | ❌ | ❌ | ❌ |
-
-### 将来実装予定（ERD.md 参照）
-
-- reservations
-- hospitalizations
-- accountings
-- vaccinations
-- trimmings
-- examinations
-- その他 14 テーブル
-
----
-
 ## 8. 注意事項
 
-### ⚠️ 初回起動時のみ SQL 実行
+### ⚠️ カラム削除は自動では行われない
 
-PostgreSQL Docker イメージの仕様により、SQL マイグレーションは**データボリュームが空の時のみ**実行されます。
+GORM AutoMigrate は**安全のためカラムを削除しません**。
+カラムを削除する場合は手動で実行してください。
 
 ```bash
-# 新しい SQL を適用するには
-make reset  # データ削除→再作成
+make db
+ALTER TABLE pets DROP COLUMN old_column;
 ```
 
 ### ⚠️ マイグレーションのロールバック
 
-現在のシステムには**自動ロールバック機能がありません**。
+AutoMigrate には**ロールバック機能がありません**。
+必要な場合は手動で対応してください。
 
 ```bash
-# 手動ロールバック（必要な場合）
 make db
 DROP TABLE IF EXISTS table_name CASCADE;
 ```
 
 ### ⚠️ 本番環境での推奨
 
-本番環境では専用のマイグレーションツールの導入を推奨します：
+本番環境ではバージョン管理付きマイグレーションツールの導入を推奨：
 
 | ツール | 特徴 |
 |--------|------|
 | [golang-migrate](https://github.com/golang-migrate/migrate) | SQL ベース、バージョン管理、ロールバック対応 |
 | [goose](https://github.com/pressly/goose) | SQL/Go 両対応、シンプル |
-| [atlas](https://atlasgo.io/) | 宣言的スキーマ管理 |
+| [atlas](https://atlasgo.io/) | GORM連携、宣言的スキーマ管理 |
 
 ---
 
 ## 9. トラブルシューティング
 
-### マイグレーションが実行されない
+### テーブルが作成されない
 
 ```bash
-# 原因: データボリュームが存在する
-# 解決: 完全リセット
-make reset
-```
-
-### テーブルが存在しないエラー
-
-```bash
-# 原因: マイグレーション未実行 or 失敗
-# 確認
-make logs | grep -i migration
-
-# 手動実行
-make db
-\i /docker-entrypoint-initdb.d/001_init.sql
-```
-
-### GORM AutoMigrate エラー
-
-```bash
+# 原因: AutoMigrate に登録されていない
 # 確認
 make logs-api | grep -i migrate
 
-# モデル定義とDB構造の不整合を確認
+# 解決: main.go の AutoMigrate に追加
+```
+
+### インデックスが作成されない
+
+```bash
+# 原因: GORM タグの記述ミス
+# 確認
 make db
-\d pets
+\di  # インデックス一覧
+
+# 解決: モデルのタグを確認
+```
+
+### 外部キー制約エラー
+
+```bash
+# 原因: AutoMigrate の順序が不適切
+# 解決: 依存関係順にモデルを並べる
+# 1. 独立テーブル（Clinic, InventoryItem, Cage）
+# 2. 依存テーブル（Staff, MasterItem, Owner, Pet...）
 ```
 
 ---

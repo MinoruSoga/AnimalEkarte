@@ -12,8 +12,9 @@ Animal Ekarte（動物病院電子カルテシステム）の完全なデータ�
 
 | 状態 | テーブル |
 |------|---------|
-| ✅ 実装済 | owners, pets, medical_records |
-| 📋 設計のみ | その他19テーブル |
+| ✅ GORM Model実装済 | 全22テーブル（clinics, staffs, owners, pets, medical_records, reservations, hospitalizations, cages, care_plan_items, daily_records, vitals, care_logs, staff_notes, vaccinations, trimmings, examinations, accountings, accounting_items, master_items, inventory_items） |
+
+> **Note**: マイグレーションは GORM AutoMigrate で自動実行されます。詳細は [MIGRATION.md](./MIGRATION.md) を参照。
 
 ---
 

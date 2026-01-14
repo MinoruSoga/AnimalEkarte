@@ -53,12 +53,41 @@ func main() {
 	}
 	logger.Info("database connected successfully")
 
-	// マイグレーション
-	if err := db.AutoMigrate(&model.Pet{}); err != nil {
+	// マイグレーション（全モデルを依存関係順に登録）
+	if err := db.AutoMigrate(
+		// 独立テーブル
+		&model.Clinic{},
+		&model.InventoryItem{},
+		&model.Cage{},
+		// Clinic依存
+		&model.Staff{},
+		// InventoryItem依存
+		&model.MasterItem{},
+		// コアテーブル
+		&model.Owner{},
+		&model.Pet{},
+		// Pet依存
+		&model.MedicalRecord{},
+		&model.Reservation{},
+		&model.Hospitalization{},
+		&model.Vaccination{},
+		&model.Trimming{},
+		&model.Examination{},
+		&model.Accounting{},
+		// Hospitalization依存
+		&model.CarePlanItem{},
+		&model.DailyRecord{},
+		// DailyRecord依存
+		&model.Vital{},
+		&model.CareLog{},
+		&model.StaffNote{},
+		// Accounting依存
+		&model.AccountingItem{},
+	); err != nil {
 		logger.Error("failed to migrate database", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
-	logger.Info("database migrated successfully")
+	logger.Info("database migrated successfully (22 tables)")
 
 	// レイヤー初期化
 	repo := repository.New(db)
