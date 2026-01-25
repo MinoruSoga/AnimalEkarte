@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { DndProvider } from "react-dnd";
 import { TouchBackend } from "react-dnd-touch-backend";
-import { Sidebar } from "./components/Sidebar";
+import { Sidebar, SidebarDrawerTrigger } from "./components/Sidebar";
+import { useDevice } from "./components/ui/use-mobile";
 import { Dashboard } from "./features/dashboard/routes";
 import { ReservationManagement } from "./features/reservations/routes";
 
@@ -19,11 +20,26 @@ import { ClinicSettings } from "./features/clinic/routes";
 import { Toaster } from "./components/ui/sonner";
 
 const Layout = () => {
+  const { isDesktop } = useDevice();
+
   return (
     <div className="flex w-full h-full bg-[#F7F6F3] overflow-hidden">
+      {/* デスクトップ: 固定サイドバー */}
       <Sidebar />
-      <div className="flex-1 overflow-hidden h-full">
-        <Outlet />
+
+      {/* メインコンテンツエリア */}
+      <div className="flex-1 overflow-hidden h-full flex flex-col">
+        {/* タブレット/モバイル: ヘッダーバー with ドロワートリガー */}
+        {!isDesktop && (
+          <div className="h-14 flex items-center px-3 border-b border-[rgba(55,53,47,0.16)] bg-[#F7F6F3] flex-shrink-0">
+            <SidebarDrawerTrigger />
+          </div>
+        )}
+
+        {/* ページコンテンツ */}
+        <div className="flex-1 overflow-hidden">
+          <Outlet />
+        </div>
       </div>
       <Toaster />
     </div>

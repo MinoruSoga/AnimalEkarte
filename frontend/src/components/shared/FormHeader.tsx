@@ -11,16 +11,15 @@ interface FormHeaderProps {
 
 export function FormHeader({ title, description, icon, onBack, action }: FormHeaderProps) {
   return (
-    <div className="sticky top-0 z-10 bg-[#F7F6F3] border-b border-[rgba(55,53,47,0.16)] px-4 py-2 flex items-center justify-between h-12">
+    <div className="sticky top-0 z-10 bg-[#F7F6F3] border-b border-[rgba(55,53,47,0.16)] px-4 py-2 flex items-center justify-between h-14">
       <div className="flex items-center gap-2">
         {onBack && (
           <Button
             variant="ghost"
-            size="sm"
             onClick={onBack}
-            className="text-[#37352F]/60 hover:text-[#37352F] hover:bg-transparent pl-0 h-10"
+            className="text-[#37352F]/60 hover:text-[#37352F] hover:bg-transparent pl-0 size-11"
           >
-            <ChevronLeft className="size-4" />
+            <ChevronLeft className="size-5" />
             <span className="sr-only">戻る</span>
           </Button>
         )}

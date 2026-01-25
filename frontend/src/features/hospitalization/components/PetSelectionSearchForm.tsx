@@ -23,7 +23,7 @@ export const PetSelectionSearchForm = ({ searchParams, setSearchParams, onSearch
   return (
     <div className={`mb-4 rounded-lg bg-white ${H_STYLES.padding.box} shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[rgba(55,53,47,0.16)]`}>
       <h2 className={`mb-2 ${H_STYLES.text.base} font-medium text-[#37352F]`}>検索条件</h2>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
         <div className="space-y-1.5">
           <Label htmlFor="ownerId" className={`${H_STYLES.text.sm} text-[#37352F]/60`}>
             飼主No

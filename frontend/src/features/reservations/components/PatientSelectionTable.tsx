@@ -61,7 +61,7 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
             <Filter className="size-3 text-muted-foreground" />
             <h2 className="text-sm font-medium text-[#37352F]">検索条件</h2>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mb-2">
           <div className="space-y-0.5">
             <Label htmlFor="ownerId" className="text-sm text-[#37352F]/60">飼主No</Label>
             <Input

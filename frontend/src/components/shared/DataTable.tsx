@@ -30,6 +30,7 @@ export function DataTable<T>({
   return (
     <div className={`bg-white border border-[rgba(55,53,47,0.16)] rounded-md shadow-sm flex flex-col h-[calc(100vh-220px)] ${className}`}>
       <div className="flex-1 overflow-auto relative">
+        <div className="min-w-[800px]">
         <Table>
           <TableHeader className="sticky top-0 z-10 shadow-sm">
             <TableRow className="border-b-[rgba(55,53,47,0.09)] bg-[#F7F6F3] hover:bg-[#F7F6F3] h-12">
@@ -61,6 +62,7 @@ export function DataTable<T>({
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
     </div>
   );

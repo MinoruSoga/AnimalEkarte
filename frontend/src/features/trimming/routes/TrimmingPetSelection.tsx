@@ -67,7 +67,7 @@ export const TrimmingPetSelection = () => {
         {/* Search Form */}
         <div className="mb-4 rounded-lg bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[rgba(55,53,47,0.16)]">
           <h2 className="mb-2 text-sm font-medium text-[#37352F]">検索条件</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
             <div className="space-y-1.5">
               <Label htmlFor="ownerId" className="text-sm text-[#37352F]/60">
                 飼主No
@@ -182,10 +182,10 @@ export const TrimmingPetSelection = () => {
             </div>
           </div>
           <div className="flex justify-end">
-            <Button 
+            <Button
               size="sm"
-              onClick={handleSearch} 
-              className="gap-2 bg-[#37352F] hover:bg-[#37352F]/90 text-white focus-visible:ring-[#2EAADC] h-10 text-sm"
+              onClick={handleSearch}
+              className="gap-2 bg-[#37352F] hover:bg-[#37352F]/90 text-white focus-visible:ring-[#2EAADC] h-11 text-sm"
             >
               <Search className="size-4" />
               検索
@@ -254,9 +254,9 @@ export const TrimmingPetSelection = () => {
                     <TableCell className="text-sm text-[#37352F] whitespace-nowrap py-2">{pet.environment || "-"}</TableCell>
                     <TableCell className="font-mono text-sm text-[#37352F] whitespace-nowrap py-2">{pet.lastVisit || "-"}</TableCell>
                     <TableCell className="whitespace-nowrap py-2" onClick={(e) => e.stopPropagation()}>
-                      <Button 
-                        size="sm" 
-                        className="h-10 gap-1 bg-[#37352F] hover:bg-[#37352F]/90 text-white text-sm px-4" 
+                      <Button
+                        size="sm"
+                        className="h-11 gap-1 bg-[#37352F] hover:bg-[#37352F]/90 text-white text-sm px-4"
                         onClick={() => handleSelect(pet)}
                       >
                         <Check className="size-4" />

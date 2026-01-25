@@ -217,15 +217,16 @@ export const Dashboard = () => {
             </div>
         )}
 
-        <div className="flex-1 overflow-hidden p-[20px] pt-4">
-            <div className="flex gap-2 h-full w-full overflow-x-auto pb-2 bg-transparent">
+        <div className="flex-1 overflow-hidden p-4 md:p-5">
+            {/* タブレット: 2-3列グリッド、デスクトップ: 5列flex */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:flex gap-2 h-full w-full overflow-y-auto lg:overflow-x-auto lg:overflow-y-hidden pb-2 bg-transparent">
                 {filteredColumns.map((column, index) => (
-                <KanbanColumn 
-                    key={index} 
-                    data={column} 
-                    moveCard={moveCard} 
-                    onAddClick={["診療中", "会計待ち", "会計済"].includes(column.title) ? undefined : () => handleAddClick(column.title)} 
-                    onCardClick={handleCardClick} 
+                <KanbanColumn
+                    key={index}
+                    data={column}
+                    moveCard={moveCard}
+                    onAddClick={["診療中", "会計待ち", "会計済"].includes(column.title) ? undefined : () => handleAddClick(column.title)}
+                    onCardClick={handleCardClick}
                 />
                 ))}
             </div>

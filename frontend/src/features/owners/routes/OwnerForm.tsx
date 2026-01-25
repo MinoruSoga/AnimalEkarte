@@ -85,7 +85,7 @@ export const OwnerForm = () => {
             <User className="h-4 w-4 text-[#37352F]/60" />
             飼主情報
           </h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {/* Row 1 */}
             <div className="space-y-1.5">
               <Label htmlFor="ownerId" className="text-sm text-[#37352F]/60">
@@ -439,12 +439,12 @@ export const OwnerForm = () => {
                         <div className="flex gap-1 justify-end">
                           <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                  <Button 
-                                      variant="ghost" 
-                                      className="h-10 w-10 p-0"
+                                  <Button
+                                      variant="ghost"
+                                      size="icon"
                                   >
                                       <span className="sr-only">Open menu</span>
-                                      <MoreHorizontal className="h-4 w-4" />
+                                      <MoreHorizontal className="size-5" />
                                   </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
