@@ -1,6 +1,13 @@
+// React/Framework
 import { useState, useEffect } from "react";
+
+// External
+import { User } from "lucide-react";
+
+// Internal
 import { Button } from "../../../components/ui/button";
 import { Label } from "../../../components/ui/label";
+import { Badge } from "../../../components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -9,13 +16,15 @@ import {
   DialogFooter,
   DialogDescription,
 } from "../../../components/ui/dialog";
-import { Pet, ReservationAppointment } from "../../../types";
 import { MOCK_PETS } from "../../../lib/constants";
+
+// Relative
 import { PatientSelectionTable } from "./PatientSelectionTable";
 import { ReservationFormFields } from "./ReservationFormFields";
 import { usePetSelection } from "../../pets/hooks/usePetSelection";
-import { Badge } from "../../../components/ui/badge";
-import { User } from "lucide-react";
+
+// Types
+import type { Pet, ReservationAppointment } from "../../../types";
 
 interface ReservationFormModalProps {
   isOpen: boolean;

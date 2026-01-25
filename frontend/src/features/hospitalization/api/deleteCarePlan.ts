@@ -18,7 +18,5 @@ export const deleteCarePlan = async (id: string): Promise<void> => {
 
     if (foundHospId) {
         setStoredPlans(foundHospId, allPlansMap[foundHospId]);
-    } else {
-        console.warn("Plan to delete not found:", id);
     }
 };

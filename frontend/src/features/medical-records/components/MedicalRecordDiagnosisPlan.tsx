@@ -49,7 +49,7 @@ export function MedicalRecordDiagnosisPlan({ isNewRecord = false }: DiagnosisPla
     setTreatmentItems((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
-  const handleUpdateItem = useCallback((id: number, field: keyof TreatmentItem, value: any) => {
+  const handleUpdateItem = useCallback((id: number, field: keyof TreatmentItem, value: string | number | boolean) => {
     setTreatmentItems((prev) =>
       prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
     );

@@ -1,8 +1,13 @@
+// React/Framework
 import React from "react";
+
+// External
+import { FileText } from "lucide-react";
+
+// Internal
 import { Button } from "../../../components/ui/button";
 import { Label } from "../../../components/ui/label";
 import { Textarea } from "../../../components/ui/textarea";
-import { FileText } from "lucide-react";
 import {
   Select,
   SelectContent,

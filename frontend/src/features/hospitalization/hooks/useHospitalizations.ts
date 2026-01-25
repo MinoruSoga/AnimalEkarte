@@ -13,8 +13,7 @@ export function useHospitalizations(searchTerm: string, statusFilter: Hospitaliz
     try {
         const data = await getHospitalizations();
         setHospitalizations(data);
-    } catch (e) {
-        console.error("Failed to load hospitalizations", e);
+    } catch {
         toast.error("データの取得に失敗しました");
     } finally {
         setIsLoading(false);
@@ -66,8 +65,7 @@ export function useHospitalizations(searchTerm: string, statusFilter: Hospitaliz
             prev.map((h) => (h.id === id ? updated : h))
         );
         toast.success("更新しました");
-    } catch (e) {
-        console.error("Failed to update hospitalization", e);
+    } catch {
         toast.error("更新に失敗しました");
         setHospitalizations(previous);
     }
@@ -117,8 +115,7 @@ export function useHospitalizations(searchTerm: string, statusFilter: Hospitaliz
         
         // Optionally fetch fresh data to be absolutely sure
         // await loadData(); 
-    } catch (e) {
-        console.error("Failed to move pet", e);
+    } catch {
         toast.error("部屋の移動に失敗しました");
         // Rollback
         setHospitalizations(previousHospitalizations);

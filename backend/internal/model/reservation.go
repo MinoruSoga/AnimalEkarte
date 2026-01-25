@@ -14,7 +14,7 @@ type Reservation struct {
 	DoctorID     *uuid.UUID `json:"doctor_id" gorm:"type:uuid;index:idx_res_doctor_id"`
 	StartTime    time.Time  `json:"start_time" gorm:"index:idx_res_start_time"`
 	EndTime      time.Time  `json:"end_time"`
-	VisitType    string     `json:"visit_type" gorm:"type:varchar(20)"` // first, revisit
+	VisitType    string     `json:"visit_type" gorm:"type:varchar(20)"`   // first, revisit
 	ServiceType  string     `json:"service_type" gorm:"type:varchar(30)"` // 診療, 検診, 手術, etc.
 	IsDesignated bool       `json:"is_designated" gorm:"default:false"`
 	Status       string     `json:"status" gorm:"type:varchar(30);default:'pending'"` // pending, confirmed, checked_in, in_consultation, accounting, completed, canceled

@@ -1,8 +1,16 @@
-import { Check, Clock, LucideIcon } from "lucide-react";
+// External
+import { Check, Clock } from "lucide-react";
+
+// Internal
 import { Button } from "../../../../components/ui/button";
 import { Card } from "../../../../components/ui/card";
-import { Task } from "../../types";
+
+// Relative
 import { H_STYLES } from "../../styles";
+
+// Types
+import type { LucideIcon } from "lucide-react";
+import type { Task } from "../../types";
 
 interface TimingSectionProps {
     title: string;

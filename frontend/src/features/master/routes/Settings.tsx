@@ -1,15 +1,16 @@
+// React/Framework
 import { useState, useEffect } from "react";
+
+// External
+import { Plus, Settings as SettingsIcon, Save, Trash2, Package } from "lucide-react";
+import { toast } from "sonner";
+
+// Internal
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { TableCell } from "../../../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
-import { Plus, Settings as SettingsIcon, Save, Trash2, Package } from "lucide-react";
-import { MasterItem } from "../../../types";
-import { getMasterStatusColor } from "../../../lib/status-helpers";
-import { useMasterItems } from "../hooks/useMasterItems";
-import { toast } from "sonner";
-
 import { PageLayout } from "../../../components/shared/PageLayout";
 import { SearchFilterBar } from "../../../components/shared/SearchFilterBar";
 import { DataTable } from "../../../components/shared/DataTable";
@@ -17,6 +18,13 @@ import { PrimaryButton } from "../../../components/shared/PrimaryButton";
 import { StatusBadge } from "../../../components/shared/StatusBadge";
 import { DataTableRow } from "../../../components/shared/DataTableRow";
 import { RowActionButton } from "../../../components/shared/RowActionButton";
+import { getMasterStatusColor } from "../../../lib/status-helpers";
+
+// Relative
+import { useMasterItems } from "../hooks/useMasterItems";
+
+// Types
+import type { MasterItem, InventoryItem } from "../../../types";
 
 interface SettingsPageProps {
     category?: string;
@@ -32,7 +40,7 @@ export const Settings = ({ category: propCategory }: SettingsPageProps) => {
   
   const { data: filteredItems, add, update, remove } = useMasterItems(category, searchTerm);
   // Inventory feature is currently disabled/missing
-  const inventory: any[] = []; 
+  const inventory: InventoryItem[] = [];
 
   const getTabLabel = (tab: string) => {
     switch (tab) {
@@ -132,8 +140,7 @@ export const Settings = ({ category: propCategory }: SettingsPageProps) => {
             toast.success("登録しました");
         }
         setIsEditing(false);
-      } catch (e) {
-          console.error(e);
+      } catch {
           toast.error("保存中にエラーが発生しました");
       }
   };

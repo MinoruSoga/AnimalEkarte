@@ -1,5 +1,10 @@
+// React/Framework
 import * as React from "react";
+
+// External
 import { Check, ChevronsUpDown, Search, X } from "lucide-react";
+
+// Internal
 import { cn } from "../../../components/ui/utils";
 import { Button } from "../../../components/ui/button";
 import {
@@ -15,7 +20,9 @@ import {
   PopoverTrigger,
 } from "../../../components/ui/popover";
 import { Badge } from "../../../components/ui/badge";
-import { Pet } from "../../../types";
+
+// Types
+import type { Pet } from "../../../types";
 
 interface PatientSearchProps {
   filteredPets: Pet[];

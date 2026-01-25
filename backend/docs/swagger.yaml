@@ -1,22 +1,143 @@
 basePath: /api/v1
 definitions:
+  handler.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  model.CreateOwnerRequest:
+    properties:
+      address:
+        type: string
+      email:
+        type: string
+      name:
+        type: string
+      name_kana:
+        type: string
+      notes:
+        type: string
+      phone:
+        type: string
+    required:
+    - name
+    type: object
   model.CreatePetRequest:
     properties:
       birth_date:
         type: string
       breed:
         type: string
+      environment:
+        type: string
       gender:
+        type: string
+      insurance_details:
+        type: string
+      insurance_name:
+        type: string
+      microchip_id:
         type: string
       name:
         type: string
+      notes:
+        type: string
+      owner_id:
+        type: string
+      pet_number:
+        type: string
       species:
+        type: string
+      status:
         type: string
       weight:
         type: number
     required:
     - name
+    - owner_id
     - species
+    type: object
+  model.MedicalRecord:
+    properties:
+      assessment:
+        description: 'A: 評価'
+        type: string
+      chief_complaint:
+        type: string
+      created_at:
+        type: string
+      diagnosis:
+        type: string
+      doctor_id:
+        type: string
+      id:
+        type: string
+      notes:
+        type: string
+      objective:
+        description: 'O: 客観的情報'
+        type: string
+      owner:
+        $ref: '#/definitions/model.Owner'
+      owner_id:
+        type: string
+      pet:
+        allOf:
+        - $ref: '#/definitions/model.Pet'
+        description: Relations
+      pet_id:
+        type: string
+      plan:
+        description: 'P: 計画'
+        type: string
+      prescription:
+        type: string
+      record_no:
+        type: string
+      status:
+        description: 作成中, 確定済
+        type: string
+      subjective:
+        description: 'S: 主観的情報'
+        type: string
+      surgery_notes:
+        description: 'S: 手術・特記事項'
+        type: string
+      treatment:
+        type: string
+      updated_at:
+        type: string
+      visit_date:
+        type: string
+      visit_type:
+        description: 初診, 再診
+        type: string
+    type: object
+  model.Owner:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      name_kana:
+        type: string
+      notes:
+        type: string
+      pets:
+        description: Relations
+        items:
+          $ref: '#/definitions/model.Pet'
+        type: array
+      phone:
+        type: string
+      updated_at:
+        type: string
     type: object
   model.Pet:
     properties:
@@ -26,18 +147,59 @@ definitions:
         type: string
       created_at:
         type: string
+      environment:
+        type: string
       gender:
         type: string
       id:
         type: string
+      insurance_details:
+        type: string
+      insurance_name:
+        type: string
+      last_visit:
+        type: string
+      medical_records:
+        items:
+          $ref: '#/definitions/model.MedicalRecord'
+        type: array
+      microchip_id:
+        type: string
       name:
         type: string
+      notes:
+        type: string
+      owner:
+        allOf:
+        - $ref: '#/definitions/model.Owner'
+        description: Relations
+      owner_id:
+        type: string
+      pet_number:
+        type: string
       species:
+        type: string
+      status:
         type: string
       updated_at:
         type: string
       weight:
         type: number
+    type: object
+  model.UpdateOwnerRequest:
+    properties:
+      address:
+        type: string
+      email:
+        type: string
+      name:
+        type: string
+      name_kana:
+        type: string
+      notes:
+        type: string
+      phone:
+        type: string
     type: object
   model.UpdatePetRequest:
     properties:
@@ -45,11 +207,27 @@ definitions:
         type: string
       breed:
         type: string
+      environment:
+        type: string
       gender:
+        type: string
+      insurance_details:
+        type: string
+      insurance_name:
+        type: string
+      microchip_id:
         type: string
       name:
         type: string
+      notes:
+        type: string
+      owner_id:
+        type: string
+      pet_number:
+        type: string
       species:
+        type: string
+      status:
         type: string
       weight:
         type: number
@@ -85,12 +263,162 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties:
-              type: string
+            additionalProperties: true
             type: object
       summary: ヘルスチェック
       tags:
       - system
+  /owners:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all owners
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Owner'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Get all owners
+      tags:
+      - owners
+    post:
+      consumes:
+      - application/json
+      description: Create a new owner with the provided details
+      parameters:
+      - description: Owner Data
+        in: body
+        name: owner
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateOwnerRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Owner'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Create a new owner
+      tags:
+      - owners
+  /owners/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an owner by ID
+      parameters:
+      - description: Owner ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Delete an owner
+      tags:
+      - owners
+    get:
+      consumes:
+      - application/json
+      description: Get details of a specific owner
+      parameters:
+      - description: Owner ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Owner'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Get an owner by ID
+      tags:
+      - owners
+    put:
+      consumes:
+      - application/json
+      description: Update details of an existing owner
+      parameters:
+      - description: Owner ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Owner Data
+        in: body
+        name: owner
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateOwnerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Owner'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Update an owner
+      tags:
+      - owners
   /pets:
     get:
       consumes:

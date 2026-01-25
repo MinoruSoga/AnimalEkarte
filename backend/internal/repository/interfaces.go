@@ -17,5 +17,15 @@ type PetRepository interface {
 	DeletePet(ctx context.Context, id uuid.UUID) error
 }
 
-// Ensure Repository implements PetRepository
+// OwnerRepository defines the interface for owner data access operations.
+type OwnerRepository interface {
+	GetAllOwners(ctx context.Context) ([]model.Owner, error)
+	GetOwnerByID(ctx context.Context, id uuid.UUID) (*model.Owner, error)
+	CreateOwner(ctx context.Context, owner *model.Owner) error
+	UpdateOwner(ctx context.Context, owner *model.Owner) error
+	DeleteOwner(ctx context.Context, id uuid.UUID) error
+}
+
+// Ensure Repository implements interfaces
 var _ PetRepository = (*Repository)(nil)
+var _ OwnerRepository = (*Repository)(nil)

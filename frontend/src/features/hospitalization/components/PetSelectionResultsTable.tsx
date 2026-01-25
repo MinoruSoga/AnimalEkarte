@@ -22,7 +22,7 @@ export const PetSelectionResultsTable = ({ pets, onSelect }: PetSelectionResults
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <h2 className={`${H_STYLES.text.base} font-medium text-[#37352F]`}>検索結果</h2>
-        <span className={H_STYLES.text.base} style={{ color: "rgba(55, 53, 47, 0.6)" }}>
+        <span className={`${H_STYLES.text.base} text-[#37352F]/60`}>
           {pets.length}件
         </span>
       </div>

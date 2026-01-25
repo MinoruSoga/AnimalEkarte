@@ -1,5 +1,11 @@
+// React/Framework
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+// External
+import { Search, Check } from "lucide-react";
+
+// Internal
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
@@ -12,10 +18,11 @@ import {
   TableHeader,
   TableRow,
 } from "../../../components/ui/table";
-import { Search, Check } from "lucide-react";
-import { Pet } from "../../../types";
-import { MOCK_PETS } from "../../../lib/constants";
 import { PageLayout } from "../../../components/shared/PageLayout";
+import { MOCK_PETS } from "../../../lib/constants";
+
+// Types
+import type { Pet } from "../../../types";
 
 export const TrimmingPetSelection = () => {
   const navigate = useNavigate();
@@ -40,7 +47,7 @@ export const TrimmingPetSelection = () => {
   });
 
   const handleSearch = () => {
-    console.log("検索実行:", searchParams);
+    // Search is already handled by filteredPets reactive filter
   };
 
   const handleSelect = (pet: Pet) => {
@@ -190,7 +197,7 @@ export const TrimmingPetSelection = () => {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-medium text-[#37352F]">検索結果</h2>
-            <span className="text-sm" style={{ color: "rgba(55, 53, 47, 0.6)" }}>
+            <span className="text-sm text-[#37352F]/60">
               {filteredPets.length}件
             </span>
           </div>

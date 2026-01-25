@@ -1,11 +1,12 @@
+// React/Framework
 import { useState } from "react";
-import { TableCell } from "../../../components/ui/table";
-import { Plus, CreditCard } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { getAccountingStatusColor } from "../../../lib/status-helpers";
-import { useAccountingRecords } from "../hooks/useAccountingRecords";
-import { Accounting as AccountingType } from "../types";
 
+// External
+import { Plus, CreditCard } from "lucide-react";
+
+// Internal
+import { TableCell } from "../../../components/ui/table";
 import { PageLayout } from "../../../components/shared/PageLayout";
 import { SearchFilterBar } from "../../../components/shared/SearchFilterBar";
 import { DataTable } from "../../../components/shared/DataTable";
@@ -13,6 +14,13 @@ import { PrimaryButton } from "../../../components/shared/PrimaryButton";
 import { StatusBadge } from "../../../components/shared/StatusBadge";
 import { DataTableRow } from "../../../components/shared/DataTableRow";
 import { RowActionButton } from "../../../components/shared/RowActionButton";
+import { getAccountingStatusColor } from "../../../lib/status-helpers";
+
+// Relative
+import { useAccountingRecords } from "../hooks/useAccountingRecords";
+
+// Types
+import type { Accounting as AccountingType } from "../types";
 
 export const Accounting = () => {
   const navigate = useNavigate();

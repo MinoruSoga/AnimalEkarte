@@ -1,4 +1,7 @@
+// React/Framework
 import React, { useState } from "react";
+
+// Relative
 import { VaccinationForm } from "./VaccinationForm";
 import { VaccinationHistory } from "./VaccinationHistory";
 

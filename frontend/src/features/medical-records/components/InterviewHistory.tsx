@@ -1,7 +1,12 @@
+// React/Framework
 import React, { useState } from "react";
+
+// External
+import { Search, History, Plus } from "lucide-react";
+
+// Internal
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
-import { Search, History, Plus } from "lucide-react";
 import { Card } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
 import { ScrollArea } from "../../../components/ui/scroll-area";

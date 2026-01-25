@@ -40,7 +40,7 @@ export const AccountingPetSelection = () => {
   });
 
   const handleSearch = () => {
-    console.log("検索実行:", searchParams);
+    // Search is already handled by filteredPets reactive filter
   };
 
   const handleSelect = (pet: Pet) => {
@@ -190,7 +190,7 @@ export const AccountingPetSelection = () => {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-medium text-[#37352F]">検索結果</h2>
-            <span className="text-sm" style={{ color: "rgba(55, 53, 47, 0.6)" }}>
+            <span className="text-sm text-[#37352F]/60">
               {filteredPets.length}件
             </span>
           </div>

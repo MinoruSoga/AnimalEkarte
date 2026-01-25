@@ -13,8 +13,8 @@ export const getStoredHospitalizations = (): Hospitalization[] => {
         if (saved) {
             return JSON.parse(saved);
         }
-    } catch (e) {
-        console.error("Failed to parse stored hospitalizations", e);
+    } catch {
+        // Failed to parse stored hospitalizations - return default
     }
     return MOCK_HOSPITALIZATIONS;
 };
@@ -31,8 +31,8 @@ export const getStoredPlans = (hospitalizationId: string): CarePlanItem[] => {
             const allPlans: Record<string, CarePlanItem[]> = JSON.parse(saved);
             return allPlans[hospitalizationId] || [];
         }
-    } catch (e) {
-        console.error("Failed to parse stored plans", e);
+    } catch {
+        // Failed to parse stored plans - return empty array
     }
     // Default: generate and save mock plans for this ID if strictly necessary, 
     // but usually getHospitalization handles the initialization.
@@ -62,8 +62,8 @@ export const getStoredRecords = (hospitalizationId: string): DailyRecord[] => {
             const allRecords: Record<string, DailyRecord[]> = JSON.parse(saved);
             return allRecords[hospitalizationId] || [];
         }
-    } catch (e) {
-        console.error("Failed to parse stored records", e);
+    } catch {
+        // Failed to parse stored records - return empty array
     }
     return [];
 };

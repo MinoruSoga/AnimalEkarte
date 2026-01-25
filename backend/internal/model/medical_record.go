@@ -16,10 +16,10 @@ type MedicalRecord struct {
 	VisitDate      time.Time  `json:"visit_date" gorm:"index:idx_mr_visit_date"`
 	VisitType      string     `json:"visit_type" gorm:"type:varchar(10)"` // 初診, 再診
 	ChiefComplaint string     `json:"chief_complaint" gorm:"type:text"`
-	Subjective     string     `json:"subjective" gorm:"type:text"`  // S: 主観的情報
-	Objective      string     `json:"objective" gorm:"type:text"`   // O: 客観的情報
-	Assessment     string     `json:"assessment" gorm:"type:text"`  // A: 評価
-	Plan           string     `json:"plan" gorm:"type:text"`        // P: 計画
+	Subjective     string     `json:"subjective" gorm:"type:text"`    // S: 主観的情報
+	Objective      string     `json:"objective" gorm:"type:text"`     // O: 客観的情報
+	Assessment     string     `json:"assessment" gorm:"type:text"`    // A: 評価
+	Plan           string     `json:"plan" gorm:"type:text"`          // P: 計画
 	SurgeryNotes   string     `json:"surgery_notes" gorm:"type:text"` // S: 手術・特記事項
 	Diagnosis      string     `json:"diagnosis" gorm:"type:text"`
 	Treatment      string     `json:"treatment" gorm:"type:text"`

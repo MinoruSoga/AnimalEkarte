@@ -1,4 +1,7 @@
+// Internal
 import { PageLayout } from "../../../components/shared/PageLayout";
+
+// Relative
 import { useHospitalizationPetSelection } from "../hooks/useHospitalizationPetSelection";
 import { PetSelectionSearchForm } from "../components/PetSelectionSearchForm";
 import { PetSelectionResultsTable } from "../components/PetSelectionResultsTable";

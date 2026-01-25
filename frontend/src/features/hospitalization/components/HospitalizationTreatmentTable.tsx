@@ -8,7 +8,7 @@ interface HospitalizationTreatmentTableProps {
   treatmentPlans: TreatmentPlan[];
   onAdd: () => void;
   onRemove: (id: string) => void;
-  onUpdate: (id: string, field: keyof TreatmentPlan, value: any) => void;
+  onUpdate: (id: string, field: keyof TreatmentPlan, value: string | number | boolean) => void;
 }
 
 export const HospitalizationTreatmentTable = ({ 

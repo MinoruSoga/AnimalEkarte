@@ -1,8 +1,13 @@
+// React/Framework
 import React from "react";
+
+// External
+import { Upload } from "lucide-react";
+
+// Internal
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
-import { Upload } from "lucide-react";
 import {
   Select,
   SelectContent,

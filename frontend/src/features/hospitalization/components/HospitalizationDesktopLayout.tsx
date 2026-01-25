@@ -1,18 +1,27 @@
-import { Calendar, FileText } from "lucide-react";
+// React/Framework
 import { useMemo } from "react";
+
+// External
+import { Calendar, FileText } from "lucide-react";
+
+// Internal
 import { Separator } from "../../../components/ui/separator";
+
+// Relative
 import { CarePlanSection } from "./CarePlan/CarePlanSection";
 import { DailyRecordSection } from "./DailyRecord/DailyRecordSection";
 import { HospitalizationPatientHeader } from "./HospitalizationPatientHeader";
-import { Hospitalization } from "../../../types";
 import { H_STYLES } from "../styles";
-import { 
-    CarePlanItem, 
-    DailyRecord, 
-    CreateCarePlanDTO, 
+
+// Types
+import type { Hospitalization } from "../../../types";
+import type {
+    CarePlanItem,
+    DailyRecord,
+    CreateCarePlanDTO,
     UpdateCarePlanDTO,
-    CreateVitalDTO, 
-    CreateCareLogDTO 
+    CreateVitalDTO,
+    CreateCareLogDTO
 } from "../types";
 
 interface HospitalizationDesktopLayoutProps {

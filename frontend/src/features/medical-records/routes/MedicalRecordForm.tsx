@@ -1,5 +1,12 @@
+// React/Framework
+import { useParams } from "react-router-dom";
+
+// Internal
 import { Button } from "../../../components/ui/button";
 import { PatientInfoCard } from "../../../components/shared/PatientInfoCard";
+import { PageLayout } from "../../../components/shared/PageLayout";
+
+// Relative
 import { MedicalRecordInterview } from "../components/MedicalRecordInterview";
 import { MedicalRecordDiagnosisPlan } from "../components/MedicalRecordDiagnosisPlan";
 import { MedicalRecordTreatment } from "../components/MedicalRecordTreatment";
@@ -8,8 +15,6 @@ import { MedicalRecordImage } from "../components/MedicalRecordImage";
 import { MedicalRecordEstimate } from "../components/MedicalRecordEstimate";
 import { MedicalRecordBillCheck } from "../components/MedicalRecordBillCheck";
 import { MedicalRecordExamination } from "../components/MedicalRecordExamination";
-import { useParams } from "react-router-dom";
-import { PageLayout } from "../../../components/shared/PageLayout";
 import { useMedicalRecordForm } from "../hooks/useMedicalRecordForm";
 
 export const MedicalRecordForm = () => {

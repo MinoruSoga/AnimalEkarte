@@ -53,9 +53,9 @@ export function useExaminationForm(id?: string) {
                 petName: "Iris",
                 testType: "blood",
                 doctor: "dr_a",
-                status: "requested",
+                status: "依頼中",
                 resultSummary: "",
-            } as any);
+            });
         }
     } else {
         if (petId) {
@@ -82,7 +82,7 @@ export function useExaminationForm(id?: string) {
   }, [selectedPets]);
 
   const handleSave = () => {
-      console.log("Saving examination:", formData);
+      // TODO: API call to save examination
       navigate("/examinations");
   };
 

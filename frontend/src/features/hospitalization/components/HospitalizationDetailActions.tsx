@@ -1,8 +1,17 @@
+// React/Framework
 import { useNavigate } from "react-router-dom";
+
+// External
 import { Settings, LogOut } from "lucide-react";
+
+// Internal
 import { Button } from "../../../components/ui/button";
-import { Hospitalization } from "../../../types";
+
+// Relative
 import { H_STYLES } from "../styles";
+
+// Types
+import type { Hospitalization } from "../../../types";
 
 interface HospitalizationDetailActionsProps {
     hospitalization: Hospitalization;

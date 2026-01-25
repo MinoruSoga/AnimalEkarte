@@ -1,15 +1,7 @@
+// React/Framework
 import { useNavigate } from "react-router-dom";
-import { MOCK_PETS } from "../../../lib/constants";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter,
-  DialogDescription
-} from "../../../components/ui/dialog";
-import { Button } from "../../../components/ui/button";
-import { Badge } from "../../../components/ui/badge";
+
+// External
 import {
   Clock,
   User,
@@ -23,7 +15,22 @@ import {
   Trash2,
   Pencil
 } from "lucide-react";
-import { Appointment } from "../../../types";
+
+// Internal
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription
+} from "../../../components/ui/dialog";
+import { Button } from "../../../components/ui/button";
+import { Badge } from "../../../components/ui/badge";
+import { MOCK_PETS } from "../../../lib/constants";
+
+// Types
+import type { Appointment } from "../../../types";
 
 interface DashboardDetailModalProps {
   isOpen: boolean;

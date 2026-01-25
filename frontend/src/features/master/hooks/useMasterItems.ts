@@ -134,8 +134,8 @@ export function useMasterItems(category?: string, searchTerm?: string) {
         } else {
             setItems(parsedItems);
         }
-      } catch (e) {
-        console.error("Failed to parse master items", e);
+      } catch {
+        // Reset to initial data if parsing fails
         setItems(INITIAL_MASTER_ITEMS);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_MASTER_ITEMS));
       }

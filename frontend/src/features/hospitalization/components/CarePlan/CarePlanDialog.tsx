@@ -1,5 +1,10 @@
+// React/Framework
 import { useState, useEffect } from "react";
+
+// External
 import { Search } from "lucide-react";
+
+// Internal
 import { Button } from "../../../../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../../../components/ui/dialog";
 import { Input } from "../../../../components/ui/input";
@@ -7,9 +12,14 @@ import { Label } from "../../../../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../../components/ui/select";
 import { Textarea } from "../../../../components/ui/textarea";
 import { Badge } from "../../../../components/ui/badge";
-import { CarePlanItem, CreateCarePlanDTO, UpdateCarePlanDTO } from "../../types";
-import { TreatmentSearchDialog, TreatmentMasterItem } from "../../../medical-records/components/TreatmentSearchDialog";
+
+// Relative
+import { TreatmentSearchDialog } from "../../../medical-records/components/TreatmentSearchDialog";
 import { H_STYLES } from "../../styles";
+
+// Types
+import type { CarePlanItem, CreateCarePlanDTO, UpdateCarePlanDTO } from "../../types";
+import type { TreatmentMasterItem } from "../../../medical-records/components/TreatmentSearchDialog";
 
 interface CarePlanDialogProps {
     open: boolean;
@@ -111,7 +121,7 @@ export const CarePlanDialog = ({
                             <Label>種類</Label>
                             <Select 
                                 value={formData.type} 
-                                onValueChange={(val: any) => setFormData({...formData, type: val})}
+                                onValueChange={(val: "food" | "medicine" | "treatment" | "instruction" | "item") => setFormData({...formData, type: val})}
                             >
                                 <SelectTrigger>
                                     <SelectValue />
@@ -186,7 +196,7 @@ export const CarePlanDialog = ({
                         <Label>ステータス</Label>
                         <Select 
                             value={formData.status} 
-                            onValueChange={(val: any) => setFormData({...formData, status: val})}
+                            onValueChange={(val: "active" | "completed" | "discontinued") => setFormData({...formData, status: val})}
                         >
                             <SelectTrigger>
                                 <SelectValue />

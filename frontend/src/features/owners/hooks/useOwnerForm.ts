@@ -1,5 +1,8 @@
+// React/Framework
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+
+// External
 import { toast } from "sonner";
 
 export interface PetInfo {
@@ -179,7 +182,7 @@ export function useOwnerForm(id?: string) {
     setPets(pets.filter((pet) => pet.id !== id));
   };
 
-  const handleSavePet = (petData: any) => {
+  const handleSavePet = (petData: Partial<PetInfo>) => {
     if (editingPet) {
       // Update existing pet
       setPets(
@@ -191,16 +194,16 @@ export function useOwnerForm(id?: string) {
       // Add new pet
       const newPet: PetInfo = {
         id: Date.now().toString(),
-        petNumber: petData.petNumber,
-        petName: petData.petName,
-        status: "生存", // Default
-        species: petData.species,
-        gender: petData.gender,
-        birthDate: petData.birthDate,
-        color: petData.color,
-        weight: "",
-        environment: "",
-        remarks: petData.remarks,
+        petNumber: petData.petNumber || "",
+        petName: petData.petName || "",
+        status: petData.status || "生存",
+        species: petData.species || "",
+        gender: petData.gender || "",
+        birthDate: petData.birthDate || "",
+        color: petData.color || "",
+        weight: petData.weight || "",
+        environment: petData.environment || "",
+        remarks: petData.remarks || "",
         ...petData
       };
       setPets([...pets, newPet]);

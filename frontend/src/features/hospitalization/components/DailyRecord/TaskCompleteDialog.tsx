@@ -6,7 +6,11 @@ import { Input } from "../../../../components/ui/input";
 import { Label } from "../../../../components/ui/label";
 import { Textarea } from "../../../../components/ui/textarea";
 import { CreateCareLogDTO, Task } from "../../types";
+import { DailyRecord } from "../../../../types";
 import { H_STYLES } from "../../styles";
+
+type CareLogType = DailyRecord["careLogs"][0]["type"];
+const VALID_LOG_TYPES: CareLogType[] = ["food", "medicine", "treatment", "other", "excretion"];
 
 interface TaskCompleteDialogProps {
     open: boolean;
@@ -31,14 +35,13 @@ export const TaskCompleteDialog = ({ open, onOpenChange, task, onConfirm }: Task
 
     const handleConfirm = () => {
         if (!task) return;
-        
-        const logType = (['food', 'medicine', 'treatment'].includes(task.type)) 
-            ? task.type 
-            : 'other';
+
+        const taskType = task.type as CareLogType;
+        const logType: CareLogType = VALID_LOG_TYPES.includes(taskType) ? taskType : "other";
 
         onConfirm({
             time: form.time,
-            type: logType as any,
+            type: logType,
             status: "completed",
             value: "実施",
             notes: `${task.name} (${task.description}) 実施 ${form.notes ? `\n${form.notes}` : ""}`,

@@ -1,10 +1,19 @@
+// React/Framework
 import { useState } from "react";
+
+// External
 import { Plus } from "lucide-react";
+
+// Internal
 import { Button } from "../../../../components/ui/button";
-import { CarePlanItem, CreateCarePlanDTO, UpdateCarePlanDTO } from "../../types";
+
+// Relative
 import { CarePlanItemRow } from "./CarePlanItemRow";
 import { CarePlanDialog } from "./CarePlanDialog";
 import { H_STYLES } from "../../styles";
+
+// Types
+import type { CarePlanItem, CreateCarePlanDTO, UpdateCarePlanDTO } from "../../types";
 
 interface CarePlanSectionProps {
     plans: CarePlanItem[];

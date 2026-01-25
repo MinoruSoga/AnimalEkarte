@@ -1,3 +1,5 @@
+import { useState, useMemo } from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -19,10 +21,8 @@ import {
   Activity,
 } from "lucide-react";
 import { Button } from "./ui/button";
-import { useState, useMemo } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { MenuItem } from "../types";
 import { useClinicInfo } from "../features/clinic/hooks/useClinicInfo";
+import type { MenuItem } from "../types";
 
 interface SidebarItemProps {
   item: MenuItem;
@@ -104,7 +104,7 @@ const SidebarItem = ({ item, collapsed = false, level = 0 }: SidebarItemProps) =
   );
 };
 
-export default function Sidebar() {
+export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const { clinicInfo } = useClinicInfo();
 

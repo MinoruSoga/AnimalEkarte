@@ -2,8 +2,6 @@ import { useState } from "react";
 import { format, addDays, subDays } from "date-fns";
 import { Activity, Sun, Moon, Coffee, Plus } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
-import { DailyRecord, CarePlanItem, CreateVitalDTO, CreateCareLogDTO, Task } from "../../types";
-
 import { DateNavigation } from "./DateNavigation";
 import { TimingSection } from "./TimingSection";
 import { Timeline } from "./Timeline";
@@ -13,6 +11,7 @@ import { LogDialog } from "./LogDialog";
 import { TaskCompleteDialog } from "./TaskCompleteDialog";
 import { useDailyRecordLogic } from "../../hooks/useDailyRecordLogic";
 import { H_STYLES } from "../../styles";
+import type { DailyRecord, CarePlanItem, CreateVitalDTO, CreateCareLogDTO, Task } from "../../types";
 
 interface DailyRecordSectionProps {
     records: DailyRecord[];

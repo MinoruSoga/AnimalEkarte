@@ -99,8 +99,7 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
                     setSelectedPets([pet]);
                 }
             }
-        }).catch(err => {
-            console.error("Failed to load hospitalization", err);
+        }).catch(() => {
             toast.error("入院情報の取得に失敗しました");
         });
     } else {
@@ -143,7 +142,7 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
   const updateTreatmentPlan = (
     planId: string,
     field: keyof TreatmentPlan,
-    value: any
+    value: string | number | boolean
   ) => {
     setTreatmentPlans(
       treatmentPlans.map((plan) => {
@@ -154,9 +153,9 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
             field === "quantity" ||
             field === "discount"
           ) {
-            const unitPrice = field === "unitPrice" ? value : plan.unitPrice;
-            const quantity = field === "quantity" ? value : plan.quantity;
-            const discount = field === "discount" ? value : plan.discount;
+            const unitPrice = (field === "unitPrice" ? value : plan.unitPrice) as number;
+            const quantity = (field === "quantity" ? value : plan.quantity) as number;
+            const discount = (field === "discount" ? value : plan.discount) as number;
             const baseAmount = unitPrice * quantity;
             updated.discountAmount = Math.floor(baseAmount * (discount / 100));
             updated.subtotal = baseAmount - updated.discountAmount;
@@ -221,8 +220,7 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
                   }
               }, 500);
           }
-      } catch (e) {
-          console.error(e);
+      } catch {
           toast.error("保存に失敗しました");
       }
   };

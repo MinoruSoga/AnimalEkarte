@@ -1,8 +1,13 @@
+// React/Framework
 import React from "react";
+
+// External
+import { Circle, X, Trash2, PlusCircle } from "lucide-react";
+
+// Internal
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { ScrollArea } from "../../../components/ui/scroll-area";
-import { Circle, X, Trash2, PlusCircle } from "lucide-react";
 import { cn } from "../../../components/ui/utils";
 import {
   Select,
@@ -28,7 +33,7 @@ export interface TreatmentItem {
 
 interface TreatmentTableProps {
   items: TreatmentItem[];
-  onUpdate: (id: number, field: keyof TreatmentItem, value: any) => void;
+  onUpdate: (id: number, field: keyof TreatmentItem, value: string | number | boolean) => void;
   onRemove: (id: number) => void;
   onOpenSearch?: () => void;
   onAddRow?: () => void;

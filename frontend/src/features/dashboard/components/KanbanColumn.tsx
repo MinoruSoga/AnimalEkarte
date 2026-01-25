@@ -1,9 +1,22 @@
+// External
 import { useDrop } from "react-dnd";
 import { Plus } from "lucide-react";
+
+// Internal
 import { Button } from "../../../components/ui/button";
-import { AppointmentCard } from "./AppointmentCard";
-import { Appointment, ColumnData } from "../../../types";
 import { getDashboardColumnColor } from "../../../lib/status-helpers";
+
+// Relative
+import { AppointmentCard } from "./AppointmentCard";
+
+// Types
+import type { Appointment, ColumnData } from "../../../types";
+
+interface DragItem {
+  index: number;
+  columnTitle: string;
+  appointment: Appointment;
+}
 
 interface KanbanColumnProps {
   data: ColumnData;
@@ -22,7 +35,7 @@ export const KanbanColumn = ({
 
   const [{ isOver }, drop] = useDrop(() => ({
     accept: 'appointment',
-    drop: (item: any, monitor) => {
+    drop: (item: DragItem, monitor) => {
       if (monitor.didDrop()) {
         return;
       }
@@ -38,7 +51,7 @@ export const KanbanColumn = ({
       }
     },
     // Main column drop only handles empty state or fallback
-    hover: (item: any, monitor) => {
+    hover: (item: DragItem, monitor) => {
       if (!monitor.isOver({ shallow: true })) return;
       if (data.appointments.length > 0) return;
 
@@ -61,7 +74,7 @@ export const KanbanColumn = ({
   // This handles "dropping at the end" without the flickering issues of using the main column wrapper
   const [{ isOverBottom }, dropBottom] = useDrop(() => ({
     accept: 'appointment',
-    hover: (item: any, monitor) => {
+    hover: (item: DragItem, monitor) => {
       if (!monitor.isOver({ shallow: true })) return;
 
       const sourceColumn = item.columnTitle;

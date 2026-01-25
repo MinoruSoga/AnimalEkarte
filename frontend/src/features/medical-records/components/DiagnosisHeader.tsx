@@ -1,4 +1,7 @@
+// React/Framework
 import React from "react";
+
+// Relative
 import { DiagnosisHeaderChiefComplaint } from "./DiagnosisHeaderChiefComplaint";
 import { DiagnosisHeaderPhysicalExam } from "./DiagnosisHeaderPhysicalExam";
 import { DiagnosisHeaderDiagnosis } from "./DiagnosisHeaderDiagnosis";

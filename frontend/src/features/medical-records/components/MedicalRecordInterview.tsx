@@ -1,4 +1,7 @@
+// React/Framework
 import React, { useState, useCallback } from "react";
+
+// Relative
 import { InterviewChiefComplaint } from "./InterviewChiefComplaint";
 import { InterviewTreatmentPolicy } from "./InterviewTreatmentPolicy";
 import { InterviewHistory } from "./InterviewHistory";

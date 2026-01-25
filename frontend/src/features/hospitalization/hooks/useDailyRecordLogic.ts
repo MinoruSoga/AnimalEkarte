@@ -1,5 +1,8 @@
+// React/Framework
 import { useMemo } from "react";
-import { DailyRecord, CarePlanItem, Task, TimelineItem } from "../types";
+
+// Types
+import type { DailyRecord, CarePlanItem, Task, TimelineItem } from "../types";
 
 export const useDailyRecordLogic = (records: DailyRecord[], plans: CarePlanItem[], currentDateStr: string) => {
     const currentRecord = useMemo(() => {

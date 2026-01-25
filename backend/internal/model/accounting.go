@@ -31,9 +31,9 @@ type Accounting struct {
 	UpdatedAt       time.Time  `json:"updated_at"`
 
 	// Relations
-	Pet            *Pet             `json:"pet,omitempty" gorm:"foreignKey:PetID"`
-	Owner          *Owner           `json:"owner,omitempty" gorm:"foreignKey:OwnerID"`
-	MedicalRecord  *MedicalRecord   `json:"medical_record,omitempty" gorm:"foreignKey:MedicalRecordID"`
+	Pet             *Pet             `json:"pet,omitempty" gorm:"foreignKey:PetID"`
+	Owner           *Owner           `json:"owner,omitempty" gorm:"foreignKey:OwnerID"`
+	MedicalRecord   *MedicalRecord   `json:"medical_record,omitempty" gorm:"foreignKey:MedicalRecordID"`
 	AccountingItems []AccountingItem `json:"accounting_items,omitempty" gorm:"foreignKey:AccountingID"`
 }
 

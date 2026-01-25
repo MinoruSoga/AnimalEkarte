@@ -1,8 +1,9 @@
+// External
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
-import { 
-  Calendar, 
-  Clock, 
+import {
+  Calendar,
+  Clock,
   Stethoscope,
   Pencil,
   Trash2,
@@ -13,6 +14,8 @@ import {
   Scissors,
   Building2
 } from "lucide-react";
+
+// Internal
 import { Button } from "../../../components/ui/button";
 import {
   Dialog,
@@ -29,8 +32,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../../components/ui/select";
-import { ReservationAppointment } from "../../../types";
 import { getReservationTypeName } from "../../../lib/status-helpers";
+
+// Types
+import type { ReservationAppointment } from "../../../types";
 
 interface ReservationDetailModalProps {
   isOpen: boolean;

@@ -1,4 +1,7 @@
+// React/Framework
 import React, { useState } from "react";
+
+// Relative
 import { ExaminationFilter } from "./ExaminationFilter";
 import { ExaminationGroup } from "./ExaminationGroup";
 

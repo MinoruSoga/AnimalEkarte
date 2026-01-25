@@ -1,6 +1,11 @@
+// Internal
 import { Badge } from "../../../../components/ui/badge";
-import { TimelineItem } from "../../types";
+
+// Relative
 import { H_STYLES } from "../../styles";
+
+// Types
+import type { TimelineItem } from "../../types";
 
 interface TimelineProps {
     items: TimelineItem[];

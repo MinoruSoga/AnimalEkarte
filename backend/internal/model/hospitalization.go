@@ -62,7 +62,7 @@ type CarePlanItem struct {
 	Type              string     `json:"type" gorm:"type:varchar(30)"` // food, medicine, treatment, instruction, item
 	Name              string     `json:"name" gorm:"type:varchar(100)"`
 	Description       string     `json:"description" gorm:"type:text"`
-	Timing            string     `json:"timing" gorm:"type:json"` // JSON array
+	Timing            string     `json:"timing" gorm:"type:json"`                         // JSON array
 	Status            string     `json:"status" gorm:"type:varchar(20);default:'active'"` // active, completed, discontinued
 	UnitPrice         *float64   `json:"unit_price" gorm:"type:decimal(10,2)"`
 	Category          string     `json:"category" gorm:"type:varchar(50)"`
@@ -78,11 +78,11 @@ func (CarePlanItem) TableName() string {
 
 // DailyRecord 日次記録モデル
 type DailyRecord struct {
-	ID                uuid.UUID   `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	HospitalizationID uuid.UUID   `json:"hospitalization_id" gorm:"type:uuid;not null"`
-	RecordDate        time.Time   `json:"record_date" gorm:"type:date"`
-	CreatedAt         time.Time   `json:"created_at"`
-	UpdatedAt         time.Time   `json:"updated_at"`
+	ID                uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	HospitalizationID uuid.UUID `json:"hospitalization_id" gorm:"type:uuid;not null"`
+	RecordDate        time.Time `json:"record_date" gorm:"type:date"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 
 	// Relations
 	Vitals     []Vital     `json:"vitals,omitempty" gorm:"foreignKey:DailyRecordID"`
@@ -120,7 +120,7 @@ type CareLog struct {
 	DailyRecordID uuid.UUID  `json:"daily_record_id" gorm:"type:uuid;not null"`
 	StaffID       *uuid.UUID `json:"staff_id" gorm:"type:uuid"`
 	RecordedTime  string     `json:"recorded_time" gorm:"type:time"`
-	Type          string     `json:"type" gorm:"type:varchar(30)"` // food, excretion, medicine, treatment, other
+	Type          string     `json:"type" gorm:"type:varchar(30)"`   // food, excretion, medicine, treatment, other
 	Status        string     `json:"status" gorm:"type:varchar(20)"` // completed, partial, skipped
 	Value         string     `json:"value" gorm:"type:varchar(100)"`
 	Notes         string     `json:"notes" gorm:"type:text"`

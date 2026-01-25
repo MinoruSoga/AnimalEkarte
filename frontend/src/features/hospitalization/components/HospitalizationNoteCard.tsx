@@ -1,6 +1,11 @@
-import { LucideIcon } from "lucide-react";
+// Internal
 import { Textarea } from "../../../components/ui/textarea";
+
+// Relative
 import { H_STYLES } from "../styles";
+
+// Types
+import type { LucideIcon } from "lucide-react";
 
 interface HospitalizationNoteCardProps {
   title: string;

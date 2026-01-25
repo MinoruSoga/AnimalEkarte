@@ -14,8 +14,8 @@ export const useClinicInfo = () => {
       if (stored) {
         setClinicInfo({ ...DEFAULT_CLINIC_INFO, ...JSON.parse(stored) });
       }
-    } catch (error) {
-      console.error("Failed to load clinic info", error);
+    } catch {
+      // Use default clinic info if loading fails
     } finally {
       setLoading(false);
     }
@@ -26,8 +26,7 @@ export const useClinicInfo = () => {
       setClinicInfo(newInfo);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newInfo));
       toast.success("病院情報を更新しました");
-    } catch (error) {
-      console.error("Failed to save clinic info", error);
+    } catch {
       toast.error("病院情報の保存に失敗しました");
     }
   };

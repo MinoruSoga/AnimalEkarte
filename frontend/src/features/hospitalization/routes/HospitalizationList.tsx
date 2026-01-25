@@ -1,13 +1,27 @@
+// External
 import { Plus, LayoutGrid, List } from "lucide-react";
+
+// Internal
 import { Tabs, TabsList, TabsTrigger } from "../../../components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "../../../components/ui/toggle-group";
 import { PageLayout } from "../../../components/shared/PageLayout";
 import { SearchFilterBar } from "../../../components/shared/SearchFilterBar";
 import { PrimaryButton } from "../../../components/shared/PrimaryButton";
+
+// Relative
 import { HospitalizationBoard } from "../components/HospitalizationBoard";
 import { HospitalizationListView } from "../components/HospitalizationListView";
-import { ToggleGroup, ToggleGroupItem } from "../../../components/ui/toggle-group";
 import { useHospitalizationList } from "../hooks/useHospitalizationList";
 import { HOSPITALIZATION_FILTER_STATUS } from "../constants";
+
+// Types
+import type { HospitalizationFilterStatus } from "../constants";
+
+const isValidFilterStatus = (v: string): v is HospitalizationFilterStatus =>
+    Object.values(HOSPITALIZATION_FILTER_STATUS).includes(v as HospitalizationFilterStatus);
+
+type ViewMode = "list" | "board";
+const isValidViewMode = (v: string): v is ViewMode => v === "list" || v === "board";
 
 export const HospitalizationList = () => {
   const { 
@@ -33,7 +47,7 @@ export const HospitalizationList = () => {
     >
       <div className="flex flex-col gap-4">
         {/* Status Tabs */}
-        <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)} className="w-full">
+        <Tabs value={statusFilter} onValueChange={(v) => isValidFilterStatus(v) && setStatusFilter(v)} className="w-full">
             <TabsList className="grid w-[400px] grid-cols-4">
                 <TabsTrigger value={HOSPITALIZATION_FILTER_STATUS.ACTIVE}>入院中</TabsTrigger>
                 <TabsTrigger value={HOSPITALIZATION_FILTER_STATUS.RESERVED}>予約</TabsTrigger>
@@ -53,7 +67,7 @@ export const HospitalizationList = () => {
                 />
             </div>
             <div className="bg-white rounded-md border border-[rgba(55,53,47,0.16)] p-1 h-10 flex items-center">
-                <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as any)}>
+                <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && isValidViewMode(v) && setViewMode(v)}>
                     <ToggleGroupItem value="board" size="sm" aria-label="Board View">
                         <LayoutGrid className="h-4 w-4" />
                     </ToggleGroupItem>

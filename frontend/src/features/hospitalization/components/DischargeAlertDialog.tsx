@@ -1,3 +1,4 @@
+// Internal
 import {
   AlertDialog,
   AlertDialogAction,
@@ -8,6 +9,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../../../components/ui/alert-dialog";
+
+// Relative
 import { H_STYLES } from "../styles";
 
 interface DischargeAlertDialogProps {

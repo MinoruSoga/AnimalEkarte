@@ -51,7 +51,7 @@ export function MedicalRecordEstimate({ isNewRecord = false }: { isNewRecord?: b
     setItems((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
-  const handleUpdateItem = useCallback((id: number, field: keyof TreatmentItem, value: any) => {
+  const handleUpdateItem = useCallback((id: number, field: keyof TreatmentItem, value: string | number | boolean) => {
     setItems((prev) =>
       prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
     );

@@ -1,13 +1,22 @@
+// React/Framework
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
+
+// External
+import { Building2, Save } from "lucide-react";
+
+// Internal
 import { PageLayout } from "../../../components/shared/PageLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { Button } from "../../../components/ui/button";
-import { Building2, Save } from "lucide-react";
+
+// Relative
 import { useClinicInfo } from "../hooks/useClinicInfo";
-import { ClinicInfo } from "../types";
+
+// Types
+import type { ClinicInfo } from "../types";
 
 export const ClinicSettings = () => {
   const { clinicInfo, updateClinicInfo, loading } = useClinicInfo();

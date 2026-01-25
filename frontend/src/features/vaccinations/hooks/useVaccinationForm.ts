@@ -87,7 +87,7 @@ export function useVaccinationForm(id?: string) {
   }, [id, isEdit, setSelectedPets, petId, navigate]);
 
   const handleSave = () => {
-      console.log("Saving vaccination...");
+      // TODO: API call to save vaccination
       navigate("/vaccinations");
   };
 

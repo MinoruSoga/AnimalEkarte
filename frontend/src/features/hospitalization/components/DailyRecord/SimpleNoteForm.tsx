@@ -1,10 +1,19 @@
+// React/Framework
 import { useState } from "react";
-import { Button } from "../../../../components/ui/button";
-import { Textarea } from "../../../../components/ui/textarea";
-import { CreateCareLogDTO } from "../../types";
+
+// External
 import { Send } from "lucide-react";
 import { format } from "date-fns";
+
+// Internal
+import { Button } from "../../../../components/ui/button";
+import { Textarea } from "../../../../components/ui/textarea";
+
+// Relative
 import { H_STYLES } from "../../styles";
+
+// Types
+import type { CreateCareLogDTO } from "../../types";
 
 interface SimpleNoteFormProps {
     onSave: (data: CreateCareLogDTO) => void;

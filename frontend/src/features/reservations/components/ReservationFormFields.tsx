@@ -141,7 +141,7 @@ export const ReservationFormFields = ({
           <Label className="text-sm text-[#37352F]/60">予約区分</Label>
           <Select
             value={formData.type}
-            onValueChange={(v: any) => onChange({ ...formData, type: v })}
+            onValueChange={(v: string) => onChange({ ...formData, type: v })}
           >
             <SelectTrigger className="h-10 text-sm bg-white border-[rgba(55,53,47,0.16)] text-[#37352F]">
               <SelectValue />
@@ -159,7 +159,7 @@ export const ReservationFormFields = ({
           <Label className="text-sm text-[#37352F]/60">初診/再診</Label>
           <RadioGroup
             value={formData.visitType}
-            onValueChange={(v: any) => onChange({ ...formData, visitType: v })}
+            onValueChange={(v: "first" | "revisit") => onChange({ ...formData, visitType: v })}
             className="flex gap-4 pt-1"
           >
             <div className="flex items-center space-x-2">

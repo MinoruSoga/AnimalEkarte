@@ -34,8 +34,7 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
                     setRecords(data.records);
                     setHospitalization(data.hospitalization);
                 })
-                .catch(error => {
-                    console.error("Failed to fetch hospitalization", error);
+                .catch(() => {
                     toast.error("データの取得に失敗しました");
                 })
                 .finally(() => {
@@ -50,8 +49,7 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
             const newPlan = await createCarePlan(hospitalizationId, plan);
             setPlans(prev => [...prev, newPlan]);
             toast.success("ケアプランを作成しました");
-        } catch (error) {
-            console.error("Failed to create care plan", error);
+        } catch {
             toast.error("ケアプランの作成に失敗しました");
         }
     };
@@ -61,8 +59,7 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
             await updateCarePlan(planId, updates);
             setPlans(prev => prev.map(p => p.id === planId ? { ...p, ...updates } : p));
             toast.success("ケアプランを更新しました");
-        } catch (error) {
-            console.error("Failed to update care plan", error);
+        } catch {
             toast.error("ケアプランの更新に失敗しました");
         }
     };
@@ -72,8 +69,7 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
             await deleteCarePlan(planId);
             setPlans(prev => prev.filter(p => p.id !== planId));
             toast.success("ケアプランを削除しました");
-        } catch (error) {
-            console.error("Failed to delete care plan", error);
+        } catch {
             toast.error("ケアプランの削除に失敗しました");
         }
     };
@@ -109,8 +105,7 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
                 }
             });
             toast.success("バイタルを記録しました");
-        } catch (error) {
-            console.error("Failed to add vital", error);
+        } catch {
             toast.error("バイタルの記録に失敗しました");
         }
     };
@@ -146,8 +141,7 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
                 }
             });
             toast.success("記録を追加しました");
-        } catch (error) {
-            console.error("Failed to add log", error);
+        } catch {
             toast.error("記録の追加に失敗しました");
         }
     };
@@ -159,8 +153,7 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
                 setHospitalization(updatedHospitalization);
                 toast.success("退院処理が完了しました");
                 return true;
-            } catch (error) {
-                console.error("Failed to discharge", error);
+            } catch {
                 toast.error("退院処理に失敗しました");
                 return false;
             }

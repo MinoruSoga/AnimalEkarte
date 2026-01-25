@@ -1,3 +1,21 @@
+// React/Framework
+import { useNavigate, useParams } from "react-router-dom";
+
+// External
+import {
+  Plus,
+  Edit,
+  User,
+  PawPrint,
+  MoreHorizontal,
+  Calendar,
+  FileText,
+  Scissors,
+  Bed,
+  CreditCard
+} from "lucide-react";
+
+// Internal
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
@@ -11,28 +29,17 @@ import {
   TableHeader,
   TableRow,
 } from "../../../components/ui/table";
-import { 
-  Plus, 
-  Edit, 
-  User, 
-  PawPrint,
-  MoreHorizontal,
-  Calendar,
-  FileText,
-  Scissors,
-  Bed,
-  CreditCard
-} from "lucide-react";
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "../../../components/ui/dropdown-menu";
-import PetEditModal from "../components/PetEditModal";
-import { useNavigate, useParams } from "react-router-dom";
 import { PageLayout } from "../../../components/shared/PageLayout";
+
+// Relative
+import { PetEditModal } from "../components/PetEditModal";
 import { useOwnerForm } from "../hooks/useOwnerForm";
 
 export const OwnerForm = () => {

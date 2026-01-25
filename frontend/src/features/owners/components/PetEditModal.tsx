@@ -18,28 +18,30 @@ import {
   SelectValue,
 } from "../../../components/ui/select";
 
+export interface PetFormData {
+  petNumber: string;
+  petName: string;
+  petNameKana: string;
+  species: string;
+  gender: string;
+  birthDate: string;
+  breed: string;
+  color: string;
+  neuteredDate: string;
+  acquisitionType: string;
+  dangerLevel: string;
+  food: string;
+  insuranceName?: string;
+  insuranceDetails?: string;
+  remarks: string;
+}
+
 interface PetEditModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   ownerName?: string;
-  petData?: {
-    petNumber: string;
-    petName: string;
-    petNameKana: string;
-    species: string;
-    gender: string;
-    birthDate: string;
-    breed: string;
-    color: string;
-    neuteredDate: string;
-    acquisitionType: string;
-    dangerLevel: string;
-    food: string;
-    insuranceName?: string;
-    insuranceDetails?: string;
-    remarks: string;
-  };
-  onSave: (data: any) => void;
+  petData?: PetFormData;
+  onSave: (data: PetFormData) => void;
 }
 
 const INSURANCE_COMPANIES = [
@@ -61,7 +63,7 @@ const INSURANCE_RATIOS = [
   "その他"
 ];
 
-export default function PetEditModal({
+export function PetEditModal({
   open,
   onOpenChange,
   ownerName = "飼主名",

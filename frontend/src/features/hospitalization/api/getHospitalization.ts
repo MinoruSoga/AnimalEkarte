@@ -1,11 +1,14 @@
+// Relative
 import { MOCK_HOSPITALIZATION } from "./mockData";
-import { Hospitalization, CarePlanItem, DailyRecord } from "../types";
-import { 
-    getStoredHospitalizations, 
-    getStoredPlans, 
-    getStoredRecords, 
-    initializeHospitalizationData 
+import {
+    getStoredHospitalizations,
+    getStoredPlans,
+    getStoredRecords,
+    initializeHospitalizationData
 } from "./store";
+
+// Types
+import type { Hospitalization, CarePlanItem, DailyRecord } from "../types";
 
 interface GetHospitalizationResponse {
     hospitalization: Hospitalization;

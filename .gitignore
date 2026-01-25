@@ -33,3 +33,9 @@ backend/tmp/
 postgres_data/
 
 ui-sample/
+# Gemini API keys and sensitive data
+*.key
+*.pem
+google-credentials.json
+service-account-key.json
+

@@ -1,0 +1,34 @@
+{
+  "model": {
+    "name": "gemini-3.0-pro"
+  },
+  "general": {
+    "sessionRetention": {
+      "enabled": true,
+      "maxAge": "30d"
+    },
+    "vimMode": false,
+    "useWriteTodos": true,
+    "checkpointing": {
+      "enabled": true
+    }
+  },
+  "ui": {
+    "theme": "GitHub",
+    "showLineNumbers": true,
+    "showModelInfoInChat": true
+  },
+  "context": {
+    "fileName": ["GEMINI.md"],
+    "fileFiltering": {
+      "respectGitIgnore": true
+    }
+  },
+  "mcpServers": {
+    "desc-placeholder": {
+      "command": "echo",
+      "args": ["Replace this with your actual MCP server config"],
+      "enabled": false
+    }
+  }
+}

@@ -1,5 +1,12 @@
+// React/Framework
 import { useState, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+
+// External
+import { Plus, Trash2, Save, CreditCard, Printer, FileText } from "lucide-react";
+import { toast } from "sonner";
+
+// Internal
 import { PageLayout } from "../../../components/shared/PageLayout";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
@@ -32,11 +39,13 @@ import {
   DialogDescription,
 } from "../../../components/ui/dialog";
 import { Separator } from "../../../components/ui/separator";
-import { Plus, Trash2, Save, CreditCard, Printer, FileText } from "lucide-react";
+
+// Relative
 import { MOCK_ACCOUNTING_LIST } from "../mockData";
-import { Accounting, AccountingItem, PaymentInfo } from "../types";
-import { toast } from "sonner";
 import { AccountingDocument } from "../components/AccountingDocument";
+
+// Types
+import type { Accounting, AccountingItem, PaymentInfo, ItemCategory, PaymentMethod } from "../types";
 
 // Helper to create initial accounting data
 function createInitialAccounting(
@@ -162,7 +171,7 @@ export const AccountingDetail = () => {
 
     const newItem: AccountingItem = {
       id: `manual_${Date.now()}`,
-      category: newItemCategory as any,
+      category: newItemCategory as ItemCategory,
       name: newItemName,
       unitPrice: parseInt(newItemPrice, 10),
       quantity: 1,
@@ -203,7 +212,7 @@ export const AccountingDetail = () => {
       billingAmount: calculation.billingAmount,
       receivedAmount: calculation.received,
       changeAmount: calculation.changeAmount,
-      method: paymentMethod as any,
+      method: paymentMethod as PaymentMethod,
       insuranceRatio: useInsurance ? parseFloat(insuranceRatio) : undefined
     };
 

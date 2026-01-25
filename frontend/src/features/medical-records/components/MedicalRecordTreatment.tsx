@@ -105,7 +105,7 @@ export function MedicalRecordTreatment({ isNewRecord = false }: TreatmentProps) 
     setPlanItems((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
-  const handleUpdatePlanItem = useCallback((id: number, field: keyof TreatmentItem, value: any) => {
+  const handleUpdatePlanItem = useCallback((id: number, field: keyof TreatmentItem, value: string | number | boolean) => {
     setPlanItems((prev) =>
       prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
     );
@@ -131,7 +131,7 @@ export function MedicalRecordTreatment({ isNewRecord = false }: TreatmentProps) 
     setCompletedItems((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
-  const handleUpdateCompletedItem = useCallback((id: number, field: keyof TreatmentItem, value: any) => {
+  const handleUpdateCompletedItem = useCallback((id: number, field: keyof TreatmentItem, value: string | number | boolean) => {
     setCompletedItems((prev) =>
       prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
     );

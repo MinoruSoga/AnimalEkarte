@@ -8,6 +8,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/validation"
 )
 
 func (s *Service) GetAllPets(ctx context.Context) ([]model.Pet, error) {
@@ -23,11 +24,9 @@ func (s *Service) GetPetByID(ctx context.Context, id string) (*model.Pet, error)
 }
 
 func (s *Service) CreatePet(ctx context.Context, req *model.CreatePetRequest) (*model.Pet, error) {
-	if req.Name == "" {
-		return nil, apperrors.WrapInvalidInput("pet name is required")
-	}
-	if req.Species == "" {
-		return nil, apperrors.WrapInvalidInput("pet species is required")
+	// バリデーション
+	if err := validation.ValidateCreatePet(req); err != nil {
+		return nil, err
 	}
 
 	pet := &model.Pet{
@@ -56,6 +55,11 @@ func (s *Service) CreatePet(ctx context.Context, req *model.CreatePetRequest) (*
 }
 
 func (s *Service) UpdatePet(ctx context.Context, id string, req *model.UpdatePetRequest) (*model.Pet, error) {
+	// バリデーション
+	if err := validation.ValidateUpdatePet(req); err != nil {
+		return nil, err
+	}
+
 	pet, err := s.GetPetByID(ctx, id)
 	if err != nil {
 		return nil, err

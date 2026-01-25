@@ -1,4 +1,7 @@
+// React/Framework
 import React, { useState } from "react";
+
+// Relative
 import { ImageGalleryFilter } from "./ImageGalleryFilter";
 import { ImageGalleryGroup } from "./ImageGalleryGroup";
 

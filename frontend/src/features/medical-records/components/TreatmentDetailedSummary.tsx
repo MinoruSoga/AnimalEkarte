@@ -1,4 +1,7 @@
+// React/Framework
 import React from "react";
+
+// Internal
 import { Input } from "../../../components/ui/input";
 
 interface TreatmentDetailedSummaryProps {

@@ -1,12 +1,20 @@
+// React/Framework
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Button } from "../../../components/ui/button";
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Calendar as CalendarIcon, 
+
+// External
+import {
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
   Plus
 } from "lucide-react";
+import { format, addWeeks, subWeeks, addMonths, subMonths, addHours } from "date-fns";
+import { ja } from "date-fns/locale";
+import { toast } from "sonner";
+
+// Internal
+import { Button } from "../../../components/ui/button";
 import {
   Select,
   SelectContent,
@@ -14,17 +22,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../../components/ui/select";
-import { format, addWeeks, subWeeks, addMonths, subMonths, addHours } from "date-fns";
-import { ja } from "date-fns/locale";
-import { toast } from "sonner";
-import { ReservationAppointment, Pet } from "../../../types";
+import { FormHeader } from "../../../components/shared/FormHeader";
 import { generateMockAppointments, MOCK_PETS } from "../../../lib/constants";
+
+// Relative
 import { ReservationFormModal } from "../components/ReservationFormModal";
 import { ReservationDetailModal } from "../components/ReservationDetailModal";
 import { MonthView } from "../components/MonthView";
 import { WeekView } from "../components/WeekView";
 
-import FormHeader from "../../../components/shared/FormHeader";
+// Types
+import type { ReservationAppointment, Pet } from "../../../types";
 
 export const ReservationManagement = () => {
   const navigate = useNavigate();
@@ -301,7 +309,7 @@ export const ReservationManagement = () => {
             </div>
 
             <div className="flex items-center gap-2">
-                <Select value={view} onValueChange={(v: any) => setView(v)}>
+                <Select value={view} onValueChange={(v: "month" | "week") => setView(v)}>
                     <SelectTrigger className="w-[140px] bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
                         <SelectValue placeholder="表示切替" />
                     </SelectTrigger>

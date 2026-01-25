@@ -1,7 +1,14 @@
+// External
 import { Edit2, Trash2, Utensils, Pill, ClipboardList, Stethoscope, CheckCircle2 } from "lucide-react";
+
+// Internal
 import { Button } from "../../../../components/ui/button";
-import { CarePlanItem } from "../../types";
+
+// Relative
 import { H_STYLES } from "../../styles";
+
+// Types
+import type { CarePlanItem } from "../../types";
 
 interface CarePlanItemProps {
     plan: CarePlanItem;

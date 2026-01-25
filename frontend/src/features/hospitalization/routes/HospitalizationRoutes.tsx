@@ -1,4 +1,7 @@
+// React/Framework
 import { Route, Routes } from "react-router-dom";
+
+// Relative
 import { HospitalizationList } from "./HospitalizationList";
 import { HospitalizationForm } from "./HospitalizationForm";
 import { HospitalizationPetSelection } from "./HospitalizationPetSelection";

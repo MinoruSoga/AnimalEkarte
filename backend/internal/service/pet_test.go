@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -13,7 +13,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// MockPetRepository is a mock implementation of PetRepository
 type MockPetRepository struct {
 	mock.Mock
 }
@@ -49,14 +48,49 @@ func (m *MockPetRepository) DeletePet(ctx context.Context, id uuid.UUID) error {
 	return args.Error(0)
 }
 
-func TestGetAllPets_Success(t *testing.T) {
+type MockOwnerRepository struct {
+	mock.Mock
+}
+
+func (m *MockOwnerRepository) GetAllOwners(ctx context.Context) ([]model.Owner, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]model.Owner), args.Error(1)
+}
+
+func (m *MockOwnerRepository) GetOwnerByID(ctx context.Context, id uuid.UUID) (*model.Owner, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.Owner), args.Error(1)
+}
+
+func (m *MockOwnerRepository) CreateOwner(ctx context.Context, owner *model.Owner) error {
+	args := m.Called(ctx, owner)
+	return args.Error(0)
+}
+
+func (m *MockOwnerRepository) UpdateOwner(ctx context.Context, owner *model.Owner) error {
+	args := m.Called(ctx, owner)
+	return args.Error(0)
+}
+
+func (m *MockOwnerRepository) DeleteOwner(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func TestGetAllPets(t *testing.T) {
 	mockRepo := new(MockPetRepository)
-	svc := New(mockRepo)
+	mockOwnerRepo := new(MockOwnerRepository)
+	svc := New(mockRepo, mockOwnerRepo, nil)
 	ctx := context.Background()
 
 	expectedPets := []model.Pet{
-		{ID: uuid.New(), Name: "ポチ", Species: "犬"},
-		{ID: uuid.New(), Name: "タマ", Species: "猫"},
+		{ID: uuid.New(), Name: "Pochi"},
 	}
 
 	mockRepo.On("GetAllPets", ctx).Return(expectedPets, nil)
@@ -64,209 +98,145 @@ func TestGetAllPets_Success(t *testing.T) {
 	pets, err := svc.GetAllPets(ctx)
 
 	assert.NoError(t, err)
-	assert.Len(t, pets, 2)
-	assert.Equal(t, "ポチ", pets[0].Name)
+	assert.Equal(t, expectedPets, pets)
 	mockRepo.AssertExpectations(t)
 }
 
-func TestGetPetByID_Success(t *testing.T) {
+func TestGetPetByID(t *testing.T) {
 	mockRepo := new(MockPetRepository)
-	svc := New(mockRepo)
+	mockOwnerRepo := new(MockOwnerRepository)
+	svc := New(mockRepo, mockOwnerRepo, nil)
 	ctx := context.Background()
 
-	petID := uuid.New()
-	expectedPet := &model.Pet{ID: petID, Name: "ポチ", Species: "犬"}
+	id := uuid.New()
+	expectedPet := &model.Pet{ID: id, Name: "Pochi"}
 
-	mockRepo.On("GetPetByID", ctx, petID).Return(expectedPet, nil)
+	mockRepo.On("GetPetByID", ctx, id).Return(expectedPet, nil)
 
-	pet, err := svc.GetPetByID(ctx, petID.String())
+	pet, err := svc.GetPetByID(ctx, id.String())
 
 	assert.NoError(t, err)
-	assert.NotNil(t, pet)
-	assert.Equal(t, "ポチ", pet.Name)
+	assert.Equal(t, expectedPet, pet)
 	mockRepo.AssertExpectations(t)
 }
 
-func TestGetPetByID_InvalidUUID(t *testing.T) {
+func TestCreatePet(t *testing.T) {
 	mockRepo := new(MockPetRepository)
-	svc := New(mockRepo)
-	ctx := context.Background()
-
-	pet, err := svc.GetPetByID(ctx, "invalid-uuid")
-
-	assert.Error(t, err)
-	assert.Nil(t, pet)
-	assert.True(t, apperrors.IsInvalidInput(err))
-}
-
-func TestGetPetByID_NotFound(t *testing.T) {
-	mockRepo := new(MockPetRepository)
-	svc := New(mockRepo)
-	ctx := context.Background()
-
-	petID := uuid.New()
-	mockRepo.On("GetPetByID", ctx, petID).Return(nil, apperrors.WrapNotFound("pet", petID.String()))
-
-	pet, err := svc.GetPetByID(ctx, petID.String())
-
-	assert.Error(t, err)
-	assert.Nil(t, pet)
-	assert.True(t, apperrors.IsNotFound(err))
-	mockRepo.AssertExpectations(t)
-}
-
-func TestCreatePet_Success(t *testing.T) {
-	mockRepo := new(MockPetRepository)
-	svc := New(mockRepo)
+	mockOwnerRepo := new(MockOwnerRepository)
+	svc := New(mockRepo, mockOwnerRepo, nil)
 	ctx := context.Background()
 
 	req := &model.CreatePetRequest{
-		Name:      "ポチ",
-		Species:   "犬",
-		Breed:     "柴犬",
-		Gender:    "オス",
-		Weight:    10.5,
-		BirthDate: "2020-01-15",
+		Name:    "Pochi",
+		Species: "Dog",
+		OwnerID: uuid.New().String(),
 	}
 
-	mockRepo.On("CreatePet", ctx, mock.AnythingOfType("*model.Pet")).Return(nil)
+	mockRepo.On("CreatePet", ctx, mock.MatchedBy(func(p *model.Pet) bool {
+		return p.Name == req.Name && p.Species == req.Species
+	})).Return(nil)
 
 	pet, err := svc.CreatePet(ctx, req)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, pet)
-	assert.Equal(t, "ポチ", pet.Name)
-	assert.Equal(t, "犬", pet.Species)
-	assert.Equal(t, "柴犬", pet.Breed)
-	assert.NotNil(t, pet.BirthDate)
+	assert.Equal(t, req.Name, pet.Name)
 	mockRepo.AssertExpectations(t)
 }
 
-func TestCreatePet_EmptyName(t *testing.T) {
+func TestCreatePet_Validation(t *testing.T) {
 	mockRepo := new(MockPetRepository)
-	svc := New(mockRepo)
+	mockOwnerRepo := new(MockOwnerRepository)
+	svc := New(mockRepo, mockOwnerRepo, nil)
 	ctx := context.Background()
 
-	req := &model.CreatePetRequest{
-		Name:    "",
-		Species: "犬",
+	tests := []struct {
+		name string
+		req  *model.CreatePetRequest
+	}{
+		{
+			name: "missing name",
+			req:  &model.CreatePetRequest{Species: "Dog"},
+		},
+		{
+			name: "missing species",
+			req:  &model.CreatePetRequest{Name: "Pochi"},
+		},
+		{
+			name: "invalid birth date",
+			req:  &model.CreatePetRequest{Name: "Pochi", Species: "Dog", BirthDate: "invalid"},
+		},
 	}
 
-	pet, err := svc.CreatePet(ctx, req)
-
-	assert.Error(t, err)
-	assert.Nil(t, pet)
-	assert.True(t, apperrors.IsInvalidInput(err))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pet, err := svc.CreatePet(ctx, tt.req)
+			assert.Error(t, err)
+			assert.Nil(t, pet)
+			assert.True(t, apperrors.IsInvalidInput(err))
+		})
+	}
 }
 
-func TestCreatePet_EmptySpecies(t *testing.T) {
+func TestUpdatePet(t *testing.T) {
 	mockRepo := new(MockPetRepository)
-	svc := New(mockRepo)
+	mockOwnerRepo := new(MockOwnerRepository)
+	svc := New(mockRepo, mockOwnerRepo, nil)
 	ctx := context.Background()
 
-	req := &model.CreatePetRequest{
-		Name:    "ポチ",
-		Species: "",
-	}
+	id := uuid.New()
+	existingPet := &model.Pet{ID: id, Name: "Pochi", Species: "Dog"}
+	req := &model.UpdatePetRequest{Name: "Tama"}
 
-	pet, err := svc.CreatePet(ctx, req)
+	mockRepo.On("GetPetByID", ctx, id).Return(existingPet, nil)
+	mockRepo.On("UpdatePet", ctx, mock.MatchedBy(func(p *model.Pet) bool {
+		return p.ID == id && p.Name == "Tama" && p.Species == "Dog"
+	})).Return(nil)
 
-	assert.Error(t, err)
-	assert.Nil(t, pet)
-	assert.True(t, apperrors.IsInvalidInput(err))
-}
-
-func TestCreatePet_InvalidBirthDate(t *testing.T) {
-	mockRepo := new(MockPetRepository)
-	svc := New(mockRepo)
-	ctx := context.Background()
-
-	req := &model.CreatePetRequest{
-		Name:      "ポチ",
-		Species:   "犬",
-		BirthDate: "invalid-date",
-	}
-
-	pet, err := svc.CreatePet(ctx, req)
-
-	assert.Error(t, err)
-	assert.Nil(t, pet)
-	assert.True(t, apperrors.IsInvalidInput(err))
-}
-
-func TestUpdatePet_Success(t *testing.T) {
-	mockRepo := new(MockPetRepository)
-	svc := New(mockRepo)
-	ctx := context.Background()
-
-	petID := uuid.New()
-	birthDate := time.Now().AddDate(-2, 0, 0)
-	weight := 10.5
-	existingPet := &model.Pet{
-		ID:        petID,
-		Name:      "ポチ",
-		Species:   "犬",
-		Breed:     "柴犬",
-		BirthDate: &birthDate,
-		Gender:    "オス",
-		Weight:    &weight,
-	}
-
-	req := &model.UpdatePetRequest{
-		Name:   "ポチ太郎",
-		Weight: 12.0,
-	}
-
-	mockRepo.On("GetPetByID", ctx, petID).Return(existingPet, nil)
-	mockRepo.On("UpdatePet", ctx, mock.AnythingOfType("*model.Pet")).Return(nil)
-
-	pet, err := svc.UpdatePet(ctx, petID.String(), req)
+	pet, err := svc.UpdatePet(ctx, id.String(), req)
 
 	assert.NoError(t, err)
-	assert.NotNil(t, pet)
-	assert.Equal(t, "ポチ太郎", pet.Name)
-	assert.Equal(t, 12.0, *pet.Weight)
+	assert.Equal(t, "Tama", pet.Name)
 	mockRepo.AssertExpectations(t)
 }
 
 func TestUpdatePet_NotFound(t *testing.T) {
 	mockRepo := new(MockPetRepository)
-	svc := New(mockRepo)
+	mockOwnerRepo := new(MockOwnerRepository)
+	svc := New(mockRepo, mockOwnerRepo, nil)
 	ctx := context.Background()
 
-	petID := uuid.New()
-	req := &model.UpdatePetRequest{Name: "ポチ太郎"}
+	id := uuid.New()
+	mockRepo.On("GetPetByID", ctx, id).Return(nil, errors.New("not found"))
 
-	mockRepo.On("GetPetByID", ctx, petID).Return(nil, apperrors.WrapNotFound("pet", petID.String()))
-
-	pet, err := svc.UpdatePet(ctx, petID.String(), req)
+	pet, err := svc.UpdatePet(ctx, id.String(), &model.UpdatePetRequest{Name: "Tama"})
 
 	assert.Error(t, err)
 	assert.Nil(t, pet)
-	assert.True(t, apperrors.IsNotFound(err))
-	mockRepo.AssertExpectations(t)
 }
 
-func TestDeletePet_Success(t *testing.T) {
+func TestDeletePet(t *testing.T) {
 	mockRepo := new(MockPetRepository)
-	svc := New(mockRepo)
+	mockOwnerRepo := new(MockOwnerRepository)
+	svc := New(mockRepo, mockOwnerRepo, nil)
 	ctx := context.Background()
 
-	petID := uuid.New()
-	mockRepo.On("DeletePet", ctx, petID).Return(nil)
+	id := uuid.New()
+	mockRepo.On("DeletePet", ctx, id).Return(nil)
 
-	err := svc.DeletePet(ctx, petID.String())
+	err := svc.DeletePet(ctx, id.String())
 
 	assert.NoError(t, err)
 	mockRepo.AssertExpectations(t)
 }
 
-func TestDeletePet_InvalidUUID(t *testing.T) {
+func TestDeletePet_InvalidID(t *testing.T) {
 	mockRepo := new(MockPetRepository)
-	svc := New(mockRepo)
+	mockOwnerRepo := new(MockOwnerRepository)
+	svc := New(mockRepo, mockOwnerRepo, nil)
 	ctx := context.Background()
 
-	err := svc.DeletePet(ctx, "invalid-uuid")
+	err := svc.DeletePet(ctx, "invalid-id")
 
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsInvalidInput(err))

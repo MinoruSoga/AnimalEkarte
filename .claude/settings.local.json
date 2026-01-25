@@ -8,7 +8,8 @@
       "WebSearch",
       "mcp__serena__list_dir",
       "Bash(xargs perl:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "mcp__sequential-thinking__sequentialthinking"
     ]
   },
   "enableAllProjectMcpServers": true

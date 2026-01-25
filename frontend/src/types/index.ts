@@ -1,3 +1,5 @@
+export * from './owner';
+
 import { ReactNode } from "react";
 
 // Sidebar Types
@@ -178,7 +180,15 @@ export interface ExaminationRecord {
   status: "依頼中" | "検査中" | "完了";
   resultSummary?: string;
   machine?: string;
-  items?: any[];
+  items?: ExaminationItem[];
+}
+
+export interface ExaminationItem {
+  id: string;
+  name: string;
+  result?: string;
+  unit?: string;
+  referenceRange?: string;
 }
 
 // Accounting Types

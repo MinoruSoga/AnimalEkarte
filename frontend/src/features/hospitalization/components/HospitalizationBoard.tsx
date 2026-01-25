@@ -1,11 +1,18 @@
-import { MasterItem, Hospitalization } from "../../../types";
+// External
+import { Plus, GripVertical } from "lucide-react";
+import { useDrag, useDrop } from "react-dnd";
+
+// Internal
 import { Card, CardHeader, CardContent } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
-import { Plus, GripVertical } from "lucide-react";
 import { getHospitalizationTypeColor } from "../../../lib/status-helpers";
-import { useDrag, useDrop } from "react-dnd";
+
+// Relative
 import { H_STYLES } from "../styles";
+
+// Types
+import type { MasterItem, Hospitalization } from "../../../types";
 
 interface HospitalizationBoardProps {
   cages: MasterItem[];

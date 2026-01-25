@@ -1,7 +1,12 @@
+// React/Framework
 import React from "react";
+
+// External
+import { FileText } from "lucide-react";
+
+// Internal
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { ScrollArea } from "../../../components/ui/scroll-area";
-import { FileText } from "lucide-react";
 
 export const DiagnosisHeaderChiefComplaint = React.memo(function DiagnosisHeaderChiefComplaint() {
   return (

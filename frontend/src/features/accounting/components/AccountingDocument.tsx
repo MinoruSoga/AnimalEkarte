@@ -1,12 +1,25 @@
-import { Accounting } from "../types";
+// External
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
+
+// Relative
 import { useClinicInfo } from "../../clinic/hooks/useClinicInfo";
+
+// Types
+import type { Accounting } from "../types";
+
+interface PaymentInfo {
+  totalAmount: number;
+  insuranceAmount: number;
+  billingAmount: number;
+  receivedAmount: number;
+  changeAmount: number;
+}
 
 interface AccountingDocumentProps {
   type: "receipt" | "statement";
   accounting: Accounting;
-  paymentInfo: any; // Using simplified type for now
+  paymentInfo: PaymentInfo;
 }
 
 export const AccountingDocument = ({ type, accounting, paymentInfo }: AccountingDocumentProps) => {

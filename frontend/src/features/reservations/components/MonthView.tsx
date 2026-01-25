@@ -1,7 +1,12 @@
+// External
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, format, isSameMonth, isSameDay, addDays } from "date-fns";
 import { ja } from "date-fns/locale";
-import { ReservationAppointment } from "../../../types";
+
+// Internal
 import { getReservationTypeColor } from "../../../lib/status-helpers";
+
+// Types
+import type { ReservationAppointment } from "../../../types";
 
 interface MonthViewProps {
   currentDate: Date;

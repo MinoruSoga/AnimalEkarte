@@ -1,19 +1,28 @@
+// React/Framework
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+// External
+import { Filter } from "lucide-react";
+import { toast } from "sonner";
+import { format, addHours } from "date-fns";
+import { ja } from "date-fns/locale";
+
+// Internal
 import { Button } from "../../../components/ui/button";
-import { DashboardDetailModal } from "../components/DashboardDetailModal";
-import { KanbanColumn } from "../components/KanbanColumn";
-import { Appointment, ReservationAppointment, Pet } from "../../../types";
-import FormHeader from "../../../components/shared/FormHeader";
 import { Checkbox } from "../../../components/ui/checkbox";
 import { Label } from "../../../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
-import { Filter } from "lucide-react";
-import { toast } from "sonner";
+import { FormHeader } from "../../../components/shared/FormHeader";
+
+// Relative
+import { DashboardDetailModal } from "../components/DashboardDetailModal";
+import { KanbanColumn } from "../components/KanbanColumn";
 import { useDashboardKanban } from "../hooks/useDashboardKanban";
-import { format, addHours } from "date-fns";
-import { ja } from "date-fns/locale";
 import { ReservationFormModal } from "../../reservations/components/ReservationFormModal";
+
+// Types
+import type { Appointment, ReservationAppointment, Pet } from "../../../types";
 
 export const Dashboard = () => {
   const navigate = useNavigate();

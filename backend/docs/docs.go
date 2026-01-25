@@ -53,9 +53,235 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/owners": {
+            "get": {
+                "description": "Get a list of all owners",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "owners"
+                ],
+                "summary": "Get all owners",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Owner"
                             }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a new owner with the provided details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "owners"
+                ],
+                "summary": "Create a new owner",
+                "parameters": [
+                    {
+                        "description": "Owner Data",
+                        "name": "owner",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateOwnerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.Owner"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/owners/{id}": {
+            "get": {
+                "description": "Get details of a specific owner",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "owners"
+                ],
+                "summary": "Get an owner by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Owner ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Owner"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update details of an existing owner",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "owners"
+                ],
+                "summary": "Update an owner",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Owner ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Owner Data",
+                        "name": "owner",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateOwnerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Owner"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete an owner by ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "owners"
+                ],
+                "summary": "Delete an owner",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Owner ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     }
                 }
@@ -306,10 +532,45 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "handler.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.CreateOwnerRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "name_kana": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                }
+            }
+        },
         "model.CreatePetRequest": {
             "type": "object",
             "required": [
                 "name",
+                "owner_id",
                 "species"
             ],
             "properties": {
@@ -319,17 +580,163 @@ const docTemplate = `{
                 "breed": {
                     "type": "string"
                 },
+                "environment": {
+                    "type": "string"
+                },
                 "gender": {
+                    "type": "string"
+                },
+                "insurance_details": {
+                    "type": "string"
+                },
+                "insurance_name": {
+                    "type": "string"
+                },
+                "microchip_id": {
                     "type": "string"
                 },
                 "name": {
                     "type": "string"
                 },
+                "notes": {
+                    "type": "string"
+                },
+                "owner_id": {
+                    "type": "string"
+                },
+                "pet_number": {
+                    "type": "string"
+                },
                 "species": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 },
                 "weight": {
                     "type": "number"
+                }
+            }
+        },
+        "model.MedicalRecord": {
+            "type": "object",
+            "properties": {
+                "assessment": {
+                    "description": "A: 評価",
+                    "type": "string"
+                },
+                "chief_complaint": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "diagnosis": {
+                    "type": "string"
+                },
+                "doctor_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "objective": {
+                    "description": "O: 客観的情報",
+                    "type": "string"
+                },
+                "owner": {
+                    "$ref": "#/definitions/model.Owner"
+                },
+                "owner_id": {
+                    "type": "string"
+                },
+                "pet": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Pet"
+                        }
+                    ]
+                },
+                "pet_id": {
+                    "type": "string"
+                },
+                "plan": {
+                    "description": "P: 計画",
+                    "type": "string"
+                },
+                "prescription": {
+                    "type": "string"
+                },
+                "record_no": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "作成中, 確定済",
+                    "type": "string"
+                },
+                "subjective": {
+                    "description": "S: 主観的情報",
+                    "type": "string"
+                },
+                "surgery_notes": {
+                    "description": "S: 手術・特記事項",
+                    "type": "string"
+                },
+                "treatment": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "visit_date": {
+                    "type": "string"
+                },
+                "visit_type": {
+                    "description": "初診, 再診",
+                    "type": "string"
+                }
+            }
+        },
+        "model.Owner": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "name_kana": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "pets": {
+                    "description": "Relations",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Pet"
+                    }
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -345,16 +752,57 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "environment": {
+                    "type": "string"
+                },
                 "gender": {
                     "type": "string"
                 },
                 "id": {
                     "type": "string"
                 },
+                "insurance_details": {
+                    "type": "string"
+                },
+                "insurance_name": {
+                    "type": "string"
+                },
+                "last_visit": {
+                    "type": "string"
+                },
+                "medical_records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.MedicalRecord"
+                    }
+                },
+                "microchip_id": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
+                "notes": {
+                    "type": "string"
+                },
+                "owner": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Owner"
+                        }
+                    ]
+                },
+                "owner_id": {
+                    "type": "string"
+                },
+                "pet_number": {
+                    "type": "string"
+                },
                 "species": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -362,6 +810,29 @@ const docTemplate = `{
                 },
                 "weight": {
                     "type": "number"
+                }
+            }
+        },
+        "model.UpdateOwnerRequest": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "name_kana": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
                 }
             }
         },
@@ -374,13 +845,37 @@ const docTemplate = `{
                 "breed": {
                     "type": "string"
                 },
+                "environment": {
+                    "type": "string"
+                },
                 "gender": {
+                    "type": "string"
+                },
+                "insurance_details": {
+                    "type": "string"
+                },
+                "insurance_name": {
+                    "type": "string"
+                },
+                "microchip_id": {
                     "type": "string"
                 },
                 "name": {
                     "type": "string"
                 },
+                "notes": {
+                    "type": "string"
+                },
+                "owner_id": {
+                    "type": "string"
+                },
+                "pet_number": {
+                    "type": "string"
+                },
                 "species": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 },
                 "weight": {

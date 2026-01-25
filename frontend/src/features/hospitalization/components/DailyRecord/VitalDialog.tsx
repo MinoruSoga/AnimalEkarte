@@ -1,12 +1,21 @@
+// React/Framework
 import { useState, useEffect } from "react";
+
+// External
 import { format } from "date-fns";
+
+// Internal
 import { Button } from "../../../../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../../../components/ui/dialog";
 import { Input } from "../../../../components/ui/input";
 import { Label } from "../../../../components/ui/label";
 import { Textarea } from "../../../../components/ui/textarea";
-import { CreateVitalDTO } from "../../types";
+
+// Relative
 import { H_STYLES } from "../../styles";
+
+// Types
+import type { CreateVitalDTO } from "../../types";
 
 interface VitalDialogProps {
     open: boolean;

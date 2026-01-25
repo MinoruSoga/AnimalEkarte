@@ -1,12 +1,14 @@
+// React/Framework
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+// External
+import { Plus, Scissors, Calendar } from "lucide-react";
+
+// Internal
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { TableCell } from "../../../components/ui/table";
-import { Plus, Scissors, Calendar } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { getTrimmingStatusColor } from "../../../lib/status-helpers";
-import { useTrimmingRecords } from "../hooks/useTrimmingRecords";
-
 import { PageLayout } from "../../../components/shared/PageLayout";
 import { SearchFilterBar } from "../../../components/shared/SearchFilterBar";
 import { DataTable } from "../../../components/shared/DataTable";
@@ -14,6 +16,10 @@ import { PrimaryButton } from "../../../components/shared/PrimaryButton";
 import { StatusBadge } from "../../../components/shared/StatusBadge";
 import { DataTableRow } from "../../../components/shared/DataTableRow";
 import { RowActionButton } from "../../../components/shared/RowActionButton";
+import { getTrimmingStatusColor } from "../../../lib/status-helpers";
+
+// Relative
+import { useTrimmingRecords } from "../hooks/useTrimmingRecords";
 
 export const TrimmingList = () => {
   const navigate = useNavigate();

@@ -28,7 +28,7 @@ export const useHospitalizationPetSelection = () => {
   }, [searchParams]);
 
   const handleSearch = () => {
-    console.log("検索実行:", searchParams);
+    // TODO: API call to search pets
   };
 
   const handleSelect = (pet: Pet) => {

@@ -1,9 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "outputStyle": "senior-engineer",
-  "statusLine": {
-    "enabled": true
-  },
   "env": {
     "USE_DOCKER": "true",
     "DOCKER_PROJECT": "your-project-name",

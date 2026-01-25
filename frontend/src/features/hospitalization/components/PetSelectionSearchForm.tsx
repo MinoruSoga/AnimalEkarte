@@ -15,7 +15,7 @@ interface PetSelectionSearchFormProps {
     species: string;
     address: string;
   };
-  setSearchParams: (params: any) => void;
+  setSearchParams: (params: PetSelectionSearchFormProps["searchParams"]) => void;
   onSearch: () => void;
 }
 

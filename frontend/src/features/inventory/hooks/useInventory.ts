@@ -7,9 +7,8 @@ interface ConsumeItem {
 }
 
 export function useInventory() {
-  const consumeStock = (items: ConsumeItem[]) => {
-    // Mock: Log consumption for now
-    console.log("Stock consumption requested:", items);
+  const consumeStock = (_items: ConsumeItem[]) => {
+    // TODO: Implement actual stock consumption API call
   };
 
   return {

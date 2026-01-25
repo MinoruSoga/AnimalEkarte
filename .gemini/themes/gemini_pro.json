@@ -1,0 +1,15 @@
+{
+  "name": "GeminiPro",
+  "type": "custom",
+  "Background": "#0F111A",
+  "Foreground": "#E6E1CF",
+  "LightBlue": "#89DDFF",
+  "AccentBlue": "#82AAFF",
+  "AccentPurple": "#C792EA",
+  "AccentCyan": "#89DDFF",
+  "AccentGreen": "#C3E88D",
+  "AccentYellow": "#FFCB6B",
+  "AccentRed": "#FF5370",
+  "Comment": "#546E7A",
+  "Gray": "#607B8B"
+}

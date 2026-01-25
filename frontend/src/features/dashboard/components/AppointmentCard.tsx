@@ -1,9 +1,22 @@
+// React/Framework
 import { useRef } from "react";
+
+// External
 import { useDrag, useDrop } from "react-dnd";
+import { Clock, Dog, Stethoscope, Scissors, Calendar, AlertCircle, Syringe, Activity } from "lucide-react";
+
+// Internal
 import { Card, CardContent } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
-import { Clock, Dog, Stethoscope, Scissors, Calendar, AlertCircle, Syringe, Activity } from "lucide-react";
-import { Appointment } from "../../../types";
+
+// Types
+import type { Appointment } from "../../../types";
+
+interface DragItem {
+  index: number;
+  columnTitle: string;
+  appointment: Appointment;
+}
 
 interface AppointmentCardProps {
   appointment: Appointment;
@@ -32,7 +45,7 @@ export const AppointmentCard = ({
 
   const [{ isOver }, drop] = useDrop(() => ({
     accept: 'appointment',
-    hover: (item: any, monitor) => {
+    hover: (item: DragItem, monitor) => {
       if (!ref.current) return;
 
       const dragIndex = item.index;

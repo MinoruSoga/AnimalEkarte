@@ -1,8 +1,13 @@
+// React/Framework
 import React from "react";
+
+// External
+import { FileText } from "lucide-react";
+
+// Internal
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
-import { FileText } from "lucide-react";
 
 interface ExaminationFilterProps {
   searchTerm: string;

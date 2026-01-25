@@ -1,4 +1,10 @@
+// React/Framework
 import * as React from "react";
+
+// External
+import { X } from "lucide-react";
+
+// Internal
 import {
   CommandDialog,
   CommandInput,
@@ -10,7 +16,6 @@ import {
 } from "../../../components/ui/command";
 import { Badge } from "../../../components/ui/badge";
 import { cn } from "../../../components/ui/utils";
-import { X } from "lucide-react";
 
 // --- Types ---
 export type TreatmentMasterItem = {

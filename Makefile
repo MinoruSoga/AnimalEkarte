@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset restart-api restart-front build-prod lint lint-fix test swagger help
+.PHONY: up down build logs logs-api logs-front ps db clean reset restart-api restart-front build-prod lint lint-fix test test-cover swagger build-go mod-download mod-tidy help
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -60,23 +60,35 @@ build-prod:
 
 # リンター実行（Go）
 lint:
-	cd backend && golangci-lint run
+	docker compose exec backend golangci-lint run
 
 # リンター実行（自動修正）
 lint-fix:
-	cd backend && golangci-lint run --fix
+	docker compose exec backend golangci-lint run --fix
 
 # テスト実行（Go）
 test:
-	cd backend && go test -v ./...
+	docker compose exec backend go test -v ./...
 
 # テスト実行（カバレッジ付き）
 test-cover:
-	cd backend && go test -cover ./...
+	docker compose exec backend go test -cover ./...
 
 # Swagger ドキュメント生成
 swagger:
-	cd backend && swag init -g cmd/api/main.go -o docs
+	docker compose exec backend swag init -g cmd/api/main.go -o docs
+
+# Goビルド（開発用）
+build-go:
+	docker compose exec backend go build ./cmd/api
+
+# Goモジュールダウンロード
+mod-download:
+	docker compose exec backend go mod download
+
+# Goモジュールtidy
+mod-tidy:
+	docker compose exec backend go mod tidy
 
 # ヘルプ
 help:
@@ -105,5 +117,8 @@ help:
 	@echo "  test          Goテスト実行"
 	@echo "  test-cover    Goテスト実行（カバレッジ付き）"
 	@echo "  swagger       Swaggerドキュメント生成"
+	@echo "  build-go      Goビルド（開発用）"
+	@echo "  mod-download  Goモジュールダウンロード"
+	@echo "  mod-tidy      Goモジュールtidy"
 	@echo ""
 	@echo "  help          このヘルプを表示"

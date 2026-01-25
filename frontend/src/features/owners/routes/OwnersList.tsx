@@ -1,6 +1,11 @@
+// React/Framework
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+// External
 import { Plus } from "lucide-react";
+
+// Internal
 import { TableCell } from "../../../components/ui/table";
 import { RowActionButton } from "../../../components/shared/RowActionButton";
 import { PageLayout } from "../../../components/shared/PageLayout";
@@ -9,8 +14,10 @@ import { DataTable } from "../../../components/shared/DataTable";
 import { PrimaryButton } from "../../../components/shared/PrimaryButton";
 import { StatusBadge } from "../../../components/shared/StatusBadge";
 import { DataTableRow } from "../../../components/shared/DataTableRow";
-import { usePets } from "../hooks/usePets";
 import { getPetStatusColor } from "../../../lib/status-helpers";
+
+// Relative
+import { usePets } from "../hooks/usePets";
 
 export const OwnersList = () => {
   const navigate = useNavigate();

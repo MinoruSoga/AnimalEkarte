@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -91,7 +92,7 @@ func main() {
 
 	// レイヤー初期化
 	repo := repository.New(db)
-	svc := service.New(repo)
+	svc := service.New(repo, repo, repo)
 	h := handler.New(svc)
 
 	// ルーター設定
@@ -101,14 +102,20 @@ func main() {
 	// Swagger UI
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
+	// HTTPサーバー設定
+	server := &http.Server{
+		Addr:    ":" + cfg.Port,
+		Handler: r,
+	}
+
 	logger.Info("server starting",
 		slog.String("port", cfg.Port),
-		slog.String("swagger_url", "http://localhost:8080/swagger/index.html"),
+		slog.String("swagger_url", "http://localhost:"+cfg.Port+"/swagger/index.html"),
 	)
 
 	// Graceful shutdown
 	go func() {
-		if err := r.Run(":" + cfg.Port); err != nil {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Error("server error", slog.String("error", err.Error()))
 		}
 	}()
@@ -120,10 +127,13 @@ func main() {
 
 	logger.Info("shutting down server...")
 
-	// シャットダウン処理（5秒タイムアウト）
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// シャットダウン処理（30秒タイムアウト）
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	<-ctx.Done()
+	if err := server.Shutdown(ctx); err != nil {
+		logger.Error("server forced to shutdown", slog.String("error", err.Error()))
+	}
+
 	logger.Info("server stopped")
 }

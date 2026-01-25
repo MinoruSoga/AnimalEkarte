@@ -1,8 +1,13 @@
+// React/Framework
 import React from "react";
+
+// External
+import { Activity } from "lucide-react";
+
+// Internal
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Label } from "../../../components/ui/label";
 import { Textarea } from "../../../components/ui/textarea";
-import { Activity } from "lucide-react";
 
 interface DiagnosisHeaderPhysicalExamProps {
   policy: string;

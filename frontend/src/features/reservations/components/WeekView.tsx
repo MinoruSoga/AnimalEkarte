@@ -1,9 +1,16 @@
+// React/Framework
+import { useMemo } from "react";
+
+// External
 import { startOfWeek, addDays, format, isSameDay } from "date-fns";
 import { ja } from "date-fns/locale";
-import { ReservationAppointment } from "../../../types";
-import { getReservationTypeColor, getReservationTypeName } from "../../../lib/status-helpers";
-import { useMemo } from "react";
 import { motion } from "motion/react";
+
+// Internal
+import { getReservationTypeColor, getReservationTypeName } from "../../../lib/status-helpers";
+
+// Types
+import type { ReservationAppointment } from "../../../types";
 
 // Reduced height for High Density UI
 const HOUR_HEIGHT = 120;

@@ -1,12 +1,19 @@
+// React/Framework
+import { useEffect } from "react";
+import { useNavigate, useParams, useLocation, useSearchParams } from "react-router-dom";
+
+// External
+import { Trash2 } from "lucide-react";
+
+// Internal
 import { Button } from "../../../components/ui/button";
 import { Label } from "../../../components/ui/label";
 import { Textarea } from "../../../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
-import { useNavigate, useParams, useLocation, useSearchParams } from "react-router-dom";
-import { useEffect } from "react";
-import { Trash2 } from "lucide-react";
 import { PatientInfoCard } from "../../../components/shared/PatientInfoCard";
 import { PageLayout } from "../../../components/shared/PageLayout";
+
+// Relative
 import { useExaminationForm } from "../hooks/useExaminationForm";
 import { useMasterItems } from "../../master/hooks/useMasterItems";
 
@@ -117,7 +124,7 @@ export const ExaminationForm = () => {
               <Label className="text-sm text-[#37352F]/60">ステータス</Label>
               <Select 
                 value={formData.status} 
-                onValueChange={(v: any) => setFormData({...formData, status: v})}
+                onValueChange={(v: "依頼中" | "検査中" | "完了") => setFormData({...formData, status: v})}
               >
                 <SelectTrigger className="h-10 text-sm text-[#37352F] bg-white border-[rgba(55,53,47,0.16)]">
                   <SelectValue placeholder="選択してください" />

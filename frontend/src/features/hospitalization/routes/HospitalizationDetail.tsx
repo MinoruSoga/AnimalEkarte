@@ -1,11 +1,16 @@
+// React/Framework
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+
+// Internal
 import { PageLayout } from "../../../components/shared/PageLayout";
-import { 
+
+// Relative
+import {
     DischargeAlertDialog,
     HospitalizationDetailActions,
     HospitalizationDesktopLayout,
-    HospitalizationMobileLayout 
+    HospitalizationMobileLayout
 } from "../components";
 import { useHospitalizationDetail } from "../hooks/useHospitalizationDetail";
 

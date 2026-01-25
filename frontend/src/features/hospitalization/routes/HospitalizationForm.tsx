@@ -1,9 +1,16 @@
-import { Button } from "../../../components/ui/button";
-import { FileText, Trash2, MessageSquare, AlertCircle } from "lucide-react";
-import { useNavigate, useParams, useLocation, useSearchParams } from "react-router-dom";
+// React/Framework
 import { useEffect } from "react";
+import { useNavigate, useParams, useLocation, useSearchParams } from "react-router-dom";
+
+// External
+import { FileText, Trash2, MessageSquare, AlertCircle } from "lucide-react";
+
+// Internal
+import { Button } from "../../../components/ui/button";
 import { PatientInfoCard } from "../../../components/shared/PatientInfoCard";
 import { PageLayout } from "../../../components/shared/PageLayout";
+
+// Relative
 import { useHospitalizationForm } from "../hooks/useHospitalizationForm";
 import { useMasterItems } from "../../master/hooks/useMasterItems";
 import { HospitalizationBasicInfo } from "../components/HospitalizationBasicInfo";
@@ -102,7 +109,7 @@ export const HospitalizationForm = () => {
               petNumber={selectedPet.petNumber || selectedPet.id}
               weight={selectedPet.weight || "-"}
               staffName="医師A"
-              serviceType={formData.hospitalizationType as any}
+              serviceType={formData.hospitalizationType}
               petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
               insuranceName={selectedPet.insuranceName || "保険情報未登録"}
               insuranceDetails={selectedPet.insuranceDetails || "-"}
