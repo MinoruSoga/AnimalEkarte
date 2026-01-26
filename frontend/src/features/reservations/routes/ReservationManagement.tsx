@@ -273,56 +273,52 @@ export const ReservationManagement = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#F7F6F3] min-w-0 w-full">
-      <FormHeader 
-         title="予約管理" 
+    <div className="flex flex-col h-full">
+      <FormHeader
+         title="予約管理"
          icon={<CalendarIcon className="size-5 text-[#37352F]" />}
          action={
-            <div className="flex items-center gap-2">
-                 <Button className="bg-[#37352F] hover:bg-[#37352F]/90 text-white gap-2 h-10 text-sm" onClick={() => handleOpenForm()}>
-                    <Plus className="size-4" />
-                    <span className="hidden sm:inline">新規予約</span>
-                    <span className="sm:hidden">予約</span>
-                </Button>
-            </div>
+            <Button className="bg-[#37352F] hover:bg-[#37352F]/90 text-white gap-2 h-11 text-sm" onClick={() => handleOpenForm()}>
+              <Plus className="size-4" />
+              <span className="hidden sm:inline">新規予約</span>
+              <span className="sm:hidden">予約</span>
+            </Button>
          }
       />
 
-      <div className="flex-1 flex flex-col p-4 overflow-hidden w-full min-w-0">
+      <div className="flex-1 flex flex-col p-4 min-h-0">
         {/* Toolbar */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
             <div className="flex items-center gap-4">
                 <div className="flex items-center bg-white rounded-md border border-[rgba(55,53,47,0.16)] p-1 shadow-sm">
-                    <Button variant="ghost" size="icon" className="h-10 w-10" onClick={navigatePrevious}>
+                    <Button variant="ghost" size="icon" onClick={navigatePrevious}>
                         <ChevronLeft className="size-5" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-10 px-4 text-sm font-medium" onClick={navigateToday}>
+                    <Button variant="ghost" size="sm" className="px-4 font-medium" onClick={navigateToday}>
                         今日
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-10 w-10" onClick={navigateNext}>
+                    <Button variant="ghost" size="icon" onClick={navigateNext}>
                         <ChevronRight className="size-5" />
                     </Button>
                 </div>
-                <h2 className="text-xl font-bold text-[#37352F] flex items-center gap-2">
+                <h2 className="text-xl font-bold text-[#37352F]">
                     {format(currentDate, "yyyy年 M月", { locale: ja })}
                 </h2>
             </div>
 
-            <div className="flex items-center gap-2">
-                <Select value={view} onValueChange={(v: "month" | "week") => setView(v)}>
-                    <SelectTrigger className="w-[140px] bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
-                        <SelectValue placeholder="表示切替" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="month">月表示</SelectItem>
-                        <SelectItem value="week">週表示</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
+            <Select value={view} onValueChange={(v: "month" | "week") => setView(v)}>
+                <SelectTrigger className="w-[140px] bg-white border-[rgba(55,53,47,0.16)] h-11 text-sm">
+                    <SelectValue placeholder="表示切替" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="month">月表示</SelectItem>
+                    <SelectItem value="week">週表示</SelectItem>
+                </SelectContent>
+            </Select>
         </div>
 
         {/* Calendar View */}
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 min-h-0">
             {view === "month" ? (
                 <MonthView 
                     currentDate={currentDate} 

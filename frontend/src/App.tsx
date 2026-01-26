@@ -20,11 +20,11 @@ import { Toaster } from "./components/ui/sonner";
 
 const Layout = () => {
   return (
-    <div className="flex w-full h-full bg-[#F7F6F3] overflow-hidden">
+    <div className="flex h-full bg-[#F7F6F3]">
       <Sidebar />
-      <div className="flex-1 overflow-hidden h-full">
+      <main className="flex-1 flex flex-col overflow-hidden">
         <Outlet />
-      </div>
+      </main>
       <Toaster />
     </div>
   );
