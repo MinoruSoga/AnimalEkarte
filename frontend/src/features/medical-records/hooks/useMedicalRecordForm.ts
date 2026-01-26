@@ -105,7 +105,6 @@ export function useMedicalRecordForm(recordId?: string) {
       
       if (itemsToConsume.length > 0) {
           consumeStock(itemsToConsume);
-          // console.log("Consumed Stock:", itemsToConsume);
       }
 
       toast.success(isNewRecord ? "カルテを作成しました" : "カルテを更新しました");

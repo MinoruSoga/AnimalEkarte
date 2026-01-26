@@ -5,6 +5,10 @@ import { useNavigate } from "react-router-dom";
 // External
 import { toast } from "sonner";
 
+// Internal
+import { getOwner, createOwner, updateOwner } from "../api";
+import { CreateOwnerRequest, UpdateOwnerRequest } from "@/types/owner";
+
 export interface PetInfo {
   id: string;
   petNumber: string;
@@ -51,6 +55,7 @@ export interface OwnerData {
 export function useOwnerForm(id?: string) {
   const navigate = useNavigate();
   const isEdit = !!id;
+  const [isLoading, setIsLoading] = useState(false);
 
   const [ownerData, setOwnerData] = useState<OwnerData>({
     ownerId: "",
@@ -77,96 +82,66 @@ export function useOwnerForm(id?: string) {
   const [editingPet, setEditingPet] = useState<PetInfo | null>(null);
 
   useEffect(() => {
-    if (isEdit && id) {
-      // Mock Data Loading
-      if (id === "30042") {
+    const fetchOwner = async () => {
+      if (!id) return;
+
+      setIsLoading(true);
+      try {
+        const owner = await getOwner(id);
+        
+        // Map backend Owner to frontend OwnerData
+        // Note: Backend has simplified address structure
         setOwnerData({
-          ownerId: "30042",
-          postalCode: "150-0001",
-          company: "サンプル株式会社",
-          membershipType: "会員",
-          ownerName: "林　文明",
-          address1: "東京都渋谷区",
-          postalNumber: "150-0001",
-          ownerNameKana: "ハヤシ　フミアキ",
-          address2: "神宮前1-2-3",
+          ownerId: owner.id,
+          postalCode: "", // Not separately stored in backend
+          company: "", // Not stored
+          membershipType: "会員", // Default or derived
+          ownerName: owner.name,
+          address1: owner.address || "",
+          postalNumber: "",
+          ownerNameKana: owner.name_kana || "",
+          address2: "",
           homeAddress1: "",
           isDangerous: false,
-          birthDate: "1980-05-15",
-          email: "hayashi@example.com",
+          birthDate: "",
+          email: owner.email || "",
           homeAddress2: "",
-          remarks: "定期検診を希望",
-          phone: "090-1234-5678",
-          companyPhone: "03-1234-5678",
+          remarks: owner.notes || "",
+          phone: owner.phone || "",
+          companyPhone: "",
         });
-        setPets([
-          {
-            id: "1",
-            petNumber: "30042-008",
-            petName: "Iris",
-            status: "死亡",
-            species: "犬",
-            gender: "雄",
-            birthDate: "2015/04/14",
-            color: "茶色",
-            weight: "26.5kg",
-            environment: "室内(散歩する)",
-            remarks: "",
-          },
-          {
-            id: "2",
-            petNumber: "30042-009",
-            petName: "Max",
-            status: "生存",
-            species: "犬",
-            gender: "雄",
-            birthDate: "2018/06/20",
-            color: "ゴールデン",
-            weight: "15.2kg",
-            environment: "室内(散歩する)",
-            remarks: "",
-          },
-        ]);
-      } else if (id === "30043") {
-         setOwnerData({
-            ownerId: "30043",
-            postalCode: "160-0022",
-            company: "",
-            membershipType: "非会員",
-            ownerName: "田中　花子",
-            address1: "東京都新宿区",
-            postalNumber: "160-0022",
-            ownerNameKana: "タナカ　ハナコ",
-            address2: "新宿1-1-1",
-            homeAddress1: "",
-            isDangerous: false,
-            birthDate: "1985-03-20",
-            email: "tanaka@example.com",
-            homeAddress2: "",
-            remarks: "",
-            phone: "080-9876-5432",
-            companyPhone: "",
-         });
-         setPets([
-            {
-                id: "3",
-                petNumber: "30043-001",
-                petName: "ミケ",
-                status: "生存",
-                species: "猫",
-                gender: "雌",
-                birthDate: "2020/03/10",
-                color: "三毛",
-                weight: "4.2kg",
-                environment: "室内",
-                remarks: "",
-            },
-         ]);
-      } else {
-          setOwnerData(prev => ({...prev, ownerId: id}));
+
+        // Map pets if available
+        if (owner.pets) {
+          setPets(owner.pets.map(p => ({
+            id: p.id,
+            petNumber: p.petNumber || "",
+            petName: p.name,
+            petNameKana: "", // Not in Pet interface from backend yet?
+            status: p.status || "生存",
+            species: p.species,
+            gender: p.gender || "",
+            birthDate: p.birthDate || "",
+            color: "", // Not in Pet interface
+            weight: p.weight || "",
+            environment: p.environment || "",
+            remarks: p.remarks || "",
+            insuranceName: p.insuranceName,
+            insuranceDetails: p.insuranceDetails
+          })));
+        }
+      } catch (error) {
+        toast.error("飼主情報の取得に失敗しました");
+        navigate("/owners");
+      } finally {
+        setIsLoading(false);
       }
+    };
+
+    if (isEdit && id) {
+      fetchOwner();
     }
-  }, [isEdit, id]);
+  }, [isEdit, id, navigate]);
 
   const handleAddPet = () => {
     setEditingPet(null);
@@ -210,15 +185,50 @@ export function useOwnerForm(id?: string) {
     }
   };
 
-  const handleSave = () => {
-    toast.success(isEdit ? "飼主情報を更新しました" : "飼主情報を登録しました");
-    setTimeout(() => {
-        navigate("/owners");
-    }, 800);
+  const handleSave = async () => {
+    setIsLoading(true);
+    try {
+      // Combine address fields
+      const fullAddress = [
+        ownerData.postalCode,
+        ownerData.address1,
+        ownerData.address2
+      ].filter(Boolean).join(" ");
+
+      const commonData = {
+        name: ownerData.ownerName,
+        name_kana: ownerData.ownerNameKana,
+        phone: ownerData.phone,
+        email: ownerData.email,
+        address: fullAddress,
+        notes: ownerData.remarks,
+      };
+
+      if (isEdit && id) {
+        const updateData: UpdateOwnerRequest = commonData;
+        await updateOwner(id, updateData);
+        toast.success("飼主情報を更新しました");
+      } else {
+        const createData: CreateOwnerRequest = commonData;
+        await createOwner(createData);
+        toast.success("飼主情報を登録しました");
+      }
+      
+      // Navigate back after short delay
+      setTimeout(() => {
+          navigate("/owners");
+      }, 800);
+
+    } catch (error) {
+      toast.error("保存に失敗しました");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return {
     isEdit,
+    isLoading,
     ownerData,
     setOwnerData,
     pets,

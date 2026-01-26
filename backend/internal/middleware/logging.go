@@ -2,67 +2,89 @@ package middleware
 
 import (
 	"bytes"
+	"io"
 	"log/slog"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-// responseBodyWriter is a wrapper around gin.ResponseWriter to capture response body
-type responseBodyWriter struct {
-	gin.ResponseWriter
-	body *bytes.Buffer
-}
-
-func (r responseBodyWriter) Write(b []byte) (int, error) {
-	r.body.Write(b)
-	return r.ResponseWriter.Write(b)
-}
-
-// RequestLogger returns a structured logging middleware
-func RequestLogger() gin.HandlerFunc {
+// RequestLoggingMiddleware リクエストロギングミドルウェア
+func RequestLoggingMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
 		raw := c.Request.URL.RawQuery
 
-		// Process request
+		// リクエストボディを読み取り（POST/PUTリクエストの場合）
+		var requestBody []byte
+		if c.Request.Method == "POST" || c.Request.Method == "PUT" {
+			if c.Request.Body != nil {
+				requestBody, _ = io.ReadAll(c.Request.Body)
+				c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
+			}
+		}
+
+		// 処理
 		c.Next()
 
-		// Calculate latency
+		// レイテンシ計算
 		latency := time.Since(start)
 
-		// Get client IP
+		// クライアントIP
 		clientIP := c.ClientIP()
 
-		// Get status code
+		// ステータスコード
 		statusCode := c.Writer.Status()
 
-		// Get request method
-		method := c.Request.Method
+		// ログレベル判定
+		logLevel := slog.LevelInfo
+		if statusCode >= 400 && statusCode < 500 {
+			logLevel = slog.LevelWarn
+		} else if statusCode >= 500 {
+			logLevel = slog.LevelError
+		}
 
-		// Build full path
+		// パスとクエリ
 		if raw != "" {
 			path = path + "?" + raw
 		}
 
-		// Log the request
-		logger := slog.With(
-			slog.String("method", method),
+		// 構造化ログ出力
+		logAttrs := []slog.Attr{
+			slog.String("method", c.Request.Method),
 			slog.String("path", path),
-			slog.String("client_ip", clientIP),
 			slog.Int("status_code", statusCode),
 			slog.Duration("latency", latency),
-			slog.Int("body_size", c.Writer.Size()),
-		)
-
-		if statusCode >= 500 {
-			logger.Error("server error")
-		} else if statusCode >= 400 {
-			logger.Warn("client error")
-		} else {
-			logger.Info("request completed")
+			slog.String("client_ip", clientIP),
+			slog.String("user_agent", c.Request.UserAgent()),
 		}
+
+		// リクエストボディをログに追加（サイズ制限付き）
+		if len(requestBody) > 0 && len(requestBody) < 1024 {
+			logAttrs = append(logAttrs, slog.String("request_body", string(requestBody)))
+		}
+
+		// エラーがある場合は追加
+		if len(c.Errors) > 0 {
+			logAttrs = append(logAttrs, slog.String("error", c.Errors.String()))
+		}
+
+		message := "request completed"
+		if statusCode >= 500 {
+			message = "server error"
+		} else if statusCode >= 400 {
+			message = "client error"
+		}
+
+		// slog.Logに渡すために変換
+		args := make([]any, len(logAttrs)*2)
+		for i, attr := range logAttrs {
+			args[i*2] = attr.Key
+			args[i*2+1] = attr.Value
+		}
+
+		slog.Log(c.Request.Context(), logLevel, message, args...)
 	}
 }
 

@@ -15,9 +15,13 @@ import (
 // @Tags pets
 // @Accept json
 // @Produce json
+// @Param page query int false "ページ番号" default(1)
+// @Param limit query int false "1ページあたりの件数" default(10)
+// @Param search query string false "検索キーワード（名前、種別、品種）"
 // @Success 200 {array} model.Pet
 // @Failure 500 {object} map[string]string
 // @Router /pets [get]
+// @Security ApiKeyAuth
 func (h *Handler) GetPets(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -40,7 +44,9 @@ func (h *Handler) GetPets(c *gin.Context) {
 // @Success 200 {object} model.Pet
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /pets/{id} [get]
+// @Security ApiKeyAuth
 func (h *Handler) GetPet(c *gin.Context) {
 	ctx := c.Request.Context()
 	id := c.Param("id")
@@ -54,7 +60,7 @@ func (h *Handler) GetPet(c *gin.Context) {
 }
 
 // CreatePet godoc
-// @Summary ペット新規登録
+// @Summary ペット作成
 // @Description 新しいペットを登録します
 // @Tags pets
 // @Accept json
@@ -64,6 +70,7 @@ func (h *Handler) GetPet(c *gin.Context) {
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /pets [post]
+// @Security ApiKeyAuth
 func (h *Handler) CreatePet(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -95,7 +102,9 @@ func (h *Handler) CreatePet(c *gin.Context) {
 // @Success 200 {object} model.Pet
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /pets/{id} [put]
+// @Security ApiKeyAuth
 func (h *Handler) UpdatePet(c *gin.Context) {
 	ctx := c.Request.Context()
 	id := c.Param("id")
