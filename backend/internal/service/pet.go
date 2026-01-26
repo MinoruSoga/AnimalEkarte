@@ -29,11 +29,19 @@ func (s *Service) CreatePet(ctx context.Context, req *model.CreatePetRequest) (*
 		return nil, err
 	}
 
+	// OwnerIDをUUIDに変換
+	ownerID, err := uuid.Parse(req.OwnerID)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("invalid owner ID format")
+	}
+
 	pet := &model.Pet{
-		Name:    req.Name,
-		Species: req.Species,
-		Breed:   req.Breed,
-		Gender:  req.Gender,
+		OwnerID:   ownerID,
+		PetNumber: req.PetNumber,
+		Name:      req.Name,
+		Species:   req.Species,
+		Breed:     req.Breed,
+		Gender:    req.Gender,
 	}
 
 	if req.Weight > 0 {

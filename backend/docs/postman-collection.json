@@ -1,0 +1,459 @@
+{
+  "info": {
+    "name": "Animal Ekarte API",
+    "description": "動物病院 電子カルテシステム API",
+    "version": "1.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "YOUR_API_KEY",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "Authorization",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api/v1"
+    },
+    {
+      "key": "petId",
+      "value": "87a6e7a4-8b70-44b7-b7b5-e0b7e3b4e2bd"
+    },
+    {
+      "key": "ownerId",
+      "value": "550e8400-e29b-41d4-a716-446655440000"
+    },
+    {
+      "key": "recordId",
+      "value": "84fc5c28-c55f-487d-aa46-6bac5fd4fdb0"
+    }
+  ],
+  "item": [
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["health"]
+            },
+            "description": "APIの稼働状態を確認します"
+          },
+          "response": []
+        },
+        {
+          "name": "Welcome",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            },
+            "description": "APIのウェルカムメッセージを返します"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Pets",
+      "item": [
+        {
+          "name": "Get All Pets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pets?page=1&limit=10&search=",
+              "host": ["{{baseUrl}}"],
+              "path": ["pets"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "ページ番号"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "1ページあたりの件数"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "検索キーワード（名前、種別、品種）"
+                }
+              ]
+            },
+            "description": "登録されているペットの一覧を取得します"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Pet by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pets/{{petId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["pets", "{{petId}}"]
+            },
+            "description": "指定されたIDのペット情報を取得します"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Pet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"新しいペット\",\n  \"species\": \"猫\",\n  \"breed\": \"スコティッシュフォールド\",\n  \"gender\": \"女\",\n  \"birth_date\": \"2022-03-15\",\n  \"weight\": 4.2,\n  \"owner_id\": \"{{ownerId}}\",\n  \"pet_number\": \"P002\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pets",
+              "host": ["{{baseUrl}}"],
+              "path": ["pets"]
+            },
+            "description": "新しいペットを登録します"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Pet",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"更新されたペット名\",\n  \"weight\": 4.5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pets/{{petId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["pets", "{{petId}}"]
+            },
+            "description": "指定されたIDのペット情報を更新します"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Pet",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pets/{{petId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["pets", "{{petId}}"]
+            },
+            "description": "指定されたIDのペットを削除します"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Owners",
+      "item": [
+        {
+          "name": "Get All Owners",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/owners?page=1&limit=10&search=",
+              "host": ["{{baseUrl}}"],
+              "path": ["owners"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "ページ番号"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "1ページあたりの件数"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "検索キーワード（名前、メール、電話番号）"
+                }
+              ]
+            },
+            "description": "登録されている飼い主の一覧を取得します"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Owner by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/owners/{{ownerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["owners", "{{ownerId}}"]
+            },
+            "description": "指定されたIDの飼い主情報を取得します"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Owner",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"新しい飼い主\",\n  \"name_kana\": \"アタラシイカイヌシ\",\n  \"phone\": \"090-9999-9999\",\n  \"email\": \"new-owner@example.com\",\n  \"address\": \"東京都新宿区1-2-3\",\n  \"notes\": \"初回診査\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/owners",
+              "host": ["{{baseUrl}}"],
+              "path": ["owners"]
+            },
+            "description": "新しい飼い主を登録します"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Owner",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"更新された飼い主名\",\n  \"phone\": \"080-1234-5678\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/owners/{{ownerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["owners", "{{ownerId}}"]
+            },
+            "description": "指定されたIDの飼い主情報を更新します"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Owner",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/owners/{{ownerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["owners", "{{ownerId}}"]
+            },
+            "description": "指定されたIDの飼い主を削除します"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Medical Records",
+      "item": [
+        {
+          "name": "Get All Medical Records",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/medical-records?page=1&limit=10&pet_id=&owner_id=&visit_type=&status=&date_from=&date_to=",
+              "host": ["{{baseUrl}}"],
+              "path": ["medical-records"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "ページ番号"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "1ページあたりの件数"
+                },
+                {
+                  "key": "pet_id",
+                  "value": "",
+                  "description": "ペットIDでフィルタリング"
+                },
+                {
+                  "key": "owner_id",
+                  "value": "",
+                  "description": "飼い主IDでフィルタリング"
+                },
+                {
+                  "key": "visit_type",
+                  "value": "",
+                  "description": "診察タイプでフィルタリング（初診/再診）"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "ステータスでフィルタリング（作成中/確定済）"
+                },
+                {
+                  "key": "date_from",
+                  "value": "",
+                  "description": "診察日（開始）でフィルタリング（YYYY-MM-DD）"
+                },
+                {
+                  "key": "date_to",
+                  "value": "",
+                  "description": "診察日（終了）でフィルタリング（YYYY-MM-DD）"
+                }
+              ]
+            },
+            "description": "登録されているカルテの一覧を取得します"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Medical Records with Pagination",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/medical-records/paginated?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["medical-records", "paginated"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "ページ番号"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "1ページあたりの件数"
+                }
+              ]
+            },
+            "description": "カルテ一覧をページングして取得します"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Medical Record by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/medical-records/{{recordId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["medical-records", "{{recordId}}"]
+            },
+            "description": "指定されたIDのカルテ情報を取得します"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Medical Record",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pet_id\": \"{{petId}}\",\n  \"owner_id\": \"{{ownerId}}\",\n  \"visit_date\": \"2026-01-25T10:00:00Z\",\n  \"visit_type\": \"初診\",\n  \"chief_complaint\": \"食欲不振\",\n  \"subjective\": \"飼い主によると昨日から食欲がない\",\n  \"objective\": \"体温正常、心拍正常、腹部に圧痛なし\",\n  \"assessment\": \"軽度の消化器系問題\",\n  \"plan\": \"経過観察、食事指導、再来診を1週間後に設定\",\n  \"diagnosis\": \"軽度胃炎\",\n  \"treatment\": \"消化剤処方、食事改善指導\",\n  \"prescription\": \"ガスター錠 1錠 1日2回 7日分\",\n  \"notes\": \"飼い主に経過観察の重要性を説明\",\n  \"status\": \"確定済\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/medical-records",
+              "host": ["{{baseUrl}}"],
+              "path": ["medical-records"]
+            },
+            "description": "新しいカルテを作成します"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Medical Record",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"確定済\",\n  \"treatment\": \"消化剤処方＋食事改善指導\",\n  \"notes\": \"飼い主に経過観察の重要性を説明。再来診予約済み\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/medical-records/{{recordId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["medical-records", "{{recordId}}"]
+            },
+            "description": "指定されたIDのカルテ情報を更新します"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Medical Record",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/medical-records/{{recordId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["medical-records", "{{recordId}}"]
+            },
+            "description": "指定されたIDのカルテを削除します"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

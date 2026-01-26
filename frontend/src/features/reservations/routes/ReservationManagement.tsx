@@ -273,7 +273,7 @@ export const ReservationManagement = () => {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex-1 flex flex-col min-h-0">
       <FormHeader
          title="予約管理"
          icon={<CalendarIcon className="size-5 text-[#37352F]" />}
@@ -318,23 +318,23 @@ export const ReservationManagement = () => {
         </div>
 
         {/* Calendar View */}
-        <div className="flex-1 min-h-0">
-            {view === "month" ? (
-                <MonthView 
-                    currentDate={currentDate} 
-                    appointments={appointments} 
-                    onAppointmentClick={handleOpenDetail} 
-                />
-            ) : (
-                <WeekView 
-                    currentDate={currentDate} 
-                    appointments={appointments} 
-                    onAppointmentClick={handleOpenDetail} 
+        {view === "month" ? (
+            <MonthView
+                currentDate={currentDate}
+                appointments={appointments}
+                onAppointmentClick={handleOpenDetail}
+            />
+        ) : (
+            <div className="flex-1 min-h-0 h-full">
+                <WeekView
+                    currentDate={currentDate}
+                    appointments={appointments}
+                    onAppointmentClick={handleOpenDetail}
                     onTimeSlotClick={handleTimeSlotClick}
                     onAppointmentUpdate={handleAppointmentUpdate}
                 />
-            )}
-        </div>
+            </div>
+        )}
       </div>
 
       {/* Create/Edit Form */}

@@ -3,23 +3,26 @@ package service
 import (
 	"errors"
 
-	"github.com/animal-ekarte/backend/internal/repository"
 	"gorm.io/gorm"
+
+	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // Service contains the business logic layer.
 type Service struct {
-	repo      repository.PetRepository
-	ownerRepo repository.OwnerRepository
-	db        interface{ DB() *gorm.DB }
+	repo              repository.PetRepository
+	ownerRepo         repository.OwnerRepository
+	medicalRecordRepo repository.MedicalRecordRepository
+	db                interface{ DB() *gorm.DB }
 }
 
 // New creates a new Service with the given repositories.
-func New(repo repository.PetRepository, ownerRepo repository.OwnerRepository, db interface{ DB() *gorm.DB }) *Service {
+func New(repo repository.PetRepository, ownerRepo repository.OwnerRepository, medicalRecordRepo repository.MedicalRecordRepository, db interface{ DB() *gorm.DB }) *Service {
 	return &Service{
-		repo:      repo,
-		ownerRepo: ownerRepo,
-		db:        db,
+		repo:              repo,
+		ownerRepo:         ownerRepo,
+		medicalRecordRepo: medicalRecordRepo,
+		db:                db,
 	}
 }
 

@@ -15,6 +15,7 @@ import (
 type Service interface {
 	service.PetService
 	service.OwnerService
+	service.MedicalRecordService
 	GetDB() (interface{ DB() *gorm.DB }, error)
 }
 
@@ -36,7 +37,7 @@ type ErrorResponse struct {
 func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	// ミドルウェア設定
 	r.Use(middleware.RequestID())
-	r.Use(middleware.RequestLogger())
+	r.Use(middleware.RequestLoggingMiddleware())
 	r.Use(middleware.CORS())
 
 	// ヘルスチェック
@@ -52,6 +53,21 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	v1.POST("/pets", h.CreatePet)
 	v1.PUT("/pets/:id", h.UpdatePet)
 	v1.DELETE("/pets/:id", h.DeletePet)
+
+	// Owners CRUD
+	v1.GET("/owners", h.GetAllOwners)
+	v1.GET("/owners/:id", h.GetOwnerByID)
+	v1.POST("/owners", h.CreateOwner)
+	v1.PUT("/owners/:id", h.UpdateOwner)
+	v1.DELETE("/owners/:id", h.DeleteOwner)
+
+	// Medical Records CRUD
+	v1.GET("/medical-records", h.GetAllMedicalRecords)
+	v1.GET("/medical-records/paginated", h.GetMedicalRecordsWithPagination)
+	v1.GET("/medical-records/:id", h.GetMedicalRecord)
+	v1.POST("/medical-records", h.CreateMedicalRecord)
+	v1.PUT("/medical-records/:id", h.UpdateMedicalRecord)
+	v1.DELETE("/medical-records/:id", h.DeleteMedicalRecord)
 }
 
 // Health godoc

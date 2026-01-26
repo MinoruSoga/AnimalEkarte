@@ -27,8 +27,22 @@ import (
 // @title Animal Ekarte API
 // @version 1.0
 // @description 動物病院 電子カルテシステム API
+// @description.en Animal Hospital Electronic Medical Record System API
+// @termsOfService http://localhost:8080/terms
+// @contact.name Animal Ekarte Support
+// @contact.url http://localhost:8080/support
+// @contact.email support@animal-ekarte.com
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
 // @host localhost:8080
 // @BasePath /api/v1
+// @schemes http https
+
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
+// @description API Key for authentication
+
 func main() {
 	// ロガー初期化
 	logLevel := slog.LevelInfo
@@ -92,7 +106,8 @@ func main() {
 
 	// レイヤー初期化
 	repo := repository.New(db)
-	svc := service.New(repo, repo, repo)
+	medicalRecordRepo := repository.NewMedicalRecordRepository(db)
+	svc := service.New(repo, repo, medicalRecordRepo, repo)
 	h := handler.New(svc)
 
 	// ルーター設定
@@ -104,8 +119,12 @@ func main() {
 
 	// HTTPサーバー設定
 	server := &http.Server{
-		Addr:    ":" + cfg.Port,
-		Handler: r,
+		Addr:              ":" + cfg.Port,
+		Handler:           r,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	logger.Info("server starting",

@@ -86,7 +86,7 @@ func (m *MockOwnerRepository) DeleteOwner(ctx context.Context, id uuid.UUID) err
 func TestGetAllPets(t *testing.T) {
 	mockRepo := new(MockPetRepository)
 	mockOwnerRepo := new(MockOwnerRepository)
-	svc := New(mockRepo, mockOwnerRepo, nil)
+	svc := New(mockRepo, mockOwnerRepo, nil, nil)
 	ctx := context.Background()
 
 	expectedPets := []model.Pet{
@@ -105,7 +105,7 @@ func TestGetAllPets(t *testing.T) {
 func TestGetPetByID(t *testing.T) {
 	mockRepo := new(MockPetRepository)
 	mockOwnerRepo := new(MockOwnerRepository)
-	svc := New(mockRepo, mockOwnerRepo, nil)
+	svc := New(mockRepo, mockOwnerRepo, nil, nil)
 	ctx := context.Background()
 
 	id := uuid.New()
@@ -123,7 +123,7 @@ func TestGetPetByID(t *testing.T) {
 func TestCreatePet(t *testing.T) {
 	mockRepo := new(MockPetRepository)
 	mockOwnerRepo := new(MockOwnerRepository)
-	svc := New(mockRepo, mockOwnerRepo, nil)
+	svc := New(mockRepo, mockOwnerRepo, nil, nil)
 	ctx := context.Background()
 
 	req := &model.CreatePetRequest{
@@ -147,7 +147,7 @@ func TestCreatePet(t *testing.T) {
 func TestCreatePet_Validation(t *testing.T) {
 	mockRepo := new(MockPetRepository)
 	mockOwnerRepo := new(MockOwnerRepository)
-	svc := New(mockRepo, mockOwnerRepo, nil)
+	svc := New(mockRepo, mockOwnerRepo, nil, nil)
 	ctx := context.Background()
 
 	tests := []struct {
@@ -181,7 +181,7 @@ func TestCreatePet_Validation(t *testing.T) {
 func TestUpdatePet(t *testing.T) {
 	mockRepo := new(MockPetRepository)
 	mockOwnerRepo := new(MockOwnerRepository)
-	svc := New(mockRepo, mockOwnerRepo, nil)
+	svc := New(mockRepo, mockOwnerRepo, nil, nil)
 	ctx := context.Background()
 
 	id := uuid.New()
@@ -203,7 +203,7 @@ func TestUpdatePet(t *testing.T) {
 func TestUpdatePet_NotFound(t *testing.T) {
 	mockRepo := new(MockPetRepository)
 	mockOwnerRepo := new(MockOwnerRepository)
-	svc := New(mockRepo, mockOwnerRepo, nil)
+	svc := New(mockRepo, mockOwnerRepo, nil, nil)
 	ctx := context.Background()
 
 	id := uuid.New()
@@ -218,7 +218,7 @@ func TestUpdatePet_NotFound(t *testing.T) {
 func TestDeletePet(t *testing.T) {
 	mockRepo := new(MockPetRepository)
 	mockOwnerRepo := new(MockOwnerRepository)
-	svc := New(mockRepo, mockOwnerRepo, nil)
+	svc := New(mockRepo, mockOwnerRepo, nil, nil)
 	ctx := context.Background()
 
 	id := uuid.New()
@@ -233,7 +233,7 @@ func TestDeletePet(t *testing.T) {
 func TestDeletePet_InvalidID(t *testing.T) {
 	mockRepo := new(MockPetRepository)
 	mockOwnerRepo := new(MockOwnerRepository)
-	svc := New(mockRepo, mockOwnerRepo, nil)
+	svc := New(mockRepo, mockOwnerRepo, nil, nil)
 	ctx := context.Background()
 
 	err := svc.DeletePet(ctx, "invalid-id")

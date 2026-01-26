@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { DndProvider } from "react-dnd";
-import { TouchBackend } from "react-dnd-touch-backend";
+import { HTML5Backend } from "react-dnd-html5-backend";
 import { Sidebar } from "./components/Sidebar";
 import { Dashboard } from "./features/dashboard/routes";
 import { ReservationManagement } from "./features/reservations/routes";
@@ -32,7 +32,7 @@ const Layout = () => {
 
 export function App() {
   return (
-    <DndProvider backend={TouchBackend} options={{ enableMouseEvents: true }}>
+    <DndProvider backend={HTML5Backend}>
       <BrowserRouter>
         <Routes>
           <Route element={<Layout />}>

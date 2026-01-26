@@ -73,22 +73,22 @@ export const OwnerForm = () => {
           <Button
             size="sm"
             onClick={handleSave}
-            className="bg-[#37352F] hover:bg-[#37352F]/90 text-white h-10 text-sm px-4"
+            className="px-4"
           >
             {isEdit ? "更新" : "登録"}
           </Button>
       }
     >
           {/* Owner Information Form */}
-        <div className="mb-4 rounded-lg bg-white p-4 shadow-sm border border-[rgba(55,53,47,0.16)]">
-          <h2 className="mb-3 text-sm font-bold text-[#37352F] flex items-center gap-2">
-            <User className="h-4 w-4 text-[#37352F]/60" />
+        <div className="mb-4 rounded-lg bg-card p-4 shadow-sm border border-border">
+          <h2 className="mb-3 text-sm font-bold flex items-center gap-2">
+            <User className="h-4 w-4 text-muted-foreground" />
             飼主情報
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {/* Row 1 */}
             <div className="space-y-1.5">
-              <Label htmlFor="ownerId" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="ownerId" className="text-muted-foreground">
                 飼主No
               </Label>
               <Input
@@ -97,11 +97,10 @@ export const OwnerForm = () => {
                 onChange={(e) =>
                   setOwnerData({ ...ownerData, ownerId: e.target.value })
                 }
-                className="h-10 text-sm bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="postalCode" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="postalCode" className="text-muted-foreground">
                 郵便番号
               </Label>
               <Input
@@ -111,11 +110,10 @@ export const OwnerForm = () => {
                 onChange={(e) =>
                   setOwnerData({ ...ownerData, postalCode: e.target.value })
                 }
-                className="h-10 text-sm bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="company" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="company" className="text-muted-foreground">
                 会社名
               </Label>
               <Input
@@ -124,11 +122,10 @@ export const OwnerForm = () => {
                 onChange={(e) =>
                   setOwnerData({ ...ownerData, company: e.target.value })
                 }
-                className="h-10 text-sm bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-sm text-[#37352F]/60">会員区分</Label>
+              <Label className="text-muted-foreground">会員区分</Label>
               <div className="flex gap-1.5 flex-wrap">
                 {["非会員", "会員", "退亡者", "他診/準"].map((type) => (
                   <Button
@@ -138,11 +135,7 @@ export const OwnerForm = () => {
                       ownerData.membershipType === type ? "default" : "outline"
                     }
                     size="sm"
-                    className={
-                      ownerData.membershipType === type
-                        ? "h-10 text-sm bg-[#37352F] hover:bg-[#37352F]/90 text-white px-3"
-                        : "h-10 text-sm text-[#37352F] hover:bg-[rgba(135,131,120,0.08)] border-[rgba(55,53,47,0.16)] px-3"
-                    }
+                    className="h-10 px-3"
                     onClick={() =>
                       setOwnerData({ ...ownerData, membershipType: type })
                     }
@@ -155,8 +148,8 @@ export const OwnerForm = () => {
 
             {/* Row 2 */}
             <div className="space-y-1.5">
-              <Label htmlFor="ownerName" className="text-sm text-[#37352F]/60">
-                飼主名 <span className="text-[#E03E3E]">*</span>
+              <Label htmlFor="ownerName" className="text-muted-foreground">
+                飼主名 <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="ownerName"
@@ -164,11 +157,10 @@ export const OwnerForm = () => {
                 onChange={(e) =>
                   setOwnerData({ ...ownerData, ownerName: e.target.value })
                 }
-                className="h-10 text-sm bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="address1" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="address1" className="text-muted-foreground">
                 住所1
               </Label>
               <Input
@@ -177,11 +169,10 @@ export const OwnerForm = () => {
                 onChange={(e) =>
                   setOwnerData({ ...ownerData, address1: e.target.value })
                 }
-                className="h-10 text-sm bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="postalNumber" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="postalNumber" className="text-muted-foreground">
                 郵便番号
               </Label>
               <Input
@@ -190,11 +181,10 @@ export const OwnerForm = () => {
                 onChange={(e) =>
                   setOwnerData({ ...ownerData, postalNumber: e.target.value })
                 }
-                className="h-10 text-sm bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
               />
             </div>
             <div className="space-y-1.5 col-span-2 lg:col-span-1 lg:row-span-3">
-              <Label className="text-sm text-[#37352F]/60">危険人物</Label>
+              <Label className="text-muted-foreground">危険人物</Label>
               <div className="flex items-center space-x-2 mb-2 h-10">
                 <Switch
                   id="dangerous"
@@ -209,12 +199,12 @@ export const OwnerForm = () => {
                 />
                 <label
                   htmlFor="dangerous"
-                  className="text-sm cursor-pointer text-[#37352F]"
+                  className="text-sm cursor-pointer"
                 >
                   該当する
                 </label>
               </div>
-              <Label htmlFor="remarks" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="remarks" className="text-muted-foreground">
                 備考・特記事項
               </Label>
               <Textarea
@@ -224,14 +214,14 @@ export const OwnerForm = () => {
                 onChange={(e) =>
                   setOwnerData({ ...ownerData, remarks: e.target.value })
                 }
-                className="text-sm text-[#37352F] min-h-[140px] resize-none border-[rgba(55,53,47,0.16)] p-3"
+                className="min-h-[140px] resize-none p-3"
               />
             </div>
 
             {/* Row 3 */}
             <div className="space-y-1.5">
-              <Label htmlFor="ownerNameKana" className="text-sm text-[#37352F]/60">
-                飼主名(カナ) <span className="text-[#E03E3E]">*</span>
+              <Label htmlFor="ownerNameKana" className="text-muted-foreground">
+                飼主名(カナ) <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="ownerNameKana"
@@ -240,11 +230,10 @@ export const OwnerForm = () => {
                 onChange={(e) =>
                   setOwnerData({ ...ownerData, ownerNameKana: e.target.value })
                 }
-                className="h-10 text-sm bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="address2" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="address2" className="text-muted-foreground">
                 住所2
               </Label>
               <Input
@@ -253,11 +242,10 @@ export const OwnerForm = () => {
                 onChange={(e) =>
                   setOwnerData({ ...ownerData, address2: e.target.value })
                 }
-                className="h-10 text-sm bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="homeAddress1" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="homeAddress1" className="text-muted-foreground">
                 住所1
               </Label>
               <Input
@@ -266,13 +254,12 @@ export const OwnerForm = () => {
                 onChange={(e) =>
                   setOwnerData({ ...ownerData, homeAddress1: e.target.value })
                 }
-                className="h-10 text-sm bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
               />
             </div>
 
             {/* Row 4 */}
             <div className="space-y-1.5">
-              <Label htmlFor="birthDate" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="birthDate" className="text-muted-foreground">
                 飼主生年月日
               </Label>
               <Input
@@ -282,11 +269,10 @@ export const OwnerForm = () => {
                 onChange={(e) =>
                   setOwnerData({ ...ownerData, birthDate: e.target.value })
                 }
-                className="h-10 text-sm bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="email" className="text-muted-foreground">
                 メールアドレス
               </Label>
               <Input
@@ -296,11 +282,10 @@ export const OwnerForm = () => {
                 onChange={(e) =>
                   setOwnerData({ ...ownerData, email: e.target.value })
                 }
-                className="h-10 text-sm bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="homeAddress2" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="homeAddress2" className="text-muted-foreground">
                 住所2
               </Label>
               <Input
@@ -309,14 +294,13 @@ export const OwnerForm = () => {
                 onChange={(e) =>
                   setOwnerData({ ...ownerData, homeAddress2: e.target.value })
                 }
-                className="h-10 text-sm bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
               />
             </div>
 
             {/* Row 5 */}
             <div className="space-y-1.5">
-              <Label htmlFor="phone" className="text-sm text-[#37352F]/60">
-                電話番号 <span className="text-[#E03E3E]">*</span>
+              <Label htmlFor="phone" className="text-muted-foreground">
+                電話番号 <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="phone"
@@ -325,11 +309,10 @@ export const OwnerForm = () => {
                 onChange={(e) =>
                   setOwnerData({ ...ownerData, phone: e.target.value })
                 }
-                className="h-10 text-sm bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
               />
             </div>
             <div className="space-y-1.5 col-span-1 lg:col-span-2">
-              <Label htmlFor="companyPhone" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="companyPhone" className="text-muted-foreground">
                 会社 電話番号
               </Label>
               <Input
@@ -338,7 +321,6 @@ export const OwnerForm = () => {
                 onChange={(e) =>
                   setOwnerData({ ...ownerData, companyPhone: e.target.value })
                 }
-                className="h-10 text-sm bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
               />
             </div>
           </div>
@@ -347,14 +329,14 @@ export const OwnerForm = () => {
         {/* Pet Information */}
         <div className="mb-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-[#37352F] flex items-center gap-2">
-              <PawPrint className="h-4 w-4 text-[#37352F]/60" />
+            <h2 className="text-sm font-bold flex items-center gap-2">
+              <PawPrint className="h-4 w-4 text-muted-foreground" />
               ペット情報
             </h2>
             <Button
               size="sm"
               onClick={handleAddPet}
-              className="h-10 gap-1.5 bg-[#37352F] hover:bg-[#37352F]/90 text-white text-sm px-4"
+              className="gap-1.5 px-4"
             >
               <Plus className="size-4" />
               ペット追加
@@ -362,44 +344,42 @@ export const OwnerForm = () => {
           </div>
 
           <div
-            className="rounded-lg bg-white overflow-hidden shadow-sm border border-[rgba(55,53,47,0.16)]"
+            className="rounded-lg bg-card overflow-hidden shadow-sm border border-border"
           >
             <Table>
               <TableHeader>
-                <TableRow
-                  className="hover:bg-transparent bg-[#F7F6F3] border-b border-[rgba(55,53,47,0.16)] h-12"
-                >
-                  <TableHead className="w-[120px] text-sm font-medium text-[#37352F]/60 h-12">
+                <TableRow className="hover:bg-transparent bg-muted/50 border-b border-border h-12">
+                  <TableHead className="w-[120px] text-sm font-medium text-muted-foreground h-12">
                     ペット番号
                   </TableHead>
-                  <TableHead className="w-[150px] text-sm font-medium text-[#37352F]/60 h-12">
+                  <TableHead className="w-[150px] text-sm font-medium text-muted-foreground h-12">
                     ペット名
                   </TableHead>
-                  <TableHead className="w-[60px] text-sm font-medium text-[#37352F]/60 h-12">
+                  <TableHead className="w-[60px] text-sm font-medium text-muted-foreground h-12">
                     生死
                   </TableHead>
-                  <TableHead className="w-[60px] text-sm font-medium text-[#37352F]/60 h-12">
+                  <TableHead className="w-[60px] text-sm font-medium text-muted-foreground h-12">
                     種別
                   </TableHead>
-                  <TableHead className="w-[60px] text-sm font-medium text-[#37352F]/60 h-12">
+                  <TableHead className="w-[60px] text-sm font-medium text-muted-foreground h-12">
                     性別
                   </TableHead>
-                  <TableHead className="w-[100px] text-sm font-medium text-[#37352F]/60 h-12">
+                  <TableHead className="w-[100px] text-sm font-medium text-muted-foreground h-12">
                     生年月日
                   </TableHead>
-                  <TableHead className="w-[80px] text-sm font-medium text-[#37352F]/60 h-12">
+                  <TableHead className="w-[80px] text-sm font-medium text-muted-foreground h-12">
                     毛色
                   </TableHead>
-                  <TableHead className="w-[80px] text-sm font-medium text-[#37352F]/60 h-12">
+                  <TableHead className="w-[80px] text-sm font-medium text-muted-foreground h-12">
                     体重
                   </TableHead>
-                  <TableHead className="w-[150px] text-sm font-medium text-[#37352F]/60 h-12">
+                  <TableHead className="w-[150px] text-sm font-medium text-muted-foreground h-12">
                     環境
                   </TableHead>
-                  <TableHead className="w-[200px] text-sm font-medium text-[#37352F]/60 h-12">
+                  <TableHead className="w-[200px] text-sm font-medium text-muted-foreground h-12">
                     備考
                   </TableHead>
-                  <TableHead className="w-[80px] text-sm font-medium text-[#37352F]/60 h-12">
+                  <TableHead className="w-[80px] text-sm font-medium text-muted-foreground h-12">
                     操作
                   </TableHead>
                 </TableRow>
@@ -407,7 +387,7 @@ export const OwnerForm = () => {
               <TableBody>
                 {pets.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-sm text-[#37352F]/60">
+                    <TableCell colSpan={11} className="text-center py-8 text-sm text-muted-foreground">
                       ペット情報がありません。「ペット追加」ボタンから追加してください。
                     </TableCell>
                   </TableRow>
@@ -415,24 +395,24 @@ export const OwnerForm = () => {
                   pets.map((pet) => (
                     <TableRow
                       key={pet.id}
-                      className="transition-colors border-b-[rgba(55,53,47,0.09)] hover:bg-[#F7F6F3]/50 h-12"
+                      className="transition-colors border-b-border hover:bg-muted/50 h-12"
                     >
-                      <TableCell className="font-mono text-sm text-[#37352F] py-2">
+                      <TableCell className="font-mono text-sm py-2">
                         {pet.petNumber}
                       </TableCell>
-                      <TableCell className="text-sm text-[#37352F] py-2">{pet.petName}</TableCell>
-                      <TableCell className="text-sm text-[#37352F] py-2">{pet.status}</TableCell>
-                      <TableCell className="text-sm text-[#37352F] py-2">{pet.species}</TableCell>
-                      <TableCell className="text-sm text-[#37352F] py-2">{pet.gender}</TableCell>
-                      <TableCell className="font-mono text-sm text-[#37352F] py-2">
+                      <TableCell className="text-sm py-2">{pet.petName}</TableCell>
+                      <TableCell className="text-sm py-2">{pet.status}</TableCell>
+                      <TableCell className="text-sm py-2">{pet.species}</TableCell>
+                      <TableCell className="text-sm py-2">{pet.gender}</TableCell>
+                      <TableCell className="font-mono text-sm py-2">
                         {pet.birthDate}
                       </TableCell>
-                      <TableCell className="text-sm text-[#37352F] py-2">{pet.color}</TableCell>
-                      <TableCell className="font-mono text-sm text-[#37352F] py-2">
+                      <TableCell className="text-sm py-2">{pet.color}</TableCell>
+                      <TableCell className="font-mono text-sm py-2">
                         {pet.weight}
                       </TableCell>
-                      <TableCell className="text-sm text-[#37352F] py-2">{pet.environment}</TableCell>
-                      <TableCell className="text-sm text-[#37352F] truncate max-w-[200px] py-2">
+                      <TableCell className="text-sm py-2">{pet.environment}</TableCell>
+                      <TableCell className="text-sm truncate max-w-[200px] py-2">
                         {pet.remarks}
                       </TableCell>
                       <TableCell className="py-2">

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 // External
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 
 // Internal
 import { TableCell } from "../../../components/ui/table";
@@ -22,7 +22,7 @@ import { usePets } from "../hooks/usePets";
 export const OwnersList = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const { data: filteredPets } = usePets(searchTerm);
+  const { data: filteredPets, isLoading, error } = usePets(searchTerm);
 
   const handleCreate = () => {
     navigate("/owners/new");
@@ -46,6 +46,16 @@ export const OwnersList = () => {
     { header: "操作", className: "w-[100px]", align: "right" as const },
   ];
 
+  if (error) {
+    return (
+      <PageLayout title="飼主・ペット一覧">
+        <div className="p-4 text-destructive">
+          エラーが発生しました: {error.message}
+        </div>
+      </PageLayout>
+    );
+  }
+
   return (
     <PageLayout
       title="飼主・ペット一覧"
@@ -67,39 +77,45 @@ export const OwnersList = () => {
         />
 
         {/* Table */}
-        <DataTable
-          columns={columns}
-          data={filteredPets}
-          emptyMessage="データが見つかりません"
-          renderRow={(pet) => (
-            <DataTableRow 
-              key={pet.id}
-              onClick={() => handleEdit(pet.ownerId)}
-            >
-              <TableCell className="text-sm text-[#37352F] whitespace-nowrap py-2">{pet.ownerId}</TableCell>
-              <TableCell className="text-sm text-[#37352F] whitespace-nowrap py-2">{pet.ownerName}</TableCell>
-              <TableCell className="font-mono text-sm text-[#37352F] whitespace-nowrap py-2">{pet.petNumber}</TableCell>
-              <TableCell className="text-sm text-[#37352F] whitespace-nowrap py-2">{pet.name}</TableCell>
-              <TableCell className="whitespace-nowrap py-2">
-                {pet.status && (
-                    <StatusBadge 
-                        colorClass={getPetStatusColor(pet.status)} 
-                    >
-                      {pet.status}
-                    </StatusBadge>
-                )}
-              </TableCell>
-              <TableCell className="text-sm text-[#37352F] whitespace-nowrap py-2">{pet.species}</TableCell>
-              <TableCell className="font-mono text-sm text-[#37352F] whitespace-nowrap py-2">{pet.birthDate}</TableCell>
-              <TableCell className="font-mono text-sm text-[#37352F] whitespace-nowrap py-2">{pet.weight}</TableCell>
-              <TableCell className="text-sm text-[#37352F] whitespace-nowrap py-2">{pet.environment}</TableCell>
-              <TableCell className="font-mono text-sm text-[#37352F] whitespace-nowrap py-2">{pet.lastVisit}</TableCell>
-              <TableCell className="whitespace-nowrap py-2 text-right">
-                <RowActionButton onClick={() => handleEdit(pet.ownerId)} />
-              </TableCell>
-            </DataTableRow>
-          )}
-        />
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={filteredPets}
+            emptyMessage="データが見つかりません"
+            renderRow={(pet) => (
+              <DataTableRow 
+                key={pet.id}
+                onClick={() => handleEdit(pet.ownerId)}
+              >
+                <TableCell className="text-sm whitespace-nowrap py-2">{pet.ownerId}</TableCell>
+                <TableCell className="text-sm whitespace-nowrap py-2">{pet.ownerName}</TableCell>
+                <TableCell className="font-mono text-sm whitespace-nowrap py-2">{pet.petNumber}</TableCell>
+                <TableCell className="text-sm whitespace-nowrap py-2">{pet.name}</TableCell>
+                <TableCell className="whitespace-nowrap py-2">
+                  {pet.status && (
+                      <StatusBadge 
+                          colorClass={getPetStatusColor(pet.status)} 
+                      >
+                        {pet.status}
+                      </StatusBadge>
+                  )}
+                </TableCell>
+                <TableCell className="text-sm whitespace-nowrap py-2">{pet.species}</TableCell>
+                <TableCell className="font-mono text-sm whitespace-nowrap py-2">{pet.birthDate}</TableCell>
+                <TableCell className="font-mono text-sm whitespace-nowrap py-2">{pet.weight}</TableCell>
+                <TableCell className="text-sm whitespace-nowrap py-2">{pet.environment}</TableCell>
+                <TableCell className="font-mono text-sm whitespace-nowrap py-2">{pet.lastVisit}</TableCell>
+                <TableCell className="whitespace-nowrap py-2 text-right">
+                  <RowActionButton onClick={() => handleEdit(pet.ownerId)} />
+                </TableCell>
+              </DataTableRow>
+            )}
+          />
+        )}
       </div>
     </PageLayout>
   );

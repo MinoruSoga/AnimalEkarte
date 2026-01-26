@@ -353,7 +353,7 @@ export const WeekView = ({
   });
 
   return (
-    <div className="flex-1 border border-[rgba(55,53,47,0.16)] rounded-lg bg-white overflow-auto shadow-sm relative">
+    <div className="flex flex-col h-full min-h-0 border border-[rgba(55,53,47,0.16)] rounded-lg bg-white overflow-auto shadow-sm">
       <div style={{ minWidth: "100%" }}>
         {/* Week Header */}
         <div className="flex border-b border-[rgba(55,53,47,0.16)] sticky top-0 z-30 bg-white">

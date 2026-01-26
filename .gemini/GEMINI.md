@@ -10,3 +10,4 @@ It has been configured to follow **Google Gemini Official Coding Best Practices*
 -   **Security**: Strict secret management.
 -   **Robustness**: Error handling and retry logic.
 -   **Persona**: Chain-of-thought reasoning and context-aware responses.
+-   **Communication Style**: Flat Thinking (Direct, Honest, Critical).

@@ -5,6 +5,45 @@ definitions:
       error:
         type: string
     type: object
+  model.CreateMedicalRecordRequest:
+    properties:
+      assessment:
+        type: string
+      chief_complaint:
+        type: string
+      diagnosis:
+        type: string
+      doctor_id:
+        type: string
+      notes:
+        type: string
+      objective:
+        type: string
+      owner_id:
+        type: string
+      pet_id:
+        type: string
+      plan:
+        type: string
+      prescription:
+        type: string
+      status:
+        type: string
+      subjective:
+        type: string
+      surgery_notes:
+        type: string
+      treatment:
+        type: string
+      visit_date:
+        type: string
+      visit_type:
+        type: string
+    required:
+    - owner_id
+    - pet_id
+    - visit_date
+    type: object
   model.CreateOwnerRequest:
     properties:
       address:
@@ -186,6 +225,41 @@ definitions:
       weight:
         type: number
     type: object
+  model.UpdateMedicalRecordRequest:
+    properties:
+      assessment:
+        type: string
+      chief_complaint:
+        type: string
+      diagnosis:
+        type: string
+      doctor_id:
+        type: string
+      notes:
+        type: string
+      objective:
+        type: string
+      owner_id:
+        type: string
+      pet_id:
+        type: string
+      plan:
+        type: string
+      prescription:
+        type: string
+      status:
+        type: string
+      subjective:
+        type: string
+      surgery_notes:
+        type: string
+      treatment:
+        type: string
+      visit_date:
+        type: string
+      visit_type:
+        type: string
+    type: object
   model.UpdateOwnerRequest:
     properties:
       address:
@@ -234,8 +308,15 @@ definitions:
     type: object
 host: localhost:8080
 info:
-  contact: {}
+  contact:
+    email: support@animal-ekarte.com
+    name: Animal Ekarte Support
+    url: http://localhost:8080/support
   description: 動物病院 電子カルテシステム API
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://localhost:8080/terms
   title: Animal Ekarte API
   version: "1.0"
 paths:
@@ -268,11 +349,301 @@ paths:
       summary: ヘルスチェック
       tags:
       - system
+  /medical-records:
+    get:
+      consumes:
+      - application/json
+      description: 登録されているカルテの一覧を取得します
+      parameters:
+      - default: 1
+        description: ページ番号
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 1ページあたりの件数
+        in: query
+        name: limit
+        type: integer
+      - description: ペットIDでフィルタリング
+        in: query
+        name: pet_id
+        type: string
+      - description: 飼い主IDでフィルタリング
+        in: query
+        name: owner_id
+        type: string
+      - description: 診察タイプでフィルタリング（初診/再診）
+        in: query
+        name: visit_type
+        type: string
+      - description: ステータスでフィルタリング（作成中/確定済）
+        in: query
+        name: status
+        type: string
+      - description: 診察日（開始）でフィルタリング（YYYY-MM-DD）
+        in: query
+        name: date_from
+        type: string
+      - description: 診察日（終了）でフィルタリング（YYYY-MM-DD）
+        in: query
+        name: date_to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.MedicalRecord'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: カルテ一覧取得
+      tags:
+      - medical-records
+    post:
+      consumes:
+      - application/json
+      description: 新しいカルテを作成します
+      parameters:
+      - description: カルテ情報
+        in: body
+        name: medicalRecord
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateMedicalRecordRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.MedicalRecord'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: カルテ作成
+      tags:
+      - medical-records
+  /medical-records/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定されたIDのカルテを削除します
+      parameters:
+      - description: カルテID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: カルテ削除
+      tags:
+      - medical-records
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDのカルテ情報を取得します
+      parameters:
+      - description: カルテID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.MedicalRecord'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: カルテ詳細取得
+      tags:
+      - medical-records
+    put:
+      consumes:
+      - application/json
+      description: 指定されたIDのカルテ情報を更新します
+      parameters:
+      - description: カルテID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新するカルテ情報
+        in: body
+        name: medicalRecord
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateMedicalRecordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.MedicalRecord'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: カルテ情報更新
+      tags:
+      - medical-records
+  /medical-records/paginated:
+    get:
+      consumes:
+      - application/json
+      description: カルテ一覧をページングして取得します。フィルタリング機能も利用できます。
+      parameters:
+      - default: 1
+        description: ページ番号
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 1ページあたりの件数
+        in: query
+        name: limit
+        type: integer
+      - description: ペットIDでフィルタリング
+        in: query
+        name: pet_id
+        type: string
+      - description: 飼い主IDでフィルタリング
+        in: query
+        name: owner_id
+        type: string
+      - description: 診察タイプでフィルタリング（初診/再診）
+        in: query
+        name: visit_type
+        type: string
+      - description: ステータスでフィルタリング（作成中/確定済）
+        in: query
+        name: status
+        type: string
+      - description: 診察日（開始）でフィルタリング（YYYY-MM-DD）
+        in: query
+        name: date_from
+        type: string
+      - description: 診察日（終了）でフィルタリング（YYYY-MM-DD）
+        in: query
+        name: date_to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: カルテ一覧取得（ページング）
+      tags:
+      - medical-records
   /owners:
     get:
       consumes:
       - application/json
-      description: Get a list of all owners
+      description: 登録されている飼い主の一覧を取得します
+      parameters:
+      - default: 1
+        description: ページ番号
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 1ページあたりの件数
+        in: query
+        name: limit
+        type: integer
+      - description: 検索キーワード（名前、メール、電話番号）
+        in: query
+        name: search
+        type: string
       produces:
       - application/json
       responses:
@@ -285,8 +656,12 @@ paths:
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      summary: Get all owners
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 飼い主一覧取得
       tags:
       - owners
     post:
@@ -419,11 +794,61 @@ paths:
       summary: Update an owner
       tags:
       - owners
+  /owners/{ownerId}/medical-records:
+    get:
+      consumes:
+      - application/json
+      description: 指定された飼い主IDのカルテ一覧を取得します
+      parameters:
+      - description: 飼い主ID (UUID)
+        in: path
+        name: ownerId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.MedicalRecord'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 飼い主のカルテ一覧取得
+      tags:
+      - medical-records
   /pets:
     get:
       consumes:
       - application/json
       description: 登録されているペットの一覧を取得します
+      parameters:
+      - default: 1
+        description: ページ番号
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 1ページあたりの件数
+        in: query
+        name: limit
+        type: integer
+      - description: 検索キーワード（名前、種別、品種）
+        in: query
+        name: search
+        type: string
       produces:
       - application/json
       responses:
@@ -439,6 +864,8 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - ApiKeyAuth: []
       summary: ペット一覧取得
       tags:
       - pets
@@ -472,7 +899,9 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: ペット新規登録
+      security:
+      - ApiKeyAuth: []
+      summary: ペット作成
       tags:
       - pets
   /pets/{id}:
@@ -539,6 +968,14 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
       summary: ペット詳細取得
       tags:
       - pets
@@ -577,7 +1014,59 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
       summary: ペット情報更新
       tags:
       - pets
+  /pets/{petId}/medical-records:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたペットIDのカルテ一覧を取得します
+      parameters:
+      - description: ペットID (UUID)
+        in: path
+        name: petId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.MedicalRecord'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ペットのカルテ一覧取得
+      tags:
+      - medical-records
+schemes:
+- http
+- https
+securityDefinitions:
+  ApiKeyAuth:
+    description: API Key for authentication
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

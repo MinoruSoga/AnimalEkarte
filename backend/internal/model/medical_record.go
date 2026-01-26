@@ -25,7 +25,7 @@ type MedicalRecord struct {
 	Treatment      string     `json:"treatment" gorm:"type:text"`
 	Prescription   string     `json:"prescription" gorm:"type:text"`
 	Notes          string     `json:"notes" gorm:"type:text"`
-	Status         string     `json:"status" gorm:"type:varchar(20);default:'作成中'"` // 作成中, 確定済
+	Status         string     `json:"status" gorm:"type:varchar(10);default:'作成中'"` // 作成中, 確定済
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
 
@@ -34,7 +34,58 @@ type MedicalRecord struct {
 	Owner *Owner `json:"owner,omitempty" gorm:"foreignKey:OwnerID"`
 }
 
+// PaginatedMedicalRecords ページングされたカルテ一覧レスポンス
+type PaginatedMedicalRecords struct {
+	Records     []MedicalRecord `json:"records"`
+	CurrentPage int             `json:"current_page"`
+	PerPage     int             `json:"per_page"`
+	Total       int64           `json:"total"`
+	TotalPages  int             `json:"total_pages"`
+	HasNext     bool            `json:"has_next"`
+	HasPrev     bool            `json:"has_prev"`
+}
+
 // TableName テーブル名を指定
 func (MedicalRecord) TableName() string {
 	return "medical_records"
+}
+
+// CreateMedicalRecordRequest カルテ作成リクエスト
+type CreateMedicalRecordRequest struct {
+	PetID          string `json:"pet_id" binding:"required"`
+	OwnerID        string `json:"owner_id" binding:"required"`
+	DoctorID       string `json:"doctor_id"`
+	VisitDate      string `json:"visit_date" binding:"required"`
+	VisitType      string `json:"visit_type"`
+	ChiefComplaint string `json:"chief_complaint"`
+	Subjective     string `json:"subjective"`
+	Objective      string `json:"objective"`
+	Assessment     string `json:"assessment"`
+	Plan           string `json:"plan"`
+	SurgeryNotes   string `json:"surgery_notes"`
+	Diagnosis      string `json:"diagnosis"`
+	Treatment      string `json:"treatment"`
+	Prescription   string `json:"prescription"`
+	Notes          string `json:"notes"`
+	Status         string `json:"status"`
+}
+
+// UpdateMedicalRecordRequest カルテ更新リクエスト
+type UpdateMedicalRecordRequest struct {
+	PetID          *string `json:"pet_id"`
+	OwnerID        *string `json:"owner_id"`
+	DoctorID       *string `json:"doctor_id"`
+	VisitDate      *string `json:"visit_date"`
+	VisitType      *string `json:"visit_type"`
+	ChiefComplaint *string `json:"chief_complaint"`
+	Subjective     *string `json:"subjective"`
+	Objective      *string `json:"objective"`
+	Assessment     *string `json:"assessment"`
+	Plan           *string `json:"plan"`
+	SurgeryNotes   *string `json:"surgery_notes"`
+	Diagnosis      *string `json:"diagnosis"`
+	Treatment      *string `json:"treatment"`
+	Prescription   *string `json:"prescription"`
+	Notes          *string `json:"notes"`
+	Status         *string `json:"status"`
 }

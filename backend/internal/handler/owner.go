@@ -10,14 +10,18 @@ import (
 )
 
 // GetAllOwners godoc
-// @Summary      Get all owners
-// @Description  Get a list of all owners
-// @Tags         owners
-// @Accept       json
-// @Produce      json
-// @Success      200  {array}   model.Owner
-// @Failure      500  {object}  ErrorResponse
-// @Router       /owners [get]
+// @Summary 飼い主一覧取得
+// @Description 登録されている飼い主の一覧を取得します
+// @Tags owners
+// @Accept json
+// @Produce json
+// @Param page query int false "ページ番号" default(1)
+// @Param limit query int false "1ページあたりの件数" default(10)
+// @Param search query string false "検索キーワード（名前、メール、電話番号）"
+// @Success 200 {array} model.Owner
+// @Failure 500 {object} map[string]string
+// @Router /owners [get]
+// @Security ApiKeyAuth
 func (h *Handler) GetAllOwners(c *gin.Context) {
 	ctx := c.Request.Context()
 	owners, err := h.svc.GetAllOwners(ctx)

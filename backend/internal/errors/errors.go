@@ -57,6 +57,14 @@ func WrapInvalidInput(message string) error {
 	}
 }
 
+func WrapInternal(err error, message string) error {
+	return &AppError{
+		Code:    "INTERNAL",
+		Message: message,
+		Err:     err,
+	}
+}
+
 // エラー判定ヘルパー
 func Is(err, target error) bool {
 	return errors.Is(err, target)

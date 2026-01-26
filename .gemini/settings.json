@@ -24,11 +24,5 @@
       "respectGitIgnore": true
     }
   },
-  "mcpServers": {
-    "desc-placeholder": {
-      "command": "echo",
-      "args": ["Replace this with your actual MCP server config"],
-      "enabled": false
-    }
-  }
+  "mcpServers": {}
 }

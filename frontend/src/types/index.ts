@@ -137,6 +137,7 @@ export interface Pet {
   lastVisit?: string;
   insuranceName?: string;
   insuranceDetails?: string;
+  remarks?: string;
 }
 
 // Reservation Types

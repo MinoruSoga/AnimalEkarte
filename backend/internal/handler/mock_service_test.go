@@ -88,6 +88,60 @@ func (m *MockService) DeleteOwner(ctx context.Context, id string) error {
 	return args.Error(0)
 }
 
+// Medical Records Mock Methods
+func (m *MockService) GetAllMedicalRecords(ctx context.Context) ([]model.MedicalRecord, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]model.MedicalRecord), args.Error(1)
+}
+
+func (m *MockService) GetMedicalRecordByID(ctx context.Context, id string) (*model.MedicalRecord, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.MedicalRecord), args.Error(1)
+}
+
+func (m *MockService) GetMedicalRecordsByPetID(ctx context.Context, petID string) ([]model.MedicalRecord, error) {
+	args := m.Called(ctx, petID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]model.MedicalRecord), args.Error(1)
+}
+
+func (m *MockService) GetMedicalRecordsByOwnerID(ctx context.Context, ownerID string) ([]model.MedicalRecord, error) {
+	args := m.Called(ctx, ownerID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]model.MedicalRecord), args.Error(1)
+}
+
+func (m *MockService) CreateMedicalRecord(ctx context.Context, req *model.CreateMedicalRecordRequest) (*model.MedicalRecord, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.MedicalRecord), args.Error(1)
+}
+
+func (m *MockService) UpdateMedicalRecord(ctx context.Context, id string, req *model.UpdateMedicalRecordRequest) (*model.MedicalRecord, error) {
+	args := m.Called(ctx, id, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.MedicalRecord), args.Error(1)
+}
+
+func (m *MockService) DeleteMedicalRecord(ctx context.Context, id string) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
 // GetDB Mock Method
 func (m *MockService) GetDB() (interface{ DB() *gorm.DB }, error) {
 	args := m.Called()

@@ -5,7 +5,10 @@
 
 # 起動
 up:
+	rm -rf frontend/node_modules
 	docker compose up -d
+	docker compose cp frontend:/app/node_modules ./frontend/
+	docker compose cp frontend:/app/package-lock.json ./frontend/
 
 # 起動（ビルド付き）
 build:
