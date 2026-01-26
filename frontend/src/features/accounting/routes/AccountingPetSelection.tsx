@@ -22,12 +22,9 @@ export const AccountingPetSelection = () => {
   const [searchParams, setSearchParams] = useState({
     ownerId: "",
     ownerName: "",
-    ownerNameKana: "",
     phone: "",
     petName: "",
-    petNameKana: "",
     species: "",
-    address: "",
   });
 
   const filteredPets = MOCK_PETS.filter((pet) => {
@@ -90,20 +87,6 @@ export const AccountingPetSelection = () => {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="ownerNameKana" className="text-sm text-[#37352F]/60">
-                飼主名(カナ)
-              </Label>
-              <Input
-                id="ownerNameKana"
-                placeholder="例: ハヤシ フミアキ"
-                value={searchParams.ownerNameKana}
-                onChange={(e) =>
-                  setSearchParams({ ...searchParams, ownerNameKana: e.target.value })
-                }
-                className="text-sm h-10 bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
-              />
-            </div>
-            <div className="space-y-1.5">
               <Label htmlFor="phone" className="text-sm text-[#37352F]/60">
                 電話番号
               </Label>
@@ -132,20 +115,6 @@ export const AccountingPetSelection = () => {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="petNameKana" className="text-sm text-[#37352F]/60">
-                ペット名(カナ)
-              </Label>
-              <Input
-                id="petNameKana"
-                placeholder="例: イリス"
-                value={searchParams.petNameKana}
-                onChange={(e) =>
-                  setSearchParams({ ...searchParams, petNameKana: e.target.value })
-                }
-                className="text-sm h-10 bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
-              />
-            </div>
-            <div className="space-y-1.5">
               <Label htmlFor="species" className="text-sm text-[#37352F]/60">
                 種別
               </Label>
@@ -155,20 +124,6 @@ export const AccountingPetSelection = () => {
                 value={searchParams.species}
                 onChange={(e) =>
                   setSearchParams({ ...searchParams, species: e.target.value })
-                }
-                className="text-sm h-10 bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="address" className="text-sm text-[#37352F]/60">
-                住所
-              </Label>
-              <Input
-                id="address"
-                placeholder="例: 東京都"
-                value={searchParams.address}
-                onChange={(e) =>
-                  setSearchParams({ ...searchParams, address: e.target.value })
                 }
                 className="text-sm h-10 bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
               />

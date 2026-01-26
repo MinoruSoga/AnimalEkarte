@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { Pet } from "../../../types";
 import { MOCK_PETS, MOCK_MEDICAL_RECORDS } from "../../../lib/constants";
 import { TreatmentItem } from "../components/TreatmentTable";
-import { useInventory } from "../../inventory/hooks/useInventory";
 
 export function useMedicalRecordForm(recordId?: string) {
   const navigate = useNavigate();
@@ -12,7 +11,6 @@ export function useMedicalRecordForm(recordId?: string) {
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
   const isNewRecord = !recordId;
-  const { consumeStock } = useInventory(); // For stock consumption logic
   
   const [activeTab, setActiveTab] = useState("問診");
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
@@ -95,18 +93,7 @@ export function useMedicalRecordForm(recordId?: string) {
   };
 
   const handleSave = () => {
-      // Inventory consumption logic
-      const itemsToConsume = treatmentCompletedItems
-        .filter(item => item.inventoryId && item.quantity > 0)
-        .map(item => ({
-            inventoryId: item.inventoryId!,
-            quantity: item.quantity
-        }));
-      
-      if (itemsToConsume.length > 0) {
-          consumeStock(itemsToConsume);
-      }
-
+      // TODO: Implement inventory consumption when inventory feature is ready
       toast.success(isNewRecord ? "カルテを作成しました" : "カルテを更新しました");
       setTimeout(() => {
           if (location.state?.from) {
