@@ -267,7 +267,7 @@ const DayColumn = ({
 
   return (
     <div
-      className={`flex-1 flex-shrink-0 border-r border-[rgba(55,53,47,0.09)] relative ${
+      className={`flex-1 flex-shrink-0 border-r border-[rgba(55,53,47,0.16)] relative ${
         isToday ? "bg-blue-50/10" : ""
       }`}
       style={{ minWidth: "20%" }}
@@ -325,7 +325,7 @@ export const WeekView = ({
     return (
       <div
         key={i}
-        className={`flex-1 flex-shrink-0 text-center py-2 border-r border-[rgba(55,53,47,0.16)] bg-white ${
+        className={`flex-1 flex-shrink-0 text-center py-2 border-r border-b border-[rgba(55,53,47,0.16)] bg-white ${
           isToday ? "bg-blue-50/50" : ""
         }`}
         style={{ minWidth: "20%" }}
@@ -356,8 +356,8 @@ export const WeekView = ({
     <div className="flex flex-col h-full min-h-0 border border-[rgba(55,53,47,0.16)] rounded-lg bg-white overflow-auto shadow-sm">
       <div style={{ minWidth: "100%" }}>
         {/* Week Header */}
-        <div className="flex border-b border-[rgba(55,53,47,0.16)] sticky top-0 z-30 bg-white">
-          <div className="w-12 flex-shrink-0 bg-[#F7F6F3] border-r border-[rgba(55,53,47,0.16)] sticky left-0 z-40" />
+        <div className="flex sticky top-0 z-30 bg-white">
+          <div className="w-12 flex-shrink-0 bg-[#F7F6F3] border-r border-b border-[rgba(55,53,47,0.16)] sticky left-0 z-40" />
           <div className="flex flex-1">{headerDays}</div>
         </div>
 
