@@ -31,12 +31,12 @@
 
 ### Frontend
 - **言語:** TypeScript 5.7
-- **フレームワーク:** React 18
+- **フレームワーク:** React 19
+- **ルーティング:** React Router (Data Mode)
 - **ビルドツール:** Vite 6
 - **スタイル:** Tailwind CSS 4
 - **UIライブラリ:** shadcn/ui (Radix UIベース)
-- **ルーティング:** React Router 6
-- **状態管理:** React Hooks (Custom Hooks), Context API
+- **状態管理:** TanStack Query, Zustand, React Hooks, Context API
 - **アイコン:** lucide-react
 
 ### Infrastructure
@@ -50,38 +50,27 @@
 
 ```
 AnimalEkarte/
-├── backend/
-│   ├── cmd/              # エントリーポイント (main.go)
-│   ├── internal/         # 内部パッケージ
-│   │   ├── config/       # 設定読み込み
-│   │   ├── errors/       # カスタムエラー定義
-│   │   ├── handler/      # HTTPハンドラ (Gin)
-│   │   ├── logger/       # ロガー設定
-│   │   ├── model/        # ドメインモデル・構造体
-│   │   ├── repository/   # DBアクセス (Repository Pattern)
-│   │   └── service/      # ビジネスロジック
-│   ├── migrations/       # SQLマイグレーションファイル
-│   ├── docs/             # Swagger/OpenAPI docs
-│   ├── .golangci.yml     # Linter設定
-│   └── go.mod
+├── backend/              # Go (Gin)
 ├── frontend/
 │   ├── src/
-│   │   ├── components/   # コンポーネント
-│   │   │   ├── ui/       # shadcn/ui (基本パーツ)
-│   │   │   ├── shared/   # 共有コンポーネント
-│   │   │   └── ...
-│   │   ├── features/     # 機能別モジュール (Feature-based Architecture)
-│   │   │   ├── dashboard/
-│   │   │   ├── medical-records/
-│   │   │   ├── reservations/
-│   │   │   └── ...
-│   │   ├── lib/          # utils, constants
-│   │   ├── types/        # 共通型定義
-│   │   └── App.tsx       # ルーティング
-│   └── vite.config.ts
+│   │   ├── main.tsx
+│   │   ├── vite-env.d.ts
+│   │   ├── app/          # App entry, providers, router, ErrorBoundary
+│   │   ├── features/     # Feature-based modules (auth, dashboard, reservations, etc.)
+│   │   ├── components/   # Shared components (ui/, shared/)
+│   │   │   ├── ui/       # shadcn/ui
+│   │   │   └── shared/   # App-specific shared UI (Layout, Form, DataTable, Feedback...)
+│   │   ├── hooks/        # Global shared hooks
+│   │   ├── lib/          # Library config (axios, queryClient, etc.)
+│   │   ├── stores/       # Global state (auth, theme, etc.)
+│   │   ├── types/        # Shared types
+│   │   ├── utils/        # Global utilities (format, validation, etc.)
+│   │   └── testing/      # Test setup & MSW (Mock Service Worker)
+│   ├── vite.config.ts
+│   └── ...
 ├── docker-compose.yml
-├── Makefile              # 開発用コマンド
-└── .env                  # 環境変数 (git対象外)
+├── Makefile
+└── .env
 ```
 
 ---
@@ -139,11 +128,13 @@ if err != nil {
 
 ### React: Feature Structure
 ```
-features/patients/
-  ├── api/         # API calls
+features/owners/
+  ├── api/         # API calls (+ hooks)
   ├── components/  # Feature-specific UI
   ├── hooks/       # Logic
-  └── types/       # Types
+  ├── routes/      # Route components
+  ├── types/       # Types
+  └── index.ts     # Public API
 ```
 
 ---

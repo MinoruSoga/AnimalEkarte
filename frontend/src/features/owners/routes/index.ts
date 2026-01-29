@@ -1,2 +1,2 @@
-export * from './OwnersList';
-export * from './OwnerForm';
+export { OwnersList } from './OwnersList';
+export { OwnerForm } from './OwnerForm';

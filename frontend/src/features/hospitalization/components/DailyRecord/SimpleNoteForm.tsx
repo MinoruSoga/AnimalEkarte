@@ -6,8 +6,8 @@ import { Send } from "lucide-react";
 import { format } from "date-fns";
 
 // Internal
-import { Button } from "../../../../components/ui/button";
-import { Textarea } from "../../../../components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 // Relative
 import { H_STYLES } from "../../styles";

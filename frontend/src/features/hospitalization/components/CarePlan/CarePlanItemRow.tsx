@@ -2,7 +2,7 @@
 import { Edit2, Trash2, Utensils, Pill, ClipboardList, Stethoscope, CheckCircle2 } from "lucide-react";
 
 // Internal
-import { Button } from "../../../../components/ui/button";
+import { Button } from "@/components/ui/button";
 
 // Relative
 import { H_STYLES } from "../../styles";

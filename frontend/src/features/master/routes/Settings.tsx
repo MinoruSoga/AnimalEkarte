@@ -1,30 +1,30 @@
 // React/Framework
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 // External
 import { Plus, Settings as SettingsIcon, Save, Trash2, Package } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
-import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
-import { Label } from "../../../components/ui/label";
-import { TableCell } from "../../../components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
-import { PageLayout } from "../../../components/shared/PageLayout";
-import { SearchFilterBar } from "../../../components/shared/SearchFilterBar";
-import { DataTable } from "../../../components/shared/DataTable";
-import { PrimaryButton } from "../../../components/shared/PrimaryButton";
-import { StatusBadge } from "../../../components/shared/StatusBadge";
-import { DataTableRow } from "../../../components/shared/DataTableRow";
-import { RowActionButton } from "../../../components/shared/RowActionButton";
-import { getMasterStatusColor } from "../../../lib/status-helpers";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { TableCell } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageLayout } from "@/components/shared/PageLayout";
+import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
+import { DataTable } from "@/components/shared/DataTable";
+import { PrimaryButton } from "@/components/shared/Form";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { DataTableRow } from "@/components/shared/DataTable";
+import { RowActionButton } from "@/components/shared/RowActionButton";
+import { getMasterStatusColor } from "@/utils/status-helpers";
 
 // Relative
-import { useMasterItems } from "../hooks/useMasterItems";
+import { useMasterItems } from "@/hooks/use-master-items";
 
 // Types
-import type { MasterItem, InventoryItem } from "../../../types";
+import type { MasterItem, InventoryItem } from "@/types";
 
 interface SettingsPageProps {
     category?: string;
@@ -93,13 +93,15 @@ export const Settings = ({ category: propCategory }: SettingsPageProps) => {
 
   const labels = getLabels(category);
 
-  // Reset editing state when category changes
-  useEffect(() => {
+  // Reset editing state when category changes (render-time state derivation)
+  const [prevCategory, setPrevCategory] = useState(category);
+  if (category !== prevCategory) {
+    setPrevCategory(category);
     setIsEditing(false);
     setSelectedItem(null);
     setSearchTerm("");
     setFormData({});
-  }, [category]);
+  }
 
   const handleEdit = (item: MasterItem) => {
     setSelectedItem(item);

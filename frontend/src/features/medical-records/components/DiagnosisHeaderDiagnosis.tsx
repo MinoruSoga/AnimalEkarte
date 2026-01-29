@@ -5,16 +5,16 @@ import React from "react";
 import { ChevronRight } from "lucide-react";
 
 // Internal
-import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
-import { Label } from "../../../components/ui/label";
-import { Textarea } from "../../../components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../../../components/ui/select";
+} from "@/components/ui/select";
 
 interface DiagnosisHeaderDiagnosisProps {
   diagnosisDetails: string;

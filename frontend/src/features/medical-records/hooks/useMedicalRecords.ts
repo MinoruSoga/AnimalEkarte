@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { MOCK_MEDICAL_RECORDS } from "../../../lib/constants";
+import { MOCK_MEDICAL_RECORDS } from "@/config/mock-data";
 
 export function useMedicalRecords(searchTerm: string) {
   const records = MOCK_MEDICAL_RECORDS;

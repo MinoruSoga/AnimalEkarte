@@ -1,15 +1,15 @@
 // React/Framework
 import { useState, useMemo } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router";
 
 // External
 import { Plus, Trash2, Save, CreditCard, Printer, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
-import { PageLayout } from "../../../components/shared/PageLayout";
-import { Button } from "../../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
+import { PageLayout } from "@/components/shared/PageLayout";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -17,18 +17,18 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "../../../components/ui/table";
-import { Input } from "../../../components/ui/input";
-import { Label } from "../../../components/ui/label";
-import { Badge } from "../../../components/ui/badge";
-import { Switch } from "../../../components/ui/switch";
+} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../../../components/ui/select";
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -37,11 +37,11 @@ import {
   DialogTrigger,
   DialogFooter,
   DialogDescription,
-} from "../../../components/ui/dialog";
-import { Separator } from "../../../components/ui/separator";
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 
 // Relative
-import { MOCK_ACCOUNTING_LIST } from "../mockData";
+import { MOCK_ACCOUNTING_LIST } from "../api";
 import { AccountingDocument } from "../components/AccountingDocument";
 
 // Types

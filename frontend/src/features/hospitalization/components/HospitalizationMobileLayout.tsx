@@ -5,8 +5,8 @@ import { useMemo } from "react";
 import { Calendar, FileText, Settings } from "lucide-react";
 
 // Internal
-import { Separator } from "../../../components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Relative
 import { CarePlanSection } from "./CarePlan/CarePlanSection";
@@ -15,7 +15,7 @@ import { HospitalizationPatientHeader } from "./HospitalizationPatientHeader";
 import { H_STYLES } from "../styles";
 
 // Types
-import type { Hospitalization } from "../../../types";
+import type { Hospitalization } from "@/types";
 import type {
     CarePlanItem,
     DailyRecord,

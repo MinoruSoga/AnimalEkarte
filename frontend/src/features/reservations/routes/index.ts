@@ -1,1 +1,1 @@
-export * from './ReservationManagement';
+export { ReservationManagement } from './ReservationManagement';

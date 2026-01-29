@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { TreatmentSearchDialog, TreatmentMasterItem } from "./TreatmentSearchDialog";
+import { TreatmentSearchDialog } from "@/components/shared/TreatmentSearchDialog";
+import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { DiagnosisHeader } from "./DiagnosisHeader";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";

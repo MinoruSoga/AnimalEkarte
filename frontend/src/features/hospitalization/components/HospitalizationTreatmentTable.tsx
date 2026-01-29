@@ -1,7 +1,7 @@
 import { Plus, Trash2, FileText } from "lucide-react";
-import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
-import { TreatmentPlan } from "../../../types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { TreatmentPlan } from "@/types";
 import { H_STYLES } from "../styles";
 
 interface HospitalizationTreatmentTableProps {

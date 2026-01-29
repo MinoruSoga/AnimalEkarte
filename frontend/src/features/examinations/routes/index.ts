@@ -1,3 +1,3 @@
-export * from './ExaminationForm';
-export * from './Examinations';
-export * from './ExaminationPetSelection';
+export { ExaminationForm } from './ExaminationForm';
+export { Examinations } from './Examinations';
+export { ExaminationPetSelection } from './ExaminationPetSelection';

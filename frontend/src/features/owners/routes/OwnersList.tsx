@@ -1,28 +1,43 @@
 // React/Framework
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo } from "react";
+import { useNavigate, useLoaderData } from "react-router";
 
 // External
-import { Plus, Loader2 } from "lucide-react";
+import { Plus } from "lucide-react";
 
 // Internal
-import { TableCell } from "../../../components/ui/table";
-import { RowActionButton } from "../../../components/shared/RowActionButton";
-import { PageLayout } from "../../../components/shared/PageLayout";
-import { SearchFilterBar } from "../../../components/shared/SearchFilterBar";
-import { DataTable } from "../../../components/shared/DataTable";
-import { PrimaryButton } from "../../../components/shared/PrimaryButton";
-import { StatusBadge } from "../../../components/shared/StatusBadge";
-import { DataTableRow } from "../../../components/shared/DataTableRow";
-import { getPetStatusColor } from "../../../lib/status-helpers";
+import { TableCell } from "@/components/ui/table";
+import { RowActionButton } from "@/components/shared/RowActionButton";
+import { PageLayout } from "@/components/shared/PageLayout";
+import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
+import { DataTable, DataTableRow } from "@/components/shared/DataTable";
+import { PrimaryButton } from "@/components/shared/Form";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { getPetStatusColor } from "@/utils/status-helpers";
+import { formatDate } from "@/utils/format/date";
+import { formatWeight } from "@/utils/format/number";
 
-// Relative
-import { usePets } from "../hooks/usePets";
+// Types
+import type { OwnersLoaderData } from "../loaders";
 
 export const OwnersList = () => {
   const navigate = useNavigate();
+  const { pets } = useLoaderData<OwnersLoaderData>();
   const [searchTerm, setSearchTerm] = useState("");
-  const { data: filteredPets, isLoading, error } = usePets(searchTerm);
+
+  const filteredPets = useMemo(() => {
+    if (!searchTerm) return pets;
+    const lowerTerm = searchTerm.toLowerCase();
+    return pets.filter((pet) => {
+      const ownerNumberStr = pet.ownerNumber?.toString() ?? "";
+      return (
+        pet.ownerName.toLowerCase().includes(lowerTerm) ||
+        ownerNumberStr.includes(searchTerm) ||
+        pet.name.toLowerCase().includes(lowerTerm) ||
+        (pet.species && pet.species.toLowerCase().includes(lowerTerm))
+      );
+    });
+  }, [pets, searchTerm]);
 
   const handleCreate = () => {
     navigate("/owners/new");
@@ -46,16 +61,6 @@ export const OwnersList = () => {
     { header: "操作", className: "w-[100px]", align: "right" as const },
   ];
 
-  if (error) {
-    return (
-      <PageLayout title="飼主・ペット一覧">
-        <div className="p-4 text-destructive">
-          エラーが発生しました: {error.message}
-        </div>
-      </PageLayout>
-    );
-  }
-
   return (
     <PageLayout
       title="飼主・ペット一覧"
@@ -77,45 +82,51 @@ export const OwnersList = () => {
         />
 
         {/* Table */}
-        {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <DataTable
-            columns={columns}
-            data={filteredPets}
-            emptyMessage="データが見つかりません"
-            renderRow={(pet) => (
-              <DataTableRow 
-                key={pet.id}
-                onClick={() => handleEdit(pet.ownerId)}
-              >
-                <TableCell className="text-sm whitespace-nowrap py-2">{pet.ownerId}</TableCell>
-                <TableCell className="text-sm whitespace-nowrap py-2">{pet.ownerName}</TableCell>
-                <TableCell className="font-mono text-sm whitespace-nowrap py-2">{pet.petNumber}</TableCell>
-                <TableCell className="text-sm whitespace-nowrap py-2">{pet.name}</TableCell>
-                <TableCell className="whitespace-nowrap py-2">
-                  {pet.status && (
-                      <StatusBadge 
-                          colorClass={getPetStatusColor(pet.status)} 
-                      >
-                        {pet.status}
-                      </StatusBadge>
-                  )}
-                </TableCell>
-                <TableCell className="text-sm whitespace-nowrap py-2">{pet.species}</TableCell>
-                <TableCell className="font-mono text-sm whitespace-nowrap py-2">{pet.birthDate}</TableCell>
-                <TableCell className="font-mono text-sm whitespace-nowrap py-2">{pet.weight}</TableCell>
-                <TableCell className="text-sm whitespace-nowrap py-2">{pet.environment}</TableCell>
-                <TableCell className="font-mono text-sm whitespace-nowrap py-2">{pet.lastVisit}</TableCell>
-                <TableCell className="whitespace-nowrap py-2 text-right">
-                  <RowActionButton onClick={() => handleEdit(pet.ownerId)} />
-                </TableCell>
-              </DataTableRow>
-            )}
-          />
-        )}
+        <DataTable
+          columns={columns}
+          data={filteredPets}
+          emptyMessage="データが見つかりません"
+          renderRow={(pet) => (
+            <DataTableRow
+              key={pet.id}
+              onClick={() => handleEdit(pet.ownerId)}
+            >
+              <TableCell className="font-mono text-sm whitespace-nowrap py-2">
+                {pet.ownerNumber ?? "-"}
+              </TableCell>
+              <TableCell className="text-sm whitespace-nowrap py-2">{pet.ownerName}</TableCell>
+              <TableCell className="font-mono text-sm whitespace-nowrap py-2">
+                {pet.petNumber || "-"}
+              </TableCell>
+              <TableCell className="text-sm whitespace-nowrap py-2">{pet.name}</TableCell>
+              <TableCell className="whitespace-nowrap py-2">
+                {pet.status && (
+                  <StatusBadge
+                    colorClass={getPetStatusColor(pet.status)}
+                  >
+                    {pet.status}
+                  </StatusBadge>
+                )}
+              </TableCell>
+              <TableCell className="text-sm whitespace-nowrap py-2">{pet.species}</TableCell>
+              <TableCell className="font-mono text-sm whitespace-nowrap py-2">
+                {formatDate(pet.birthDate)}
+              </TableCell>
+              <TableCell className="font-mono text-sm whitespace-nowrap py-2">
+                {formatWeight(pet.weight)}
+              </TableCell>
+              <TableCell className="text-sm whitespace-nowrap py-2">
+                {pet.environment || "-"}
+              </TableCell>
+              <TableCell className="font-mono text-sm whitespace-nowrap py-2">
+                {formatDate(pet.lastVisit)}
+              </TableCell>
+              <TableCell className="whitespace-nowrap py-2 text-right">
+                <RowActionButton onClick={() => handleEdit(pet.ownerId)} />
+              </TableCell>
+            </DataTableRow>
+          )}
+        />
       </div>
     </PageLayout>
   );

@@ -1,3 +1,2 @@
-export * from "./routes";
-export * from "./hooks";
-export * from "./types";
+// Routes
+export { ClinicSettings } from "./routes/ClinicSettings";

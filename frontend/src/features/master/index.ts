@@ -1,2 +1,2 @@
-export * from "./routes";
-export * from "./hooks";
+// Routes
+export { Settings } from "./routes/Settings";

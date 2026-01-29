@@ -1,3 +1,3 @@
-export * from './MedicalRecords';
-export * from './MedicalRecordForm';
-export * from './MedicalRecordPetSelection';
+export { MedicalRecords } from './MedicalRecords';
+export { MedicalRecordForm } from './MedicalRecordForm';
+export { MedicalRecordPetSelection } from './MedicalRecordPetSelection';

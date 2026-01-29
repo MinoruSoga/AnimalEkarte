@@ -4,7 +4,7 @@
 
 ## 技術スタック
 
-- **言語**: Go 1.25
+- **言語**: Go 1.22+
 - **フレームワーク**: Gin v1.10
 - **ORM**: GORM v1.30
 - **データベース**: PostgreSQL 18
@@ -30,15 +30,19 @@ backend/
 │   │   └── pet.go           # ペットCRUDハンドラー
 │   ├── logger/
 │   │   └── logger.go        # slog構造化ロガー
+│   ├── middleware/
+│   │   └── *.go             # ミドルウェア（認証、CORS等）
 │   ├── model/
 │   │   └── pet.go           # データモデル・リクエスト型
 │   ├── repository/
 │   │   ├── db.go            # DB接続
 │   │   ├── repository.go    # リポジトリ基底
 │   │   └── pet.go           # ペットリポジトリ
-│   └── service/
-│       ├── service.go       # サービス基底
-│       └── pet.go           # ペットビジネスロジック
+│   ├── service/
+│   │   ├── service.go       # サービス基底
+│   │   └── pet.go           # ペットビジネスロジック
+│   └── validation/
+│       └── *.go             # バリデーション
 ├── migrations/              # DBマイグレーション
 ├── docs/                    # Swagger生成ドキュメント（自動生成）
 ├── .golangci.yml            # リンター設定
@@ -54,7 +58,7 @@ backend/
 
 ### 前提条件
 
-- Go 1.25以上
+- Go 1.22+以上
 - PostgreSQL 18（またはDocker）
 
 ### ローカル開発（Docker使用）

@@ -2,7 +2,7 @@
 import React from "react";
 
 // Internal
-import { Input } from "../../../components/ui/input";
+import { Input } from "@/components/ui/input";
 
 interface TreatmentDetailedSummaryProps {
   subtotal: number;

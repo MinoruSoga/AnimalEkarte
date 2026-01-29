@@ -1,21 +1,21 @@
 // React/Framework
 import { useEffect } from "react";
-import { useNavigate, useParams, useLocation, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
 import { Trash2 } from "lucide-react";
 
 // Internal
-import { Button } from "../../../components/ui/button";
-import { Label } from "../../../components/ui/label";
-import { Textarea } from "../../../components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
-import { PatientInfoCard } from "../../../components/shared/PatientInfoCard";
-import { PageLayout } from "../../../components/shared/PageLayout";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
+import { PageLayout } from "@/components/shared/PageLayout";
 
 // Relative
 import { useExaminationForm } from "../hooks/useExaminationForm";
-import { useMasterItems } from "../../master/hooks/useMasterItems";
+import { useMasterItems } from "@/hooks/use-master-items";
 
 export const ExaminationForm = () => {
   const navigate = useNavigate();

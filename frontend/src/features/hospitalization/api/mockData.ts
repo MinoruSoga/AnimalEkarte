@@ -1,5 +1,5 @@
 import { addDays, subDays, format } from "date-fns";
-import { Hospitalization, CarePlanItem, DailyRecord } from "../../../types";
+import { Hospitalization, CarePlanItem, DailyRecord } from "@/types";
 
 export const MOCK_HOSPITALIZATION: Hospitalization = {
     id: "hosp_1",

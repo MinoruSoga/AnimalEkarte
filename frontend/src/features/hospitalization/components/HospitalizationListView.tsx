@@ -1,16 +1,15 @@
 // Internal
-import { TableCell } from "../../../components/ui/table";
-import { DataTable } from "../../../components/shared/DataTable";
-import { StatusBadge } from "../../../components/shared/StatusBadge";
-import { DataTableRow } from "../../../components/shared/DataTableRow";
-import { RowActionButton } from "../../../components/shared/RowActionButton";
-import { getHospitalizationStatusColor, getHospitalizationTypeColor } from "../../../lib/status-helpers";
+import { TableCell } from "@/components/ui/table";
+import { DataTable, DataTableRow } from "@/components/shared/DataTable";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { RowActionButton } from "@/components/shared/RowActionButton";
+import { getHospitalizationStatusColor, getHospitalizationTypeColor } from "@/utils/status-helpers";
 
 // Relative
 import { H_STYLES } from "../styles";
 
 // Types
-import type { Hospitalization } from "../../../types";
+import type { Hospitalization } from "@/types";
 
 interface HospitalizationListViewProps {
   hospitalizations: Hospitalization[];

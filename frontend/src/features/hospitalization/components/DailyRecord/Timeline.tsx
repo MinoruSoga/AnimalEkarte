@@ -1,5 +1,5 @@
 // Internal
-import { Badge } from "../../../../components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 
 // Relative
 import { H_STYLES } from "../../styles";

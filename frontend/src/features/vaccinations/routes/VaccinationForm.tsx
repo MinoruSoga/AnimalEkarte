@@ -1,29 +1,29 @@
 // React/Framework
 import { useEffect } from "react";
-import { useNavigate, useParams, useLocation, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
 import { Trash2 } from "lucide-react";
 
 // Internal
-import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
-import { Label } from "../../../components/ui/label";
-import { Textarea } from "../../../components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "../../../components/ui/radio-group";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../../../components/ui/select";
-import { PatientInfoCard } from "../../../components/shared/PatientInfoCard";
-import { PageLayout } from "../../../components/shared/PageLayout";
+} from "@/components/ui/select";
+import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
+import { PageLayout } from "@/components/shared/PageLayout";
 
 // Relative
 import { useVaccinationForm } from "../hooks/useVaccinationForm";
-import { useMasterItems } from "../../master/hooks/useMasterItems";
+import { useMasterItems } from "@/hooks/use-master-items";
 
 export const VaccinationForm = () => {
   const navigate = useNavigate();

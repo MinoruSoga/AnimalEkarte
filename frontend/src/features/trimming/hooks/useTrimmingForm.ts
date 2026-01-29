@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
-import { MOCK_PETS } from "../../../lib/constants";
-import { usePetSelection } from "../../pets/hooks/usePetSelection";
+import { MOCK_PETS } from "@/config/mock-data";
+import { usePetSelection } from "@/hooks/use-pet-selection";
 
 export interface TrimmingFormData {
   styleRequest: string;
@@ -44,89 +44,93 @@ export function useTrimmingForm(id?: string) {
   const petSelection = usePetSelection();
   const { setSelectedPets } = petSelection;
 
-  const [formData, setFormData] = useState<TrimmingFormData>({
-    styleRequest: "",
-    memo: "",
-    eggs: "",
-    parts: {
-      nail: false,
-      analGland: false,
-      eye: false,
-      ear: false,
-      skin: false,
-      oral: false,
-    },
-    styleImage: null,
-    bw: "",
-    bwUnit: "Kg",
-    bt: "",
-    usedShampoo: "",
-    usedRibbon: "",
-    treatment: "",
-    medicine: "",
-    charge: "",
-    finalCheck: "",
-    remarks: "",
-    completedImage: null,
-    
-    courseId: "",
-    optionIds: [],
+  // Lazy initialization for edit mode
+  const [formData, setFormData] = useState<TrimmingFormData>(() => {
+    if (mode === "edit" && id === "1") {
+      return {
+        styleRequest: "サマーカット希望。短めにカットしてください。",
+        memo: "毛玉が多いので丁寧にブラッシングをお願いします。",
+        eggs: "なし",
+        parts: {
+          nail: true,
+          analGland: true,
+          eye: true,
+          ear: true,
+          skin: false,
+          oral: false,
+        },
+        styleImage: null,
+        bw: "10.5",
+        bwUnit: "Kg",
+        bt: "38.5",
+        usedShampoo: "低刺激シャンプー",
+        usedRibbon: "ピンクリボン",
+        treatment: "保湿トリートメント",
+        medicine: "なし",
+        charge: "8,000円",
+        finalCheck: "完了",
+        remarks: "次回は1ヶ月後を予定",
+        completedImage: null,
+        courseId: "",
+        optionIds: [],
+      };
+    }
+    return {
+      styleRequest: "",
+      memo: "",
+      eggs: "",
+      parts: {
+        nail: false,
+        analGland: false,
+        eye: false,
+        ear: false,
+        skin: false,
+        oral: false,
+      },
+      styleImage: null,
+      bw: "",
+      bwUnit: "Kg",
+      bt: "",
+      usedShampoo: "",
+      usedRibbon: "",
+      treatment: "",
+      medicine: "",
+      charge: "",
+      finalCheck: "",
+      remarks: "",
+      completedImage: null,
+      courseId: "",
+      optionIds: [],
+    };
   });
 
   const [styleImagePreview, setStyleImagePreview] = useState<string | null>(null);
   const [completedImagePreview, setCompletedImagePreview] = useState<string | null>(null);
 
+  // Handle pet selection initialization
   useEffect(() => {
     if (mode === "edit") {
-        // Mock Data Loading
-        // Find pet based on ID - assuming ID might map to pet for this mock
-        // For ID "1", let's use Iris. For "2", Max.
-        let targetPetName = "";
-        if (id === "1") targetPetName = "Iris";
-        if (id === "2") targetPetName = "Max";
+      // Find pet based on ID - assuming ID might map to pet for this mock
+      // For ID "1", let's use Iris. For "2", Max.
+      let targetPetName = "";
+      if (id === "1") targetPetName = "Iris";
+      if (id === "2") targetPetName = "Max";
 
-        if (targetPetName) {
-            const pet = MOCK_PETS.find(p => p.name.includes(targetPetName));
-            if (pet) {
-                setSelectedPets([pet]);
-            }
+      if (targetPetName) {
+        const pet = MOCK_PETS.find(p => p.name.includes(targetPetName));
+        if (pet) {
+          setSelectedPets([pet]);
         }
-
-        if (id === "1") {
-            setFormData(prev => ({
-                ...prev,
-                styleRequest: "サマーカット希望。短めにカットしてください。",
-                memo: "毛玉が多いので丁寧にブラッシングをお願いします。",
-                eggs: "なし",
-                parts: {
-                  nail: true,
-                  analGland: true,
-                  eye: true,
-                  ear: true,
-                  skin: false,
-                  oral: false,
-                },
-                bw: "10.5",
-                bwUnit: "Kg",
-                bt: "38.5",
-                usedShampoo: "低刺激シャンプー",
-                usedRibbon: "ピンクリボン",
-                treatment: "保湿トリートメント",
-                medicine: "なし",
-                charge: "8,000円",
-                finalCheck: "完了",
-                remarks: "次回は1ヶ月後を予定",
-            }));
-        }
+      }
     } else {
-        if (petId) {
-            const foundPet = MOCK_PETS.find(p => p.id === petId);
-            if (foundPet) {
-                setSelectedPets([foundPet]);
-            } else {
-                navigate("/trimming/select-pet");
-            }
+      if (petId) {
+        const foundPet = MOCK_PETS.find(p => p.id === petId);
+        if (foundPet) {
+          setSelectedPets([foundPet]);
+        } else {
+          navigate("/trimming/select-pet");
         }
+      }
     }
   }, [id, mode, petId, setSelectedPets, navigate]);
 

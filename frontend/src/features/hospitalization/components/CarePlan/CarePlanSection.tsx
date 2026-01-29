@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 
 // Internal
-import { Button } from "../../../../components/ui/button";
+import { Button } from "@/components/ui/button";
 
 // Relative
 import { CarePlanItemRow } from "./CarePlanItemRow";

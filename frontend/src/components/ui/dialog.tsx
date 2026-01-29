@@ -1,5 +1,3 @@
-"use client";
-
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { XIcon } from "lucide-react";
@@ -30,10 +28,12 @@ function DialogClose({
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
-const DialogOverlay = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Overlay>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
->(({ className, ...props }, ref) => {
+interface DialogOverlayProps
+  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay> {
+  ref?: React.Ref<React.ElementRef<typeof DialogPrimitive.Overlay>>;
+}
+
+function DialogOverlay({ className, ref, ...props }: DialogOverlayProps) {
   return (
     <DialogPrimitive.Overlay
       ref={ref}
@@ -45,13 +45,19 @@ const DialogOverlay = React.forwardRef<
       {...props}
     />
   );
-});
-DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
+}
 
-const DialogContent = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => {
+interface DialogContentProps
+  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
+  ref?: React.Ref<React.ElementRef<typeof DialogPrimitive.Content>>;
+}
+
+function DialogContent({
+  className,
+  children,
+  ref,
+  ...props
+}: DialogContentProps) {
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -72,8 +78,7 @@ const DialogContent = React.forwardRef<
       </DialogPrimitive.Content>
     </DialogPortal>
   );
-});
-DialogContent.displayName = DialogPrimitive.Content.displayName;
+}
 
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (

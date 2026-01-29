@@ -11,7 +11,8 @@ Challenge my thinking. Question my assumptions. Expose my blind spots.
 Be direct, rational, and unfiltered.
 ```
 
-- **Flat Thinking (本音対話)**: 社交辞令を排除し、事実と論理に基づき率直に指摘する。ユーザーが間違っていれば容赦なく指摘する。
+**原則:**
+- **Flat Thinking (本音対話)**: 社交辞令を排除し、事実と論理に基づき率直に指摘する
 - 型安全性最優先
 - SOLID原則・クリーンアーキテクチャ
 - エラーハンドリング徹底
@@ -23,31 +24,62 @@ Be direct, rational, and unfiltered.
 
 ## 📋 プロジェクト概要
 
-**名前:** Animal Ekarte
-**説明:** 動物病院向け電子カルテ管理システム
+| 項目 | 内容 |
+|------|------|
+| 名前 | Animal Ekarte |
+| 説明 | 動物病院向け電子カルテ管理システム |
+| Frontend | React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui |
+| Backend | Go 1.22+ / Gin / GORM |
+| Database | PostgreSQL 18 |
+| Infrastructure | Docker Compose |
 
 ---
 
-## 🛠️ 技術スタック
+## 🔧 Docker操作
 
-### Backend
-- 言語: Go
-- フレームワーク: Gin
-- ホットリロード: Air
+### ⚠️ 重要: コマンド実行ルール
 
-### Frontend
-- 言語: TypeScript 5.7
-- フレームワーク: React 18
-- ビルドツール: Vite 6
-- スタイル: Tailwind CSS 4
-- UIライブラリ: shadcn/ui (Radix UI)
-- ルーティング: React Router 6
-- アイコン: lucide-react
+**npm/goコマンドはローカルで実行しない。必ずDocker経由で実行する。**
 
-### Infrastructure
-- データベース: PostgreSQL 18
-- コンテナ: Docker Compose
-- マイグレーション: SQL files
+```bash
+# ❌ NG - ローカル実行
+npm run build
+go test ./...
+
+# ✅ OK - Docker経由
+docker compose exec frontend npm run build
+docker compose exec backend go test ./...
+```
+
+### 開発コマンド
+
+| コマンド | 説明 |
+|---------|------|
+| `make up` | コンテナ起動 |
+| `make down` | コンテナ停止 |
+| `make logs` | 全ログ表示 |
+| `make db` | DB接続（psql） |
+| `make clean` | キャッシュクリア＆再ビルド |
+| `make reset` | 完全リセット（データ削除） |
+
+### コンテナ別コマンド
+
+| タスク | コマンド |
+|--------|---------|
+| Frontend ビルド | `docker compose exec frontend npm run build` |
+| Frontend Lint | `docker compose exec frontend npm run lint` |
+| Frontend テスト | `docker compose exec frontend npm run test:run` |
+| Backend テスト | `docker compose exec backend go test ./... -v` |
+| Backend Lint | `docker compose exec backend golangci-lint run ./...` |
+| Swagger生成 | `docker compose exec backend swag init -g cmd/api/main.go` |
+
+### ポート
+
+| サービス | ポート |
+|---------|--------|
+| Frontend | 3000 |
+| Backend API | 8080 |
+| PostgreSQL | 5432 |
 
 ---
 
@@ -56,211 +88,206 @@ Be direct, rational, and unfiltered.
 ```
 AnimalEkarte/
 ├── backend/
-│   ├── cmd/              # エントリーポイント
-│   ├── internal/         # 内部パッケージ
+│   ├── cmd/api/          # エントリーポイント
+│   ├── internal/
 │   │   ├── config/       # 設定
-│   │   ├── errors/       # エラー定義
-│   │   ├── handler/      # HTTPハンドラ
-│   │   ├── logger/       # ロガー
+│   │   ├── errors/       # センチネルエラー定義
+│   │   ├── handler/      # HTTPハンドラ（Gin）
+│   │   ├── logger/       # slog構造化ログ
+│   │   ├── middleware/   # ミドルウェア
 │   │   ├── model/        # ドメインモデル
-│   │   ├── repository/   # データアクセス
-│   │   └── service/      # ビジネスロジック
+│   │   ├── repository/   # データアクセス（GORM）
+│   │   ├── service/      # ビジネスロジック
+│   │   └── validation/   # バリデーション
 │   ├── migrations/       # DBマイグレーション
-│   ├── docs/             # APIドキュメント (Swagger)
-│   ├── .golangci.yml     # Linter設定
-│   ├── go.mod
-│   └── Dockerfile.dev
+│   └── docs/             # Swagger
 ├── frontend/
-│   ├── src/
-│   │   ├── components/   # 共通コンポーネント
-│   │   │   ├── ui/       # shadcn/ui コンポーネント
-│   │   │   ├── shared/   # 共有UIコンポーネント
-│   │   │   ├── figma/    # Figma生成コンポーネント
-│   │   │   └── Sidebar.tsx
-│   │   ├── features/     # 機能別モジュール
-│   │   │   ├── dashboard/      # ダッシュボード
-│   │   │   ├── owners/         # 飼い主管理
-│   │   │   ├── medical-records/# カルテ管理
-│   │   │   ├── reservations/   # 予約管理
-│   │   │   ├── hospitalization/# 入院管理
-│   │   │   ├── examinations/   # 検査管理
-│   │   │   ├── accounting/     # 会計
-│   │   │   ├── vaccinations/   # ワクチン
-│   │   │   ├── trimming/       # トリミング
-│   │   │   ├── master/         # マスタ設定
-│   │   │   └── clinic/         # クリニック設定
-│   │   ├── lib/          # ユーティリティ
-│   │   ├── types/        # 型定義
-│   │   ├── styles/       # グローバルスタイル
-│   │   ├── assets/       # 画像等のアセット
-│   │   ├── App.tsx       # ルーティング定義
-│   │   └── main.tsx      # エントリーポイント
-│   ├── package.json
-│   └── Dockerfile
-├── docker-compose.yml
-├── Makefile
-└── .env
+│   └── src/
+│       ├── main.tsx      # Viteエントリーポイント
+│       ├── index.css     # グローバルCSS
+│       ├── app/          # アプリケーション層
+│       │   ├── index.tsx     # Appコンポーネント
+│       │   ├── provider.tsx  # プロバイダー統合
+│       │   ├── router.tsx    # ルーター設定
+│       │   └── routes/       # ルート定義
+│       ├── components/
+│       │   ├── ui/       # shadcn/ui
+│       │   ├── shared/   # 共有UI
+│       │   ├── layouts/  # Layout, Sidebar
+│       │   └── errors/   # ErrorBoundary
+│       ├── features/     # 機能別モジュール
+│       │   └── [feature]/
+│       │       ├── api/
+│       │       ├── components/
+│       │       ├── hooks/
+│       │       ├── types/
+│       │       └── routes/
+│       ├── hooks/        # 共有hooks
+│       ├── lib/          # ユーティリティ
+│       ├── types/        # 共有型定義
+│       └── testing/      # テスト設定
+├── docs/                 # 技術ドキュメント
+├── CODING_RULES.md       # コーディング規約
+└── docker-compose.yml
 ```
 
 ---
 
-## 🚀 開発コマンド
+## 📐 Frontend核心ルール（React 19 / bulletproof-react）
 
-| コマンド | 説明 |
-|---------|------|
-| `make up` | コンテナ起動 |
-| `make build` | コンテナ起動（ビルド付き） |
-| `make down` | コンテナ停止 |
-| `make logs` | 全ログ表示 |
-| `make logs-api` | APIログ表示 |
-| `make logs-front` | フロントエンドログ表示 |
-| `make ps` | コンテナ状態確認 |
-| `make db` | DB接続（psql） |
-| `make clean` | キャッシュクリア＆再ビルド |
-| `make reset` | 完全リセット（データ削除） |
-| `make restart-api` | API再起動 |
-| `make restart-front` | フロントエンド再起動 |
+### コンポーネント定義
 
----
+```typescript
+// ✅ React 19: 関数宣言 + 明示的Props型
+interface PatientCardProps {
+  patient: Patient;
+  onSelect?: (id: string) => void;
+  ref?: React.Ref<HTMLDivElement>;  // ref as prop
+}
 
-## 📝 命名規則
+export function PatientCard({ patient, onSelect, ref }: PatientCardProps) {
+  return <div ref={ref}>...</div>;
+}
 
-### Go (Backend)
-
-| 対象 | 規則 | 例 |
-|------|------|-----|
-| パッケージ | lowercase | `handler`, `repository` |
-| エクスポート関数/型 | PascalCase | `GetPatient`, `PatientService` |
-| プライベート関数/変数 | camelCase | `validateInput`, `dbConn` |
-| 定数 | PascalCase or UPPER_SNAKE | `MaxRetryCount`, `DB_TIMEOUT` |
-| インターフェース | PascalCase + er | `Reader`, `PatientRepository` |
-| ファイル | snake_case | `patient_handler.go` |
-
-### TypeScript (Frontend)
-
-| 対象 | 規則 | 例 |
-|------|------|-----|
-| コンポーネント | PascalCase | `PatientCard`, `MedicalRecord` |
-| 関数・変数 | camelCase | `getPatientById`, `isActive` |
-| 定数 | UPPER_SNAKE_CASE | `API_BASE_URL` |
-| ファイル | kebab-case | `patient-card.tsx` |
-| 型・インターフェース | PascalCase | `Patient`, `ApiResponse` |
-
----
-
-## 🔐 環境変数
-
-```bash
-# .env
-DB_USER=ekarte_user
-DB_PASSWORD=<secure_password>
-DB_NAME=ekarte_db
+// ❌ 禁止: FC型、forwardRef
+export const PatientCard: FC<Props> = () => {};  // ❌
+export const PatientCard = forwardRef(() => {});  // ❌
 ```
 
-**注意:** `.env` ファイルは `.gitignore` に含まれています。
+### React 19 新hooks
+
+```typescript
+// useActionState: フォームアクション管理
+const [state, formAction, isPending] = useActionState(submitAction, initialState);
+
+// useOptimistic: 楽観的UI更新
+const [optimisticItems, addOptimisticItem] = useOptimistic(items, updateFn);
+
+// use(): Promise/Context直接読み取り
+const data = use(fetchPromise);
+const theme = use(ThemeContext);
+
+// useFormStatus: フォーム送信状態
+const { pending } = useFormStatus();
+```
+
+### アーキテクチャルール
+
+```
+1. Feature間の直接importは禁止 → app層で合成
+2. 単方向コードフロー: shared → features → app
+3. `export *` 禁止 → 明示的named exportは可
+4. 絶対パスimport: @/ エイリアス使用
+```
+
+### Feature構成パターン
+
+```
+features/[feature]/
+├── api/                # API呼び出し + React Query hooks
+│   ├── get-xxx.ts      # useQuery hooks
+│   ├── create-xxx.ts   # useMutation hooks
+│   ├── types.ts        # APIリクエスト/レスポンス型
+│   ├── transforms.ts   # Backend ↔ Frontend 変換
+│   └── index.ts        # 明示的named export
+├── components/         # Feature固有UI
+├── hooks/              # ビジネスロジック・UI状態
+├── routes/             # ページコンポーネント
+├── types/              # ドメイン型定義
+└── index.ts            # Public API（外部公開のみ）
+```
+
+**詳細は [Frontend規約](../frontend/CLAUDE.md) を参照**
+
+### 禁止事項
+
+| 禁止 | 理由 |
+|------|------|
+| `any` 型 | 型安全性の破壊 |
+| `FC` / `React.FC` | React 19では不要 |
+| `forwardRef` | React 19ではref as prop |
+| feature間import | アーキテクチャ違反 |
+| `export *` | tree-shaking阻害 |
+| `console.log` 放置 | 本番コード汚染 |
 
 ---
 
-## 📐 重要なパターン
+## 📐 Backend核心ルール（Go / Gin / GORM）
 
-### Go - エラーハンドリング（センチネルエラー + ラッピング）
+### Context伝播（必須）
+
 ```go
-// internal/errors/errors.go でセンチネルエラーを定義
+// 全関数の第一引数にcontext.Context
+func (s *Service) GetPet(ctx context.Context, id string) (*Pet, error)
+func (r *Repository) FindByID(ctx context.Context, id uuid.UUID) (*Pet, error)
+
+// GORMでもContext使用
+r.db.WithContext(ctx).First(&pet, "id = ?", id)
+```
+
+### エラーハンドリング
+
+```go
+// センチネルエラー定義
 var (
     ErrNotFound     = errors.New("resource not found")
     ErrInvalidInput = errors.New("invalid input")
 )
 
-// エラーラッピングでコンテキストを追加
+// エラーラッピング
 func Wrap(err error, message string) error {
     return fmt.Errorf("%s: %w", message, err)
 }
 
-// エラー判定は errors.Is() を使用
+// エラー判定
 if errors.Is(err, ErrNotFound) {
-    // 404 レスポンス
+    // 404レスポンス
 }
 ```
 
-### Go - slog 構造化ログ
+### slog構造化ログ
+
 ```go
-import "log/slog"
+slog.InfoContext(ctx, "pet created",
+    slog.String("pet_id", pet.ID.String()),
+    slog.String("name", pet.Name))
 
-// コンテキスト付きログ出力
-slog.InfoContext(ctx, "pet created", slog.String("pet_id", pet.ID.String()))
-slog.ErrorContext(ctx, "failed to create pet", slog.String("error", err.Error()))
+slog.ErrorContext(ctx, "failed to create pet",
+    slog.String("error", err.Error()))
 ```
 
-### Go - Context伝播
-```go
-// 全てのレイヤーで context.Context を第一引数に
-func (s *Service) GetPetByID(ctx context.Context, id string) (*Pet, error)
-func (r *Repository) GetPetByID(ctx context.Context, id uuid.UUID) (*Pet, error)
+### 禁止事項
 
-// GORMでもContextを使用
-r.db.WithContext(ctx).First(&pet, "id = ?", id)
-```
-
-### Go - リポジトリパターン
-```go
-type PatientRepository interface {
-    FindByID(ctx context.Context, id string) (*Patient, error)
-    Save(ctx context.Context, patient *Patient) error
-    Delete(ctx context.Context, id string) error
-}
-```
-
-### React - コンポーネント構造
-```typescript
-interface PatientCardProps {
-  patient: Patient;
-  onSelect?: (id: string) => void;
-}
-
-export const PatientCard: FC<PatientCardProps> = ({ patient, onSelect }) => {
-  // 実装
-};
-```
-
-### React - API呼び出し
-```typescript
-const fetchPatient = async (id: string): Promise<Patient> => {
-  const response = await fetch(`/api/patients/${id}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch patient');
-  }
-  return response.json();
-};
-```
+| 禁止 | 理由 |
+|------|------|
+| `panic` 乱用 | 予期せぬクラッシュ |
+| `_ = err` | エラー握りつぶし |
+| グローバル変数 | 状態管理の複雑化 |
+| SQL文字列結合 | SQLインジェクション |
 
 ---
 
-## ⚡ 禁止事項
+## 📝 命名規則
 
 ### Go
-- ❌ panic の乱用
-- ❌ エラーの握りつぶし（`_ = err`）
-- ❌ グローバル変数の多用
-- ❌ 未使用のインポート
+
+| 対象 | 規則 | 例 |
+|------|------|-----|
+| パッケージ | lowercase | `handler`, `repository` |
+| エクスポート | PascalCase | `GetPatient`, `OwnerService` |
+| 非エクスポート | camelCase | `validateInput` |
+| ファイル | snake_case | `owner_handler.go` |
+| インターフェース | PascalCase + er | `OwnerRepository` |
 
 ### TypeScript
-- ❌ any型使用
-- ❌ 未使用インポート
-- ❌ ハードコード
-- ❌ コンソールログ放置
 
----
-
-## ✅ 必須事項
-
-- ✅ 適切なエラーハンドリング（センチネルエラー + ラッピング）
-- ✅ Context伝播（全関数の第一引数）
-- ✅ slog構造化ログ使用
-- ✅ 入力値バリデーション
-- ✅ 既存パターンに従う
-- ✅ 変更前に影響範囲確認
-- ✅ SQLインジェクション対策（プレースホルダ使用）
-- ✅ golangci-lint でコード品質チェック
+| 対象 | 規則 | 例 |
+|------|------|-----|
+| コンポーネント | PascalCase | `PatientCard` |
+| 関数・変数 | camelCase | `getPatientById` |
+| 定数 | UPPER_SNAKE_CASE | `API_BASE_URL` |
+| ファイル | kebab-case | `patient-card.tsx` |
+| 型・Interface | PascalCase | `Patient`, `ApiResponse` |
 
 ---
 
@@ -275,69 +302,28 @@ const fetchPatient = async (id: string): Promise<Patient> => {
 | `researcher` | Haiku | コード検索、ファイル探索 |
 | `formatter` | Haiku | コミット生成、コード整形 |
 
-**使用方法:**
-- 自動委譲: 適切なタスクで自動的に呼び出される
-- 明示的: `Use the [agent] agent to...`
-
----
-
-## 🔧 Docker操作
-
-### ⚠️ 重要: コマンド実行ルール
-
-**npmやgoコマンドはローカルで実行しないこと。必ずDocker経由で実行する。**
-
-```bash
-# ❌ NG - ローカル実行
-npm run build
-go test ./...
-
-# ✅ OK - Docker経由
-docker compose exec frontend npm run build
-docker compose exec backend go test ./...
-```
-
-### コンテナ別コマンド
-
-| タスク | コマンド |
-|--------|---------|
-| Frontend ビルド | `docker compose exec frontend npm run build` |
-| Frontend Lint | `docker compose exec frontend npm run lint` |
-| Frontend テスト | `docker compose exec frontend npm run test:run` |
-| Backend テスト | `docker compose exec backend go test ./... -v` |
-| Backend Lint | `docker compose exec backend golangci-lint run ./...` |
-| Backend モジュール更新 | `docker compose exec backend go mod tidy` |
-
-### コンテナ構成
-- `ekarte-db`: PostgreSQL 18
-- `ekarte-backend`: Go API (port 8080)
-- `ekarte-frontend`: React (port 3000)
-
-### ポート
-| サービス | ポート |
-|---------|--------|
-| Frontend | 3000 |
-| Backend API | 8080 |
-| PostgreSQL | 5432 |
-
 ---
 
 ## 📊 データベース
 
-### 接続情報
-- Host: `localhost` (外部) / `db` (Docker内部)
-- Port: `5432`
-- Database: `ekarte_db`
-- User: `ekarte_user`
+| 項目 | 値 |
+|------|-----|
+| Host | `localhost` (外部) / `db` (Docker内部) |
+| Port | `5432` |
+| Database | `ekarte_db` |
+| User | `ekarte_user` |
 
-### マイグレーション
-SQLファイルは `backend/migrations/` に配置。
-Docker起動時に自動実行される。
+マイグレーションは `backend/migrations/` に配置。Docker起動時に自動実行。
 
 ---
 
 ## 📚 参照
 
-- [Backend README](backend/README.md)
-- [ドキュメント目次](.claude/docs/README.md)
-- [設定ガイド](.claude/README.md)
+| ドキュメント | 説明 |
+|-------------|------|
+| [コーディング規約](../CODING_RULES.md) | 全体ルール |
+| [Frontend規約](../frontend/CODING_RULES.md) | React 19詳細 |
+| [Backend規約](../backend/CODING_RULES.md) | Go/Gin詳細 |
+| [ERD](../docs/ERD.md) | データベース設計 |
+| [API設計](../docs/API-ROADMAP.md) | APIロードマップ |
+| [仕様定義書](../spec.md) | システム仕様 |

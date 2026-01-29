@@ -1,10 +1,10 @@
 // React/Framework
-import { useParams } from "react-router-dom";
+import { useParams } from "react-router";
 
 // Internal
-import { Button } from "../../../components/ui/button";
-import { PatientInfoCard } from "../../../components/shared/PatientInfoCard";
-import { PageLayout } from "../../../components/shared/PageLayout";
+import { Button } from "@/components/ui/button";
+import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
+import { PageLayout } from "@/components/shared/PageLayout";
 
 // Relative
 import { MedicalRecordInterview } from "../components/MedicalRecordInterview";

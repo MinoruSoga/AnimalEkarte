@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef } from "react";
 import { toast } from "sonner";
-import { Appointment, ColumnData } from "../../../types";
-import { INITIAL_DASHBOARD_COLUMNS } from "../../../lib/constants";
+import { Appointment, ColumnData } from "@/types";
+import { INITIAL_DASHBOARD_COLUMNS } from "@/config/mock-data";
 
 export const useDashboardKanban = () => {
   const [columns, setColumns] = useState<ColumnData[]>(INITIAL_DASHBOARD_COLUMNS);

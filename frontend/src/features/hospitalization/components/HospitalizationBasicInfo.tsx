@@ -2,17 +2,17 @@
 import { Building2, Calendar } from "lucide-react";
 
 // Internal
-import { Label } from "../../../components/ui/label";
-import { Input } from "../../../components/ui/input";
-import { Textarea } from "../../../components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "../../../components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Relative
 import { H_STYLES } from "../styles";
 
 // Types
-import type { MasterItem } from "../../../types";
+import type { MasterItem } from "@/types";
 import type { HospitalizationFormData } from "../types";
 
 interface HospitalizationBasicInfoProps {

@@ -1,9 +1,9 @@
 // React/Framework
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 
 // Internal
-import { PageLayout } from "../../../components/shared/PageLayout";
+import { PageLayout } from "@/components/shared/PageLayout";
 
 // Relative
 import {

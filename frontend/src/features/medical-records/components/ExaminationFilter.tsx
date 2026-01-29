@@ -5,9 +5,9 @@ import React from "react";
 import { FileText } from "lucide-react";
 
 // Internal
-import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
-import { Label } from "../../../components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface ExaminationFilterProps {
   searchTerm: string;

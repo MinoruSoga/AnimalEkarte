@@ -1,1 +1,1 @@
-export * from "./useDashboardKanban";
+export { useDashboardKanban } from "./useDashboardKanban";

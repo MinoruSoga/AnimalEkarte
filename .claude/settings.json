@@ -19,16 +19,6 @@
   "docsPath": ".claude/docs",
   "readmePath": ".claude/README.md",
   "claudePath": ".claude",
-  "sandbox": {
-    "enabled": true,
-    "autoAllowBashIfSandboxed": true,
-    "excludedCommands": ["docker", "docker-compose", "make", "git"],
-    "allowUnsandboxedCommands": true,
-    "network": {
-      "allowLocalBinding": true,
-      "allowUnixSockets": []
-    }
-  },
   "enableAllProjectMcpServers": true,
   "permissions": {
     "deny": [

@@ -1,2 +1,3 @@
-export * from "./useTrimmingRecords";
-export * from "./useTrimmingForm";
+export { useTrimmingRecords } from "./useTrimmingRecords";
+export { useTrimmingForm } from "./useTrimmingForm";
+export type { TrimmingFormData } from "./useTrimmingForm";

@@ -1,15 +1,15 @@
 // React/Framework
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 // External
 import { format } from "date-fns";
 
 // Internal
-import { Button } from "../../../../components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../../../components/ui/dialog";
-import { Input } from "../../../../components/ui/input";
-import { Label } from "../../../../components/ui/label";
-import { Textarea } from "../../../../components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 // Relative
 import { H_STYLES } from "../../styles";
@@ -25,28 +25,30 @@ interface VitalDialogProps {
 
 export const VitalDialog = ({ open, onOpenChange, onSave }: VitalDialogProps) => {
     const getCurrentTime = () => format(new Date(), "HH:mm");
-    
-    const [form, setForm] = useState({ 
-        temperature: "", 
-        heartRate: "", 
-        respirationRate: "", 
-        weight: "", 
-        notes: "",
-        time: getCurrentTime() 
-    });
 
-    useEffect(() => {
+    const [form, setForm] = useState({
+        temperature: "",
+        heartRate: "",
+        respirationRate: "",
+        weight: "",
+        notes: "",
+        time: getCurrentTime()
+    });
+    const [prevOpen, setPrevOpen] = useState(false);
+
+    if (open !== prevOpen) {
+        setPrevOpen(open);
         if (open) {
-            setForm({ 
-                temperature: "", 
-                heartRate: "", 
-                respirationRate: "", 
-                weight: "", 
+            setForm({
+                temperature: "",
+                heartRate: "",
+                respirationRate: "",
+                weight: "",
                 notes: "",
-                time: getCurrentTime() 
+                time: getCurrentTime()
             });
         }
-    }, [open]);
+    }
 
     const handleSave = () => {
         onSave({

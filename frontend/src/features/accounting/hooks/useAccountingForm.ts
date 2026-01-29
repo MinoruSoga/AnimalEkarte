@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { AccountingRecord } from "../../../types";
+import { AccountingRecord } from "@/types";
 import { AccountingItem } from "../types";
-import { MOCK_ACCOUNTING_RECORDS, MOCK_PETS } from "../../../lib/constants";
-import { usePetSelection } from "../../pets/hooks/usePetSelection";
+import { MOCK_ACCOUNTING_RECORDS, MOCK_PETS } from "@/config/mock-data";
+import { usePetSelection } from "@/hooks/use-pet-selection";
+import { findPetByRecord } from "@/utils/pet-matching";
 
 // Helper to calculate amount from accounting items
 function calculateAmountFromItems(items: AccountingItem[]): number {
@@ -14,18 +15,6 @@ function calculateAmountFromItems(items: AccountingItem[]): number {
   return subtotal + tax;
 }
 
-// Helper to find pet from record
-function findPetFromRecord(record: AccountingRecord) {
-  const normalize = (s: string) => s.replace(/[\s\u3000]/g, "");
-  return MOCK_PETS.find(p => {
-    const pName = normalize(p.name);
-    const rName = normalize(record.petName);
-    const pOwner = normalize(p.ownerName);
-    const rOwner = normalize(record.ownerName);
-    return (pName.includes(rName) || rName.includes(pName)) &&
-           (pOwner.includes(rOwner) || rOwner.includes(pOwner));
-  });
-}
 
 export function useAccountingForm(id?: string) {
   const navigate = useNavigate();
@@ -68,7 +57,7 @@ export function useAccountingForm(id?: string) {
     if (isEdit && id) {
       const record = MOCK_ACCOUNTING_RECORDS.find(r => r.id === id);
       if (record) {
-        return findPetFromRecord(record);
+        return findPetByRecord(record.petName, record.ownerName);
       }
     } else if (petId) {
       return MOCK_PETS.find(p => p.id === petId);

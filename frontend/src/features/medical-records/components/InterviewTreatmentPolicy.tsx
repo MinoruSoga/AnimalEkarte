@@ -5,8 +5,8 @@ import React from "react";
 import { ChevronRight } from "lucide-react";
 
 // Internal
-import { Textarea } from "../../../components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface InterviewTreatmentPolicyProps {
   treatmentPolicy: string;

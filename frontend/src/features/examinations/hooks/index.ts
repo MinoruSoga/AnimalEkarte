@@ -1,2 +1,2 @@
-export * from "./useExaminationRecords";
-export * from "./useExaminationForm";
+export { useExaminationRecords } from "./useExaminationRecords";
+export { useExaminationForm } from "./useExaminationForm";

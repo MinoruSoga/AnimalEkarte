@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 // Internal
-import { Button } from "../../../components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -24,18 +24,18 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from "../../../components/ui/dialog";
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../../../components/ui/select";
-import { getReservationTypeName } from "../../../lib/status-helpers";
+} from "@/components/ui/select";
+import { getReservationTypeName } from "@/utils/status-helpers";
 
 // Types
-import type { ReservationAppointment } from "../../../types";
+import type { ReservationAppointment } from "@/types";
 
 interface ReservationDetailModalProps {
   isOpen: boolean;

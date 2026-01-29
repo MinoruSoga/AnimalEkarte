@@ -1,4 +1,4 @@
-import { MOCK_HOSPITALIZATIONS } from "../../../lib/constants";
+import { MOCK_HOSPITALIZATIONS } from "@/config/mock-data";
 import { Hospitalization, CarePlanItem, DailyRecord } from "../types";
 import { generateMockPlans, generateMockRecords } from "./mockData";
 

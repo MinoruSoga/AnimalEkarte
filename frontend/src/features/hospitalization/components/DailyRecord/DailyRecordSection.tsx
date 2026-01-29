@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format, addDays, subDays } from "date-fns";
 import { Activity, Sun, Moon, Coffee, Plus } from "lucide-react";
-import { Button } from "../../../../components/ui/button";
+import { Button } from "@/components/ui/button";
 import { DateNavigation } from "./DateNavigation";
 import { TimingSection } from "./TimingSection";
 import { Timeline } from "./Timeline";

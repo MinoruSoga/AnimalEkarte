@@ -50,21 +50,38 @@ go test -race ./...              # Race detection
 
 ---
 
-## TypeScript (Frontend)
+## TypeScript / React 19 (Frontend)
 
 ### Test Structure
 - Use `describe` for grouping related tests
 - Use `it` or `test` for individual test cases
 - Follow AAA pattern: Arrange, Act, Assert
+- テストファイルはfeature内の`__tests__/`ディレクトリに配置
+
+### Feature Test Structure（bulletproof-react準拠）
+```
+src/features/owners/
+├── __tests__/
+│   ├── owner-form.test.tsx
+│   └── owner-list.test.tsx
+├── components/
+├── hooks/
+└── api/
+```
 
 ### Naming
-- Test files: `*.test.ts` or `*.spec.ts`
+- Test files: `*.test.ts` or `*.test.tsx`
 - Test descriptions: Start with "should"
+
+### React 19 Testing Notes
+- `useActionState`のテスト: form actionをモックし、state遷移を検証
+- `useOptimistic`のテスト: 楽観的更新とロールバックの両方を検証
+- `ref` as prop: `forwardRef`なしでref受け渡しテスト可能
 
 ### Running Tests
 ```bash
-npm test                         # Run all tests
-npm test -- --coverage           # With coverage
+docker compose exec frontend npm run test:run    # Run all tests
+docker compose exec frontend npm run test:coverage  # With coverage
 ```
 
 ---
@@ -79,3 +96,4 @@ npm test -- --coverage           # With coverage
 - Mock external dependencies
 - Use dependency injection for testability
 - Use interfaces for mockable dependencies (Go)
+- Feature内のAPIモックは`src/testing/`に共通モックを配置

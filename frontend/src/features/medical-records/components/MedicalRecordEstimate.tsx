@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { Button } from "../../../components/ui/button";
-import { Textarea } from "../../../components/ui/textarea";
-import { Label } from "../../../components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { EstimateForm } from "./EstimateForm";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";

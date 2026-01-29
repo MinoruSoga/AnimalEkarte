@@ -1,5 +1,5 @@
 // React/Framework
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router";
 
 // External
 import {
@@ -16,11 +16,11 @@ import {
 } from "lucide-react";
 
 // Internal
-import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
-import { Label } from "../../../components/ui/label";
-import { Textarea } from "../../../components/ui/textarea";
-import { Switch } from "../../../components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -28,15 +28,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "../../../components/ui/table";
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-} from "../../../components/ui/dropdown-menu";
-import { PageLayout } from "../../../components/shared/PageLayout";
+} from "@/components/ui/dropdown-menu";
+import { PageLayout } from "@/components/shared/PageLayout";
 
 // Relative
 import { PetEditModal } from "../components/PetEditModal";

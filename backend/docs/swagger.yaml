@@ -168,6 +168,8 @@ definitions:
         type: string
       notes:
         type: string
+      owner_number:
+        type: integer
       pets:
         description: Relations
         items:

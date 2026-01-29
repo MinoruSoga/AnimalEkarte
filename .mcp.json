@@ -2,24 +2,45 @@
   "mcpServers": {
     "serena": {
       "command": "uvx",
-      "args": ["--from", "serena-ai", "serena"],
+      "args": [
+        "--from",
+        "serena-ai",
+        "serena"
+      ],
       "env": {}
     },
     "github": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
       "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
       }
     },
     "memory": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
       "env": {}
     },
     "sequential-thinking": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "env": {}
+    },
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "chrome-devtools-mcp@latest"
+      ],
       "env": {}
     }
   }

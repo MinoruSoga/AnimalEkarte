@@ -1,8 +1,8 @@
-export * from "./CarePlan/CarePlanSection";
-export * from "./DailyRecord/DailyRecordSection";
-export * from "./DischargeAlertDialog";
-export * from "./HospitalizationDetailActions";
-export * from "./HospitalizationDesktopLayout";
-export * from "./HospitalizationMobileLayout";
-export * from "./HospitalizationPatientHeader";
-export * from "./HospitalizationBoard";
+export { CarePlanSection } from "./CarePlan/CarePlanSection";
+export { DailyRecordSection } from "./DailyRecord/DailyRecordSection";
+export { DischargeAlertDialog } from "./DischargeAlertDialog";
+export { HospitalizationDetailActions } from "./HospitalizationDetailActions";
+export { HospitalizationDesktopLayout } from "./HospitalizationDesktopLayout";
+export { HospitalizationMobileLayout } from "./HospitalizationMobileLayout";
+export { HospitalizationPatientHeader } from "./HospitalizationPatientHeader";
+export { HospitalizationBoard } from "./HospitalizationBoard";

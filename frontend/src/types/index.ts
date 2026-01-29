@@ -1,6 +1,21 @@
-export * from './owner';
+export type { Owner, CreateOwnerRequest, UpdateOwnerRequest } from './owner';
 
 import { ReactNode } from "react";
+
+// Clinic Types
+export interface ClinicInfo {
+  name: string;
+  branchName: string;
+  postalCode: string;
+  address: string;
+  phoneNumber: string;
+  faxNumber?: string;
+  registrationNumber?: string;
+  directorName?: string;
+  email?: string;
+  website?: string;
+  logoUrl?: string;
+}
 
 // Sidebar Types
 export interface MenuItem {
@@ -123,6 +138,7 @@ export interface TreatmentPlan {
 export interface Pet {
   id: string; // Unified ID
   ownerId: string;
+  ownerNumber?: number; // 飼主番号（表示用連番）
   ownerName: string;
   phone?: string;
   petNumber?: string; // Optional for mocks that might not have it

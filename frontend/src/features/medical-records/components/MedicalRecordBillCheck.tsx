@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { Button } from "../../../components/ui/button";
+import { Button } from "@/components/ui/button";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 

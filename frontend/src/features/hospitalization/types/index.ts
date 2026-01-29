@@ -1,4 +1,4 @@
-import { CarePlanItem, DailyRecord, Hospitalization } from "../../../types";
+import { CarePlanItem, DailyRecord, Hospitalization } from "@/types";
 
 export type CreateCarePlanDTO = Omit<CarePlanItem, "id" | "hospitalizationId">;
 export type UpdateCarePlanDTO = Partial<CarePlanItem>;

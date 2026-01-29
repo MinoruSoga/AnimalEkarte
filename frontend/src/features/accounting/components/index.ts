@@ -1,1 +1,1 @@
-export * from "./AccountingDocument";
+export { AccountingDocument } from "./AccountingDocument";

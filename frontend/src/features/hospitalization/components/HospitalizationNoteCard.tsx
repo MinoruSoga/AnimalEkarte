@@ -1,5 +1,5 @@
 // Internal
-import { Textarea } from "../../../components/ui/textarea";
+import { Textarea } from "@/components/ui/textarea";
 
 // Relative
 import { H_STYLES } from "../styles";

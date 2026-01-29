@@ -2,11 +2,11 @@
 import { Plus, LayoutGrid, List } from "lucide-react";
 
 // Internal
-import { Tabs, TabsList, TabsTrigger } from "../../../components/ui/tabs";
-import { ToggleGroup, ToggleGroupItem } from "../../../components/ui/toggle-group";
-import { PageLayout } from "../../../components/shared/PageLayout";
-import { SearchFilterBar } from "../../../components/shared/SearchFilterBar";
-import { PrimaryButton } from "../../../components/shared/PrimaryButton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { PageLayout } from "@/components/shared/PageLayout";
+import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
+import { PrimaryButton } from "@/components/shared/Form";
 
 // Relative
 import { HospitalizationBoard } from "../components/HospitalizationBoard";

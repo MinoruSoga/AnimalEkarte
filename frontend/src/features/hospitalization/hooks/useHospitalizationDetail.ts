@@ -23,11 +23,11 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
     const [hospitalization, setHospitalization] = useState(MOCK_HOSPITALIZATION);
     const [plans, setPlans] = useState<CarePlanItem[]>([]);
     const [records, setRecords] = useState<DailyRecord[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    // Initialize isLoading based on hospitalizationId presence
+    const [isLoading, setIsLoading] = useState(!!hospitalizationId);
 
     useEffect(() => {
         if (hospitalizationId) {
-            setIsLoading(true);
             getHospitalization(hospitalizationId)
                 .then(data => {
                     setPlans(data.plans);

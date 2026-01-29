@@ -1405,6 +1405,9 @@ const docTemplate = `{
                 "notes": {
                     "type": "string"
                 },
+                "owner_number": {
+                    "type": "integer"
+                },
                 "pets": {
                     "description": "Relations",
                     "type": "array",

@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { format } from "date-fns";
-import { Button } from "../../../../components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../../../components/ui/dialog";
-import { Input } from "../../../../components/ui/input";
-import { Label } from "../../../../components/ui/label";
-import { Textarea } from "../../../../components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { CreateCareLogDTO, Task } from "../../types";
-import { DailyRecord } from "../../../../types";
+import { DailyRecord } from "@/types";
 import { H_STYLES } from "../../styles";
 
 type CareLogType = DailyRecord["careLogs"][0]["type"];
@@ -21,17 +21,19 @@ interface TaskCompleteDialogProps {
 
 export const TaskCompleteDialog = ({ open, onOpenChange, task, onConfirm }: TaskCompleteDialogProps) => {
     const getCurrentTime = () => format(new Date(), "HH:mm");
-    
+
     const [form, setForm] = useState({
         notes: "",
         time: getCurrentTime()
     });
+    const [prevOpen, setPrevOpen] = useState(false);
 
-    useEffect(() => {
+    if (open !== prevOpen) {
+        setPrevOpen(open);
         if (open) {
             setForm({ notes: "", time: getCurrentTime() });
         }
-    }, [open]);
+    }
 
     const handleConfirm = () => {
         if (!task) return;

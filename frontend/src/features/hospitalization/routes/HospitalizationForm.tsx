@@ -1,18 +1,18 @@
 // React/Framework
 import { useEffect } from "react";
-import { useNavigate, useParams, useLocation, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
 import { FileText, Trash2, MessageSquare, AlertCircle } from "lucide-react";
 
 // Internal
-import { Button } from "../../../components/ui/button";
-import { PatientInfoCard } from "../../../components/shared/PatientInfoCard";
-import { PageLayout } from "../../../components/shared/PageLayout";
+import { Button } from "@/components/ui/button";
+import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
+import { PageLayout } from "@/components/shared/PageLayout";
 
 // Relative
 import { useHospitalizationForm } from "../hooks/useHospitalizationForm";
-import { useMasterItems } from "../../master/hooks/useMasterItems";
+import { useMasterItems } from "@/hooks/use-master-items";
 import { HospitalizationBasicInfo } from "../components/HospitalizationBasicInfo";
 import { HospitalizationNoteCard } from "../components/HospitalizationNoteCard";
 import { HospitalizationTreatmentTable } from "../components/HospitalizationTreatmentTable";

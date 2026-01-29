@@ -1,6 +1,6 @@
 // React/Framework
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 // External
 import { toast } from "sonner";
@@ -55,7 +55,8 @@ export interface OwnerData {
 export function useOwnerForm(id?: string) {
   const navigate = useNavigate();
   const isEdit = !!id;
-  const [isLoading, setIsLoading] = useState(false);
+  // Initialize isLoading based on id presence (for async fetch on mount)
+  const [isLoading, setIsLoading] = useState(!!id);
 
   const [ownerData, setOwnerData] = useState<OwnerData>({
     ownerId: "",
@@ -85,7 +86,6 @@ export function useOwnerForm(id?: string) {
     const fetchOwner = async () => {
       if (!id) return;
 
-      setIsLoading(true);
       try {
         const owner = await getOwner(id);
         
@@ -130,7 +130,7 @@ export function useOwnerForm(id?: string) {
             insuranceDetails: p.insuranceDetails
           })));
         }
-      } catch (error) {
+      } catch {
         toast.error("飼主情報の取得に失敗しました");
         navigate("/owners");
       } finally {
@@ -219,7 +219,7 @@ export function useOwnerForm(id?: string) {
           navigate("/owners");
       }, 800);
 
-    } catch (error) {
+    } catch {
       toast.error("保存に失敗しました");
     } finally {
       setIsLoading(false);

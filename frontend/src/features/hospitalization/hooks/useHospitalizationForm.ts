@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
-import { TreatmentPlan, Pet } from "../../../types";
+import { TreatmentPlan } from "@/types";
 import { HospitalizationFormData } from "../types";
-import { MOCK_PETS } from "../../../lib/constants";
-import { usePetSelection } from "../../pets/hooks/usePetSelection";
+import { MOCK_PETS } from "@/config/mock-data";
+import { usePetSelection } from "@/hooks/use-pet-selection";
 import { createHospitalization, updateHospitalization, getHospitalization } from "../api";
 
 export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
@@ -67,58 +67,53 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
   const [globalDiscount, setGlobalDiscount] = useState(0);
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
 
-  const updateFormDataFromPet = (pet: Pet) => {
-    setFormData((prev) => ({
-      ...prev,
-      ownerName: pet.ownerName,
-      petName: pet.name,
-      petNumber: pet.id,
-      species: pet.species,
-      weight: `${pet.weight}kg`,
-    }));
-  };
-
   useEffect(() => {
     if (id) {
-        // Load existing hospitalization
-        getHospitalization(id).then(data => {
-            const h = data.hospitalization;
-            if (h) {
-                setFormData(prev => ({
-                    ...prev,
-                    hospitalizationType: h.hospitalizationType,
-                    ownerName: h.ownerName,
-                    petName: h.petName,
-                    species: h.species,
-                    cageId: h.cageId || "",
-                    displayDate: h.startDate,
-                }));
+      // Load existing hospitalization
+      getHospitalization(id).then(data => {
+        const h = data.hospitalization;
+        if (h) {
+          setFormData(prev => ({
+            ...prev,
+            hospitalizationType: h.hospitalizationType,
+            ownerName: h.ownerName,
+            petName: h.petName,
+            species: h.species,
+            cageId: h.cageId || "",
+            displayDate: h.startDate,
+          }));
 
-                const pet = MOCK_PETS.find(p => p.name === h.petName && p.ownerName === h.ownerName);
-                if (pet) {
-                    setSelectedPets([pet]);
-                }
-            }
-        }).catch(() => {
-            toast.error("入院情報の取得に失敗しました");
-        });
-    } else {
-        if (petId) {
-            const foundPet = MOCK_PETS.find(p => p.id === petId);
-            if (foundPet) {
-                setSelectedPets([foundPet]);
-            } else {
-                navigate("/hospitalization/select-pet");
-            }
+          const pet = MOCK_PETS.find(p => p.name === h.petName && p.ownerName === h.ownerName);
+          if (pet) {
+            setSelectedPets([pet]);
+          }
         }
+      }).catch(() => {
+        toast.error("入院情報の取得に失敗しました");
+      });
+    } else {
+      if (petId) {
+        const foundPet = MOCK_PETS.find(p => p.id === petId);
+        if (foundPet) {
+          setSelectedPets([foundPet]);
+        } else {
+          navigate("/hospitalization/select-pet");
+        }
+      }
     }
-  }, [id, petId, setSelectedPets, navigate, isEdit]);
+  }, [id, petId, setSelectedPets, navigate]);
 
-  useEffect(() => {
-    if (selectedPets.length > 0) {
-      updateFormDataFromPet(selectedPets[0]);
-    }
-  }, [selectedPets]);
+  // Derive form data with pet info at render time (no setState-in-useEffect)
+  const formDataWithPet = selectedPets.length > 0
+    ? {
+        ...formData,
+        ownerName: selectedPets[0].ownerName,
+        petName: selectedPets[0].name,
+        petNumber: selectedPets[0].id,
+        species: selectedPets[0].species,
+        weight: `${selectedPets[0].weight}kg`,
+      }
+    : formData;
 
   const addTreatmentPlan = () => {
     const newPlan: TreatmentPlan = {
@@ -227,7 +222,7 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
 
   return {
     isEdit,
-    formData,
+    formData: formDataWithPet,
     setFormData,
     treatmentPlans,
     addTreatmentPlan,

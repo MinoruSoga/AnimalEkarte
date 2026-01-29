@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { MOCK_EXAMINATION_RECORDS } from "../../../lib/constants";
+import { MOCK_EXAMINATION_RECORDS } from "@/config/mock-data";
 
 export function useExaminationRecords(searchTerm: string) {
   const records = MOCK_EXAMINATION_RECORDS;

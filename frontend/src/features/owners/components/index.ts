@@ -1,1 +1,2 @@
-export * from "./PetEditModal";
+export { PetEditModal } from "./PetEditModal";
+export type { PetFormData } from "./PetEditModal";

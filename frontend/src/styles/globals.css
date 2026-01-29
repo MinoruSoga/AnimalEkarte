@@ -79,6 +79,7 @@
 }
 
 @theme inline {
+  --font-sans: 'Inter', 'Noto Sans JP', sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -124,8 +125,13 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  }
+
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
   }
 
   html, body {
@@ -138,7 +144,7 @@
 
   #root {
     width: 100%;
-    height: 100vh;
+    height: 100%;
   }
 }
 
@@ -199,4 +205,9 @@
 
 html {
   font-size: var(--font-size);
+}
+
+/* Override Tailwind preflight font-family */
+html, body {
+  font-family: 'Inter', 'Noto Sans JP', sans-serif !important;
 }

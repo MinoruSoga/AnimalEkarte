@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { MOCK_VACCINATION_RECORDS } from "../data";
+import { MOCK_VACCINATION_RECORDS } from "../api";
 
 export function useVaccinations(searchTerm: string) {
   const records = MOCK_VACCINATION_RECORDS;

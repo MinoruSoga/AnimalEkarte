@@ -1,3 +1,3 @@
-export * from './VaccinationList';
-export * from './VaccinationForm';
-export * from './VaccinationPetSelection';
+export { VaccinationList } from './VaccinationList';
+export { VaccinationForm } from './VaccinationForm';
+export { VaccinationPetSelection } from './VaccinationPetSelection';

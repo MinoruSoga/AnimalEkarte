@@ -1,6 +1,6 @@
 // React/Framework
 import { useEffect } from "react";
-import { useNavigate, useParams, useLocation, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
 import {
@@ -13,18 +13,18 @@ import {
 } from "lucide-react";
 
 // Internal
-import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
-import { Label } from "../../../components/ui/label";
-import { Textarea } from "../../../components/ui/textarea";
-import { Switch } from "../../../components/ui/switch";
-import { Checkbox } from "../../../components/ui/checkbox";
-import { PatientInfoCard } from "../../../components/shared/PatientInfoCard";
-import { PageLayout } from "../../../components/shared/PageLayout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
+import { PageLayout } from "@/components/shared/PageLayout";
 
 // Relative
 import { useTrimmingForm } from "../hooks/useTrimmingForm";
-import { useMasterItems } from "../../master/hooks/useMasterItems";
+import { useMasterItems } from "@/hooks/use-master-items";
 
 export const TrimmingForm = () => {
   const navigate = useNavigate();

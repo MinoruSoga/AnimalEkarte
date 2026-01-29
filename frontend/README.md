@@ -5,33 +5,33 @@
 ## 技術スタック
 
 - **言語**: TypeScript 5.7
-- **フレームワーク**: React 18
+- **フレームワーク**: React 19
 - **ビルドツール**: Vite 6
 - **スタイル**: Tailwind CSS 4
 - **UIライブラリ**: shadcn/ui (Radix UI)
-- **ルーティング**: React Router v6
+- **ルーティング**: React Router v7
 - **アイコン**: lucide-react
 
 ## ディレクトリ構成
 
 ```
 frontend/src/
+├── main.tsx              # Viteエントリーポイント
+│
+├── app/                  # アプリケーション層
+│   ├── index.tsx         # Appコンポーネント
+│   ├── provider.tsx      # プロバイダー統合
+│   └── router.tsx        # React Router設定
+│
 ├── components/           # 共通コンポーネント
 │   ├── ui/               # shadcn/ui コンポーネント (40+)
-│   │   ├── button.tsx
-│   │   ├── dialog.tsx
-│   │   ├── select.tsx
-│   │   └── ...
 │   ├── shared/           # 共有UIコンポーネント
-│   │   ├── PageLayout.tsx
-│   │   ├── PatientInfoCard.tsx
-│   │   ├── DataTable.tsx
-│   │   └── ...
-│   ├── figma/            # Figma生成ヘルパー
-│   └── Sidebar.tsx       # サイドバーナビゲーション
+│   ├── layouts/          # レイアウトコンポーネント
+│   └── errors/           # エラーバウンダリ
 │
 ├── features/             # 機能別モジュール
 │   ├── dashboard/        # ダッシュボード（カンバン）
+│   │   ├── api/
 │   │   ├── components/
 │   │   ├── hooks/
 │   │   └── routes/
@@ -44,23 +44,23 @@ frontend/src/
 │   ├── vaccinations/     # ワクチン管理
 │   ├── trimming/         # トリミング
 │   ├── master/           # マスタ設定
-│   ├── clinic/           # クリニック設定
-│   └── inventory/        # 在庫管理（スタブ）
+│   └── clinic/           # クリニック設定
+│
+├── hooks/                # 共有hooks
 │
 ├── lib/                  # ユーティリティ
-│   ├── constants.ts      # 定数・モックデータ
+│   ├── axios.ts          # Axios設定
+│   ├── react-query.ts    # TanStack Query設定
 │   └── utils.ts          # ヘルパー関数
 │
 ├── types/                # 型定義
 │   └── index.ts          # 共通型定義
 │
 ├── styles/               # グローバルスタイル
-│   └── index.css         # Tailwind CSS
+│   └── globals.css       # Tailwind CSS
 │
-├── assets/               # 画像等のアセット
-│
-├── App.tsx               # ルーティング定義
-└── main.tsx              # エントリーポイント
+└── testing/              # テスト設定
+    └── setup.ts
 ```
 
 ## 機能一覧
@@ -149,7 +149,7 @@ npm run lint
 
 ```typescript
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { PatientInfoCard } from '../components';
 import type { Pet } from '@/types';

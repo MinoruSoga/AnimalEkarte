@@ -1,21 +1,20 @@
 // React/Framework
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 // External
 import { Plus, TestTube, FileSpreadsheet } from "lucide-react";
 
 // Internal
-import { Button } from "../../../components/ui/button";
-import { TableCell } from "../../../components/ui/table";
-import { PageLayout } from "../../../components/shared/PageLayout";
-import { SearchFilterBar } from "../../../components/shared/SearchFilterBar";
-import { DataTable } from "../../../components/shared/DataTable";
-import { PrimaryButton } from "../../../components/shared/PrimaryButton";
-import { StatusBadge } from "../../../components/shared/StatusBadge";
-import { DataTableRow } from "../../../components/shared/DataTableRow";
-import { RowActionButton } from "../../../components/shared/RowActionButton";
-import { getExaminationStatusColor } from "../../../lib/status-helpers";
+import { Button } from "@/components/ui/button";
+import { TableCell } from "@/components/ui/table";
+import { PageLayout } from "@/components/shared/PageLayout";
+import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
+import { DataTable, DataTableRow } from "@/components/shared/DataTable";
+import { PrimaryButton } from "@/components/shared/Form";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { RowActionButton } from "@/components/shared/RowActionButton";
+import { getExaminationStatusColor } from "@/utils/status-helpers";
 
 // Relative
 import { useExaminationRecords } from "../hooks/useExaminationRecords";

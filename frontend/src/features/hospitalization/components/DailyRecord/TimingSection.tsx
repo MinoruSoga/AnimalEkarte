@@ -2,8 +2,8 @@
 import { Check, Clock } from "lucide-react";
 
 // Internal
-import { Button } from "../../../../components/ui/button";
-import { Card } from "../../../../components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 // Relative
 import { H_STYLES } from "../../styles";

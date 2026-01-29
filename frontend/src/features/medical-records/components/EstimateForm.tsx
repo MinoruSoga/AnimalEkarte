@@ -2,8 +2,8 @@
 import React from "react";
 
 // Internal
-import { Input } from "../../../components/ui/input";
-import { Label } from "../../../components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface EstimateFormProps {
   subject: string;

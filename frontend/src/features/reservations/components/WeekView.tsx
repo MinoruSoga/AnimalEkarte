@@ -7,10 +7,10 @@ import { ja } from "date-fns/locale";
 import { motion } from "motion/react";
 
 // Internal
-import { getReservationTypeColor, getReservationTypeName } from "../../../lib/status-helpers";
+import { getReservationTypeColor, getReservationTypeName } from "@/utils/status-helpers";
 
 // Types
-import type { ReservationAppointment } from "../../../types";
+import type { ReservationAppointment } from "@/types";
 
 // Reduced height for High Density UI
 const HOUR_HEIGHT = 120;

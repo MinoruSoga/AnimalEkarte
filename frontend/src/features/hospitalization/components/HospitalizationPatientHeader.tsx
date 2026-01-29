@@ -1,8 +1,8 @@
 // Internal
-import { PatientInfoCard } from "../../../components/shared/PatientInfoCard";
+import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 
 // Types
-import type { Hospitalization } from "../../../types";
+import type { Hospitalization } from "@/types";
 
 interface HospitalizationPatientHeaderProps {
     hospitalization: Hospitalization;

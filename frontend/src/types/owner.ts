@@ -2,6 +2,7 @@ import { Pet } from "./index";
 
 export interface Owner {
   id: string;
+  ownerNumber: number;
   name: string;
   name_kana: string;
   phone: string;

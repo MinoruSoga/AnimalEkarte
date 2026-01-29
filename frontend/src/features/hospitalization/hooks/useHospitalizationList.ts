@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useHospitalizations } from "./useHospitalizations";
-import { useMasterItems } from "../../master/hooks/useMasterItems";
+import { useMasterItems } from "@/hooks/use-master-items";
 import { HospitalizationFilterStatus, HOSPITALIZATION_FILTER_STATUS } from "../constants";
 
 export const useHospitalizationList = () => {

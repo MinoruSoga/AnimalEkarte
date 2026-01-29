@@ -1,3 +1,3 @@
-export * from "./AppointmentCard";
-export * from "./DashboardDetailModal";
-export * from "./KanbanColumn";
+export { AppointmentCard } from "./AppointmentCard";
+export { DashboardDetailModal } from "./DashboardDetailModal";
+export { KanbanColumn } from "./KanbanColumn";

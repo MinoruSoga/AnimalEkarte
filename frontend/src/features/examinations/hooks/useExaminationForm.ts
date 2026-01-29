@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { ExaminationRecord } from "../../../types";
-import { MOCK_EXAMINATION_RECORDS, MOCK_PETS } from "../../../lib/constants";
-import { usePetSelection } from "../../pets/hooks/usePetSelection";
+import { useNavigate, useSearchParams } from "react-router";
+import { ExaminationRecord } from "@/types";
+import { MOCK_EXAMINATION_RECORDS, MOCK_PETS } from "@/config/mock-data";
+import { usePetSelection } from "@/hooks/use-pet-selection";
+import { findPetByRecord } from "@/utils/pet-matching";
 
 export function useExaminationForm(id?: string) {
   const navigate = useNavigate();
@@ -14,48 +15,40 @@ export function useExaminationForm(id?: string) {
   const petSelection = usePetSelection();
   const { setSelectedPets, selectedPets } = petSelection;
 
-  const [formData, setFormData] = useState<Partial<ExaminationRecord>>({
-    status: "依頼中",
-    ownerName: "",
-    petName: "",
+  // Lazy initialization for edit mode
+  const [formData, setFormData] = useState<Partial<ExaminationRecord>>(() => {
+    if (isEdit && id) {
+      const record = MOCK_EXAMINATION_RECORDS.find(r => r.id === id);
+      if (record) {
+        return record;
+      }
+      // Fallback default
+      return {
+        date: "2025/10/10 10:00",
+        ownerName: "林 文明",
+        petName: "Iris",
+        testType: "blood",
+        doctor: "dr_a",
+        status: "依頼中",
+        resultSummary: "",
+      };
+    }
+    return {
+      status: "依頼中",
+      ownerName: "",
+      petName: "",
+    };
   });
 
-  // Load initial data
+  // Load initial pet selection for edit mode and handle petId navigation
   useEffect(() => {
     if (isEdit && id) {
-        // Mock data loading
         const record = MOCK_EXAMINATION_RECORDS.find(r => r.id === id);
         if (record) {
-            setFormData(record);
-            
-            // Normalize strings for comparison (remove spaces, full-width spaces)
-            const normalize = (s: string) => s.replace(/[\s\u3000]/g, "");
-            
-            const pet = MOCK_PETS.find(p => {
-                const pName = normalize(p.name);
-                const rName = normalize(record.petName);
-                const pOwner = normalize(p.ownerName);
-                const rOwner = normalize(record.ownerName);
-                
-                // Check if one includes the other
-                return (pName.includes(rName) || rName.includes(pName)) && 
-                       (pOwner.includes(rOwner) || rOwner.includes(pOwner));
-            });
-
+            const pet = findPetByRecord(record.petName, record.ownerName);
             if (pet) {
                 setSelectedPets([pet]);
             }
-        } else {
-             // Fallback default
-             setFormData({
-                date: "2025/10/10 10:00",
-                ownerName: "林 文明",
-                petName: "Iris",
-                testType: "blood",
-                doctor: "dr_a",
-                status: "依頼中",
-                resultSummary: "",
-            });
         }
     } else {
         if (petId) {
@@ -69,17 +62,10 @@ export function useExaminationForm(id?: string) {
     }
   }, [id, isEdit, setSelectedPets, petId, navigate]);
 
-  // Sync selected pet to form data
-  useEffect(() => {
-    if (selectedPets.length > 0) {
-      const pet = selectedPets[0];
-      setFormData((prev) => ({
-        ...prev,
-        ownerName: pet.ownerName,
-        petName: pet.name,
-      }));
-    }
-  }, [selectedPets]);
+  // Derive form data with pet info at render time (no setState-in-useEffect)
+  const formDataWithPet = selectedPets.length > 0
+    ? { ...formData, ownerName: selectedPets[0].ownerName, petName: selectedPets[0].name }
+    : formData;
 
   const handleSave = () => {
       // TODO: API call to save examination
@@ -87,7 +73,7 @@ export function useExaminationForm(id?: string) {
   };
 
   return {
-    formData,
+    formData: formDataWithPet,
     setFormData,
     petSelection,
     handleSave,

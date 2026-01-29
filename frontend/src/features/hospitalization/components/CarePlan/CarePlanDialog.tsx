@@ -1,25 +1,27 @@
 // React/Framework
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 // External
 import { Search } from "lucide-react";
 
 // Internal
-import { Button } from "../../../../components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../../../components/ui/dialog";
-import { Input } from "../../../../components/ui/input";
-import { Label } from "../../../../components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../../components/ui/select";
-import { Textarea } from "../../../../components/ui/textarea";
-import { Badge } from "../../../../components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+
+// Shared
+import { TreatmentSearchDialog } from "@/components/shared/TreatmentSearchDialog";
+import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog";
 
 // Relative
-import { TreatmentSearchDialog } from "../../../medical-records/components/TreatmentSearchDialog";
 import { H_STYLES } from "../../styles";
 
 // Types
 import type { CarePlanItem, CreateCarePlanDTO, UpdateCarePlanDTO } from "../../types";
-import type { TreatmentMasterItem } from "../../../medical-records/components/TreatmentSearchDialog";
 
 interface CarePlanDialogProps {
     open: boolean;
@@ -35,18 +37,20 @@ const DEFAULT_FORM_STATE: Partial<CarePlanItem> = {
     status: "active"
 };
 
-export const CarePlanDialog = ({ 
-    open, 
-    onOpenChange, 
-    editingPlan, 
-    onCreate, 
-    onUpdate 
+export const CarePlanDialog = ({
+    open,
+    onOpenChange,
+    editingPlan,
+    onCreate,
+    onUpdate
 }: CarePlanDialogProps) => {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [formData, setFormData] = useState<Partial<CarePlanItem>>(DEFAULT_FORM_STATE);
+    const [prevOpen, setPrevOpen] = useState(false);
 
     // Reset or Populate form when dialog opens or editingPlan changes
-    useEffect(() => {
+    if (open !== prevOpen) {
+        setPrevOpen(open);
         if (open) {
             if (editingPlan) {
                 setFormData(editingPlan);
@@ -54,7 +58,7 @@ export const CarePlanDialog = ({
                 setFormData(DEFAULT_FORM_STATE);
             }
         }
-    }, [open, editingPlan]);
+    }
 
     const handleSave = () => {
         if (!formData.name || !formData.type) return;

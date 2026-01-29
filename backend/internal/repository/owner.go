@@ -11,10 +11,10 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// GetAllOwners retrieves all owners from the database.
+// GetAllOwners retrieves all owners from the database with their pets.
 func (r *Repository) GetAllOwners(ctx context.Context) ([]model.Owner, error) {
 	var owners []model.Owner
-	if err := r.db.WithContext(ctx).Find(&owners).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Pets").Find(&owners).Error; err != nil {
 		return nil, fmt.Errorf("failed to get all owners: %w", err)
 	}
 	return owners, nil

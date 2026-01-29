@@ -1,15 +1,15 @@
 // React/Framework
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 // External
 import { format } from "date-fns";
 
 // Internal
-import { Button } from "../../../../components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../../../components/ui/dialog";
-import { Input } from "../../../../components/ui/input";
-import { Label } from "../../../../components/ui/label";
-import { Textarea } from "../../../../components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 // Relative
 import { H_STYLES } from "../../styles";
@@ -28,18 +28,20 @@ interface LogDialogProps {
 
 export const LogDialog = ({ open, onOpenChange, type, onSave }: LogDialogProps) => {
     const getCurrentTime = () => format(new Date(), "HH:mm");
-    
-    const [form, setForm] = useState({ 
-        value: "", 
+
+    const [form, setForm] = useState({
+        value: "",
         notes: "",
         time: getCurrentTime()
     });
+    const [prevOpen, setPrevOpen] = useState(false);
 
-    useEffect(() => {
+    if (open !== prevOpen) {
+        setPrevOpen(open);
         if (open) {
             setForm({ value: "", notes: "", time: getCurrentTime() });
         }
-    }, [open]);
+    }
 
     const handleSave = () => {
         onSave({

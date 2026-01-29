@@ -1,1 +1,1 @@
-export * from './ClinicSettings';
+export { ClinicSettings } from './ClinicSettings';

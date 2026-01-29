@@ -8,15 +8,16 @@ import (
 
 // Owner 飼い主モデル
 type Owner struct {
-	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	Name      string    `json:"name" gorm:"type:varchar(100);not null"`
-	NameKana  string    `json:"name_kana" gorm:"type:varchar(100)"`
-	Phone     string    `json:"phone" gorm:"type:varchar(20)"`
-	Email     string    `json:"email" gorm:"type:varchar(255)"`
-	Address   string    `json:"address" gorm:"type:text"`
-	Notes     string    `json:"notes" gorm:"type:text"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID          uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	OwnerNumber int       `json:"owner_number" gorm:"type:integer;autoIncrement;uniqueIndex:idx_owner_number"`
+	Name        string    `json:"name" gorm:"type:varchar(100);not null"`
+	NameKana    string    `json:"name_kana" gorm:"type:varchar(100)"`
+	Phone       string    `json:"phone" gorm:"type:varchar(20)"`
+	Email       string    `json:"email" gorm:"type:varchar(255)"`
+	Address     string    `json:"address" gorm:"type:text"`
+	Notes       string    `json:"notes" gorm:"type:text"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 
 	// Relations
 	Pets []Pet `json:"pets,omitempty" gorm:"foreignKey:OwnerID"`

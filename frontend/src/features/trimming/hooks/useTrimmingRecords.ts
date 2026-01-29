@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { MOCK_TRIMMING_RECORDS } from "../../../lib/constants";
+import { MOCK_TRIMMING_RECORDS } from "@/config/mock-data";
 
 interface DateRange {
   from: string;

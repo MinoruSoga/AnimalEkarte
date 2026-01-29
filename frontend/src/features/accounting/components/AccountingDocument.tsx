@@ -2,8 +2,8 @@
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 
-// Relative
-import { useClinicInfo } from "../../clinic/hooks/useClinicInfo";
+// Shared Hooks
+import { useClinicInfo } from "@/hooks/use-clinic-info";
 
 // Types
 import type { Accounting } from "../types";

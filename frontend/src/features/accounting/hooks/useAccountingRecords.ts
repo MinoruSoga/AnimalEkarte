@@ -1,8 +1,8 @@
 import { useMemo } from "react";
-import { MOCK_ACCOUNTING_LIST } from "../mockData";
+import { getAccountingListSync } from "../api";
 
 export function useAccountingRecords(searchTerm: string) {
-  const records = MOCK_ACCOUNTING_LIST;
+  const records = getAccountingListSync();
 
   const filteredRecords = useMemo(() => {
     if (!searchTerm) return records;
