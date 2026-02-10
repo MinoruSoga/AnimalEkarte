@@ -1,5 +1,10 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "alwaysThinkingEnabled": true,
+  "attribution": {
+    "enabled": true,
+    "format": "Co-Authored-By: Claude <noreply@anthropic.com>"
+  },
   "outputStyle": "senior-engineer",
   "env": {
     "USE_DOCKER": "true",

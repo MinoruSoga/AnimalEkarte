@@ -37,6 +37,7 @@ docker compose exec frontend npm run build
 | TanStack Query | v5 |
 | Axios | HTTP Client |
 | Vitest | Testing Library |
+| Zustand | 状態管理 |
 
 ---
 

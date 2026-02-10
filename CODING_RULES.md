@@ -44,7 +44,7 @@ AnimalEkarte/
 | 層 | 技術 |
 |---|---|
 | Frontend | React 19, TypeScript 5.7, Vite 6, Tailwind CSS 4, shadcn/ui |
-| Backend | Go 1.22+, Gin, GORM |
+| Backend | Go 1.25, Gin, GORM |
 | Database | PostgreSQL 18 |
 | Infrastructure | Docker Compose |
 

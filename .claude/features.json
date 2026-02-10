@@ -1,13 +1,26 @@
 {
   "project": "Animal Ekarte",
   "version": "0.1.0",
-  "lastUpdated": "2025-01-13",
+  "lastUpdated": "2026-02-10",
+  "techStack": {
+    "frontend": "React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui",
+    "backend": "Go 1.25 / Gin / GORM",
+    "database": "PostgreSQL 18",
+    "infrastructure": "Docker Compose"
+  },
+  "architecture": {
+    "pattern": "Clean Architecture",
+    "frontend": "SPA with React Router",
+    "backend": "REST API with Gin framework",
+    "orm": "GORM",
+    "recordFormat": "SOAPS (Subjective, Objective, Assessment, Plan, Summary)"
+  },
   "features": [
     {
       "id": "SETUP-001",
       "name": "プロジェクト初期設定",
       "description": "Docker環境、Go/React基本構成",
-      "status": "passing",
+      "status": "completed",
       "priority": "high",
       "dependencies": [],
       "commit": null,
@@ -16,8 +29,28 @@
     {
       "id": "DB-001",
       "name": "データベース設計",
-      "description": "患者、診療記録、薬剤等のスキーマ設計",
-      "status": "failing",
+      "description": "患者、診療記録、薬剤等のスキーマ設計（22テーブル）",
+      "status": "in_progress",
+      "priority": "high",
+      "dependencies": ["SETUP-001"],
+      "commit": null,
+      "completedAt": null
+    },
+    {
+      "id": "DB-002",
+      "name": "マイグレーション基盤",
+      "description": "GORMマイグレーション + シードデータ",
+      "status": "pending",
+      "priority": "high",
+      "dependencies": ["DB-001"],
+      "commit": null,
+      "completedAt": null
+    },
+    {
+      "id": "DOCKER-001",
+      "name": "Docker Compose構成",
+      "description": "Go/React/PostgreSQL/Nginx のコンテナ構成",
+      "status": "in_progress",
       "priority": "high",
       "dependencies": ["SETUP-001"],
       "commit": null,
@@ -27,7 +60,7 @@
       "id": "API-001",
       "name": "患者管理API",
       "description": "患者CRUD操作のAPIエンドポイント",
-      "status": "failing",
+      "status": "in_progress",
       "priority": "high",
       "dependencies": ["DB-001"],
       "commit": null,
@@ -36,8 +69,48 @@
     {
       "id": "API-002",
       "name": "診療記録API",
-      "description": "診療記録CRUD操作のAPIエンドポイント",
-      "status": "failing",
+      "description": "SOAPS形式の診療記録CRUD操作",
+      "status": "in_progress",
+      "priority": "high",
+      "dependencies": ["DB-001"],
+      "commit": null,
+      "completedAt": null
+    },
+    {
+      "id": "API-003",
+      "name": "薬剤管理API",
+      "description": "薬剤マスタ・処方管理のAPIエンドポイント",
+      "status": "pending",
+      "priority": "medium",
+      "dependencies": ["DB-001"],
+      "commit": null,
+      "completedAt": null
+    },
+    {
+      "id": "API-004",
+      "name": "検査結果API",
+      "description": "検査結果の記録・表示API",
+      "status": "pending",
+      "priority": "medium",
+      "dependencies": ["DB-001"],
+      "commit": null,
+      "completedAt": null
+    },
+    {
+      "id": "API-005",
+      "name": "予約管理API",
+      "description": "診療予約のCRUD操作",
+      "status": "pending",
+      "priority": "medium",
+      "dependencies": ["DB-001"],
+      "commit": null,
+      "completedAt": null
+    },
+    {
+      "id": "AUTH-001",
+      "name": "認証・認可",
+      "description": "ユーザー認証、ロール管理（獣医師/看護師/受付）",
+      "status": "pending",
       "priority": "high",
       "dependencies": ["DB-001"],
       "commit": null,
@@ -46,8 +119,8 @@
     {
       "id": "UI-001",
       "name": "患者一覧画面",
-      "description": "患者の検索・一覧表示UI",
-      "status": "failing",
+      "description": "患者の検索・一覧表示UI（shadcn/ui DataTable）",
+      "status": "in_progress",
       "priority": "medium",
       "dependencies": ["API-001"],
       "commit": null,
@@ -56,10 +129,40 @@
     {
       "id": "UI-002",
       "name": "カルテ入力画面",
-      "description": "診療記録の入力・編集UI",
-      "status": "failing",
+      "description": "SOAPS形式の診療記録入力・編集UI",
+      "status": "in_progress",
       "priority": "medium",
       "dependencies": ["API-002"],
+      "commit": null,
+      "completedAt": null
+    },
+    {
+      "id": "UI-003",
+      "name": "ダッシュボード",
+      "description": "本日の予約、入院患者、統計サマリ表示",
+      "status": "pending",
+      "priority": "medium",
+      "dependencies": ["API-001", "API-005"],
+      "commit": null,
+      "completedAt": null
+    },
+    {
+      "id": "UI-004",
+      "name": "薬剤・処方管理画面",
+      "description": "薬剤検索、処方入力、投薬履歴表示",
+      "status": "pending",
+      "priority": "medium",
+      "dependencies": ["API-003"],
+      "commit": null,
+      "completedAt": null
+    },
+    {
+      "id": "UI-005",
+      "name": "予約カレンダー画面",
+      "description": "カレンダー形式の予約管理UI",
+      "status": "pending",
+      "priority": "low",
+      "dependencies": ["API-005"],
       "commit": null,
       "completedAt": null
     }

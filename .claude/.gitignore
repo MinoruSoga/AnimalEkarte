@@ -1,0 +1,13 @@
+# Claude Code generated files
+sessions/
+plans/
+file-history/
+
+# OS files
+.DS_Store
+
+# Temporary files
+*.tmp
+*.swp
+*.bak
+*.log

@@ -1,4 +1,4 @@
-# Backend - Go 1.22+ / Gin / GORM（クリーンアーキテクチャ）
+# Backend - Go 1.25 / Gin / GORM（クリーンアーキテクチャ）
 
 ## ⚠️ コマンド実行ルール
 
@@ -28,12 +28,13 @@ docker compose exec backend go test ./...
 
 | 技術 | 用途 |
 |------|------|
-| Go 1.22+ | 言語 |
+| Go 1.25 | 言語 |
 | Gin | Webフレームワーク |
 | GORM | ORM |
 | slog | 構造化ログ |
 | Air | ホットリロード |
 | PostgreSQL 18 | データベース |
+| testify | テストアサーション |
 
 ---
 
@@ -264,6 +265,37 @@ r.db.Where("name = ?", name).Find(&owners)
 | ファイル | snake_case | `owner_handler.go` |
 | インターフェース | PascalCase + er | `OwnerRepository` |
 | レシーバ | 1-2文字 | `h`, `s`, `r`, `o` |
+
+---
+
+## Go 1.23+ 新機能の活用
+
+### Range over Function（イテレータ関数）
+
+```go
+// Go 1.23+: range over func でカスタムイテレーション
+import "slices"
+
+// ✅ スライスのフィルタリング
+activePets := slices.Collect(filterActive(pets))
+
+// ✅ ソート（破壊的でない）
+sorted := slices.SortedFunc(slices.Values(pets), func(a, b model.Pet) int {
+    return strings.Compare(a.Name, b.Name)
+})
+```
+
+### omitzero 構造体タグ（Go 1.24+）
+
+```go
+// Go 1.24+: omitzero でゼロ値フィールドをJSON出力から除外
+type UpdateOwnerInput struct {
+    Name    string `json:"name,omitzero"`
+    Phone   string `json:"phone,omitzero"`
+    Address string `json:"address,omitzero"`
+}
+// omitempty との違い: omitzero は構造体のゼロ値も正しく判定する
+```
 
 ---
 
