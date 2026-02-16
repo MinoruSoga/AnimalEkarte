@@ -8,7 +8,7 @@ import (
 
 // MasterItem 診療項目マスタモデル
 type MasterItem struct {
-	ID              uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID              uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
 	Code            string     `json:"code" gorm:"type:varchar(20)"`
 	Name            string     `json:"name" gorm:"type:varchar(200)"`
 	Category        string     `json:"category" gorm:"type:varchar(50)"` // examination, vaccine, medicine, staff, insurance, cage, serviceType, trimming_course, trimming_option
@@ -31,7 +31,7 @@ func (MasterItem) TableName() string {
 
 // InventoryItem 在庫管理モデル
 type InventoryItem struct {
-	ID            uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID            uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
 	Name          string     `json:"name" gorm:"type:varchar(200)"`
 	Category      string     `json:"category" gorm:"type:varchar(30)"` // medicine, consumable, food, other
 	Quantity      int        `json:"quantity" gorm:"default:0"`

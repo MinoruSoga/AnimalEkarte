@@ -8,7 +8,7 @@ import (
 
 // Pet ペットモデル
 type Pet struct {
-	ID               uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID               uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
 	OwnerID          uuid.UUID  `json:"owner_id" gorm:"type:uuid;not null;index:idx_pets_owner_id"`
 	PetNumber        string     `json:"pet_number" gorm:"type:varchar(20);uniqueIndex:idx_pets_pet_number"`
 	Name             string     `json:"name" gorm:"type:varchar(100);not null"`

@@ -8,7 +8,7 @@ import (
 
 // Examination 検査記録モデル
 type Examination struct {
-	ID              uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID              uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
 	PetID           uuid.UUID  `json:"pet_id" gorm:"type:uuid;not null"`
 	OwnerID         uuid.UUID  `json:"owner_id" gorm:"type:uuid;not null"`
 	DoctorID        *uuid.UUID `json:"doctor_id" gorm:"type:uuid"`

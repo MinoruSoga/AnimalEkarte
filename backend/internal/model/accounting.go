@@ -8,7 +8,7 @@ import (
 
 // Accounting 会計モデル
 type Accounting struct {
-	ID              uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID              uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
 	MedicalRecordID *uuid.UUID `json:"medical_record_id" gorm:"type:uuid"`
 	PetID           uuid.UUID  `json:"pet_id" gorm:"type:uuid;not null;index:idx_acc_pet_id"`
 	OwnerID         uuid.UUID  `json:"owner_id" gorm:"type:uuid;not null"`
@@ -44,7 +44,7 @@ func (Accounting) TableName() string {
 
 // AccountingItem 会計明細モデル
 type AccountingItem struct {
-	ID                    uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID                    uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
 	AccountingID          uuid.UUID  `json:"accounting_id" gorm:"type:uuid;not null"`
 	MasterID              *uuid.UUID `json:"master_id" gorm:"type:uuid"`
 	Code                  string     `json:"code" gorm:"type:varchar(20)"`

@@ -8,7 +8,7 @@ import (
 
 // Reservation 予約モデル
 type Reservation struct {
-	ID           uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID           uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
 	PetID        uuid.UUID  `json:"pet_id" gorm:"type:uuid;not null;index:idx_res_pet_id"`
 	OwnerID      uuid.UUID  `json:"owner_id" gorm:"type:uuid;not null"`
 	DoctorID     *uuid.UUID `json:"doctor_id" gorm:"type:uuid;index:idx_res_doctor_id"`

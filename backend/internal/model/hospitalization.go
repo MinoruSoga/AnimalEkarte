@@ -8,7 +8,7 @@ import (
 
 // Hospitalization 入院/ホテルモデル
 type Hospitalization struct {
-	ID                uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID                uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
 	HospitalizationNo string     `json:"hospitalization_no" gorm:"type:varchar(20)"`
 	PetID             uuid.UUID  `json:"pet_id" gorm:"type:uuid;not null;index:idx_hosp_pet_id"`
 	OwnerID           uuid.UUID  `json:"owner_id" gorm:"type:uuid;not null"`
@@ -38,7 +38,7 @@ func (Hospitalization) TableName() string {
 
 // Cage ケージマスタモデル
 type Cage struct {
-	ID          uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID          uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
 	Code        string    `json:"code" gorm:"type:varchar(20)"`
 	Name        string    `json:"name" gorm:"type:varchar(100)"`
 	Size        string    `json:"size" gorm:"type:varchar(50)"` // S, M, L, XL
@@ -56,7 +56,7 @@ func (Cage) TableName() string {
 
 // CarePlanItem ケアプラン項目モデル
 type CarePlanItem struct {
-	ID                uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID                uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
 	HospitalizationID uuid.UUID  `json:"hospitalization_id" gorm:"type:uuid;not null"`
 	MasterID          *uuid.UUID `json:"master_id" gorm:"type:uuid"`
 	Type              string     `json:"type" gorm:"type:varchar(30)"` // food, medicine, treatment, instruction, item
@@ -78,7 +78,7 @@ func (CarePlanItem) TableName() string {
 
 // DailyRecord 日次記録モデル
 type DailyRecord struct {
-	ID                uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID                uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
 	HospitalizationID uuid.UUID `json:"hospitalization_id" gorm:"type:uuid;not null"`
 	RecordDate        time.Time `json:"record_date" gorm:"type:date"`
 	CreatedAt         time.Time `json:"created_at"`
@@ -97,7 +97,7 @@ func (DailyRecord) TableName() string {
 
 // Vital バイタル記録モデル
 type Vital struct {
-	ID              uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID              uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
 	DailyRecordID   uuid.UUID  `json:"daily_record_id" gorm:"type:uuid;not null"`
 	StaffID         *uuid.UUID `json:"staff_id" gorm:"type:uuid"`
 	RecordedTime    string     `json:"recorded_time" gorm:"type:time"`
@@ -116,7 +116,7 @@ func (Vital) TableName() string {
 
 // CareLog ケアログモデル
 type CareLog struct {
-	ID            uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID            uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
 	DailyRecordID uuid.UUID  `json:"daily_record_id" gorm:"type:uuid;not null"`
 	StaffID       *uuid.UUID `json:"staff_id" gorm:"type:uuid"`
 	RecordedTime  string     `json:"recorded_time" gorm:"type:time"`
@@ -134,7 +134,7 @@ func (CareLog) TableName() string {
 
 // StaffNote スタッフメモモデル
 type StaffNote struct {
-	ID            uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID            uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
 	DailyRecordID uuid.UUID  `json:"daily_record_id" gorm:"type:uuid;not null"`
 	StaffID       *uuid.UUID `json:"staff_id" gorm:"type:uuid"`
 	RecordedTime  string     `json:"recorded_time" gorm:"type:time"`

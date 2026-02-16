@@ -8,7 +8,7 @@ import (
 
 // MedicalRecord 電子カルテモデル
 type MedicalRecord struct {
-	ID             uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID             uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
 	RecordNo       string     `json:"record_no" gorm:"type:varchar(20);uniqueIndex:idx_mr_record_no"`
 	PetID          uuid.UUID  `json:"pet_id" gorm:"type:uuid;not null;index:idx_mr_pet_id"`
 	OwnerID        uuid.UUID  `json:"owner_id" gorm:"type:uuid;not null"`

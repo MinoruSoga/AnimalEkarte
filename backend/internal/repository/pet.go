@@ -33,6 +33,10 @@ func (r *Repository) GetPetByID(ctx context.Context, id uuid.UUID) (*model.Pet, 
 }
 
 func (r *Repository) CreatePet(ctx context.Context, pet *model.Pet) error {
+	// Generate UUID if not set
+	if pet.ID == uuid.Nil {
+		pet.ID = uuid.New()
+	}
 	if err := r.db.WithContext(ctx).Create(pet).Error; err != nil {
 		return apperrors.Wrap(err, "failed to create pet")
 	}

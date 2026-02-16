@@ -34,6 +34,10 @@ func (r *Repository) GetOwnerByID(ctx context.Context, id uuid.UUID) (*model.Own
 
 // CreateOwner creates a new owner record in the database.
 func (r *Repository) CreateOwner(ctx context.Context, owner *model.Owner) error {
+	// Generate UUID if not set
+	if owner.ID == uuid.Nil {
+		owner.ID = uuid.New()
+	}
 	if err := r.db.WithContext(ctx).Create(owner).Error; err != nil {
 		return fmt.Errorf("failed to create owner: %w", err)
 	}

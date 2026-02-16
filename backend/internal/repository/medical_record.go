@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -101,6 +102,10 @@ func (r *medicalRecordRepository) GetMedicalRecordsByOwnerID(ctx context.Context
 
 // CreateMedicalRecord カルテを作成
 func (r *medicalRecordRepository) CreateMedicalRecord(ctx context.Context, record *model.MedicalRecord) error {
+	// Generate UUID if not set
+	if record.ID == uuid.Nil {
+		record.ID = uuid.New()
+	}
 	result := r.db.WithContext(ctx).Create(record)
 	if result.Error != nil {
 		return result.Error

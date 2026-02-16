@@ -1,12 +1,9 @@
 -- 初期スキーマ
 -- PostgreSQL初回起動時に自動実行されます
 
--- 拡張機能
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- 飼い主テーブル
 CREATE TABLE IF NOT EXISTS owners (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     phone VARCHAR(20),
     email VARCHAR(255),
@@ -17,7 +14,7 @@ CREATE TABLE IF NOT EXISTS owners (
 
 -- 動物テーブル
 CREATE TABLE IF NOT EXISTS pets (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY,
     owner_id UUID REFERENCES owners(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     species VARCHAR(50) NOT NULL,  -- 犬、猫、ウサギなど
@@ -32,7 +29,7 @@ CREATE TABLE IF NOT EXISTS pets (
 
 -- カルテテーブル
 CREATE TABLE IF NOT EXISTS medical_records (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY,
     pet_id UUID REFERENCES pets(id) ON DELETE CASCADE,
     visit_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     chief_complaint TEXT,          -- 主訴

@@ -8,7 +8,7 @@ import (
 
 // Owner 飼い主モデル
 type Owner struct {
-	ID          uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID          uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
 	OwnerNumber int       `json:"owner_number" gorm:"type:integer;autoIncrement;uniqueIndex:idx_owner_number"`
 	Name        string    `json:"name" gorm:"type:varchar(100);not null"`
 	NameKana    string    `json:"name_kana" gorm:"type:varchar(100)"`

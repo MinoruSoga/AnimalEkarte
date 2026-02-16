@@ -8,7 +8,7 @@ import (
 
 // Clinic クリニック情報モデル
 type Clinic struct {
-	ID                 uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID                 uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
 	Name               string    `json:"name" gorm:"type:varchar(100)"`
 	BranchName         string    `json:"branch_name" gorm:"type:varchar(100)"`
 	PostalCode         string    `json:"postal_code" gorm:"type:varchar(10)"`
@@ -34,7 +34,7 @@ func (Clinic) TableName() string {
 
 // Staff スタッフモデル
 type Staff struct {
-	ID        uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID        uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
 	ClinicID  *uuid.UUID `json:"clinic_id" gorm:"type:uuid"`
 	Name      string     `json:"name" gorm:"type:varchar(100)"`
 	Role      string     `json:"role" gorm:"type:varchar(50)"` // veterinarian, nurse, groomer, admin
