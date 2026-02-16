@@ -146,9 +146,9 @@ module.ecs.aws_appautoscaling_policy.memory
 
 | 項目 | 値 |
 |------|-----|
-| プロジェクト名 | frontend |
+| プロジェクト名 | animalekarte-frontend |
 | オーナー | minorusogas-projects |
-| プロジェクトID | prj_dEoThVERtRSuXT1eeTcp66g4GlDi |
+| プロジェクトID | prj_uDGZytq46Y9ee1OWC6QlzPqWpwox |
 | GitHubリポジトリ | AnimalEkarte (frontend/) |
 | Framework | Vite (React 19) |
 

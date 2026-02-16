@@ -167,7 +167,7 @@ git commit -m "feat: update owner list UI"
 git push origin main
 
 # 3. Vercel 自動デプロイ確認
-# https://vercel.com/minorusogas-projects/frontend
+# https://vercel.com/minorusogas-projects/animalekarte-frontend
 # Production デプロイが自動実行される
 ```
 
@@ -201,7 +201,7 @@ cd frontend
 vercel logs https://frontend-r0m0pyiaf-minorusogas-projects.vercel.app
 
 # または、Vercel Dashboard でログ確認
-# https://vercel.com/minorusogas-projects/frontend/logs
+# https://vercel.com/minorusogas-projects/animalekarte-frontend/logs
 ```
 
 ---
