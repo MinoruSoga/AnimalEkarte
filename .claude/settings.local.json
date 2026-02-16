@@ -1,6 +1,8 @@
 {
   "permissions": {
     "allow": [
+      "WebFetch",
+      "Bash",
       "Bash(make *)",
       "Bash(docker compose *)",
       "Bash(go test *)",
@@ -54,7 +56,12 @@
       "Bash(terraform output:*)",
       "Bash(aws ecr describe-images:*)",
       "Bash(aws ecs describe-task-definition:*)",
-      "Bash(vercel --version:*)"
+      "Bash(vercel --version:*)",
+      "Bash(vercel env:*)",
+      "Bash(vercel:*)",
+      "WebFetch(domain:frontend-r0m0pyiaf-minorusogas-projects.vercel.app)",
+      "Bash(AWS_PROFILE=AnimalEkarte aws ecs list-services:*)",
+      "Bash(AWS_PROFILE=AnimalEkarte aws ecs:*)"
     ]
   },
   "enableAllProjectMcpServers": true

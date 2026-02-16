@@ -32,7 +32,6 @@
       "Bash(pnpm:*)",
       "Bash(yarn:*)",
       "Bash(node:*)",
-      "Bash(curl:*)",
       "Bash(wget:*)",
       "Bash(rm -rf:*)",
       "Bash(*|bash:*)",
