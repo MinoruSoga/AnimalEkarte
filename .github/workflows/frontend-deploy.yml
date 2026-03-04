@@ -28,6 +28,9 @@ jobs:
         working-directory: frontend
         run: npm install
 
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
       - name: Build
         working-directory: frontend
         run: npm run build
