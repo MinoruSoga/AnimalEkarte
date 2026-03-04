@@ -1,2 +1,1 @@
-// ConfirmDialog component placeholder
-// TODO: Add ConfirmDialog component
+export { ConfirmDialog } from "./ConfirmDialog";

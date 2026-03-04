@@ -13,7 +13,8 @@ import {
   Scissors,
   Bed,
   Trash2,
-  Pencil
+  Pencil,
+  TestTube
 } from "lucide-react";
 
 // Internal
@@ -55,13 +56,16 @@ export const DashboardDetailModal = ({
 
   if (!appointment) return null;
 
-  const handleCreateMedicalRecord = () => {
+  const handleCreateMedicalRecord = (tab?: string) => {
       if (appointment.petId) {
-          navigate(`/medical-records/new?petId=${appointment.petId}`, { 
-              state: { 
+          const url = tab
+              ? `/medical-records/new?petId=${appointment.petId}&tab=${tab}`
+              : `/medical-records/new?petId=${appointment.petId}`;
+          navigate(url, {
+              state: {
                   from: "/",
-                  appointmentId: appointment.id 
-              } 
+                  appointmentId: appointment.id
+              }
           });
       } else {
           navigate("/medical-records/select-pet", { state: { from: "/" } });
@@ -147,14 +151,14 @@ export const DashboardDetailModal = ({
                     </Button>
                 )}
                 {onEdit && (
-                    <Button variant="outline" onClick={() => onEdit(appointment)}>
+                    <Button variant="outline" onClick={() => onEdit(appointment)} className="h-10 text-sm text-[#37352F] border-[rgba(55,53,47,0.16)]">
                         <Pencil className="size-4 mr-2" />
                         編集
                     </Button>
                 )}
                 {ownerDetailBtn}
                 {onConfirm && (
-                    <Button onClick={onConfirm} className="bg-blue-600 hover:bg-blue-700 text-white">
+                    <Button onClick={onConfirm} className="bg-[#37352F] hover:bg-[#37352F]/90 text-white">
                         受付済にする
                     </Button>
                 )}
@@ -168,12 +172,12 @@ export const DashboardDetailModal = ({
                 {ownerDetailBtn}
                 {isMedical ? (
                     <div className="flex flex-col items-end gap-2">
-                        <Button 
+                        <Button
                             onClick={() => {
                                 if (onConfirm) onConfirm();
                                 handleCreateMedicalRecord();
-                            }} 
-                            className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
+                            }}
+                            className="bg-[#37352F] hover:bg-[#37352F]/90 text-white w-full sm:w-auto"
                         >
                             <FileText className="size-4 mr-2" />
                             カルテ作成
@@ -182,7 +186,7 @@ export const DashboardDetailModal = ({
                     </div>
                 ) : (
                     onConfirm && (
-                        <Button onClick={onConfirm} className="bg-blue-600 hover:bg-blue-700 text-white">
+                        <Button onClick={onConfirm} className="bg-[#37352F] hover:bg-[#37352F]/90 text-white">
                             診察を開始する
                         </Button>
                     )
@@ -201,17 +205,23 @@ export const DashboardDetailModal = ({
                     </Button>
                 )}
                 {isMedical && (
-                     <Button onClick={handleCreateMedicalRecord} className="bg-[#37352F] text-white hover:bg-[#37352F]/90">
-                        <FileText className="size-4 mr-2" />
-                        カルテ入力
-                     </Button>
-                 )}
-                 {isTrimming && (
-                     <Button onClick={handleCreateTrimming} className="bg-orange-600 text-white hover:bg-orange-700">
+                    <>
+                        <Button onClick={() => handleCreateMedicalRecord()} className="bg-[#37352F] text-white hover:bg-[#37352F]/90">
+                            <FileText className="size-4 mr-2" />
+                            カルテ入力
+                        </Button>
+                        <Button variant="outline" onClick={() => handleCreateMedicalRecord("test")} className="text-[#37352F] border-[#37352F]/20">
+                            <TestTube className="size-4 mr-2" />
+                            検査
+                        </Button>
+                    </>
+                )}
+                {isTrimming && (
+                    <Button onClick={handleCreateTrimming} className="bg-orange-600 text-white hover:bg-orange-700">
                         <Scissors className="size-4 mr-2" />
                         施術記録
-                     </Button>
-                 )}
+                    </Button>
+                )}
             </>
         );
     }
@@ -220,8 +230,8 @@ export const DashboardDetailModal = ({
         return (
             <>
                 {ownerDetailBtn}
-                <Button 
-                    onClick={handleCreateAccounting} 
+                <Button
+                    onClick={handleCreateAccounting}
                     className="bg-emerald-600 text-white hover:bg-emerald-700"
                     disabled={appointment.nextAppointment === "精算未確認"}
                 >
@@ -237,7 +247,7 @@ export const DashboardDetailModal = ({
             <>
                 {ownerDetailBtn}
                 {onConfirm && (
-                    <Button onClick={onConfirm} className="bg-gray-800 text-white hover:bg-gray-900">
+                    <Button onClick={onConfirm} className="bg-[#37352F] text-white hover:bg-[#37352F]/90">
                         完了/リストから削除
                     </Button>
                 )}
@@ -250,7 +260,7 @@ export const DashboardDetailModal = ({
         <>
             {ownerDetailBtn}
              {isMedical && (
-                 <Button onClick={handleCreateMedicalRecord} className="bg-[#37352F] text-white hover:bg-[#37352F]/90">
+                 <Button onClick={() => handleCreateMedicalRecord()} className="bg-[#37352F] text-white hover:bg-[#37352F]/90">
                     <FileText className="size-4 mr-2" />
                     カルテ確認
                  </Button>
@@ -268,7 +278,7 @@ export const DashboardDetailModal = ({
                  </Button>
              )}
              {onConfirm && (
-                <Button onClick={onConfirm} className="bg-blue-600 hover:bg-blue-700 text-white">
+                <Button onClick={onConfirm} className="bg-[#37352F] text-white hover:bg-[#37352F]/90">
                     ステータス変更
                 </Button>
              )}
@@ -279,17 +289,17 @@ export const DashboardDetailModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px] p-0 gap-0 overflow-hidden bg-white">
-        <DialogHeader className="p-5 pb-4 border-b border-gray-100">
+        <DialogHeader className="p-5 pb-4 border-b border-[rgba(55,53,47,0.09)] pr-12">
           <div className="flex items-center justify-between gap-4">
              <div className="flex items-center gap-2">
                 <span className={`flex h-8 w-8 items-center justify-center rounded-full ${appointment.visitType === '初診' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-600'}`}>
                     {appointment.visitType === '初診' ? '初' : '再'}
                 </span>
                 <div className="flex flex-col">
-                    <DialogTitle className="text-lg font-bold text-gray-900">
+                    <DialogTitle className="text-lg font-bold text-[#37352F]">
                         {appointment.serviceType}
                     </DialogTitle>
-                    <span className="text-xs text-gray-500 font-normal">ID: {appointment.id}</span>
+                    <span className="text-xs text-[#37352F]/40 font-normal">ID: {appointment.id}</span>
                 </div>
              </div>
              {currentStatus && (
@@ -303,15 +313,15 @@ export const DashboardDetailModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="p-5 space-y-6">
+        <div className="p-5 space-y-4">
             {/* Time */}
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                <Clock className="size-5 text-gray-500" />
-                <div className="font-mono text-xl font-medium text-gray-800">
+            <div className="flex items-center gap-3 p-3 bg-[#F7F6F3] rounded-lg">
+                <Clock className="size-5 text-[#37352F]/60" />
+                <div className="font-mono text-xl font-medium text-[#37352F]">
                     {appointment.time}
                 </div>
                 {appointment.nextAppointment && (
-                     <Badge 
+                     <Badge
                         variant={appointment.nextAppointment === "精算未確認" ? "destructive" : "secondary"}
                         className="ml-auto"
                       >
@@ -323,19 +333,19 @@ export const DashboardDetailModal = ({
 
             {/* Patient Info */}
             <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">患者情報</h3>
-                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                    <div className="flex items-center gap-2 text-gray-600">
+                <h3 className="text-sm font-semibold text-[#37352F]/60 uppercase tracking-wider">患者情報</h3>
+                <div className="flex items-center justify-between border-b border-[rgba(55,53,47,0.09)] pb-2">
+                    <div className="flex items-center gap-2 text-[#37352F]/60">
                         <Dog className="size-4" />
                         <span className="text-sm">ペット</span>
                     </div>
                     <div className="text-right">
                         <div className="font-bold text-base">{appointment.petName}</div>
-                        <div className="text-sm text-gray-500">{appointment.petType}</div>
+                        <div className="text-sm text-[#37352F]/60">{appointment.petType}</div>
                     </div>
                 </div>
-                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                    <div className="flex items-center gap-2 text-gray-600">
+                <div className="flex items-center justify-between border-b border-[rgba(55,53,47,0.09)] pb-2">
+                    <div className="flex items-center gap-2 text-[#37352F]/60">
                         <User className="size-4" />
                         <span className="text-sm">飼い主</span>
                     </div>
@@ -345,21 +355,21 @@ export const DashboardDetailModal = ({
 
             {/* Medical Details */}
             <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">診療詳細</h3>
-                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                    <div className="flex items-center gap-2 text-gray-600">
+                <h3 className="text-sm font-semibold text-[#37352F]/60 uppercase tracking-wider">診療詳細</h3>
+                <div className="flex items-center justify-between border-b border-[rgba(55,53,47,0.09)] pb-2">
+                    <div className="flex items-center gap-2 text-[#37352F]/60">
                         <Stethoscope className="size-4" />
                         <span className="text-sm">担当医</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="font-medium">{appointment.doctor || "未定"}</span>
+                        <span className="font-medium text-[#37352F]">{appointment.doctor || "未定"}</span>
                         {appointment.isDesignated && <Badge variant="outline" className="text-sm h-6 bg-orange-50 text-orange-700 border-orange-200">指名</Badge>}
                     </div>
                 </div>
             </div>
         </div>
 
-        <DialogFooter className="p-4 bg-gray-50 flex flex-wrap justify-end items-center gap-4">
+        <DialogFooter className="p-4 bg-[#F7F6F3] flex flex-wrap justify-end items-center gap-4">
              <div className="flex flex-wrap gap-2 justify-end">
                  {renderActions()}
              </div>

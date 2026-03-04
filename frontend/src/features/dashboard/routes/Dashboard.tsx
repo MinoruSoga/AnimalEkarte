@@ -18,6 +18,7 @@ import { FormHeader } from "@/components/shared/Form";
 
 // Shared
 import { ReservationFormModal } from "@/components/shared/ReservationFormModal";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 // Relative
 import { DashboardDetailModal } from "../components/DashboardDetailModal";
@@ -44,6 +45,10 @@ export const Dashboard = () => {
     // Edit Modal State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingAppointment, setEditingAppointment] = useState<Partial<ReservationAppointment> | null>(null);
+
+    // Cancel Confirm Dialog State
+    const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+    const [cancelTarget, setCancelTarget] = useState<Appointment | null>(null);
 
     const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -212,11 +217,17 @@ export const Dashboard = () => {
     };
 
     const handleCancel = (appointment: Appointment) => {
-        if (window.confirm("本当にこの予約を取り消しますか？")) {
-            cancelAppointment(appointment.id);
-            toast.success("予約を取り消しました");
-            setModalOpen(false);
-        }
+        setCancelTarget(appointment);
+        setCancelConfirmOpen(true);
+    };
+
+    const executeCancel = () => {
+        if (!cancelTarget) return;
+        cancelAppointment(cancelTarget.id);
+        toast.success("予約を取り消しました");
+        setModalOpen(false);
+        setCancelConfirmOpen(false);
+        setCancelTarget(null);
     };
 
     return (
@@ -229,7 +240,7 @@ export const Dashboard = () => {
                         <Button
                             variant={isFilterOpen ? "secondary" : "outline"}
                             size="sm"
-                            className="gap-2 bg-white h-10 text-sm"
+                            className="gap-2 bg-white h-10 text-sm text-[#37352F] border-[rgba(55,53,47,0.16)]"
                             onClick={() => setIsFilterOpen(!isFilterOpen)}
                         >
                             <Filter className="size-4" />
@@ -237,7 +248,7 @@ export const Dashboard = () => {
                         </Button>
                         <Button
                             size="sm"
-                            className="bg-[#37352F] hover:bg-[#37352F]/90 text-white h-10 text-sm"
+                            className="bg-[#37352F] hover:bg-[#37352F]/90 text-white h-10 text-sm shadow-sm"
                             onClick={() => navigate("/reservations")}
                         >
                             新規予約
@@ -301,7 +312,7 @@ export const Dashboard = () => {
                 </div>
             )}
 
-            <div className="flex-1 overflow-hidden p-2">
+            <div className="flex-1 overflow-hidden p-[20px] pt-4">
                 <DndContext sensors={sensors} collisionDetection={closestCorners} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
                     {/* タブレット: 2-3列グリッド、デスクトップ: 5列flex */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:flex gap-2 h-full w-full overflow-y-auto lg:overflow-x-auto lg:overflow-y-hidden pb-2 bg-transparent">
@@ -335,6 +346,20 @@ export const Dashboard = () => {
                 }}
                 onSave={handleEditSave}
                 initialData={editingAppointment}
+            />
+
+            <ConfirmDialog
+                open={cancelConfirmOpen}
+                onClose={() => {
+                    setCancelConfirmOpen(false);
+                    setCancelTarget(null);
+                }}
+                onConfirm={executeCancel}
+                title="予約を取り消しますか？"
+                description={cancelTarget ? `${cancelTarget.petName}（${cancelTarget.ownerName}）の予約を取り消します。` : ""}
+                confirmLabel="取り消す"
+                cancelLabel="キャンセル"
+                variant="destructive"
             />
         </div>
     );
