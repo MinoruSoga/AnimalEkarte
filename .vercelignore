@@ -1,0 +1,68 @@
+# Vercel Build Ignore File
+# Files and directories to exclude from Vercel deployment
+
+# Version Control
+.git
+.gitignore
+.gitattributes
+
+# Environment
+.env.local
+.env*.local
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Backend
+backend/
+infra/
+Makefile
+
+# Documentation (optional - uncomment if you want to exclude)
+# docs/
+# README.md
+
+# Local development
+.claude/
+.serena/
+.mcp.json
+*.local.json
+
+# Logs
+logs/
+*.log
