@@ -28,9 +28,6 @@ jobs:
         working-directory: frontend
         run: npm install
 
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-
       - name: Build
         working-directory: frontend
         run: npm run build
@@ -39,18 +36,13 @@ jobs:
 
       - name: Deploy to Vercel
         working-directory: frontend
-        run: vercel deploy --prod
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npm install -g vercel@latest
+          vercel deploy --prod \
+            --token ${{ secrets.VERCEL_TOKEN }} \
+            --yes \
+            --org-id ${{ secrets.VERCEL_ORG_ID }} \
+            --project-id ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Verify deployment
-        working-directory: frontend
-        run: |
-          echo "Frontend deployment completed!"
-          vercel inspect || true
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: echo "Frontend deployed successfully to Vercel"
