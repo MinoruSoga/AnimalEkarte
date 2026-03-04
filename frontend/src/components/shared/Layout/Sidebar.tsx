@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Link, useLocation } from "react-router";
 import {
   LayoutDashboard,
@@ -19,9 +19,16 @@ import {
   Stethoscope,
   Activity,
   PanelLeft,
+  PanelLeftClose,
+  Check,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useClinicInfo } from "@/hooks/use-clinic-info";
-import { useSidebarStore } from "@/stores/sidebar-store";
 import type { MenuItem } from "@/types";
 
 interface SidebarItemProps {
@@ -32,24 +39,20 @@ interface SidebarItemProps {
 
 const SidebarItem = ({ item, collapsed = false, level = 0 }: SidebarItemProps) => {
   const location = useLocation();
-
-  // Track manual toggle state (null = auto, true/false = user toggled)
   const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
-
-  // Compute if any child is active
-  const hasActiveChild = useMemo(
-    () => item.subItems?.some(sub => sub.path === location.pathname) ?? false,
-    [item.subItems, location.pathname]
-  );
-
-  // Auto-expand if child is active, unless manually collapsed
-  const isExpanded = manualExpanded ?? hasActiveChild;
 
   const isActive = item.path === "/"
     ? location.pathname === "/"
     : location.pathname.startsWith(item.path || "");
 
   const hasSubItems = item.subItems && item.subItems.length > 0;
+
+  const hasActiveChild = hasSubItems && item.subItems
+    ? item.subItems.some(sub => sub.path === location.pathname)
+    : false;
+
+  // Auto-expand if child is active, unless manually collapsed
+  const isExpanded = manualExpanded ?? hasActiveChild;
 
   const handleClick = (e: React.MouseEvent) => {
     if (hasSubItems) {
@@ -58,58 +61,69 @@ const SidebarItem = ({ item, collapsed = false, level = 0 }: SidebarItemProps) =
     }
   };
 
-  // Show active style if: directly active, or has subItems and is expanded
-  const showActiveStyle = isActive || (hasSubItems && isExpanded);
+  const handleChevronClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setManualExpanded(!isExpanded);
+  };
 
   const content = (
-    <div className={`w-full flex items-center h-[48px] rounded-[6px] text-[16px] leading-[24px] tracking-[0.0875px] transition-colors ${
-        showActiveStyle
-        ? "bg-[#eae9e5] text-[#37352f] font-medium"
-        : "text-[rgba(55,53,47,0.7)] font-normal hover:bg-[#eae9e5]/50"
-    } ${collapsed ? "justify-center px-0" : "gap-[12px] px-[12px]"} ${level > 0 && !collapsed ? "pl-8" : ""}`}>
-        <div className={`size-4 shrink-0 ${level > 0 && !item.icon ? "invisible" : ""}`}>{item.icon}</div>
-        {!collapsed && (
-            <>
-                <span className="truncate flex-1 text-left">{item.label}</span>
-                {hasSubItems && (
-                    <ChevronDown className={`size-3 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-                )}
-            </>
-        )}
+    <div className={`w-full flex items-center gap-3 px-3 py-3 rounded-md text-base transition-colors ${
+        isActive
+        ? "bg-[#EAE9E5] text-[#37352F] font-medium"
+        : "text-[#37352F]/70 hover:bg-[#EAE9E5]/50 hover:text-[#37352F]"
+    } ${collapsed ? "justify-center" : ""} ${level > 0 ? "pl-8" : ""}`}>
+      <div className={`size-4 flex-shrink-0 ${level > 0 && !item.icon ? "invisible" : ""}`}>{item.icon}</div>
+      {!collapsed && (
+        <>
+          <span className="truncate flex-1 text-left tracking-wide">{item.label}</span>
+          {hasSubItems && (
+            <span
+              role="button"
+              onClick={handleChevronClick}
+              className="p-0.5 rounded hover:bg-[rgba(55,53,47,0.08)] transition-colors"
+            >
+              <ChevronDown className={`size-3 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+            </span>
+          )}
+        </>
+      )}
     </div>
   );
 
   return (
     <div className="w-full">
-        {hasSubItems ? (
-            <button onClick={handleClick} className="w-full block" title={collapsed ? item.label : undefined}>
-                {content}
-            </button>
-        ) : (
-            <Link to={item.path || "#"} className="w-full block" title={collapsed ? item.label : undefined}>
-                {content}
-            </Link>
-        )}
+      {hasSubItems ? (
+        <button onClick={handleClick} className="w-full block" title={collapsed ? item.label : undefined}>
+          {content}
+        </button>
+      ) : (
+        <Link to={item.path || "#"} className="w-full block" title={collapsed ? item.label : undefined}>
+          {content}
+        </Link>
+      )}
 
-        {hasSubItems && isExpanded && !collapsed && (
-            <div className="space-y-0.5 mt-0.5 mb-1">
-                {item.subItems?.map(sub => (
-                    <SidebarItem
-                        key={sub.label}
-                        item={sub}
-                        collapsed={collapsed}
-                        level={level + 1}
-                    />
-                ))}
-            </div>
-        )}
+      {hasSubItems && isExpanded && !collapsed && (
+        <div className="space-y-0.5 mt-0.5 mb-1">
+          {item.subItems?.map(sub => (
+            <SidebarItem
+              key={sub.label}
+              item={sub}
+              collapsed={collapsed}
+              level={level + 1}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };
 
 export function Sidebar() {
+  const [collapsed, setCollapsed] = useState(false);
   const { clinicInfo } = useClinicInfo();
-  const { collapsed, toggle } = useSidebarStore();
+
+  const BRANCHES = ["八王子院", "新宿院", "渋谷院", "池袋院", "横浜院"];
 
   const menuItems: MenuItem[] = [
     { icon: <LayoutDashboard className="size-4" />, label: "当日の受付", path: "/" },
@@ -142,46 +156,60 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className={`h-full border-r border-[rgba(55,53,47,0.16)] bg-[#f7f6f3] flex flex-col transition-all duration-200 ${collapsed ? "w-[56px]" : "w-[200px]"}`}>
-      {/* Header: 48px height with bottom border */}
-      <div className="h-[48px] border-b border-[rgba(55,53,47,0.16)] px-[12px] pb-px flex items-center">
-        {collapsed ? (
-          /* Collapsed: show only toggle button */
-          <button
-            onClick={toggle}
-            className="size-10 flex items-center justify-center rounded-[6px] hover:bg-[#eae9e5] mx-auto"
-            title="サイドバーを開く"
-          >
-            <PanelLeft className="size-5 text-[rgba(55,53,47,0.6)]" />
-          </button>
-        ) : (
-          /* Expanded: show clinic info and toggle button */
-          <div className="flex-1 flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="text-[14px] font-bold leading-[20px] text-[#37352f] tracking-[-0.1504px]">
-                {clinicInfo.name}
-              </span>
-              <span className="text-[14px] font-normal leading-[20px] text-[rgba(55,53,47,0.6)] tracking-[-0.1504px]">
-                {clinicInfo.branchName}
-              </span>
+    <div className={`h-full bg-[#F7F6F3] border-r border-[rgba(55,53,47,0.16)] flex flex-col transition-all duration-300 ${collapsed ? "w-[50px]" : "w-[200px]"}`}>
+      {/* Header */}
+      <div className="h-12 flex items-center px-3 border-b border-[rgba(55,53,47,0.16)]">
+        {!collapsed ? (
+          <div className="flex items-center justify-between w-full">
+            <div className="flex flex-col items-start">
+              <span className="text-sm font-bold text-[#37352F] px-1">{clinicInfo.name}</span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-1 text-sm text-[#37352F]/60 hover:text-[#37352F] transition-colors outline-none px-1 rounded-sm hover:bg-[rgba(55,53,47,0.06)]">
+                    {clinicInfo.branchName}
+                    <ChevronDown className="size-3 opacity-50" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-[160px]">
+                  {BRANCHES.map((branch) => (
+                    <DropdownMenuItem
+                      key={branch}
+                      className="justify-between"
+                    >
+                      {branch}
+                      {clinicInfo.branchName === branch && <Check className="size-4 text-[#37352F]" />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
             <button
-              onClick={toggle}
-              className="size-10 flex items-center justify-center rounded-[6px] hover:bg-[#eae9e5]"
-              title="サイドバーを閉じる"
+              className="h-10 w-10 p-0 flex items-center justify-center text-[#37352F]/40 hover:text-[#37352F] hover:bg-transparent transition-colors"
+              onClick={() => setCollapsed(!collapsed)}
             >
-              <PanelLeft className="size-5 text-[rgba(55,53,47,0.6)]" />
+              <PanelLeftClose className="size-5" />
             </button>
           </div>
+        ) : (
+          <button
+            className="w-full justify-center p-0 h-10 text-[#37352F]/60 hover:bg-[rgba(55,53,47,0.06)] hover:text-[#37352F] transition-colors flex items-center justify-center"
+            onClick={() => setCollapsed(!collapsed)}
+          >
+            <PanelLeft className="size-5" />
+          </button>
         )}
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 flex flex-col items-start gap-[2px] overflow-y-auto pt-[8px] px-[8px]">
+      {/* Navigation Items */}
+      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
         {menuItems.map((item) => (
-          <SidebarItem key={item.label} item={item} collapsed={collapsed} />
+          <SidebarItem
+            key={item.label}
+            item={item}
+            collapsed={collapsed}
+          />
         ))}
       </nav>
-    </aside>
+    </div>
   );
 }
