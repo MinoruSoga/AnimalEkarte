@@ -1,10 +1,5 @@
-const API_URL = "/api/v1/owners";
+import { axios } from "@/lib/axios";
 
 export const deleteOwner = async (id: string): Promise<void> => {
-  const response = await fetch(`${API_URL}/${id}`, {
-    method: "DELETE",
-  });
-  if (!response.ok) {
-    throw new Error("Failed to delete owner");
-  }
+  await axios.delete(`/v1/owners/${id}`);
 };
