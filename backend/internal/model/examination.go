@@ -33,3 +33,28 @@ type Examination struct {
 func (Examination) TableName() string {
 	return "examinations"
 }
+
+// CreateExaminationRequest 検査作成リクエスト
+type CreateExaminationRequest struct {
+	PetID           uuid.UUID  `json:"pet_id" binding:"required"`
+	OwnerID         uuid.UUID  `json:"owner_id" binding:"required"`
+	DoctorID        *uuid.UUID `json:"doctor_id"`
+	MedicalRecordID *uuid.UUID `json:"medical_record_id"`
+	ExaminationDate time.Time  `json:"examination_date" binding:"required"`
+	TestType        string     `json:"test_type" binding:"required"`
+	Machine         string     `json:"machine"`
+	ResultSummary   string     `json:"result_summary"`
+	Items           string     `json:"items"`
+	Notes           string     `json:"notes"`
+}
+
+// UpdateExaminationRequest 検査更新リクエスト
+type UpdateExaminationRequest struct {
+	Status          string     `json:"status"`
+	ResultSummary   string     `json:"result_summary"`
+	Items           string     `json:"items"`
+	Notes           string     `json:"notes"`
+	ExaminationDate *time.Time `json:"examination_date"`
+	TestType        string     `json:"test_type"`
+	Machine         string     `json:"machine"`
+}

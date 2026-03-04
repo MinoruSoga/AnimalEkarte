@@ -1,8 +1,8 @@
 import { useMemo } from "react";
-import { MOCK_MEDICAL_RECORDS } from "@/config/mock-data";
+import { useGetMedicalRecords } from "../api/get-medical-records";
 
 export function useMedicalRecords(searchTerm: string) {
-  const records = MOCK_MEDICAL_RECORDS;
+  const { data: records = [], isLoading, isError } = useGetMedicalRecords();
 
   const filteredRecords = useMemo(() => {
     if (!searchTerm) return records;
@@ -16,5 +16,5 @@ export function useMedicalRecords(searchTerm: string) {
     );
   }, [records, searchTerm]);
 
-  return { data: filteredRecords };
+  return { data: filteredRecords, isLoading, isError };
 }

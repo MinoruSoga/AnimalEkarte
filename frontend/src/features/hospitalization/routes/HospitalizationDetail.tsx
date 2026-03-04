@@ -17,7 +17,7 @@ import { useHospitalizationDetail } from "../hooks/useHospitalizationDetail";
 export const HospitalizationDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    
+
     const {
         hospitalization,
         plans,

@@ -3,7 +3,8 @@ import type { RouteObject } from "react-router";
 type SettingsCategory =
   | "serviceType" | "examination" | "vaccine" | "medicine"
   | "staff" | "insurance" | "consultation" | "procedure"
-  | "hospitalization" | "cage";
+  | "hospitalization" | "cage" | "trimmingCourse" | "trimmingOption"
+  | "diagnosisCategory" | "diagnosisName";
 
 const SETTINGS_CATEGORY_MAP: Record<string, SettingsCategory> = {
   "service-type": "serviceType",
@@ -16,6 +17,10 @@ const SETTINGS_CATEGORY_MAP: Record<string, SettingsCategory> = {
   procedure: "procedure",
   hospitalization: "hospitalization",
   cage: "cage",
+  "trimming-course": "trimmingCourse",
+  "trimming-option": "trimmingOption",
+  "diagnosis-category": "diagnosisCategory",
+  "diagnosis-name": "diagnosisName",
 };
 
 export const settingsRoutes: RouteObject[] = [

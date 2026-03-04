@@ -52,3 +52,52 @@ type Staff struct {
 func (Staff) TableName() string {
 	return "staffs"
 }
+
+// CreateClinicRequest クリニック作成リクエスト
+type CreateClinicRequest struct {
+	Name               string `json:"name" binding:"required"`
+	BranchName         string `json:"branch_name"`
+	PostalCode         string `json:"postal_code"`
+	Address            string `json:"address"`
+	PhoneNumber        string `json:"phone_number"`
+	FaxNumber          string `json:"fax_number"`
+	RegistrationNumber string `json:"registration_number"`
+	DirectorName       string `json:"director_name"`
+	Email              string `json:"email"`
+	Website            string `json:"website"`
+	LogoURL            string `json:"logo_url"`
+}
+
+// UpdateClinicRequest クリニック更新リクエスト
+type UpdateClinicRequest struct {
+	Name               string `json:"name"`
+	BranchName         string `json:"branch_name"`
+	PostalCode         string `json:"postal_code"`
+	Address            string `json:"address"`
+	PhoneNumber        string `json:"phone_number"`
+	FaxNumber          string `json:"fax_number"`
+	RegistrationNumber string `json:"registration_number"`
+	DirectorName       string `json:"director_name"`
+	Email              string `json:"email"`
+	Website            string `json:"website"`
+	LogoURL            string `json:"logo_url"`
+}
+
+// CreateStaffRequest スタッフ作成リクエスト
+type CreateStaffRequest struct {
+	ClinicID *uuid.UUID `json:"clinic_id"`
+	Name     string     `json:"name" binding:"required"`
+	Role     string     `json:"role" binding:"required"`
+	Email    string     `json:"email"`
+	Phone    string     `json:"phone"`
+	IsActive bool       `json:"is_active"`
+}
+
+// UpdateStaffRequest スタッフ更新リクエスト
+type UpdateStaffRequest struct {
+	Name     string `json:"name"`
+	Role     string `json:"role"`
+	Email    string `json:"email"`
+	Phone    string `json:"phone"`
+	IsActive *bool  `json:"is_active"`
+}

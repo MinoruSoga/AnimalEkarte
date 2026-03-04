@@ -1,5 +1,5 @@
 // React/Framework
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // External
 import { User } from "lucide-react";
@@ -16,7 +16,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { MOCK_PETS } from "@/config/mock-data";
+import { usePetInfo } from "@/hooks/use-pet";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 
 // Relative
@@ -33,6 +33,24 @@ interface ReservationFormModalProps {
   initialData: Partial<ReservationAppointment> | null;
 }
 
+function PetLoader({
+  petId,
+  onPetLoaded,
+}: {
+  petId: string;
+  onPetLoaded: (pet: Pet) => void;
+}) {
+  const { pet } = usePetInfo(petId);
+
+  useEffect(() => {
+    if (pet) {
+      onPetLoaded(pet);
+    }
+  }, [pet, onPetLoaded]);
+
+  return null;
+}
+
 export const ReservationFormModal = ({
   isOpen,
   onClose,
@@ -40,11 +58,12 @@ export const ReservationFormModal = ({
   initialData,
 }: ReservationFormModalProps) => {
   const [formData, setFormData] = useState<Partial<ReservationAppointment>>({});
+  const [pendingPetId, setPendingPetId] = useState<string | null>(null);
 
   const {
     selectedPets,
     setSelectedPets,
-    togglePetSelection
+    togglePetSelection,
   } = usePetSelection([], "multiple-same-owner");
 
   const [prevIsOpen, setPrevIsOpen] = useState(false);
@@ -55,14 +74,10 @@ export const ReservationFormModal = ({
       if (initialData) {
         setFormData({ ...initialData });
         if (initialData.petId) {
-            const foundPet = MOCK_PETS.find((p) => p.id === initialData.petId);
-            if (foundPet) {
-              setSelectedPets([foundPet]);
-            } else {
-              setSelectedPets([]);
-            }
+          setPendingPetId(initialData.petId);
         } else {
-            setSelectedPets([]);
+          setSelectedPets([]);
+          setPendingPetId(null);
         }
       } else {
         const defaultStart = new Date();
@@ -80,9 +95,15 @@ export const ReservationFormModal = ({
           status: "confirmed",
         });
         setSelectedPets([]);
+        setPendingPetId(null);
       }
     }
   }
+
+  const handlePetLoaded = (pet: Pet) => {
+    setSelectedPets([pet]);
+    setPendingPetId(null);
+  };
 
   const handleSave = () => {
     onSave(formData, selectedPets);
@@ -96,6 +117,11 @@ export const ReservationFormModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
+      {/* Load pet data from API when petId is provided */}
+      {pendingPetId && (
+        <PetLoader petId={pendingPetId} onPetLoaded={handlePetLoaded} />
+      )}
+
       <DialogContent className="w-[98%] sm:max-w-[1200px] h-[90vh] flex flex-col p-0 gap-0 bg-white overflow-hidden">
         <DialogHeader className="p-4 border-b shrink-0 h-14 flex flex-row items-center justify-between space-y-0">
           <DialogTitle className="text-sm font-bold text-[#37352F]">

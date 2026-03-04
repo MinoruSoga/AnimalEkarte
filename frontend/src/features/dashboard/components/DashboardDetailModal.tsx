@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MOCK_PETS } from "@/config/mock-data";
 
 // Types
 import type { Appointment } from "@/types";
@@ -111,12 +110,13 @@ export const DashboardDetailModal = ({
   };
 
   const handleOpenOwnerDetail = () => {
-      if (appointment.petId) {
-          const pet = MOCK_PETS.find(p => p.id === appointment.petId);
-          if (pet && pet.ownerId) {
-              navigate(`/owners/${pet.ownerId}`);
-              onClose();
-          }
+      if (appointment.ownerId) {
+          navigate(`/owners/${appointment.ownerId}`);
+          onClose();
+      } else if (appointment.petId) {
+          // ownerId が未設定の場合はペット詳細へ遷移してフォールバック
+          navigate(`/pets/${appointment.petId}`);
+          onClose();
       }
   };
 

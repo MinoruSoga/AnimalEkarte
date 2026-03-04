@@ -2,7 +2,6 @@ package handler
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -13,119 +12,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// MockMedicalRecordService is a mock implementation of MedicalRecordService
-type MockMedicalRecordService struct {
-	mock.Mock
-}
-
-func (m *MockMedicalRecordService) GetAllPets(ctx context.Context) ([]model.Pet, error) {
-	args := m.Called(ctx)
-	return args.Get(0).([]model.Pet), args.Error(1)
-}
-
-func (m *MockMedicalRecordService) GetPetByID(ctx context.Context, id string) (*model.Pet, error) {
-	args := m.Called(ctx, id)
-	return args.Get(0).(*model.Pet), args.Error(1)
-}
-
-func (m *MockMedicalRecordService) CreatePet(ctx context.Context, req *model.CreatePetRequest) (*model.Pet, error) {
-	args := m.Called(ctx, req)
-	return args.Get(0).(*model.Pet), args.Error(1)
-}
-
-func (m *MockMedicalRecordService) UpdatePet(ctx context.Context, id string, req *model.UpdatePetRequest) (*model.Pet, error) {
-	args := m.Called(ctx, id, req)
-	return args.Get(0).(*model.Pet), args.Error(1)
-}
-
-func (m *MockMedicalRecordService) DeletePet(ctx context.Context, id string) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
-func (m *MockMedicalRecordService) GetAllOwners(ctx context.Context) ([]model.Owner, error) {
-	args := m.Called(ctx)
-	return args.Get(0).([]model.Owner), args.Error(1)
-}
-
-func (m *MockMedicalRecordService) GetOwnerByID(ctx context.Context, id string) (*model.Owner, error) {
-	args := m.Called(ctx, id)
-	return args.Get(0).(*model.Owner), args.Error(1)
-}
-
-func (m *MockMedicalRecordService) CreateOwner(ctx context.Context, req *model.CreateOwnerRequest) (*model.Owner, error) {
-	args := m.Called(ctx, req)
-	return args.Get(0).(*model.Owner), args.Error(1)
-}
-
-func (m *MockMedicalRecordService) UpdateOwner(ctx context.Context, id string, req *model.UpdateOwnerRequest) (*model.Owner, error) {
-	args := m.Called(ctx, id, req)
-	return args.Get(0).(*model.Owner), args.Error(1)
-}
-
-func (m *MockMedicalRecordService) DeleteOwner(ctx context.Context, id string) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
-func (m *MockMedicalRecordService) GetAllMedicalRecords(ctx context.Context) ([]model.MedicalRecord, error) {
-	args := m.Called(ctx)
-	return args.Get(0).([]model.MedicalRecord), args.Error(1)
-}
-
-func (m *MockMedicalRecordService) GetMedicalRecordByID(ctx context.Context, id string) (*model.MedicalRecord, error) {
-	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*model.MedicalRecord), args.Error(1)
-}
-
-func (m *MockMedicalRecordService) GetMedicalRecordsByPetID(ctx context.Context, petID string) ([]model.MedicalRecord, error) {
-	args := m.Called(ctx, petID)
-	return args.Get(0).([]model.MedicalRecord), args.Error(1)
-}
-
-func (m *MockMedicalRecordService) GetMedicalRecordsByOwnerID(ctx context.Context, ownerID string) ([]model.MedicalRecord, error) {
-	args := m.Called(ctx, ownerID)
-	return args.Get(0).([]model.MedicalRecord), args.Error(1)
-}
-
-func (m *MockMedicalRecordService) CreateMedicalRecord(ctx context.Context, req *model.CreateMedicalRecordRequest) (*model.MedicalRecord, error) {
-	args := m.Called(ctx, req)
-	return args.Get(0).(*model.MedicalRecord), args.Error(1)
-}
-
-func (m *MockMedicalRecordService) UpdateMedicalRecord(ctx context.Context, id string, req *model.UpdateMedicalRecordRequest) (*model.MedicalRecord, error) {
-	args := m.Called(ctx, id, req)
-	return args.Get(0).(*model.MedicalRecord), args.Error(1)
-}
-
-func (m *MockMedicalRecordService) DeleteMedicalRecord(ctx context.Context, id string) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
-func (m *MockMedicalRecordService) GetMedicalRecordsWithPagination(ctx context.Context, page, limit int) (*model.PaginatedMedicalRecords, error) {
-	args := m.Called(ctx, page, limit)
-	return args.Get(0).(*model.PaginatedMedicalRecords), args.Error(0)
-}
-
-func (m *MockMedicalRecordService) GetDB() (interface{ DB() *gorm.DB }, error) {
-	args := m.Called()
-	return args.Get(0).(interface{ DB() *gorm.DB }), args.Error(1)
-}
-
-func setupMedicalRecordTestRouter() (*gin.Engine, *MockMedicalRecordService) {
+func setupMedicalRecordTestRouter() (*gin.Engine, *MockService) {
 	gin.SetMode(gin.TestMode)
 
-	mockService := &MockMedicalRecordService{}
+	mockService := &MockService{}
 	handler := &Handler{
 		svc: mockService,
 	}

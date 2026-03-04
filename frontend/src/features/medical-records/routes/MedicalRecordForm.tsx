@@ -1,5 +1,6 @@
 // React/Framework
-import { useParams } from "react-router";
+import { useEffect } from "react";
+import { useParams, useNavigate } from "react-router";
 
 // Internal
 import { Button } from "@/components/ui/button";
@@ -19,11 +20,14 @@ import { useMedicalRecordForm } from "../hooks/useMedicalRecordForm";
 
 export const MedicalRecordForm = () => {
   const { id: recordId } = useParams();
+  const navigate = useNavigate();
   const {
     isNewRecord,
     activeTab,
     setActiveTab,
     selectedPet,
+    isPetLoading,
+    shouldRedirectToSelectPet,
     handleBack,
     handleSave,
     treatmentPlanItems,
@@ -31,6 +35,12 @@ export const MedicalRecordForm = () => {
     treatmentCompletedItems,
     setTreatmentCompletedItems
   } = useMedicalRecordForm(recordId);
+
+  useEffect(() => {
+    if (shouldRedirectToSelectPet) {
+      navigate("/medical-records/select-pet");
+    }
+  }, [shouldRedirectToSelectPet, navigate]);
 
   // Tab definitions
   const tabs = [
@@ -44,8 +54,12 @@ export const MedicalRecordForm = () => {
     "会計(医師確認)",
   ];
 
+  if (isPetLoading) {
+    return null;
+  }
+
   if (!selectedPet) {
-      return null; 
+    return null;
   }
 
   return (

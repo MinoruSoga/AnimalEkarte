@@ -151,6 +151,10 @@ export function Sidebar() {
         { icon: <Building2 className="size-4" />, label: "ケージマスタ", path: "/settings/cage" },
         { icon: <Users className="size-4" />, label: "スタッフマスタ", path: "/settings/staff" },
         { icon: <ShieldCheck className="size-4" />, label: "保険マスタ", path: "/settings/insurance" },
+        { icon: <Scissors className="size-4" />, label: "トリミングコースマスタ", path: "/settings/trimming-course" },
+        { icon: <Scissors className="size-4" />, label: "トリミングオプションマスタ", path: "/settings/trimming-option" },
+        { icon: <Stethoscope className="size-4" />, label: "診断カテゴリマスタ", path: "/settings/diagnosis-category" },
+        { icon: <Stethoscope className="size-4" />, label: "診断名マスタ", path: "/settings/diagnosis-name" },
       ],
     },
   ];

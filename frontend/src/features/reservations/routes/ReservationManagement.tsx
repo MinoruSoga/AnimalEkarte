@@ -23,7 +23,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FormHeader } from "@/components/shared/Form";
-import { generateMockAppointments, MOCK_PETS } from "@/config/mock-data";
 
 // Shared
 import { ReservationFormModal } from "@/components/shared/ReservationFormModal";
@@ -32,16 +31,29 @@ import { ReservationFormModal } from "@/components/shared/ReservationFormModal";
 import { ReservationDetailModal } from "../components/ReservationDetailModal";
 import { MonthView } from "../components/MonthView";
 import { WeekView } from "../components/WeekView";
+import {
+  useGetReservations,
+  useCreateReservation,
+  useUpdateReservation,
+  useDeleteReservation,
+  transformToCreateRequest,
+} from "../api";
 
 // Types
 import type { ReservationAppointment, Pet } from "@/types";
+import type { UpdateReservationRequest } from "../api";
 
 export const ReservationManagement = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<"month" | "week">("week");
-  const [appointments, setAppointments] = useState<ReservationAppointment[]>(generateMockAppointments());
+
+  // API hooks
+  const { data: appointments = [], isLoading } = useGetReservations();
+  const createReservationMutation = useCreateReservation();
+  const updateReservationMutation = useUpdateReservation();
+  const deleteReservationMutation = useDeleteReservation();
 
   // Edit/Create Modal State
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -69,7 +81,7 @@ export const ReservationManagement = () => {
     }
   };
 
-  // Check for overlaps
+  // Check for overlaps against server-fetched appointments
   const checkOverlap = (
     newStart: Date,
     newEnd: Date,
@@ -80,8 +92,6 @@ export const ReservationManagement = () => {
       if (excludeId && app.id === excludeId) return false;
       if (app.status === 'cancelled') return false;
       if (app.doctor !== doctor) return false;
-
-      // Check time overlap: (StartA < EndB) and (EndA > StartB)
       return newStart < app.end && newEnd > app.start;
     });
   };
@@ -94,7 +104,6 @@ export const ReservationManagement = () => {
       setEditingAppointment(null);
     }
     setIsFormOpen(true);
-    // Ensure detail is closed if open
     setIsDetailOpen(false);
   };
 
@@ -103,7 +112,6 @@ export const ReservationManagement = () => {
     const petId = searchParams.get("petId");
 
     if (petId && !isFormOpen) {
-      const pet = MOCK_PETS.find(p => p.id === petId);
       const now = new Date();
       now.setMinutes(0, 0, 0);
       const start = addHours(now, 1);
@@ -112,11 +120,11 @@ export const ReservationManagement = () => {
         start: start,
         end: addHours(start, 1),
         status: "confirmed",
-        visitType: pet?.lastVisit ? "revisit" : "first",
+        visitType: "first",
         type: "treatment",
         doctor: "医師A",
         isDesignated: false,
-        petId: petId
+        petId: petId,
       };
       handleOpenForm(stub);
     }
@@ -130,10 +138,9 @@ export const ReservationManagement = () => {
   };
 
   const handleTimeSlotClick = (date: Date) => {
-    // Create a new appointment stub starting at the clicked time
     const newAppointmentStub: Partial<ReservationAppointment> = {
       start: date,
-      end: addHours(date, 1), // Default 1 hour duration
+      end: addHours(date, 1),
       status: "confirmed",
       visitType: "first",
       type: "treatment",
@@ -156,7 +163,6 @@ export const ReservationManagement = () => {
   const handleSave = (data: Partial<ReservationAppointment>, selectedPets: Pet[]) => {
     if (!data.start || !data.end || selectedPets.length === 0) return;
 
-    // Validate overlap
     const targetDoctor = data.doctor || editingAppointment?.doctor || "医師A";
     const hasOverlap = checkOverlap(
       data.start,
@@ -170,48 +176,54 @@ export const ReservationManagement = () => {
       return;
     }
 
-    const newAppointmentsList: ReservationAppointment[] = [];
-
     if (editingAppointment && editingAppointment.id) {
-      // Edit mode: Update existing
-      const primaryPet = selectedPets[0];
-      setAppointments(appointments.map(app =>
-        app.id === editingAppointment.id ? {
-          ...app,
-          ...data,
-          ownerName: primaryPet.ownerName,
-          petName: primaryPet.name,
-          petId: primaryPet.id
-        } as ReservationAppointment : app
-      ));
-      toast.success("予約を更新しました");
+      // Edit mode: Update via API
+      const req: UpdateReservationRequest = {
+        start_time: data.start.toISOString(),
+        end_time: data.end.toISOString(),
+        visit_type: data.visitType,
+        service_type: data.type,
+        is_designated: data.isDesignated,
+        status: data.status,
+        notes: data.notes,
+      };
+
+      updateReservationMutation.mutate(
+        { id: editingAppointment.id, req },
+        {
+          onSuccess: () => {
+            toast.success("予約を更新しました");
+            handleCloseForm();
+          },
+          onError: () => {
+            toast.error("予約の更新に失敗しました");
+          },
+        }
+      );
     } else {
-      // Create new mode: One per pet
-      selectedPets.forEach(pet => {
-        const newAppointment: ReservationAppointment = {
-          ...data as ReservationAppointment,
-          id: Math.random().toString(36).substr(2, 9),
-          ownerName: pet.ownerName,
-          petName: pet.name,
-          petId: pet.id
-        };
-        newAppointmentsList.push(newAppointment);
+      // Create new: one per selected pet
+      const primaryPet = selectedPets[0];
+      const req = transformToCreateRequest(data, primaryPet.id, primaryPet.ownerId);
+
+      createReservationMutation.mutate(req, {
+        onSuccess: () => {
+          toast.success("予約を作成しました");
+          handleCloseForm();
+
+          if (location.state?.from) {
+            setTimeout(() => {
+              navigate(location.state.from);
+            }, 500);
+          }
+        },
+        onError: () => {
+          toast.error("予約の作成に失敗しました");
+        },
       });
-
-      setAppointments([...appointments, ...newAppointmentsList]);
-      toast.success("予約を作成しました");
-    }
-    handleCloseForm();
-
-    if (location.state?.from) {
-      setTimeout(() => {
-        navigate(location.state.from);
-      }, 500);
     }
   };
 
   const handleAppointmentUpdate = (appointment: ReservationAppointment, newStart: Date, newEnd: Date) => {
-    // Check overlap
     const hasOverlap = checkOverlap(newStart, newEnd, appointment.doctor, appointment.id);
 
     if (hasOverlap) {
@@ -219,32 +231,56 @@ export const ReservationManagement = () => {
       return;
     }
 
-    setAppointments(appointments.map(app =>
-      app.id === appointment.id
-        ? { ...app, start: newStart, end: newEnd }
-        : app
-    ));
-    toast.success("予約時間を変更しました");
+    const req: UpdateReservationRequest = {
+      start_time: newStart.toISOString(),
+      end_time: newEnd.toISOString(),
+    };
+
+    updateReservationMutation.mutate(
+      { id: appointment.id, req },
+      {
+        onSuccess: () => {
+          toast.success("予約時間を変更しました");
+        },
+        onError: () => {
+          toast.error("予約時間の変更に失敗しました");
+        },
+      }
+    );
   };
 
   // Status Change Handler
   const handleStatusChange = (appointment: ReservationAppointment, status: string) => {
-    const updatedAppointment = { ...appointment, status: status as ReservationAppointment['status'] };
+    const req: UpdateReservationRequest = {
+      status,
+    };
 
-    setAppointments(appointments.map(app =>
-      app.id === appointment.id ? updatedAppointment : app
-    ));
-
-    setDetailAppointment(updatedAppointment);
-    toast.success("ステータスを更新しました");
+    updateReservationMutation.mutate(
+      { id: appointment.id, req },
+      {
+        onSuccess: (updated) => {
+          setDetailAppointment(updated);
+          toast.success("ステータスを更新しました");
+        },
+        onError: () => {
+          toast.error("ステータスの更新に失敗しました");
+        },
+      }
+    );
   };
 
-  // Delete handler (mock)
+  // Delete handler
   const handleDelete = (appointment: ReservationAppointment) => {
     if (window.confirm("本当にこの予約を削除しますか？")) {
-      setAppointments(appointments.filter(a => a.id !== appointment.id));
-      handleCloseDetail();
-      toast.success("予約を削除し���した");
+      deleteReservationMutation.mutate(appointment.id, {
+        onSuccess: () => {
+          handleCloseDetail();
+          toast.success("予約を削除しました");
+        },
+        onError: () => {
+          toast.error("予約の削除に失敗しました");
+        },
+      });
     }
   };
 
@@ -260,9 +296,7 @@ export const ReservationManagement = () => {
     if (appointment.petId) {
       navigate(`${targetPath}?petId=${appointment.petId}`, { state: { from: "/reservations" } });
     } else {
-      // Fallback if no pet ID (e.g. manually entered name without ID)
       if (window.confirm("この予約にはペットIDが紐付いていません。ペット選択画面へ移動しますか？")) {
-        // Determine selection path based on type
         let selectPath = '/medical-records/select-pet';
         if (appointment.type === 'trimming' || appointment.type === 'トリミング') {
           selectPath = '/trimming/select-pet';
@@ -319,23 +353,30 @@ export const ReservationManagement = () => {
           </Select>
         </div>
 
-        {/* Calendar View */}
-        {view === "month" ? (
-          <MonthView
-            currentDate={currentDate}
-            appointments={appointments}
-            onAppointmentClick={handleOpenDetail}
-          />
+        {/* Loading state */}
+        {isLoading ? (
+          <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+            予約データを読み込み中...
+          </div>
         ) : (
-          <div className="flex-1 min-h-0 h-full">
-            <WeekView
+          /* Calendar View */
+          view === "month" ? (
+            <MonthView
               currentDate={currentDate}
               appointments={appointments}
               onAppointmentClick={handleOpenDetail}
-              onTimeSlotClick={handleTimeSlotClick}
-              onAppointmentUpdate={handleAppointmentUpdate}
             />
-          </div>
+          ) : (
+            <div className="flex-1 min-h-0 h-full">
+              <WeekView
+                currentDate={currentDate}
+                appointments={appointments}
+                onAppointmentClick={handleOpenDetail}
+                onTimeSlotClick={handleTimeSlotClick}
+                onAppointmentUpdate={handleAppointmentUpdate}
+              />
+            </div>
+          )
         )}
       </div>
 
@@ -359,4 +400,4 @@ export const ReservationManagement = () => {
       />
     </div>
   );
-}
+};

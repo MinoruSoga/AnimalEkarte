@@ -27,3 +27,4 @@ type OwnerService interface {
 // Ensure Service implements interfaces
 var _ PetService = (*Service)(nil)
 var _ OwnerService = (*Service)(nil)
+var _ MedicalRecordService = (*Service)(nil)

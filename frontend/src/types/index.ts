@@ -38,6 +38,7 @@ export interface Appointment {
   isDesignated?: boolean;
   doctor?: string;
   petId?: string;
+  ownerId?: string;
 }
 
 export interface ColumnData {

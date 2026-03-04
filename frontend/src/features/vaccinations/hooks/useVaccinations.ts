@@ -1,19 +1,19 @@
 import { useMemo } from "react";
-import { MOCK_VACCINATION_RECORDS } from "../api";
+import { useGetVaccinations } from "../api";
 
 export function useVaccinations(searchTerm: string) {
-  const records = MOCK_VACCINATION_RECORDS;
+  const { data = [], isLoading, error } = useGetVaccinations();
 
   const filteredRecords = useMemo(() => {
-    if (!searchTerm) return records;
+    if (!searchTerm) return data;
     const lowerTerm = searchTerm.toLowerCase();
-    return records.filter(
+    return data.filter(
       (r) =>
         r.ownerName.toLowerCase().includes(lowerTerm) ||
         r.petName.toLowerCase().includes(lowerTerm) ||
         r.vaccineName.toLowerCase().includes(lowerTerm)
     );
-  }, [records, searchTerm]);
+  }, [data, searchTerm]);
 
-  return { data: filteredRecords };
+  return { data: filteredRecords, isLoading, error };
 }

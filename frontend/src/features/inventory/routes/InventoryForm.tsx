@@ -1,4 +1,5 @@
 // React/Framework
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
 // External
@@ -19,10 +20,18 @@ import { PageLayout } from "@/components/shared/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form";
 
 // Relative
-import { MOCK_INVENTORY_ITEMS } from "../api";
+import {
+  useGetInventoryItem,
+  useCreateInventoryItem,
+  useUpdateInventoryItem,
+} from "../api/inventory";
 
 // Types
 import type { InventoryItem } from "@/types";
+import type {
+  CreateInventoryItemRequest,
+  UpdateInventoryItemRequest,
+} from "../api/types";
 
 const CATEGORY_OPTIONS: { value: InventoryItem["category"]; label: string }[] =
   [
@@ -37,20 +46,81 @@ export function InventoryForm() {
   const { id } = useParams<{ id: string }>();
   const isEdit = Boolean(id);
 
-  // Get existing item for edit mode
-  const existingItem = isEdit
-    ? MOCK_INVENTORY_ITEMS.find((item) => item.id === id)
-    : null;
+  const { data: existingItem, isLoading } = useGetInventoryItem(id ?? "");
+  const createMutation = useCreateInventoryItem();
+  const updateMutation = useUpdateInventoryItem();
+
+  const [category, setCategory] = useState<string>(
+    existingItem?.category ?? "medicine"
+  );
 
   const handleBack = () => {
     navigate("/inventory");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // TODO: Implement actual save logic
-    navigate("/inventory");
+    const formData = new FormData(e.currentTarget);
+
+    const quantityStr = formData.get("quantity") as string;
+    const minStockLevelStr = formData.get("minStockLevel") as string;
+    const expiryDateStr = formData.get("expiryDate") as string;
+    const lastRestockedStr = formData.get("lastRestocked") as string;
+    const resolvedCategory = category || (existingItem?.category ?? "medicine");
+
+    if (isEdit && id) {
+      const req: UpdateInventoryItemRequest = {
+        name: formData.get("name") as string,
+        category: resolvedCategory,
+        quantity: quantityStr ? Number(quantityStr) : undefined,
+        unit: formData.get("unit") as string,
+        min_stock_level: minStockLevelStr
+          ? Number(minStockLevelStr)
+          : undefined,
+        location: (formData.get("location") as string) || undefined,
+        expiry_date: expiryDateStr || undefined,
+        supplier: (formData.get("supplier") as string) || undefined,
+        last_restocked: lastRestockedStr || undefined,
+      };
+      updateMutation.mutate(
+        { id, req },
+        { onSuccess: () => navigate("/inventory") }
+      );
+    } else {
+      const req: CreateInventoryItemRequest = {
+        name: formData.get("name") as string,
+        category: resolvedCategory,
+        quantity: quantityStr ? Number(quantityStr) : 0,
+        unit: formData.get("unit") as string,
+        min_stock_level: minStockLevelStr ? Number(minStockLevelStr) : 0,
+        location: (formData.get("location") as string) || undefined,
+        expiry_date: expiryDateStr || undefined,
+        supplier: (formData.get("supplier") as string) || undefined,
+      };
+      createMutation.mutate(req, {
+        onSuccess: () => navigate("/inventory"),
+      });
+    }
   };
+
+  if (isEdit && isLoading) {
+    return (
+      <PageLayout
+        title="在庫編集"
+        icon={<Package className="size-5 text-[#37352F]" />}
+        maxWidth="max-w-3xl"
+      >
+        <div className="text-sm text-[#37352F]/60">読み込み中...</div>
+      </PageLayout>
+    );
+  }
+
+  const expiryDateValue = existingItem?.expiry_date
+    ? existingItem.expiry_date.slice(0, 10)
+    : "";
+  const lastRestockedValue = existingItem?.last_restocked
+    ? existingItem.last_restocked.slice(0, 10)
+    : "";
 
   return (
     <PageLayout
@@ -71,7 +141,9 @@ export function InventoryForm() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Info */}
         <div className="bg-white rounded-lg border border-[rgba(55,53,47,0.16)] p-6">
-          <h3 className="text-base font-medium text-[#37352F] mb-4">基本情報</h3>
+          <h3 className="text-base font-medium text-[#37352F] mb-4">
+            基本情報
+          </h3>
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <Label htmlFor="name" className="text-sm text-[#37352F]">
@@ -79,6 +151,7 @@ export function InventoryForm() {
               </Label>
               <Input
                 id="name"
+                name="name"
                 defaultValue={existingItem?.name}
                 placeholder="品名を入力"
                 className="mt-1"
@@ -89,7 +162,10 @@ export function InventoryForm() {
               <Label htmlFor="category" className="text-sm text-[#37352F]">
                 カテゴリ <span className="text-red-500">*</span>
               </Label>
-              <Select defaultValue={existingItem?.category ?? "medicine"}>
+              <Select
+                value={category || (existingItem?.category ?? "medicine")}
+                onValueChange={setCategory}
+              >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="カテゴリを選択" />
                 </SelectTrigger>
@@ -108,6 +184,7 @@ export function InventoryForm() {
               </Label>
               <Input
                 id="unit"
+                name="unit"
                 defaultValue={existingItem?.unit}
                 placeholder="例: 錠, 本, 袋"
                 className="mt-1"
@@ -119,7 +196,9 @@ export function InventoryForm() {
 
         {/* Stock Info */}
         <div className="bg-white rounded-lg border border-[rgba(55,53,47,0.16)] p-6">
-          <h3 className="text-base font-medium text-[#37352F] mb-4">在庫情報</h3>
+          <h3 className="text-base font-medium text-[#37352F] mb-4">
+            在庫情報
+          </h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="quantity" className="text-sm text-[#37352F]">
@@ -127,6 +206,7 @@ export function InventoryForm() {
               </Label>
               <Input
                 id="quantity"
+                name="quantity"
                 type="number"
                 min="0"
                 defaultValue={existingItem?.quantity ?? 0}
@@ -135,14 +215,18 @@ export function InventoryForm() {
               />
             </div>
             <div>
-              <Label htmlFor="minStockLevel" className="text-sm text-[#37352F]">
+              <Label
+                htmlFor="minStockLevel"
+                className="text-sm text-[#37352F]"
+              >
                 最低在庫数 <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="minStockLevel"
+                name="minStockLevel"
                 type="number"
                 min="0"
-                defaultValue={existingItem?.minStockLevel ?? 0}
+                defaultValue={existingItem?.min_stock_level ?? 0}
                 className="mt-1"
                 required
               />
@@ -153,6 +237,7 @@ export function InventoryForm() {
               </Label>
               <Input
                 id="location"
+                name="location"
                 defaultValue={existingItem?.location}
                 placeholder="例: 薬品棚A-1"
                 className="mt-1"
@@ -164,8 +249,9 @@ export function InventoryForm() {
               </Label>
               <Input
                 id="expiryDate"
+                name="expiryDate"
                 type="date"
-                defaultValue={existingItem?.expiryDate?.replace(/\//g, "-")}
+                defaultValue={expiryDateValue}
                 className="mt-1"
               />
             </div>
@@ -174,7 +260,9 @@ export function InventoryForm() {
 
         {/* Supplier Info */}
         <div className="bg-white rounded-lg border border-[rgba(55,53,47,0.16)] p-6">
-          <h3 className="text-base font-medium text-[#37352F] mb-4">仕入先情報</h3>
+          <h3 className="text-base font-medium text-[#37352F] mb-4">
+            仕入先情報
+          </h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="supplier" className="text-sm text-[#37352F]">
@@ -182,19 +270,24 @@ export function InventoryForm() {
               </Label>
               <Input
                 id="supplier"
+                name="supplier"
                 defaultValue={existingItem?.supplier}
                 placeholder="仕入先名"
                 className="mt-1"
               />
             </div>
             <div>
-              <Label htmlFor="lastRestocked" className="text-sm text-[#37352F]">
+              <Label
+                htmlFor="lastRestocked"
+                className="text-sm text-[#37352F]"
+              >
                 最終入荷日
               </Label>
               <Input
                 id="lastRestocked"
+                name="lastRestocked"
                 type="date"
-                defaultValue={existingItem?.lastRestocked?.replace(/\//g, "-")}
+                defaultValue={lastRestockedValue}
                 className="mt-1"
               />
             </div>
@@ -211,7 +304,10 @@ export function InventoryForm() {
           >
             キャンセル
           </Button>
-          <PrimaryButton type="submit">
+          <PrimaryButton
+            type="submit"
+            disabled={createMutation.isPending || updateMutation.isPending}
+          >
             <Save className="mr-1.5 size-4" />
             {isEdit ? "更新" : "登録"}
           </PrimaryButton>

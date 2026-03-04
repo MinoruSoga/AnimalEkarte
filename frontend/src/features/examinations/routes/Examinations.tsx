@@ -22,7 +22,7 @@ import { useExaminationRecords } from "../hooks/useExaminationRecords";
 export const Examinations = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const { data: filteredRecords } = useExaminationRecords(searchTerm);
+  const { data: filteredRecords, isLoading } = useExaminationRecords(searchTerm);
 
   const handleCreate = () => {
     navigate("/examinations/select-pet");
@@ -67,7 +67,7 @@ export const Examinations = () => {
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             placeholder="飼主名、ペット名、検査種別..."
-            count={filteredRecords.length}
+            count={isLoading ? undefined : filteredRecords.length}
          />
 
         {/* Table */}

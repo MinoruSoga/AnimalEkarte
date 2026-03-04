@@ -1,2 +1,18 @@
-// Dashboard API hooks placeholder
-// TODO: Add useQuery/useMutation hooks
+export { useDashboardData, getDashboard, todayISO } from "./get-dashboard";
+export { useUpdateAppointmentStatus } from "./update-appointment-status";
+export {
+  transformReservationsToDashboardColumns,
+  transformReservationToDashboardAppointment,
+  DASHBOARD_COLUMNS,
+  COLUMN_ID_TO_TITLE,
+  COLUMN_TITLE_TO_STATUS,
+} from "./transforms";
+export type {
+  BackendDashboardReservation,
+  BackendPet,
+  BackendOwner,
+  DashboardAppointment,
+  DashboardColumn,
+  DashboardStatus,
+  UpdateAppointmentStatusRequest,
+} from "./types";

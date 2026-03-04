@@ -1,1 +1,2 @@
-export { MOCK_INVENTORY_ITEMS } from "./mock-data";
+export { getInventoryItems, useGetInventoryItems, getInventoryItem, useGetInventoryItem, getInventoryItemsByCategory, useGetInventoryItemsByCategory, getInventoryItemsByStatus, useGetInventoryItemsByStatus, createInventoryItem, useCreateInventoryItem, updateInventoryItem, useUpdateInventoryItem, deleteInventoryItem, useDeleteInventoryItem } from "./inventory";
+export type { BackendInventoryItem, CreateInventoryItemRequest, UpdateInventoryItemRequest } from "./types";

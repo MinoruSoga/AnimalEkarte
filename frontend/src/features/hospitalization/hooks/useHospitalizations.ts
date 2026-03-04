@@ -1,7 +1,8 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
-import { Hospitalization } from "@/types";
+import type { Hospitalization } from "@/types";
 import { getHospitalizations, updateHospitalization } from "../api";
+import type { UpdateHospitalizationRequest } from "../api/types";
 import { HospitalizationFilterStatus, HOSPITALIZATION_STATUS } from "../constants";
 
 export function useHospitalizations(searchTerm: string, statusFilter: HospitalizationFilterStatus = "active") {
@@ -51,25 +52,38 @@ export function useHospitalizations(searchTerm: string, statusFilter: Hospitaliz
     return result;
   }, [hospitalizations, searchTerm, statusFilter]);
 
-  const handleUpdateHospitalization = useCallback(async (id: string, updates: Partial<Hospitalization>) => {
-    // Optimistic Update
-    const previous = [...hospitalizations];
-    setHospitalizations((prev) => 
-        prev.map((h) => (h.id === id ? { ...h, ...updates } : h))
-    );
+  const handleUpdateHospitalization = useCallback(
+    async (id: string, updates: UpdateHospitalizationRequest) => {
+      // Optimistic Update: フロントエンド型にマッピングして楽観的更新
+      const previous = [...hospitalizations];
+      setHospitalizations((prev) =>
+        prev.map((h) =>
+          h.id === id
+            ? {
+                ...h,
+                status: updates.status
+                  ? (updates.status as Hospitalization["status"])
+                  : h.status,
+                cageId: updates.cage_id ?? h.cageId,
+                endDate: updates.end_date ?? h.endDate,
+              }
+            : h
+        )
+      );
 
-    try {
+      try {
         const updated = await updateHospitalization(id, updates);
-        // Ensure state matches server response
-        setHospitalizations((prev) => 
-            prev.map((h) => (h.id === id ? updated : h))
+        setHospitalizations((prev) =>
+          prev.map((h) => (h.id === id ? updated : h))
         );
         toast.success("更新しました");
-    } catch {
+      } catch {
         toast.error("更新に失敗しました");
         setHospitalizations(previous);
-    }
-  }, [hospitalizations]);
+      }
+    },
+    [hospitalizations]
+  );
 
   const movePet = useCallback(async (hospitalizationId: string, targetCageId: string) => {
     const sourceHosp = hospitalizations.find(h => h.id === hospitalizationId);
@@ -106,11 +120,11 @@ export function useHospitalizations(searchTerm: string, statusFilter: Hospitaliz
     try {
         if (targetHosp) {
             // Swap: Update both sequentially
-            await updateHospitalization(sourceHosp.id, { cageId: targetCageId });
-            await updateHospitalization(targetHosp.id, { cageId: sourceHosp.cageId || "" });
+            await updateHospitalization(sourceHosp.id, { cage_id: targetCageId });
+            await updateHospitalization(targetHosp.id, { cage_id: sourceHosp.cageId || "" });
         } else {
             // Move to empty
-            await updateHospitalization(sourceHosp.id, { cageId: targetCageId });
+            await updateHospitalization(sourceHosp.id, { cage_id: targetCageId });
         }
         
         // Optionally fetch fresh data to be absolutely sure

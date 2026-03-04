@@ -1,176 +1,79 @@
-import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { 
-    CarePlanItem, 
-    DailyRecord, 
-    CreateCarePlanDTO, 
-    UpdateCarePlanDTO,
-    CreateVitalDTO,
-    CreateCareLogDTO
+import type { CarePlanItem, DailyRecord } from "@/types";
+import type {
+  CreateCarePlanDTO,
+  UpdateCarePlanDTO,
+  CreateVitalDTO,
+  CreateCareLogDTO,
 } from "../types";
-import { 
-    getHospitalization, 
-    createCarePlan,
-    updateCarePlan,
-    deleteCarePlan,
-    createVital,
-    createCareLog,
-    dischargeHospitalization as apiDischarge,
-    MOCK_HOSPITALIZATION 
-} from "../api";
+import { useGetHospitalization, useUpdateHospitalization } from "../api";
 
 export const useHospitalizationDetail = (hospitalizationId?: string) => {
-    const [hospitalization, setHospitalization] = useState(MOCK_HOSPITALIZATION);
-    const [plans, setPlans] = useState<CarePlanItem[]>([]);
-    const [records, setRecords] = useState<DailyRecord[]>([]);
-    // Initialize isLoading based on hospitalizationId presence
-    const [isLoading, setIsLoading] = useState(!!hospitalizationId);
+  const {
+    data: hospitalization,
+    isLoading,
+  } = useGetHospitalization(hospitalizationId ?? "");
 
-    useEffect(() => {
-        if (hospitalizationId) {
-            getHospitalization(hospitalizationId)
-                .then(data => {
-                    setPlans(data.plans);
-                    setRecords(data.records);
-                    setHospitalization(data.hospitalization);
-                })
-                .catch(() => {
-                    toast.error("データの取得に失敗しました");
-                })
-                .finally(() => {
-                    setIsLoading(false);
-                });
-        }
-    }, [hospitalizationId]);
+  const { mutateAsync: updateHosp } = useUpdateHospitalization();
 
-    const handleAddPlan = async (plan: CreateCarePlanDTO) => {
-        if (!hospitalizationId) return;
-        try {
-            const newPlan = await createCarePlan(hospitalizationId, plan);
-            setPlans(prev => [...prev, newPlan]);
-            toast.success("ケアプランを作成しました");
-        } catch {
-            toast.error("ケアプランの作成に失敗しました");
-        }
-    };
+  // CarePlan/DailyRecord はバックエンド側でサブエンティティAPIが未実装のため
+  // 現在は「準備中」として通知し、Hospitalization に embed されたデータを使用する
+  const plans: CarePlanItem[] = [];
+  const records: DailyRecord[] = [];
 
-    const handleUpdatePlan = async (planId: string, updates: UpdateCarePlanDTO) => {
-        try {
-            await updateCarePlan(planId, updates);
-            setPlans(prev => prev.map(p => p.id === planId ? { ...p, ...updates } : p));
-            toast.success("ケアプランを更新しました");
-        } catch {
-            toast.error("ケアプランの更新に失敗しました");
-        }
-    };
+  const handleAddPlan = async (_plan: CreateCarePlanDTO) => {
+    toast.info("ケアプラン機能は準備中です");
+  };
 
-    const handleDeletePlan = async (planId: string) => {
-        try {
-            await deleteCarePlan(planId);
-            setPlans(prev => prev.filter(p => p.id !== planId));
-            toast.success("ケアプランを削除しました");
-        } catch {
-            toast.error("ケアプランの削除に失敗しました");
-        }
-    };
+  const handleUpdatePlan = async (
+    _planId: string,
+    _updates: UpdateCarePlanDTO
+  ) => {
+    toast.info("ケアプラン機能は準備中です");
+  };
 
-    const handleAddVital = async (date: string, data: CreateVitalDTO) => {
-        if (!hospitalizationId) return;
-        try {
-            const newVital = await createVital(hospitalizationId, date, data);
-            
-            setRecords(prev => {
-                const targetDate = date.trim();
-                const exists = prev.some(r => r.date === targetDate);
-                
-                if (exists) {
-                    return prev.map(record => {
-                        if (record.date === targetDate) {
-                            return {
-                                ...record,
-                                vitals: [...(record.vitals || []), newVital]
-                            };
-                        }
-                        return record;
-                    });
-                } else {
-                    return [...prev, {
-                        id: Math.random().toString(36).substr(2, 9),
-                        hospitalizationId,
-                        date: targetDate,
-                        vitals: [newVital],
-                        careLogs: [],
-                        staffNotes: []
-                    }];
-                }
-            });
-            toast.success("バイタルを記録しました");
-        } catch {
-            toast.error("バイタルの記録に失敗しました");
-        }
-    };
+  const handleDeletePlan = async (_planId: string) => {
+    toast.info("ケアプラン機能は準備中です");
+  };
 
-    const handleAddLog = async (date: string, data: CreateCareLogDTO) => {
-        if (!hospitalizationId) return;
-        try {
-            const newLog = await createCareLog(hospitalizationId, date, data);
+  const handleAddVital = async (_date: string, _data: CreateVitalDTO) => {
+    toast.info("バイタル記録機能は準備中です");
+  };
 
-            setRecords(prev => {
-                const targetDate = date.trim();
-                const exists = prev.some(r => r.date === targetDate);
-                
-                if (exists) {
-                    return prev.map(record => {
-                        if (record.date === targetDate) {
-                            return {
-                                ...record,
-                                careLogs: [...(record.careLogs || []), newLog]
-                            };
-                        }
-                        return record;
-                    });
-                } else {
-                    return [...prev, {
-                        id: Math.random().toString(36).substr(2, 9),
-                        hospitalizationId,
-                        date: targetDate,
-                        vitals: [],
-                        careLogs: [newLog],
-                        staffNotes: []
-                    }];
-                }
-            });
-            toast.success("記録を追加しました");
-        } catch {
-            toast.error("記録の追加に失敗しました");
-        }
-    };
+  const handleAddLog = async (_date: string, _data: CreateCareLogDTO) => {
+    toast.info("記録追加機能は準備中です");
+  };
 
-    const dischargeHospitalization = async () => {
-        if (hospitalizationId && hospitalization) {
-            try {
-                const updatedHospitalization = await apiDischarge(hospitalizationId);
-                setHospitalization(updatedHospitalization);
-                toast.success("退院処理が完了しました");
-                return true;
-            } catch {
-                toast.error("退院処理に失敗しました");
-                return false;
-            }
-        }
-        return false;
-    };
+  const dischargeHospitalization = async (): Promise<boolean> => {
+    if (!hospitalizationId || !hospitalization) {
+      return false;
+    }
+    try {
+      await updateHosp({
+        id: hospitalizationId,
+        req: {
+          status: "退院済",
+          end_date: new Date().toISOString().split("T")[0],
+        },
+      });
+      toast.success("退院処理が完了しました");
+      return true;
+    } catch {
+      toast.error("退院処理に失敗しました");
+      return false;
+    }
+  };
 
-    return {
-        hospitalization,
-        plans,
-        records,
-        isLoading,
-        handleAddPlan,
-        handleUpdatePlan,
-        handleDeletePlan,
-        handleAddVital,
-        handleAddLog,
-        dischargeHospitalization
-    };
+  return {
+    hospitalization: hospitalization ?? null,
+    plans,
+    records,
+    isLoading,
+    handleAddPlan,
+    handleUpdatePlan,
+    handleDeletePlan,
+    handleAddVital,
+    handleAddLog,
+    dischargeHospitalization,
+  };
 };

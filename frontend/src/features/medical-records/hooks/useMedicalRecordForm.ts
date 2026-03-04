@@ -1,9 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
-import { Pet } from "@/types";
-import { MOCK_PETS, MOCK_MEDICAL_RECORDS } from "@/config/mock-data";
-import { TreatmentItem } from "../components/TreatmentTable";
+import { usePetInfo } from "@/hooks/use-pet";
+import { useGetMedicalRecord } from "../api/get-medical-record";
+import { useCreateMedicalRecord } from "../api/create-medical-record";
+import { useUpdateMedicalRecord } from "../api/update-medical-record";
+import type { CreateMedicalRecordRequest, UpdateMedicalRecordRequest } from "../api/types";
+import type { TreatmentItem } from "../components/TreatmentTable";
 
 export function useMedicalRecordForm(recordId?: string) {
   const navigate = useNavigate();
@@ -13,108 +16,97 @@ export function useMedicalRecordForm(recordId?: string) {
   const isNewRecord = !recordId;
 
   const [activeTab, setActiveTab] = useState("問診");
-  // Lazy initialization for both edit and new modes
-  const [selectedPet, _setSelectedPet] = useState<Pet | null>(() => {
-    if (recordId) {
-      const record = MOCK_MEDICAL_RECORDS.find(r => r.id === recordId);
-      if (record?.petId) {
-        const pet = MOCK_PETS.find(p => p.id === record.petId);
-        if (pet) return pet;
-      }
-      // Fallback for mock if link fails
-      const mockPet = MOCK_PETS.find(p => p.id === "1");
-      if (mockPet) return mockPet;
-    } else if (petId) {
-      // Initialize with petId for new records
-      const pet = MOCK_PETS.find(p => p.id === petId);
-      if (pet) return pet;
-    }
-    return null;
-  });
+  const [treatmentPlanItems, setTreatmentPlanItems] = useState<TreatmentItem[]>([]);
+  const [treatmentCompletedItems, setTreatmentCompletedItems] = useState<TreatmentItem[]>([]);
 
-  // Treatment Data States (lazy init for edit mode)
-  const [treatmentPlanItems, setTreatmentPlanItems] = useState<TreatmentItem[]>(() => {
-    if (recordId) {
-      return [
-        {
-          id: 1,
-          selected: false,
-          status: "完了",
-          content: "recheck(新料金)1",
-          memo: "再診料099",
-          insurance: true,
-          unitPrice: 990,
-          quantity: 1,
-          discountRate: 0,
-          discountAmount: 0,
-        },
-        // ... other mock data can be added here
-      ];
-    }
-    return [];
-  });
+  // 編集モード: カルテからpetIdを取得
+  const { data: existingRecord } = useGetMedicalRecord(recordId ?? "");
 
-  const [treatmentCompletedItems, setTreatmentCompletedItems] = useState<TreatmentItem[]>(() => {
-    if (recordId) {
-      return [
-        {
-          id: 101,
-          selected: false,
-          content: "recheck(新料金)1",
-          memo: "再診料099",
-          insurance: true,
-          unitPrice: 990,
-          quantity: 1,
-          discountRate: 0,
-          discountAmount: 0,
-        },
-      ];
-    }
-    return [];
-  });
+  // petIdを決定: 新規作成時はURLパラメータ、編集時はカルテのpetId
+  const resolvedPetId = isNewRecord ? (petId ?? "") : (existingRecord?.petId ?? "");
 
-  // Handle navigation for new records when petId is missing or invalid
-  useEffect(() => {
-    if (!recordId && !selectedPet) {
-      navigate("/medical-records/select-pet");
-    }
-  }, [recordId, selectedPet, navigate]);
+  // Petデータを取得
+  const { pet: selectedPet, isLoading: isPetLoading } = usePetInfo(resolvedPetId);
+
+  const createMutation = useCreateMedicalRecord();
+  const updateMutation = useUpdateMedicalRecord();
 
   const handleBack = () => {
-      if (location.state?.from) {
-          navigate(location.state.from);
-          return;
-      }
+    if (location.state?.from) {
+      navigate(location.state.from);
+      return;
+    }
 
-      if (!recordId) {
-          navigate("/medical-records/select-pet");
-      } else {
-          navigate("/medical-records");
-      }
+    if (!recordId) {
+      navigate("/medical-records/select-pet");
+    } else {
+      navigate("/medical-records");
+    }
   };
 
-  const handleSave = () => {
-      // TODO: Implement inventory consumption when inventory feature is ready
-      toast.success(isNewRecord ? "カルテを作成しました" : "カルテを更新しました");
-      setTimeout(() => {
+  const handleSave = async () => {
+    if (!selectedPet) return;
+
+    const today = new Date().toISOString().split("T")[0];
+
+    if (isNewRecord) {
+      const req: CreateMedicalRecordRequest = {
+        pet_id: selectedPet.id,
+        owner_id: selectedPet.ownerId,
+        visit_date: today,
+        visit_type: "再診",
+        status: "作成中",
+      };
+
+      try {
+        await createMutation.mutateAsync(req);
+        toast.success("カルテを作成しました");
+        setTimeout(() => {
           if (location.state?.from) {
-              navigate(location.state.from);
+            navigate(location.state.from);
           } else {
-              navigate("/medical-records");
+            navigate("/medical-records");
           }
-      }, 800);
+        }, 800);
+      } catch {
+        toast.error("カルテの作成に失敗しました");
+      }
+    } else if (recordId) {
+      const req: UpdateMedicalRecordRequest = {
+        status: "作成中",
+      };
+
+      try {
+        await updateMutation.mutateAsync({ id: recordId, req });
+        toast.success("カルテを更新しました");
+        setTimeout(() => {
+          if (location.state?.from) {
+            navigate(location.state.from);
+          } else {
+            navigate("/medical-records");
+          }
+        }, 800);
+      } catch {
+        toast.error("カルテの更新に失敗しました");
+      }
+    }
   };
+
+  // petIdがなく新規作成の場合はselect-petへリダイレクト（呼び出し元で判定）
+  const shouldRedirectToSelectPet = isNewRecord && !petId;
 
   return {
     isNewRecord,
     activeTab,
     setActiveTab,
-    selectedPet,
+    selectedPet: selectedPet ?? null,
+    isPetLoading,
+    shouldRedirectToSelectPet,
     handleBack,
     handleSave,
     treatmentPlanItems,
     setTreatmentPlanItems,
     treatmentCompletedItems,
-    setTreatmentCompletedItems
+    setTreatmentCompletedItems,
   };
 }

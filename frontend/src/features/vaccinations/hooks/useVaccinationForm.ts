@@ -1,9 +1,39 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { MOCK_PETS } from "@/config/mock-data";
-import { MOCK_VACCINATION_RECORDS } from "../api";
 import { usePetSelection } from "@/hooks/use-pet-selection";
-import { findPetByRecord } from "@/utils/pet-matching";
+import { useGetPet } from "@/features/pets/api/get-pet";
+import {
+  useGetVaccination,
+  useCreateVaccination,
+  useUpdateVaccination,
+} from "../api";
+import type { CreateVaccinationRequest, UpdateVaccinationRequest } from "../api";
+
+interface VaccinationFormState {
+  vaccineName: string;
+  date: string;
+  supplemental: string;
+  lot1: string;
+  lot2: string;
+  lot3: string;
+  lot4: string;
+  nextScheduleType: string;
+  nextDate: string;
+  remarks: string;
+}
+
+const DEFAULT_FORM: VaccinationFormState = {
+  vaccineName: "",
+  date: "",
+  supplemental: "",
+  lot1: "",
+  lot2: "",
+  lot3: "",
+  lot4: "",
+  nextScheduleType: "4weeks",
+  nextDate: "",
+  remarks: "",
+};
 
 export function useVaccinationForm(id?: string) {
   const navigate = useNavigate();
@@ -13,45 +43,37 @@ export function useVaccinationForm(id?: string) {
 
   // Pet Selection
   const petSelection = usePetSelection();
-  const { setSelectedPets } = petSelection;
+  const { setSelectedPets, selectedPets } = petSelection;
 
-  // Lazy initialization for edit mode
-  const getInitialFormData = () => {
-    if (isEdit && id) {
-      const record = MOCK_VACCINATION_RECORDS.find(r => r.id === id);
-      if (record) {
-        // Simple mapping for demo
-        const mappedVaccineName = record.vaccineName === "狂犬病ワクチン" ? "rabies" :
-                                  record.vaccineName === "3種混合ワクチン" ? "mixed5" :
-                                  record.vaccineName === "フィラリア予防" ? "filaria" :
-                                  record.vaccineName === "ノミダニ予防" ? "flea" : "mixed8";
-        return {
-          vaccineName: mappedVaccineName,
-          date: record.date.replace(/\//g, "-"),
-          nextDate: record.nextDate.replace(/\//g, "-"),
-        };
+  // API hooks
+  const { data: existingVaccination } = useGetVaccination(id ?? "");
+  const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
+  const createMutation = useCreateVaccination();
+  const updateMutation = useUpdateVaccination();
+
+  // Local overrides: tracks user edits on top of server data
+  const [localOverrides, setLocalOverrides] = useState<Partial<VaccinationFormState>>({});
+
+  // Merge: server data as base + user edits on top
+  const formData: VaccinationFormState = isEdit && existingVaccination
+    ? {
+        vaccineName: existingVaccination.vaccineName,
+        date: existingVaccination.date ? existingVaccination.date.slice(0, 10) : "",
+        supplemental: "",
+        lot1: "",
+        lot2: "",
+        lot3: "",
+        lot4: "",
+        nextScheduleType: "4weeks",
+        nextDate: existingVaccination.nextDate ? existingVaccination.nextDate.slice(0, 10) : "",
+        remarks: "",
+        ...localOverrides,
       }
-    }
-    return {
-      vaccineName: "",
-      date: "",
-      nextDate: "",
-    };
+    : { ...DEFAULT_FORM, ...localOverrides };
+
+  const setField = <K extends keyof VaccinationFormState>(key: K, value: VaccinationFormState[K]) => {
+    setLocalOverrides((prev) => ({ ...prev, [key]: value }));
   };
-
-  const initialFormData = getInitialFormData();
-
-  // Form State
-  const [vaccineName, setVaccineName] = useState(initialFormData.vaccineName);
-  const [date, setDate] = useState(initialFormData.date);
-  const [supplemental, setSupplemental] = useState("");
-  const [lot1, setLot1] = useState("");
-  const [lot2, setLot2] = useState("");
-  const [lot3, setLot3] = useState("");
-  const [lot4, setLot4] = useState("");
-  const [nextScheduleType, setNextScheduleType] = useState("4weeks");
-  const [nextDate, setNextDate] = useState(initialFormData.nextDate);
-  const [remarks, setRemarks] = useState("");
 
   // History Filter State
   const [filterStartDate, setFilterStartDate] = useState("");
@@ -59,72 +81,87 @@ export function useVaccinationForm(id?: string) {
   const [historySearchTerm, setHistorySearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState("desc");
 
-  // Handle pet selection initialization
+  // New mode: populate pet selection from petId query param
   useEffect(() => {
-    if (isEdit && id) {
-      const record = MOCK_VACCINATION_RECORDS.find(r => r.id === id);
-      if (record) {
-        const pet = findPetByRecord(record.petName, record.ownerName);
-        if (pet) {
-          setSelectedPets([pet]);
-        } else {
-          // Fallback for demo
-          setSelectedPets([{
-            id: "temp",
-            name: record.petName,
-            species: "犬",
-            breed: "Mix",
-            gender: "female",
-            birthDate: "2015/01/01",
-            weight: "10",
-            ownerId: "temp_owner",
-            ownerName: record.ownerName
-          }]);
-        }
-      }
-    } else {
-      if (petId) {
-        const foundPet = MOCK_PETS.find(p => p.id === petId);
-        if (foundPet) {
-          setSelectedPets([foundPet]);
-        } else {
-          navigate("/vaccinations/select-pet");
-        }
+    if (!isEdit) {
+      if (petFromQuery) {
+        setSelectedPets([petFromQuery]);
+      } else if (!petId && !isPetLoading) {
+        navigate("/vaccinations/select-pet");
       }
     }
-  }, [id, isEdit, setSelectedPets, petId, navigate]);
+  }, [isEdit, petId, petFromQuery, isPetLoading, setSelectedPets, navigate]);
 
   const handleSave = () => {
-      // TODO: API call to save vaccination
-      navigate("/vaccinations");
+    if (isEdit && id) {
+      const req: UpdateVaccinationRequest = {
+        vaccine_name: formData.vaccineName || undefined,
+        vaccination_date: formData.date || undefined,
+        next_date: formData.nextDate || null,
+        lot_number: formData.lot1 || undefined,
+        notes: formData.remarks || undefined,
+      };
+      updateMutation.mutate(
+        { id, req },
+        { onSuccess: () => navigate("/vaccinations") }
+      );
+    } else {
+      const pet = selectedPets[0];
+      if (!pet) return;
+      const req: CreateVaccinationRequest = {
+        pet_id: pet.id,
+        owner_id: pet.ownerId,
+        vaccine_name: formData.vaccineName,
+        vaccination_date: formData.date || new Date().toISOString(),
+        next_date: formData.nextDate || null,
+        lot_number: formData.lot1 || undefined,
+        notes: formData.remarks || undefined,
+      };
+      createMutation.mutate(req, {
+        onSuccess: () => navigate("/vaccinations"),
+      });
+    }
   };
 
   const handleClearHistoryFilter = () => {
-      setHistorySearchTerm("");
+    setHistorySearchTerm("");
   };
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return {
     isEdit,
     petSelection,
     form: {
-        vaccineName, setVaccineName,
-        date, setDate,
-        supplemental, setSupplemental,
-        lot1, setLot1,
-        lot2, setLot2,
-        lot3, setLot3,
-        lot4, setLot4,
-        nextScheduleType, setNextScheduleType,
-        nextDate, setNextDate,
-        remarks, setRemarks
+      vaccineName: formData.vaccineName,
+      setVaccineName: (v: string) => setField("vaccineName", v),
+      date: formData.date,
+      setDate: (v: string) => setField("date", v),
+      supplemental: formData.supplemental,
+      setSupplemental: (v: string) => setField("supplemental", v),
+      lot1: formData.lot1,
+      setLot1: (v: string) => setField("lot1", v),
+      lot2: formData.lot2,
+      setLot2: (v: string) => setField("lot2", v),
+      lot3: formData.lot3,
+      setLot3: (v: string) => setField("lot3", v),
+      lot4: formData.lot4,
+      setLot4: (v: string) => setField("lot4", v),
+      nextScheduleType: formData.nextScheduleType,
+      setNextScheduleType: (v: string) => setField("nextScheduleType", v),
+      nextDate: formData.nextDate,
+      setNextDate: (v: string) => setField("nextDate", v),
+      remarks: formData.remarks,
+      setRemarks: (v: string) => setField("remarks", v),
     },
     historyFilter: {
-        filterStartDate, setFilterStartDate,
-        filterEndDate, setFilterEndDate,
-        historySearchTerm, setHistorySearchTerm,
-        sortOrder, setSortOrder,
-        handleClearHistoryFilter
+      filterStartDate, setFilterStartDate,
+      filterEndDate, setFilterEndDate,
+      historySearchTerm, setHistorySearchTerm,
+      sortOrder, setSortOrder,
+      handleClearHistoryFilter,
     },
-    handleSave
+    handleSave,
+    isSaving,
   };
 }

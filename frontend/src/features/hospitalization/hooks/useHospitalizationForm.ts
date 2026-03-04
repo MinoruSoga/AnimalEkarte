@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
-import { TreatmentPlan } from "@/types";
-import { HospitalizationFormData } from "../types";
-import { MOCK_PETS } from "@/config/mock-data";
+import type { TreatmentPlan } from "@/types";
+import type { HospitalizationFormData } from "../types";
 import { usePetSelection } from "@/hooks/use-pet-selection";
-import { createHospitalization, updateHospitalization, getHospitalization } from "../api";
+import { getPet } from "@/features/pets/api/get-pet";
+import { axios } from "@/lib/axios";
+import { createHospitalization, updateHospitalization } from "../api";
+import type { BackendHospitalization } from "../api/types";
 
 export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
   const navigate = useNavigate();
@@ -69,51 +71,67 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
 
   useEffect(() => {
     if (id) {
-      // Load existing hospitalization
-      getHospitalization(id).then(data => {
-        const h = data.hospitalization;
-        if (h) {
-          setFormData(prev => ({
+      const loadHospitalization = async () => {
+        try {
+          const { data } = await axios.get<BackendHospitalization>(
+            `/v1/hospitalizations/${id}`
+          );
+          setFormData((prev) => ({
             ...prev,
-            hospitalizationType: h.hospitalizationType,
-            ownerName: h.ownerName,
-            petName: h.petName,
-            species: h.species,
-            cageId: h.cageId || "",
-            displayDate: h.startDate,
+            hospitalizationType:
+              data.type === "入院" ? "入院" : "ホテル",
+            cageId: data.cage_id ?? "",
+            displayDate: data.start_date,
+            memo: data.memo ?? "",
+            ownerRequest: data.owner_request ?? "",
+            staffNotes: data.staff_notes ?? "",
           }));
-
-          const pet = MOCK_PETS.find(p => p.name === h.petName && p.ownerName === h.ownerName);
-          if (pet) {
-            setSelectedPets([pet]);
+          // ペット情報を復元
+          if (data.pet && data.owner_id) {
+            setSelectedPets([
+              {
+                id: data.pet_id,
+                ownerId: data.owner_id,
+                ownerName: data.owner?.name ?? "",
+                name: data.pet.name,
+                species: data.pet.species,
+                breed: data.pet.breed,
+                gender: data.pet.gender,
+              },
+            ]);
           }
+        } catch {
+          toast.error("入院情報の取得に失敗しました");
         }
-      }).catch(() => {
-        toast.error("入院情報の取得に失敗しました");
-      });
-    } else {
-      if (petId) {
-        const foundPet = MOCK_PETS.find(p => p.id === petId);
-        if (foundPet) {
-          setSelectedPets([foundPet]);
-        } else {
+      };
+      loadHospitalization();
+    } else if (petId) {
+      // petId が URL から来た場合は Pet API で取得
+      const loadPet = async () => {
+        try {
+          const pet = await getPet(petId);
+          setSelectedPets([pet]);
+        } catch {
+          toast.error("ペット情報の取得に失敗しました");
           navigate("/hospitalization/select-pet");
         }
-      }
+      };
+      loadPet();
     }
   }, [id, petId, setSelectedPets, navigate]);
 
-  // Derive form data with pet info at render time (no setState-in-useEffect)
-  const formDataWithPet = selectedPets.length > 0
-    ? {
-        ...formData,
-        ownerName: selectedPets[0].ownerName,
-        petName: selectedPets[0].name,
-        petNumber: selectedPets[0].id,
-        species: selectedPets[0].species,
-        weight: `${selectedPets[0].weight}kg`,
-      }
-    : formData;
+  // ペット選択情報をフォームデータにマージ
+  const formDataWithPet =
+    selectedPets.length > 0
+      ? {
+          ...formData,
+          ownerName: selectedPets[0].ownerName,
+          petName: selectedPets[0].name,
+          petNumber: selectedPets[0].id,
+          species: selectedPets[0].species,
+          weight: selectedPets[0].weight ? `${selectedPets[0].weight}kg` : "",
+        }
+      : formData;
 
   const addTreatmentPlan = () => {
     const newPlan: TreatmentPlan = {
@@ -148,9 +166,15 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
             field === "quantity" ||
             field === "discount"
           ) {
-            const unitPrice = (field === "unitPrice" ? value : plan.unitPrice) as number;
-            const quantity = (field === "quantity" ? value : plan.quantity) as number;
-            const discount = (field === "discount" ? value : plan.discount) as number;
+            const unitPrice = (
+              field === "unitPrice" ? value : plan.unitPrice
+            ) as number;
+            const quantity = (
+              field === "quantity" ? value : plan.quantity
+            ) as number;
+            const discount = (
+              field === "discount" ? value : plan.discount
+            ) as number;
             const baseAmount = unitPrice * quantity;
             updated.discountAmount = Math.floor(baseAmount * (discount / 100));
             updated.subtotal = baseAmount - updated.discountAmount;
@@ -182,42 +206,56 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
   };
 
   const handleSave = async () => {
-      const today = new Date().toISOString().split('T')[0];
-      const endDate = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+    if (!selectedPets.length) {
+      toast.error("ペットを選択してください");
+      return;
+    }
 
-      const baseData = {
-          hospitalizationType: formData.hospitalizationType as "入院" | "ホテル",
-          ownerName: formData.ownerName,
-          petName: formData.petName,
-          species: formData.species,
-          cageId: formData.cageId,
-          startDate: formData.displayDate || today,
-          endDate: endDate,
-      };
+    const pet = selectedPets[0];
+    const today = new Date().toISOString().split("T")[0];
+    const endDate = new Date(Date.now() + 7 * 86400000)
+      .toISOString()
+      .split("T")[0];
 
-      try {
-          if (isEdit && id) {
-              await updateHospitalization(id, baseData);
-              toast.success("入院情報を更新しました");
-          } else {
-              await createHospitalization(baseData);
-              toast.success("入院情報を登録しました");
-          }
-          
-          if (onSuccess) {
-              onSuccess();
-          } else {
-              setTimeout(() => {
-                  if (location.state?.from) {
-                      navigate(location.state.from);
-                  } else {
-                      navigate("/hospitalization");
-                  }
-              }, 500);
-          }
-      } catch {
-          toast.error("保存に失敗しました");
+    try {
+      if (isEdit && id) {
+        await updateHospitalization(id, {
+          type: formData.hospitalizationType === "入院" ? "入院" : "ホテル",
+          owner_request: formData.ownerRequest,
+          staff_notes: formData.staffNotes,
+          memo: formData.memo,
+          cage_id: formData.cageId || undefined,
+        });
+        toast.success("入院情報を更新しました");
+      } else {
+        await createHospitalization({
+          pet_id: pet.id,
+          owner_id: pet.ownerId,
+          type: formData.hospitalizationType === "入院" ? "入院" : "ホテル",
+          start_date: formData.displayDate || today,
+          end_date: endDate,
+          owner_request: formData.ownerRequest,
+          staff_notes: formData.staffNotes,
+          memo: formData.memo,
+          cage_id: formData.cageId || undefined,
+        });
+        toast.success("入院情報を登録しました");
       }
+
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        setTimeout(() => {
+          if (location.state?.from) {
+            navigate(location.state.from);
+          } else {
+            navigate("/hospitalization");
+          }
+        }, 500);
+      }
+    } catch {
+      toast.error("保存に失敗しました");
+    }
   };
 
   return {
@@ -235,6 +273,6 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
     calculateTotals,
     petSelection,
     handleSave,
-    handleFormDataChange
+    handleFormDataChange,
   };
 }

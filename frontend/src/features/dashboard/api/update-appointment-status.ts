@@ -1,0 +1,30 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { axios } from "@/lib/axios";
+import type { DashboardStatus } from "./types";
+
+interface UpdateStatusPayload {
+  id: string;
+  status: DashboardStatus;
+}
+
+/** 予約ステータスを更新する */
+async function updateAppointmentStatus(
+  id: string,
+  status: DashboardStatus
+): Promise<void> {
+  await axios.put(`/v1/reservations/${id}`, { status });
+}
+
+/** カンバン操作時のステータス更新 mutation hook */
+export function useUpdateAppointmentStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, status }: UpdateStatusPayload) =>
+      updateAppointmentStatus(id, status),
+    onSuccess: () => {
+      // dashboard クエリキーを持つ全クエリを無効化して再取得
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}

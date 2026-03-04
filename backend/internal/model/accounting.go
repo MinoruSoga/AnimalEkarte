@@ -62,3 +62,39 @@ type AccountingItem struct {
 func (AccountingItem) TableName() string {
 	return "accounting_items"
 }
+
+// CreateAccountingRequest 会計作成リクエスト
+type CreateAccountingRequest struct {
+	PetID           uuid.UUID  `json:"pet_id" binding:"required"`
+	OwnerID         uuid.UUID  `json:"owner_id" binding:"required"`
+	MedicalRecordID *uuid.UUID `json:"medical_record_id"`
+	ScheduledDate   time.Time  `json:"scheduled_date" binding:"required"`
+	Subtotal        *float64   `json:"subtotal"`
+	TaxTotal        *float64   `json:"tax_total"`
+	TotalAmount     *float64   `json:"total_amount"`
+	InsuranceName   string     `json:"insurance_name"`
+	InsuranceRatio  *float64   `json:"insurance_ratio"`
+	InsuranceAmount *float64   `json:"insurance_amount"`
+	DiscountAmount  *float64   `json:"discount_amount"`
+	BillingAmount   *float64   `json:"billing_amount"`
+	PaymentMethod   string     `json:"payment_method"`
+	Memo            string     `json:"memo"`
+}
+
+// UpdateAccountingRequest 会計更新リクエスト
+type UpdateAccountingRequest struct {
+	Status          string     `json:"status"`
+	Subtotal        *float64   `json:"subtotal"`
+	TaxTotal        *float64   `json:"tax_total"`
+	TotalAmount     *float64   `json:"total_amount"`
+	InsuranceName   string     `json:"insurance_name"`
+	InsuranceRatio  *float64   `json:"insurance_ratio"`
+	InsuranceAmount *float64   `json:"insurance_amount"`
+	DiscountAmount  *float64   `json:"discount_amount"`
+	BillingAmount   *float64   `json:"billing_amount"`
+	ReceivedAmount  *float64   `json:"received_amount"`
+	ChangeAmount    *float64   `json:"change_amount"`
+	PaymentMethod   string     `json:"payment_method"`
+	CompletedAt     *time.Time `json:"completed_at"`
+	Memo            string     `json:"memo"`
+}

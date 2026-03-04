@@ -146,3 +146,27 @@ type StaffNote struct {
 func (StaffNote) TableName() string {
 	return "staff_notes"
 }
+
+// CreateHospitalizationRequest 入院/ホテル作成リクエスト
+type CreateHospitalizationRequest struct {
+	PetID         uuid.UUID  `json:"pet_id" binding:"required"`
+	OwnerID       uuid.UUID  `json:"owner_id" binding:"required"`
+	CageID        *uuid.UUID `json:"cage_id"`
+	Type          string     `json:"type" binding:"required"` // 入院, ホテル
+	StartDate     time.Time  `json:"start_date" binding:"required"`
+	EndDate       time.Time  `json:"end_date" binding:"required"`
+	OwnerRequest  string     `json:"owner_request"`
+	StaffNotes    string     `json:"staff_notes"`
+	Memo          string     `json:"memo"`
+}
+
+// UpdateHospitalizationRequest 入院/ホテル更新リクエスト
+type UpdateHospitalizationRequest struct {
+	Type         string     `json:"type"`
+	CageID       *uuid.UUID `json:"cage_id"`
+	EndDate      *time.Time `json:"end_date"`
+	Status       string     `json:"status"`
+	OwnerRequest string     `json:"owner_request"`
+	StaffNotes   string     `json:"staff_notes"`
+	Memo         string     `json:"memo"`
+}

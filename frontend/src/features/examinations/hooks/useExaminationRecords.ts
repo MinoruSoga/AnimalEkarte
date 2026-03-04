@@ -1,19 +1,19 @@
 import { useMemo } from "react";
-import { MOCK_EXAMINATION_RECORDS } from "@/config/mock-data";
+import { useGetExaminations } from "../api";
 
 export function useExaminationRecords(searchTerm: string) {
-  const records = MOCK_EXAMINATION_RECORDS;
+  const { data = [], isLoading, error } = useGetExaminations();
 
   const filteredRecords = useMemo(() => {
-    if (!searchTerm) return records;
+    if (!searchTerm) return data;
     const lowerTerm = searchTerm.toLowerCase();
-    return records.filter(
+    return data.filter(
       (r) =>
         r.ownerName.toLowerCase().includes(lowerTerm) ||
         r.petName.toLowerCase().includes(lowerTerm) ||
         r.testType.toLowerCase().includes(lowerTerm)
     );
-  }, [records, searchTerm]);
+  }, [data, searchTerm]);
 
-  return { data: filteredRecords };
+  return { data: filteredRecords, isLoading, error };
 }

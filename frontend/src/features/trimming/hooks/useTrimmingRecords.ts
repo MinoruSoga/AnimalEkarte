@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { MOCK_TRIMMING_RECORDS } from "@/config/mock-data";
+import { useGetTrimmings } from "../api";
 
 interface DateRange {
   from: string;
@@ -7,22 +7,24 @@ interface DateRange {
 }
 
 export function useTrimmingRecords(searchTerm: string, dateRange: DateRange) {
-  const records = MOCK_TRIMMING_RECORDS;
+  const { data = [], isLoading, error } = useGetTrimmings();
 
   const filteredRecords = useMemo(() => {
-    return records.filter((r) => {
-        const matchesKeyword = 
-            searchTerm === "" ||
-            r.ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            r.petName.toLowerCase().includes(searchTerm.toLowerCase());
-    
-        const matchesDate = 
-            (!dateRange.from || r.date >= dateRange.from) &&
-            (!dateRange.to || r.date <= dateRange.to);
-    
-        return matchesKeyword && matchesDate;
-      });
-  }, [records, searchTerm, dateRange]);
+    return data.filter((r) => {
+      const matchesKeyword =
+        searchTerm === "" ||
+        r.ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        r.petName.toLowerCase().includes(searchTerm.toLowerCase());
 
-  return { data: filteredRecords };
+      // appointment_date はISO文字列なので日付部分（YYYY-MM-DD）で比較
+      const recordDate = r.date.slice(0, 10);
+      const matchesDate =
+        (!dateRange.from || recordDate >= dateRange.from) &&
+        (!dateRange.to || recordDate <= dateRange.to);
+
+      return matchesKeyword && matchesDate;
+    });
+  }, [data, searchTerm, dateRange]);
+
+  return { data: filteredRecords, isLoading, error };
 }

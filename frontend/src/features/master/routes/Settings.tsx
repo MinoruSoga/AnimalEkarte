@@ -54,6 +54,10 @@ export const Settings = ({ category: propCategory }: SettingsPageProps) => {
         case "procedure": return "処置マスタ";
         case "hospitalization": return "入院マスタ";
         case "cage": return "ケージマスタ";
+        case "trimmingCourse": return "トリミングコースマスタ";
+        case "trimmingOption": return "トリミングオプションマスタ";
+        case "diagnosisCategory": return "診断カテゴリマスタ";
+        case "diagnosisName": return "診断名マスタ";
         default: return "マスタ";
     }
   }
@@ -70,6 +74,10 @@ export const Settings = ({ category: propCategory }: SettingsPageProps) => {
          "procedure": "処置",
          "hospitalization": "入院",
          "cage": "ケージ",
+         "trimmingCourse": "トリミングコース",
+         "trimmingOption": "トリミングオプション",
+         "diagnosisCategory": "診断カテゴリ",
+         "diagnosisName": "診断名",
      };
      return map[tab] || "";
   }
@@ -132,27 +140,33 @@ export const Settings = ({ category: propCategory }: SettingsPageProps) => {
           toast.error("コードと名称は必須です");
           return;
       }
-      
-      try {
-        if (selectedItem) {
-            update(selectedItem.id, formData);
-            toast.success("更新しました");
-        } else {
-            add(formData as Omit<MasterItem, "id">);
-            toast.success("登録しました");
-        }
-        setIsEditing(false);
-      } catch {
-          toast.error("保存中にエラーが発生しました");
+
+      if (selectedItem) {
+          update(selectedItem.id, formData, {
+              onSuccess: () => {
+                  toast.success("更新しました");
+                  setIsEditing(false);
+              },
+          });
+      } else {
+          add(formData as Omit<MasterItem, "id">, {
+              onSuccess: () => {
+                  toast.success("登録しました");
+                  setIsEditing(false);
+              },
+          });
       }
   };
 
   const handleDelete = () => {
     if (selectedItem) {
         if (window.confirm("本当に削除しますか？")) {
-            remove(selectedItem.id);
-            setIsEditing(false);
-            toast.success("削除しました");
+            remove(selectedItem.id, {
+                onSuccess: () => {
+                    setIsEditing(false);
+                    toast.success("削除しました");
+                },
+            });
         }
     }
   };

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
-import { MOCK_INVENTORY_ITEMS } from "../api";
 import type { InventoryItem } from "@/types";
+import { useGetInventoryItems } from "../api/inventory";
+import type { BackendInventoryItem } from "../api/types";
 
 type CategoryFilter = InventoryItem["category"] | "all";
 type StatusFilter = InventoryItem["status"] | "all";
@@ -11,27 +12,45 @@ interface UseInventoryParams {
   statusFilter?: StatusFilter;
 }
 
+function transformInventoryItem(data: BackendInventoryItem): InventoryItem {
+  return {
+    id: data.id,
+    name: data.name,
+    category: data.category as InventoryItem["category"],
+    quantity: data.quantity,
+    unit: data.unit,
+    minStockLevel: data.min_stock_level,
+    location: data.location,
+    expiryDate: data.expiry_date ?? undefined,
+    supplier: data.supplier,
+    lastRestocked: data.last_restocked ?? undefined,
+    status: data.status,
+  };
+}
+
 export function useInventory({
   searchTerm,
   category = "all",
   statusFilter = "all",
 }: UseInventoryParams) {
-  const items = MOCK_INVENTORY_ITEMS;
+  const { data: backendItems = [], isLoading } = useGetInventoryItems();
+
+  const items = useMemo(
+    () => backendItems.map(transformInventoryItem),
+    [backendItems]
+  );
 
   const filteredItems = useMemo(() => {
     let result = items;
 
-    // Category filter
     if (category !== "all") {
       result = result.filter((item) => item.category === category);
     }
 
-    // Status filter
     if (statusFilter !== "all") {
       result = result.filter((item) => item.status === statusFilter);
     }
 
-    // Search filter
     if (searchTerm) {
       const lowerTerm = searchTerm.toLowerCase();
       result = result.filter(
@@ -45,7 +64,6 @@ export function useInventory({
     return result;
   }, [items, searchTerm, category, statusFilter]);
 
-  // Summary statistics
   const summary = useMemo(() => {
     const total = items.length;
     const lowStock = items.filter((i) => i.status === "low").length;
@@ -53,5 +71,5 @@ export function useInventory({
     return { total, lowStock, outOfStock };
   }, [items]);
 
-  return { data: filteredItems, summary };
+  return { data: filteredItems, summary, isLoading };
 }

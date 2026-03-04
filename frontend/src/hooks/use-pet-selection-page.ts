@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { MOCK_PETS } from "@/config/mock-data";
+import { useGetPets } from "@/features/pets/api/get-pets";
 import type { Pet } from "@/types";
 import type { PetSelectionSearchParams } from "@/components/shared/PetSelection";
 
@@ -27,8 +27,10 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
   const [searchParams, setSearchParams] =
     useState<PetSelectionSearchParams>(INITIAL_SEARCH_PARAMS);
 
+  const { data: pets = [] } = useGetPets();
+
   const filteredPets = useMemo(() => {
-    return MOCK_PETS.filter((pet) => {
+    return pets.filter((pet) => {
       if (searchParams.ownerId && !pet.ownerId.includes(searchParams.ownerId))
         return false;
       if (
@@ -44,10 +46,10 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
         return false;
       return true;
     });
-  }, [searchParams]);
+  }, [pets, searchParams]);
 
   const handleSearch = () => {
-    // Reactive filter — no-op until API integration
+    // Reactive filter — filtering is done in useMemo above
   };
 
   const handleSelect = (pet: Pet) => {

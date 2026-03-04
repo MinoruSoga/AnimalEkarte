@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { MOCK_PETS } from "@/config/mock-data";
+import { usePetSearch } from "@/hooks/use-pet";
 
 // Types
 import type { Pet } from "@/types";
@@ -38,17 +38,19 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
     address: "",
   });
 
+  const { pets: allPets, isLoading } = usePetSearch();
+
   const hasSearchConditions = Object.values(searchParams).some(value => value.trim() !== "");
 
   const filteredPets = hasSearchConditions
-    ? MOCK_PETS.filter((pet) => {
+    ? allPets.filter((pet) => {
         if (searchParams.ownerId && !pet.ownerId.includes(searchParams.ownerId)) return false;
         if (searchParams.ownerName && !pet.ownerName.includes(searchParams.ownerName)) return false;
         if (searchParams.phone && (!pet.phone || !pet.phone.includes(searchParams.phone))) return false;
         if (searchParams.petName && !pet.name.includes(searchParams.petName)) return false;
         if (searchParams.species && !pet.species.includes(searchParams.species)) return false;
         return true;
-      }).slice(0, 20) // Limit to 20 results for performance
+      }).slice(0, 20)
     : [];
 
   const isSelected = (pet: Pet) => selectedPets.some((p) => p.id === pet.id);
@@ -132,7 +134,6 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
               className="text-sm h-10 bg-white"
             />
           </div>
-           {/* Address omitted for brevity/space, kept key fields */}
         </div>
       </div>
 
@@ -153,7 +154,13 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {filteredPets.length === 0 ? (
+                {isLoading ? (
+                    <TableRow>
+                        <TableCell colSpan={8} className="h-32 text-center text-sm text-muted-foreground">
+                            読み込み中...
+                        </TableCell>
+                    </TableRow>
+                ) : filteredPets.length === 0 ? (
                     <TableRow>
                         <TableCell colSpan={8} className="h-32 text-center text-sm text-muted-foreground">
                             {hasSearchConditions ? "条件に一致するペットが見つかりません" : "検索条件を入力して患者を検索してください"}
@@ -172,7 +179,7 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
                         <TableCell className="text-sm py-1 font-medium">{pet.ownerName}</TableCell>
                         <TableCell className="text-sm py-1 font-bold">{pet.name}</TableCell>
                         <TableCell className="text-sm py-1">{pet.species}</TableCell>
-                        <TableCell className="text-sm py-1">-</TableCell> {/* Gender not in mock */}
+                        <TableCell className="text-sm py-1">{pet.gender || "-"}</TableCell>
                         <TableCell className="text-sm py-1 font-mono">{pet.birthDate || "-"}</TableCell>
                         <TableCell className="text-sm py-1 font-mono">{pet.weight || "-"}</TableCell>
                         <TableCell className="py-1">

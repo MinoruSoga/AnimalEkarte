@@ -31,3 +31,26 @@ type Trimming struct {
 func (Trimming) TableName() string {
 	return "trimmings"
 }
+
+// CreateTrimmingRequest トリミング作成リクエスト
+type CreateTrimmingRequest struct {
+	PetID           uuid.UUID  `json:"pet_id" binding:"required"`
+	OwnerID         uuid.UUID  `json:"owner_id" binding:"required"`
+	StaffID         *uuid.UUID `json:"staff_id"`
+	AppointmentDate time.Time  `json:"appointment_date" binding:"required"`
+	Course          string     `json:"course" binding:"required"`
+	Options         string     `json:"options"`
+	StyleRequest    string     `json:"style_request"`
+	Notes           string     `json:"notes"`
+}
+
+// UpdateTrimmingRequest トリミング更新リクエスト
+type UpdateTrimmingRequest struct {
+	Status          string     `json:"status"`
+	AppointmentDate *time.Time `json:"appointment_date"`
+	Course          string     `json:"course"`
+	Options         string     `json:"options"`
+	StyleRequest    string     `json:"style_request"`
+	TotalPrice      *float64   `json:"total_price"`
+	Notes           string     `json:"notes"`
+}

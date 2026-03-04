@@ -107,7 +107,17 @@ func main() {
 	// レイヤー初期化
 	repo := repository.New(db)
 	medicalRecordRepo := repository.NewMedicalRecordRepository(db)
-	svc := service.New(repo, repo, medicalRecordRepo, repo)
+	reservationRepo := repository.NewReservationRepository(db)
+	masterItemRepo := repository.NewMasterItemRepository(db)
+	hospitalizationRepo := repository.NewHospitalizationRepository(db)
+	accountingRepo := repository.NewAccountingRepository(db)
+	examinationRepo := repository.NewExaminationRepository(db)
+	vaccinationRepo := repository.NewVaccinationRepository(db)
+	trimmingRepo := repository.NewTrimmingRepository(db)
+	clinicRepo := repository.NewClinicRepository(db)
+	staffRepo := repository.NewStaffRepository(db)
+	inventoryItemRepo := repository.NewInventoryItemRepository(db)
+	svc := service.New(repo, repo, medicalRecordRepo, reservationRepo, masterItemRepo, hospitalizationRepo, accountingRepo, examinationRepo, vaccinationRepo, trimmingRepo, clinicRepo, staffRepo, inventoryItemRepo, repo)
 	h := handler.New(svc)
 
 	// ルーター設定
