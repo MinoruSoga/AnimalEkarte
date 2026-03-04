@@ -4,7 +4,9 @@
 
 AnimalEkarte Test環境のアクセス情報、AWS リソース構成、運用手順をまとめたドキュメント。
 
-**最終更新日: 2026-02-16**
+**最終更新日: 2026-03-04**
+
+📢 **自動デプロイが稼働中です。** 詳細は [CI-CD-PIPELINE.md](./CI-CD-PIPELINE.md) を参照。
 
 ---
 
@@ -29,7 +31,7 @@ AnimalEkarte Test環境のアクセス情報、AWS リソース構成、運用�
 |---------|--------|---------|------|
 | ECS Cluster | animalekarte-test-cluster | Fargate | - |
 | ECS Service | animalekarte-test-service | desired: 1, running: 1 | Auto Scaling未設定 |
-| Task Definition | animalekarte-test-api:2 | 0.25 vCPU, 0.5 GB | Backend API |
+| Task Definition | animalekarte-test-api:5 | 0.25 vCPU, 0.5 GB | Backend API (最新) |
 | ALB | animalekarte-test-alb | Internet-facing | HTTP:80 → ECS:8080 |
 | Target Group | animalekarte-test-tg | Health Check: `/health` | - |
 

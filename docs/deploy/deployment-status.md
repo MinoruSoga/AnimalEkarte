@@ -2,7 +2,9 @@
 
 Test環境の現在のデプロイ状態、リソース一覧、既知の問題を記録。
 
-**最終更新日: 2026-02-16**
+**最終更新日: 2026-03-04**
+
+⚠️ **重要な更新:** 自動デプロイパイプラインが完全稼働中です。詳細は [CI-CD-PIPELINE.md](./CI-CD-PIPELINE.md) を参照してください。
 
 ---
 
@@ -11,14 +13,54 @@ Test環境の現在のデプロイ状態、リソース一覧、既知の問題�
 | 項目 | 状態 |
 |------|------|
 | インフラ（Terraform） | ✅ デプロイ完了（41リソース稼働中） |
-| Backend API (ECS) | ✅ 稼働中（runningCount: 1/1, HEALTHY） |
-| Frontend (Vercel) | ✅ デプロイ完了（Production） |
+| Backend API (ECS) | ✅ 稼働中（Task Definition v5, runningCount: 1/1） |
+| Frontend (Vercel) | ✅ デプロイ完了（Production + GitHub Auto-Deploy） |
 | RDS PostgreSQL | ✅ ACTIVE |
-| GitHub Actions CI/CD | ✅ 設定完了 |
+| **自動デプロイ (Backend)** | ✅ **完全稼働** (GitHub Actions + AWS OIDC) |
+| **自動デプロイ (Frontend)** | ✅ **完全稼働** (Vercel GitHub Integration) |
 
-**デプロイ日時:** 2026-02-15 - 2026-02-16
+**インフラ構築:** 2026-02-15 - 2026-02-16
+**自動デプロイ検証:** 2026-03-04 ✅
 
 **AWSリージョン:** us-east-1 (バージニア北部)
+
+---
+
+## 自動デプロイ パイプライン（2026-03-04 稼働開始）
+
+### Backend デプロイ
+
+**トリガー:**
+- `main` ブランチへのプッシュ
+- `backend/**` フォルダの変更
+
+**フロー:**
+```
+git push → GitHub Actions → AWS OIDC 認証 → ECR build/push → ECS update
+```
+
+**確認（最新）:**
+- Task Definition: **v5** (2026-03-04 22:40:09 更新)
+- 前回実行: Run #5 in_progress (cleanup commit)
+- 検証: ✅ テスト実行で auto-deploy 確認済み
+
+### Frontend デプロイ
+
+**トリガー:**
+- `main` ブランチへのプッシュ
+- `frontend/**` フォルダの変更
+
+**フロー:**
+```
+git push → Vercel GitHub Hook → Vercel build → auto-deploy
+```
+
+**確認（最新）:**
+- 最終更新: 2026-03-04 13秒前
+- 前回: cleanup commit 自動デプロイ実行
+- 検証: ✅ テスト実行で auto-deploy 確認済み
+
+**詳細:** [CI-CD-PIPELINE.md](./CI-CD-PIPELINE.md) を参照
 
 ---
 
@@ -306,6 +348,30 @@ on:
 - `ECS_CLUSTER`: animalekarte-test-cluster
 - `ECS_SERVICE`: animalekarte-test-service
 - `ECS_TASK_DEFINITION`: animalekarte-test-api
+
+---
+
+---
+
+## AWS OIDC 設定（2026-03-04 修正）
+
+### 修正内容
+
+GitHub Actions の AWS OIDC 認証がリポジトリ名の不一致で失敗していました。
+
+**修正前:**
+```json
+"token.actions.githubusercontent.com:sub": "repo:minoru-nakamura/AnimalEkarte:*"  // ❌ 間違ったオーナー
+```
+
+**修正後:**
+```json
+"token.actions.githubusercontent.com:sub": "repo:MinoruSoga/AnimalEkarte:ref:refs/heads/main"  // ✅ 正しいオーナー
+```
+
+**修正対象:** IAM Role `animalekarte-test-github-ecs-deploy-role`
+
+**結果:** AWS OIDC 認証成功 → Backend 自動デプロイ完全稼働
 
 ---
 
