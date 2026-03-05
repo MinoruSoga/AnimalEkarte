@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useGetTrimmings } from "../api";
+import { useGetTrimmings, useDeleteTrimming } from "../api";
 
 interface DateRange {
   from: string;
@@ -8,6 +8,7 @@ interface DateRange {
 
 export function useTrimmingRecords(searchTerm: string, dateRange: DateRange) {
   const { data = [], isLoading, error } = useGetTrimmings();
+  const deleteMutation = useDeleteTrimming();
 
   const filteredRecords = useMemo(() => {
     return data.filter((r) => {
@@ -26,5 +27,9 @@ export function useTrimmingRecords(searchTerm: string, dateRange: DateRange) {
     });
   }, [data, searchTerm, dateRange]);
 
-  return { data: filteredRecords, isLoading, error };
+  const deleteRecord = (id: string) => {
+    deleteMutation.mutate(id);
+  };
+
+  return { data: filteredRecords, isLoading, error, deleteRecord };
 }

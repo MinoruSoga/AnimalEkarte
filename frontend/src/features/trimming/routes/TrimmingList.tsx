@@ -3,19 +3,25 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 
 // External
-import { Plus, Scissors, Calendar } from "lucide-react";
+import { Plus, Scissors, AlertTriangle, Edit, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 // Internal
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable, DataTableRow } from "@/components/shared/DataTable";
 import { PrimaryButton } from "@/components/shared/Form";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { RowActionButton } from "@/components/shared/RowActionButton";
+import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
+import { Pagination } from "@/components/shared/Pagination";
 import { getTrimmingStatusColor } from "@/utils/status-helpers";
+import { usePagination } from "@/hooks/usePagination";
+import { useStaffValidation } from "@/hooks/useStaffValidation";
+import type { TrimmingRecord } from "@/types";
 
 // Relative
 import { useTrimmingRecords } from "../hooks/useTrimmingRecords";
@@ -24,7 +30,24 @@ export const TrimmingList = () => {
   const navigate = useNavigate();
   const [searchDate, setSearchDate] = useState({ from: "", to: "" });
   const [searchKeyword, setSearchKeyword] = useState("");
-  const { data: filteredRecords } = useTrimmingRecords(searchKeyword, searchDate);
+  const { data: filteredRecords, deleteRecord } = useTrimmingRecords(searchKeyword, searchDate);
+  const { isValidStaff } = useStaffValidation();
+
+  // Pagination
+  const {
+    currentPage,
+    pageSize,
+    paginatedData,
+    totalPages,
+    startIndex,
+    endIndex,
+    goToPage,
+    prevPage,
+    nextPage,
+  } = usePagination(filteredRecords, { pageSize: 10 });
+
+  // Delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
 
   const handleClear = () => {
     setSearchDate({ from: "", to: "" });
@@ -32,7 +55,22 @@ export const TrimmingList = () => {
   };
 
   const handleEdit = (id: string) => {
-    navigate(`/trimming/${id}`);
+    navigate(`/trimming/${id}`, { state: { from: "/trimming" } });
+  };
+
+  const handleDeleteClick = (record: TrimmingRecord) => {
+    setDeleteTarget({
+      id: record.id,
+      label: `${record.ownerName} - ${record.petName}`,
+    });
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deleteTarget) {
+      deleteRecord(deleteTarget.id);
+      toast.success("削除しました", { description: deleteTarget.label });
+      setDeleteTarget(null);
+    }
   };
 
   const handleNew = () => {
@@ -66,82 +104,118 @@ export const TrimmingList = () => {
       <div className="flex flex-col gap-4">
         {/* Filters */}
         <SearchFilterBar
-            searchTerm={searchKeyword}
-            onSearchChange={setSearchKeyword}
-            placeholder="飼主名、ペット名..."
-            count={filteredRecords.length}
+          searchTerm={searchKeyword}
+          onSearchChange={setSearchKeyword}
+          placeholder="飼主名、ペット名..."
+          count={filteredRecords.length}
         >
-            <div className="flex items-center gap-2 w-full lg:w-auto">
-                <div className="relative flex-1 lg:flex-none">
-                    <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                    <Input
-                        type="date"
-                        value={searchDate.from}
-                        onChange={(e) =>
-                        setSearchDate({ ...searchDate, from: e.target.value })
-                        }
-                        className="pl-9 w-full lg:w-[140px] bg-white h-10 text-sm"
-                    />
-                </div>
-                <span className="text-muted-foreground text-sm">〜</span>
-                <div className="relative flex-1 lg:flex-none">
-                    <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                    <Input
-                        type="date"
-                        value={searchDate.to}
-                        onChange={(e) =>
-                        setSearchDate({ ...searchDate, to: e.target.value })
-                        }
-                        className="pl-9 w-full lg:w-[140px] bg-white h-10 text-sm"
-                    />
-                </div>
-                <Button
-                    variant="outline"
-                    onClick={handleClear}
-                    className="text-[#37352F] h-10 text-sm px-4 ml-2"
-                >
-                    クリア
-                </Button>
+          <div className="flex items-center gap-2 w-full lg:w-auto flex-wrap">
+            <div className="flex-1 lg:flex-none">
+              <NotionDatePicker
+                value={searchDate.from}
+                onChange={(val) => setSearchDate({ ...searchDate, from: val })}
+                placeholder="開始日"
+              />
             </div>
+            <span className="text-muted-foreground text-sm shrink-0">〜</span>
+            <div className="flex-1 lg:flex-none">
+              <NotionDatePicker
+                value={searchDate.to}
+                onChange={(val) => setSearchDate({ ...searchDate, to: val })}
+                placeholder="終了日"
+              />
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleClear}
+              className="text-[#37352F] h-10 text-sm px-4 ml-2 border-[rgba(55,53,47,0.16)] hover:bg-[#F7F6F3]"
+            >
+              クリア
+            </Button>
+          </div>
         </SearchFilterBar>
 
         {/* Table */}
         <DataTable
-            columns={columns}
-            data={filteredRecords}
-            renderRow={(record) => (
-                <DataTableRow 
-                key={record.id}
-                onClick={() => handleEdit(record.id)}
-                >
-                <TableCell className="font-mono text-sm text-[#37352F] py-2">
-                    {record.date}
-                </TableCell>
-                <TableCell className="text-sm text-[#37352F] py-2">{record.ownerName}</TableCell>
-                <TableCell className="py-2">
-                    <div className="flex flex-col">
-                    <span className="text-sm text-[#37352F]">{record.petName}</span>
-                    <span className="text-sm text-[#37352F]/60">{record.petNumber}</span>
-                    </div>
-                </TableCell>
-                <TableCell className="text-sm text-[#37352F] py-2">{record.species}</TableCell>
-                <TableCell className="text-sm text-[#37352F] py-2">{record.weight}</TableCell>
-                <TableCell className="text-sm text-[#37352F] truncate max-w-[200px] py-2">
-                    {record.styleRequest}
-                </TableCell>
-                <TableCell className="text-sm text-[#37352F] py-2">{record.staff}</TableCell>
-                <TableCell className="py-2">
-                    <StatusBadge colorClass={getTrimmingStatusColor(record.status)}>
-                        {record.status}
-                    </StatusBadge>
-                </TableCell>
-                <TableCell className="text-right py-2">
-                    <RowActionButton onClick={() => handleEdit(record.id)} />
-                </TableCell>
-                </DataTableRow>
-            )}
+          columns={columns}
+          data={paginatedData}
+          renderRow={(record) => (
+            <DataTableRow
+              key={record.id}
+              onClick={() => handleEdit(record.id)}
+            >
+              <TableCell className="font-mono text-sm text-[#37352F] py-2">
+                {record.date}
+              </TableCell>
+              <TableCell className="text-sm text-[#37352F] py-2">{record.ownerName}</TableCell>
+              <TableCell className="py-2">
+                <div className="flex flex-col">
+                  <span className="text-sm text-[#37352F]">{record.petName}</span>
+                  <span className="text-sm text-[#37352F]/60">{record.petNumber}</span>
+                </div>
+              </TableCell>
+              <TableCell className="text-sm text-[#37352F] py-2">{record.species}</TableCell>
+              <TableCell className="text-sm text-[#37352F] py-2">{record.weight}</TableCell>
+              <TableCell className="text-sm text-[#37352F] truncate max-w-[200px] py-2">
+                {record.styleRequest}
+              </TableCell>
+              <TableCell className="text-sm text-[#37352F] py-2">
+                <div className="flex items-center gap-1.5">
+                  {!isValidStaff(record.staff) && (
+                    <AlertTriangle className="size-4 text-amber-500" />
+                  )}
+                  {record.staff}
+                </div>
+              </TableCell>
+              <TableCell className="py-2">
+                <StatusBadge colorClass={getTrimmingStatusColor(record.status)}>
+                  {record.status}
+                </StatusBadge>
+              </TableCell>
+              <TableCell className="text-right py-2">
+                <RowActionDropdown
+                  actions={[
+                    {
+                      label: "編集",
+                      icon: Edit,
+                      onClick: () => handleEdit(record.id),
+                    },
+                    {
+                      label: "削除",
+                      icon: Trash2,
+                      variant: "destructive",
+                      onClick: () => handleDeleteClick(record),
+                    },
+                  ]}
+                />
+              </TableCell>
+            </DataTableRow>
+          )}
+        />
+
+        {/* Pagination */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalCount={filteredRecords.length}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          onPageChange={goToPage}
+          onPrev={prevPage}
+          onNext={nextPage}
         />
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="削除確認"
+        description={`${deleteTarget?.label} を削除してもよろしいですか？`}
+        confirmLabel="削除"
+        variant="destructive"
+        onConfirm={handleDeleteConfirm}
+      />
     </PageLayout>
   );
-}
+};

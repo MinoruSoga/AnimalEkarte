@@ -7,6 +7,7 @@ import {
   useGetTrimming,
   useCreateTrimming,
   useUpdateTrimming,
+  useDeleteTrimming,
 } from "../api";
 import type { CreateTrimmingRequest, UpdateTrimmingRequest } from "../api";
 
@@ -38,6 +39,7 @@ export interface TrimmingFormData {
   // New fields for Master Selection
   courseId: string;
   optionIds: string[];
+  staffName: string;
 }
 
 const defaultFormData: TrimmingFormData = {
@@ -66,6 +68,7 @@ const defaultFormData: TrimmingFormData = {
   completedImage: null,
   courseId: "",
   optionIds: [],
+  staffName: "",
 };
 
 export function useTrimmingForm(id?: string) {
@@ -85,6 +88,7 @@ export function useTrimmingForm(id?: string) {
   );
   const createMutation = useCreateTrimming();
   const updateMutation = useUpdateTrimming();
+  const deleteMutation = useDeleteTrimming();
 
   // Local overrides applied on top of server data (tracks user edits in edit mode)
   const [localOverrides, setLocalOverrides] = useState<
@@ -102,7 +106,7 @@ export function useTrimmingForm(id?: string) {
       : { ...defaultFormData, ...localOverrides };
 
   const setFormData = (next: Partial<TrimmingFormData>) => {
-    setLocalOverrides(next);
+    setLocalOverrides((prev) => ({ ...prev, ...next }));
   };
 
   const [styleImagePreview, setStyleImagePreview] = useState<string | null>(
@@ -159,7 +163,18 @@ export function useTrimmingForm(id?: string) {
     setCompletedImagePreview(null);
   };
 
-  const handleSave = () => {
+  const handleDelete = (onSuccess?: () => void) => {
+    if (isEdit && id) {
+      deleteMutation.mutate(id, {
+        onSuccess: () => {
+          toast.success("トリミング情報を削除しました");
+          onSuccess?.();
+        },
+      });
+    }
+  };
+
+  const handleSave = (): boolean => {
     const redirectPath: string =
       typeof location.state?.from === "string"
         ? location.state.from
@@ -181,7 +196,7 @@ export function useTrimmingForm(id?: string) {
       );
     } else {
       const pet = selectedPets[0];
-      if (!pet) return;
+      if (!pet) return false;
       const req: CreateTrimmingRequest = {
         pet_id: pet.id,
         owner_id: pet.ownerId,
@@ -198,9 +213,11 @@ export function useTrimmingForm(id?: string) {
         },
       });
     }
+    return true;
   };
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isDeleting = deleteMutation.isPending;
   const mode = isEdit ? ("edit" as const) : ("new" as const);
 
   return {
@@ -215,6 +232,8 @@ export function useTrimmingForm(id?: string) {
     removeStyleImage,
     removeCompletedImage,
     handleSave,
+    handleDelete,
     isSaving,
+    isDeleting,
   };
 }

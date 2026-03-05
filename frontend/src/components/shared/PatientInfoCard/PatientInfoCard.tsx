@@ -19,6 +19,7 @@ interface PatientInfoCardProps {
   insuranceDetails?: string; // e.g. "普通or危険"
   nextVisitDate?: string; // e.g. "2025/10/10"
   nextVisitContent?: string; // e.g. "ノミ予防"
+  onStaffClick?: () => void; // Optional callback when staff button is clicked
 }
 
 export function PatientInfoCard({
@@ -35,6 +36,7 @@ export function PatientInfoCard({
   insuranceDetails = "普通or危険",
   nextVisitDate = "2025/10/10",
   nextVisitContent = "ノミ予防",
+  onStaffClick,
 }: PatientInfoCardProps) {
   return (
     <div className="sticky top-0 z-10 bg-white px-3 py-1.5 border-b border-[rgba(55,53,47,0.16)]">
@@ -93,7 +95,12 @@ export function PatientInfoCard({
             <Button variant="outline" size="sm" className="h-10 text-sm font-normal bg-white hover:bg-gray-50 px-2">
                 +生体情報
             </Button>
-            <Button size="sm" className="h-10 bg-[#37352F] hover:bg-[#37352F]/90 text-white text-sm gap-1 px-2">
+            <Button
+              size="sm"
+              className={`h-10 bg-[#37352F] hover:bg-[#37352F]/90 text-white text-sm gap-1 px-2 ${onStaffClick ? 'cursor-pointer' : ''}`}
+              onClick={onStaffClick}
+            >
+                {onStaffClick && <ChevronDown className="size-3.5" />}
                 {staffLabel ? `${staffLabel}${staffName}` : staffName}
             </Button>
         </div>
