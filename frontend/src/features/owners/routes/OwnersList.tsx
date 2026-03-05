@@ -25,7 +25,7 @@ import { deleteOwner } from "../api";
 // Types
 import type { OwnersLoaderData } from "../loaders";
 
-export const OwnersList = () => {
+export function OwnersList() {
   const navigate = useNavigate();
   const { pets } = useLoaderData<OwnersLoaderData>();
   const [searchTerm, setSearchTerm] = useState("");
@@ -211,4 +211,4 @@ export const OwnersList = () => {
       />
     </PageLayout>
   );
-};
+}

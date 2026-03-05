@@ -8,7 +8,8 @@ import { toast } from "sonner";
 // Internal
 import { getOwner, createOwner, updateOwner, deleteOwner } from "../api";
 import { CreateOwnerRequest, UpdateOwnerRequest } from "@/types/owner";
-import { OwnerData, PetInfo, MembershipType } from "../types";
+import { OwnerData, PetInfo, MembershipType, INSURANCE_COMPANY_VALUES, PET_INSURANCE_RATIO_VALUES } from "../types";
+import { isOneOf } from "@/lib/type-utils";
 
 export function useOwnerForm(id?: string) {
   const navigate = useNavigate();
@@ -87,11 +88,11 @@ export function useOwnerForm(id?: string) {
                 environment: p.environment || "",
                 remarks: p.remarks || "",
               };
-              if (p.insuranceName) {
-                petInfo.insuranceName = p.insuranceName as any;
+              if (p.insuranceName && isOneOf(p.insuranceName, INSURANCE_COMPANY_VALUES)) {
+                petInfo.insuranceName = p.insuranceName;
               }
-              if (p.insuranceDetails) {
-                petInfo.insuranceDetails = p.insuranceDetails as any;
+              if (p.insuranceDetails && isOneOf(p.insuranceDetails, PET_INSURANCE_RATIO_VALUES)) {
+                petInfo.insuranceDetails = p.insuranceDetails;
               }
               return petInfo;
             })

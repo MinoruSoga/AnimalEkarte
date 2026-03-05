@@ -16,7 +16,6 @@ import {
   CreditCard,
   Trash2,
 } from "lucide-react";
-import { toast } from "sonner";
 
 // Internal
 import { Button } from "@/components/ui/button";
@@ -51,7 +50,7 @@ import { PetEditModal } from "../components/PetEditModal";
 import { useOwnerForm } from "../hooks/useOwnerForm";
 import { MEMBERSHIP_TYPE_VALUES } from "../types";
 
-export const OwnerForm = () => {
+export function OwnerForm() {
   const navigate = useNavigate();
   const { id: ownerId } = useParams();
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
