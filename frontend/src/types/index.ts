@@ -288,3 +288,7 @@ export interface InventoryItem {
   lastRestocked?: string;
   status: "sufficient" | "low" | "out_of_stock";
 }
+
+// Sorting Types
+export const SORT_ORDER_VALUES = ["desc", "asc"] as const;
+export type SortOrder = (typeof SORT_ORDER_VALUES)[number];

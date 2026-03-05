@@ -1,4 +1,4 @@
-import type { Hospitalization, InventoryItem, MedicalRecord, ReservationStatus } from "@/types";
+import type { Hospitalization, InventoryItem, MedicalRecord, ReservationStatus, SortOrder } from "@/types";
 import { RESERVATION_STATUS_LABELS } from "@/types";
 
 export const getMedicalRecordStatusColor = (status: MedicalRecord["status"]) => {
@@ -175,3 +175,7 @@ export const getCalendarViewLabel = (view: string): string => {
 export const getReservationStatusLabel = (status: ReservationStatus): string => {
   return RESERVATION_STATUS_LABELS[status] ?? status;
 };
+
+export function getSortOrderLabel(order: SortOrder): string {
+  return order === "desc" ? "新→古" : "古→新";
+}
