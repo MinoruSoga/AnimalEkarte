@@ -1,5 +1,5 @@
 // React/Framework
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // External
 import { Plus, Settings as SettingsIcon, Save, Trash2, Package } from "lucide-react";
@@ -101,15 +101,13 @@ export const Settings = ({ category: propCategory }: SettingsPageProps) => {
 
   const labels = getLabels(category);
 
-  // Reset editing state when category changes (render-time state derivation)
-  const [prevCategory, setPrevCategory] = useState(category);
-  if (category !== prevCategory) {
-    setPrevCategory(category);
+  // Reset editing state when category changes
+  useEffect(() => {
     setIsEditing(false);
     setSelectedItem(null);
     setSearchTerm("");
     setFormData({});
-  }
+  }, [category]);
 
   const handleEdit = (item: MasterItem) => {
     setSelectedItem(item);

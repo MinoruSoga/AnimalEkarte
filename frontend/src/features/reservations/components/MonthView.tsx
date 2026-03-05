@@ -60,16 +60,24 @@ export const MonthView = ({ currentDate, appointments, onAppointmentClick }: Mon
           </div>
           <div className="space-y-1.5 flex-1 overflow-hidden">
               {dayAppointments.slice(0, 4).map(app => (
-                  <div 
-                      key={app.id} 
-                      className={`text-sm px-2 py-1.5 rounded border ${getReservationTypeColor(app.type)} truncate cursor-pointer hover:opacity-80 leading-tight`}
+                  <div
+                      key={app.id}
+                      className={`text-sm px-2 py-1.5 rounded border ${getReservationTypeColor(app.type)} cursor-pointer hover:opacity-80 leading-tight`}
                       onClick={(e) => {
                           e.stopPropagation();
                           onAppointmentClick(app);
                       }}
                   >
-                      <span className="font-bold mr-1.5">{format(app.start, "H:mm")}</span>
-                      {app.petName}
+                      <div className="flex items-center gap-1 min-w-0">
+                          {app.visitType === "first"
+                              ? <span className="bg-red-100 text-red-600 text-[10px] px-1 rounded flex-shrink-0">初</span>
+                              : <span className="bg-blue-100 text-blue-600 text-[10px] px-1 rounded flex-shrink-0">再</span>
+                          }
+                          <span className="truncate text-xs font-medium">{app.petName}</span>
+                      </div>
+                      <div className="text-[11px] opacity-70 truncate mt-0.5">
+                          {app.ownerName}{app.doctor ? ` / ${app.doctor}` : ""}
+                      </div>
                   </div>
               ))}
               {dayAppointments.length > 4 && (

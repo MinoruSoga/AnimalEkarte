@@ -29,7 +29,7 @@ export const ClinicSettings = () => {
     if (!loading) {
       reset(clinicInfo);
     }
-  }, [clinicInfo, loading, reset]);
+  }, [loading, reset]);
 
   const onSubmit = (data: ClinicInfo) => {
     updateClinicInfo(data);

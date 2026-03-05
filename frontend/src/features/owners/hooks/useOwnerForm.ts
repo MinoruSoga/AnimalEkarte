@@ -7,6 +7,8 @@ import { toast } from "sonner";
 
 // Internal
 import { getOwner, createOwner, updateOwner, deleteOwner } from "../api";
+import { useCreatePet, useUpdatePet, useDeletePet } from "@/features/pets/api";
+import { transformCreatePetRequest, transformUpdatePetRequest } from "@/features/pets/api/transforms";
 import { CreateOwnerRequest, UpdateOwnerRequest } from "@/types/owner";
 import { OwnerData, PetInfo, MembershipType, INSURANCE_COMPANY_VALUES, PET_INSURANCE_RATIO_VALUES } from "../types";
 import { isOneOf } from "@/lib/type-utils";
@@ -16,6 +18,11 @@ export function useOwnerForm(id?: string) {
   const isEdit = !!id;
   // Initialize isLoading based on id presence (for async fetch on mount)
   const [isLoading, setIsLoading] = useState(!!id);
+
+  // Pet API mutations
+  const { mutate: createPetMutate } = useCreatePet();
+  const { mutate: updatePetMutate } = useUpdatePet();
+  const { mutate: deletePetMutate } = useDeletePet();
 
   const [ownerData, setOwnerData] = useState<OwnerData>({
     ownerId: "",
@@ -121,36 +128,101 @@ export function useOwnerForm(id?: string) {
     setPetModalOpen(true);
   };
 
-  const handleDeletePet = (id: string) => {
-    setPets(pets.filter((pet) => pet.id !== id));
-    toast.success("ペットを削除しました");
+  const handleDeletePet = (petId: string) => {
+    deletePetMutate(petId, {
+      onSuccess: () => {
+        setPets(pets.filter((pet) => pet.id !== petId));
+        toast.success("ペットを削除しました");
+      },
+      onError: () => {
+        toast.error("ペットの削除に失敗しました");
+      },
+    });
   };
 
   const handleSavePet = (petData: Partial<PetInfo>) => {
     if (editingPet) {
-      // Update existing pet
-      setPets(
-        pets.map((pet) =>
-          pet.id === editingPet.id ? { ...pet, ...petData } : pet
-        )
+      // Update existing pet via API
+      const updateRequest = transformUpdatePetRequest({
+        petNumber: petData.petNumber,
+        name: petData.petName,
+        species: petData.species,
+        gender: petData.gender,
+        birthDate: petData.birthDate,
+        breed: petData.breed,
+        weight: petData.weight,
+        environment: petData.environment,
+        status: petData.status,
+        insuranceName: petData.insuranceName,
+        insuranceDetails: petData.insuranceDetails,
+        notes: petData.remarks,
+      });
+
+      updatePetMutate(
+        { id: editingPet.id, req: updateRequest },
+        {
+          onSuccess: () => {
+            setPets(
+              pets.map((pet) =>
+                pet.id === editingPet.id ? { ...pet, ...petData } : pet
+              )
+            );
+            toast.success("ペット情報を更新しました");
+          },
+          onError: () => {
+            toast.error("ペット情報の更新に失敗しました");
+          },
+        }
       );
     } else {
-      // Add new pet
-      const newPet: PetInfo = {
-        id: Date.now().toString(),
-        petNumber: petData.petNumber || "",
-        petName: petData.petName || "",
-        status: petData.status || "生存",
+      // Add new pet via API (requires owner_id)
+      if (!id) {
+        toast.error("飼主IDが見つかりません");
+        return;
+      }
+
+      const createRequest = transformCreatePetRequest({
+        ownerId: id,
+        name: petData.petName || "",
         species: petData.species || "",
-        gender: petData.gender || "",
-        birthDate: petData.birthDate || "",
-        color: petData.color || "",
-        weight: petData.weight || "",
-        environment: petData.environment || "",
-        remarks: petData.remarks || "",
-        ...petData,
-      };
-      setPets([...pets, newPet]);
+        petNumber: petData.petNumber,
+        breed: petData.breed,
+        gender: petData.gender,
+        birthDate: petData.birthDate,
+        weight: petData.weight,
+        environment: petData.environment,
+        status: petData.status,
+        insuranceName: petData.insuranceName,
+        insuranceDetails: petData.insuranceDetails,
+        notes: petData.remarks,
+      });
+
+      createPetMutate(createRequest, {
+        onSuccess: (newPetData) => {
+          // Transform backend response to frontend PetInfo
+          const newPet: PetInfo = {
+            id: newPetData.id,
+            petNumber: newPetData.petNumber || "",
+            petName: newPetData.name,
+            status: newPetData.status || "生存",
+            species: newPetData.species,
+            gender: newPetData.gender || "",
+            birthDate: newPetData.birthDate || "",
+            color: "", // Not in backend response
+            weight: newPetData.weight || "",
+            environment: newPetData.environment || "",
+            remarks: newPetData.remarks || "",
+            breed: newPetData.breed,
+            insuranceName: newPetData.insuranceName && isOneOf(newPetData.insuranceName, INSURANCE_COMPANY_VALUES) ? newPetData.insuranceName : undefined,
+            insuranceDetails: newPetData.insuranceDetails && isOneOf(newPetData.insuranceDetails, PET_INSURANCE_RATIO_VALUES) ? newPetData.insuranceDetails : undefined,
+          };
+          setPets([...pets, newPet]);
+          toast.success("ペットを追加しました");
+        },
+        onError: () => {
+          toast.error("ペットの追加に失敗しました");
+        },
+      });
     }
   };
 

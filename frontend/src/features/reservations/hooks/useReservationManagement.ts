@@ -1,0 +1,345 @@
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router";
+import { addHours } from "date-fns";
+import { toast } from "sonner";
+
+import { getReservationStatusLabel } from "@/utils/status-helpers";
+import type {
+  ReservationAppointment,
+  ReservationFormData,
+  ReservationStatus,
+  Pet,
+  NavigationState,
+} from "../types";
+import {
+  useGetReservations,
+  useCreateReservation,
+  useUpdateReservation,
+  useDeleteReservation,
+  transformToCreateRequest,
+} from "../api";
+
+/** Maps reservation type → record creation path */
+const RECORD_PATH: Record<string, string> = {
+  "トリミング": "/trimming/new",
+  "入院": "/hospitalization/new",
+  "ホテル": "/hospitalization/new",
+};
+
+/** Maps reservation type → pet-select path */
+const SELECT_PATH: Record<string, string> = {
+  "トリミング": "/trimming/select-pet",
+  "入院": "/hospitalization/select-pet",
+  "ホテル": "/hospitalization/select-pet",
+};
+
+export function useReservationManagement() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const locationState = (location.state ?? {}) as NavigationState;
+
+  // API mutations
+  const { data: appointments = [], isLoading } = useGetReservations();
+  const createMutation = useCreateReservation();
+  const updateMutation = useUpdateReservation();
+  const deleteMutation = useDeleteReservation();
+
+  // Edit/Create Modal State
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<ReservationFormData | null>(null);
+
+  // Detail Modal State
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [detailAppointment, setDetailAppointment] = useState<ReservationAppointment | null>(null);
+
+  // Confirm Dialog State
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ReservationAppointment | null>(null);
+  const [petSelectConfirmOpen, setPetSelectConfirmOpen] = useState(false);
+  const [petSelectPath, setPetSelectPath] = useState("");
+
+  // Check for overlaps
+  const checkOverlap = useCallback(
+    (newStart: Date, newEnd: Date, doctor: string, excludeId?: string): boolean =>
+      appointments.some((app) => {
+        if (excludeId && app.id === excludeId) return false;
+        if (app.status === "cancelled") return false;
+        if (app.doctor !== doctor) return false;
+        return newStart < app.end && newEnd > app.start;
+      }),
+    [appointments]
+  );
+
+  // Open Form Modal (Create or Edit)
+  const handleOpenForm = useCallback((appointment?: ReservationFormData) => {
+    setEditingAppointment(appointment ?? null);
+    setIsFormOpen(true);
+    setIsDetailOpen(false);
+  }, []);
+
+  // Auto-open form when petId is in URL query
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const petId = searchParams.get("petId");
+
+    if (petId && !isFormOpen) {
+      const now = new Date();
+      now.setMinutes(0, 0, 0);
+      const start = addHours(now, 1);
+
+      const stub: ReservationFormData = {
+        start,
+        end: addHours(start, 1),
+        status: "confirmed",
+        visitType: "first",
+        type: "診療",
+        doctor: "医師A",
+        isDesignated: false,
+        petId,
+      };
+      handleOpenForm(stub);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
+
+  // Open Detail Modal
+  const handleOpenDetail = useCallback((appointment: ReservationAppointment) => {
+    setDetailAppointment(appointment);
+    setIsDetailOpen(true);
+  }, []);
+
+  const handleTimeSlotClick = useCallback(
+    (date: Date) => {
+      const stub: ReservationFormData = {
+        start: date,
+        end: addHours(date, 1),
+        status: "confirmed",
+        visitType: "first",
+        type: "診療",
+        doctor: "医師A",
+        isDesignated: false,
+      };
+      handleOpenForm(stub);
+    },
+    [handleOpenForm]
+  );
+
+  const handleCloseForm = useCallback(() => {
+    setIsFormOpen(false);
+    setEditingAppointment(null);
+  }, []);
+
+  const handleCloseDetail = useCallback(() => {
+    setIsDetailOpen(false);
+    setDetailAppointment(null);
+  }, []);
+
+  const handleSave = useCallback(
+    (data: ReservationFormData, selectedPets: Pet[]) => {
+      if (!data.start || !data.end || selectedPets.length === 0) return;
+
+      const targetDoctor = data.doctor || editingAppointment?.doctor || "医師A";
+      const hasOverlap = checkOverlap(data.start, data.end, targetDoctor, editingAppointment?.id);
+
+      if (hasOverlap) {
+        toast.error("指定された時間帯には既に予約が入っています", {
+          description: "時間帯または担当医を変更してください。",
+        });
+        return;
+      }
+
+      if (editingAppointment?.id) {
+        // Edit mode - single update
+        const primaryPet = selectedPets[0];
+        const updatePayload = {
+          id: editingAppointment.id,
+          req: {
+            start_time: data.start.toISOString(),
+            end_time: data.end.toISOString(),
+            visit_type: data.visitType || "first",
+            service_type: data.type || "",
+            doctor_id: targetDoctor,
+            is_designated: data.isDesignated ?? false,
+            status: data.status || ("confirmed" as const),
+            notes: data.notes,
+          },
+        };
+        updateMutation.mutate(updatePayload, {
+          onSuccess: () => {
+            toast.success("予約を更新しました", { description: `担当医: ${targetDoctor}` });
+            handleCloseForm();
+            if (locationState.from) {
+              setTimeout(() => navigate(locationState.from!), 500);
+            }
+          },
+        });
+      } else {
+        // Create mode - create for each pet
+        selectedPets.forEach((pet) => {
+          const createPayload = transformToCreateRequest(data, pet.id, pet.ownerId);
+          createMutation.mutate(createPayload);
+        });
+
+        toast.success("予約を作成しました", {
+          description: `担当医: ${targetDoctor} / ${selectedPets.length}件`,
+        });
+        handleCloseForm();
+
+        if (locationState.from) {
+          setTimeout(() => navigate(locationState.from!), 500);
+        }
+      }
+    },
+    [editingAppointment, checkOverlap, handleCloseForm, locationState.from, navigate, updateMutation, createMutation]
+  );
+
+  const handleAppointmentUpdate = useCallback(
+    (appointment: ReservationAppointment, newStart: Date, newEnd: Date) => {
+      const hasOverlap = checkOverlap(newStart, newEnd, appointment.doctor, appointment.id);
+
+      if (hasOverlap) {
+        toast.error("移動先に予約が重複しています", {
+          description: "別の時間帯にドラッグしてください。",
+        });
+        return;
+      }
+
+      const updatePayload = {
+        id: appointment.id,
+        req: {
+          start_time: newStart.toISOString(),
+          end_time: newEnd.toISOString(),
+          visit_type: appointment.visitType,
+          service_type: appointment.type,
+          doctor_id: appointment.doctor,
+          is_designated: appointment.isDesignated,
+          status: appointment.status,
+          notes: appointment.notes,
+        },
+      };
+
+      updateMutation.mutate(updatePayload, {
+        onSuccess: () => {
+          toast.success("予約時間を変更しました", {
+            description: `${appointment.petName} / ${appointment.doctor}`,
+          });
+        },
+      });
+    },
+    [checkOverlap, updateMutation]
+  );
+
+  // Status Change Handler
+  const handleStatusChange = useCallback(
+    (appointment: ReservationAppointment, status: ReservationStatus) => {
+      const updatePayload = {
+        id: appointment.id,
+        req: {
+          start_time: appointment.start.toISOString(),
+          end_time: appointment.end.toISOString(),
+          visit_type: appointment.visitType,
+          service_type: appointment.type,
+          doctor_id: appointment.doctor,
+          is_designated: appointment.isDesignated,
+          status,
+          notes: appointment.notes,
+        },
+      };
+
+      updateMutation.mutate(updatePayload, {
+        onSuccess: () => {
+          setDetailAppointment((prev) => (prev ? { ...prev, status } : null));
+          const statusLabel = getReservationStatusLabel(status);
+          toast.success("ステータスを更新しました", {
+            description: `${appointment.petName} → ${statusLabel}`,
+          });
+        },
+      });
+    },
+    [updateMutation]
+  );
+
+  // Delete handler
+  const handleDelete = useCallback((appointment: ReservationAppointment) => {
+    setDeleteTarget(appointment);
+    setDeleteConfirmOpen(true);
+  }, []);
+
+  const executeDelete = useCallback(() => {
+    if (deleteTarget) {
+      deleteMutation.mutate(deleteTarget.id, {
+        onSuccess: () => {
+          handleCloseDetail();
+          toast.success("予約を削除しました", {
+            description: `${deleteTarget.petName} (${deleteTarget.ownerName}様)`,
+          });
+        },
+      });
+    }
+    setDeleteConfirmOpen(false);
+    setDeleteTarget(null);
+  }, [deleteTarget, deleteMutation, handleCloseDetail]);
+
+  // Create Record Handler
+  const handleCreateRecord = useCallback(
+    (appointment: ReservationAppointment) => {
+      const targetPath = RECORD_PATH[appointment.type] || "/medical-records/new";
+
+      if (appointment.petId) {
+        navigate(`${targetPath}?petId=${appointment.petId}`, { state: { from: "/reservations" } });
+      } else {
+        const selectPath = SELECT_PATH[appointment.type] || "/medical-records/select-pet";
+        setPetSelectPath(selectPath);
+        setPetSelectConfirmOpen(true);
+      }
+    },
+    [navigate]
+  );
+
+  const handlePetSelectConfirm = useCallback(() => {
+    setPetSelectConfirmOpen(false);
+    navigate(petSelectPath, { state: { from: "/reservations" } });
+  }, [navigate, petSelectPath]);
+
+  const handleDeleteConfirmClose = useCallback(() => {
+    setDeleteConfirmOpen(false);
+    setDeleteTarget(null);
+  }, []);
+
+  return {
+    // Data
+    appointments,
+    isLoading,
+
+    // Form modal
+    isFormOpen,
+    editingAppointment,
+    handleOpenForm,
+    handleCloseForm,
+    handleSave,
+
+    // Detail modal
+    isDetailOpen,
+    detailAppointment,
+    handleOpenDetail,
+    handleCloseDetail,
+    handleStatusChange,
+    handleDelete,
+    handleCreateRecord,
+
+    // Calendar interactions
+    handleTimeSlotClick,
+    handleAppointmentUpdate,
+
+    // Delete confirm
+    deleteConfirmOpen,
+    deleteTarget,
+    executeDelete,
+    handleDeleteConfirmClose,
+
+    // Pet select confirm
+    petSelectConfirmOpen,
+    setPetSelectConfirmOpen,
+    handlePetSelectConfirm,
+  };
+}

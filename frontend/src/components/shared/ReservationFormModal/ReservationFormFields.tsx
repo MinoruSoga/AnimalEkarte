@@ -10,12 +10,46 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useMasterItems } from "@/hooks/use-master-items";
+import { MasterLink } from "@/components/shared/MasterLink";
+import { isOneOf } from "@/lib/type-utils";
 import type { ReservationAppointment } from "@/types";
+
+const TRIGGER_CLASS =
+  "h-9 text-sm bg-white border-[rgba(55,53,47,0.12)] text-[#37352F] hover:bg-[#FAFAF8] transition-colors";
+
+const VISIT_TYPE_VALUES = ["first", "revisit"] as const;
+
+function generateTimeOptions(): string[] {
+  const times: string[] = [];
+  for (let h = 0; h < 24; h++) {
+    times.push(`${h}:00`);
+    times.push(`${h}:30`);
+  }
+  return times;
+}
+
+const TIME_OPTIONS = generateTimeOptions();
+
+interface FieldLabelProps {
+  children: React.ReactNode;
+  trailing?: React.ReactNode;
+}
+
+function FieldLabel({ children, trailing }: FieldLabelProps) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <Label className="text-[12px] text-[#37352F]/40 tracking-wide font-medium">
+        {children}
+      </Label>
+      {trailing && <div>{trailing}</div>}
+    </div>
+  );
+}
 
 interface ReservationFormFieldsProps {
   formData: Partial<ReservationAppointment>;
@@ -30,15 +64,16 @@ export const ReservationFormFields = ({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      {/* Date + Time Group */}
+      <div className="rounded-lg border bg-[#FAFAF8] p-3 space-y-3 border-[rgba(55,53,47,0.12)]">
         <div className="space-y-1.5">
-          <Label className="text-sm text-[#37352F]/60">日付</Label>
+          <FieldLabel>日付</FieldLabel>
           <Popover>
             <PopoverTrigger asChild>
               <button
                 type="button"
                 className={cn(
-                  "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 border-[rgba(55,53,47,0.16)] text-[#37352F]",
+                  "flex h-9 w-full items-center justify-between rounded border px-3 py-1 text-sm transition-colors border-[rgba(55,53,47,0.12)] text-[#37352F] bg-white hover:bg-[#FAFAF8]",
                   !formData.start && "text-muted-foreground"
                 )}
               >
@@ -77,7 +112,10 @@ export const ReservationFormFields = ({
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-sm text-[#37352F]/60">時間</Label>
+          <div className="flex items-center gap-2 text-[12px] text-[#37352F]/40 tracking-wide font-medium">
+            <Clock className="h-3.5 w-3.5" />
+            時間
+          </div>
           <div className="flex items-center gap-2">
             <Select
               value={formData.start ? format(formData.start, "H:mm") : "10:00"}
@@ -89,23 +127,18 @@ export const ReservationFormFields = ({
                 onChange({ ...formData, start: newStart });
               }}
             >
-              <SelectTrigger className="h-10 text-sm bg-white border-[rgba(55,53,47,0.16)] text-[#37352F]">
+              <SelectTrigger className={TRIGGER_CLASS}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="max-h-[200px]">
-                {Array.from({ length: 48 }).map((_, i) => {
-                  const h = Math.floor(i / 2);
-                  const m = i % 2 === 0 ? "00" : "30";
-                  const time = `${h}:${m}`;
-                  return (
-                    <SelectItem key={time} value={time}>
-                      {time}
-                    </SelectItem>
-                  );
-                })}
+                {TIME_OPTIONS.map((time) => (
+                  <SelectItem key={time} value={time}>
+                    {time}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <span className="text-sm text-[#37352F]">〜</span>
+            <ArrowRight className="h-4 w-4 text-[#37352F]/40 flex-shrink-0" />
             <Select
               value={formData.end ? format(formData.end, "H:mm") : "11:00"}
               onValueChange={(v) => {
@@ -116,20 +149,15 @@ export const ReservationFormFields = ({
                 onChange({ ...formData, end: newEnd });
               }}
             >
-              <SelectTrigger className="h-10 text-sm bg-white border-[rgba(55,53,47,0.16)] text-[#37352F]">
+              <SelectTrigger className={TRIGGER_CLASS}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="max-h-[200px]">
-                {Array.from({ length: 48 }).map((_, i) => {
-                  const h = Math.floor(i / 2);
-                  const m = i % 2 === 0 ? "00" : "30";
-                  const time = `${h}:${m}`;
-                  return (
-                    <SelectItem key={time} value={time}>
-                      {time}
-                    </SelectItem>
-                  );
-                })}
+                {TIME_OPTIONS.map((time) => (
+                  <SelectItem key={time} value={time}>
+                    {time}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -138,13 +166,23 @@ export const ReservationFormFields = ({
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label className="text-sm text-[#37352F]/60">予約区分</Label>
+          <FieldLabel
+            trailing={
+              <MasterLink
+                category="serviceType"
+                label="編集"
+                className="text-[11px]"
+              />
+            }
+          >
+            予約区分
+          </FieldLabel>
           <Select
-            value={formData.type}
+            value={formData.type || ""}
             onValueChange={(v: string) => onChange({ ...formData, type: v })}
           >
-            <SelectTrigger className="h-10 text-sm bg-white border-[rgba(55,53,47,0.16)] text-[#37352F]">
-              <SelectValue />
+            <SelectTrigger className={TRIGGER_CLASS}>
+              <SelectValue placeholder="選択してください" />
             </SelectTrigger>
             <SelectContent>
               {serviceTypes.map((item) => (
@@ -156,32 +194,66 @@ export const ReservationFormFields = ({
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label className="text-sm text-[#37352F]/60">初診/再診</Label>
+          <FieldLabel>初診/再診</FieldLabel>
           <RadioGroup
-            value={formData.visitType}
-            onValueChange={(v: "first" | "revisit") => onChange({ ...formData, visitType: v })}
-            className="flex gap-4 pt-1"
+            value={formData.visitType || ""}
+            onValueChange={(v: string) => {
+              if (isOneOf(v, VISIT_TYPE_VALUES)) {
+                onChange({ ...formData, visitType: v });
+              }
+            }}
+            className="flex gap-2 pt-1"
           >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="first" id="first" className="text-[#37352F]" />
-              <Label htmlFor="first" className="text-sm text-[#37352F] cursor-pointer">初診</Label>
+            <div className="flex-1">
+              <RadioGroupItem value="first" id="first" className="sr-only" />
+              <Label
+                htmlFor="first"
+                className={cn(
+                  "block h-9 rounded-full border-2 px-3 py-1.5 text-center text-sm font-medium cursor-pointer transition-colors text-[#37352F]",
+                  formData.visitType === "first"
+                    ? "border-red-600 bg-red-50"
+                    : "border-[rgba(55,53,47,0.12)] bg-white hover:bg-[#FAFAF8]"
+                )}
+              >
+                初診
+              </Label>
             </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="revisit" id="revisit" className="text-[#37352F]" />
-              <Label htmlFor="revisit" className="text-sm text-[#37352F] cursor-pointer">再診</Label>
+            <div className="flex-1">
+              <RadioGroupItem value="revisit" id="revisit" className="sr-only" />
+              <Label
+                htmlFor="revisit"
+                className={cn(
+                  "block h-9 rounded-full border-2 px-3 py-1.5 text-center text-sm font-medium cursor-pointer transition-colors text-[#37352F]",
+                  formData.visitType === "revisit"
+                    ? "border-blue-600 bg-blue-50"
+                    : "border-[rgba(55,53,47,0.12)] bg-white hover:bg-[#FAFAF8]"
+                )}
+              >
+                再診
+              </Label>
             </div>
           </RadioGroup>
         </div>
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-sm text-[#37352F]/60">担当者</Label>
+        <FieldLabel
+          trailing={
+            <MasterLink
+              category="staff"
+              label="編集"
+              className="text-[11px]"
+            />
+          }
+        >
+          担当者
+        </FieldLabel>
         <Select
-          value={formData.doctor}
+          value={formData.doctor || ""}
           onValueChange={(v) => onChange({ ...formData, doctor: v })}
         >
-          <SelectTrigger className="h-10 text-sm bg-white border-[rgba(55,53,47,0.16)] text-[#37352F]">
-            <SelectValue placeholder="担当者を選択" />
+          <SelectTrigger className={TRIGGER_CLASS}>
+            <SelectValue placeholder="選択してください" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="医師A">医師A</SelectItem>
@@ -192,12 +264,12 @@ export const ReservationFormFields = ({
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-sm text-[#37352F]/60">メモ</Label>
+        <FieldLabel>メモ</FieldLabel>
         <Textarea
           value={formData.notes || ""}
           onChange={(e) => onChange({ ...formData, notes: e.target.value })}
           placeholder="詳細や備考を入力..."
-          className="min-h-[80px] text-sm resize-none bg-white border-[rgba(55,53,47,0.16)] text-[#37352F]"
+          className="min-h-[80px] text-sm resize-none bg-white border-[rgba(55,53,47,0.16)] text-[#37352F] placeholder:text-[#37352F]/25 focus-visible:ring-[rgba(55,53,47,0.16)]"
         />
       </div>
     </div>

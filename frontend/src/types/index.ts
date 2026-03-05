@@ -173,6 +173,34 @@ export interface ReservationAppointment {
   petId?: string;
 }
 
+export type ReservationStatus = ReservationAppointment["status"];
+export type VisitType = "first" | "revisit";
+export type CalendarView = "month" | "week";
+export type ReservationType = string;
+export type NavigationState = { from?: string };
+
+export const CALENDAR_VIEW_VALUES = ["month", "week"] as const;
+export const RESERVATION_STATUS_VALUES = [
+  "confirmed",
+  "pending",
+  "checked_in",
+  "in_consultation",
+  "accounting",
+  "completed",
+  "cancelled",
+] as const;
+export const RESERVATION_STATUS_LABELS: Record<ReservationStatus, string> = {
+  confirmed: "予約確定",
+  pending: "仮予約",
+  canceled: "キャンセル",
+  checked_in: "受付済",
+  in_consultation: "診療中",
+  accounting: "会計待ち",
+  completed: "完了",
+  cancelled: "キャンセル",
+};
+export const RESERVATION_TYPE_VALUES = ["診療", "検診", "手術", "トリミング", "ワクチン", "入院"] as const;
+
 // Trimming Types
 export interface TrimmingRecord {
   id: string;

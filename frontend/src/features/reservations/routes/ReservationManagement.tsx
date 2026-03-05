@@ -1,19 +1,8 @@
-// React/Framework
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router";
-
-// External
-import {
-  ChevronLeft,
-  ChevronRight,
-  Calendar as CalendarIcon,
-  Plus
-} from "lucide-react";
-import { format, addWeeks, subWeeks, addMonths, subMonths, addHours } from "date-fns";
+import { useState } from "react";
+import { format } from "date-fns";
 import { ja } from "date-fns/locale";
-import { toast } from "sonner";
+import { addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
 
-// Internal
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -22,362 +11,182 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FormHeader } from "@/components/shared/Form";
-
-// Shared
-import { ReservationFormModal } from "@/components/shared/ReservationFormModal";
-
-// Relative
-import { ReservationDetailModal } from "../components/ReservationDetailModal";
+import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Stethoscope } from "lucide-react";
+import { FormHeader, PrimaryButton } from "@/components/shared/Form";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { getCalendarViewLabel, getReservationTypeColor } from "@/utils/status-helpers";
+import { typedSetter } from "@/lib/type-utils";
+import type { CalendarView } from "../types";
+import { CALENDAR_VIEW_VALUES, RESERVATION_TYPE_VALUES } from "../types";
 import { MonthView } from "../components/MonthView";
 import { WeekView } from "../components/WeekView";
-import {
-  useGetReservations,
-  useCreateReservation,
-  useUpdateReservation,
-  useDeleteReservation,
-  transformToCreateRequest,
-} from "../api";
+import { ReservationFormModal } from "@/components/shared/ReservationFormModal";
+import { ReservationDetailModal } from "../components/ReservationDetailModal";
+import { useReservationManagement } from "../hooks/useReservationManagement";
 
-// Types
-import type { ReservationAppointment, Pet } from "@/types";
-import type { UpdateReservationRequest } from "../api";
+/** Navigation step per calendar view */
+const VIEW_NAV_PREV: Record<CalendarView, (d: Date) => Date> = {
+  month: (d) => subMonths(d, 1),
+  week: (d) => subWeeks(d, 1),
+};
+const VIEW_NAV_NEXT: Record<CalendarView, (d: Date) => Date> = {
+  month: (d) => addMonths(d, 1),
+  week: (d) => addWeeks(d, 1),
+};
 
 export const ReservationManagement = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [view, setView] = useState<"month" | "week">("week");
+  const [view, setView] = useState<CalendarView>("week");
+  const [doctorFilter, setDoctorFilter] = useState("all");
 
-  // API hooks
-  const { data: appointments = [], isLoading } = useGetReservations();
-  const createReservationMutation = useCreateReservation();
-  const updateReservationMutation = useUpdateReservation();
-  const deleteReservationMutation = useDeleteReservation();
+  const {
+    appointments,
+    isLoading,
+    isFormOpen,
+    editingAppointment,
+    handleOpenForm,
+    handleCloseForm,
+    handleSave,
+    isDetailOpen,
+    detailAppointment,
+    handleOpenDetail,
+    handleCloseDetail,
+    handleStatusChange,
+    handleDelete,
+    handleCreateRecord,
+    handleTimeSlotClick,
+    handleAppointmentUpdate,
+    deleteConfirmOpen,
+    deleteTarget,
+    executeDelete,
+    handleDeleteConfirmClose,
+    petSelectConfirmOpen,
+    setPetSelectConfirmOpen,
+    handlePetSelectConfirm,
+  } = useReservationManagement();
 
-  // Edit/Create Modal State
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingAppointment, setEditingAppointment] = useState<Partial<ReservationAppointment> | null>(null);
+  /** Unique doctor names derived from current appointments */
+  const doctorNames = Array.from(
+    new Set(appointments.map((a) => a.doctor).filter(Boolean))
+  ).sort();
 
-  // Detail Modal State
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [detailAppointment, setDetailAppointment] = useState<ReservationAppointment | null>(null);
+  /** Filtered appointments */
+  const filteredAppointments =
+    doctorFilter === "all"
+      ? appointments
+      : appointments.filter((a) => a.doctor === doctorFilter);
 
   const navigateToday = () => setCurrentDate(new Date());
+  const navigatePrevious = () => setCurrentDate(VIEW_NAV_PREV[view](currentDate));
+  const navigateNext = () => setCurrentDate(VIEW_NAV_NEXT[view](currentDate));
 
-  const navigatePrevious = () => {
-    if (view === "month") {
-      setCurrentDate(subMonths(currentDate, 1));
-    } else {
-      setCurrentDate(subWeeks(currentDate, 1));
-    }
-  };
-
-  const navigateNext = () => {
-    if (view === "month") {
-      setCurrentDate(addMonths(currentDate, 1));
-    } else {
-      setCurrentDate(addWeeks(currentDate, 1));
-    }
-  };
-
-  // Check for overlaps against server-fetched appointments
-  const checkOverlap = (
-    newStart: Date,
-    newEnd: Date,
-    doctor: string,
-    excludeId?: string
-  ): boolean => {
-    return appointments.some(app => {
-      if (excludeId && app.id === excludeId) return false;
-      if (app.status === 'cancelled') return false;
-      if (app.doctor !== doctor) return false;
-      return newStart < app.end && newEnd > app.start;
-    });
-  };
-
-  // Open Form Modal (Create or Edit)
-  const handleOpenForm = (appointment?: Partial<ReservationAppointment>) => {
-    if (appointment) {
-      setEditingAppointment(appointment);
-    } else {
-      setEditingAppointment(null);
-    }
-    setIsFormOpen(true);
-    setIsDetailOpen(false);
-  };
-
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const petId = searchParams.get("petId");
-
-    if (petId && !isFormOpen) {
-      const now = new Date();
-      now.setMinutes(0, 0, 0);
-      const start = addHours(now, 1);
-
-      const stub: Partial<ReservationAppointment> = {
-        start: start,
-        end: addHours(start, 1),
-        status: "confirmed",
-        visitType: "first",
-        type: "treatment",
-        doctor: "医師A",
-        isDesignated: false,
-        petId: petId,
-      };
-      handleOpenForm(stub);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search]);
-
-  // Open Detail Modal
-  const handleOpenDetail = (appointment: ReservationAppointment) => {
-    setDetailAppointment(appointment);
-    setIsDetailOpen(true);
-  };
-
-  const handleTimeSlotClick = (date: Date) => {
-    const newAppointmentStub: Partial<ReservationAppointment> = {
-      start: date,
-      end: addHours(date, 1),
-      status: "confirmed",
-      visitType: "first",
-      type: "treatment",
-      doctor: "医師A",
-      isDesignated: false,
-    };
-    handleOpenForm(newAppointmentStub);
-  };
-
-  const handleCloseForm = () => {
-    setIsFormOpen(false);
-    setEditingAppointment(null);
-  };
-
-  const handleCloseDetail = () => {
-    setIsDetailOpen(false);
-    setDetailAppointment(null);
-  };
-
-  const handleSave = (data: Partial<ReservationAppointment>, selectedPets: Pet[]) => {
-    if (!data.start || !data.end || selectedPets.length === 0) return;
-
-    const targetDoctor = data.doctor || editingAppointment?.doctor || "医師A";
-    const hasOverlap = checkOverlap(
-      data.start,
-      data.end,
-      targetDoctor,
-      editingAppointment?.id
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-[#F7F6F3]">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
+          <p className="mt-2 text-[#37352F]/60">読み込み中...</p>
+        </div>
+      </div>
     );
-
-    if (hasOverlap) {
-      toast.error("指定された時間帯には既に予約が入っています");
-      return;
-    }
-
-    if (editingAppointment && editingAppointment.id) {
-      // Edit mode: Update via API
-      const req: UpdateReservationRequest = {
-        start_time: data.start.toISOString(),
-        end_time: data.end.toISOString(),
-        visit_type: data.visitType,
-        service_type: data.type,
-        is_designated: data.isDesignated,
-        status: data.status,
-        notes: data.notes,
-      };
-
-      updateReservationMutation.mutate(
-        { id: editingAppointment.id, req },
-        {
-          onSuccess: () => {
-            toast.success("予約を更新しました");
-            handleCloseForm();
-          },
-          onError: () => {
-            toast.error("予約の更新に失敗しました");
-          },
-        }
-      );
-    } else {
-      // Create new: one per selected pet
-      const primaryPet = selectedPets[0];
-      const req = transformToCreateRequest(data, primaryPet.id, primaryPet.ownerId);
-
-      createReservationMutation.mutate(req, {
-        onSuccess: () => {
-          toast.success("予約を作成しました");
-          handleCloseForm();
-
-          if (location.state?.from) {
-            setTimeout(() => {
-              navigate(location.state.from);
-            }, 500);
-          }
-        },
-        onError: () => {
-          toast.error("予約の作成に失敗しました");
-        },
-      });
-    }
-  };
-
-  const handleAppointmentUpdate = (appointment: ReservationAppointment, newStart: Date, newEnd: Date) => {
-    const hasOverlap = checkOverlap(newStart, newEnd, appointment.doctor, appointment.id);
-
-    if (hasOverlap) {
-      toast.error("移動先に予約が重複しています");
-      return;
-    }
-
-    const req: UpdateReservationRequest = {
-      start_time: newStart.toISOString(),
-      end_time: newEnd.toISOString(),
-    };
-
-    updateReservationMutation.mutate(
-      { id: appointment.id, req },
-      {
-        onSuccess: () => {
-          toast.success("予約時間を変更しました");
-        },
-        onError: () => {
-          toast.error("予約時間の変更に失敗しました");
-        },
-      }
-    );
-  };
-
-  // Status Change Handler
-  const handleStatusChange = (appointment: ReservationAppointment, status: string) => {
-    const req: UpdateReservationRequest = {
-      status,
-    };
-
-    updateReservationMutation.mutate(
-      { id: appointment.id, req },
-      {
-        onSuccess: (updated) => {
-          setDetailAppointment(updated);
-          toast.success("ステータスを更新しました");
-        },
-        onError: () => {
-          toast.error("ステータスの更新に失敗しました");
-        },
-      }
-    );
-  };
-
-  // Delete handler
-  const handleDelete = (appointment: ReservationAppointment) => {
-    if (window.confirm("本当にこの予約を削除しますか？")) {
-      deleteReservationMutation.mutate(appointment.id, {
-        onSuccess: () => {
-          handleCloseDetail();
-          toast.success("予約を削除しました");
-        },
-        onError: () => {
-          toast.error("予約の削除に失敗しました");
-        },
-      });
-    }
-  };
-
-  // Create Record Handler
-  const handleCreateRecord = (appointment: ReservationAppointment) => {
-    let targetPath = '/medical-records/new';
-    if (appointment.type === 'trimming' || appointment.type === 'トリミング') {
-      targetPath = '/trimming/new';
-    } else if (appointment.type === 'hotel' || appointment.type === '入院' || appointment.type === 'ホテル') {
-      targetPath = '/hospitalization/new';
-    }
-
-    if (appointment.petId) {
-      navigate(`${targetPath}?petId=${appointment.petId}`, { state: { from: "/reservations" } });
-    } else {
-      if (window.confirm("この予約にはペットIDが紐付いていません。ペット選択画面へ移動しますか？")) {
-        let selectPath = '/medical-records/select-pet';
-        if (appointment.type === 'trimming' || appointment.type === 'トリミング') {
-          selectPath = '/trimming/select-pet';
-        } else if (appointment.type === 'hotel' || appointment.type === '入院' || appointment.type === 'ホテル') {
-          selectPath = '/hospitalization/select-pet';
-        }
-        navigate(selectPath, { state: { from: "/reservations" } });
-      }
-    }
-  };
+  }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0">
+    <div className="flex-1 flex flex-col h-full bg-[#F7F6F3] min-w-0 w-full">
       <FormHeader
         title="予約管理"
         icon={<CalendarIcon className="size-5 text-[#37352F]" />}
         action={
-          <Button className="bg-[#37352F] hover:bg-[#37352F]/90 text-white gap-2 h-11 text-sm" onClick={() => handleOpenForm()}>
-            <Plus className="size-4" />
-            <span className="hidden sm:inline">新規予約</span>
-            <span className="sm:hidden">予約</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <PrimaryButton className="gap-2" onClick={() => handleOpenForm()}>
+              <Plus className="size-4" />
+              <span className="hidden sm:inline">新規予約</span>
+              <span className="sm:hidden">予約</span>
+            </PrimaryButton>
+          </div>
         }
       />
 
-      <div className="flex-1 flex flex-col p-2 min-h-0">
+      <div className="flex-1 flex flex-col p-4 overflow-hidden w-full min-w-0">
         {/* Toolbar */}
-        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             <div className="flex items-center bg-white rounded-md border border-[rgba(55,53,47,0.16)] p-1 shadow-sm">
-              <Button variant="ghost" size="icon" onClick={navigatePrevious}>
+              <Button variant="ghost" size="icon" className="h-10 w-10" onClick={navigatePrevious}>
                 <ChevronLeft className="size-5" />
               </Button>
-              <Button variant="ghost" size="sm" className="px-4 font-medium" onClick={navigateToday}>
+              <Button variant="ghost" size="sm" className="h-10 px-4 text-sm font-medium" onClick={navigateToday}>
                 今日
               </Button>
-              <Button variant="ghost" size="icon" onClick={navigateNext}>
+              <Button variant="ghost" size="icon" className="h-10 w-10" onClick={navigateNext}>
                 <ChevronRight className="size-5" />
               </Button>
             </div>
-            <h2 className="text-xl font-bold text-[#37352F]">
+            <h2 className="text-xl font-bold text-[#37352F] flex items-center gap-2">
               {format(currentDate, "yyyy年 M月", { locale: ja })}
             </h2>
+
+            {/* Reservation Type Legend */}
+            <div className="flex items-center gap-3 ml-4">
+              {RESERVATION_TYPE_VALUES.map((type) => (
+                <div key={type} className="flex items-center gap-1.5">
+                  <span className={`w-2.5 h-2.5 rounded-sm ${getReservationTypeColor(type).split(" ")[0]}`} />
+                  <span className="text-xs text-[#37352F]/60">{type}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <Select value={view} onValueChange={(v: "month" | "week") => setView(v)}>
-            <SelectTrigger className="w-[140px] bg-white border-[rgba(55,53,47,0.16)] h-11 text-sm">
-              <SelectValue placeholder="表示切替" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="month">月表示</SelectItem>
-              <SelectItem value="week">週表示</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            {/* Doctor Filter */}
+            <Select value={doctorFilter} onValueChange={setDoctorFilter}>
+              <SelectTrigger className="w-[160px] bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
+                <Stethoscope className="size-3.5 text-[#37352F]/40 flex-shrink-0" />
+                <SelectValue placeholder="担当医で絞込" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">すべての医師</SelectItem>
+                {doctorNames.map((name) => (
+                  <SelectItem key={name} value={name}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={view} onValueChange={typedSetter(setView, CALENDAR_VIEW_VALUES)}>
+              <SelectTrigger className="w-[140px] bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
+                <SelectValue placeholder="表示切替" />
+              </SelectTrigger>
+              <SelectContent>
+                {CALENDAR_VIEW_VALUES.map((v) => (
+                  <SelectItem key={v} value={v}>
+                    {getCalendarViewLabel(v)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        {/* Loading state */}
-        {isLoading ? (
-          <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-            予約データを読み込み中...
-          </div>
-        ) : (
-          /* Calendar View */
-          view === "month" ? (
+        {/* Calendar View */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {view === "month" ? (
             <MonthView
               currentDate={currentDate}
-              appointments={appointments}
+              appointments={filteredAppointments}
               onAppointmentClick={handleOpenDetail}
             />
           ) : (
-            <div className="flex-1 min-h-0 h-full">
-              <WeekView
-                currentDate={currentDate}
-                appointments={appointments}
-                onAppointmentClick={handleOpenDetail}
-                onTimeSlotClick={handleTimeSlotClick}
-                onAppointmentUpdate={handleAppointmentUpdate}
-              />
-            </div>
-          )
-        )}
+            <WeekView
+              currentDate={currentDate}
+              appointments={filteredAppointments}
+              onAppointmentClick={handleOpenDetail}
+              onTimeSlotClick={handleTimeSlotClick}
+              onAppointmentUpdate={handleAppointmentUpdate}
+            />
+          )}
+        </div>
       </div>
 
       {/* Create/Edit Form */}
@@ -397,6 +206,31 @@ export const ReservationManagement = () => {
         onDelete={handleDelete}
         onCreateRecord={handleCreateRecord}
         onStatusChange={handleStatusChange}
+      />
+
+      {/* Delete Confirm Dialog */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onClose={handleDeleteConfirmClose}
+        onConfirm={executeDelete}
+        title="予約を削除しますか？"
+        description={
+          deleteTarget
+            ? `${deleteTarget.petName || ""}${deleteTarget.ownerName ? `（${deleteTarget.ownerName}）` : ""} の予約を削除します。この操作は取り消せません。`
+            : ""
+        }
+        confirmLabel="削除する"
+        variant="destructive"
+      />
+
+      {/* Pet Select Confirm Dialog */}
+      <ConfirmDialog
+        open={petSelectConfirmOpen}
+        onClose={() => setPetSelectConfirmOpen(false)}
+        onConfirm={handlePetSelectConfirm}
+        title="ペットIDが紐付いていません"
+        description="この予約にはペットIDが紐付いていません。ペット選択画面へ移動しますか？"
+        confirmLabel="移動する"
       />
     </div>
   );

@@ -2,7 +2,7 @@
 import { useState } from "react";
 
 // External
-import { Check, Filter } from "lucide-react";
+import { Check, Filter, Search, SearchX, RotateCcw } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,16 @@ interface PatientSelectionTableProps {
   selectedPets: Pet[];
 }
 
+const FIELDS = [
+  { key: "ownerId", label: "飼主No", placeholder: "例: 30042" },
+  { key: "ownerName", label: "飼主名", placeholder: "例: 林 文明" },
+  { key: "ownerNameKana", label: "飼主名(カナ)", placeholder: "例: ハヤシ" },
+  { key: "phone", label: "電話番号", placeholder: "例: 090..." },
+  { key: "petName", label: "ペット名", placeholder: "例: Iris" },
+  { key: "petNameKana", label: "ペット名(カナ)", placeholder: "例: イリス" },
+  { key: "species", label: "種別", placeholder: "例: 犬" },
+] as const;
+
 export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelectionTableProps) {
   const [searchParams, setSearchParams] = useState({
     ownerId: "",
@@ -35,14 +45,15 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
     petName: "",
     petNameKana: "",
     species: "",
-    address: "",
   });
+  const [hasSearched, setHasSearched] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   const { pets: allPets, isLoading } = usePetSearch();
 
   const hasSearchConditions = Object.values(searchParams).some(value => value.trim() !== "");
 
-  const filteredPets = hasSearchConditions
+  const filteredPets = hasSearched
     ? allPets.filter((pet) => {
         if (searchParams.ownerId && !pet.ownerId.includes(searchParams.ownerId)) return false;
         if (searchParams.ownerName && !pet.ownerName.includes(searchParams.ownerName)) return false;
@@ -53,157 +64,152 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
       }).slice(0, 20)
     : [];
 
+  const handleSearch = () => {
+    setIsSearching(true);
+    setHasSearched(true);
+    setTimeout(() => setIsSearching(false), 300);
+  };
+
+  const handleClear = () => {
+    setSearchParams({
+      ownerId: "",
+      ownerName: "",
+      ownerNameKana: "",
+      phone: "",
+      petName: "",
+      petNameKana: "",
+      species: "",
+    });
+    setHasSearched(false);
+  };
+
   const isSelected = (pet: Pet) => selectedPets.some((p) => p.id === pet.id);
 
   return (
     <div className="flex flex-col gap-4 h-full">
       {/* Search Criteria */}
       <div className="rounded-lg bg-white p-3 shadow-sm border border-[rgba(55,53,47,0.16)] shrink-0">
-        <div className="flex items-center gap-2 mb-2">
-            <Filter className="size-3 text-muted-foreground" />
-            <h2 className="text-sm font-medium text-[#37352F]">検索条件</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mb-3">
+          {FIELDS.map((field) => (
+            <div key={field.key} className="space-y-0.5">
+              <Label htmlFor={field.key} className="text-[12px] text-[#37352F]/60">
+                {field.label}
+              </Label>
+              <Input
+                id={field.key}
+                placeholder={field.placeholder}
+                value={searchParams[field.key as keyof typeof searchParams]}
+                onChange={(e) =>
+                  setSearchParams({
+                    ...searchParams,
+                    [field.key]: e.target.value,
+                  })
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSearch();
+                  }
+                }}
+                className="text-[12px] h-9 bg-white border-[rgba(55,53,47,0.12)] text-[#37352F]"
+              />
+            </div>
+          ))}
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mb-2">
-          <div className="space-y-0.5">
-            <Label htmlFor="ownerId" className="text-sm text-[#37352F]/60">飼主No</Label>
-            <Input
-              id="ownerId"
-              placeholder="例: 30042"
-              value={searchParams.ownerId}
-              onChange={(e) => setSearchParams({ ...searchParams, ownerId: e.target.value })}
-              className="text-sm h-10 bg-white"
-            />
-          </div>
-          <div className="space-y-0.5">
-            <Label htmlFor="ownerName" className="text-sm text-[#37352F]/60">飼主名</Label>
-            <Input
-              id="ownerName"
-              placeholder="例: 林 文明"
-              value={searchParams.ownerName}
-              onChange={(e) => setSearchParams({ ...searchParams, ownerName: e.target.value })}
-              className="text-sm h-10 bg-white"
-            />
-          </div>
-          <div className="space-y-0.5">
-            <Label htmlFor="ownerNameKana" className="text-sm text-[#37352F]/60">飼主名(カナ)</Label>
-            <Input
-              id="ownerNameKana"
-              placeholder="例: ハヤシ"
-              value={searchParams.ownerNameKana}
-              onChange={(e) => setSearchParams({ ...searchParams, ownerNameKana: e.target.value })}
-              className="text-sm h-10 bg-white"
-            />
-          </div>
-          <div className="space-y-0.5">
-            <Label htmlFor="phone" className="text-sm text-[#37352F]/60">電話番号</Label>
-            <Input
-              id="phone"
-              placeholder="例: 090..."
-              value={searchParams.phone}
-              onChange={(e) => setSearchParams({ ...searchParams, phone: e.target.value })}
-              className="text-sm h-10 bg-white"
-            />
-          </div>
-          <div className="space-y-0.5">
-            <Label htmlFor="petName" className="text-sm text-[#37352F]/60">ペット名</Label>
-            <Input
-              id="petName"
-              placeholder="例: Iris"
-              value={searchParams.petName}
-              onChange={(e) => setSearchParams({ ...searchParams, petName: e.target.value })}
-              className="text-sm h-10 bg-white"
-            />
-          </div>
-          <div className="space-y-0.5">
-            <Label htmlFor="petNameKana" className="text-sm text-[#37352F]/60">ペット名(カナ)</Label>
-            <Input
-              id="petNameKana"
-              placeholder="例: イリス"
-              value={searchParams.petNameKana}
-              onChange={(e) => setSearchParams({ ...searchParams, petNameKana: e.target.value })}
-              className="text-sm h-10 bg-white"
-            />
-          </div>
-          <div className="space-y-0.5">
-            <Label htmlFor="species" className="text-sm text-[#37352F]/60">種別</Label>
-            <Input
-              id="species"
-              placeholder="例: 犬"
-              value={searchParams.species}
-              onChange={(e) => setSearchParams({ ...searchParams, species: e.target.value })}
-              className="text-sm h-10 bg-white"
-            />
-          </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={handleSearch}
+            className="h-9 text-sm bg-[#37352F] text-white hover:bg-[#37352F]/90"
+          >
+            <Search className="mr-1.5 size-3" />
+            検索
+          </Button>
+          {hasSearchConditions && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleClear}
+              className="h-9 text-sm border-[rgba(55,53,47,0.12)]"
+            >
+              <RotateCcw className="mr-1.5 size-3" />
+              クリア
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Results Table */}
       <div className="flex-1 rounded-lg bg-white overflow-hidden shadow-sm border border-[rgba(55,53,47,0.16)] min-h-0">
-        <div className="overflow-auto h-full">
+        <div className="overflow-auto h-full flex flex-col">
+          {!hasSearched ? (
+            <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
+              <Search className="size-8 text-[#37352F]/20" />
+              <div className="text-sm text-[#37352F]/40">検索条件を入力して検索してください</div>
+            </div>
+          ) : isSearching || isLoading ? (
+            <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
+              <div className="animate-spin">
+                <Search className="size-8 text-[#37352F]/20" />
+              </div>
+              <div className="text-sm text-[#37352F]/40">検索中...</div>
+            </div>
+          ) : filteredPets.length === 0 ? (
+            <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
+              <SearchX className="size-8 text-[#37352F]/20" />
+              <div className="text-sm text-[#37352F]/40">該当する患者が見つかりませんでした</div>
+            </div>
+          ) : (
             <Table>
-            <TableHeader className="bg-[#F7F6F3] sticky top-0 z-10">
-                <TableRow className="border-b border-[rgba(55,53,47,0.16)] h-10 hover:bg-[#F7F6F3]">
-                <TableHead className="min-w-[80px] text-sm text-[#37352F]/60 h-10">飼主No</TableHead>
-                <TableHead className="min-w-[120px] text-sm text-[#37352F]/60 h-10">飼主名</TableHead>
-                <TableHead className="min-w-[100px] text-sm text-[#37352F]/60 h-10">ペット名</TableHead>
-                <TableHead className="min-w-[60px] text-sm text-[#37352F]/60 h-10">種別</TableHead>
-                <TableHead className="min-w-[60px] text-sm text-[#37352F]/60 h-10">性別</TableHead>
-                <TableHead className="min-w-[80px] text-sm text-[#37352F]/60 h-10">生年月日</TableHead>
-                <TableHead className="min-w-[60px] text-sm text-[#37352F]/60 h-10">体重</TableHead>
-                <TableHead className="min-w-[60px] text-sm text-[#37352F]/60 h-10">操作</TableHead>
+              <TableHeader className="bg-[#F7F6F3] sticky top-0 z-10">
+                <TableRow className="border-b border-[rgba(55,53,47,0.16)] h-9 hover:bg-[#F7F6F3]">
+                  <TableHead className="min-w-[80px] text-[12px] text-[#37352F]/40 h-9">飼主No</TableHead>
+                  <TableHead className="min-w-[120px] text-[12px] text-[#37352F]/40 h-9">飼主名</TableHead>
+                  <TableHead className="min-w-[100px] text-[12px] text-[#37352F]/40 h-9">ペット名</TableHead>
+                  <TableHead className="min-w-[60px] text-[12px] text-[#37352F]/40 h-9">種別</TableHead>
+                  <TableHead className="min-w-[60px] text-[12px] text-[#37352F]/40 h-9">性別</TableHead>
+                  <TableHead className="min-w-[80px] text-[12px] text-[#37352F]/40 h-9">生年月日</TableHead>
+                  <TableHead className="min-w-[60px] text-[12px] text-[#37352F]/40 h-9">体重</TableHead>
+                  <TableHead className="min-w-[60px] text-[12px] text-[#37352F]/40 h-9">操作</TableHead>
                 </TableRow>
-            </TableHeader>
-            <TableBody>
-                {isLoading ? (
-                    <TableRow>
-                        <TableCell colSpan={8} className="h-32 text-center text-sm text-muted-foreground">
-                            読み込み中...
-                        </TableCell>
-                    </TableRow>
-                ) : filteredPets.length === 0 ? (
-                    <TableRow>
-                        <TableCell colSpan={8} className="h-32 text-center text-sm text-muted-foreground">
-                            {hasSearchConditions ? "条件に一致するペットが見つかりません" : "検索条件を入力して患者を検索してください"}
-                        </TableCell>
-                    </TableRow>
-                ) : (
-                    filteredPets.map((pet) => (
-                    <TableRow
-                        key={pet.id}
-                        className={`transition-colors hover:bg-[rgba(55,53,47,0.06)] cursor-pointer h-10 ${
-                        isSelected(pet) ? "bg-blue-50 hover:bg-blue-100" : ""
+              </TableHeader>
+              <TableBody>
+                {filteredPets.map((pet) => (
+                  <TableRow
+                    key={pet.id}
+                    className={`transition-colors hover:bg-[rgba(55,53,47,0.06)] cursor-pointer h-9 ${
+                      isSelected(pet) ? "bg-[#F7F6F3]" : ""
+                    }`}
+                    onClick={() => onSelect(pet)}
+                  >
+                    <TableCell className="text-sm py-1 font-mono text-[#37352F]">{pet.ownerId}</TableCell>
+                    <TableCell className="text-sm py-1 font-medium text-[#37352F]">{pet.ownerName}</TableCell>
+                    <TableCell className="text-sm py-1 font-bold text-[#37352F]">{pet.name}</TableCell>
+                    <TableCell className="text-sm py-1 text-[#37352F]">{pet.species}</TableCell>
+                    <TableCell className="text-sm py-1 text-[#37352F]">{pet.gender || "-"}</TableCell>
+                    <TableCell className="text-sm py-1 font-mono text-[#37352F]">{pet.birthDate || "-"}</TableCell>
+                    <TableCell className="text-sm py-1 font-mono text-[#37352F]">{pet.weight || "-"}</TableCell>
+                    <TableCell className="py-1">
+                      <Button
+                        size="sm"
+                        className={`h-9 gap-1 text-sm px-2 transition-colors ${
+                          isSelected(pet)
+                            ? "bg-[#37352F] text-white hover:bg-[#37352F]/90"
+                            : "bg-white border border-[rgba(55,53,47,0.12)] text-[#37352F] hover:bg-[#FAFAF8]"
                         }`}
-                        onClick={() => onSelect(pet)}
-                    >
-                        <TableCell className="text-sm py-1 font-mono">{pet.ownerId}</TableCell>
-                        <TableCell className="text-sm py-1 font-medium">{pet.ownerName}</TableCell>
-                        <TableCell className="text-sm py-1 font-bold">{pet.name}</TableCell>
-                        <TableCell className="text-sm py-1">{pet.species}</TableCell>
-                        <TableCell className="text-sm py-1">{pet.gender || "-"}</TableCell>
-                        <TableCell className="text-sm py-1 font-mono">{pet.birthDate || "-"}</TableCell>
-                        <TableCell className="text-sm py-1 font-mono">{pet.weight || "-"}</TableCell>
-                        <TableCell className="py-1">
-                        <Button
-                            size="sm"
-                            className={`h-10 gap-1 text-sm px-2 ${
-                                isSelected(pet)
-                                ? "bg-blue-600 hover:bg-blue-700 text-white"
-                                : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-                            }`}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onSelect(pet);
-                            }}
-                        >
-                            <Check className={`size-3 ${isSelected(pet) ? "" : "opacity-0"}`} />
-                            {isSelected(pet) ? "選択中" : "選択"}
-                        </Button>
-                        </TableCell>
-                    </TableRow>
-                    ))
-                )}
-            </TableBody>
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelect(pet);
+                        }}
+                      >
+                        <Check className={`size-3 ${isSelected(pet) ? "" : "opacity-0"}`} />
+                        {isSelected(pet) ? "選択中" : "選択"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
             </Table>
+          )}
         </div>
       </div>
     </div>

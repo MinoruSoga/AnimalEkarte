@@ -1,4 +1,27 @@
 // Backend Reservation types - JSON keys match Go model snake_case
+export interface BackendOwner {
+  id: string;
+  owner_number: number;
+  name: string;
+  name_kana?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+}
+
+export interface BackendPet {
+  id: string;
+  owner_id: string;
+  pet_number?: string;
+  name: string;
+  species: string;
+  breed?: string;
+  gender?: string;
+  birth_date?: string;
+  weight?: number;
+}
+
 export interface BackendReservation {
   id: string;
   pet_id: string;
@@ -13,6 +36,8 @@ export interface BackendReservation {
   notes?: string;
   created_at: string;
   updated_at: string;
+  owner?: BackendOwner;
+  pet?: BackendPet;
 }
 
 export interface CreateReservationRequest {

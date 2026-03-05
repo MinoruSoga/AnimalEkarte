@@ -10,11 +10,20 @@ import { motion } from "motion/react";
 import { getReservationTypeColor, getReservationTypeName } from "@/utils/status-helpers";
 
 // Types
-import type { ReservationAppointment } from "@/types";
+import type { ReservationAppointment, ReservationStatus } from "@/types";
 
 // Reduced height for High Density UI
 const HOUR_HEIGHT = 120;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+// Status dot style mapping
+const STATUS_DOT_STYLE: Partial<Record<ReservationStatus, { color: string; label: string }>> = {
+  checked_in: { color: "bg-blue-500", label: "受付済" },
+  in_consultation: { color: "bg-purple-500", label: "診療中" },
+  accounting: { color: "bg-orange-500", label: "会計待ち" },
+  completed: { color: "bg-gray-400", label: "完了" },
+  cancelled: { color: "bg-red-500", label: "キャンセル" },
+};
 
 interface WeekViewProps {
   currentDate: Date;
@@ -142,16 +151,7 @@ const AppointmentCard = ({
   const isCancelled = appointment.status === 'cancelled';
 
   // Status indicator dot
-  const getStatusDot = () => {
-      switch (appointment.status) {
-          case 'checked_in': return <div className="w-2.5 h-2.5 rounded-full bg-blue-500 border border-white absolute top-1 right-1 shadow-sm z-20" title="受付済" />;
-          case 'in_consultation': return <div className="w-2.5 h-2.5 rounded-full bg-purple-500 border border-white absolute top-1 right-1 shadow-sm z-20" title="診療中" />;
-          case 'accounting': return <div className="w-2.5 h-2.5 rounded-full bg-orange-500 border border-white absolute top-1 right-1 shadow-sm z-20" title="会計待ち" />;
-          case 'completed': return <div className="w-2.5 h-2.5 rounded-full bg-gray-400 border border-white absolute top-1 right-1 shadow-sm z-20" title="完了" />;
-          case 'cancelled': return <div className="w-2.5 h-2.5 rounded-full bg-red-500 border border-white absolute top-1 right-1 shadow-sm z-20" title="キャンセル" />;
-          default: return null;
-      }
-  };
+  const dotInfo = STATUS_DOT_STYLE[appointment.status];
 
   return (
     <motion.div
@@ -194,8 +194,13 @@ const AppointmentCard = ({
         boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)"
       }}
     >
-      {getStatusDot()}
-      
+      {dotInfo && (
+        <div
+          className={`w-2.5 h-2.5 rounded-full ${dotInfo.color} border border-white absolute top-1 right-1 shadow-sm z-20`}
+          title={dotInfo.label}
+        />
+      )}
+
       <div className="flex flex-col h-full pointer-events-none relative z-10">
         <div className="flex items-center gap-1 font-bold text-sm leading-none mb-1 pr-3">
             <span className="truncate">
@@ -211,8 +216,20 @@ const AppointmentCard = ({
         <div className="font-medium truncate text-sm leading-none">
             {appointment.petName}
         </div>
-        
-        {height > 40 && (
+
+        {height > 36 && (
+          <div className="truncate text-sm opacity-70 leading-none mt-0.5">
+            {appointment.ownerName}
+          </div>
+        )}
+
+        {height > 52 && appointment.doctor && (
+          <div className="truncate text-sm opacity-70 leading-none mt-0.5">
+            {appointment.doctor}
+          </div>
+        )}
+
+        {height > 68 && (
             <div className="truncate text-sm opacity-80 mt-auto leading-none pb-0.5">
                 {getReservationTypeName(appointment.type)}
             </div>

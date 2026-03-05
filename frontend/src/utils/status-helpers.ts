@@ -1,4 +1,5 @@
-import type { Hospitalization, InventoryItem, MedicalRecord } from "@/types";
+import type { Hospitalization, InventoryItem, MedicalRecord, ReservationStatus } from "@/types";
+import { RESERVATION_STATUS_LABELS } from "@/types";
 
 export const getMedicalRecordStatusColor = (status: MedicalRecord["status"]) => {
   switch (status) {
@@ -158,4 +159,19 @@ export const getInventoryStatusLabel = (status: InventoryItem["status"]) => {
     default:
       return "";
   }
+};
+
+export const getCalendarViewLabel = (view: string): string => {
+  switch (view) {
+    case "month":
+      return "月表示";
+    case "week":
+      return "週表示";
+    default:
+      return view;
+  }
+};
+
+export const getReservationStatusLabel = (status: ReservationStatus): string => {
+  return RESERVATION_STATUS_LABELS[status] ?? status;
 };
