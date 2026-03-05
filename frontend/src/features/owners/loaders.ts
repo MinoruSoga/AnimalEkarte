@@ -13,7 +13,7 @@ export const ownersLoader = async (): Promise<OwnersLoaderData> => {
 
   owners.forEach((owner) => {
     if (!owner.pets || owner.pets.length === 0) {
-      pets.push({
+      const dummyPet: Pet = {
         id: `owner-${owner.id}`,
         ownerId: owner.id,
         ownerNumber: owner.ownerNumber,
@@ -21,18 +21,15 @@ export const ownersLoader = async (): Promise<OwnersLoaderData> => {
         name: "-",
         species: "-",
         petNumber: "-",
-        status: undefined,
-      } as Pet);
+      };
+      pets.push(dummyPet);
     } else {
       owner.pets.forEach((pet) => {
         pets.push({
           ...pet,
-          ownerId: owner.id,
-          ownerNumber: owner.ownerNumber,
-          ownerName: owner.name,
           name: pet.name || "-",
           species: pet.species || "-",
-        } as unknown as Pet);
+        });
       });
     }
   });
