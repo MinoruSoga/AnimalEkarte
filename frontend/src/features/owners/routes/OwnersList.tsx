@@ -3,19 +3,24 @@ import { useState, useMemo } from "react";
 import { useNavigate, useLoaderData } from "react-router";
 
 // External
-import { Plus } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
-import { RowActionButton } from "@/components/shared/RowActionButton";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable, DataTableRow } from "@/components/shared/DataTable";
 import { PrimaryButton } from "@/components/shared/Form";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
+import { Pagination } from "@/components/shared/Pagination";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { getPetStatusColor } from "@/utils/status-helpers";
 import { formatDate } from "@/utils/format/date";
 import { formatWeight } from "@/utils/format/number";
+import { usePagination } from "@/hooks/usePagination";
+import { deleteOwner } from "../api";
 
 // Types
 import type { OwnersLoaderData } from "../loaders";
@@ -24,6 +29,11 @@ export const OwnersList = () => {
   const navigate = useNavigate();
   const { pets } = useLoaderData<OwnersLoaderData>();
   const [searchTerm, setSearchTerm] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredPets = useMemo(() => {
     if (!searchTerm) return pets;
@@ -39,12 +49,36 @@ export const OwnersList = () => {
     });
   }, [pets, searchTerm]);
 
+  const pagination = usePagination(filteredPets, {
+    pageSize: 20,
+    resetKey: searchTerm,
+  });
+
   const handleCreate = () => {
     navigate("/owners/new");
   };
 
   const handleEdit = (ownerId: string) => {
     navigate(`/owners/${ownerId}`);
+  };
+
+  const handleDeleteClick = (ownerId: string, ownerName: string) => {
+    setDeleteTarget({ id: ownerId, name: ownerName });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteOwner(deleteTarget.id);
+      toast.success("飼主を削除しました");
+      setDeleteTarget(null);
+    } catch {
+      toast.error("削除に失敗しました");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const columns = [
@@ -84,7 +118,7 @@ export const OwnersList = () => {
         {/* Table */}
         <DataTable
           columns={columns}
-          data={filteredPets}
+          data={pagination.paginatedData}
           emptyMessage="データが見つかりません"
           renderRow={(pet) => (
             <DataTableRow
@@ -94,11 +128,15 @@ export const OwnersList = () => {
               <TableCell className="font-mono text-sm whitespace-nowrap py-2">
                 {pet.ownerNumber ?? "-"}
               </TableCell>
-              <TableCell className="text-sm whitespace-nowrap py-2">{pet.ownerName}</TableCell>
+              <TableCell className="text-sm whitespace-nowrap py-2">
+                {pet.ownerName}
+              </TableCell>
               <TableCell className="font-mono text-sm whitespace-nowrap py-2">
                 {pet.petNumber || "-"}
               </TableCell>
-              <TableCell className="text-sm whitespace-nowrap py-2">{pet.name}</TableCell>
+              <TableCell className="text-sm whitespace-nowrap py-2">
+                {pet.name}
+              </TableCell>
               <TableCell className="whitespace-nowrap py-2">
                 {pet.status && (
                   <StatusBadge
@@ -108,7 +146,9 @@ export const OwnersList = () => {
                   </StatusBadge>
                 )}
               </TableCell>
-              <TableCell className="text-sm whitespace-nowrap py-2">{pet.species}</TableCell>
+              <TableCell className="text-sm whitespace-nowrap py-2">
+                {pet.species}
+              </TableCell>
               <TableCell className="font-mono text-sm whitespace-nowrap py-2">
                 {formatDate(pet.birthDate)}
               </TableCell>
@@ -122,12 +162,53 @@ export const OwnersList = () => {
                 {formatDate(pet.lastVisit)}
               </TableCell>
               <TableCell className="whitespace-nowrap py-2 text-right">
-                <RowActionButton onClick={() => handleEdit(pet.ownerId)} />
+                <RowActionDropdown
+                  actions={[
+                    {
+                      label: "編集",
+                      icon: Pencil,
+                      onClick: () => handleEdit(pet.ownerId),
+                    },
+                    {
+                      label: "削除",
+                      icon: Trash2,
+                      variant: "destructive",
+                      onClick: () =>
+                        handleDeleteClick(pet.ownerId, pet.ownerName),
+                    },
+                  ]}
+                />
               </TableCell>
             </DataTableRow>
           )}
         />
+
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalCount={pagination.totalCount}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.goToPage}
+            onPrev={pagination.prevPage}
+            onNext={pagination.nextPage}
+          />
+        )}
       </div>
+
+      {/* Delete Confirm Dialog */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => !isDeleting && setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="飼主を削除しますか？"
+        description={`飼主「${deleteTarget?.name}」とこの飼主に関連するすべてのペット情報が削除されます。この操作は取り消すことができません。`}
+        confirmLabel={isDeleting ? "削除中..." : "削除"}
+        cancelLabel="キャンセル"
+        variant="destructive"
+      />
     </PageLayout>
   );
-}
+};

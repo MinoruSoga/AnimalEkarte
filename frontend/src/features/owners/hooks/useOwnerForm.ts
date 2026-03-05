@@ -6,51 +6,9 @@ import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
 // Internal
-import { getOwner, createOwner, updateOwner } from "../api";
+import { getOwner, createOwner, updateOwner, deleteOwner } from "../api";
 import { CreateOwnerRequest, UpdateOwnerRequest } from "@/types/owner";
-
-export interface PetInfo {
-  id: string;
-  petNumber: string;
-  petName: string;
-  petNameKana?: string;
-  status: string;
-  species: string;
-  gender: string;
-  birthDate: string;
-  color: string;
-  weight: string;
-  environment: string;
-  remarks: string;
-  // Extra fields for modal
-  breed?: string;
-  neuteredDate?: string;
-  acquisitionType?: string;
-  dangerLevel?: string;
-  food?: string;
-  insuranceName?: string;
-  insuranceDetails?: string;
-}
-
-export interface OwnerData {
-  ownerId: string;
-  postalCode: string;
-  company: string;
-  membershipType: string;
-  ownerName: string;
-  address1: string;
-  postalNumber: string;
-  ownerNameKana: string;
-  address2: string;
-  homeAddress1: string;
-  isDangerous: boolean;
-  birthDate: string;
-  email: string;
-  homeAddress2: string;
-  remarks: string;
-  phone: string;
-  companyPhone: string;
-}
+import { OwnerData, PetInfo, MembershipType } from "../types";
 
 export function useOwnerForm(id?: string) {
   const navigate = useNavigate();
@@ -62,20 +20,20 @@ export function useOwnerForm(id?: string) {
     ownerId: "",
     postalCode: "",
     company: "",
-    membershipType: "非会員",
+    membershipType: "非会員" as MembershipType,
     ownerName: "",
     address1: "",
     postalNumber: "",
     ownerNameKana: "",
     address2: "",
     homeAddress1: "",
+    homeAddress2: "",
     isDangerous: false,
     birthDate: "",
     email: "",
-    homeAddress2: "",
-    remarks: "",
     phone: "",
     companyPhone: "",
+    remarks: "",
   });
 
   const [pets, setPets] = useState<PetInfo[]>([]);
@@ -88,47 +46,56 @@ export function useOwnerForm(id?: string) {
 
       try {
         const owner = await getOwner(id);
-        
+
         // Map backend Owner to frontend OwnerData
         // Note: Backend has simplified address structure
         setOwnerData({
           ownerId: owner.id,
           postalCode: "", // Not separately stored in backend
           company: "", // Not stored
-          membershipType: "会員", // Default or derived
+          membershipType: "会員" as MembershipType, // Default or derived
           ownerName: owner.name,
           address1: owner.address || "",
           postalNumber: "",
           ownerNameKana: owner.name_kana || "",
           address2: "",
           homeAddress1: "",
+          homeAddress2: "",
           isDangerous: false,
           birthDate: "",
           email: owner.email || "",
-          homeAddress2: "",
-          remarks: owner.notes || "",
           phone: owner.phone || "",
           companyPhone: "",
+          remarks: owner.notes || "",
         });
 
         // Map pets if available
         if (owner.pets) {
-          setPets(owner.pets.map(p => ({
-            id: p.id,
-            petNumber: p.petNumber || "",
-            petName: p.name,
-            petNameKana: "", // Not in Pet interface from backend yet?
-            status: p.status || "生存",
-            species: p.species,
-            gender: p.gender || "",
-            birthDate: p.birthDate || "",
-            color: "", // Not in Pet interface
-            weight: p.weight || "",
-            environment: p.environment || "",
-            remarks: p.remarks || "",
-            insuranceName: p.insuranceName,
-            insuranceDetails: p.insuranceDetails
-          })));
+          setPets(
+            owner.pets.map((p) => {
+              const petInfo: PetInfo = {
+                id: p.id,
+                petNumber: p.petNumber || "",
+                petName: p.name,
+                petNameKana: "", // Not in Pet interface from backend yet?
+                status: p.status || "生存",
+                species: p.species,
+                gender: p.gender || "",
+                birthDate: p.birthDate || "",
+                color: "", // Not in Pet interface
+                weight: p.weight || "",
+                environment: p.environment || "",
+                remarks: p.remarks || "",
+              };
+              if (p.insuranceName) {
+                petInfo.insuranceName = p.insuranceName as any;
+              }
+              if (p.insuranceDetails) {
+                petInfo.insuranceDetails = p.insuranceDetails as any;
+              }
+              return petInfo;
+            })
+          );
         }
       } catch {
         toast.error("飼主情報の取得に失敗しました");
@@ -155,6 +122,7 @@ export function useOwnerForm(id?: string) {
 
   const handleDeletePet = (id: string) => {
     setPets(pets.filter((pet) => pet.id !== id));
+    toast.success("ペットを削除しました");
   };
 
   const handleSavePet = (petData: Partial<PetInfo>) => {
@@ -179,21 +147,37 @@ export function useOwnerForm(id?: string) {
         weight: petData.weight || "",
         environment: petData.environment || "",
         remarks: petData.remarks || "",
-        ...petData
+        ...petData,
       };
       setPets([...pets, newPet]);
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<boolean> => {
+    // Validate required fields
+    if (!ownerData.ownerName.trim()) {
+      toast.error("飼主名を入力してください");
+      return false;
+    }
+    if (!ownerData.ownerNameKana.trim()) {
+      toast.error("飼主名（かな）を入力してください");
+      return false;
+    }
+    if (!ownerData.phone.trim()) {
+      toast.error("電話番号を入力してください");
+      return false;
+    }
+
     setIsLoading(true);
     try {
       // Combine address fields
       const fullAddress = [
         ownerData.postalCode,
         ownerData.address1,
-        ownerData.address2
-      ].filter(Boolean).join(" ");
+        ownerData.address2,
+      ]
+        .filter(Boolean)
+        .join(" ");
 
       const commonData = {
         name: ownerData.ownerName,
@@ -213,16 +197,23 @@ export function useOwnerForm(id?: string) {
         await createOwner(createData);
         toast.success("飼主情報を登録しました");
       }
-      
-      // Navigate back after short delay
-      setTimeout(() => {
-          navigate("/owners");
-      }, 800);
 
+      return true;
     } catch {
       toast.error("保存に失敗しました");
+      return false;
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (ownerId: string) => {
+    try {
+      await deleteOwner(ownerId);
+      toast.success("飼主を削除しました");
+      navigate("/owners");
+    } catch {
+      toast.error("削除に失敗しました");
     }
   };
 
@@ -240,6 +231,7 @@ export function useOwnerForm(id?: string) {
     handleEditPet,
     handleDeletePet,
     handleSavePet,
-    handleSave
+    handleSave,
+    handleDelete,
   };
 }

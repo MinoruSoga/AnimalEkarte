@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,24 +17,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
 
-export interface PetFormData {
-  petNumber: string;
-  petName: string;
-  petNameKana: string;
-  species: string;
-  gender: string;
-  birthDate: string;
-  breed: string;
-  color: string;
-  neuteredDate: string;
-  acquisitionType: string;
-  dangerLevel: string;
-  food: string;
-  insuranceName?: string;
-  insuranceDetails?: string;
-  remarks: string;
-}
+import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
+import {
+  PET_GENDER_VALUES,
+  ACQUISITION_TYPE_VALUES,
+  DANGER_LEVEL_VALUES,
+  INSURANCE_COMPANY_VALUES,
+  PET_INSURANCE_RATIO_VALUES,
+  PetFormData,
+} from "../types";
+import { isOneOf } from "@/lib/type-utils";
 
 interface PetEditModalProps {
   open: boolean;
@@ -44,25 +38,6 @@ interface PetEditModalProps {
   onSave: (data: PetFormData) => void;
 }
 
-const INSURANCE_COMPANIES = [
-  "アニコム",
-  "アイペット",
-  "ペット＆ファミリー",
-  "楽天ペット保険",
-  "アクサダイレクト",
-  "SBIいきいき少短",
-  "FPC",
-  "その他"
-];
-
-const INSURANCE_RATIOS = [
-  "50%",
-  "70%",
-  "90%",
-  "100%",
-  "その他"
-];
-
 export function PetEditModal({
   open,
   onOpenChange,
@@ -70,29 +45,31 @@ export function PetEditModal({
   petData,
   onSave,
 }: PetEditModalProps) {
-  const [formData, setFormData] = useState({
-    petNumber: petData?.petNumber || "",
-    petName: petData?.petName || "",
-    petNameKana: petData?.petNameKana || "",
-    species: petData?.species || "",
-    gender: petData?.gender || "",
-    birthDate: petData?.birthDate || "",
-    breed: petData?.breed || "",
-    color: petData?.color || "",
-    neuteredDate: petData?.neuteredDate || "",
-    acquisitionType: petData?.acquisitionType || "",
-    dangerLevel: petData?.dangerLevel || "",
-    food: petData?.food || "",
-    insuranceName: petData?.insuranceName || "",
-    insuranceDetails: petData?.insuranceDetails || "",
-    remarks: petData?.remarks || "",
+  const [formData, setFormData] = useState<PetFormData>({
+    id: "",
+    petNumber: "",
+    petName: "",
+    petNameKana: "",
+    species: "",
+    gender: "",
+    birthDate: "",
+    breed: "",
+    color: "",
+    weight: "",
+    neuteredDate: "",
+    acquisitionType: "購入",
+    dangerLevel: "低",
+    food: "",
+    environment: "",
+    status: "生存",
+    remarks: "",
   });
-  const [prevOpen, setPrevOpen] = useState(false);
 
-  if (open !== prevOpen) {
-    setPrevOpen(open);
+  // Reset form data when modal opens
+  useEffect(() => {
     if (open) {
       setFormData({
+        id: petData?.id || "",
         petNumber: petData?.petNumber || "",
         petName: petData?.petName || "",
         petNameKana: petData?.petNameKana || "",
@@ -101,23 +78,45 @@ export function PetEditModal({
         birthDate: petData?.birthDate || "",
         breed: petData?.breed || "",
         color: petData?.color || "",
+        weight: petData?.weight || "",
         neuteredDate: petData?.neuteredDate || "",
-        acquisitionType: petData?.acquisitionType || "",
-        dangerLevel: petData?.dangerLevel || "",
+        acquisitionType: (petData?.acquisitionType || "購入") as typeof ACQUISITION_TYPE_VALUES[number],
+        dangerLevel: (petData?.dangerLevel || "低") as typeof DANGER_LEVEL_VALUES[number],
         food: petData?.food || "",
-        insuranceName: petData?.insuranceName || "",
-        insuranceDetails: petData?.insuranceDetails || "",
+        environment: petData?.environment || "",
+        status: petData?.status || "生存",
         remarks: petData?.remarks || "",
+        insuranceName: petData?.insuranceName,
+        insuranceDetails: petData?.insuranceDetails,
       });
     }
-  }
+  }, [open, petData]);
 
   const handleSave = () => {
+    // Validation
+    if (!formData.petName.trim()) {
+      toast.error("ペット名を入力してください");
+      return;
+    }
+    if (!formData.species) {
+      toast.error("種を選択してください");
+      return;
+    }
+    if (!formData.gender) {
+      toast.error("性別を選択してください");
+      return;
+    }
+    if (!formData.birthDate) {
+      toast.error("生年月日を選択してください");
+      return;
+    }
+
     onSave(formData);
     onOpenChange(false);
+    toast.success(petData ? "ペット情報を更新しました" : "ペットを追加しました");
   };
 
-  const isEdit = !!petData;
+  const isEdit = !!petData?.id;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -164,12 +163,12 @@ export function PetEditModal({
 
             <div className="space-y-1">
               <Label htmlFor="petNameKana" className="text-sm text-[#37352F]/60">
-                ペット名(カナ) <span className="text-[#E03E3E]">*</span>
+                ペット名(カナ)
               </Label>
               <Input
                 id="petNameKana"
                 placeholder="例: イリス"
-                value={formData.petNameKana}
+                value={formData.petNameKana || ""}
                 onChange={(e) =>
                   setFormData({ ...formData, petNameKana: e.target.value })
                 }
@@ -179,7 +178,7 @@ export function PetEditModal({
 
             <div className="space-y-1">
               <Label htmlFor="species" className="text-sm text-[#37352F]/60">
-                CFBE(種) <span className="text-[#E03E3E]">*</span>
+                種 <span className="text-[#E03E3E]">*</span>
               </Label>
               <Select
                 value={formData.species}
@@ -200,22 +199,26 @@ export function PetEditModal({
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="gender1" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="gender" className="text-sm text-[#37352F]/60">
                 性別 <span className="text-[#E03E3E]">*</span>
               </Label>
               <Select
                 value={formData.gender}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, gender: value })
-                }
+                onValueChange={(value) => {
+                  if (isOneOf(value, PET_GENDER_VALUES)) {
+                    setFormData({ ...formData, gender: value });
+                  }
+                }}
               >
                 <SelectTrigger className="h-10 text-sm bg-white text-[#37352F]">
                   <SelectValue placeholder="選択してください" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="雄">雄</SelectItem>
-                  <SelectItem value="雌">雌</SelectItem>
-                  <SelectItem value="不明">不明</SelectItem>
+                  {PET_GENDER_VALUES.map((gender) => (
+                    <SelectItem key={gender} value={gender}>
+                      {gender}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -224,14 +227,13 @@ export function PetEditModal({
               <Label htmlFor="birthDate" className="text-sm text-[#37352F]/60">
                 生年月日 <span className="text-[#E03E3E]">*</span>
               </Label>
-              <Input
+              <NotionDatePicker
                 id="birthDate"
-                type="date"
                 value={formData.birthDate}
-                onChange={(e) =>
-                  setFormData({ ...formData, birthDate: e.target.value })
+                onChange={(value) =>
+                  setFormData({ ...formData, birthDate: value })
                 }
-                className="h-10 text-sm bg-white text-[#37352F]"
+                placeholder="生年月日を選択…"
               />
             </div>
           </div>
@@ -240,11 +242,11 @@ export function PetEditModal({
           <div className="space-y-2">
             <div className="space-y-1">
               <Label htmlFor="breed" className="text-sm text-[#37352F]/60">
-                Breed
+                品種
               </Label>
               <Input
                 id="breed"
-                value={formData.breed}
+                value={formData.breed || ""}
                 onChange={(e) =>
                   setFormData({ ...formData, breed: e.target.value })
                 }
@@ -254,13 +256,27 @@ export function PetEditModal({
 
             <div className="space-y-1">
               <Label htmlFor="color" className="text-sm text-[#37352F]/60">
-                Color
+                毛色
               </Label>
               <Input
                 id="color"
-                value={formData.color}
+                value={formData.color || ""}
                 onChange={(e) =>
                   setFormData({ ...formData, color: e.target.value })
+                }
+                className="h-10 text-sm bg-white text-[#37352F]"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="weight" className="text-sm text-[#37352F]/60">
+                体重(kg)
+              </Label>
+              <Input
+                id="weight"
+                value={formData.weight || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, weight: e.target.value })
                 }
                 className="h-10 text-sm bg-white text-[#37352F]"
               />
@@ -270,72 +286,92 @@ export function PetEditModal({
               <Label htmlFor="neuteredDate" className="text-sm text-[#37352F]/60">
                 去勢・避妊手術日
               </Label>
-              <Input
+              <NotionDatePicker
                 id="neuteredDate"
-                type="date"
-                value={formData.neuteredDate}
-                onChange={(e) =>
-                  setFormData({ ...formData, neuteredDate: e.target.value })
+                value={formData.neuteredDate || ""}
+                onChange={(value) =>
+                  setFormData({ ...formData, neuteredDate: value })
                 }
-                className="h-10 text-sm bg-white text-[#37352F]"
+                placeholder="手術日を選択…"
               />
             </div>
-          </div>
 
-          {/* Column 3 */}
-          <div className="space-y-2">
             <div className="space-y-1">
               <Label htmlFor="acquisitionType" className="text-sm text-[#37352F]/60">
                 入手区分
               </Label>
               <Select
-                value={formData.acquisitionType}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, acquisitionType: value })
-                }
+                value={formData.acquisitionType || ""}
+                onValueChange={(value) => {
+                  if (isOneOf(value, ACQUISITION_TYPE_VALUES)) {
+                    setFormData({ ...formData, acquisitionType: value });
+                  }
+                }}
               >
                 <SelectTrigger className="h-10 text-sm bg-white text-[#37352F]">
                   <SelectValue placeholder="選択してください" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="購入">購入</SelectItem>
-                  <SelectItem value="譲渡">譲渡</SelectItem>
-                  <SelectItem value="保護">保護</SelectItem>
-                  <SelectItem value="その他">その他</SelectItem>
+                  {ACQUISITION_TYPE_VALUES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-1">
               <Label htmlFor="dangerLevel" className="text-sm text-[#37352F]/60">
-                ペットの危険度
+                危険度
               </Label>
               <Select
-                value={formData.dangerLevel}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, dangerLevel: value })
-                }
+                value={formData.dangerLevel || ""}
+                onValueChange={(value) => {
+                  if (isOneOf(value, DANGER_LEVEL_VALUES)) {
+                    setFormData({ ...formData, dangerLevel: value });
+                  }
+                }}
               >
                 <SelectTrigger className="h-10 text-sm bg-white text-[#37352F]">
                   <SelectValue placeholder="選択してください" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="低">低</SelectItem>
-                  <SelectItem value="中">中</SelectItem>
-                  <SelectItem value="高">高</SelectItem>
+                  {DANGER_LEVEL_VALUES.map((level) => (
+                    <SelectItem key={level} value={level}>
+                      {level}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
+          {/* Column 3 */}
+          <div className="space-y-2">
             <div className="space-y-1">
               <Label htmlFor="food" className="text-sm text-[#37352F]/60">
-                Food
+                食べ物
               </Label>
               <Input
                 id="food"
-                value={formData.food}
+                value={formData.food || ""}
                 onChange={(e) =>
                   setFormData({ ...formData, food: e.target.value })
+                }
+                className="h-10 text-sm bg-white text-[#37352F]"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="environment" className="text-sm text-[#37352F]/60">
+                飼育環境
+              </Label>
+              <Input
+                id="environment"
+                value={formData.environment || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, environment: e.target.value })
                 }
                 className="h-10 text-sm bg-white text-[#37352F]"
               />
@@ -346,16 +382,18 @@ export function PetEditModal({
                 保険名
               </Label>
               <Select
-                value={formData.insuranceName}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, insuranceName: value })
-                }
+                value={formData.insuranceName || ""}
+                onValueChange={(value) => {
+                  if (isOneOf(value, INSURANCE_COMPANY_VALUES)) {
+                    setFormData({ ...formData, insuranceName: value });
+                  }
+                }}
               >
                 <SelectTrigger className="h-10 text-sm bg-white text-[#37352F]">
                   <SelectValue placeholder="選択してください" />
                 </SelectTrigger>
                 <SelectContent>
-                  {INSURANCE_COMPANIES.map((company) => (
+                  {INSURANCE_COMPANY_VALUES.map((company) => (
                     <SelectItem key={company} value={company}>
                       {company}
                     </SelectItem>
@@ -369,16 +407,18 @@ export function PetEditModal({
                 保険詳細(負担割合など)
               </Label>
               <Select
-                value={formData.insuranceDetails}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, insuranceDetails: value })
-                }
+                value={formData.insuranceDetails || ""}
+                onValueChange={(value) => {
+                  if (isOneOf(value, PET_INSURANCE_RATIO_VALUES)) {
+                    setFormData({ ...formData, insuranceDetails: value });
+                  }
+                }}
               >
                 <SelectTrigger className="h-10 text-sm bg-white text-[#37352F]">
                   <SelectValue placeholder="選択してください" />
                 </SelectTrigger>
                 <SelectContent>
-                  {INSURANCE_RATIOS.map((ratio) => (
+                  {PET_INSURANCE_RATIO_VALUES.map((ratio) => (
                     <SelectItem key={ratio} value={ratio}>
                       {ratio}
                     </SelectItem>
@@ -394,7 +434,7 @@ export function PetEditModal({
               <Textarea
                 id="remarks"
                 rows={3}
-                value={formData.remarks}
+                value={formData.remarks || ""}
                 onChange={(e) =>
                   setFormData({ ...formData, remarks: e.target.value })
                 }
@@ -405,10 +445,17 @@ export function PetEditModal({
         </div>
 
         <div className="flex justify-end mt-4 pt-4 border-t border-[rgba(55,53,47,0.09)]">
-           <Button variant="outline" className="mr-2 h-10 text-sm" onClick={() => onOpenChange(false)}>
-             キャンセル
-           </Button>
-          <Button onClick={handleSave} className="bg-[#37352F] hover:bg-[#37352F]/90 text-white h-10 text-sm px-4">
+          <Button
+            variant="outline"
+            className="mr-2 h-10 text-sm"
+            onClick={() => onOpenChange(false)}
+          >
+            キャンセル
+          </Button>
+          <Button
+            onClick={handleSave}
+            className="bg-[#37352F] hover:bg-[#37352F]/90 text-white h-10 text-sm px-4"
+          >
             {isEdit ? "更新" : "登録"}
           </Button>
         </div>

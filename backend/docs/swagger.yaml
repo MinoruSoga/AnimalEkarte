@@ -5,6 +5,373 @@ definitions:
       error:
         type: string
     type: object
+  model.Accounting:
+    properties:
+      accounting_items:
+        items:
+          $ref: '#/definitions/model.AccountingItem'
+        type: array
+      billing_amount:
+        type: number
+      change_amount:
+        type: number
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      discount_amount:
+        type: number
+      id:
+        type: string
+      insurance_amount:
+        type: number
+      insurance_name:
+        type: string
+      insurance_ratio:
+        type: number
+      medical_record:
+        $ref: '#/definitions/model.MedicalRecord'
+      medical_record_id:
+        type: string
+      memo:
+        type: string
+      owner:
+        $ref: '#/definitions/model.Owner'
+      owner_id:
+        type: string
+      payment_method:
+        description: 現金, クレジットカード, 電子マネー
+        type: string
+      pet:
+        allOf:
+        - $ref: '#/definitions/model.Pet'
+        description: Relations
+      pet_id:
+        type: string
+      received_amount:
+        type: number
+      scheduled_date:
+        type: string
+      status:
+        description: 未収, 保留, 回収済, キャンセル
+        type: string
+      subtotal:
+        type: number
+      tax_total:
+        type: number
+      total_amount:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  model.AccountingItem:
+    properties:
+      accounting_id:
+        type: string
+      category:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      is_insurance_applicable:
+        type: boolean
+      master_id:
+        type: string
+      name:
+        type: string
+      quantity:
+        type: integer
+      source:
+        description: medical_record, manual
+        type: string
+      tax_rate:
+        description: 0.1, 0.08
+        type: number
+      unit_price:
+        type: number
+    type: object
+  model.Cage:
+    properties:
+      code:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      is_available:
+        type: boolean
+      name:
+        type: string
+      notes:
+        type: string
+      size:
+        description: S, M, L, XL
+        type: string
+      type:
+        description: 犬用, 猫用, 共用
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.CareLog:
+    properties:
+      created_at:
+        type: string
+      daily_record_id:
+        type: string
+      id:
+        type: string
+      notes:
+        type: string
+      recorded_time:
+        type: string
+      staff_id:
+        type: string
+      status:
+        description: completed, partial, skipped
+        type: string
+      type:
+        description: food, excretion, medicine, treatment, other
+        type: string
+      value:
+        type: string
+    type: object
+  model.CarePlanItem:
+    properties:
+      category:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      hospitalization_id:
+        type: string
+      id:
+        type: string
+      master_id:
+        type: string
+      name:
+        type: string
+      notes:
+        type: string
+      status:
+        description: active, completed, discontinued
+        type: string
+      timing:
+        description: JSON array
+        type: string
+      type:
+        description: food, medicine, treatment, instruction, item
+        type: string
+      unit_price:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  model.Clinic:
+    properties:
+      address:
+        type: string
+      branch_name:
+        type: string
+      created_at:
+        type: string
+      director_name:
+        type: string
+      email:
+        type: string
+      fax_number:
+        type: string
+      id:
+        type: string
+      logo_url:
+        type: string
+      name:
+        type: string
+      phone_number:
+        type: string
+      postal_code:
+        type: string
+      registration_number:
+        type: string
+      staffs:
+        description: Relations
+        items:
+          $ref: '#/definitions/model.Staff'
+        type: array
+      updated_at:
+        type: string
+      website:
+        type: string
+    type: object
+  model.CreateAccountingRequest:
+    properties:
+      billing_amount:
+        type: number
+      discount_amount:
+        type: number
+      insurance_amount:
+        type: number
+      insurance_name:
+        type: string
+      insurance_ratio:
+        type: number
+      medical_record_id:
+        type: string
+      memo:
+        type: string
+      owner_id:
+        type: string
+      payment_method:
+        type: string
+      pet_id:
+        type: string
+      scheduled_date:
+        type: string
+      subtotal:
+        type: number
+      tax_total:
+        type: number
+      total_amount:
+        type: number
+    required:
+    - owner_id
+    - pet_id
+    - scheduled_date
+    type: object
+  model.CreateClinicRequest:
+    properties:
+      address:
+        type: string
+      branch_name:
+        type: string
+      director_name:
+        type: string
+      email:
+        type: string
+      fax_number:
+        type: string
+      logo_url:
+        type: string
+      name:
+        type: string
+      phone_number:
+        type: string
+      postal_code:
+        type: string
+      registration_number:
+        type: string
+      website:
+        type: string
+    required:
+    - name
+    type: object
+  model.CreateExaminationRequest:
+    properties:
+      doctor_id:
+        type: string
+      examination_date:
+        type: string
+      items:
+        type: string
+      machine:
+        type: string
+      medical_record_id:
+        type: string
+      notes:
+        type: string
+      owner_id:
+        type: string
+      pet_id:
+        type: string
+      result_summary:
+        type: string
+      test_type:
+        type: string
+    required:
+    - examination_date
+    - owner_id
+    - pet_id
+    - test_type
+    type: object
+  model.CreateHospitalizationRequest:
+    properties:
+      cage_id:
+        type: string
+      end_date:
+        type: string
+      memo:
+        type: string
+      owner_id:
+        type: string
+      owner_request:
+        type: string
+      pet_id:
+        type: string
+      staff_notes:
+        type: string
+      start_date:
+        type: string
+      type:
+        description: 入院, ホテル
+        type: string
+    required:
+    - end_date
+    - owner_id
+    - pet_id
+    - start_date
+    - type
+    type: object
+  model.CreateInventoryItemRequest:
+    properties:
+      category:
+        type: string
+      expiry_date:
+        type: string
+      last_restocked:
+        type: string
+      location:
+        type: string
+      min_stock_level:
+        type: integer
+      name:
+        type: string
+      quantity:
+        type: integer
+      supplier:
+        type: string
+      unit:
+        type: string
+    required:
+    - category
+    - name
+    - quantity
+    - unit
+    type: object
+  model.CreateMasterItemRequest:
+    properties:
+      category:
+        type: string
+      code:
+        type: string
+      default_quantity:
+        type: integer
+      description:
+        type: string
+      inventory_id:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+    required:
+    - category
+    - code
+    - name
+    type: object
   model.CreateMedicalRecordRequest:
     properties:
       assessment:
@@ -95,6 +462,282 @@ definitions:
     - name
     - owner_id
     - species
+    type: object
+  model.CreateReservationRequest:
+    properties:
+      doctor_id:
+        type: string
+      end_time:
+        type: string
+      is_designated:
+        type: boolean
+      notes:
+        type: string
+      owner_id:
+        type: string
+      pet_id:
+        type: string
+      service_type:
+        type: string
+      start_time:
+        type: string
+      visit_type:
+        description: first, revisit
+        type: string
+    required:
+    - end_time
+    - owner_id
+    - pet_id
+    - service_type
+    - start_time
+    - visit_type
+    type: object
+  model.CreateStaffRequest:
+    properties:
+      clinic_id:
+        type: string
+      email:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+    required:
+    - name
+    - role
+    type: object
+  model.CreateTrimmingRequest:
+    properties:
+      appointment_date:
+        type: string
+      course:
+        type: string
+      notes:
+        type: string
+      options:
+        type: string
+      owner_id:
+        type: string
+      pet_id:
+        type: string
+      staff_id:
+        type: string
+      style_request:
+        type: string
+    required:
+    - appointment_date
+    - course
+    - owner_id
+    - pet_id
+    type: object
+  model.CreateVaccinationRequest:
+    properties:
+      doctor_id:
+        type: string
+      lot_number:
+        type: string
+      next_date:
+        type: string
+      notes:
+        type: string
+      owner_id:
+        type: string
+      pet_id:
+        type: string
+      vaccination_date:
+        type: string
+      vaccine_master_id:
+        type: string
+      vaccine_name:
+        type: string
+    required:
+    - owner_id
+    - pet_id
+    - vaccination_date
+    - vaccine_name
+    type: object
+  model.DailyRecord:
+    properties:
+      care_logs:
+        items:
+          $ref: '#/definitions/model.CareLog'
+        type: array
+      created_at:
+        type: string
+      hospitalization_id:
+        type: string
+      id:
+        type: string
+      record_date:
+        type: string
+      staff_notes:
+        items:
+          $ref: '#/definitions/model.StaffNote'
+        type: array
+      updated_at:
+        type: string
+      vitals:
+        description: Relations
+        items:
+          $ref: '#/definitions/model.Vital'
+        type: array
+    type: object
+  model.Examination:
+    properties:
+      created_at:
+        type: string
+      doctor_id:
+        type: string
+      examination_date:
+        type: string
+      id:
+        type: string
+      items:
+        description: JSON array
+        type: string
+      machine:
+        type: string
+      medical_record:
+        $ref: '#/definitions/model.MedicalRecord'
+      medical_record_id:
+        type: string
+      notes:
+        type: string
+      owner:
+        $ref: '#/definitions/model.Owner'
+      owner_id:
+        type: string
+      pet:
+        allOf:
+        - $ref: '#/definitions/model.Pet'
+        description: Relations
+      pet_id:
+        type: string
+      result_summary:
+        type: string
+      status:
+        description: 依頼中, 検査中, 完了
+        type: string
+      test_type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.Hospitalization:
+    properties:
+      cage:
+        $ref: '#/definitions/model.Cage'
+      cage_id:
+        type: string
+      care_plan_items:
+        items:
+          $ref: '#/definitions/model.CarePlanItem'
+        type: array
+      created_at:
+        type: string
+      daily_records:
+        items:
+          $ref: '#/definitions/model.DailyRecord'
+        type: array
+      end_date:
+        type: string
+      hospitalization_no:
+        type: string
+      id:
+        type: string
+      memo:
+        type: string
+      owner:
+        $ref: '#/definitions/model.Owner'
+      owner_id:
+        type: string
+      owner_request:
+        type: string
+      pet:
+        allOf:
+        - $ref: '#/definitions/model.Pet'
+        description: Relations
+      pet_id:
+        type: string
+      staff_notes:
+        type: string
+      start_date:
+        type: string
+      status:
+        description: 入院中, 退院済, 予約, 一時帰宅
+        type: string
+      type:
+        description: 入院, ホテル
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.InventoryItem:
+    properties:
+      category:
+        description: medicine, consumable, food, other
+        type: string
+      created_at:
+        type: string
+      expiry_date:
+        type: string
+      id:
+        type: string
+      last_restocked:
+        type: string
+      location:
+        type: string
+      min_stock_level:
+        type: integer
+      name:
+        type: string
+      quantity:
+        type: integer
+      status:
+        description: sufficient, low, out_of_stock
+        type: string
+      supplier:
+        type: string
+      unit:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.MasterItem:
+    properties:
+      category:
+        description: examination, vaccine, medicine, staff, insurance, cage, serviceType,
+          trimming_course, trimming_option
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      default_quantity:
+        type: integer
+      description:
+        type: string
+      id:
+        type: string
+      inventory_id:
+        type: string
+      inventory_item:
+        allOf:
+        - $ref: '#/definitions/model.InventoryItem'
+        description: Relations
+      name:
+        type: string
+      price:
+        type: number
+      status:
+        description: active, inactive
+        type: string
+      updated_at:
+        type: string
     type: object
   model.MedicalRecord:
     properties:
@@ -227,6 +870,255 @@ definitions:
       weight:
         type: number
     type: object
+  model.Reservation:
+    properties:
+      created_at:
+        type: string
+      doctor_id:
+        type: string
+      end_time:
+        type: string
+      id:
+        type: string
+      is_designated:
+        type: boolean
+      notes:
+        type: string
+      owner:
+        $ref: '#/definitions/model.Owner'
+      owner_id:
+        type: string
+      pet:
+        allOf:
+        - $ref: '#/definitions/model.Pet'
+        description: Relations
+      pet_id:
+        type: string
+      service_type:
+        description: 診療, 検診, 手術, etc.
+        type: string
+      start_time:
+        type: string
+      status:
+        description: pending, confirmed, checked_in, in_consultation, accounting,
+          completed, canceled
+        type: string
+      updated_at:
+        type: string
+      visit_type:
+        description: first, revisit
+        type: string
+    type: object
+  model.Staff:
+    properties:
+      clinic:
+        allOf:
+        - $ref: '#/definitions/model.Clinic'
+        description: Relations
+      clinic_id:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      phone:
+        type: string
+      role:
+        description: veterinarian, nurse, groomer, admin
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.StaffNote:
+    properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      daily_record_id:
+        type: string
+      id:
+        type: string
+      recorded_time:
+        type: string
+      staff_id:
+        type: string
+    type: object
+  model.Trimming:
+    properties:
+      appointment_date:
+        type: string
+      course:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      notes:
+        type: string
+      options:
+        description: JSON array
+        type: string
+      owner:
+        $ref: '#/definitions/model.Owner'
+      owner_id:
+        type: string
+      pet:
+        allOf:
+        - $ref: '#/definitions/model.Pet'
+        description: Relations
+      pet_id:
+        type: string
+      staff_id:
+        type: string
+      status:
+        description: 予約, 進行中, 完了
+        type: string
+      style_request:
+        type: string
+      total_price:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  model.UpdateAccountingRequest:
+    properties:
+      billing_amount:
+        type: number
+      change_amount:
+        type: number
+      completed_at:
+        type: string
+      discount_amount:
+        type: number
+      insurance_amount:
+        type: number
+      insurance_name:
+        type: string
+      insurance_ratio:
+        type: number
+      memo:
+        type: string
+      payment_method:
+        type: string
+      received_amount:
+        type: number
+      status:
+        type: string
+      subtotal:
+        type: number
+      tax_total:
+        type: number
+      total_amount:
+        type: number
+    type: object
+  model.UpdateClinicRequest:
+    properties:
+      address:
+        type: string
+      branch_name:
+        type: string
+      director_name:
+        type: string
+      email:
+        type: string
+      fax_number:
+        type: string
+      logo_url:
+        type: string
+      name:
+        type: string
+      phone_number:
+        type: string
+      postal_code:
+        type: string
+      registration_number:
+        type: string
+      website:
+        type: string
+    type: object
+  model.UpdateExaminationRequest:
+    properties:
+      examination_date:
+        type: string
+      items:
+        type: string
+      machine:
+        type: string
+      notes:
+        type: string
+      result_summary:
+        type: string
+      status:
+        type: string
+      test_type:
+        type: string
+    type: object
+  model.UpdateHospitalizationRequest:
+    properties:
+      cage_id:
+        type: string
+      end_date:
+        type: string
+      memo:
+        type: string
+      owner_request:
+        type: string
+      staff_notes:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+    type: object
+  model.UpdateInventoryItemRequest:
+    properties:
+      category:
+        type: string
+      expiry_date:
+        type: string
+      last_restocked:
+        type: string
+      location:
+        type: string
+      min_stock_level:
+        type: integer
+      name:
+        type: string
+      quantity:
+        type: integer
+      status:
+        type: string
+      supplier:
+        type: string
+      unit:
+        type: string
+    type: object
+  model.UpdateMasterItemRequest:
+    properties:
+      category:
+        type: string
+      code:
+        type: string
+      default_quantity:
+        type: integer
+      description:
+        type: string
+      inventory_id:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      status:
+        type: string
+    type: object
   model.UpdateMedicalRecordRequest:
     properties:
       assessment:
@@ -308,6 +1200,124 @@ definitions:
       weight:
         type: number
     type: object
+  model.UpdateReservationRequest:
+    properties:
+      doctor_id:
+        type: string
+      end_time:
+        type: string
+      is_designated:
+        type: boolean
+      notes:
+        type: string
+      service_type:
+        type: string
+      start_time:
+        type: string
+      status:
+        type: string
+      visit_type:
+        type: string
+    type: object
+  model.UpdateStaffRequest:
+    properties:
+      email:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+    type: object
+  model.UpdateTrimmingRequest:
+    properties:
+      appointment_date:
+        type: string
+      course:
+        type: string
+      notes:
+        type: string
+      options:
+        type: string
+      status:
+        type: string
+      style_request:
+        type: string
+      total_price:
+        type: number
+    type: object
+  model.UpdateVaccinationRequest:
+    properties:
+      lot_number:
+        type: string
+      next_date:
+        type: string
+      notes:
+        type: string
+      vaccination_date:
+        type: string
+      vaccine_name:
+        type: string
+    type: object
+  model.Vaccination:
+    properties:
+      created_at:
+        type: string
+      doctor_id:
+        type: string
+      id:
+        type: string
+      lot_number:
+        type: string
+      next_date:
+        type: string
+      notes:
+        type: string
+      owner:
+        $ref: '#/definitions/model.Owner'
+      owner_id:
+        type: string
+      pet:
+        allOf:
+        - $ref: '#/definitions/model.Pet'
+        description: Relations
+      pet_id:
+        type: string
+      updated_at:
+        type: string
+      vaccination_date:
+        type: string
+      vaccine_master_id:
+        type: string
+      vaccine_name:
+        type: string
+    type: object
+  model.Vital:
+    properties:
+      created_at:
+        type: string
+      daily_record_id:
+        type: string
+      heart_rate:
+        type: integer
+      id:
+        type: string
+      notes:
+        type: string
+      recorded_time:
+        type: string
+      respiration_rate:
+        type: integer
+      staff_id:
+        type: string
+      temperature:
+        type: number
+      weight:
+        type: number
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -337,6 +1347,642 @@ paths:
       summary: ウェルカムメッセージ
       tags:
       - system
+  /accountings:
+    get:
+      consumes:
+      - application/json
+      description: 登録されている会計の一覧を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Accounting'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 会計一覧取得
+      tags:
+      - accountings
+    post:
+      consumes:
+      - application/json
+      description: 新しい会計を作成します
+      parameters:
+      - description: 会計情報
+        in: body
+        name: acc
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateAccountingRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Accounting'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 会計作成
+      tags:
+      - accountings
+  /accountings/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定された会計を削除します
+      parameters:
+      - description: 会計ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 会計削除
+      tags:
+      - accountings
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDの会計情報を取得します
+      parameters:
+      - description: 会計ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Accounting'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 会計詳細取得
+      tags:
+      - accountings
+    put:
+      consumes:
+      - application/json
+      description: 既存の会計を更新します
+      parameters:
+      - description: 会計ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 会計情報
+        in: body
+        name: acc
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateAccountingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Accounting'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 会計更新
+      tags:
+      - accountings
+  /accountings/status/{status}:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたステータスの会計一覧を取得します
+      parameters:
+      - description: ステータス (未収,保留,回収済,キャンセル)
+        in: path
+        name: status
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Accounting'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ステータス別会計取得
+      tags:
+      - accountings
+  /clinics:
+    get:
+      consumes:
+      - application/json
+      description: 登録されているクリニックの一覧を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Clinic'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: クリニック一覧取得
+      tags:
+      - clinics
+    post:
+      consumes:
+      - application/json
+      description: 新しいクリニックを作成します
+      parameters:
+      - description: クリニック情報
+        in: body
+        name: clinic
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateClinicRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Clinic'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: クリニック作成
+      tags:
+      - clinics
+  /clinics/{clinicId}/staffs:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたクリニックIDのスタッフ一覧を取得します
+      parameters:
+      - description: クリニックID (UUID)
+        in: path
+        name: clinicId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Staff'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: クリニックのスタッフ一覧取得
+      tags:
+      - staffs
+  /clinics/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定されたクリニックを削除します
+      parameters:
+      - description: クリニックID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: クリニック削除
+      tags:
+      - clinics
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDのクリニック情報を取得します
+      parameters:
+      - description: クリニックID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Clinic'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: クリニック詳細取得
+      tags:
+      - clinics
+    put:
+      consumes:
+      - application/json
+      description: 既存のクリニックを更新します
+      parameters:
+      - description: クリニックID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: クリニック情報
+        in: body
+        name: clinic
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateClinicRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Clinic'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: クリニック更新
+      tags:
+      - clinics
+  /examinations:
+    get:
+      consumes:
+      - application/json
+      description: 登録されている検査の一覧を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Examination'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 検査一覧取得
+      tags:
+      - examinations
+    post:
+      consumes:
+      - application/json
+      description: 新しい検査を作成します
+      parameters:
+      - description: 検査情報
+        in: body
+        name: exam
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateExaminationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Examination'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 検査作成
+      tags:
+      - examinations
+  /examinations/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定された検査を削除します
+      parameters:
+      - description: 検査ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 検査削除
+      tags:
+      - examinations
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDの検査情報を取得します
+      parameters:
+      - description: 検査ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Examination'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 検査詳細取得
+      tags:
+      - examinations
+    put:
+      consumes:
+      - application/json
+      description: 既存の検査を更新します
+      parameters:
+      - description: 検査ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 検査情報
+        in: body
+        name: exam
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateExaminationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Examination'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 検査更新
+      tags:
+      - examinations
+  /examinations/status/{status}:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたステータスの検査一覧を取得します
+      parameters:
+      - description: ステータス (依頼中,検査中,完了)
+        in: path
+        name: status
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Examination'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ステータス別検査取得
+      tags:
+      - examinations
   /health:
     get:
       description: APIの稼働状態を確認します
@@ -351,6 +1997,688 @@ paths:
       summary: ヘルスチェック
       tags:
       - system
+  /hospitalizations:
+    get:
+      consumes:
+      - application/json
+      description: 登録されている入院/ホテルの一覧を取得します
+      parameters:
+      - description: ステータスでフィルタリング
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Hospitalization'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 入院/ホテル一覧取得
+      tags:
+      - hospitalizations
+    post:
+      consumes:
+      - application/json
+      description: 新しい入院/ホテルを作成します
+      parameters:
+      - description: 入院/ホテル情報
+        in: body
+        name: hosp
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateHospitalizationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Hospitalization'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 入院/ホテル作成
+      tags:
+      - hospitalizations
+  /hospitalizations/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定された入院/ホテルを削除します
+      parameters:
+      - description: 入院/ホテルID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 入院/ホテル削除
+      tags:
+      - hospitalizations
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDの入院/ホテル情報を取得します
+      parameters:
+      - description: 入院/ホテルID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Hospitalization'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 入院/ホテル詳細取得
+      tags:
+      - hospitalizations
+    put:
+      consumes:
+      - application/json
+      description: 既存の入院/ホテルを更新します
+      parameters:
+      - description: 入院/ホテルID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 入院/ホテル情報
+        in: body
+        name: hosp
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateHospitalizationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Hospitalization'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 入院/ホテル更新
+      tags:
+      - hospitalizations
+  /hospitalizations/status/{status}:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたステータスの入院/ホテル一覧を取得します
+      parameters:
+      - description: ステータス (予約,入院中,退院済,一時帰宅)
+        in: path
+        name: status
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Hospitalization'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ステータス別入院/ホテル取得
+      tags:
+      - hospitalizations
+  /inventory-items:
+    get:
+      consumes:
+      - application/json
+      description: 登録されている在庫アイテムの一覧を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.InventoryItem'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 在庫アイテム一覧取得
+      tags:
+      - inventory
+    post:
+      consumes:
+      - application/json
+      description: 新しい在庫アイテムを作成します
+      parameters:
+      - description: 在庫アイテム情報
+        in: body
+        name: item
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateInventoryItemRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.InventoryItem'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 在庫アイテム作成
+      tags:
+      - inventory
+  /inventory-items/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定された在庫アイテムを削除します
+      parameters:
+      - description: 在庫アイテムID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 在庫アイテム削除
+      tags:
+      - inventory
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDの在庫アイテム情報を取得します
+      parameters:
+      - description: 在庫アイテムID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.InventoryItem'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 在庫アイテム詳細取得
+      tags:
+      - inventory
+    put:
+      consumes:
+      - application/json
+      description: 既存の在庫アイテムを更新します
+      parameters:
+      - description: 在庫アイテムID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 在庫アイテム情報
+        in: body
+        name: item
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateInventoryItemRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.InventoryItem'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 在庫アイテム更新
+      tags:
+      - inventory
+  /inventory-items/category/{category}:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたカテゴリの在庫アイテムを取得します
+      parameters:
+      - description: カテゴリ (medicine, consumable, food, other)
+        in: path
+        name: category
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.InventoryItem'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 在庫アイテムカテゴリ別取得
+      tags:
+      - inventory
+  /inventory-items/status/{status}:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたステータスの在庫アイテムを取得します
+      parameters:
+      - description: ステータス (sufficient, low, out_of_stock)
+        in: path
+        name: status
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.InventoryItem'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 在庫アイテムステータス別取得
+      tags:
+      - inventory
+  /master-items:
+    get:
+      consumes:
+      - application/json
+      description: 登録されているマスタアイテムの一覧を取得します
+      parameters:
+      - description: カテゴリでフィルタリング
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.MasterItem'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: マスタアイテム一覧取得
+      tags:
+      - master-items
+    post:
+      consumes:
+      - application/json
+      description: 新しいマスタアイテムを作成します
+      parameters:
+      - description: マスタアイテム情報
+        in: body
+        name: item
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateMasterItemRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.MasterItem'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: マスタアイテム作成
+      tags:
+      - master-items
+  /master-items/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定されたマスタアイテムを削除します
+      parameters:
+      - description: マスタアイテムID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: マスタアイテム削除
+      tags:
+      - master-items
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDのマスタアイテム情報を取得します
+      parameters:
+      - description: マスタアイテムID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.MasterItem'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: マスタアイテム詳細取得
+      tags:
+      - master-items
+    put:
+      consumes:
+      - application/json
+      description: 既存のマスタアイテムを更新します
+      parameters:
+      - description: マスタアイテムID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: マスタアイテム情報
+        in: body
+        name: item
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateMasterItemRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.MasterItem'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: マスタアイテム更新
+      tags:
+      - master-items
+  /master-items/category/{category}:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたカテゴリのマスタアイテム一覧を取得します
+      parameters:
+      - description: カテゴリ (examination, vaccine, medicine, staff, insurance, cage,
+          serviceType, trimming_course, trimming_option)
+        in: path
+        name: category
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.MasterItem'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: カテゴリ別マスタアイテム取得
+      tags:
+      - master-items
   /medical-records:
     get:
       consumes:
@@ -796,6 +3124,111 @@ paths:
       summary: Update an owner
       tags:
       - owners
+  /owners/{ownerId}/accountings:
+    get:
+      consumes:
+      - application/json
+      description: 指定された飼い主IDの会計一覧を取得します
+      parameters:
+      - description: 飼い主ID (UUID)
+        in: path
+        name: ownerId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Accounting'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 飼い主の会計一覧取得
+      tags:
+      - accountings
+  /owners/{ownerId}/examinations:
+    get:
+      consumes:
+      - application/json
+      description: 指定された飼い主IDの検査一覧を取得します
+      parameters:
+      - description: 飼い主ID (UUID)
+        in: path
+        name: ownerId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Examination'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 飼い主の検査一覧取得
+      tags:
+      - examinations
+  /owners/{ownerId}/hospitalizations:
+    get:
+      consumes:
+      - application/json
+      description: 指定された飼い主IDの入院/ホテル一覧を取得します
+      parameters:
+      - description: 飼い主ID (UUID)
+        in: path
+        name: ownerId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Hospitalization'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 飼い主の入院/ホテル一覧取得
+      tags:
+      - hospitalizations
   /owners/{ownerId}/medical-records:
     get:
       consumes:
@@ -831,6 +3264,111 @@ paths:
       summary: 飼い主のカルテ一覧取得
       tags:
       - medical-records
+  /owners/{ownerId}/reservations:
+    get:
+      consumes:
+      - application/json
+      description: 指定された飼い主IDの予約一覧を取得します
+      parameters:
+      - description: 飼い主ID (UUID)
+        in: path
+        name: ownerId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Reservation'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 飼い主の予約一覧取得
+      tags:
+      - reservations
+  /owners/{ownerId}/trimmings:
+    get:
+      consumes:
+      - application/json
+      description: 指定された飼い主IDのトリミング一覧を取得します
+      parameters:
+      - description: 飼い主ID (UUID)
+        in: path
+        name: ownerId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Trimming'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 飼い主のトリミング一覧取得
+      tags:
+      - trimmings
+  /owners/{ownerId}/vaccinations:
+    get:
+      consumes:
+      - application/json
+      description: 指定された飼い主IDのワクチン接種一覧を取得します
+      parameters:
+      - description: 飼い主ID (UUID)
+        in: path
+        name: ownerId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Vaccination'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 飼い主のワクチン接種一覧取得
+      tags:
+      - vaccinations
   /pets:
     get:
       consumes:
@@ -1027,6 +3565,111 @@ paths:
       summary: ペット情報更新
       tags:
       - pets
+  /pets/{petId}/accountings:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたペットIDの会計一覧を取得します
+      parameters:
+      - description: ペットID (UUID)
+        in: path
+        name: petId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Accounting'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ペットの会計一覧取得
+      tags:
+      - accountings
+  /pets/{petId}/examinations:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたペットIDの検査一覧を取得します
+      parameters:
+      - description: ペットID (UUID)
+        in: path
+        name: petId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Examination'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ペットの検査一覧取得
+      tags:
+      - examinations
+  /pets/{petId}/hospitalizations:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたペットIDの入院/ホテル一覧を取得します
+      parameters:
+      - description: ペットID (UUID)
+        in: path
+        name: petId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Hospitalization'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ペットの入院/ホテル一覧取得
+      tags:
+      - hospitalizations
   /pets/{petId}/medical-records:
     get:
       consumes:
@@ -1062,6 +3705,869 @@ paths:
       summary: ペットのカルテ一覧取得
       tags:
       - medical-records
+  /pets/{petId}/reservations:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたペットIDの予約一覧を取得します
+      parameters:
+      - description: ペットID (UUID)
+        in: path
+        name: petId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Reservation'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ペットの予約一覧取得
+      tags:
+      - reservations
+  /pets/{petId}/trimmings:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたペットIDのトリミング一覧を取得します
+      parameters:
+      - description: ペットID (UUID)
+        in: path
+        name: petId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Trimming'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ペットのトリミング一覧取得
+      tags:
+      - trimmings
+  /pets/{petId}/vaccinations:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたペットIDのワクチン接種一覧を取得します
+      parameters:
+      - description: ペットID (UUID)
+        in: path
+        name: petId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Vaccination'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ペットのワクチン接種一覧取得
+      tags:
+      - vaccinations
+  /reservations:
+    get:
+      consumes:
+      - application/json
+      description: 登録されている予約の一覧を取得します。date パラメータが指定された場合は当日分のみ返します。
+      parameters:
+      - description: 日付フィルタ（YYYY-MM-DD）。指定した場合は当日の予約のみ返す
+        in: query
+        name: date
+        type: string
+      - description: ステータスでフィルタリング
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Reservation'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 予約一覧取得
+      tags:
+      - reservations
+    post:
+      consumes:
+      - application/json
+      description: 新しい予約を作成します
+      parameters:
+      - description: 予約情報
+        in: body
+        name: reservation
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateReservationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Reservation'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 予約作成
+      tags:
+      - reservations
+  /reservations/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定された予約を削除します
+      parameters:
+      - description: 予約ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 予約削除
+      tags:
+      - reservations
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDの予約情報を取得します
+      parameters:
+      - description: 予約ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Reservation'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 予約詳細取得
+      tags:
+      - reservations
+    put:
+      consumes:
+      - application/json
+      description: 既存の予約を更新します
+      parameters:
+      - description: 予約ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 予約情報
+        in: body
+        name: reservation
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateReservationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Reservation'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 予約更新
+      tags:
+      - reservations
+  /staffs:
+    get:
+      consumes:
+      - application/json
+      description: 登録されているスタッフの一覧を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Staff'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: スタッフ一覧取得
+      tags:
+      - staffs
+    post:
+      consumes:
+      - application/json
+      description: 新しいスタッフを作成します
+      parameters:
+      - description: スタッフ情報
+        in: body
+        name: staff
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateStaffRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Staff'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: スタッフ作成
+      tags:
+      - staffs
+  /staffs/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定されたスタッフを削除します
+      parameters:
+      - description: スタッフID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: スタッフ削除
+      tags:
+      - staffs
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDのスタッフ情報を取得します
+      parameters:
+      - description: スタッフID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Staff'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: スタッフ詳細取得
+      tags:
+      - staffs
+    put:
+      consumes:
+      - application/json
+      description: 既存のスタッフを更新します
+      parameters:
+      - description: スタッフID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: スタッフ情報
+        in: body
+        name: staff
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateStaffRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Staff'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: スタッフ更新
+      tags:
+      - staffs
+  /trimmings:
+    get:
+      consumes:
+      - application/json
+      description: 登録されているトリミングの一覧を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Trimming'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: トリミング一覧取得
+      tags:
+      - trimmings
+    post:
+      consumes:
+      - application/json
+      description: 新しいトリミングを作成します
+      parameters:
+      - description: トリミング情報
+        in: body
+        name: trim
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateTrimmingRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Trimming'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: トリミング作成
+      tags:
+      - trimmings
+  /trimmings/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定されたトリミングを削除します
+      parameters:
+      - description: トリミングID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: トリミング削除
+      tags:
+      - trimmings
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDのトリミング情報を取得します
+      parameters:
+      - description: トリミングID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Trimming'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: トリミング詳細取得
+      tags:
+      - trimmings
+    put:
+      consumes:
+      - application/json
+      description: 既存のトリミングを更新します
+      parameters:
+      - description: トリミングID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: トリミング情報
+        in: body
+        name: trim
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateTrimmingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Trimming'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: トリミング更新
+      tags:
+      - trimmings
+  /trimmings/status/{status}:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたステータスのトリミング一覧を取得します
+      parameters:
+      - description: ステータス (予約,進行中,完了)
+        in: path
+        name: status
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Trimming'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ステータス別トリミング取得
+      tags:
+      - trimmings
+  /vaccinations:
+    get:
+      consumes:
+      - application/json
+      description: 登録されているワクチン接種の一覧を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Vaccination'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: ワクチン接種一覧取得
+      tags:
+      - vaccinations
+    post:
+      consumes:
+      - application/json
+      description: 新しいワクチン接種を作成します
+      parameters:
+      - description: ワクチン接種情報
+        in: body
+        name: vac
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateVaccinationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Vaccination'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ワクチン接種作成
+      tags:
+      - vaccinations
+  /vaccinations/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定されたワクチン接種を削除します
+      parameters:
+      - description: ワクチン接種ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ワクチン接種削除
+      tags:
+      - vaccinations
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDのワクチン接種情報を取得します
+      parameters:
+      - description: ワクチン接種ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Vaccination'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ワクチン接種詳細取得
+      tags:
+      - vaccinations
+    put:
+      consumes:
+      - application/json
+      description: 既存のワクチン接種を更新します
+      parameters:
+      - description: ワクチン接種ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: ワクチン接種情報
+        in: body
+        name: vac
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateVaccinationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Vaccination'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ワクチン接種更新
+      tags:
+      - vaccinations
 schemes:
 - http
 - https

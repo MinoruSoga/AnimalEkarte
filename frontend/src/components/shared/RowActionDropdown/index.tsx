@@ -1,0 +1,63 @@
+import { Button } from "@/components/ui/button";
+import { MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+export interface RowActionDropdownAction {
+  label: string;
+  icon?: React.ElementType;
+  onClick: () => void;
+  variant?: "default" | "destructive";
+}
+
+interface RowActionDropdownProps {
+  actions: RowActionDropdownAction[];
+}
+
+export function RowActionDropdown({ actions }: RowActionDropdownProps) {
+  return (
+    <div
+      className="flex items-center justify-end gap-1"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 text-[#37352F]/60 hover:text-[#37352F]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreHorizontal className="h-5 w-5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {actions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <DropdownMenuItem
+                key={action.label}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  action.onClick();
+                }}
+                className={
+                  action.variant === "destructive"
+                    ? "text-red-600 focus:text-red-600 focus:bg-red-50"
+                    : ""
+                }
+              >
+                {Icon && <Icon className="mr-2 h-4 w-4" />}
+                {action.label}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
