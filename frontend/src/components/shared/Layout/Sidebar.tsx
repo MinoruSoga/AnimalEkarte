@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import {
   LayoutDashboard,
   Users,
@@ -39,6 +39,7 @@ interface SidebarItemProps {
 
 const SidebarItem = ({ item, collapsed = false, level = 0 }: SidebarItemProps) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
 
   const isActive = item.path === "/"
@@ -58,6 +59,9 @@ const SidebarItem = ({ item, collapsed = false, level = 0 }: SidebarItemProps) =
     if (hasSubItems) {
       e.preventDefault();
       setManualExpanded(!isExpanded);
+      if (item.path) {
+        navigate(item.path);
+      }
     }
   };
 
@@ -139,6 +143,7 @@ export function Sidebar() {
     {
       icon: <Settings className="size-4" />,
       label: "マスタ設定",
+      path: "/settings",
       subItems: [
         { icon: <Building2 className="size-4" />, label: "病院情報", path: "/settings/clinic" },
         { icon: <Activity className="size-4" />, label: "予約区分マスタ", path: "/settings/service-type" },

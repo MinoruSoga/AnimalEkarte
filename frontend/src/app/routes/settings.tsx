@@ -2,16 +2,15 @@ import type { RouteObject } from "react-router";
 
 type SettingsCategory =
   | "serviceType" | "examination" | "vaccine" | "medicine"
-  | "staff" | "insurance" | "consultation" | "procedure"
+  | "insurance" | "consultation" | "procedure"
   | "hospitalization" | "cage" | "trimmingCourse" | "trimmingOption"
-  | "diagnosisCategory" | "diagnosisName";
+  | "diagnosisCategory" | "diagnosisName" | "checkup" | "job_title";
 
 const SETTINGS_CATEGORY_MAP: Record<string, SettingsCategory> = {
   "service-type": "serviceType",
   examination: "examination",
   vaccine: "vaccine",
   medicine: "medicine",
-  staff: "staff",
   insurance: "insurance",
   consultation: "consultation",
   procedure: "procedure",
@@ -21,14 +20,53 @@ const SETTINGS_CATEGORY_MAP: Record<string, SettingsCategory> = {
   "trimming-option": "trimmingOption",
   "diagnosis-category": "diagnosisCategory",
   "diagnosis-name": "diagnosisName",
+  checkup: "checkup",
+  "job-title": "job_title",
 };
 
 export const settingsRoutes: RouteObject[] = [
+  {
+    path: "/settings",
+    lazy: async () => {
+      const { MasterSettingsIndex } = await import(
+        "@/features/master/routes/MasterSettingsIndex"
+      );
+      return { Component: MasterSettingsIndex };
+    },
+  },
   {
     path: "/settings/clinic",
     lazy: async () => {
       const { ClinicSettings } = await import("@/features/hospital-settings/routes/ClinicSettings");
       return { Component: ClinicSettings };
+    },
+  },
+  {
+    path: "/settings/staff",
+    lazy: async () => {
+      const { StaffSettings } = await import("@/features/master/routes/StaffSettings");
+      return { Component: StaffSettings };
+    },
+  },
+  {
+    path: "/settings/treatment-items",
+    lazy: async () => {
+      const { TreatmentItemsSettings } = await import("@/features/master/routes/TreatmentItemsSettings");
+      return { Component: TreatmentItemsSettings };
+    },
+  },
+  {
+    path: "/settings/diagnosis",
+    lazy: async () => {
+      const { DiagnosisSettings } = await import("@/features/master/routes/DiagnosisSettings");
+      return { Component: DiagnosisSettings };
+    },
+  },
+  {
+    path: "/settings/trimming",
+    lazy: async () => {
+      const { TrimmingSettings } = await import("@/features/master/routes/TrimmingSettings");
+      return { Component: TrimmingSettings };
     },
   },
   ...Object.entries(SETTINGS_CATEGORY_MAP).map(([slug, category]) => ({

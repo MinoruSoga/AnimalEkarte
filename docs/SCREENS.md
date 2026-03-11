@@ -1,7 +1,17 @@
 # 動物病院管理システム 画面仕様書
 
+> **バージョン**: v3.0（2026-03-12更新）
+> **参照元**: `ui-sample/src/SCREENS.md`（フロントエンドプロトタイプ仕様）
+
 本ドキュメントは、全画面（ルート）ごとの仕様を定義します。
 各画面のルートパス、目的、構成コンポーネント、データフロー、ユーザー操作を網羅しています。
+
+> **デザイン・UI共通仕様**:
+> - 操作ボタンはNotion風に統一（メイン: `#038B94`, プライマリ: `#2383E2`）
+> - セレクトボックスは全て `Combobox` (コンボボックス) に統一
+> - 各行の操作アイコンは `MoreHorizontal` + `size-5` を使用
+> - 内部ID（〇〇No, 〇〇ID等）はUI上非表示とする
+> - 会計・入院機能はLocalStorageによるデータ永続化を採用
 
 ---
 
@@ -41,13 +51,13 @@
 | 飼い主名 | `ownerName`（太字） |
 | ペット | `petType - petName`（Dog アイコン付き） |
 | 初診/再診 | `visitType` バッジ（初診=青背景 / 再診=スレート背景） |
-| 診療区分 | `serviceType` バッジ（キーワード自動アイコン: トリミング→Scissors / ワクチン→Syringe / 手術→Activity / 診療→Stethoscope） |
+| 診療区分 | `serviceType` バッジ（キーワード自動アイコン: トリミング→Scissors / 予防接種→Syringe / 手術→Activity / 診療→Stethoscope） |
 | 担当医 | `doctor` バッジ（指名時は「指」ラベル＋オレンジ背景、無効スタッフ時は赤背景＋AlertCircle） |
 
 **DashboardDetailModal 表示項目:**
 | セクション | 項目 |
 |---|---|
-| ヘッダー | 初診/再診アイコン（初/再）、診療区分名、予約ID、ステースバッジ（カラム別カラー） |
+| ヘッダー | 初診/再診アイコン（初/再）、診療区分名、ステータスバッジ（カラム別カラー） |
 | 時間カード | 時刻（等幅・大文字）、nextAppointment バッジ |
 | 患者情報 | ペット名、ペット種、飼い主名 |
 | 診療詳細 | 担当医（未定表示あり）、指名バッジ |
@@ -68,9 +78,12 @@
 | `KanbanColumn` | `[C]` | カラム（受付予約〜会計済） |
 | `AppointmentCard` | `[C]` | 患者カード（DnD対応） |
 | `DashboardDetailModal` | `[C][M]` | 患者詳細モーダル |
+| `DashboardSummaryWidget` | `[C]` | 統計サマリーウィジェット（カラム別件数カード＋ネイティブSVGミニスパークライン、ホバーツールチップ） |
+| `HospitalizationAlertWidget` | `[C]` | 入院アラートウィジェット（入院中件数・退院超過アラート・入院管理へのクイックリンク） |
 | `useDashboardKanban` | `[H]` | カンバン状態管理 |
+| `useDashboardWeeklyStats` | `[H]` | 週次統計データ収集（localStorage永続化、スパークラインデータ提供） |
 
-**データ型:** `Appointment`, `ColumnData`, `DashboardColumnTitle`
+**データ型:** `Appointment`, `ColumnData`, `DashboardColumnTitle`, `WeeklyChartPoint`, `WeeklyStatsResult`
 
 **ユーザー操作:**
 - カードのドラッグ&ドロップでステータスを変更
@@ -100,7 +113,7 @@
 |---|---|
 | 日付ナビゲーション | 前/次（月単位 or 週単位）、今日ボタン |
 | 年月表示 | `yyyy年 M月` 形式 |
-| 予約種別カラー凡例 | 8種別のカラードット＋ラベル（診療=blue / 検診=green / 検査=green / 手術=red / トリミング=orange / ワクチン=purple / 入院=cyan / ホテル=cyan） |
+| 予約種別カラー凡例 | 動的マスタ連動（`ServiceTypeMaster.color`）。Figma準拠パステルカラー：診療=#dbeafe(bg)/#5b8def(text) / 検診=#dcfce7/#16a34a / 手術=#ffe2e2/#f87171 / ワクチン=#f3e8ff/#a855f7 / 入院=#cefafe/#0891b2 / トリミング=#ffedd4/#f97316。暗い色は極力使用せず、明るく柔らかいパステルトーンで統一 |
 | 担当医フィルタ | Stethoscope アイコン付きSelectドロップダウン。「すべての医師」＋全予約データから動的抽出した医師名一覧 |
 | 表示切替 | 月表示 / 週表示 Select |
 
@@ -144,12 +157,16 @@
 - **Step 1: ペット検索・選択**（StepIndicator 1=ペット選択 / 2=予約情報）
   - `PatientSearch`（飼主名・ペット名テキスト検索）
   - `PatientSelectionTable`（検索結果テーブル、行クリックでペット選択）
-  - 選択済みペットは `SelectedPetChip`（PawPrint アイコン付き、種バッジ、飼主No表示、×ボタン）で表示
+  - 選択済みペットは `SelectedPetChip`（PawPrint アイコン付き、種バッジ、×ボタン）で表示
   - 編集モード時はStep 1をスキップ
 - **Step 2: 予約情報入力**
   - `ReservationFormFields`（上記フォーム項目一式）
   - 新規時: 日付セルクリック日を初期値、デフォルト時間10:00-11:00
   - フッターに「保存」ボタン
+
+**アクセシビリティ:**
+- `ReservationFormFields` の日付・予約種別・担当医の各 `SelectTrigger` に `aria-describedby` で `FormFieldError` 接続
+- 重複チェックエラー時: 構造化トースト（`toast.warning` + description）
 
 **ReservationDetailModal 表示項目:**
 | セクション | 項目 |
@@ -158,7 +175,7 @@
 | ヘッダー | 初診/再診バッジ（丸ドット付き）、予約種別名 |
 | ステータスセレクター | 現在ステータスの色帯＋6段階ドロップダウン（予約確定/受付済/診療中/会計待ち/完了/キャンセル、各色ドット付き） |
 | 日時カード | 日付（yyyy年 M月 d日 (E)）、時間帯（H:mm – H:mm）、Calendar/Clock アイコン |
-| 患者情報 | ペット名（太字）、飼い主名、カルテNo（petId、等幅フォント） |
+| 患者情報 | ペット名（太字）、飼い主名 |
 | 診療詳細 | 担当医 + 指名バッジ（amber 背景）、予約区分（Tag アイコン付き） |
 | メモ | notes（amber 背景カード、FileText アイコン付き、条件表示） |
 | フッターアクション | 削除ボタン（ゴミ箱）、編集ボタン、種別別レコード作成ボタン（カルテ作成 / トリミング記録作成 / 入院・ホテル登録） |
@@ -177,7 +194,7 @@
 | `PatientSelectionTable` | `[C]` | 患者選択テーブル |
 | `ConfirmDialog` | `[S][M]` | キャンセル確認 |
 
-**データ型:** `ReservationAppointment`, `ReservationFormData`, `CalendarView`, `ReservationStatus`, `ReservationType`
+**データ型:** `ReservationAppointment`, `ReservationFormData`, `CalendarView`, `ReservationStatus`
 
 **ユーザー操作:**
 - 月/週ビュー切替
@@ -202,7 +219,7 @@
 **画面構成:**
 - ヘッダー: タイトル + 新規登録ボタン
 - 検索バー（`[S] SearchFilterBar`）+ 件数表示
-- データテーブル（`[S] DataTable`）: 飼主No、飼主名、ペット番号、ペット名、生死、種、生年月日、体重、環境、前回来院、操作
+- データテーブル（`[S] DataTable`）: 飼主名、ペット名、生死、種、生年月日、体重、環境、前回来院、操作
 - ページネーション（`[S] Pagination`、20件/ページ）
 - 行アクション: 編集、削除（`[S] RowActionDropdown`）
 
@@ -222,21 +239,15 @@
 | **コンポーネント** | `[R] OwnerForm` |
 | **目的** | 飼主情報の入力・更新、配下ペットの管理 |
 
-**画面構成:**
-- ヘッダー: タイトル + 保存ボタン
-- 飼主情報セクション（2カラムグリッド）:
-  - 飼主ID、飼主名 (必須)、飼主名カナ (必須)、会社名、郵便番号、住所1/2、自宅住所1/2、生年月日、電話番号 (必須)、会社電話、メール、備考、危険フラグ (Switch)、割引率、会員種別 (Select)
-
 **OwnerForm フォーム項目（4カラムグリッド）:**
 | フィールド | 入力部品 | 備考 |
 |---|---|---|
-| 飼主No | `Input` | |
 | 郵便番号 | `Input` | placeholder: 123-4567 |
 | 会社名 | `Input` | |
 | 会員区分 | `Button` グループ | `MEMBERSHIP_TYPE_VALUES`（非会員/会員/退亡者/他診/準） |
 | 飼主名 | `Input` | 必須 |
 | 住所1 | `Input` | |
-| 郵便番号(自宅) | `Input` | |
+| 電話番号(自宅) | `Input` | |
 | 危険人物 | `Switch` | 「該当する」ラベル |
 | 飼主名(カナ) | `Input` | 必須 |
 | 住所2 | `Input` | |
@@ -249,16 +260,9 @@
 | 会社 電話番号 | `Input` | colspan=2 |
 | 値引率 (%) | `Input`（type=number） | |
 
-- ペット一覧テーブル:
-  - ペット追加ボタン
-  - 各ペット行にドロップダウン（カルテ作成、予約、トリミング、入院、会計、編集、削除）
-- ペット編集モーダル（`[C] PetEditModal`）
-- フォーム離脱保護（`[S] NavigationBlocker`）
-
 **PetEditModal フォーム項目:**
 | フィールド | 入力部品 | 備考 |
 |---|---|---|
-| ペット番号 | `Input` | |
 | ペット名 | `Input` | |
 | ペット名カナ | `Input` | |
 | 種 | `Select`（犬/猫/その他） | `PET_SPECIES_VALUES` |
@@ -274,9 +278,9 @@
 | 保険詳細(負担割合) | `Select`（50%/70%/90%/100%/その他） | `PET_INSURANCE_RATIO_VALUES` |
 | 備考・特記事項 | `Textarea` | |
 
-- 3カラムグリッド（md:2, lg:3）
-- 必須フィールド: ペット名、種別、性別、生年月日
-- バリデーション: 必須未入力時にトースト通知
+**アクセシビリティ:**
+- 飼主名・飼主名カナ・電話番号: `aria-invalid` + `aria-describedby` → `FormFieldError`（`role="alert"`）接続
+- ペット編集モーダル: ペット名に `aria-invalid` + `aria-describedby` → `FormFieldError` 接続
 
 **使用コンポーネント:**
 | コンポーネント | 種別 | 説明 |
@@ -336,7 +340,7 @@
 | **目的** | カルテ作成対象のペットを検索・選択する |
 
 **画面構成:**
-- `[S] PetSelection` 共通コンポーネントを使用
+- `[S] PetSearchForm` + `[S] PetSearchResultsTable` 共通コンポーネントを使用
   - ペット検索フォーム（飼主ID、飼主名、電話、ペット名、種）
   - 検索結果テーブル
   - 選択ボタンで `/medical-records/new?petId=xxx` へ遷移
@@ -347,12 +351,12 @@
 |------|------|
 | **ルート** | `/medical-records/new`（新規）/ `/medical-records/:id`（編集） |
 | **コンポーネント** | `[R] MedicalRecordForm` |
-| **目的** | 診療記録の全項目を8タブ構成で入力・編集する |
+| **目的** | 診療記録の全項目を9タブ構成で入力・編集する |
 
 **画面構成:**
 - スティッキーヘッダー:
   - 患者情報カード（`[S] PatientInfoCard`）: ペット名、種、飼主名、担当医、診療区分、バイタル入力ボタン
-  - タブバー（8タブ）
+  - タブバー（9タブ）
 - タブコンテンツ（遅延マウント: 一度表示したタブは保持）
 
 **タブ詳細:**
@@ -362,19 +366,18 @@
 | 1 | **問診** | `MedicalRecordInterview` | 主訴（Markdown入力）、問診履歴表示 |
 | 2 | **診察/治療プラン** | `MedicalRecordDiagnosisPlan` | バイタル入力・履歴グラフ、診断登録（カテゴリ+診断名）、治療プラン（TreatmentTable） |
 | 3 | **治療** | `MedicalRecordTreatment` | 処置完了記録テーブル（TreatmentTable）、検索ダイアログでマスタ連携 |
-| 4 | **予防接種** | `MedicalRecordVaccination` | ワクチンフォーム + 接種履歴一覧 |
-| 5 | **検査** | `MedicalRecordExamination` | 検査オーダーフォーム + 結果履歴 |
-| 6 | **画像** | `MedicalRecordImage` | 画像アップロード + フィルタ付きギャラリー |
-| 7 | **見積書** | `MedicalRecordEstimate` | 診療内容に基づく概算見積 |
-| 8 | **会計(医師確認)** | `MedicalRecordBillCheck` | 算定チェック・確認 |
-
-**タブ別フォーム項目詳細:**
+| 4 | **予防接種** | `MedicalRecordVaccination` | 予防接種フォーム + 接種履歴一覧 |
+| 5 | **定期健診** | `MedicalRecordCheckup` | 健診種別・実施日・結果登録フォーム + 健診履歴一覧 |
+| 6 | **検査** | `MedicalRecordExamination` | 検査オーダーフォーム + 結果履歴 |
+| 7 | **画像** | `MedicalRecordImage` | 画像アップロード + フィルタ付きギャラリー |
+| 8 | **見積書** | `MedicalRecordEstimate` | 診療内容に基づく概算見積 |
+| 9 | **会計(医師確認)** | `MedicalRecordBillCheck` | 算定チェック・確認 |
 
 **Tab 1: 問診（`MedicalRecordInterview`）**
 - 3カラムレイアウト（lg:12グリッド = 3+4+5）
 - **左カラム**: 主訴入力（`InterviewChiefComplaint`）
   - Markdown テキストエリア（テンプレート見出し: どんな症状 / どこが / いつから / その他・備考 / フリースペース）
-  - テンプレート挿入ボタン（定期検診 / ワクチン / 下痢・嘔吐 / 皮膚）
+  - テンプレート挿入ボタン（定期検診 / 予防接種 / 下痢・嘔吐 / 皮膚）
 - **中カラム**: 治療方針（`InterviewTreatmentPolicy`）
   - Markdown テキストエリア
 - **右カラム**: カルテ履歴（`InterviewHistory`）
@@ -392,10 +395,11 @@
 - **集計**: `TreatmentDetailedSummary`（小計、税、合計、割引率、値引額）
 
 **Tab 3: 治療（`MedicalRecordTreatment`）**
-- **治療プランテーブル**: `TreatmentTable`（showStatus=true、ステータス列あり）
-- **治療済みテーブル**: `TreatmentTable`（showStatus=false）
+- **治療プランテーブル**: `TreatmentTable`（`onMarkCompleted` チェックボックス列あり。チェック→確認ダイアログ→治療済みテーブルへ移動）
+- **治療済みテーブル**: `TreatmentTable`（`onRevertToPlan` 戻すボタンあり。確認ダイアログ→治療プランへ差し戻し）
+- **移動確認ダイアログ**: `TreatmentMoveConfirmDialog`（`AlertDialog`ベース、`pendingMove`ステート制御）
 - **集計**: `TreatmentDetailedSummary`
-- TreatmentTable 列: [ステータス]、治療内容、メモ、保険、単価、数量、割引(%)、値引(￥)、小計、操作
+- TreatmentTable 列: [済チェックボックス]、治療内容、メモ、保険、単価(税込)、数量、割引(%)、値引(￥)、小計、操作
 
 **Tab 4: 予防接種（`MedicalRecordVaccination`）**
 - 2カラムレイアウト（lg:6+6）
@@ -434,7 +438,7 @@
 
 **Tab 7: 見積書（`MedicalRecordEstimate`）**
 - **件名**: `EstimateForm`（件名 Input）
-- **明細テーブル**: `TreatmentTable`（showStatus=false）
+- **明細テーブル**: `TreatmentTable`（チェックボックス列なし・戻すボタンなし）
 - **集計**: `TreatmentDetailedSummary`
 - **コメント / 備考**: 2カラム `Textarea`
 - **アクション**: 「PDF出力」ボタン
@@ -442,7 +446,11 @@
 **Tab 8: 会計(医師確認)（`MedicalRecordBillCheck`）**
 - **明細テーブル**: `TreatmentTable`（治療タブの completedItems を自動同期）
 - **集計**: `TreatmentDetailedSummary`
-- **固定フローティングアクション**: 「チェック完了」ボタン + 「会計へ進む」ボタン（Receipt アイコン付き、items 空時は disabled）
+- **固定フローティングアクション**:
+  - 「チェック完了」ボタン: クリックでトグル動作。チェック完了状態では「未チェックに戻す」に変わり、再クリックで「チェック完了」に戻る。トースト通知でステータス変更を表示
+  - 「会計へ進む」ボタン / 「会計を確認」ボタン:
+    - 新規カルテ（linkedAccountingId なし）: 「会計へ進む」（Receipt アイコン付き、items 空時は disabled）
+    - 既存カルテ（linkedAccountingId あり）: 「会計を確認」（緑背景、既存会計詳細へ遷移）
 - **会計遷移**: カルテの明細を `AccountingItem[]` に自動変換し、カテゴリを自動推定（検査/処方/手術/処置/フード等のキーワードマッチ）して会計画面へ state 経由で渡す
 
 **VitalInputDialog フォーム項目（カルテ共通）:**
@@ -453,13 +461,13 @@
 | 呼吸数 | `Input`（number） | Wind アイコン、単位: /min |
 | 体重 | `Input`（number, step=0.01） | Weight アイコン、単位: kg |
 | メモ | `Textarea` | StickyNote アイコン |
-- 入力/履歴のタブ切替、履歴ではトレンドアイコン（↑↓→）表示
 
 **使用コンポーネント:**
 | コンポーネント | 種別 | 説明 |
 |---|---|---|
 | `MedicalRecordForm` | `[R]` | メインページ |
 | `PatientInfoCard` | `[S]` | 患者情報カード |
+| `OwnerQuickViewModal` | `[S][M]` | 飼主情報クイックビュー |
 | `MasterSelectModal` | `[S][M]` | 診療区分・担当医選択 |
 | `VitalInputDialog` | `[C][M]` | バイタル入力ダイアログ |
 | `TreatmentTable` | `[C]` | 治療項目テーブル |
@@ -469,16 +477,18 @@
 | `DiagnosisHeader` | `[C]` | 診断ヘッダー |
 | `ExaminationForm` | `[C]` | 検査フォーム |
 | `ExaminationHistory` | `[C]` | 検査結果履歴 |
-| `VaccinationForm` | `[C]` | ワクチンフォーム |
+| `VaccinationForm` | `[C]` | 予防接種フォーム |
 | `VaccinationHistory` | `[C]` | 接種履歴 |
 | `EstimateForm` | `[C]` | 見積フォーム |
 | `NavigationBlocker` | `[S]` | フォーム離脱保護 |
+| `PrintPreviewDialog` | `[S][M]` | 印刷プレビューダイアログ |
 | `useMedicalRecordForm` | `[H]` | メインフォームフック |
 | `useMedicalRecordInit` | `[H]` | 初期化ロジック |
+| `usePrint` | `[H]` | 印刷状態管理フック |
 
-**データ型:** `MedicalRecord`, `TreatmentItem`, `VitalEntry`, `DiagnosisFormData`, `ExaminationFormData`, `ExaminationResultGroup`, `VaccinationFormData`, `VaccinationHistoryItem`, `InterviewHistoryItem`
+**データ型:** `MedicalRecord`, `TreatmentItem`, `VitalEntry`, `DiagnosisFormData`, `ExaminationFormData`, `ExaminationResultGroup`, `VaccinationFormData`, `VaccinationHistoryItem`, `InterviewHistoryItem`, `MrDocumentType`
 
-**ユーザー操作:**
+**ユーザー操作（要medical権限）:**
 - タブ切替で各セクションの入力
 - 患者情報カードから診療区分・担当医をマスタ選択
 - バイタル入力ダイアログでバイタル記録
@@ -486,6 +496,12 @@
 - 保存ボタンで確定（バリデーション実行）
 - 削除ボタンでカルテ削除（確認ダイアログ）
 - 未保存離脱時の保護ダイアログ
+- 確定済みカルテ: 印刷（`usePrint<MrDocumentType>` + `MR_DOCUMENT_TYPE_LABELS` で動的タイトル）
+
+**印刷機能:**
+- ヘッダーアクションに印刷ボタン表示（確定済み時のみ）
+- `PrintPreviewDialog` でプレビュー表示、`window.print()` で印刷実行
+- 印刷エリア（`hidden print:block`、`data-print-area` 属性）に帳票を配置
 
 ---
 
@@ -497,13 +513,14 @@
 |------|------|
 | **ルート** | `/hospitalization` |
 | **コンポーネント** | `[R] HospitalizationList` |
-| **目��** | 入院・ホテル患者の一覧管理、ボード/リスト表示切替 |
+| **目的** | 入院・ホテル患者の一覧管理、ボード/リスト表示切替 |
 
 **画面構成:**
 - ヘッダー: タイトル + 新規登録ボタン
 - フィルタ: ステータス（全て/入院中/退院済/予約）タブ、ボード/リスト表示切替
 - 検索バー
 - **ボードビュー**（`[C] HospitalizationBoard`）: ケージごとのカード表示
+  - `[C] CageDragPreview`: `useDragLayer` によるカスタムドラッグプレビューオーバーレイ（ケージ間移動時に半透明カードがカーソルに追従）
 - **リストビュー**（`[C] HospitalizationListView`）: データテーブル表示
 - ページネーション（リストビュー時、20件/ページ）
 
@@ -523,7 +540,7 @@
 | **コンポーネント** | `[R] HospitalizationPetSelection` |
 | **目的** | 入院対象ペットの検索・選択 |
 
-**画面構成:** `[S] PetSelection` 共通コンポーネント使用
+**画面構成:** `[S] PetSearchForm` + `[S] PetSearchResultsTable` 共通コンポーネント使用
 
 ### 5.3 入院登録/編集
 
@@ -532,15 +549,6 @@
 | **ルート** | `/hospitalization/new`（新規）/ `/hospitalization/:id/edit`（編集） |
 | **コンポーネント** | `[R] HospitalizationForm` |
 | **目的** | 入院情報の入力・治療プラン管理 |
-
-**画面構成:**
-- 患者情報カード（`[S] PatientInfoCard`）
-- 基本情報セクション（`[C] HospitalizationBasicInfo`）: 入院区分、ケージ選択、担当医、日付
-- メモ・指示セクション（`[C] HospitalizationNoteCard`）: オーナー要望、スタッフメモ
-- 処置テーブル（`[C] HospitalizationTreatmentTable`）: 治療項目の管理
-- コスト集計（`[C] HospitalizationCostSummary`）
-- 担当医選択モーダル（`[S] MasterSelectModal`）
-- フォーム離脱保護
 
 **HospitalizationBasicInfo フォーム項目:**
 | フィールド | 入力部品 | 備考 |
@@ -557,13 +565,8 @@
 | 飼主からのリクエスト | MessageSquare | 「リクエストを入力...」 |
 | スタッフへの連絡事項 | AlertCircle | 「連絡事項を入力...」 |
 
-**使用フック:**
-| フック | 説明 |
-|---|---|
-| `useHospitalizationForm` | フォーム状態管理（186行） |
-| `useTreatmentPlans` | 治療プラン管理（112行） |
-
-**データ型:** `HospitalizationFormData`, `TreatmentPlan`, `CreateHospitalizationDTO`, `UpdateHospitalizationDTO`
+**アクセシビリティ:**
+- 担当医エラー: `PatientInfoCard.staffAriaDescribedBy` → `FormFieldError`（`role="alert"`）と `aria-describedby` 接続
 
 ### 5.4 入院詳細
 
@@ -574,17 +577,13 @@
 | **目的** | 入院患者のケアプラン管理、デイリーログ記録 |
 
 **画面構成（レスポンシブ: デスクトップ/モバイル分離）:**
-
-**デスクトップレイアウト（`HospitalizationDesktopLayout`）:**
-- 左カラム: 患者ヘッダー + アクションバー + ケアプランセクション
-- 右カラム: デイリーレコードセクション
-
-**モバイルレイアウト（`HospitalizationMobileLayout`）:**
-- シングルカラム: 患者ヘッダー → ケアプラン → デイリーレコード
+- **デスクトップ**: 左カラム（患者ヘッダー＋アクションバー＋ケアプラン）+ 右カラム（デイリーレコード）
+- **モバイル**: シングルカラム（患者ヘッダー → ケアプラン → デイリーレコード）
 
 **ケアプラン（`[C] CarePlan/`）:**
 | コンポーネント | 説明 |
 |---|---|
+| `CarePlanPreviewPopover` | ケアプラン概要ポップオーバー（ステータストグル付き） |
 | `CarePlanSection` | ケアプラン一覧表示 |
 | `CarePlanItemRow` | ケアプラン項目行 |
 | `CarePlanDialog` | ケアプラン追加/編集ダイアログ |
@@ -606,54 +605,23 @@
 |---|---|---|
 | マスタ引用 | 「マスタ検索」ボタン → `TreatmentSearchDialog` | 処置・検査・薬をマスタから検索して自動入力 |
 | 種類 | `Select`（`CARE_PLAN_TYPE_VALUES`: 食事/投薬/処置・検査/処置・指示/持ち物・その他） | |
-| 名称 | `Input` | 例: ロイヤルカナン消化器サポート |
-| マスタ連動情報 | Badge 表示（単価、カテゴリ） | マスタ選択時のみ表示 |
+| 名称 | `Input` | |
 | 詳細・指示量 | `Input` | 例: 30g / 1錠 / 左前肢 |
 | タイミング | トグルボタン（`PLAN_TIMING_VALUES`: 朝/昼/夜） | 複数選択可 |
-| メモ・特記事項 | `Textarea` | 例: ふやかして与える |
+| メモ・特記事項 | `Textarea` | |
 | ステータス | `Select`（`CARE_PLAN_STATUS_VALUES`） | |
 
-**VitalDialog フォーム項目（入院デイリーレコード用）:**
-| フィールド | 入力部品 | 備考 |
-|---|---|---|
-| 記録時刻 | `Input`（type=time） | 現在時刻で初期化 |
-| 体温 (℃) | `Input`（number, step=0.1） | |
-| 体重 (kg) | `Input`（number, step=0.01） | |
-| 心拍数 (/min) | `Input`（number） | |
-| 呼吸数 (/min) | `Input`（number） | |
-| メモ | `Textarea` | |
-
-**LogDialog フォーム項目（入院ケアログ用）:**
-- ログ種別に応じてタイトル・説明・プレースホルダーが変化
-  - food: 「食事記録」（完食、1/2など）
-  - excretion: 「排泄記録」（良便、軟便など）
-  - medicine / other: 「活動・メモ」（内容）
-
-| フィールド | 入力部品 | 備考 |
-|---|---|---|
-| 記録時刻 | `Input`（type=time） | 現在時刻で初期化 |
-| 内容・量 | `Input` | 種別依存のプレースホルダー |
-| 詳細メモ | `Textarea` | |
-
-**TaskCompleteDialog フォーム項目（タスク完了記録用）:**
-| フィールド | 入力部品 | 備考 |
-|---|---|---|
-| タスク情報 | 読み取り専用表示 | タスク名 + 詳細（背景カード） |
-| 実施時刻 | `Input`（type=time） | 現在時刻で初期化 |
-| 実施メモ (任意) | `Textarea` | |
-
-**データ型:** `Hospitalization`, `CarePlanItem`, `DailyRecord`, `VitalRecord`, `CareLogRecord`, `StaffNoteRecord`, `Task`, `TimelineItem`
+**データ型:** `Hospitalization`, `CarePlanItem`, `DailyRecord`, `VitalRecord`, `CareLogRecord`, `StaffNoteRecord`, `Task`, `TimelineItem`, `HospDocumentType`
 
 **ユーザー操作:**
 - ケアプランの追加/編集/削除（カテゴリ: 食事、投薬、処置・検査、処置・指示、持ち物・その他）
-- デイリーレコード: 日付ナビゲーション
+- デイリーレコード日付ナビゲーション
 - タスク完了チェック（朝/昼/夜のタイミングごと）
-- バイタル記録入力
-- ケアログ記録（食事、排泄、投薬、処置、その他）
+- バイタル記録・ケアログ記録（食事、排泄、投薬、処置、その他）
 - スタッフメモ追加
 - タイムラインで時系列確認
 - 退院処理（確認ダイアログ）
-- 編集画面への遷移
+- 入院サマリーの印刷プレビュー → 印刷
 
 ---
 
@@ -667,13 +635,6 @@
 | **コンポーネント** | `[R] TrimmingList` |
 | **目的** | トリミング予約の検索・一覧管理 |
 
-**画面構成:**
-- ヘッダー: タイトル（Scissors アイコン）+ 新規登録ボタン（`[S] PrimaryButton`）
-- フィルタ: `[S] SearchFilterBar`（キーワード検索「飼主名、ペット名...」）+ 日付範囲フィルタ
-- データテーブル（`[S] DataTable`）
-- ページネーション（`[S] Pagination`、20件/ページ）
-- 削除確認ダイアログ（`[S] ConfirmDialog`）
-
 **フィルタ項目:**
 | 項目 | 入力部品 | 備考 |
 |---|---|---|
@@ -683,39 +644,17 @@
 | クリア | `Button`（outline） | 全フィルタリセット |
 
 **テーブル列:**
-| 列 | className | 表示内容 |
-|---|---|---|
-| 診療日 | `w-[120px]` | `record.date`（等幅フォント） |
-| 飼主名 | - | `record.ownerName` |
-| ペット名 | - | `record.petName` + `record.petNumber`（2行表示） |
-| 種 | `w-[80px]` | `record.species` |
-| 体重 | `w-[80px]` | `record.weight` |
-| スタイル希望 | - | `record.styleRequest`（truncate、max-w-[200px]） |
-| 担当 | `w-[100px]` | `record.staff`（無効スタッフ時は赤文字＋AlertTriangle） |
-| ステータス | `w-[100px]` | `StatusBadge`（`getTrimmingStatusColor`） |
-| 操作 | `w-[100px]`, align:right | `RowActionDropdown`（編集 / 削除） |
-
-**行アクション:**
-| アクション | アイコン | 動作 |
-|---|---|---|
-| 編集 | Edit | `/trimming/{id}` へ遷移 |
-| 削除 | Trash2 | `ConfirmDialog` → `deleteRecord`、構造化トースト |
-
-**使用コンポーネント:**
-| コンポーネント | 種別 | 説明 |
-|---|---|---|
-| `TrimmingList` | `[R]` | メインページ |
-| `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | 検索フィルタバー |
-| `DataTable` / `DataTableRow` | `[S]` | データテーブル |
-| `NotionDatePicker` | `[S]` | 日付ピッカー（×2） |
-| `StatusBadge` | `[S]` | ステータスバッジ |
-| `RowActionDropdown` | `[S]` | 行アクションメニュー |
-| `ConfirmDialog` | `[S][M]` | 削除確認 |
-| `Pagination` | `[S]` | ページネーション |
-| `useTrimmingRecords` | `[H]` | 検索・フィルタ・削除ロジック |
-| `useStaffValidation` | `[H]` | スタッフ有効性チェック |
-| `usePagination` | `[H]` | ページネーション（resetKey 連動） |
+| 列 | 表示内容 |
+|---|---|
+| 診療日 | `record.date`（等幅フォント） |
+| 飼主名 | `record.ownerName` |
+| ペット名 | `record.petName` + `record.petNumber`（2行表示） |
+| 種 | `record.species` |
+| 体重 | `record.weight` |
+| スタイル希望 | `record.styleRequest`（truncate、max-w-[200px]） |
+| 担当 | `record.staff`（無効スタッフ時は赤文字＋AlertTriangle） |
+| ステータス | `StatusBadge`（`getTrimmingStatusColor`） |
+| 操作 | `RowActionDropdown`（編集 / 削除） |
 
 **データ型:** `TrimmingRecord`, `DataTableColumn`
 **ステータス:** 予約 / 進行中 / 完了
@@ -726,7 +665,7 @@
 |------|------|
 | **ルート** | `/trimming/select-pet` |
 | **コンポーネント** | `[R] TrimmingPetSelection` |
-| **画面構成** | `[S] PetSelection` 共通コンポーネント使用 |
+| **画面構成** | `[S] PetSearchForm` + `[S] PetSearchResultsTable` 共通コンポーネント使用 |
 
 ### 6.3 トリミング登録/編集
 
@@ -736,44 +675,29 @@
 | **コンポーネント** | `[R] TrimmingForm` |
 | **目的** | トリミング情報の入力・編集 |
 
-**画面構成:**
-- 患者情報カード（`[S] PatientInfoCard`）: 担当スタッフ・診療区分「トリミング」表示
-- 3カラムレイアウト（`grid-cols-1 md:2 lg:3 gap-3`）
-- フォーム離脱保護（`[S] NavigationBlocker`）
-- ヘッダーに削除ボタン（編集時のみ）+ 保存ボタン
-
 **左カラム フォーム項目:**
 | フィールド | 入力部品 | 備考 |
 |---|---|---|
 | コース選択 | `MasterSelectTrigger` → `MasterSelectModal`（trimming_course マスタ連動） | `MasterLink` 付き、選択時に `charge` 自動反映 |
 | スタイルの希望 | `Textarea` | min-h-[80px] |
 | メモ | `Textarea` | min-h-[80px] |
-| オプション | `Checkbox` グリッド（2cols） | trimming_option マスタ連動、`MasterLink` 付き、複数選択可、各項目に `+¥{price}` 表示 |
-| 希望スタイル画像 | `file input` + プレビュー | ドラッグ&ドロップUI、Upload アイコン、×ボタンで削除、h-[180px] |
+| オプション | `Checkbox` グリッド（2cols） | trimming_option マスタ連動、複数選択可、各項目に `+¥{price}` 表示 |
+| 希望スタイル画像 | `file input` + プレビュー | ドラッグ&ドロップUI、h-[180px] |
 
 **中カラム フォーム項目:**
 | フィールド | 入力部品 | 備考 |
 |---|---|---|
-| BW（体重） | `Input` + `radio`（Kg/g） | `BODY_WEIGHT_UNIT_VALUES`、2カラムグリッド |
+| BW（体重） | `Input` + `radio`（Kg/g） | `BODY_WEIGHT_UNIT_VALUES` |
 | BT（体温） | `Input` | |
-| USED SHAMPOO | `Input` | placeholder: 使用したシャンプーを入力... |
-| USED RIBBON | `Input` | placeholder: 使用したリボンを入力... |
-| TREATMENT | `Input` | placeholder: 処置内容を入力... |
+| USED SHAMPOO | `Input` | |
+| USED RIBBON | `Input` | |
+| TREATMENT | `Input` | |
 | 備考 | `Input` | |
-| 完成画像 | `file input` + プレビュー | Upload アイコン、×ボタンで削除、h-[180px] |
+| 完成画像 | `file input` + プレビュー | h-[180px] |
 
 **右カラム（トリミング履歴）:**
-- タイトル: 「トリミング履歴」
-- `[S] HistoryFilterPanel`: 日付範囲、キーワード検索（「コース名・メモで検索...」）、ソート順（昇順/降順）、クリアボタン
+- `[S] HistoryFilterPanel`: 日付範囲、キーワード検索、ソート順（昇順/降順）、クリアボタン
 - 履歴カード: 診療日、コース名バッジ、作成者/更新者・日時、スタイルの希望、メモ、画像セクション
-- 空状態: 「該当するトリミング履歴がありません」
-
-**担当スタッフ選択（PatientInfoCard 経由）:**
-- `MasterSelectModal`（staff マスタ連動、active のみ）
-- タイトル: 「担当スタッフを選択」
-
-**バリデーション:**
-- 担当スタッフ未選択時はトースト警告（`toast.warning`）で保存ブロック
 
 **使用コンポーネント:**
 | コンポーネント | 種別 | 説明 |
@@ -787,21 +711,8 @@
 | `NavigationBlocker` | `[S]` | フォーム離脱保護 |
 | `ConfirmDialog` | `[S][M]` | 削除確認 |
 | `useTrimmingForm` | `[H]` | フォーム状態管理 |
-| `useUnsavedChanges` | `[H]` | 未保存検知 |
-| `useMasterItems` | `[H]` | マスタデータ取得 |
 
 **データ型:** `TrimmingFormData`, `TrimmingParts`, `TrimmingHistoryItem`, `BodyWeightUnit`, `SortOrder`
-
-**ユーザー操作:**
-- コース選択（マスタモーダル）
-- オプション複数選択（チェックボックス）
-- 体重単位切替（Kg/g ラジオ）
-- スタイル画像・完成画像のアップロード/削除
-- 担当スタッフ選択（PatientInfoCard クリック）
-- トリミング履歴の検索・フィルタ・ソート
-- 保存（バリデーション→トースト→一覧へ遷移）
-- 削除（確認ダイアログ→一覧へ遷移）
-- 未保存離脱時の保護ダイアログ
 
 ---
 
@@ -815,44 +726,19 @@
 | **コンポーネント** | `[R] Examinations` |
 | **目的** | 検査オーダー・結果の一覧管理 |
 
-**画面構成:**
-- ヘッダー: タイトル（TestTube アイコン）+ 「検査データ取込」ボタン（FileSpreadsheet アイコン、outline）
-- 検索バー（`[S] SearchFilterBar`）: 「飼主名、ペット名、検査種別...」
-- データテーブル（`[S] DataTable`）
-- ページネーション（`[S] Pagination`、20件/ページ）
-
 **テーブル列:**
-| 列 | className | 表示内容 |
-|---|---|---|
-| 日時 | `w-[120px]` | `r.date`（等幅フォント） |
-| 飼主名 | - | `r.ownerName` |
-| ペット名 | - | `r.petName` |
-| 検査種別 | - | `r.testType` |
-| 結果概要 | - | `r.resultSummary`（truncate、max-w-[200px]、未入力時「-」） |
-| 担当医 | `w-[100px]` | `r.doctor`（無効スタッフ時は赤文字＋AlertTriangle） |
-| ステータス | `w-[80px]` | `StatusBadge`（`getExaminationStatusColor`） |
-| 操作 | `w-[80px]`, align:right | `RowActionDropdown`（「カルテを開く」のみ） |
+| 列 | 表示内容 |
+|---|---|
+| 日時 | `r.date`（等幅フォント） |
+| 飼主名 | `r.ownerName` |
+| ペット名 | `r.petName` |
+| 検査種別 | `r.testType` |
+| 結果概要 | `r.resultSummary`（truncate、未入力時「-」） |
+| 担当医 | `r.doctor`（無効スタッフ時は赤文字＋AlertTriangle） |
+| ステータス | `StatusBadge`（`getExaminationStatusColor`） |
+| 操作 | `RowActionDropdown`（「カルテを開く」のみ） |
 
-**行アクション:**
-| アクション | アイコン | 動作 |
-|---|---|---|
-| カルテを開く | FileText | `/medical-records/{medicalRecordId}` へ遷移（state: `{ activeTab: "検査", from: "/examinations" }`） |
-
-**特記:** 検査の新規作成はカルテ内の検査タブから行う。一覧画面は参照+カルテ遷移のみ。行クリックでもカルテの検査タブへ遷移する。
-
-**使用コンポーネント:**
-| コンポーネント | 種別 | 説明 |
-|---|---|---|
-| `Examinations` | `[R]` | メインページ |
-| `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | 検索フィルタバー |
-| `DataTable` / `DataTableRow` | `[S]` | データテーブル |
-| `StatusBadge` | `[S]` | ステータスバッジ |
-| `RowActionDropdown` | `[S]` | 行アクションメニュー |
-| `Pagination` | `[S]` | ページネーション |
-| `useExaminationRecords` | `[H]` | 検索・フィルタロジック |
-| `useStaffValidation` | `[H]` | スタッフ有効性チェック |
-| `usePagination` | `[H]` | ページネーション |
+**特記:** 検査の新規作成はカルテ内の検査タブから行う。一覧画面は参照+カルテ遷移のみ。行クリックでカルテの検査タブへ遷移する。
 
 **データ型:** `ExaminationRecord`, `ExaminationRecordItem`, `DataTableColumn`
 **ステータス:** 依頼中 / 検査中 / 完了
@@ -869,44 +755,18 @@
 | **コンポーネント** | `[R] Accounting` |
 | **目的** | 会計レコードの一覧管理 |
 
-**画面構成:**
-- ヘッダー: タイトル（CreditCard アイコン）+ 新規会計登録ボタン（`[S] PrimaryButton`）
-- 検索バー（`[S] SearchFilterBar`）: 「飼主名、ペット名...」
-- データテーブル（`[S] DataTable`）
-- ページネーション（`[S] Pagination`、20件/ページ）
-- 削除確認ダイアログ（`[S] ConfirmDialog`）
-
 **テーブル列:**
-| 列 | className / align | 表示内容 |
-|---|---|---|
-| 日時 | `w-[140px]` | `r.scheduledDate`（等幅フォント） |
-| 飼主名 | - | `r.ownerName` |
-| ペット名 | - | `r.petName` + カルテ連携バッジ（`medicalRecordId` 存在時、青背景「カルテ連携」） |
-| 請求金額 | align:right | `formatCurrency(calculateTotal(r))`（等幅・太字） |
-| 支払方法 | align:center | `getPaymentMethodLabel(r.payment?.method)` |
-| ステータス | `w-[100px]` | `StatusBadge`（`getAccountingStatusColor` / `getAccountingStatusLabel`） |
-| 操作 | `w-[100px]`, align:right | `RowActionDropdown`（編集 / 削除） |
-
-**行アクション:**
-| アクション | アイコン | 動作 |
-|---|---|---|
-| 編集 | Edit | `/accounting/{id}` へ遷移 |
-| 削除 | Trash2 | `ConfirmDialog` → `deleteRecord`、構造化トースト |
-
-**使用コンポーネント:**
-| コンポーネント | 種別 | 説明 |
-|---|---|---|
-| `Accounting` | `[R]` | メインページ |
-| `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | 検索フィルタバー |
-| `DataTable` / `DataTableRow` | `[S]` | データテーブル |
-| `PrimaryButton` | `[S]` | 新規作成ボタン |
-| `StatusBadge` | `[S]` | ステータスバッジ |
-| `RowActionDropdown` | `[S]` | 行アクションメニュー |
-| `ConfirmDialog` | `[S][M]` | 削除確認 |
-| `Pagination` | `[S]` | ページネーション |
-| `useAccountingRecords` | `[H]` | 検索・フィルタ・削除ロジック |
-| `usePagination` | `[H]` | ページネーション |
+| 列 | 表示内容 |
+|---|---|
+| 日時 | `r.scheduledDate`（等幅フォント） |
+| 飼主名 | `r.ownerName` |
+| ペット名 | `r.petName` + カルテ連携バッジ |
+| 請求金額 | `formatCurrency(calculateTotal(r))`（等幅・太字） |
+| 支払方法 | `getPaymentMethodLabel(r.payment?.method)` |
+| 保険 | 保険名バッジ（保険あり時のみ） |
+| ソース | 「入院連携」バッジ（`source === "hospitalization"` 時） |
+| ステータス | `StatusBadge` |
+| 操作 | `RowActionDropdown`（編集 / 削除） |
 
 **データ型:** `Accounting`, `AccountingStatus`, `PaymentMethod`, `DataTableColumn`
 **ステータス:** 未収(`waiting`) / 収済(`completed`) / キャンセル(`cancelled`) / 保留(`pending`)
@@ -917,7 +777,7 @@
 |------|------|
 | **ルート** | `/accounting/select-pet` |
 | **コンポーネント** | `[R] AccountingPetSelection` |
-| **画面構成** | `[S] PetSelection` 共通コンポーネント使用 |
+| **画面構成** | `[S] PetSearchForm` + `[S] PetSearchResultsTable` 共通コンポーネント使用 |
 
 ### 8.3 会計精算（新規/編集）
 
@@ -927,92 +787,33 @@
 | **コンポーネント** | `[R] AccountingDetail` |
 | **目的** | 診療費の計算、支払い処理、書類発行 |
 
-**画面構成:**
-- ヘッダー: タイトル「会計精算」+ 戻るボタン + 精算完了時のみ書類発行ボタン群
-- 受付情報バナー: `受付No: {id} | {ownerName}様 - {petName}ちゃん` + カルテ確認リンク（`medicalRecordId` 存在時）
-- 2カラムレイアウト（`flex-col lg:flex-row gap-6`）
-- 書類プレビューダイアログ（`[C] AccountingDocumentPreview`）
-- 会計確定確認ダイアログ（`[S] ConfirmDialog`）
-- 印刷エリア（hidden、print:block）
-
-**精算完了時ヘッダーアクション:**
-| ボタン | アイコン | 動作 |
-|---|---|---|
-| 診療明細書 | FileText | `handlePrint("statement")` → プレビューモーダル |
-| 領収書発行 | Printer | `handlePrint("receipt")` → プレビューモーダル |
-
-**左カラム: 明細テーブル（`[C] AccountingItemTable`）**
-
-明細追加ダイアログ フォーム項目:
+**明細追加ダイアログ フォーム項目:**
 | フィールド | 入力部品 | 備考 |
 |---|---|---|
 | 区分 | `Select`（`MANUAL_ITEM_CATEGORY_VALUES`: 療法食・フード / 物販・ケア用品 / その他） | |
-| 品目名 | `Input` | placeholder: 例: ロイヤルカナン 3kg |
-| 単価 (税込) | `Input`（type=number） | placeholder: 0 |
+| 品目名 | `Input` | |
+| 単価 (税込) | `Input`（type=number） | |
 
-明細テーブル列:
-| 列 | className / align | 表示内容 |
-|---|---|---|
-| 区分 | `w-[100px]` | `Badge`（`getItemCategoryLabel`） |
-| 項目名 | - | `item.name` + カルテ連携バッジ（`source === "medical_record"` 時） |
-| 単価 | align:right, `w-[100px]` | `¥{unitPrice}` |
-| 数量 | align:center, `w-[80px]` | `item.quantity` |
-| 保険 | align:center, `w-[80px]` | 適用時: 緑●、非適用時: グレー「-」 |
-| 金額 | align:right, `w-[120px]` | `¥{unitPrice × quantity}` |
-| 削除 | `w-[50px]` | 手動追加項目のみ Trash2 ボタン |
-
-明細フッター: 税抜小計 / 消費税 / 合計（太字・大文字）
-
-**右カラム: 入金パネル（`[C] AccountingPaymentPanel`）**
-
-ペット保険カード:
+**入金パネル（`[C] AccountingPaymentPanel`）:**
 | フィールド | 入力部品 | 備考 |
 |---|---|---|
 | 保険ON/OFF | `Switch` | CardHeader 内トグル |
-| 負担割合 | `Select`（`INSURANCE_RATIO_VALUES`: 50%/70%/90%/100%） | 保険ON時のみ表示 |
-| 保険負担額 | 読み取り専用 | 緑背景カード、マイナス表示 |
-
-決済情報カード:
-| フィールド | 入力部品 | 備考 |
-|---|---|---|
-| 請求金額 | 読み取り専用 | 中央配置、4xl太字 |
-| 支払方法 | `Button` グリッド（3cols） | `PAYMENT_METHOD_VALUES`: 現金/カード/電子マネー、選択時は `bg-[#37352F]` |
-| お預かり金額 | `Input`（type=number） | 右寄せ大文字、「円」ラベル付き |
+| 負担割合 | `Select`（50%/70%/90%/100%） | 保険ON時のみ |
+| 支払方法 | `Button` グリッド（3cols） | 現金/カード/電子マネー |
+| お預かり金額 | `Input`（type=number） | 右寄せ大文字 |
 | クイック入力 | `Button` × 3 | 「丁度」「千円単位」「一万単位」 |
-| お釣り | 読み取り専用 | `bg-[#F7F6F3]` カード、不足時は赤文字 |
-| 会計確定 | `Button`（full-width） | Save アイコン、`changeAmount < 0` or `receivedAmount` 空 or 完了済で disabled |
-
-**書類プレビューダイアログ（`[C] AccountingDocumentPreview`）:**
-- 領収書 / 診療明細書の切替
-- プレビュー表示（`[C] AccountingDocument`）
-- 印刷ボタン（`window.print()`）
-
-**データ初期化（`useAccountingDetail`）:**
-- 新規時: `location.state` から `accountingItems`（カルテ連携）または `petId` クエリパラメータから生成
-- 編集時: `findAccountingById` でロード、`payment` 存在時は保険・支払い情報を復元
-
-**使用コンポーネント:**
-| コンポーネント | 種別 | 説明 |
-|---|---|---|
-| `AccountingDetail` | `[R]` | メインページ |
-| `AccountingItemTable` | `[C]` | 明細テーブル |
-| `AccountingPaymentPanel` | `[C]` | 入金パネル |
-| `AccountingDocumentPreview` | `[C][M]` | 書類プレビューダイアログ |
-| `AccountingDocument` | `[C]` | 印刷用書類本体 |
-| `PageLayout` | `[S]` | ページレイアウト |
-| `ConfirmDialog` | `[S][M]` | 会計確定確認 |
-| `useAccountingDetail` | `[H]` | 会計CRUD・計算・書類ロジック |
+| お釣り | 読み取り専用 | 不足時は赤文字 |
+| 会計確定 | `Button`（full-width） | 条件付きdisabled |
 
 **データ型:** `Accounting`, `AccountingItem`, `PaymentInfo`, `AccountingCalculation`, `DocumentType`, `ItemCategory`, `ManualItemCategory`, `PaymentMethod`, `InsuranceRatio`, `ItemSource`, `TaxRate`
 
 **ユーザー操作:**
-- 明細項目の手動追加（ダイアログ: 区分・品目名・単価）/削除
+- 明細項目の手動追加/削除
 - 保険適用切替（Switch）、負担割合選択
 - 支払方法選択（現金/カード/電子マネー）
 - 預り金入力 + クイック入力ボタン → お釣り自動計算
 - 会計確定（確認ダイアログ → ステータス completed へ遷移）
 - 精算完了後: 領収書/診療明細書のプレビュー → 印刷
-- カルテへのリンク遷移（受付バナー内）
 
 ---
 
@@ -1026,62 +827,67 @@
 | **コンポーネント** | `[R] VaccinationList` |
 | **目的** | 予防接種記録の一覧管理 |
 
-**画面構成:**
-- ヘッダー: タイトル（Syringe アイコン）+ 「データ取込」ボタン（FileSpreadsheet アイコン、outline）
-- 検索バー（`[S] SearchFilterBar`）: 「飼主名、ペット名、予防接種名...」
-- データテーブル（`[S] DataTable`）
-- ページネーション（`[S] Pagination`、20件/ページ）
-
 **テーブル列:**
-| 列 | className / align | 表示内容 |
-|---|---|---|
-| 実施日 | `w-[120px]` | `r.date`（等幅フォント） |
-| 飼主名 | - | `r.ownerName` |
-| ペット名 | - | `r.petName` |
-| 予防接種名 | - | `r.vaccineName`（太字） |
-| 担当医 | `w-[100px]` | `r.doctor`（無効スタッフ時は赤文字＋AlertTriangle、未設定時「-」） |
-| 次回予定 | `w-[140px]` | `r.nextDate`（等幅フォント） |
-| 操作 | `w-[100px]`, align:right | `RowActionDropdown`（「カルテを開く」のみ） |
+| 列 | 表示内容 |
+|---|---|
+| 実施日 | `r.date`（等幅フォント） |
+| 飼主名 | `r.ownerName` |
+| ペット名 | `r.petName` |
+| 予防接種名 | `r.vaccineName`（太字） |
+| 担当医 | `r.doctor`（無効スタッフ時は赤文字＋AlertTriangle） |
+| 次回予定 | `r.nextDate`（等幅フォント） |
+| 操作 | `RowActionDropdown`（「カルテを開く」のみ） |
 
-**行アクション:**
-| アクション | アイコン | 動作 |
-|---|---|---|
-| カルテを開く | FileText | `/medical-records/{medicalRecordId}` へ遷移（state: `{ activeTab: "予防接種", from: "/vaccinations" }`） |
-
-**特記:** 予防接種の新規登録はカルテ内の予防接種タブから行う。一覧画面は参照+カルテ遷移のみ。行クリックでもカルテの予防接種タブへ遷移する。
-
-**使用コンポーネント:**
-| コンポーネント | 種別 | 説明 |
-|---|---|---|
-| `VaccinationList` | `[R]` | メインページ |
-| `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | 検索フィルタバー |
-| `DataTable` / `DataTableRow` | `[S]` | データテーブル |
-| `RowActionDropdown` | `[S]` | 行アクションメニュー |
-| `Pagination` | `[S]` | ページネーション |
-| `useVaccinations` | `[H]` | 検索・フィルタロジック |
-| `useStaffValidation` | `[H]` | スタッフ有効性チェック |
-| `usePagination` | `[H]` | ページネーション |
+**特記:** 予防接種の新規登録はカルテ内の予防接種タブから行う。一覧画面は参照+カルテ遷移のみ。
 
 **データ型:** `VaccinationRecord`, `DataTableColumn`
 
 ---
 
-## 10. 設定・マスタ管理
+## 10. 定期健診管理
 
-### 10.1 マスタ設定トップ
+### 10.1 定期健診一覧
+
+| 項目 | 内容 |
+|------|------|
+| **ルート** | `/checkups` |
+| **コンポーネント** | `[R] CheckupList` |
+| **目的** | 定期健診記録の一覧管理 |
+
+**テーブル列:**
+| 列 | 表示内容 |
+|---|---|
+| 実施日 | `r.date`（等幅フォント） |
+| 飼主名 | `r.ownerName` |
+| ペット名 | `r.petName` |
+| 健診種別 | `r.checkupType`（太字） |
+| 結果概要 | `r.result`（未設定時「-」） |
+| 担当医 | `r.doctor`（無効スタッフ時は赤文字＋AlertTriangle） |
+| 次回予定 | `r.nextDate`（等幅フォント） |
+| 操作 | `RowActionDropdown`（「カルテを開く」のみ） |
+
+**特記:** 定期健診の新規登録はカルテから行う。一覧画面は参照+カルテ遷移のみ。
+
+**健診種別:**
+| 種別名 | 説明 |
+|---|---|
+| 年次健康診断 | 1年ごとの定期健康チェック |
+| シニア健康診断 | 高齢ペット向け（半年ごと推奨） |
+| パピー健診 | 幼齢ペット向け成長確認（3ヶ月ごと推奨） |
+
+**データ型:** `CheckupRecord`, `DataTableColumn`
+
+---
+
+## 11. 設定・マスタ管理
+
+### 11.1 マスタ設定トップ
 
 | 項目 | 内容 |
 |------|------|
 | **ルート** | `/settings` |
 | **コンポーネント** | `[R] MasterSettingsIndex` |
 | **目的** | マスタカテゴリ一覧をカード形式で表示 |
-
-**画面構成:**
-- ヘッダー: タイトル「マスタ設定」（Settings アイコン）
-- セクション分類（5セクション）
-- カードグリッド（`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3`）
-- 最終セクションに `pb-16` 付き
 
 **セクション構成:**
 | # | セクション名 | カテゴリキー |
@@ -1095,28 +901,15 @@
 **カテゴリカード（`CategoryCard`）表示項目:**
 | 項目 | 表示内容 |
 |---|---|
-| アイコン | `CATEGORY_CONFIG[key].IconComponent`（p-2 rounded-lg bg-[#F7F6F3]、ホバー時 bg-[#37352F] text-white） |
+| アイコン | `CATEGORY_CONFIG[key].IconComponent`（ホバー時 bg-[#37352F] text-white） |
 | カテゴリ名 | `cfg.label`（truncate） |
 | 説明 | `cfg.description`（line-clamp-2） |
-| 件数 | `{count}件登録済`（マスタカテゴリのみ、clinic は undefined） |
+| 件数 | `{count}件登録済`（マスタカテゴリのみ） |
 | 矢印 | ChevronRight（ホバー時 opacity 変化） |
-
-**特記:**
-- `CATEGORY_CONFIG` から全カードを自動導出
-- コンパイル時に全カテゴリの網羅性を型チェック（`ExhaustiveKeyMap`）
-- `useMasterItems()` で全マスタアイテムを取得し、カテゴリ別にカウント
-
-**使用コンポーネント:**
-| コンポーネント | 種別 | 説明 |
-|---|---|---|
-| `MasterSettingsIndex` | `[R]` | メインページ |
-| `PageLayout` | `[S]` | ページレイアウト |
-| `CategoryCard` | ローカル | カテゴリカード |
-| `useMasterItems` | `[H]` | マスタデータ取得 |
 
 **データ型:** `MasterCategory`, `MasterCardKey`, `MasterCategoryCard`, `MasterSection`, `CategoryConfig`
 
-### 10.2 病院情報設定
+### 11.2 病院情報設定
 
 | 項目 | 内容 |
 |------|------|
@@ -1124,246 +917,242 @@
 | **コンポーネント** | `[R] ClinicSettings` |
 | **目的** | 病院の基本情報を管理する |
 
-**画面構成:**
-- ヘッダー: タイトル「病院情報設定」（Building2 アイコン）、戻るボタン → `/settings`
-- フォーム（`react-hook-form@7.55.0`）
-- ローディング時: スケルトン表示（6行の `animate-pulse`）
-- カードコンテナ: `bg-white p-6 rounded-lg shadow-sm border`
-
 **フォーム項目:**
-| フィールド | 入力部品 | グリッド | 備考 |
-|---|---|---|---|
-| 病院名 | `Input`（register: `name`） | 2cols-左 | 必須（`*`マーク）、placeholder: 例: わんにゃん動物病院 |
-| 支店名 | `Input`（register: `branchName`） | 2cols-右 | placeholder: 例: 八王子院 |
-| 郵便番号 | `Input`（register: `postalCode`） | 3cols-左 | placeholder: 例: 100-0001 |
-| 住所 | `Input`（register: `address`） | 3cols-中右（col-span-2） | placeholder: 例: 東京都千代田区千代田1-1 |
-| 電話番号 | `Input`（register: `phoneNumber`） | 2cols-左 | placeholder: 例: 03-1234-5678 |
-| FAX番号 | `Input`（register: `faxNumber`） | 2cols-右 | placeholder: 例: 03-1234-5679 |
-| 登録番号 | `Input`（register: `registrationNumber`） | full | placeholder: 例: 東京都獣医師会 第12345号、ヘルプテキスト付き |
-| 院長名 | `Input`（register: `directorName`） | full | placeholder: 例: 山田 太郎 |
-| メールアドレス | `Input`（type=email, register: `email`） | 2cols-左 | placeholder: info@example.com |
-| WebサイトURL | `Input`（register: `website`） | 2cols-右 | placeholder: https://example.com |
-
-**アクション（`pt-4 border-t`）:**
-| ボタン | 動作 | 備考 |
+| フィールド | 入力部品 | 備考 |
 |---|---|---|
-| キャンセル | `/settings` へ遷移 | outline |
-| 設定を保存 | `handleSubmit(onSubmit)` → `updateClinicInfo` + `reset` | Save アイコン、`isDirty` false 時 disabled |
+| 病院名 | `Input` | 必須 |
+| 支店名 | `Input` | |
+| 郵便番号 | `Input` | |
+| 住所 | `Input` | |
+| 電話番号 | `Input` | |
+| FAX番号 | `Input` | |
+| 登録番号 | `Input` | |
+| 院長名 | `Input` | |
+| メールアドレス | `Input`（type=email） | |
+| WebサイトURL | `Input` | |
 
 **使用コンポーネント:**
 | コンポーネント | 種別 | 説明 |
 |---|---|---|
 | `ClinicSettings` | `[R]` | メインページ |
-| `PageLayout` | `[S]` | ページレイアウト |
-| `PrimaryButton` | `[S]` | 保存ボタン |
+| `NotionPropertyRow` | `[S]` | Notion風プロパティ行 |
+| `NotionSectionLabel` | `[S]` | Notion風セクションラベル |
+| `NotionSectionDivider` | `[S]` | Notion風薄罫線ディバイダー |
 | `useClinicInfo` | `[H]` | 病院情報CRUD |
 
-**データ型:** `ClinicInfo`（name, branchName, postalCode, address, phoneNumber, faxNumber?, registrationNumber?, directorName?, email?, website?, logoUrl?）
+**データ型:** `ClinicInfo`
 
-### 10.3 マスタカテゴリ設定
+### 11.3 診療項目マスタ（統合ページ）
 
 | 項目 | 内容 |
 |------|------|
-| **ルート** | `/settings/{category-slug}`（14パターン） |
-| **コンポーネント** | `[R] Settings` |
+| **ルート** | `/settings/treatment-items` |
+| **コンポーネント** | `[R] TreatmentItemsSettings` |
+| **目的** | 診察・検査・処置・予防接種・定期健診の5カテゴリを1ページで管理 |
+
+**タブ構成:**
+| タブ | カテゴリキー | showPrice | showParentItem |
+|---|---|---|---|
+| 診察 | `consultation` | true | true |
+| 検査 | `examination` | true | true |
+| 処置 | `procedure` | true | true |
+| 予防接種 | `vaccine` | true | true |
+| 定期健診 | `checkup` | true | true |
+
+### 11.4 診断マスタ（統合ページ）
+
+| 項目 | 内容 |
+|------|------|
+| **ルート** | `/settings/diagnosis` |
+| **コンポーネント** | `[R] DiagnosisSettings` |
+| **目的** | 診断カテゴリと診断名の2カテゴリを1ページで管理 |
+
+**タブ構成:**
+| タブ | カテゴリキー |
+|---|---|
+| カテゴリ | `diagnosis_category` |
+| 診断名 | `diagnosis_name` |
+
+### 11.5 トリミングマスタ（統合ページ）
+
+| 項目 | 内容 |
+|------|------|
+| **ルート** | `/settings/trimming` |
+| **コンポーネント** | `[R] TrimmingSettings` |
+| **目的** | トリミングコースとオプションの2カテゴリを1ページで管理 |
+
+**タブ構成:**
+| タブ | カテゴリキー | showPrice |
+|---|---|---|
+| コース | `trimming_course` | true |
+| オプション | `trimming_option` | true |
+
+### 11.6 マスタカテゴリ設定（個別ページ）
+
+| 項目 | 内容 |
+|------|------|
+| **ルート** | `/settings/{category-slug}`（6パターン） |
+| **コンポーネント** | `[R] Settings` → `[C] SettingsContent` |
 | **目的** | 各マスタカテゴリのアイテムCRUD |
 
-**ルートマッピング（14カテゴリ）:**
-| スラグ | カテゴリキー | ラベル | アイコン | showPrice |
-|---|---|---|---|---|
-| `service-type` | `serviceType` | 予約区分マスタ | Activity | false |
-| `consultation` | `consultation` | 診察マスタ | Stethoscope | true |
-| `examination` | `examination` | 検査マスタ | TestTube | true |
-| `procedure` | `procedure` | 処置マスタ | Activity | true |
-| `vaccine` | `vaccine` | 予防接種マスタ | Syringe | true |
-| `medicine` | `medicine` | 薬剤マスタ | Pill | true |
-| `diagnosis-category` | `diagnosis_category` | 診断カテゴリマスタ | FolderTree | false |
-| `diagnosis-name` | `diagnosis_name` | 診断名マスタ | FileText | false |
-| `hospitalization` | `hospitalization` | 入院マスタ | Bed | true |
-| `cage` | `cage` | ケージマスタ | Building2 | false |
-| `trimming-course` | `trimming_course` | トリミングコースマスタ | Scissors | true |
-| `trimming-option` | `trimming_option` | トリミングオプションマスタ | Sparkles | true |
-| `staff` | `staff` | スタッフマスタ | Users | false |
-| `insurance` | `insurance` | 保険マスタ | ShieldCheck | false |
+**ルートマッピング（6カテゴリ）:**
+| スラグ | カテゴリキー | ラベル |
+|---|---|---|
+| `service-type` | `serviceType` | 予約区分マスタ |
+| `medicine` | `medicine` | 薬剤マスタ |
+| `hospitalization` | `hospitalization` | 入院マスタ |
+| `cage` | `cage` | ケージマスタ |
+| `staff` | `staff` | スタッフマスタ |
+| `insurance` | `insurance` | 保険マスタ |
 
-**画面構成（リストモード）:**
-- ヘッダー: カテゴリ名（`config.IconComponent` 付き）+ 戻るボタン → `/settings` + 新規登録ボタン
-- 検索バー（`[S] SearchFilterBar`）: `{config.labels.code}、{config.labels.name}で検索...`
-- データテーブル（`[S] DataTable`）
-
-リストモード テーブル列:
-| 列 | className / align | 表示内容 | 条件 |
-|---|---|---|---|
-| コード | `w-[120px]` | `item.code`（等幅フォント） | 常時 |
-| 名称 | - | `item.name`（太字） | 常時 |
-| 所属カテゴリ | `w-[130px]` | `diagnosisCategories` からの名前解決 | `diagnosis_name` のみ |
-| カテゴリ | `w-[100px]` | `item.category` | 常時 |
-| 単価 | `w-[100px]`, align:right | `¥{price}` or 「-」（等幅フォント） | `showPrice` 時のみ |
-| ステータス | `w-[100px]`, align:center | `StatusBadge`（`getMasterStatusColor` / `getMasterStatusLabel`） | 常時 |
-| 操作 | `w-[80px]`, align:right | `RowActionButton`（編集） | 常時 |
-
-**画面構成（編集モード）:**
-- ヘッダー: 「{カテゴリ名} 編集/新規登録」、戻るボタン → リストモードへ
-- カードコンテナ: `bg-white p-6 rounded-lg border shadow-sm space-y-4`
-
-共通フォーム項目（全カテゴリ共通）:
-| フィールド | 入力部品 | グリッド | 備考 |
-|---|---|---|---|
-| コード | `Input` | 2cols-左 | 必須（`*`マーク）、placeholder: `config.codePlaceholder` |
-| 名称 | `Input` | 2cols-右 | 必須（`*`マーク）、placeholder: `config.namePlaceholder` |
-| カテゴリ | `Input` | 2cols-左 | placeholder: `config.categoryPlaceholder` |
-| 単価 (円) | `Input`（type=number） | 2cols-右 | `showPrice` 時のみ表示 |
-| [カテゴリ固有セクション] | `MasterItemFormSections` | - | 下記参照 |
-| 備考 / 詳細 | `Input` | full | placeholder: 補足情報など |
-| ステータス | `RadioGroup`（有効 / 無効） | full | radio ボタン2つ |
+**ツリー表示（`showParentItem: true` のカテゴリ）:**
+- ドラッグ中にテーブル上部に「トップレベルに移動」ドロップゾーンが出現
+- 各行にドラッグハンドル（`GripVertical` アイコン）付き
+- トップレベル項目＝「カテゴリ」として機能、Chevronで展開/折りたたみ
+- 操作列: 「+」ボタン（子項目インライン追加）+ 編集ボタン
+- D&D並び順変更: `sortOrder`フィールドで永続化、`bulkUpdate`で兄弟全体を一括更新
+- カスタムドラッグプレビュー: `setDragImage`でNotionライクなピル型ゴーストを表示
+- ホバー自動展開: 折りたたまれた親ノードの中央ゾーンに600msホバーで自動展開
+- キーボードアクセシビリティ: `Alt+ArrowUp/Down` で並び替え、`Alt+ArrowLeft/Right` で階層変更
 
 **カテゴリ固有セクション（`[C] MasterItemFormSections` → `sections/`）:**
 
-**examination（検査マスタ）:**
-| フィールド | 入力部品 | 備考 |
-|---|---|---|
-| 検査項目リスト | 動的リスト（追加/削除） | 3カラムグリッド per 行 |
-| └ 項目名 | `Input` | placeholder: RBC |
-| └ 単位 | `Input` | placeholder: 例: mg/dL |
-| └ 正常値 | `Input` | placeholder: 550-850 |
-| └ 削除 | Trash2 ボタン | 赤色 ghost |
-| 項目追加 | `Button`（Plus アイコン） | ヘッダー右上に配置 |
-
-**vaccine（予防接種マスタ）:**
-| フィールド | 入力部品 | 備考 |
-|---|---|---|
-| 対象種別 | `Select`（`VACCINE_SPECIES_VALUES`: 犬/猫/共通） | デフォルト: dog |
-| 標準接種間隔 | `Input` | placeholder: 例: 1年 |
-
-**medicine（薬剤マスタ）:**
-| フィールド | 入力部品 | 備考 |
-|---|---|---|
-| 剤形 | `Select`（`DOSAGE_FORM_VALUES`: 錠剤/液剤/注射/外用薬/粉末） | デフォルト: tablet |
-| 単位 | `Select`（`MEDICINE_UNIT_VALUES`: 1錠あたり/1mLあたり/1回分/1gあたり） | デフォルト: per_tablet |
-
-**staff（スタッフマスタ）:**
-| フィールド | 入力部品 | 備考 |
-|---|---|---|
-| 役職 | `Select`（`STAFF_ROLE_VALUES`: 獣医師/動物看護師/トリマー/受付/管理者） | デフォルト: veterinarian |
-| 資格番号 | `Input` | placeholder: 例: 獣医第12345号 |
-
-**cage（ケージマスタ）:**
-| フィールド | 入力部品 | 備考 |
-|---|---|---|
-| ケージタイプ | `Select`（`CAGE_TYPE_VALUES`: ICU（酸素室）/犬舎/猫舎/共用） | デフォルト: general |
-| サイズ | `Select`（`CAGE_SIZE_VALUES`: 小型/中型/大型） | デフォルト: medium |
-
-**insurance（保険マスタ）:**
-| フィールド | 入力部品 | 備考 |
-|---|---|---|
-| 補償割合 (%) | `Select`（`COVERAGE_RATE_VALUES`: 50%/70%/80%/100%） | デフォルト: 70 |
-| 請求先電話番号 | `Input` | placeholder: 例: 0120-XXX-XXX |
-
-**trimming_course（トリミングコースマスタ）:**
-| フィールド | 入力部品 | 備考 |
-|---|---|---|
-| 対象サイズ | `Select`（`TARGET_SIZE_VALUES`: 小型犬/中型犬/大型犬/猫） | デフォルト: small |
-| 所要時間 (分) | `Input`（type=number, Clock アイコン付き） | placeholder: 例: 60 |
-
-**trimming_option（トリミングオプションマスタ）:**
-| フィールド | 入力部品 | 備考 |
-|---|---|---|
-| 追加所要時間 (分) | `Input`（type=number, Clock アイコン付き） | placeholder: 例: 15 |
-| 併用可否 | `Select`（`COMBINABLE_VALUES`: 併用可/単独のみ） | デフォルト: yes |
-
-**hospitalization（入院マスタ）:**
-| フィールド | 入力部品 | 備考 |
-|---|---|---|
-| 対象体格 | `Select`（`BODY_SIZE_VALUES`: 小型/中型/大型） | デフォルト: small |
-| 料金単位 | `Select`（`BILLING_UNIT_VALUES`: 1日あたり/1泊あたり） | デフォルト: per_day |
-
-**diagnosis_name（診断名マスタ）:**
-| フィールド | 入力部品 | 備考 |
-|---|---|---|
-| 診断カテゴリ | `Select`（diagnosis_category マスタ連動、active のみ） | 必須（`*`マーク）、`MasterLink` 付き、未登録時は警告メッセージ |
-
-**diagnosis_category / その他（固有セクションなし）:**
-- 共通フィールド（コード、名称、カテゴリ、[単価]）のみ
-
-**編集モード アクション（`pt-4 border-t`）:**
-| ボタン | 位置 | 動作 | 備考 |
-|---|---|---|---|
-| 削除 | 左（編集時のみ） | `handleDelete` → staff 時は `StaffImpactDialog` / 他は `ConfirmDialog` | Trash2 アイコン、赤文字 |
-| キャンセル | 右 | `handleCloseEdit` → リストモードへ | outline |
-| 保存 | 右 | `handleSave` | Save アイコン、`[S] PrimaryButton` |
+| カテゴリ | 固有フィールド |
+|---|---|
+| `examination` | 検査項目リスト（動的: 項目名・単位・正常値） |
+| `vaccine` | 対象種別（犬/猫/共通）、標準接種間隔 |
+| `medicine` | 剤形（錠剤/液剤/注射/外用薬/粉末）、単位 |
+| `staff` | 職種（job_title連動）、資格番号、所属医院（複数可）、メール、パスワード、ユーザー種別 |
+| `cage` | ケージタイプ（ICU/犬舎/猫舎/共用）、サイズ（小/中/大） |
+| `insurance` | 補償割合（50%/70%/80%/100%）、請求先電話番号 |
+| `trimming_course` | 対象サイズ（小型犬/中型犬/大型犬/猫）、所要時間 |
+| `trimming_option` | 追加所要時間、併用可否（併用可/単独のみ） |
+| `hospitalization` | 対象体格（小/中/大）、料金単位（1日/1泊） |
+| `consultation` | 適用区分（常時/初診/再診/時間外/緊急）、標準診察時間 |
+| `procedure` | 所要時間、麻酔要否（不要/局所/鎮静/全身） |
+| `checkup` | 推奨受診間隔、対象年齢（全/幼齢/成年/シニア） |
+| `serviceType` | 表示カラー（カラーピッカー＋プレビュー） |
+| `diagnosis_name` | 診断カテゴリ（diagnosis_category連動） |
+| `diagnosis_category` | 固有セクションなし |
 
 **スタッフ固有ダイアログ（`[S] StaffImpactDialog`）:**
 - ステータス変更・名称変更・削除時に影響範囲を確認
-- `staffName`, `action`（rename / statusChange / delete）, `usage`（使用箇所数）を表示
 
 **使用コンポーネント:**
 | コンポーネント | 種別 | 説明 |
 |---|---|---|
 | `Settings` | `[R]` | メインページ（リスト/編集切替） |
 | `MasterItemFormSections` | `[C]` | カテゴリ固有フォームセクション（ディスパッチャー） |
-| `ExaminationSection` | `[C]` | 検査マスタ固有: 検査項目リスト |
-| `VaccineSection` | `[C]` | 予防接種マスタ固有: 対象種別・接種間隔 |
-| `MedicineSection` | `[C]` | 薬剤マスタ固有: 剤形・単位 |
-| `StaffSection` | `[C]` | スタッフマスタ固有: 役職・資格番号 |
-| `CageSection` | `[C]` | ケージマスタ固有: タイプ・サイズ |
-| `InsuranceSection` | `[C]` | 保険マスタ固有: 補償割合・電話 |
-| `TrimmingCourseSection` | `[C]` | コースマスタ固有: 対象サイズ・所要時間 |
-| `TrimmingOptionSection` | `[C]` | オプションマスタ固有: 追加時間・併用可否 |
-| `HospitalizationSection` | `[C]` | 入院マスタ固有: 体格・料金単位 |
-| `DiagnosisNameSection` | `[C]` | 診断名マスタ固有: 親カテゴリ選択 |
-| `SectionWrapper` | `[C]` | セクション共通ラッパー |
-| `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | 検索フィルタバー |
-| `DataTable` / `DataTableRow` | `[S]` | データテーブル |
-| `PrimaryButton` | `[S]` | 新規登録・保存ボタン |
-| `StatusBadge` | `[S]` | ステータスバッジ |
-| `RowActionButton` | `[S]` | 行アクションボタン |
+| `NotionPropertyRow` | `[S]` | Notion風プロパティ行 |
 | `StaffImpactDialog` | `[S][M]` | スタッフ変更影響確認ダイアログ |
 | `ConfirmDialog` | `[S][M]` | 削除確認 |
 | `MasterLink` | `[S]` | マスタ設定リンク |
 | `useMasterItemEditor` | `[H]` | CRUD操作フック |
 | `useMasterItems` | `[H]` | マスタデータ取得 |
 
-**データ型:** `MasterItem`, `MasterFormData`, `MasterCategory`, `MasterSectionProps`, `CreateMasterItemDTO`, `UpdateMasterItemDTO`, `CategoryConfig` + 各カテゴリ固有型（`VaccineSpecies`, `DosageForm`, `MedicineUnit`, `StaffRole`, `CageType`, `CageSize`, `CoverageRate`, `TargetSize`, `Combinable`, `BodySize`, `BillingUnit`）
-
-**ユーザー操作:**
-- リストモード: 検索、行クリックで編集モードへ、新規登録ボタン
-- 編集モード: 共通フィールド + カテゴリ固有フィールド入力
-- ステータス切替（有効/無効ラジオ）
-- 保存 / キャンセル / 削除
-- staff カテゴリ: 名称変更・ステータス変更・削除時に影響確認ダイアログ
-- diagnosis_name カテゴリ: 親カテゴリ（diagnosis_category マスタ）からの選択
+**データ型:** `MasterItem`, `MasterFormData`, `MasterCategory`, `CreateMasterItemDTO`, `UpdateMasterItemDTO`, `CategoryConfig` + 各カテゴリ固有型
 
 ---
 
-## 11. 在庫管理（現在非表示）
+## 12. 在庫管理
 
-### 11.1 在庫一覧
+### 12.1 在庫一覧
 
 | 項目 | 内容 |
 |------|------|
-| **ルート** | `/inventory`（コメントアウト） |
+| **ルート** | `/inventory` |
 | **コンポーネント** | `[R] InventoryList` |
-| **目的** | 在庫品目の一覧表示・検索 |
+| **目的** | 在庫品目の一覧表示・検索・フィルタリング |
 
-### 11.2 在庫登録/編集
+**フィルタ:**
+- キーワード検索（品名、保管場所、仕入先）
+- カテゴリフィルタ（Select）: 全カテゴリー / 医薬品 / 消耗品 / フード / その他
+- 状態フィルタ（Select）: 全ての状態 / 在庫あり / 残りわずか / 在庫切れ
+
+**テーブル列（SortableHeader対応）:**
+| 列 | 表示内容 |
+|---|---|
+| 品名 | `item.name` |
+| カテゴリー | `getInventoryCategoryLabel(item.category)` |
+| 在庫数 | `item.quantity`（発注点以下は赤文字） |
+| 単位 | `item.unit` |
+| 発注点 | `item.minStockLevel` |
+| 状態 | `StatusBadge` |
+| 保管場所 | `item.location` |
+| 期限 | `item.expiryDate` |
+| 仕入先 | `item.supplier` |
+| 操作 | `RowActionDropdown`（編集 / 削除） |
+
+**データ型:** `InventoryItem`, `InventoryCategory`, `InventoryStatus`, `DataTableColumn`
+
+### 12.2 在庫登録/編集
 
 | 項目 | 内容 |
 |------|------|
-| **ルート** | `/inventory/new`、`/inventory/:id`（コメントアウト） |
+| **ルート** | `/inventory/new`（新規）/ `/inventory/:id`（編集） |
 | **コンポーネント** | `[R] InventoryForm` |
 | **目的** | 在庫品目の追加・編集 |
+
+**フォーム項目:**
+| フィールド | 入力部品 | 備考 |
+|---|---|---|
+| 品名 | `Input` | 必須 |
+| カテゴリー | `Select`（`INVENTORY_CATEGORY_VALUES`） | |
+| 単位 | `Input` | 必須 |
+| 現在在庫数 | `Input`（type=number, min=0） | |
+| 発注点 | `Input`（type=number, min=0） | |
+| 保管場所 | `Input` | |
+| 使用期限 | `NotionDatePicker` | |
+| 仕入先 | `Input` | |
+| ステータス（自動判定） | 読み取り専用 | 編集時のみ表示 |
 
 **データ型:** `InventoryItem`, `InventoryCategory`, `InventoryStatus`
 **カテゴリ:** 医薬品 / 消耗品 / フード / その他
 **ステータス:** 在庫あり / 残りわずか / 在庫切れ
-**特記:** カルテ保存時の在庫消費連動 (`consumeStock`) は `useInventory` フック経由で実装済み。
 
 ---
 
-## 12. 共通ペット選択画面
+## 13. シフト管理
 
-以下の4画面は `[S] PetSelection` 共通コンポーネントを使用:
+### 13.1 シフト管理カレンダー
+
+| 項目 | 内容 |
+|------|------|
+| **ルート** | `/shifts` |
+| **コンポーネント** | `[R] ShiftCalendar` |
+| **目的** | スタッフの勤務シフトを週間・月間カレンダーで管理する |
+
+**画面構成:**
+- ツールバー: ビュー切替（週/月）、ロールフィルタ（全員/医師/スタッフ/トリマー）、ナビゲーション、今日ボタン
+- **週表示** (`[C] ShiftWeekView`): スタッフ×曜日の7列グリッド、シフトタイプ別色分けバッジ
+  - セルクリックで `[C] ShiftEditPopover`（シフトタイプ選択・時間入力・メモ）
+  - 行末に週計労働時間表示（40時間超過で警告色）
+- **月表示** (`[C] ShiftMonthView`): カレンダーグリッドに日ごとの勤務人数サマリー
+- 凡例バー（`[C] ShiftLegend`）
+
+**コンポーネント構成:**
+| コンポーネント | 種別 | 役割 |
+|---|---|---|
+| `ShiftCalendar` | `[R]` | メインページ |
+| `ShiftWeekView` | `[C]` | 週間グリッドビュー |
+| `ShiftMonthView` | `[C]` | 月間カレンダービュー |
+| `ShiftCell` | `[C]` | シフトセル表示 |
+| `ShiftEditPopover` | `[C]` | シフト編集Popover |
+| `ShiftLegend` | `[C]` | 凡例コンポーネント |
+| `useShiftManagement` | `[H]` | 状態管理（ビュー切替・ナビゲーション・CRUD・労働時間計算） |
+
+**データ型:** `ShiftEntry`, `ShiftType`, `ShiftView`, `ShiftStaffInfo`, `DayShiftSummary`
+**シフトタイプ:** 通常勤務(full) / 午前のみ(morning) / 午後のみ(afternoon) / 休み(off) / 有給(paid_leave)
+
+**アクセシビリティ:**
+- `ShiftEditPopover`: `useFocusTrap` 統合（Escape/Tab循環/フォーカス復帰）、`role="dialog"` + `aria-modal="true"`
+- ツールバー: `role="group"` + `aria-label`、トグルボタンに `aria-pressed`
+
+---
+
+## 14. 共通ペット選択画面
+
+以下の4画面は `[S] PetSearchForm` + `[S] PetSearchResultsTable` 共通コンポーネントを使用:
 
 | ルート | コンポーネント | 選択後の遷移先 |
 |---|---|---|
@@ -1373,11 +1162,52 @@
 | `/accounting/select-pet` | `AccountingPetSelection` | `/accounting/new?petId=xxx` |
 
 **共通画面構成:**
+- `[S] PageLayout` でラップ
 - ペット検索フォーム（`[S] PetSearchForm`）: 飼主ID、飼主名、電話、ペット名、種
 - 検索結果テーブル（`[S] PetSearchResultsTable`）
 - 選択ボタンクリックでクエリパラメータ付き遷移
 
 **データ型:** `PetSearchParams`, `Pet`
+
+---
+
+## 15. ログイン画面
+
+### 15.1 ログイン
+
+| 項目 | 内容 |
+|------|------|
+| **ルート** | `/login` |
+| **コンポーネント** | `[R] Login` |
+| **目的** | スタッフ認証・セッション開始 |
+| **アクセス制御** | 公開ルート（認証済みの場合は `/` にリダイレクト） |
+
+**フォーム要素:**
+- メールアドレス入力（`type="email"`、バリデーション: 必須・メール形式）
+- パスワード入力（`type="password"`、バリデーション: 必須・最小8文字）
+- ログインボタン
+- パスワード表示トグル（`Eye` / `EyeOff` アイコン）
+- エラーメッセージ表示（認証失敗時）
+- デモアカウントパネル（開発用）
+
+**デモアカウント一覧:**
+| メール | 表示名 | ユーザー種別 | 職種 |
+|---|---|---|---|
+| `admin@example.com` | 田中 太郎 | `clinic_admin` | 医師 |
+| `vet@example.com` | 山田 花子 | `staff` | 医師 |
+| `nurse@example.com` | 佐藤 美咲 | `staff` | 看護師 |
+| `reception@example.com` | 鈴木 一郎 | `staff` | 受付 |
+| `trimmer@example.com` | 高橋 さくら | `staff` | トリマー |
+| `system@example.com` | 本部 管理者 | `system_admin` | — |
+
+**関連コンポーネント:**
+| コンポーネント | パス | 役割 |
+|---|---|---|
+| `Login` | `/features/auth/routes/Login.tsx` | 認証状態チェック + リダイレクト |
+| `LoginForm` | `/features/auth/components/LoginForm.tsx` | フォームUI + バリデーション |
+| `ClinicSwitcher` | `/features/auth/components/ClinicSwitcher.tsx` | サイドバーのクリニック切替 |
+| `ProtectedRoute` | `/features/auth/components/ProtectedRoute.tsx` | ルートレベル認証ガード |
+| `PermissionGate` | `/features/auth/components/PermissionGate.tsx` | コンポーネントレベル権限ゲート |
 
 ---
 
@@ -1405,12 +1235,16 @@ Accounting(/accounting) ──→ PetSelection ──→ AccountingDetail
 
 Vaccinations(/vaccinations) ──→ MedicalRecordForm（予防接種タブ）
 
+Inventory(/inventory) ──→ InventoryForm(/inventory/new, /inventory/:id)
+
+Shifts(/shifts) ──→ 週間/月間ビュー切替・シフト編集Popover
+
 Settings(/settings) ──→ ClinicSettings / Settings({category})
 ```
 
 ---
 
-## 全ルート一覧（28ルート + Fallback）
+## 全ルート一覧（42ルート + Fallback）
 
 | # | ルート | 画面名 | ページコンポーネント |
 |---|--------|--------|---------------------|
@@ -1438,7 +1272,36 @@ Settings(/settings) ──→ ClinicSettings / Settings({category})
 | 22 | `/accounting/new` | 会計新規作成 | `AccountingDetail` |
 | 23 | `/accounting/:id` | 会計精算 | `AccountingDetail` |
 | 24 | `/vaccinations` | 予防接種一覧 | `VaccinationList` |
-| 25 | `/settings` | マスタ設定トップ | `MasterSettingsIndex` |
-| 26 | `/settings/clinic` | 病院情報設定 | `ClinicSettings` |
-| 27 | `/settings/{category-slug}` | マスタカテゴリ設定 (×14) | `Settings` |
-| 28 | `*` | 404ページ | インライン |
+| 25 | `/checkups` | 定期健診一覧 | `CheckupList` |
+| 26 | `/inventory` | 在庫一覧 | `InventoryList` |
+| 27 | `/inventory/new` | 在庫新規登録 | `InventoryForm` |
+| 28 | `/inventory/:id` | 在庫編集 | `InventoryForm` |
+| 29 | `/shifts` | シフト管理 | `ShiftCalendar` |
+| 30 | `/settings` | マスタ設定トップ | `MasterSettingsIndex` |
+| 31 | `/settings/clinic` | 病院情報設定 | `ClinicSettings` |
+| 32 | `/settings/treatment-items` | 診療項目マスタ (5カテゴリ統合) | `TreatmentItemsSettings` |
+| 33 | `/settings/diagnosis` | 診断マスタ (2カテゴリ統合) | `DiagnosisSettings` |
+| 34 | `/settings/trimming` | トリミングマスタ (2カテゴリ統合) | `TrimmingSettings` |
+| 35 | `/settings/service-type` | 予約区分マスタ | `Settings` |
+| 36 | `/settings/medicine` | 薬剤マスタ | `Settings` |
+| 37 | `/settings/staff` | スタッフマスタ | `Settings` |
+| 38 | `/settings/insurance` | 保険マスタ | `Settings` |
+| 39 | `/settings/hospitalization` | 入院マスタ | `Settings` |
+| 40 | `/settings/cage` | ケージマスタ | `Settings` |
+| 41 | `/dev/tests` | フォーマットテスト (開発用) | `FormatTestRunner` |
+| 42 | `/login` | ログイン | `Login` |
+| — | `*` | 404ページ | インライン |
+
+> **注**: マスタ設定ルートは3統合ページ（`TreatmentItemsSettings`/`DiagnosisSettings`/`TrimmingSettings`）+ 6個別ページ（`Settings` コンポーネント, category prop切替）= 9ルートで15カテゴリをカバー。
+
+---
+
+## 関連ドキュメント
+
+| ドキュメント | 説明 |
+|---|---|
+| [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md) | デザインシステム・コンポーネントスタイリング |
+| [SPECIFICATION.md](./SPECIFICATION.md) | システム仕様・アーキテクチャ |
+| [ERD.md](./ERD.md) | データベース設計・ER図 |
+| [DB_DEFINITION.md](./DB_DEFINITION.md) | DB定義書・DDL |
+| [screens/20-master-settings.md](./screens/20-master-settings.md) | マスタ設定詳細仕様 |
