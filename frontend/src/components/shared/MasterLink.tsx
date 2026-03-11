@@ -1,7 +1,8 @@
 import { Settings } from "lucide-react";
 import { Link } from "react-router";
 
-type MasterCategory =
+/** 設定ページへのリンクに対応する全マスタカテゴリ */
+export type MasterLinkCategory =
   | "serviceType"
   | "vaccine"
   | "examination"
@@ -17,7 +18,7 @@ type MasterCategory =
   | "diagnosis_category"
   | "diagnosis_name";
 
-const CATEGORY_PATH_MAP: Record<MasterCategory, string> = {
+const CATEGORY_PATH_MAP: Record<MasterLinkCategory, string> = {
   serviceType: "/settings/service-type",
   vaccine: "/settings/vaccine",
   examination: "/settings/examination",
@@ -36,7 +37,7 @@ const CATEGORY_PATH_MAP: Record<MasterCategory, string> = {
 
 interface MasterLinkProps {
   /** Master category key (e.g. "serviceType", "vaccine") */
-  category: MasterCategory;
+  category: MasterLinkCategory;
   /** Override the display label. Defaults to "マスタ管理" */
   label?: string;
   className?: string;

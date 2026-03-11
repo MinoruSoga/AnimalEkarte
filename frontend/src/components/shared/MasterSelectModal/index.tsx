@@ -9,7 +9,8 @@ import {
 } from "@/components/ui/dialog";
 import { Search, X, Check, ChevronRight } from "lucide-react";
 import { MasterLink } from "@/components/shared/MasterLink";
-import type { MasterCategory, MasterItem } from "@/types";
+import type { MasterLinkCategory } from "@/components/shared/MasterLink";
+import type { MasterItem } from "@/types";
 
 // --- MasterSelectModal ---
 
@@ -27,7 +28,7 @@ interface MasterSelectModalProps {
   emptySearchMessage?: string;
   emptyMessage?: string;
   /** If provided, shows a link to the master settings page inside the dialog */
-  masterCategory?: MasterCategory;
+  masterCategory?: MasterLinkCategory;
 }
 
 export function MasterSelectModal({
