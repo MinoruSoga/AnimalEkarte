@@ -59,6 +59,17 @@ export interface MedicalRecord {
   chiefComplaint: string;
   doctor: string;
   status: "作成中" | "確定済";
+  // SOAPS フィールド
+  subjective?: string;
+  objective?: string;
+  assessment?: string;
+  plan?: string;
+  surgeryNotes?: string;
+  diagnosis?: string;
+  treatment?: string;
+  prescription?: string;
+  notes?: string;
+  visitType?: string;
 }
 
 // Hospitalization Types
@@ -168,7 +179,7 @@ export interface ReservationAppointment {
   type: string;
   doctor: string;
   isDesignated: boolean;
-  status: "confirmed" | "pending" | "canceled" | "checked_in" | "in_consultation" | "accounting" | "completed" | "cancelled";
+  status: "confirmed" | "pending" | "checked_in" | "in_consultation" | "accounting" | "completed" | "cancelled";
   notes?: string;
   petId?: string;
 }
@@ -192,7 +203,6 @@ export const RESERVATION_STATUS_VALUES = [
 export const RESERVATION_STATUS_LABELS: Record<ReservationStatus, string> = {
   confirmed: "予約確定",
   pending: "仮予約",
-  canceled: "キャンセル",
   checked_in: "受付済",
   in_consultation: "診療中",
   accounting: "会計待ち",

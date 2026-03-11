@@ -1,17 +1,24 @@
 // React/Framework
-import React, { useState, useCallback } from "react";
+import { useCallback } from "react";
 
 // Relative
 import { InterviewChiefComplaint } from "./InterviewChiefComplaint";
 import { InterviewTreatmentPolicy } from "./InterviewTreatmentPolicy";
 import { InterviewHistory } from "./InterviewHistory";
 
-export function MedicalRecordInterview() {
-  const [chiefComplaint, setChiefComplaint] = useState(
-    "# どんな症状\n\n# どこが\n\n# いつから\n\n# その他・備考\n\n# フリースペース"
-  );
-  const [treatmentPolicy, setTreatmentPolicy] = useState("# 治療方針");
+interface MedicalRecordInterviewProps {
+  chiefComplaint: string;
+  setChiefComplaint: (value: string) => void;
+  treatmentPolicy: string;
+  setTreatmentPolicy: (value: string) => void;
+}
 
+export function MedicalRecordInterview({
+  chiefComplaint,
+  setChiefComplaint,
+  treatmentPolicy,
+  setTreatmentPolicy,
+}: MedicalRecordInterviewProps) {
   const templates = [
     { label: "定期検診", text: "# 定期検診\n特に異常なし。食欲・元気あり。" },
     { label: "ワクチン", text: "# 混合ワクチン接種\n体調良好。" },
@@ -21,7 +28,7 @@ export function MedicalRecordInterview() {
 
   const handleInsertTemplate = useCallback((text: string) => {
     setChiefComplaint(text);
-  }, []);
+  }, [setChiefComplaint]);
 
   const historyItems = [
     {

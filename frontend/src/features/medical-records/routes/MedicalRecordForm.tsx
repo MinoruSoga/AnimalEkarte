@@ -33,7 +33,15 @@ export const MedicalRecordForm = () => {
     treatmentPlanItems,
     setTreatmentPlanItems,
     treatmentCompletedItems,
-    setTreatmentCompletedItems
+    setTreatmentCompletedItems,
+    chiefComplaint,
+    setChiefComplaint,
+    treatmentPolicy,
+    setTreatmentPolicy,
+    plan,
+    setPlan,
+    assessment,
+    setAssessment,
   } = useMedicalRecordForm(recordId);
 
   useEffect(() => {
@@ -107,13 +115,22 @@ export const MedicalRecordForm = () => {
 
         {/* Content Area */}
         <div className={activeTab === "問診" ? "block" : "hidden"}>
-          <MedicalRecordInterview />
+          <MedicalRecordInterview
+            chiefComplaint={chiefComplaint}
+            setChiefComplaint={setChiefComplaint}
+            treatmentPolicy={treatmentPolicy}
+            setTreatmentPolicy={setTreatmentPolicy}
+          />
         </div>
         <div className={activeTab === "診察/治療プラン" ? "block" : "hidden"}>
-          <MedicalRecordDiagnosisPlan 
-            isNewRecord={isNewRecord} 
+          <MedicalRecordDiagnosisPlan
+            isNewRecord={isNewRecord}
             items={treatmentPlanItems}
             setItems={setTreatmentPlanItems}
+            plan={plan}
+            setPlan={setPlan}
+            assessment={assessment}
+            setAssessment={setAssessment}
           />
         </div>
         <div className={activeTab === "治療" ? "block" : "hidden"}>

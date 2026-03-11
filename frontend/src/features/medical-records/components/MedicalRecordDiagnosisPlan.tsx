@@ -9,11 +9,28 @@ export interface DiagnosisPlanProps {
   isNewRecord?: boolean;
   items?: TreatmentItem[];
   setItems?: React.Dispatch<React.SetStateAction<TreatmentItem[]>>;
+  // 制御型props（親フックから状態を受け取る）
+  plan?: string;
+  setPlan?: (value: string) => void;
+  assessment?: string;
+  setAssessment?: (value: string) => void;
 }
 
-export function MedicalRecordDiagnosisPlan({ isNewRecord = false }: DiagnosisPlanProps) {
-  const [policy, setPolicy] = useState("# 治療方針");
-  const [diagnosisDetails, setDiagnosisDetails] = useState("# 診断詳細");
+export function MedicalRecordDiagnosisPlan({
+  isNewRecord = false,
+  plan: planProp,
+  setPlan: setPlanProp,
+  assessment: assessmentProp,
+  setAssessment: setAssessmentProp,
+}: DiagnosisPlanProps) {
+  // 制御型propsが渡された場合はそれを使用し、渡されない場合は内部stateにフォールバック
+  const [internalPolicy, setInternalPolicy] = useState("# 治療方針");
+  const [internalDiagnosisDetails, setInternalDiagnosisDetails] = useState("# 診断詳細");
+
+  const policy = planProp ?? internalPolicy;
+  const setPolicy = setPlanProp ?? setInternalPolicy;
+  const diagnosisDetails = assessmentProp ?? internalDiagnosisDetails;
+  const setDiagnosisDetails = setAssessmentProp ?? setInternalDiagnosisDetails;
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [globalDiscountRate, setGlobalDiscountRate] = useState(0);
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);

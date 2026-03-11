@@ -16,5 +16,15 @@ export const transformMedicalRecord = (
     chiefComplaint: record.chief_complaint || "",
     doctor: record.doctor_id || "Unknown",
     status: record.status as "作成中" | "確定済",
+    visitType: record.visit_type,
+    subjective: record.subjective,
+    objective: record.objective,
+    assessment: record.assessment,
+    plan: record.plan,
+    surgeryNotes: record.surgery_notes,
+    diagnosis: record.diagnosis,
+    treatment: record.treatment,
+    prescription: record.prescription,
+    notes: record.notes,
   };
 };

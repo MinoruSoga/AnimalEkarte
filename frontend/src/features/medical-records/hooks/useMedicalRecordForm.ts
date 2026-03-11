@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
 import { usePetInfo } from "@/hooks/use-pet";
@@ -7,6 +7,11 @@ import { useCreateMedicalRecord } from "../api/create-medical-record";
 import { useUpdateMedicalRecord } from "../api/update-medical-record";
 import type { CreateMedicalRecordRequest, UpdateMedicalRecordRequest } from "../api/types";
 import type { TreatmentItem } from "../components/TreatmentTable";
+
+const DEFAULT_CHIEF_COMPLAINT = "# どんな症状\n\n# どこが\n\n# いつから\n\n# その他・備考\n\n# フリースペース";
+const DEFAULT_TREATMENT_POLICY = "# 治療方針";
+const DEFAULT_PLAN = "# 治療方針";
+const DEFAULT_ASSESSMENT = "# 診断詳細";
 
 export function useMedicalRecordForm(recordId?: string) {
   const navigate = useNavigate();
@@ -19,8 +24,25 @@ export function useMedicalRecordForm(recordId?: string) {
   const [treatmentPlanItems, setTreatmentPlanItems] = useState<TreatmentItem[]>([]);
   const [treatmentCompletedItems, setTreatmentCompletedItems] = useState<TreatmentItem[]>([]);
 
+  // 問診タブの状態
+  const [chiefComplaint, setChiefComplaint] = useState(DEFAULT_CHIEF_COMPLAINT);
+  const [treatmentPolicy, setTreatmentPolicy] = useState(DEFAULT_TREATMENT_POLICY);
+
+  // 診察/治療プランタブの状態（SOAPS）
+  const [plan, setPlan] = useState(DEFAULT_PLAN);
+  const [assessment, setAssessment] = useState(DEFAULT_ASSESSMENT);
+
   // 編集モード: カルテからpetIdを取得
   const { data: existingRecord } = useGetMedicalRecord(recordId ?? "");
+
+  // 既存カルテデータをフォームに反映
+  useEffect(() => {
+    if (!existingRecord) return;
+    if (existingRecord.chiefComplaint) setChiefComplaint(existingRecord.chiefComplaint);
+    if (existingRecord.plan) setPlan(existingRecord.plan);
+    if (existingRecord.assessment) setAssessment(existingRecord.assessment);
+    if (existingRecord.notes) setTreatmentPolicy(existingRecord.notes);
+  }, [existingRecord]);
 
   // petIdを決定: 新規作成時はURLパラメータ、編集時はカルテのpetId
   const resolvedPetId = isNewRecord ? (petId ?? "") : (existingRecord?.petId ?? "");
@@ -56,6 +78,10 @@ export function useMedicalRecordForm(recordId?: string) {
         visit_date: today,
         visit_type: "再診",
         status: "作成中",
+        chief_complaint: chiefComplaint !== DEFAULT_CHIEF_COMPLAINT ? chiefComplaint : undefined,
+        plan: plan !== DEFAULT_PLAN ? plan : undefined,
+        assessment: assessment !== DEFAULT_ASSESSMENT ? assessment : undefined,
+        notes: treatmentPolicy !== DEFAULT_TREATMENT_POLICY ? treatmentPolicy : undefined,
       };
 
       try {
@@ -74,6 +100,10 @@ export function useMedicalRecordForm(recordId?: string) {
     } else if (recordId) {
       const req: UpdateMedicalRecordRequest = {
         status: "作成中",
+        chief_complaint: chiefComplaint,
+        plan,
+        assessment,
+        notes: treatmentPolicy,
       };
 
       try {
@@ -108,5 +138,15 @@ export function useMedicalRecordForm(recordId?: string) {
     setTreatmentPlanItems,
     treatmentCompletedItems,
     setTreatmentCompletedItems,
+    // 問診タブ
+    chiefComplaint,
+    setChiefComplaint,
+    treatmentPolicy,
+    setTreatmentPolicy,
+    // 診察/治療プランタブ（SOAPS）
+    plan,
+    setPlan,
+    assessment,
+    setAssessment,
   };
 }
