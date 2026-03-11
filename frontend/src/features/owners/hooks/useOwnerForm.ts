@@ -56,25 +56,26 @@ export function useOwnerForm(id?: string) {
         const owner = await getOwner(id);
 
         // Map backend Owner to frontend OwnerData
-        // Note: Backend has simplified address structure
         setOwnerData({
           ownerId: owner.id,
-          postalCode: "", // Not separately stored in backend
-          company: "", // Not stored
-          membershipType: "会員" as MembershipType, // Default or derived
-          ownerName: owner.name,
-          address1: owner.address || "",
-          postalNumber: "",
-          ownerNameKana: owner.name_kana || "",
-          address2: "",
-          homeAddress1: "",
-          homeAddress2: "",
-          isDangerous: false,
-          birthDate: "",
-          email: owner.email || "",
-          phone: owner.phone || "",
-          companyPhone: "",
-          remarks: owner.notes || "",
+          postalCode: owner.postalCode,
+          company: owner.company,
+          membershipType: (owner.membershipType as MembershipType) || "非会員",
+          ownerName: owner.ownerName,
+          address1: owner.address1,
+          postalNumber: owner.postalCode,
+          ownerNameKana: owner.ownerNameKana || "",
+          address2: owner.address2,
+          homeAddress1: owner.homeAddress1,
+          homeAddress2: owner.homeAddress2,
+          homePostalCode: owner.homePostalCode,
+          isDangerous: owner.isDangerous,
+          birthDate: owner.birthDate || "",
+          email: owner.email,
+          phone: owner.phone,
+          companyPhone: owner.companyPhone,
+          remarks: owner.remarks,
+          discountRate: owner.discountRate,
         });
 
         // Map pets if available
@@ -243,22 +244,23 @@ export function useOwnerForm(id?: string) {
 
     setIsLoading(true);
     try {
-      // Combine address fields
-      const fullAddress = [
-        ownerData.postalCode,
-        ownerData.address1,
-        ownerData.address2,
-      ]
-        .filter(Boolean)
-        .join(" ");
-
       const commonData = {
-        name: ownerData.ownerName,
-        name_kana: ownerData.ownerNameKana,
+        owner_name: ownerData.ownerName,
+        owner_name_kana: ownerData.ownerNameKana || undefined,
+        company: ownerData.company,
+        postal_code: ownerData.postalCode,
+        address1: ownerData.address1,
+        address2: ownerData.address2,
+        home_postal_code: ownerData.homePostalCode || "",
+        home_address1: ownerData.homeAddress1,
+        home_address2: ownerData.homeAddress2,
         phone: ownerData.phone,
+        company_phone: ownerData.companyPhone,
         email: ownerData.email,
-        address: fullAddress,
-        notes: ownerData.remarks,
+        remarks: ownerData.remarks,
+        is_dangerous: ownerData.isDangerous,
+        discount_rate: ownerData.discountRate,
+        membership_type: ownerData.membershipType,
       };
 
       if (isEdit && id) {
@@ -266,7 +268,10 @@ export function useOwnerForm(id?: string) {
         await updateOwner(id, updateData);
         toast.success("飼主情報を更新しました");
       } else {
-        const createData: CreateOwnerRequest = commonData;
+        const createData: CreateOwnerRequest = {
+          ...commonData,
+          owner_name: ownerData.ownerName,
+        };
         await createOwner(createData);
         toast.success("飼主情報を登録しました");
       }

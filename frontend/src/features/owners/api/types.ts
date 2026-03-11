@@ -26,13 +26,23 @@ export interface BackendPet {
 
 export interface BackendOwner {
   id: string;
-  owner_number: number;
-  name: string;
-  name_kana: string;
+  owner_name: string;
+  owner_name_kana?: string;
+  company: string;
+  postal_code: string;
+  address1: string;
+  address2: string;
+  home_postal_code: string;
+  home_address1: string;
+  home_address2: string;
+  birth_date?: string;
   phone: string;
+  company_phone: string;
   email: string;
-  address: string;
-  notes: string;
+  remarks: string;
+  is_dangerous: boolean;
+  discount_rate: number;
+  membership_type: string;
   created_at: string;
   updated_at: string;
   pets?: BackendPet[];

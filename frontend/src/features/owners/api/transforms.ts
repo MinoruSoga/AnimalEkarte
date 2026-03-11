@@ -30,19 +30,28 @@ export const transformPet = (p: BackendPet): Pet => ({
  */
 export const transformOwner = (o: BackendOwner): Owner => ({
   id: o.id,
-  ownerNumber: o.owner_number,
-  name: o.name,
-  name_kana: o.name_kana,
+  ownerName: o.owner_name,
+  ownerNameKana: o.owner_name_kana,
+  company: o.company,
+  postalCode: o.postal_code,
+  address1: o.address1,
+  address2: o.address2,
+  homePostalCode: o.home_postal_code,
+  homeAddress1: o.home_address1,
+  homeAddress2: o.home_address2,
+  birthDate: o.birth_date,
   phone: o.phone,
+  companyPhone: o.company_phone,
   email: o.email,
-  address: o.address,
-  notes: o.notes,
-  created_at: o.created_at,
-  updated_at: o.updated_at,
+  remarks: o.remarks,
+  isDangerous: o.is_dangerous,
+  discountRate: o.discount_rate,
+  membershipType: o.membership_type,
+  createdAt: o.created_at,
+  updatedAt: o.updated_at,
   pets: o.pets?.map((p) => {
     const pet = transformPet(p);
-    pet.ownerName = o.name;
-    pet.ownerNumber = o.owner_number;
+    pet.ownerName = o.owner_name;
     return pet;
   }),
 });

@@ -16,8 +16,7 @@ export const ownersLoader = async (): Promise<OwnersLoaderData> => {
       const dummyPet: Pet = {
         id: `owner-${owner.id}`,
         ownerId: owner.id,
-        ownerNumber: owner.ownerNumber,
-        ownerName: owner.name,
+        ownerName: owner.ownerName,
         name: "-",
         species: "-",
         petNumber: "-",
