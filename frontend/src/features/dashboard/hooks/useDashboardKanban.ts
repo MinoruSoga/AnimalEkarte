@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import type { Appointment, ColumnData } from "@/types";
 import { useDashboardData, useUpdateAppointmentStatus, todayISO, COLUMN_TITLE_TO_STATUS } from "../api";
 import type { DashboardColumn, DashboardAppointment } from "../api";
+import { MOCK_DASHBOARD_COLUMNS } from "../api/mock-data";
 
 /** DashboardColumn → ColumnData（@/types）変換 */
 function toColumnData(col: DashboardColumn): ColumnData {
@@ -35,18 +36,13 @@ export const useDashboardKanban = () => {
   const { data: apiColumns, isLoading } = useDashboardData(today);
   const updateStatusMutation = useUpdateAppointmentStatus();
 
-  // API データを ColumnData[] に変換。ロード中またはデータがない場合は空カラムを用意
+  // API データを ColumnData[] に変換。APIが空のときはモックデータをフォールバックとして使用
   const apiColumnData: ColumnData[] = useMemo(() => {
-    if (!apiColumns) {
-      return [
-        { title: "受付予約", appointments: [] },
-        { title: "受付済", appointments: [] },
-        { title: "診療中", appointments: [] },
-        { title: "会計待ち", appointments: [] },
-        { title: "会計済", appointments: [] },
-      ];
-    }
-    return apiColumns.map(toColumnData);
+    if (!apiColumns) return MOCK_DASHBOARD_COLUMNS;
+    const converted = apiColumns.map(toColumnData);
+    // 全カラムが空（APIからデータなし）の場合はモックにフォールバック
+    const hasAnyAppointment = converted.some(c => c.appointments.length > 0);
+    return hasAnyAppointment ? converted : MOCK_DASHBOARD_COLUMNS;
   }, [apiColumns]);
 
   // ローカル状態: API から取得したデータを元にドラッグ操作のために保持

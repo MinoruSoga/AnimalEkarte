@@ -1,5 +1,6 @@
 import type { Hospitalization, InventoryItem, MedicalRecord, ReservationStatus, SortOrder } from "@/types";
 import { RESERVATION_STATUS_LABELS } from "@/types";
+import { C } from "@/lib/design-tokens";
 
 export const getMedicalRecordStatusColor = (status: MedicalRecord["status"]) => {
   switch (status) {
@@ -31,21 +32,67 @@ export const getHospitalizationTypeColor = (type: Hospitalization["hospitalizati
     : "bg-purple-500/10 text-purple-700 border-purple-200";
 };
 
-export const getDashboardColumnColor = (title: string) => {
-  switch (title) {
-    case "受付予約":
-      return { dot: "bg-gray-400", text: "text-foreground", bg: "bg-gray-50/80" };
-    case "受付済":
-      return { dot: "bg-blue-500", text: "text-foreground", bg: "bg-blue-50/60" };
-    case "診療中":
-      return { dot: "bg-yellow-500", text: "text-foreground", bg: "bg-yellow-50/60" };
-    case "会計待ち":
-      return { dot: "bg-orange-500", text: "text-foreground", bg: "bg-orange-50/60" };
-    case "会計済":
-      return { dot: "bg-green-500", text: "text-foreground", bg: "bg-green-50/60" };
-    default:
-      return { dot: "bg-gray-400", text: "text-foreground", bg: "bg-gray-50/80" };
-  }
+interface DashboardColumnColorSet {
+  bg: string;
+  dot: string;
+  text: string;
+  text60: string;
+  hoverBgPage: string;
+  hoverText: string;
+}
+
+const DASHBOARD_COLUMN_COLOR_MAP: Record<string, DashboardColumnColorSet> = {
+  "受付予約": {
+    bg: C.bgPage,
+    dot: C.bgStatusGrayMedium,
+    text: C.text,
+    text60: C.text60,
+    hoverBgPage: C.hoverBgPage,
+    hoverText: C.hoverText,
+  },
+  "受付済": {
+    bg: C.bgAccentLight50,
+    dot: C.bgAccent,
+    text: C.textAccentDark,
+    text60: C.textAccentDark60,
+    hoverBgPage: C.hoverBgAccentBadge40,
+    hoverText: C.hoverTextAccentDark,
+  },
+  "診療中": {
+    bg: C.bgStatusPurple60,
+    dot: C.bgStatusPurpleDot,
+    text: C.textStatusPurple,
+    text60: C.textStatusPurple60,
+    hoverBgPage: C.hoverBgPurpleLight40,
+    hoverText: C.hoverTextStatusPurple,
+  },
+  "会計待ち": {
+    bg: C.bgDiscountLight70,
+    dot: C.bgDiscount,
+    text: C.textDiscount,
+    text60: C.textDiscount70,
+    hoverBgPage: C.hoverBgOrangeBadge40,
+    hoverText: C.hoverTextDiscount,
+  },
+  "会計済": {
+    bg: C.bgStatusGreen60,
+    dot: C.bgStatusGreenDot,
+    text: C.textStatusGreen,
+    text60: C.textStatusGreen60,
+    hoverBgPage: C.hoverBgGreenBadge40,
+    hoverText: C.hoverTextStatusGreen,
+  },
+};
+
+export const getDashboardColumnColor = (title: string): DashboardColumnColorSet => {
+  return DASHBOARD_COLUMN_COLOR_MAP[title] ?? {
+    bg: C.bgPage,
+    dot: C.bgStatusGrayMedium,
+    text: C.text,
+    text60: C.text60,
+    hoverBgPage: C.hoverBgPage,
+    hoverText: C.hoverText,
+  };
 };
 
 export const getReservationTypeColor = (type: string) => {
