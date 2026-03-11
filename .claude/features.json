@@ -29,18 +29,18 @@
     {
       "id": "DB-001",
       "name": "データベース設計",
-      "description": "患者、診療記録、薬剤等のスキーマ設計（22テーブル）",
-      "status": "in_progress",
+      "description": "45テーブル完全スキーマ設計（専用マスタテーブル版）",
+      "status": "completed",
       "priority": "high",
       "dependencies": ["SETUP-001"],
       "commit": null,
-      "completedAt": null
+      "completedAt": "2026-03-12"
     },
     {
       "id": "DB-002",
-      "name": "マイグレーション基盤",
-      "description": "GORMマイグレーション + シードデータ",
-      "status": "pending",
+      "name": "マイグレーション基盤 + Goモデル実装",
+      "description": "001_init.sql（45テーブル）+ GORMモデル全25ファイル",
+      "status": "in_progress",
       "priority": "high",
       "dependencies": ["DB-001"],
       "commit": null,
