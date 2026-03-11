@@ -64,7 +64,7 @@ func (r *medicalRecordRepository) GetMedicalRecordByID(ctx context.Context, id s
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("medical record with id %s not found", id)
+			return nil, apperrors.WrapNotFound("medical record", id)
 		}
 		return nil, apperrors.WrapInternal(result.Error, "failed to get medical record")
 	}

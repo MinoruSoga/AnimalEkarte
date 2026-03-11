@@ -54,7 +54,7 @@ func (r *vaccinationRepository) GetVaccinationByID(ctx context.Context, id strin
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("vaccination with id %s not found", id)
+			return nil, apperrors.WrapNotFound("vaccination", id)
 		}
 		return nil, apperrors.WrapInternal(result.Error, "failed to get vaccination")
 	}
@@ -81,7 +81,7 @@ func (r *vaccinationRepository) GetVaccinationsByPetID(ctx context.Context, petI
 func (r *vaccinationRepository) GetVaccinationsByOwnerID(ctx context.Context, ownerID string) ([]model.VaccinationRecord, error) {
 	var vacs []model.VaccinationRecord
 	result := r.db.WithContext(ctx).
-		Where("owner_name IN (SELECT owner_name FROM owners WHERE id = ?)", ownerID).
+		Where("pet_id IN (SELECT id FROM pets WHERE owner_id = ?)", ownerID).
 		Order("date DESC, created_at DESC").
 		Find(&vacs)
 

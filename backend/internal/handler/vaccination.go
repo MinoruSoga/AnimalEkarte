@@ -69,7 +69,7 @@ func (h *Handler) GetVaccinationByID(c *gin.Context) {
 // @Router /pets/{petId}/vaccinations [get]
 func (h *Handler) GetVaccinationsByPetID(c *gin.Context) {
 	ctx := c.Request.Context()
-	petID := c.Param("petId")
+	petID := c.Param("id")
 
 	vacs, err := h.svc.GetVaccinationsByPetID(ctx, petID)
 	if err != nil {
@@ -93,7 +93,7 @@ func (h *Handler) GetVaccinationsByPetID(c *gin.Context) {
 // @Router /owners/{ownerId}/vaccinations [get]
 func (h *Handler) GetVaccinationsByOwnerID(c *gin.Context) {
 	ctx := c.Request.Context()
-	ownerID := c.Param("ownerId")
+	ownerID := c.Param("id")
 
 	vacs, err := h.svc.GetVaccinationsByOwnerID(ctx, ownerID)
 	if err != nil {

@@ -54,7 +54,7 @@ func (r *inventoryItemRepository) GetInventoryItemByID(ctx context.Context, id s
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("inventory item with id %s not found", id)
+			return nil, apperrors.WrapNotFound("inventory item", id)
 		}
 		return nil, apperrors.WrapInternal(result.Error, "failed to get inventory item")
 	}

@@ -95,11 +95,13 @@ func (h *Handler) GetExaminationsByOwnerID(c *gin.Context) {
 	ctx := c.Request.Context()
 	ownerID := c.Param("id")
 
-	// ownerIDに紐づくペットの検査記録を返すためにpetIDで検索するより
-	// ここでは空リストを返す暫定実装（将来的にはmedical_record経由で取得）
-	_ = ownerID
-	_ = ctx
-	c.JSON(http.StatusOK, []model.ExaminationRecord{})
+	exams, err := h.svc.GetExaminationRecordsByOwnerID(ctx, ownerID)
+	if err != nil {
+		h.handleError(c, err, "examination", ownerID)
+		return
+	}
+
+	c.JSON(http.StatusOK, exams)
 }
 
 // GetExaminationsByStatus godoc
@@ -115,8 +117,26 @@ func (h *Handler) GetExaminationsByOwnerID(c *gin.Context) {
 // @Router /examinations/status/{status} [get]
 func (h *Handler) GetExaminationsByStatus(c *gin.Context) {
 	ctx := c.Request.Context()
-	_ = ctx
-	c.JSON(http.StatusOK, []model.ExaminationRecord{})
+	status := c.Param("status")
+
+	exams, err := h.svc.GetAllExaminationRecords(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get examination records", slog.String("error", err.Error()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	// Filter by status in memory (examination_records has no direct status filter in repo)
+	var filtered []model.ExaminationRecord
+	for _, e := range exams {
+		if e.Status == status {
+			filtered = append(filtered, e)
+		}
+	}
+	if filtered == nil {
+		filtered = []model.ExaminationRecord{}
+	}
+	c.JSON(http.StatusOK, filtered)
 }
 
 // CreateExamination godoc

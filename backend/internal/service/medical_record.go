@@ -41,7 +41,7 @@ func (s *Service) GetMedicalRecordByID(ctx context.Context, id string) (*model.M
 	}
 
 	if record == nil {
-		return nil, apperrors.WrapNotFound("medical record with id %s not found", id)
+		return nil, apperrors.WrapNotFound("medical record", id)
 	}
 
 	return record, nil

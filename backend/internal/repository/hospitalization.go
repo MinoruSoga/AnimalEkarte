@@ -58,7 +58,7 @@ func (r *hospitalizationRepository) GetHospitalizationByID(ctx context.Context, 
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("hospitalization with id %s not found", id)
+			return nil, apperrors.WrapNotFound("hospitalization", id)
 		}
 		return nil, apperrors.WrapInternal(result.Error, "failed to get hospitalization")
 	}

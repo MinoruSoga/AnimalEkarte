@@ -39,7 +39,7 @@ func (s *Service) GetInventoryItemByID(ctx context.Context, id string) (*model.I
 	}
 
 	if item == nil {
-		return nil, apperrors.WrapNotFound("inventory item with id %s not found", id)
+		return nil, apperrors.WrapNotFound("inventory item", id)
 	}
 
 	return item, nil
@@ -116,7 +116,7 @@ func (s *Service) UpdateInventoryItem(ctx context.Context, id string, req *model
 	}
 
 	if item == nil {
-		return nil, apperrors.WrapNotFound("inventory item with id %s not found", id)
+		return nil, apperrors.WrapNotFound("inventory item", id)
 	}
 
 	// Update fields

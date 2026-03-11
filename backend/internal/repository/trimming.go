@@ -57,7 +57,7 @@ func (r *trimmingRepository) GetTrimmingByID(ctx context.Context, id string) (*m
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("trimming with id %s not found", id)
+			return nil, apperrors.WrapNotFound("trimming", id)
 		}
 		return nil, apperrors.WrapInternal(result.Error, "failed to get trimming")
 	}
@@ -86,7 +86,7 @@ func (r *trimmingRepository) GetTrimmingsByOwnerID(ctx context.Context, ownerID 
 	var trims []model.TrimmingRecord
 	result := r.db.WithContext(ctx).
 		Preload("Options").
-		Where("owner_name IN (SELECT owner_name FROM owners WHERE id = ?)", ownerID).
+		Where("pet_id IN (SELECT id FROM pets WHERE owner_id = ?)", ownerID).
 		Order("date DESC, created_at DESC").
 		Find(&trims)
 

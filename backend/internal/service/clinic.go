@@ -36,7 +36,7 @@ func (s *Service) GetClinicByID(ctx context.Context, id string) (*model.Clinic, 
 	}
 
 	if clinic == nil {
-		return nil, apperrors.WrapNotFound("clinic with id %s not found", id)
+		return nil, apperrors.WrapNotFound("clinic", id)
 	}
 
 	return clinic, nil
@@ -79,7 +79,7 @@ func (s *Service) UpdateClinic(ctx context.Context, id string, req *model.Update
 	}
 
 	if clinic == nil {
-		return nil, apperrors.WrapNotFound("clinic with id %s not found", id)
+		return nil, apperrors.WrapNotFound("clinic", id)
 	}
 
 	// Update fields

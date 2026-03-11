@@ -12,8 +12,10 @@
     "MAX_THINKING_TOKENS": "10000",
     "BASH_DEFAULT_TIMEOUT_MS": "60000",
     "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
-    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1"
+    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
+  "teammateMode": "in-process",
   "plansPath": ".claude/plans",
   "sessionsPath": ".claude/sessions",
   "fileHistoryPath": ".claude/file-history",

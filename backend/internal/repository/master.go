@@ -55,7 +55,7 @@ func (r *masterItemRepository) GetMasterItemByID(ctx context.Context, id string)
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("master item with id %s not found", id)
+			return nil, apperrors.WrapNotFound("master item", id)
 		}
 		return nil, apperrors.WrapInternal(result.Error, "failed to get master item")
 	}

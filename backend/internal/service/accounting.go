@@ -40,7 +40,7 @@ func (s *Service) GetAccountingByID(ctx context.Context, id string) (*model.Acco
 	}
 
 	if acc == nil {
-		return nil, apperrors.WrapNotFound("accounting with id %s not found", id)
+		return nil, apperrors.WrapNotFound("accounting", id)
 	}
 
 	return acc, nil
@@ -140,7 +140,7 @@ func (s *Service) UpdateAccounting(ctx context.Context, id string, req *model.Up
 	}
 
 	if acc == nil {
-		return nil, apperrors.WrapNotFound("accounting with id %s not found", id)
+		return nil, apperrors.WrapNotFound("accounting", id)
 	}
 
 	// Update fields

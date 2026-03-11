@@ -40,7 +40,7 @@ func (s *Service) GetTrimmingByID(ctx context.Context, id string) (*model.Trimmi
 	}
 
 	if trim == nil {
-		return nil, apperrors.WrapNotFound("trimming with id %s not found", id)
+		return nil, apperrors.WrapNotFound("trimming", id)
 	}
 
 	return trim, nil
@@ -139,7 +139,7 @@ func (s *Service) UpdateTrimming(ctx context.Context, id string, req *model.Upda
 	}
 
 	if trim == nil {
-		return nil, apperrors.WrapNotFound("trimming with id %s not found", id)
+		return nil, apperrors.WrapNotFound("trimming", id)
 	}
 
 	// Update fields

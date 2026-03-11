@@ -86,7 +86,7 @@ func (h *Handler) GetReservationByID(c *gin.Context) {
 // @Router /pets/{petId}/reservations [get]
 func (h *Handler) GetReservationsByPetID(c *gin.Context) {
 	ctx := c.Request.Context()
-	petID := c.Param("petId")
+	petID := c.Param("id")
 
 	reservations, err := h.svc.GetReservationsByPetID(ctx, petID)
 	if err != nil {
@@ -110,7 +110,7 @@ func (h *Handler) GetReservationsByPetID(c *gin.Context) {
 // @Router /owners/{ownerId}/reservations [get]
 func (h *Handler) GetReservationsByOwnerID(c *gin.Context) {
 	ctx := c.Request.Context()
-	ownerID := c.Param("ownerId")
+	ownerID := c.Param("id")
 
 	reservations, err := h.svc.GetReservationsByOwnerID(ctx, ownerID)
 	if err != nil {

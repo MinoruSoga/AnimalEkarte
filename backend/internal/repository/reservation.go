@@ -70,7 +70,7 @@ func (r *reservationRepository) GetReservationByID(ctx context.Context, id strin
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("reservation with id %s not found", id)
+			return nil, apperrors.WrapNotFound("reservation", id)
 		}
 		return nil, apperrors.WrapInternal(result.Error, "failed to get reservation")
 	}
@@ -97,7 +97,7 @@ func (r *reservationRepository) GetReservationsByPetID(ctx context.Context, petI
 func (r *reservationRepository) GetReservationsByOwnerID(ctx context.Context, ownerID string) ([]model.ReservationAppointment, error) {
 	var reservations []model.ReservationAppointment
 	result := r.db.WithContext(ctx).
-		Where("owner_name IN (SELECT owner_name FROM owners WHERE id = ?)", ownerID).
+		Where("pet_id IN (SELECT id FROM pets WHERE owner_id = ?)", ownerID).
 		Order("start_time DESC, created_at DESC").
 		Find(&reservations)
 

@@ -40,7 +40,7 @@ func (s *Service) GetHospitalizationByID(ctx context.Context, id string) (*model
 	}
 
 	if hosp == nil {
-		return nil, apperrors.WrapNotFound("hospitalization with id %s not found", id)
+		return nil, apperrors.WrapNotFound("hospitalization", id)
 	}
 
 	return hosp, nil
@@ -146,7 +146,7 @@ func (s *Service) UpdateHospitalization(ctx context.Context, id string, req *mod
 	}
 
 	if hosp == nil {
-		return nil, apperrors.WrapNotFound("hospitalization with id %s not found", id)
+		return nil, apperrors.WrapNotFound("hospitalization", id)
 	}
 
 	// Update fields

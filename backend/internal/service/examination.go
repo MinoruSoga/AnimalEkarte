@@ -15,6 +15,7 @@ type ExaminationService interface {
 	GetAllExaminationRecords(ctx context.Context) ([]model.ExaminationRecord, error)
 	GetExaminationRecordByID(ctx context.Context, id string) (*model.ExaminationRecord, error)
 	GetExaminationRecordsByPetID(ctx context.Context, petID string) ([]model.ExaminationRecord, error)
+	GetExaminationRecordsByOwnerID(ctx context.Context, ownerID string) ([]model.ExaminationRecord, error)
 	CreateExaminationRecord(ctx context.Context, req *model.CreateExaminationRecordRequest) (*model.ExaminationRecord, error)
 	UpdateExaminationRecord(ctx context.Context, id string, req *model.UpdateExaminationRecordRequest) (*model.ExaminationRecord, error)
 	DeleteExaminationRecord(ctx context.Context, id string) error
@@ -38,7 +39,7 @@ func (s *Service) GetExaminationRecordByID(ctx context.Context, id string) (*mod
 	}
 
 	if exam == nil {
-		return nil, apperrors.WrapNotFound("examination record with id %s not found", id)
+		return nil, apperrors.WrapNotFound("examination record", id)
 	}
 
 	return exam, nil
@@ -52,6 +53,16 @@ func (s *Service) GetExaminationRecordsByPetID(ctx context.Context, petID string
 	}
 
 	return s.examinationRepo.GetExaminationRecordsByPetID(ctx, uid.String())
+}
+
+// GetExaminationRecordsByOwnerID 飼い主IDで検査記録を取得
+func (s *Service) GetExaminationRecordsByOwnerID(ctx context.Context, ownerID string) ([]model.ExaminationRecord, error) {
+	uid, err := uuid.Parse(ownerID)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("invalid owner ID format")
+	}
+
+	return s.examinationRepo.GetExaminationRecordsByOwnerID(ctx, uid.String())
 }
 
 // CreateExaminationRecord 検査記録を作成
@@ -109,7 +120,7 @@ func (s *Service) UpdateExaminationRecord(ctx context.Context, id string, req *m
 	}
 
 	if exam == nil {
-		return nil, apperrors.WrapNotFound("examination record with id %s not found", id)
+		return nil, apperrors.WrapNotFound("examination record", id)
 	}
 
 	if req.Date != nil && *req.Date != "" {

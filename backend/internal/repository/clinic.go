@@ -52,7 +52,7 @@ func (r *clinicRepository) GetClinicByID(ctx context.Context, id string) (*model
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("clinic with id %s not found", id)
+			return nil, apperrors.WrapNotFound("clinic", id)
 		}
 		return nil, apperrors.WrapInternal(result.Error, "failed to get clinic")
 	}

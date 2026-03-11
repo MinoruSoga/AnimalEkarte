@@ -39,7 +39,7 @@ func (s *Service) GetVaccinationByID(ctx context.Context, id string) (*model.Vac
 	}
 
 	if vac == nil {
-		return nil, apperrors.WrapNotFound("vaccination with id %s not found", id)
+		return nil, apperrors.WrapNotFound("vaccination", id)
 	}
 
 	return vac, nil
@@ -131,7 +131,7 @@ func (s *Service) UpdateVaccination(ctx context.Context, id string, req *model.U
 	}
 
 	if vac == nil {
-		return nil, apperrors.WrapNotFound("vaccination with id %s not found", id)
+		return nil, apperrors.WrapNotFound("vaccination", id)
 	}
 
 	// Update fields

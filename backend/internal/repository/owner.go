@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -25,9 +26,9 @@ func (r *Repository) GetOwnerByID(ctx context.Context, id uuid.UUID) (*model.Own
 	var owner model.Owner
 	if err := r.db.WithContext(ctx).Preload("Pets").First(&owner, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("owner not found: %w", err)
+			return nil, apperrors.WrapNotFound("owner", id.String())
 		}
-		return nil, fmt.Errorf("failed to get owner by id: %w", err)
+		return nil, apperrors.WrapInternal(err, "failed to get owner by id")
 	}
 	return &owner, nil
 }

@@ -70,7 +70,7 @@ func (h *Handler) GetHospitalizationByID(c *gin.Context) {
 // @Router /pets/{petId}/hospitalizations [get]
 func (h *Handler) GetHospitalizationsByPetID(c *gin.Context) {
 	ctx := c.Request.Context()
-	petID := c.Param("petId")
+	petID := c.Param("id")
 
 	hosps, err := h.svc.GetHospitalizationsByPetID(ctx, petID)
 	if err != nil {
@@ -94,7 +94,7 @@ func (h *Handler) GetHospitalizationsByPetID(c *gin.Context) {
 // @Router /owners/{ownerId}/hospitalizations [get]
 func (h *Handler) GetHospitalizationsByOwnerID(c *gin.Context) {
 	ctx := c.Request.Context()
-	ownerID := c.Param("ownerId")
+	ownerID := c.Param("id")
 
 	hosps, err := h.svc.GetHospitalizationsByOwnerID(ctx, ownerID)
 	if err != nil {

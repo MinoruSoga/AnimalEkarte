@@ -59,7 +59,7 @@ func (r *accountingRepository) GetAccountingByID(ctx context.Context, id string)
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("accounting with id %s not found", id)
+			return nil, apperrors.WrapNotFound("accounting", id)
 		}
 		return nil, apperrors.WrapInternal(result.Error, "failed to get accounting")
 	}

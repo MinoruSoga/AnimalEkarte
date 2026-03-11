@@ -69,7 +69,7 @@ func (h *Handler) GetTrimmingByID(c *gin.Context) {
 // @Router /pets/{petId}/trimmings [get]
 func (h *Handler) GetTrimmingsByPetID(c *gin.Context) {
 	ctx := c.Request.Context()
-	petID := c.Param("petId")
+	petID := c.Param("id")
 
 	trims, err := h.svc.GetTrimmingsByPetID(ctx, petID)
 	if err != nil {
@@ -93,7 +93,7 @@ func (h *Handler) GetTrimmingsByPetID(c *gin.Context) {
 // @Router /owners/{ownerId}/trimmings [get]
 func (h *Handler) GetTrimmingsByOwnerID(c *gin.Context) {
 	ctx := c.Request.Context()
-	ownerID := c.Param("ownerId")
+	ownerID := c.Param("id")
 
 	trims, err := h.svc.GetTrimmingsByOwnerID(ctx, ownerID)
 	if err != nil {

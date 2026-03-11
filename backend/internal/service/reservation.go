@@ -48,7 +48,7 @@ func (s *Service) GetReservationByID(ctx context.Context, id string) (*model.Res
 	}
 
 	if reservation == nil {
-		return nil, apperrors.WrapNotFound("reservation with id %s not found", id)
+		return nil, apperrors.WrapNotFound("reservation", id)
 	}
 
 	return reservation, nil
@@ -139,7 +139,7 @@ func (s *Service) UpdateReservation(ctx context.Context, id string, req *model.U
 	}
 
 	if reservation == nil {
-		return nil, apperrors.WrapNotFound("reservation with id %s not found", id)
+		return nil, apperrors.WrapNotFound("reservation", id)
 	}
 
 	// Update fields

@@ -69,7 +69,7 @@ func (h *Handler) GetAccountingByID(c *gin.Context) {
 // @Router /pets/{petId}/accountings [get]
 func (h *Handler) GetAccountingByPetID(c *gin.Context) {
 	ctx := c.Request.Context()
-	petID := c.Param("petId")
+	petID := c.Param("id")
 
 	accs, err := h.svc.GetAccountingByPetID(ctx, petID)
 	if err != nil {
@@ -93,7 +93,7 @@ func (h *Handler) GetAccountingByPetID(c *gin.Context) {
 // @Router /owners/{ownerId}/accountings [get]
 func (h *Handler) GetAccountingByOwnerID(c *gin.Context) {
 	ctx := c.Request.Context()
-	ownerID := c.Param("ownerId")
+	ownerID := c.Param("id")
 
 	accs, err := h.svc.GetAccountingByOwnerID(ctx, ownerID)
 	if err != nil {

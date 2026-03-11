@@ -37,7 +37,7 @@ func (s *Service) GetMasterItemByID(ctx context.Context, id string) (*model.Mast
 	}
 
 	if item == nil {
-		return nil, apperrors.WrapNotFound("master item with id %s not found", id)
+		return nil, apperrors.WrapNotFound("master item", id)
 	}
 
 	return item, nil
@@ -92,7 +92,7 @@ func (s *Service) UpdateMasterItem(ctx context.Context, id string, req *model.Up
 	}
 
 	if item == nil {
-		return nil, apperrors.WrapNotFound("master item with id %s not found", id)
+		return nil, apperrors.WrapNotFound("master item", id)
 	}
 
 	// Update fields

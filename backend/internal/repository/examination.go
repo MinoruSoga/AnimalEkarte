@@ -17,6 +17,7 @@ type ExaminationRepository interface {
 	GetExaminationRecordByID(ctx context.Context, id string) (*model.ExaminationRecord, error)
 	GetExaminationRecordsByMedicalRecordID(ctx context.Context, medicalRecordID string) ([]model.ExaminationRecord, error)
 	GetExaminationRecordsByPetID(ctx context.Context, petID string) ([]model.ExaminationRecord, error)
+	GetExaminationRecordsByOwnerID(ctx context.Context, ownerID string) ([]model.ExaminationRecord, error)
 	CreateExaminationRecord(ctx context.Context, exam *model.ExaminationRecord) error
 	UpdateExaminationRecord(ctx context.Context, exam *model.ExaminationRecord) error
 	DeleteExaminationRecord(ctx context.Context, id string) error
@@ -56,7 +57,7 @@ func (r *examinationRepository) GetExaminationRecordByID(ctx context.Context, id
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("examination record with id %s not found", id)
+			return nil, apperrors.WrapNotFound("examination record", id)
 		}
 		return nil, apperrors.WrapInternal(result.Error, "failed to get examination record")
 	}
@@ -86,6 +87,22 @@ func (r *examinationRepository) GetExaminationRecordsByPetID(ctx context.Context
 	result := r.db.WithContext(ctx).
 		Preload("Items").
 		Where("pet_id = ?", petID).
+		Order("date DESC, created_at DESC").
+		Find(&exams)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return exams, nil
+}
+
+// GetExaminationRecordsByOwnerID 飼い主IDで検査記録を取得（pets経由）
+func (r *examinationRepository) GetExaminationRecordsByOwnerID(ctx context.Context, ownerID string) ([]model.ExaminationRecord, error) {
+	var exams []model.ExaminationRecord
+	result := r.db.WithContext(ctx).
+		Preload("Items").
+		Where("pet_id IN (SELECT id FROM pets WHERE owner_id = ?)", ownerID).
 		Order("date DESC, created_at DESC").
 		Find(&exams)
 
