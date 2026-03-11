@@ -1,5 +1,5 @@
 // React/Framework
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useNavigate, useParams } from "react-router";
 
 // External
@@ -43,12 +43,19 @@ import { PageLayout } from "@/components/shared/PageLayout";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { C, STYLE } from "@/lib/design-tokens";
 
 // Relative
-import { PetEditModal } from "../components/PetEditModal";
 import { useOwnerForm } from "../hooks/useOwnerForm";
+// Lazy-loaded modal — only loaded when first opened (bundle-dynamic-imports)
+const PetEditModal = lazy(() =>
+  import("../components/PetEditModal").then(m => ({ default: m.PetEditModal }))
+);
 import { MEMBERSHIP_TYPE_VALUES } from "../types";
+
+const INPUT_CLS = STYLE.formInput;
 
 export function OwnerForm() {
   const navigate = useNavigate();
@@ -73,20 +80,22 @@ export function OwnerForm() {
     handleDeletePet,
     handleSavePet,
     handleSave,
+    fieldErrors,
+    clearFieldError,
   } = useOwnerForm(ownerId);
 
   const handleBack = () => {
     navigate("/owners");
   };
 
-  const handleInputChange = (field: string, value: string | boolean) => {
-    setOwnerData({ ...ownerData, [field]: value });
+  const handleInputChange = (field: string, value: string | boolean | number) => {
+    setOwnerData(prev => ({ ...prev, [field]: value }));
     markDirty();
   };
 
-  const handleSaveClick = async () => {
-    const ok = await handleSave();
-    if (ok) {
+  const handleSubmit = async () => {
+    const isSaved = await handleSave();
+    if (isSaved) {
       markClean();
       setTimeout(() => {
         navigate("/owners");
@@ -109,8 +118,8 @@ export function OwnerForm() {
       headerAction={
         <Button
           size="sm"
-          onClick={handleSaveClick}
-          className="px-4"
+          onClick={handleSubmit}
+          className={`${STYLE.confirmPrimary} px-4`}
           disabled={isLoading}
         >
           {isLoading ? "保存中..." : isEdit ? "更新" : "登録"}
@@ -120,67 +129,66 @@ export function OwnerForm() {
       <NavigationBlocker when={isDirty} />
 
       {/* Owner Information Form */}
-      <div className="mb-4 rounded-lg bg-card p-4 shadow-sm border border-border">
-        <h2 className="mb-3 text-sm font-bold flex items-center gap-2">
-          <User className="h-4 w-4 text-muted-foreground" />
+      <div className={`mb-4 rounded-lg bg-white p-4 border ${C.borderMedium}`}>
+        <h2 className={`mb-3 text-sm font-bold ${C.text} flex items-center gap-2`}>
+          <User className={`h-4 w-4 ${C.text60}`} />
           飼主情報
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Row 1 */}
           <div className="space-y-1.5">
-            <Label htmlFor="ownerId" className="text-muted-foreground">
+            <Label htmlFor="ownerId" className={`text-sm ${C.text60}`}>
               飼主No
             </Label>
             <Input
               id="ownerId"
+              type="text"
               value={ownerData.ownerId}
-              onChange={(e) =>
-                handleInputChange("ownerId", e.target.value)
-              }
+              onChange={(e) => handleInputChange("ownerId", e.target.value)}
               disabled={isEdit}
-              className="disabled:opacity-50"
+              className={`${INPUT_CLS} disabled:opacity-50`}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="postalCode" className="text-muted-foreground">
+            <Label htmlFor="postalCode" className={`text-sm ${C.text60}`}>
               郵便番号
             </Label>
             <Input
               id="postalCode"
               placeholder="123-4567"
               value={ownerData.postalCode}
-              onChange={(e) =>
-                handleInputChange("postalCode", e.target.value)
-              }
+              onChange={(e) => handleInputChange("postalCode", e.target.value)}
+              className={INPUT_CLS}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="company" className="text-muted-foreground">
+            <Label htmlFor="company" className={`text-sm ${C.text60}`}>
               会社名
             </Label>
             <Input
               id="company"
               value={ownerData.company}
-              onChange={(e) =>
-                handleInputChange("company", e.target.value)
-              }
+              onChange={(e) => handleInputChange("company", e.target.value)}
+              className={INPUT_CLS}
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-muted-foreground">会員区分</Label>
+            <Label className={`text-sm ${C.text60}`}>会員区分</Label>
             <div className="flex gap-1.5 flex-wrap">
               {MEMBERSHIP_TYPE_VALUES.map((type) => (
                 <Button
                   key={type}
                   type="button"
-                  variant={
-                    ownerData.membershipType === type ? "default" : "outline"
-                  }
+                  variant={ownerData.membershipType === type ? "default" : "outline"}
                   size="sm"
-                  className="h-10 px-3"
-                  onClick={() =>
-                    handleInputChange("membershipType", type)
+                  className={
+                    ownerData.membershipType === type
+                      ? `${STYLE.confirmPrimary} h-10 text-sm px-3`
+                      : `h-10 text-sm ${C.text} ${C.hoverBgMedium} ${C.borderMedium} px-3`
                   }
+                  onClick={() => {
+                    handleInputChange("membershipType", type);
+                  }}
                 >
                   {type}
                 </Button>
@@ -190,44 +198,47 @@ export function OwnerForm() {
 
           {/* Row 2 */}
           <div className="space-y-1.5">
-            <Label htmlFor="ownerName" className="text-muted-foreground">
-              飼主名 <span className="text-destructive">*</span>
+            <Label htmlFor="ownerName" className={`text-sm ${C.text60}`}>
+              飼主名 <span className={C.textRequired}>*</span>
             </Label>
             <Input
               id="ownerName"
               value={ownerData.ownerName}
-              onChange={(e) =>
-                handleInputChange("ownerName", e.target.value)
-              }
+              aria-invalid={!!fieldErrors.ownerName}
+              aria-describedby={fieldErrors.ownerName ? "ownerName-error" : undefined}
+              onChange={(e) => {
+                handleInputChange("ownerName", e.target.value);
+                clearFieldError("ownerName");
+              }}
+              className={`${INPUT_CLS} ${fieldErrors.ownerName ? STYLE.formInputError : ""}`}
             />
+            <FormFieldError id="ownerName-error" message={fieldErrors.ownerName} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="address1" className="text-muted-foreground">
+            <Label htmlFor="address1" className={`text-sm ${C.text60}`}>
               住所1
             </Label>
             <Input
               id="address1"
               value={ownerData.address1}
-              onChange={(e) =>
-                handleInputChange("address1", e.target.value)
-              }
+              onChange={(e) => handleInputChange("address1", e.target.value)}
+              className={INPUT_CLS}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="homePostalCode" className="text-muted-foreground">
-              住所郵便番号
+            <Label htmlFor="homePostalCode" className={`text-sm ${C.text60}`}>
+              郵便番号(自宅)
             </Label>
             <Input
               id="homePostalCode"
               placeholder="123-4567"
               value={ownerData.homePostalCode || ""}
-              onChange={(e) =>
-                handleInputChange("homePostalCode", e.target.value)
-              }
+              onChange={(e) => handleInputChange("homePostalCode", e.target.value)}
+              className={INPUT_CLS}
             />
           </div>
           <div className="space-y-1.5 col-span-2 lg:col-span-1 lg:row-span-3">
-            <Label className="text-muted-foreground">危険人物</Label>
+            <Label className={`text-sm ${C.text60}`}>危険人物</Label>
             <div className="flex items-center space-x-2 mb-2 h-10">
               <Switch
                 id="dangerous"
@@ -239,141 +250,143 @@ export function OwnerForm() {
               />
               <label
                 htmlFor="dangerous"
-                className="text-sm cursor-pointer"
+                className={`text-sm cursor-pointer ${C.text}`}
               >
                 該当する
               </label>
             </div>
-            <Label htmlFor="remarks" className="text-muted-foreground">
+            <Label htmlFor="remarks" className={`text-sm ${C.text60}`}>
               備考・特記事項
             </Label>
             <Textarea
               id="remarks"
               rows={6}
               value={ownerData.remarks}
-              onChange={(e) =>
-                handleInputChange("remarks", e.target.value)
-              }
-              className="min-h-[140px] resize-none p-3"
+              onChange={(e) => handleInputChange("remarks", e.target.value)}
+              className={`text-sm ${C.text} min-h-[140px] resize-none ${C.borderMedium} p-3`}
             />
           </div>
 
           {/* Row 3 */}
           <div className="space-y-1.5">
-            <Label htmlFor="ownerNameKana" className="text-muted-foreground">
-              飼主名(カナ) <span className="text-destructive">*</span>
+            <Label htmlFor="ownerNameKana" className={`text-sm ${C.text60}`}>
+              飼主名(カナ) <span className={C.textRequired}>*</span>
             </Label>
             <Input
               id="ownerNameKana"
               placeholder="ハヤシ フミアキ"
               value={ownerData.ownerNameKana}
-              onChange={(e) =>
-                handleInputChange("ownerNameKana", e.target.value)
-              }
+              aria-invalid={!!fieldErrors.ownerNameKana}
+              aria-describedby={fieldErrors.ownerNameKana ? "ownerNameKana-error" : undefined}
+              onChange={(e) => {
+                handleInputChange("ownerNameKana", e.target.value);
+                clearFieldError("ownerNameKana");
+              }}
+              className={`${INPUT_CLS} ${fieldErrors.ownerNameKana ? STYLE.formInputError : ""}`}
             />
+            <FormFieldError id="ownerNameKana-error" message={fieldErrors.ownerNameKana} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="address2" className="text-muted-foreground">
+            <Label htmlFor="address2" className={`text-sm ${C.text60}`}>
               住所2
             </Label>
             <Input
               id="address2"
               value={ownerData.address2}
-              onChange={(e) =>
-                handleInputChange("address2", e.target.value)
-              }
+              onChange={(e) => handleInputChange("address2", e.target.value)}
+              className={INPUT_CLS}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="homeAddress1" className="text-muted-foreground">
-              居住地住所1
+            <Label htmlFor="homeAddress1" className={`text-sm ${C.text60}`}>
+              住所1(自宅)
             </Label>
             <Input
               id="homeAddress1"
               value={ownerData.homeAddress1}
-              onChange={(e) =>
-                handleInputChange("homeAddress1", e.target.value)
-              }
+              onChange={(e) => handleInputChange("homeAddress1", e.target.value)}
+              className={INPUT_CLS}
             />
           </div>
 
           {/* Row 4 */}
           <div className="space-y-1.5">
-            <Label htmlFor="birthDate" className="text-muted-foreground">
+            <Label htmlFor="birthDate" className={`text-sm ${C.text60}`}>
               飼主生年月日
             </Label>
             <NotionDatePicker
               id="birthDate"
               value={ownerData.birthDate}
-              onChange={(value) => {
-                handleInputChange("birthDate", value);
-              }}
+              onChange={(val) => handleInputChange("birthDate", val)}
               placeholder="生年月日を選択…"
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-muted-foreground">
+            <Label htmlFor="email" className={`text-sm ${C.text60}`}>
               メールアドレス
             </Label>
             <Input
               id="email"
               type="email"
               value={ownerData.email}
-              onChange={(e) =>
-                handleInputChange("email", e.target.value)
-              }
+              onChange={(e) => handleInputChange("email", e.target.value)}
+              className={INPUT_CLS}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="homeAddress2" className="text-muted-foreground">
-              居住地住所2
+            <Label htmlFor="homeAddress2" className={`text-sm ${C.text60}`}>
+              住所2(自宅)
             </Label>
             <Input
               id="homeAddress2"
               value={ownerData.homeAddress2}
-              onChange={(e) =>
-                handleInputChange("homeAddress2", e.target.value)
-              }
+              onChange={(e) => handleInputChange("homeAddress2", e.target.value)}
+              className={INPUT_CLS}
             />
           </div>
 
           {/* Row 5 */}
           <div className="space-y-1.5">
-            <Label htmlFor="phone" className="text-muted-foreground">
-              電話番号 <span className="text-destructive">*</span>
+            <Label htmlFor="phone" className={`text-sm ${C.text60}`}>
+              電話番号 <span className={C.textRequired}>*</span>
             </Label>
             <Input
               id="phone"
               placeholder="090-1234-5678"
               value={ownerData.phone}
-              onChange={(e) =>
-                handleInputChange("phone", e.target.value)
-              }
+              aria-invalid={!!fieldErrors.phone}
+              aria-describedby={fieldErrors.phone ? "phone-error" : undefined}
+              onChange={(e) => {
+                handleInputChange("phone", e.target.value);
+                clearFieldError("phone");
+              }}
+              className={`${INPUT_CLS} ${fieldErrors.phone ? STYLE.formInputError : ""}`}
             />
+            <FormFieldError id="phone-error" message={fieldErrors.phone} />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="companyPhone" className="text-muted-foreground">
+          <div className="space-y-1.5 col-span-1 lg:col-span-2">
+            <Label htmlFor="companyPhone" className={`text-sm ${C.text60}`}>
               会社 電話番号
             </Label>
             <Input
               id="companyPhone"
               value={ownerData.companyPhone}
-              onChange={(e) =>
-                handleInputChange("companyPhone", e.target.value)
-              }
+              onChange={(e) => handleInputChange("companyPhone", e.target.value)}
+              className={INPUT_CLS}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="discountRate" className="text-muted-foreground">
-              割引率(%)
+            <Label htmlFor="discountRate" className={`text-sm ${C.text60}`}>
+              値引率 (%)
             </Label>
             <Input
               id="discountRate"
               type="number"
               value={ownerData.discountRate || ""}
               onChange={(e) =>
-                handleInputChange("discountRate", e.target.value)
+                handleInputChange("discountRate", Number(e.target.value))
               }
+              className={INPUT_CLS}
             />
           </div>
         </div>
@@ -382,63 +395,46 @@ export function OwnerForm() {
       {/* Pet Information */}
       <div className="mb-4 space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold flex items-center gap-2">
-            <PawPrint className="h-4 w-4 text-muted-foreground" />
+          <h2 className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
+            <PawPrint className={`h-4 w-4 ${C.text60}`} />
             ペット情報
           </h2>
           <Button
             size="sm"
             onClick={handleAddPet}
-            className="gap-1.5 px-4"
+            className={`${STYLE.confirmPrimary} h-10 gap-1.5 text-sm px-4`}
           >
             <Plus className="size-4" />
             ペット追加
           </Button>
         </div>
 
-        <div className="rounded-lg bg-card overflow-hidden shadow-sm border border-border">
+        <div className={`rounded-lg bg-white overflow-hidden border ${C.borderMedium}`}>
           <Table>
             <TableHeader>
-              <TableRow className="hover:bg-transparent bg-muted/50 border-b border-border h-12">
-                <TableHead className="w-[120px] text-sm font-medium text-muted-foreground h-12">
-                  ペット番号
-                </TableHead>
-                <TableHead className="w-[150px] text-sm font-medium text-muted-foreground h-12">
-                  ペット名
-                </TableHead>
-                <TableHead className="w-[60px] text-sm font-medium text-muted-foreground h-12">
-                  生死
-                </TableHead>
-                <TableHead className="w-[60px] text-sm font-medium text-muted-foreground h-12">
-                  種別
-                </TableHead>
-                <TableHead className="w-[60px] text-sm font-medium text-muted-foreground h-12">
-                  性別
-                </TableHead>
-                <TableHead className="w-[100px] text-sm font-medium text-muted-foreground h-12">
-                  生年月日
-                </TableHead>
-                <TableHead className="w-[80px] text-sm font-medium text-muted-foreground h-12">
-                  毛色
-                </TableHead>
-                <TableHead className="w-[80px] text-sm font-medium text-muted-foreground h-12">
-                  体重
-                </TableHead>
-                <TableHead className="w-[150px] text-sm font-medium text-muted-foreground h-12">
-                  環境
-                </TableHead>
-                <TableHead className="w-[200px] text-sm font-medium text-muted-foreground h-12">
-                  備考
-                </TableHead>
-                <TableHead className="w-[80px] text-sm font-medium text-muted-foreground h-12">
-                  操作
-                </TableHead>
+              <TableRow
+                className={`hover:bg-transparent ${C.bgPage} border-b ${C.borderMedium} h-12`}
+              >
+                <TableHead className={STYLE.tableCellMuted}>ペット番号</TableHead>
+                <TableHead className={STYLE.tableCellMuted}>ペット名</TableHead>
+                <TableHead className={STYLE.tableCellMuted}>生死</TableHead>
+                <TableHead className={STYLE.tableCellMuted}>種別</TableHead>
+                <TableHead className={STYLE.tableCellMuted}>性別</TableHead>
+                <TableHead className={STYLE.tableCellMuted}>生年月日</TableHead>
+                <TableHead className={STYLE.tableCellMuted}>毛色</TableHead>
+                <TableHead className={STYLE.tableCellMuted}>体重</TableHead>
+                <TableHead className={STYLE.tableCellMuted}>環境</TableHead>
+                <TableHead className={STYLE.tableCellMuted}>備考</TableHead>
+                <TableHead className={STYLE.tableCellMuted}>操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {pets.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8 text-sm text-muted-foreground">
+                  <TableCell
+                    colSpan={11}
+                    className={`text-center py-8 text-sm ${C.text60}`}
+                  >
                     ペット情報がありません。「ペット追加」ボタンから追加してください。
                   </TableCell>
                 </TableRow>
@@ -446,38 +442,28 @@ export function OwnerForm() {
                 pets.map((pet) => (
                   <TableRow
                     key={pet.id}
-                    className="transition-colors border-b-border hover:bg-muted/50 h-12"
+                    className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12`}
                   >
-                    <TableCell className="font-mono text-sm py-2">
-                      {pet.petNumber}
-                    </TableCell>
-                    <TableCell className="text-sm py-2">{pet.petName}</TableCell>
-                    <TableCell className="text-sm py-2">{pet.status}</TableCell>
-                    <TableCell className="text-sm py-2">{pet.species}</TableCell>
-                    <TableCell className="text-sm py-2">{pet.gender}</TableCell>
-                    <TableCell className="font-mono text-sm py-2">
-                      {pet.birthDate}
-                    </TableCell>
-                    <TableCell className="text-sm py-2">{pet.color}</TableCell>
-                    <TableCell className="font-mono text-sm py-2">
-                      {pet.weight}
-                    </TableCell>
-                    <TableCell className="text-sm py-2">{pet.environment}</TableCell>
-                    <TableCell className="text-sm truncate max-w-[200px] py-2">
+                    <TableCell className={STYLE.tableCell}>{pet.petNumber}</TableCell>
+                    <TableCell className={STYLE.tableCell}>{pet.petName}</TableCell>
+                    <TableCell className={STYLE.tableCell}>{pet.status}</TableCell>
+                    <TableCell className={STYLE.tableCell}>{pet.species}</TableCell>
+                    <TableCell className={STYLE.tableCell}>{pet.gender}</TableCell>
+                    <TableCell className={STYLE.tableCell}>{pet.birthDate}</TableCell>
+                    <TableCell className={STYLE.tableCell}>{pet.color}</TableCell>
+                    <TableCell className={STYLE.tableCell}>{pet.weight}</TableCell>
+                    <TableCell className={STYLE.tableCell}>{pet.environment}</TableCell>
+                    <TableCell className={`${STYLE.tableCell} truncate max-w-[200px]`}>
                       {pet.remarks}
                     </TableCell>
                     <TableCell className="py-2">
                       <div className="flex gap-1 justify-end">
                         <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                            >
-                              <span className="sr-only">Open menu</span>
-                              <MoreHorizontal className="size-4" />
-                            </Button>
+                          <DropdownMenuTrigger
+                            className={`inline-flex items-center justify-center rounded-[4px] cursor-pointer ${STYLE.tableActionBtn} ${C.hoverBgLight}`}
+                            aria-label="操作メニューを開く"
+                          >
+                            <MoreHorizontal className="size-5" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>操作</DropdownMenuLabel>
@@ -485,32 +471,79 @@ export function OwnerForm() {
                               <Edit className="mr-2 h-4 w-4" />
                               詳細・編集
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/reservations?petId=${pet.id}`)}>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                navigate(`/reservations?petId=${pet.id}`)
+                              }
+                            >
                               <Calendar className="mr-2 h-4 w-4" />
                               予約作成
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/medical-records/new?petId=${pet.id}`, { state: { from: ownerId ? `/owners/${ownerId}` : "/owners" } })}>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                navigate(`/medical-records/new?petId=${pet.id}`, {
+                                  state: {
+                                    from: ownerId
+                                      ? `/owners/${ownerId}`
+                                      : "/owners",
+                                  },
+                                })
+                              }
+                            >
                               <FileText className="mr-2 h-4 w-4" />
                               カルテ作成
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/trimming/new?petId=${pet.id}`, { state: { from: ownerId ? `/owners/${ownerId}` : "/owners" } })}>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                navigate(`/trimming/new?petId=${pet.id}`, {
+                                  state: {
+                                    from: ownerId
+                                      ? `/owners/${ownerId}`
+                                      : "/owners",
+                                  },
+                                })
+                              }
+                            >
                               <Scissors className="mr-2 h-4 w-4" />
                               トリミング
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/hospitalization/new?petId=${pet.id}`, { state: { from: ownerId ? `/owners/${ownerId}` : "/owners" } })}>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                navigate(`/hospitalization/new?petId=${pet.id}`, {
+                                  state: {
+                                    from: ownerId
+                                      ? `/owners/${ownerId}`
+                                      : "/owners",
+                                  },
+                                })
+                              }
+                            >
                               <Bed className="mr-2 h-4 w-4" />
                               入院登録
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/accounting/new?petId=${pet.id}`, { state: { from: ownerId ? `/owners/${ownerId}` : "/owners" } })}>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                navigate(`/accounting/new?petId=${pet.id}`, {
+                                  state: {
+                                    from: ownerId
+                                      ? `/owners/${ownerId}`
+                                      : "/owners",
+                                  },
+                                })
+                              }
+                            >
                               <CreditCard className="mr-2 h-4 w-4" />
                               会計登録
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={() =>
-                                setDeletePetTarget({ id: pet.id, name: pet.petName })
+                                setDeletePetTarget({
+                                  id: pet.id,
+                                  name: pet.petName,
+                                })
                               }
-                              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                              className={`${C.danger} focus:${C.danger} ${C.focusBgLight}`}
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
                               削除
@@ -527,35 +560,16 @@ export function OwnerForm() {
         </div>
       </div>
 
-      <PetEditModal
-        open={petModalOpen}
-        onOpenChange={setPetModalOpen}
+      <Suspense fallback={null}>
+        <PetEditModal
+          key={editingPet?.id ?? (petModalOpen ? "new-open" : "new-closed")}
+          open={petModalOpen}
+          onOpenChange={setPetModalOpen}
         ownerName={ownerData.ownerName || "飼主名"}
-        petData={
-          editingPet
-            ? {
-                id: editingPet.id,
-                petNumber: editingPet.petNumber,
-                petName: editingPet.petName,
-                petNameKana: editingPet.petNameKana,
-                species: editingPet.species,
-                gender: editingPet.gender,
-                birthDate: editingPet.birthDate,
-                breed: editingPet.breed,
-                color: editingPet.color,
-                weight: editingPet.weight,
-                neuteredDate: editingPet.neuteredDate,
-                acquisitionType: editingPet.acquisitionType,
-                dangerLevel: editingPet.dangerLevel,
-                food: editingPet.food,
-                environment: editingPet.environment,
-                status: editingPet.status,
-                remarks: editingPet.remarks,
-              }
-            : undefined
-        }
+        petData={editingPet ?? undefined}
         onSave={handleSavePet}
-      />
+        />
+      </Suspense>
 
       {/* Delete Pet Confirm Dialog */}
       <ConfirmDialog

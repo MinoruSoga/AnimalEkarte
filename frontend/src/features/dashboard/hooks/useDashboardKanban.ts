@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import type { Appointment, ColumnData } from "@/types";
 import { useDashboardData, useUpdateAppointmentStatus, todayISO, COLUMN_TITLE_TO_STATUS } from "../api";
@@ -14,24 +14,24 @@ function toColumnData(col: DashboardColumn): ColumnData {
 }
 
 /** DashboardAppointment → Appointment（@/types）変換 */
-function toAppointment(a: DashboardAppointment): Appointment {
+function toAppointment(appt: DashboardAppointment): Appointment {
   return {
-    id: a.id,
-    time: a.time,
-    ownerName: a.ownerName,
-    petType: a.petType,
-    petName: a.petName,
-    visitType: a.visitType,
-    serviceType: a.serviceType,
-    nextAppointment: a.nextAppointment,
-    isDesignated: a.isDesignated,
-    doctor: a.doctor,
-    petId: a.petId,
-    ownerId: a.ownerId,
+    id: appt.id,
+    time: appt.time,
+    ownerName: appt.ownerName,
+    petType: appt.petType,
+    petName: appt.petName,
+    visitType: appt.visitType,
+    serviceType: appt.serviceType,
+    nextAppointment: appt.nextAppointment,
+    isDesignated: appt.isDesignated,
+    doctor: appt.doctor,
+    petId: appt.petId,
+    ownerId: appt.ownerId,
   };
 }
 
-export const useDashboardKanban = () => {
+export function useDashboardKanban() {
   const today = todayISO();
   const { data: apiColumns, isLoading } = useDashboardData(today);
   const updateStatusMutation = useUpdateAppointmentStatus();
@@ -46,12 +46,15 @@ export const useDashboardKanban = () => {
   }, [apiColumns]);
 
   // ローカル状態: API から取得したデータを元にドラッグ操作のために保持
+  const [prevApiColumns, setPrevApiColumns] = useState(apiColumnData);
   const [columns, setColumns] = useState<ColumnData[]>(apiColumnData);
 
-  // API データが更新されたらローカル状態を同期
-  useEffect(() => {
+  // useEffect を使わずレンダー内でインライン同期（rerender-derived-state-no-effect 準拠）
+  // APIデータが更新されたときのみ columns をリセット（参照比較で余分な更新を防ぐ）
+  if (prevApiColumns !== apiColumnData) {
+    setPrevApiColumns(apiColumnData);
     setColumns(apiColumnData);
-  }, [apiColumnData]);
+  }
 
   // Filter States
   const [selectedVisitTypes, setSelectedVisitTypes] = useState<string[]>(["初診", "再診"]);
@@ -87,13 +90,13 @@ export const useDashboardKanban = () => {
     }));
   }, [columns, selectedVisitTypes, selectedDoctor, isTrimmingOnly]);
 
-  const toggleVisitType = (type: string) => {
+  const toggleVisitType = useCallback((type: string) => {
     setSelectedVisitTypes(prev =>
       prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
     );
-  };
+  }, []);
 
-  const moveCard = (dragIndex: number, hoverIndex: number, sourceColumn: string, targetColumn: string) => {
+  const moveCard = useCallback((dragIndex: number, hoverIndex: number, sourceColumn: string, targetColumn: string) => {
     // 受付済 → 診療中 への直接ドラッグは禁止（カルテ作成が必要）
     if (sourceColumn === "受付済" && targetColumn === "診療中") {
       const now = Date.now();
@@ -164,9 +167,9 @@ export const useDashboardKanban = () => {
       return newColumns;
     });
     return true;
-  };
+  }, [filteredColumns, apiColumnData, updateStatusMutation]);
 
-  const advanceStatus = (appointment: Appointment) => {
+  const advanceStatus = useCallback((appointment: Appointment) => {
     const currentColumnTitle = filteredColumns.find(c => c.appointments.some(a => a.id === appointment.id))?.title;
     if (!currentColumnTitle) return;
 
@@ -238,12 +241,12 @@ export const useDashboardKanban = () => {
       }
       return newColumns;
     });
-  };
+  }, [filteredColumns, apiColumnData, updateStatusMutation]);
 
-  const cancelAppointment = (appointmentId: string) => {
+  const cancelAppointment = useCallback((appointmentId: string) => {
     // API でキャンセルステータスに更新
     updateStatusMutation.mutate(
-      { id: appointmentId, status: "canceled" },
+      { id: appointmentId, status: "cancelled" },
       {
         onError: () => {
           toast.error("予約の取り消しに失敗しました");
@@ -264,9 +267,9 @@ export const useDashboardKanban = () => {
       }
       return prev;
     });
-  };
+  }, [apiColumnData, updateStatusMutation]);
 
-  const updateAppointment = (updatedAppointment: Appointment) => {
+  const updateAppointment = useCallback((updatedAppointment: Appointment) => {
     setColumns(prev => {
       const newColumns = prev.map(col => ({ ...col, appointments: [...col.appointments] }));
       for (const col of newColumns) {
@@ -282,7 +285,7 @@ export const useDashboardKanban = () => {
       return prev;
     });
     toast.success("予約情報を更新しました");
-  };
+  }, []);
 
   return {
     columns,
@@ -301,4 +304,4 @@ export const useDashboardKanban = () => {
       toggleVisitType
     }
   };
-};
+}

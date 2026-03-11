@@ -5,53 +5,53 @@ import type { BackendOwner, BackendPet } from "./types";
 /**
  * Transform backend pet response to frontend Pet type
  */
-export const transformPet = (p: BackendPet): Pet => ({
-  id: p.id,
-  ownerId: p.owner_id,
+export const transformPet = (pet: BackendPet): Pet => ({
+  id: pet.id,
+  ownerId: pet.owner_id,
   ownerName: "",
   phone: "",
-  petNumber: p.pet_number,
-  name: p.name,
-  species: p.species,
-  breed: p.breed,
-  gender: p.gender,
-  status: p.status,
-  birthDate: p.birth_date,
-  weight: p.weight?.toString(),
-  environment: p.environment,
-  lastVisit: p.last_visit,
-  insuranceName: p.insurance_name,
-  insuranceDetails: p.insurance_details,
-  remarks: p.notes,
+  petNumber: pet.pet_number,
+  name: pet.name,
+  species: pet.species,
+  breed: pet.breed,
+  gender: pet.gender,
+  status: pet.status,
+  birthDate: pet.birth_date,
+  weight: pet.weight?.toString(),
+  environment: pet.environment,
+  lastVisit: pet.last_visit,
+  insuranceName: pet.insurance_name,
+  insuranceDetails: pet.insurance_details,
+  remarks: pet.notes,
 });
 
 /**
  * Transform backend owner response to frontend Owner type
  */
-export const transformOwner = (o: BackendOwner): Owner => ({
-  id: o.id,
-  ownerName: o.owner_name,
-  ownerNameKana: o.owner_name_kana,
-  company: o.company,
-  postalCode: o.postal_code,
-  address1: o.address1,
-  address2: o.address2,
-  homePostalCode: o.home_postal_code,
-  homeAddress1: o.home_address1,
-  homeAddress2: o.home_address2,
-  birthDate: o.birth_date,
-  phone: o.phone,
-  companyPhone: o.company_phone,
-  email: o.email,
-  remarks: o.remarks,
-  isDangerous: o.is_dangerous,
-  discountRate: o.discount_rate,
-  membershipType: o.membership_type,
-  createdAt: o.created_at,
-  updatedAt: o.updated_at,
-  pets: o.pets?.map((p) => {
-    const pet = transformPet(p);
-    pet.ownerName = o.owner_name;
-    return pet;
+export const transformOwner = (owner: BackendOwner): Owner => ({
+  id: owner.id,
+  ownerName: owner.owner_name,
+  ownerNameKana: owner.owner_name_kana,
+  company: owner.company,
+  postalCode: owner.postal_code,
+  address1: owner.address1,
+  address2: owner.address2,
+  homePostalCode: owner.home_postal_code,
+  homeAddress1: owner.home_address1,
+  homeAddress2: owner.home_address2,
+  birthDate: owner.birth_date,
+  phone: owner.phone,
+  companyPhone: owner.company_phone,
+  email: owner.email,
+  remarks: owner.remarks,
+  isDangerous: owner.is_dangerous,
+  discountRate: owner.discount_rate,
+  membershipType: owner.membership_type,
+  createdAt: owner.created_at,
+  updatedAt: owner.updated_at,
+  pets: owner.pets?.map((pet) => {
+    const transformed = transformPet(pet);
+    transformed.ownerName = owner.owner_name;
+    return transformed;
   }),
 });

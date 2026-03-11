@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useTransition } from "react";
 import { useNavigate, useLoaderData } from "react-router";
 
 // External
@@ -16,24 +16,29 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { Pagination } from "@/components/shared/Pagination";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { SortableHeader } from "@/components/shared/SortableHeader";
 import { getPetStatusColor } from "@/utils/status-helpers";
 import { formatDate } from "@/utils/format/date";
 import { formatWeight } from "@/utils/format/number";
 import { usePagination } from "@/hooks/usePagination";
+import { useTableSort } from "@/hooks/useTableSort";
+import { STYLE } from "@/lib/design-tokens";
 import { deleteOwner } from "../api";
 
 // Types
 import type { OwnersLoaderData } from "../loaders";
 
+type SortKey = "ownerNumber" | "ownerName" | "name" | "species" | "birthDate" | "lastVisit";
+
 export function OwnersList() {
   const navigate = useNavigate();
   const { pets } = useLoaderData<OwnersLoaderData>();
   const [searchTerm, setSearchTerm] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<{
+  const [pendingDeleteOwner, setPendingDeleteOwner] = useState<{
     id: string;
     name: string;
   } | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleting, startDeleteTransition] = useTransition();
 
   const filteredPets = useMemo(() => {
     if (!searchTerm) return pets;
@@ -49,7 +54,18 @@ export function OwnersList() {
     });
   }, [pets, searchTerm]);
 
-  const pagination = usePagination(filteredPets, {
+  const accessor = useCallback(
+    (item: (typeof filteredPets)[number], key: SortKey): string =>
+      String(item[key] ?? ""),
+    [],
+  );
+
+  const { sortedData, directionFor, toggleSort } = useTableSort<
+    (typeof filteredPets)[number],
+    SortKey
+  >(filteredPets, { accessor });
+
+  const pagination = usePagination(sortedData, {
     pageSize: 20,
     resetKey: searchTerm,
   });
@@ -62,38 +78,91 @@ export function OwnersList() {
     navigate(`/owners/${ownerId}`);
   };
 
-  const handleDeleteClick = (ownerId: string, ownerName: string) => {
-    setDeleteTarget({ id: ownerId, name: ownerName });
+  const handleDeleteRequest = (ownerId: string, ownerName: string) => {
+    setPendingDeleteOwner({ id: ownerId, name: ownerName });
   };
 
-  const handleConfirmDelete = async () => {
-    if (!deleteTarget) return;
+  const handleConfirmDelete = useCallback(() => {
+    if (!pendingDeleteOwner) return;
 
-    setIsDeleting(true);
-    try {
-      await deleteOwner(deleteTarget.id);
-      toast.success("飼主を削除しました");
-      setDeleteTarget(null);
-    } catch {
-      toast.error("削除に失敗しました");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+    startDeleteTransition(async () => {
+      try {
+        await deleteOwner(pendingDeleteOwner.id);
+        toast.success("飼主を削除しました");
+        setPendingDeleteOwner(null);
+      } catch {
+        toast.error("削除に失敗しました");
+      }
+    });
+  }, [pendingDeleteOwner]);
 
-  const columns = [
-    { header: "飼主No", className: "w-[100px]" },
-    { header: "飼主名", className: "w-[180px]" },
+  const columns = useMemo(() => [
+    {
+      header: (
+        <SortableHeader
+          label="飼主No"
+          direction={directionFor("ownerNumber")}
+          onToggle={() => toggleSort("ownerNumber")}
+        />
+      ),
+      className: "w-[100px]",
+    },
+    {
+      header: (
+        <SortableHeader
+          label="飼主名"
+          direction={directionFor("ownerName")}
+          onToggle={() => toggleSort("ownerName")}
+        />
+      ),
+      className: "w-[180px]",
+    },
     { header: "ペット番号", className: "w-[100px]" },
-    { header: "ペット名", className: "w-[120px]" },
+    {
+      header: (
+        <SortableHeader
+          label="ペット名"
+          direction={directionFor("name")}
+          onToggle={() => toggleSort("name")}
+        />
+      ),
+      className: "w-[120px]",
+    },
     { header: "生死", className: "w-[60px]" },
-    { header: "種", className: "w-[60px]" },
-    { header: "生年月日", className: "w-[100px]" },
+    {
+      header: (
+        <SortableHeader
+          label="種"
+          direction={directionFor("species")}
+          onToggle={() => toggleSort("species")}
+        />
+      ),
+      className: "w-[60px]",
+    },
+    {
+      header: (
+        <SortableHeader
+          label="生年月日"
+          direction={directionFor("birthDate")}
+          onToggle={() => toggleSort("birthDate")}
+        />
+      ),
+      className: "w-[100px]",
+    },
     { header: "体重", className: "w-[80px]" },
     { header: "環境", className: "w-[120px]" },
-    { header: "前回来院", className: "w-[100px]" },
+    {
+      header: (
+        <SortableHeader
+          label="前回来院"
+          direction={directionFor("lastVisit")}
+          onToggle={() => toggleSort("lastVisit")}
+        />
+      ),
+      className: "w-[100px]",
+    },
     { header: "操作", className: "w-[100px]", align: "right" as const },
-  ];
+  ], [directionFor, toggleSort]);
 
   return (
     <PageLayout
@@ -106,7 +175,7 @@ export function OwnersList() {
       }
       maxWidth="max-w-full"
     >
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 flex-1 min-h-0">
         {/* Search */}
         <SearchFilterBar
           searchTerm={searchTerm}
@@ -125,40 +194,38 @@ export function OwnersList() {
               key={pet.id}
               onClick={() => handleEdit(pet.ownerId)}
             >
-              <TableCell className="font-mono text-sm whitespace-nowrap py-2">
+              <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
                 {pet.ownerNumber ?? "-"}
               </TableCell>
-              <TableCell className="text-sm whitespace-nowrap py-2">
+              <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
                 {pet.ownerName}
               </TableCell>
-              <TableCell className="font-mono text-sm whitespace-nowrap py-2">
+              <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap`}>
                 {pet.petNumber || "-"}
               </TableCell>
-              <TableCell className="text-sm whitespace-nowrap py-2">
+              <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
                 {pet.name}
               </TableCell>
               <TableCell className="whitespace-nowrap py-2">
                 {pet.status && (
-                  <StatusBadge
-                    colorClass={getPetStatusColor(pet.status)}
-                  >
+                  <StatusBadge colorClass={getPetStatusColor(pet.status)}>
                     {pet.status}
                   </StatusBadge>
                 )}
               </TableCell>
-              <TableCell className="text-sm whitespace-nowrap py-2">
+              <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
                 {pet.species}
               </TableCell>
-              <TableCell className="font-mono text-sm whitespace-nowrap py-2">
+              <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap`}>
                 {formatDate(pet.birthDate)}
               </TableCell>
-              <TableCell className="font-mono text-sm whitespace-nowrap py-2">
+              <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap`}>
                 {formatWeight(pet.weight)}
               </TableCell>
-              <TableCell className="text-sm whitespace-nowrap py-2">
+              <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
                 {pet.environment || "-"}
               </TableCell>
-              <TableCell className="font-mono text-sm whitespace-nowrap py-2">
+              <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap`}>
                 {formatDate(pet.lastVisit)}
               </TableCell>
               <TableCell className="whitespace-nowrap py-2 text-right">
@@ -174,7 +241,7 @@ export function OwnersList() {
                       icon: Trash2,
                       variant: "destructive",
                       onClick: () =>
-                        handleDeleteClick(pet.ownerId, pet.ownerName),
+                        handleDeleteRequest(pet.ownerId, pet.ownerName),
                     },
                   ]}
                 />
@@ -200,11 +267,11 @@ export function OwnersList() {
 
       {/* Delete Confirm Dialog */}
       <ConfirmDialog
-        open={!!deleteTarget}
-        onClose={() => !isDeleting && setDeleteTarget(null)}
+        open={!!pendingDeleteOwner}
+        onClose={() => !isDeleting && setPendingDeleteOwner(null)}
         onConfirm={handleConfirmDelete}
         title="飼主を削除しますか？"
-        description={`飼主「${deleteTarget?.name}」とこの飼主に関連するすべてのペット情報が削除されます。この操作は取り消すことができません。`}
+        description={`飼主「${pendingDeleteOwner?.name}」とこの飼主に関連するすべてのペット情報が削除されます。この操作は取り消すことができません。`}
         confirmLabel={isDeleting ? "削除中..." : "削除"}
         cancelLabel="キャンセル"
         variant="destructive"

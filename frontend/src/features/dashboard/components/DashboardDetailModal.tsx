@@ -2,21 +2,19 @@
 import { useNavigate } from "react-router";
 
 // External
-import {
-  Clock,
-  User,
-  Dog,
-  Stethoscope,
-  AlertCircle,
-  FileText,
-  CreditCard,
-  Scissors,
-  Trash2,
-  Pencil,
-  TestTube,
-  BedDouble,
-  ExternalLink,
-} from "lucide-react";
+import Clock from "lucide-react/dist/esm/icons/clock";
+import User from "lucide-react/dist/esm/icons/user";
+import Dog from "lucide-react/dist/esm/icons/dog";
+import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
+import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
+import FileText from "lucide-react/dist/esm/icons/file-text";
+import CreditCard from "lucide-react/dist/esm/icons/credit-card";
+import Scissors from "lucide-react/dist/esm/icons/scissors";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2";
+import Pencil from "lucide-react/dist/esm/icons/pencil";
+import TestTube from "lucide-react/dist/esm/icons/test-tube";
+import BedDouble from "lucide-react/dist/esm/icons/bed-double";
+import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 
 // Internal
 import {
@@ -29,10 +27,266 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { C } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 
 // Types
 import type { Appointment } from "@/types";
+
+// Module-level constants — avoid recreating compound class strings on every render
+const SECTION_LABEL = `text-sm font-semibold ${C.text60} uppercase tracking-wider`;
+const DIVIDER_ROW = `flex items-center justify-between border-b ${C.borderLight} pb-2`;
+const ROW_ICON = `flex items-center gap-2 ${C.text60}`;
+
+const RELATED_BTN_BASE = "flex items-center gap-1.5 text-sm border rounded-md px-3 py-1.5 transition-colors group";
+const RELATED_BTN_KARTE      = `${RELATED_BTN_BASE} ${C.accent} bg-[#D3E5EF]/40 hover:bg-[#D3E5EF] ${C.borderAccentLight}`;
+const RELATED_BTN_ACCOUNTING = `${RELATED_BTN_BASE} ${C.textStatusGreen} bg-[#DDEDEA]/40 hover:bg-[#DDEDEA] ${C.borderStatusGreen}`;
+const RELATED_BTN_HOSPITAL   = `${RELATED_BTN_BASE} ${C.textStatusPurple} bg-[#EEE0F7]/40 hover:bg-[#EEE0F7] ${C.borderStatusPurple}`;
+
+const STATUS_COLOR: Record<string, string> = {
+  "受付予約": `${C.bgAccentLight} ${C.textAccentDark} ${C.borderAccentLight}`,
+  "受付済":   `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreen}`,
+  "診療中":   `${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderStatusPurple}`,
+  "会計待ち": `${C.bgWarning50} ${C.textWarningIcon} ${C.borderWarning20}`,
+  "会計済":   `${C.bgActive} ${C.text} ${C.borderLight}`,
+};
+
+interface RelatedPagesProps {
+  isTrimming: boolean;
+  onCreateMedicalRecord: (tab?: string) => void;
+  onCreateTrimming: () => void;
+  onCreateAccounting: () => void;
+  onCreateHospitalization: () => void;
+}
+
+function RelatedPages({
+  isTrimming,
+  onCreateMedicalRecord,
+  onCreateTrimming,
+  onCreateAccounting,
+  onCreateHospitalization,
+}: RelatedPagesProps) {
+  return (
+    <div className="space-y-2">
+      <h3 className={SECTION_LABEL}>関連ページ</h3>
+      <div className="flex flex-wrap gap-2">
+        {/* カルテ / 施術 */}
+        <button
+          type="button"
+          className={RELATED_BTN_KARTE}
+          onClick={() => {
+            if (isTrimming) onCreateTrimming();
+            else onCreateMedicalRecord();
+          }}
+        >
+          {isTrimming ? <Scissors className="size-3.5" /> : <FileText className="size-3.5" />}
+          <span>{isTrimming ? "施術" : "カルテ"}</span>
+          <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+        </button>
+
+        {/* 会計 */}
+        <button
+          type="button"
+          className={RELATED_BTN_ACCOUNTING}
+          onClick={onCreateAccounting}
+        >
+          <CreditCard className="size-3.5" />
+          <span>会計</span>
+          <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+        </button>
+
+        {/* 入院 */}
+        <button
+          type="button"
+          className={RELATED_BTN_HOSPITAL}
+          onClick={onCreateHospitalization}
+        >
+          <BedDouble className="size-3.5" />
+          <span>入院</span>
+          <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface ActionButtonsProps {
+  currentStatus?: string;
+  appointment: Appointment;
+  isTrimming: boolean;
+  isHospitalization: boolean;
+  isMedical: boolean;
+  onConfirm?: () => void;
+  onEdit?: (appointment: Appointment) => void;
+  onCancel?: (appointment: Appointment) => void;
+  onOpenOwnerDetail: () => void;
+  onCreateMedicalRecord: (tab?: string) => void;
+  onCreateTrimming: () => void;
+  onCreateAccounting: () => void;
+  onCreateHospitalization: () => void;
+}
+
+function ActionButtons({
+  currentStatus,
+  appointment,
+  isTrimming,
+  isHospitalization,
+  isMedical,
+  onConfirm,
+  onEdit,
+  onCancel,
+  onOpenOwnerDetail,
+  onCreateMedicalRecord,
+  onCreateTrimming,
+  onCreateAccounting,
+  onCreateHospitalization,
+}: ActionButtonsProps) {
+  const ownerDetailBtn = (
+    <Button variant="ghost" onClick={onOpenOwnerDetail} className={`h-10 text-sm ${C.text}`}>
+      <User className="size-4" />
+      飼主詳細
+    </Button>
+  );
+
+  if (currentStatus === "受付予約") {
+    return (
+      <>
+        {onCancel && (
+          <Button variant="ghost" onClick={() => onCancel(appointment)} className={`h-10 text-sm ${C.danger} ${C.hoverBgDanger5}`}>
+            <Trash2 className="size-4" />
+            取消
+          </Button>
+        )}
+        {onEdit && (
+          <Button variant="outline" onClick={() => onEdit(appointment)} className={`h-10 text-sm ${C.text} ${C.borderMedium}`}>
+            <Pencil className="size-4" />
+            編集
+          </Button>
+        )}
+        {ownerDetailBtn}
+        {onConfirm && (
+          <Button onClick={onConfirm} className={STYLE.confirmPrimary}>
+            受付済にする
+          </Button>
+        )}
+      </>
+    );
+  }
+
+  if (currentStatus === "受付済") {
+    return (
+      <>
+        {ownerDetailBtn}
+        {isMedical ? (
+          <div className="flex flex-col items-end gap-1">
+            <Button
+              onClick={() => { if (onConfirm) onConfirm(); onCreateMedicalRecord(); }}
+              className={STYLE.confirmPrimary}
+            >
+              <FileText className="size-4" />
+              カルテ作成
+            </Button>
+            <span className="text-[10px] text-muted-foreground">※カルテ作成と同時に「診療中」へ移動します</span>
+          </div>
+        ) : (
+          onConfirm && (
+            <Button onClick={onConfirm} className={STYLE.confirmPrimary}>
+              診察を開始する
+            </Button>
+          )
+        )}
+      </>
+    );
+  }
+
+  if (currentStatus === "診療中") {
+    return (
+      <>
+        {ownerDetailBtn}
+        {onConfirm && (
+          <Button variant="outline" onClick={onConfirm} className={`h-10 text-sm ${C.danger} ${C.borderDanger} ${C.hoverBgDanger5}`}>
+            診察を終了する
+          </Button>
+        )}
+        {isMedical && (
+          <>
+            <Button onClick={() => onCreateMedicalRecord()} className={STYLE.confirmPrimary}>
+              <FileText className="size-4" />
+              カルテ入力
+            </Button>
+            <Button variant="outline" onClick={() => onCreateMedicalRecord("test")} className={`h-10 text-sm ${C.text} ${C.borderMedium}`}>
+              <TestTube className="size-4" />
+              検査
+            </Button>
+          </>
+        )}
+        {isTrimming && (
+          <Button onClick={onCreateTrimming} className={`h-10 text-sm ${C.bgDiscount} ${C.bgDiscountHover} text-white rounded-[4px] transition-colors shadow-none border-transparent`}>
+            <Scissors className="size-4" />
+            施術記録
+          </Button>
+        )}
+      </>
+    );
+  }
+
+  if (currentStatus === "会計待ち") {
+    return (
+      <>
+        {ownerDetailBtn}
+        <Button
+          onClick={onCreateAccounting}
+          className={STYLE.confirmPrimary}
+        >
+          <CreditCard className="size-4" />
+          会計へ進む
+        </Button>
+      </>
+    );
+  }
+
+  if (currentStatus === "会計済") {
+    return (
+      <>
+        {ownerDetailBtn}
+        {onConfirm && (
+          <Button onClick={onConfirm} className={STYLE.confirmPrimary}>
+            完了/リストから削除
+          </Button>
+        )}
+      </>
+    );
+  }
+
+  // Default Fallback
+  return (
+    <>
+      {ownerDetailBtn}
+      {isMedical && (
+        <Button onClick={() => onCreateMedicalRecord()} className={STYLE.confirmPrimary}>
+          <FileText className="size-4" />
+          カルテ確認
+        </Button>
+      )}
+      {isTrimming && (
+        <Button onClick={onCreateTrimming} className={STYLE.confirmPrimary}>
+          <Scissors className="size-4" />
+          トリミング
+        </Button>
+      )}
+      {isHospitalization && (
+        <Button onClick={onCreateHospitalization} className={STYLE.confirmPrimary}>
+          <BedDouble className="size-4" />
+          入院登録
+        </Button>
+      )}
+      {onConfirm && (
+        <Button onClick={onConfirm} className={STYLE.confirmPrimary}>
+          ステータス変更
+        </Button>
+      )}
+    </>
+  );
+}
 
 interface DashboardDetailModalProps {
   isOpen: boolean;
@@ -44,15 +298,7 @@ interface DashboardDetailModalProps {
   currentStatus?: string;
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  "受付予約": `bg-[#D3E5EF] text-[#183B56] border-[#2383E2]/30`,
-  "受付済":   `bg-[#DDEDEA] text-[#0F7B6C] border-[#DDEDEA]`,
-  "診療中":   `bg-[#EEE0F7] text-[#6940A5] border-[#6940A5]/20`,
-  "会計待ち": `bg-[#FFF3CD]/50 text-[#B58105] border-[#B58105]/20`,
-  "会計済":   `bg-[#EAE9E5] text-[#37352F] border-[rgba(55,53,47,0.09)]`,
-};
-
-export const DashboardDetailModal = ({
+export function DashboardDetailModal({
   isOpen,
   onClose,
   appointment,
@@ -60,7 +306,7 @@ export const DashboardDetailModal = ({
   onEdit,
   onCancel,
   currentStatus,
-}: DashboardDetailModalProps) => {
+}: DashboardDetailModalProps) {
   const navigate = useNavigate();
 
   if (!appointment) return null;
@@ -69,7 +315,7 @@ export const DashboardDetailModal = ({
   const isHospitalization = appointment.serviceType.includes("入院");
   const isMedical = appointment.serviceType.includes("診療") || (!isTrimming && !isHospitalization);
 
-  const navigateTo = (path: string, extraState?: Record<string, unknown>) => {
+  const navigateAndClose = (path: string, extraState?: Record<string, unknown>) => {
     navigate(path, { state: { from: "/", ...extraState } });
     onClose();
   };
@@ -78,238 +324,43 @@ export const DashboardDetailModal = ({
     const base = appointment.petId
       ? `/medical-records/new?petId=${appointment.petId}${tab ? `&tab=${tab}` : ""}`
       : "/medical-records/select-pet";
-    navigateTo(base, { appointmentId: appointment.id });
+    navigateAndClose(base, { appointmentId: appointment.id });
   };
 
   const handleCreateTrimming = () =>
-    navigateTo(appointment.petId ? `/trimming/new?petId=${appointment.petId}` : "/trimming/new");
+    navigateAndClose(appointment.petId ? `/trimming/new?petId=${appointment.petId}` : "/trimming/new");
 
   const handleCreateHospitalization = () =>
-    navigateTo(appointment.petId ? `/hospitalization/new?petId=${appointment.petId}` : "/hospitalization/new");
+    navigateAndClose(appointment.petId ? `/hospitalization/new?petId=${appointment.petId}` : "/hospitalization/new");
 
   const handleCreateAccounting = () =>
-    navigateTo(appointment.petId ? `/accounting/new?petId=${appointment.petId}` : "/accounting/new", {
+    navigateAndClose(appointment.petId ? `/accounting/new?petId=${appointment.petId}` : "/accounting/new", {
       appointmentId: appointment.id,
     });
 
   const handleOpenOwnerDetail = () => {
     if (appointment.ownerId) {
-      navigate(`/owners/${appointment.ownerId}`);
-      onClose();
+      navigateAndClose(`/owners/${appointment.ownerId}`);
     } else if (appointment.petId) {
-      navigate(`/pets/${appointment.petId}`);
-      onClose();
+      navigateAndClose(`/pets/${appointment.petId}`);
     }
-  };
-
-  // 関連ページ: サービス種別に応じてカルテ/施術・会計・入院を表示
-  const renderRelatedPages = () => (
-    <div className="space-y-2">
-      <h3 className="text-sm font-semibold text-[#37352F]/60 uppercase tracking-wider">関連ページ</h3>
-      <div className="flex flex-wrap gap-2">
-        {/* カルテ / 施術 */}
-        <button
-          type="button"
-          className="flex items-center gap-1.5 text-sm text-[#2383E2] bg-[#D3E5EF]/40 hover:bg-[#D3E5EF] border border-[#2383E2]/30 rounded-md px-3 py-1.5 transition-colors group"
-          onClick={() => {
-            if (isTrimming) handleCreateTrimming();
-            else handleCreateMedicalRecord();
-          }}
-        >
-          {isTrimming ? <Scissors className="size-3.5" /> : <FileText className="size-3.5" />}
-          <span>{isTrimming ? "施術" : "カルテ"}</span>
-          <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </button>
-
-        {/* 会計 */}
-        <button
-          type="button"
-          className="flex items-center gap-1.5 text-sm text-[#0F7B6C] bg-[#DDEDEA]/40 hover:bg-[#DDEDEA] border border-[#DDEDEA] rounded-md px-3 py-1.5 transition-colors group"
-          onClick={handleCreateAccounting}
-        >
-          <CreditCard className="size-3.5" />
-          <span>会計</span>
-          <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </button>
-
-        {/* 入院 */}
-        <button
-          type="button"
-          className="flex items-center gap-1.5 text-sm text-[#6940A5] bg-[#EEE0F7]/40 hover:bg-[#EEE0F7] border border-[#6940A5]/20 rounded-md px-3 py-1.5 transition-colors group"
-          onClick={handleCreateHospitalization}
-        >
-          <BedDouble className="size-3.5" />
-          <span>入院</span>
-          <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </button>
-      </div>
-    </div>
-  );
-
-  const renderActions = () => {
-    const ownerDetailBtn = (
-      <Button variant="ghost" onClick={handleOpenOwnerDetail} className="h-10 text-sm text-[#37352F]">
-        <User className="size-4" />
-        飼主詳細
-      </Button>
-    );
-
-    if (currentStatus === "受付予約") {
-      return (
-        <>
-          {onCancel && (
-            <Button variant="ghost" onClick={() => onCancel(appointment)} className={`h-10 text-sm ${C.danger} ${C.hoverBgDanger5}`}>
-              <Trash2 className="size-4" />
-              取消
-            </Button>
-          )}
-          {onEdit && (
-            <Button variant="outline" onClick={() => onEdit(appointment)} className="h-10 text-sm text-[#37352F] border-[rgba(55,53,47,0.16)]">
-              <Pencil className="size-4" />
-              編集
-            </Button>
-          )}
-          {ownerDetailBtn}
-          {onConfirm && (
-            <Button onClick={onConfirm} className="h-10 text-sm bg-[#2383E2] hover:bg-[#1B6EC2] text-white rounded-[4px] transition-colors shadow-none border-transparent">
-              受付済にする
-            </Button>
-          )}
-        </>
-      );
-    }
-
-    if (currentStatus === "受付済") {
-      return (
-        <>
-          {ownerDetailBtn}
-          {isMedical ? (
-            <div className="flex flex-col items-end gap-1">
-              <Button
-                onClick={() => { if (onConfirm) onConfirm(); handleCreateMedicalRecord(); }}
-                className="h-10 text-sm bg-[#2383E2] hover:bg-[#1B6EC2] text-white rounded-[4px] transition-colors shadow-none border-transparent"
-              >
-                <FileText className="size-4" />
-                カルテ作成
-              </Button>
-              <span className="text-[10px] text-muted-foreground">※カルテ作成と同時に「診療中」へ移動します</span>
-            </div>
-          ) : (
-            onConfirm && (
-              <Button onClick={onConfirm} className="h-10 text-sm bg-[#2383E2] hover:bg-[#1B6EC2] text-white rounded-[4px] transition-colors shadow-none border-transparent">
-                診察を開始する
-              </Button>
-            )
-          )}
-        </>
-      );
-    }
-
-    if (currentStatus === "診療中") {
-      return (
-        <>
-          {ownerDetailBtn}
-          {onConfirm && (
-            <Button variant="outline" onClick={onConfirm} className={`h-10 text-sm ${C.danger} ${C.borderDanger} ${C.hoverBgDanger5}`}>
-              診察を終了する
-            </Button>
-          )}
-          {isMedical && (
-            <>
-              <Button onClick={() => handleCreateMedicalRecord()} className="h-10 text-sm bg-[#2383E2] hover:bg-[#1B6EC2] text-white rounded-[4px] transition-colors shadow-none border-transparent">
-                <FileText className="size-4" />
-                カルテ入力
-              </Button>
-              <Button variant="outline" onClick={() => handleCreateMedicalRecord("test")} className={`h-10 text-sm ${C.text} ${C.borderMedium}`}>
-                <TestTube className="size-4" />
-                検査
-              </Button>
-            </>
-          )}
-          {isTrimming && (
-            <Button onClick={handleCreateTrimming} className="h-10 text-sm bg-[#D9730D] hover:bg-[#D9730D]/90 text-white rounded-[4px] transition-colors shadow-none border-transparent">
-              <Scissors className="size-4" />
-              施術記録
-            </Button>
-          )}
-        </>
-      );
-    }
-
-    if (currentStatus === "会計待ち") {
-      return (
-        <>
-          {ownerDetailBtn}
-          <Button
-            onClick={handleCreateAccounting}
-            className="h-10 text-sm bg-[#2383E2] hover:bg-[#1B6EC2] text-white rounded-[4px] transition-colors shadow-none border-transparent"
-          >
-            <CreditCard className="size-4" />
-            会計へ進む
-          </Button>
-        </>
-      );
-    }
-
-    if (currentStatus === "会計済") {
-      return (
-        <>
-          {ownerDetailBtn}
-          {onConfirm && (
-            <Button onClick={onConfirm} className="h-10 text-sm bg-[#2383E2] hover:bg-[#1B6EC2] text-white rounded-[4px] transition-colors shadow-none border-transparent">
-              完了/リストから削除
-            </Button>
-          )}
-        </>
-      );
-    }
-
-    // Default Fallback
-    return (
-      <>
-        {ownerDetailBtn}
-        {isMedical && (
-          <Button onClick={() => handleCreateMedicalRecord()} className="h-10 text-sm bg-[#2383E2] hover:bg-[#1B6EC2] text-white rounded-[4px] transition-colors shadow-none border-transparent">
-            <FileText className="size-4" />
-            カルテ確認
-          </Button>
-        )}
-        {isTrimming && (
-          <Button onClick={handleCreateTrimming} className="h-10 text-sm bg-[#2383E2] hover:bg-[#1B6EC2] text-white rounded-[4px] transition-colors shadow-none border-transparent">
-            <Scissors className="size-4" />
-            トリミング
-          </Button>
-        )}
-        {isHospitalization && (
-          <Button onClick={handleCreateHospitalization} className="h-10 text-sm bg-[#2383E2] hover:bg-[#1B6EC2] text-white rounded-[4px] transition-colors shadow-none border-transparent">
-            <BedDouble className="size-4" />
-            入院登録
-          </Button>
-        )}
-        {onConfirm && (
-          <Button onClick={onConfirm} className="h-10 text-sm bg-[#2383E2] hover:bg-[#1B6EC2] text-white rounded-[4px] transition-colors shadow-none border-transparent">
-            ステータス変更
-          </Button>
-        )}
-      </>
-    );
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[480px] p-0 gap-0 overflow-hidden bg-white">
         {/* Header */}
-        <DialogHeader className="p-5 pb-4 border-b border-[rgba(55,53,47,0.09)] pr-12">
+        <DialogHeader className={`p-5 pb-4 border-b ${C.borderLight} pr-12`}>
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
                 appointment.visitType === "初診"
-                  ? "bg-[#D3E5EF] text-[#2383E2]"
-                  : "bg-[#EAE9E5] text-[#37352F]/60"
+                  ? `${C.bgAccentLight} ${C.accent}`
+                  : `${C.bgActive} ${C.text60}`
               }`}>
                 {appointment.visitType === "初診" ? "初" : "再"}
               </span>
-              <DialogTitle className="text-lg font-bold text-[#37352F]">
+              <DialogTitle className={`text-lg font-bold ${C.text}`}>
                 {appointment.serviceType}
               </DialogTitle>
             </div>
@@ -325,9 +376,9 @@ export const DashboardDetailModal = ({
         {/* Body */}
         <div className="p-5 space-y-4 overflow-y-auto">
           {/* Time */}
-          <div className="flex items-center gap-3 p-3 bg-[#F7F6F3] rounded-lg">
-            <Clock className="size-5 text-[#37352F]/60 shrink-0" />
-            <span className="font-mono text-xl font-medium text-[#37352F]">{appointment.time}</span>
+          <div className={`flex items-center gap-3 p-3 ${C.bgPage} rounded-lg`}>
+            <Clock className={`size-5 ${C.text60} shrink-0`} />
+            <span className={`font-mono text-xl font-medium ${C.text}`}>{appointment.time}</span>
             {appointment.nextAppointment && (
               <Badge
                 variant={appointment.nextAppointment === "精算未確認" ? "destructive" : "secondary"}
@@ -341,54 +392,74 @@ export const DashboardDetailModal = ({
 
           {/* 患者情報 */}
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-[#37352F]/60 uppercase tracking-wider">患者情報</h3>
-            <div className="flex items-center justify-between border-b border-[rgba(55,53,47,0.09)] pb-2">
-              <div className="flex items-center gap-2 text-[#37352F]/60">
+            <h3 className={SECTION_LABEL}>患者情報</h3>
+            <div className={DIVIDER_ROW}>
+              <div className={ROW_ICON}>
                 <Dog className="size-4" />
                 <span className="text-sm">ペット</span>
               </div>
               <div className="text-right">
                 <div className="font-bold text-base">{appointment.petName}</div>
-                <div className="text-sm text-[#37352F]/60">{appointment.petType}</div>
+                <div className={`text-sm ${C.text60}`}>{appointment.petType}</div>
               </div>
             </div>
-            <div className="flex items-center justify-between border-b border-[rgba(55,53,47,0.09)] pb-2">
-              <div className="flex items-center gap-2 text-[#37352F]/60">
+            <div className={DIVIDER_ROW}>
+              <div className={ROW_ICON}>
                 <User className="size-4" />
                 <span className="text-sm">飼い主</span>
               </div>
-              <span className="font-medium text-[#37352F]">{appointment.ownerName}</span>
+              <span className={`font-medium ${C.text}`}>{appointment.ownerName}</span>
             </div>
           </div>
 
           {/* 診療詳細 */}
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-[#37352F]/60 uppercase tracking-wider">診療詳細</h3>
-            <div className="flex items-center justify-between border-b border-[rgba(55,53,47,0.09)] pb-2">
-              <div className="flex items-center gap-2 text-[#37352F]/60">
+            <h3 className={SECTION_LABEL}>診療詳細</h3>
+            <div className={DIVIDER_ROW}>
+              <div className={ROW_ICON}>
                 <Stethoscope className="size-4" />
                 <span className="text-sm">担当医</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-medium text-[#37352F]">{appointment.doctor || "未定"}</span>
+                <span className={`font-medium ${C.text}`}>{appointment.doctor || "未定"}</span>
                 {appointment.isDesignated && (
-                  <Badge variant="outline" className="text-xs h-6 bg-[#FAEBDD] text-[#D9730D] border-[#D9730D]/20">指名</Badge>
+                  <Badge variant="outline" className={`text-xs h-6 ${C.bgDiscountLight} ${C.textDiscount} ${C.borderDiscount20}`}>指名</Badge>
                 )}
               </div>
             </div>
           </div>
 
           {/* 関連ページ */}
-          {renderRelatedPages()}
+          <RelatedPages
+            isTrimming={isTrimming}
+            onCreateMedicalRecord={handleCreateMedicalRecord}
+            onCreateTrimming={handleCreateTrimming}
+            onCreateAccounting={handleCreateAccounting}
+            onCreateHospitalization={handleCreateHospitalization}
+          />
         </div>
 
         {/* Footer */}
-        <DialogFooter className="p-4 bg-[#F7F6F3]">
+        <DialogFooter className={`p-4 ${C.bgPage}`}>
           <div className="flex flex-wrap gap-2 justify-end w-full">
-            {renderActions()}
+            <ActionButtons
+              currentStatus={currentStatus}
+              appointment={appointment}
+              isTrimming={isTrimming}
+              isHospitalization={isHospitalization}
+              isMedical={isMedical}
+              onConfirm={onConfirm}
+              onEdit={onEdit}
+              onCancel={onCancel}
+              onOpenOwnerDetail={handleOpenOwnerDetail}
+              onCreateMedicalRecord={handleCreateMedicalRecord}
+              onCreateTrimming={handleCreateTrimming}
+              onCreateAccounting={handleCreateAccounting}
+              onCreateHospitalization={handleCreateHospitalization}
+            />
           </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-};
+}

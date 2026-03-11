@@ -13,6 +13,5 @@ export type {
   BackendOwner,
   DashboardAppointment,
   DashboardColumn,
-  DashboardStatus,
   UpdateAppointmentStatusRequest,
 } from "./types";

@@ -1,20 +1,20 @@
 import { format } from "date-fns";
+import type { ReservationStatus } from "@/types";
 import type {
   BackendDashboardReservation,
   DashboardAppointment,
   DashboardColumn,
-  DashboardStatus,
 } from "./types";
 
 /** Backend status 値 → カンバンカラム ID のマッピング */
-const STATUS_TO_COLUMN_ID: Record<string, DashboardStatus> = {
+const STATUS_TO_COLUMN_ID: Record<string, ReservationStatus> = {
   pending: "pending",
   confirmed: "pending",    // confirmed は受付予約として扱う
   checked_in: "checked_in",
   in_consultation: "in_consultation",
   accounting: "accounting",
   completed: "completed",
-  canceled: "canceled",
+  cancelled: "cancelled",
 };
 
 /** カンバンカラム定義（表示順） */
@@ -27,18 +27,18 @@ export const DASHBOARD_COLUMNS: Omit<DashboardColumn, "appointments">[] = [
 ];
 
 /** カラム ID → 日本語タイトルマッピング */
-export const COLUMN_ID_TO_TITLE: Record<DashboardStatus, string> = {
+export const COLUMN_ID_TO_TITLE: Record<ReservationStatus, string> = {
   pending: "受付予約",
   confirmed: "受付予約",
   checked_in: "受付済",
   in_consultation: "診療中",
   accounting: "会計待ち",
   completed: "会計済",
-  canceled: "会計済", // キャンセルは会計済カラムには表示しない（後述のfilterで除外）
+  cancelled: "会計済", // キャンセルは会計済カラムには表示しない（後述のfilterで除外）
 };
 
 /** 日本語タイトル → カラム ID マッピング */
-export const COLUMN_TITLE_TO_STATUS: Record<string, DashboardStatus> = {
+export const COLUMN_TITLE_TO_STATUS: Record<string, ReservationStatus> = {
   受付予約: "pending",
   受付済: "checked_in",
   診療中: "in_consultation",
@@ -47,7 +47,7 @@ export const COLUMN_TITLE_TO_STATUS: Record<string, DashboardStatus> = {
 };
 
 /** visit_type の英語 → 日本語変換 */
-function mapVisitType(visitType: string): "初診" | "再診" {
+function visitTypeToJapanese(visitType: string): "初診" | "再診" {
   return visitType === "first" ? "初診" : "再診";
 }
 
@@ -70,7 +70,7 @@ export function transformReservationToDashboardAppointment(
     ownerName,
     petType,
     petName,
-    visitType: mapVisitType(reservation.visit_type),
+    visitType: visitTypeToJapanese(reservation.visit_type),
     serviceType: reservation.service_type,
     isDesignated: reservation.is_designated,
     doctor: reservation.doctor_id,
@@ -88,8 +88,8 @@ export function transformReservationsToDashboardColumns(
   reservations: BackendDashboardReservation[]
 ): DashboardColumn[] {
   // キャンセル除外
-  const active = reservations.filter((r) => r.status !== "canceled");
-  const appointments = active.map(transformReservationToDashboardAppointment);
+  const activeReservations = reservations.filter((r) => r.status !== "cancelled");
+  const appointments = activeReservations.map(transformReservationToDashboardAppointment);
 
   return DASHBOARD_COLUMNS.map((col) => ({
     ...col,

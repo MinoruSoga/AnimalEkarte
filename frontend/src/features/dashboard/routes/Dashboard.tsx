@@ -1,15 +1,16 @@
 // React/Framework
-import { useState, useCallback } from "react";
+import { useState, useCallback, lazy, Suspense } from "react";
 import { useNavigate } from "react-router";
 
 // External
 import { DndContext, PointerSensor, useSensor, useSensors, DragOverEvent, DragEndEvent, closestCorners } from "@dnd-kit/core";
-import { Filter } from "lucide-react";
+import Filter from "lucide-react/dist/esm/icons/filter";
 import { toast } from "sonner";
 import { format, addHours } from "date-fns";
 import { ja } from "date-fns/locale";
 
 // Internal
+import { C, STYLE } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -17,18 +18,34 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FormHeader } from "@/components/shared/Form";
 
 // Shared
-import { ReservationFormModal } from "@/components/shared/ReservationFormModal";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
-// Relative
-import { DashboardDetailModal } from "../components/DashboardDetailModal";
+// Lazy-loaded modals — only loaded when first opened (bundle splitting)
+const DashboardDetailModal = lazy(() =>
+  import("../components/DashboardDetailModal").then(m => ({ default: m.DashboardDetailModal }))
+);
+const ReservationFormModal = lazy(() =>
+  import("@/components/shared/ReservationFormModal").then(m => ({ default: m.ReservationFormModal }))
+);
 import { KanbanColumn } from "../components/KanbanColumn";
 import { useDashboardKanban } from "../hooks/useDashboardKanban";
 
 // Types
 import type { Appointment, ReservationAppointment, Pet } from "@/types";
 
-export const Dashboard = () => {
+// Columns that don't show the "add" button — Set for O(1) lookup
+const NO_ADD_BUTTON_COLUMNS = new Set(["診療中", "会計待ち", "会計済"]);
+
+// Module-level constant — stable across renders, not recreated on each call
+const DOCTORS = [
+  { id: "all", name: "全て" },
+  { id: "医師A", name: "医師A" },
+  { id: "医師B", name: "医師B" },
+  { id: "医師C", name: "医師C" },
+  { id: "医師指名なし", name: "医師指名なし" },
+] as const;
+
+export function Dashboard() {
     const navigate = useNavigate();
     const {
         filteredColumns,
@@ -133,17 +150,9 @@ export const Dashboard = () => {
         moveCard(dragIndex, hoverIndex, sourceColumn.title, targetTitle);
     }, [filteredColumns, findColumnByCardId, moveCard]);
 
-    const today = format(new Date(), "yyyy年M月d日 (E)", { locale: ja });
+    const todayLabel = format(new Date(), "yyyy年M月d日 (E)", { locale: ja });
 
-    const doctors = [
-        { id: "all", name: "全て" },
-        { id: "医師A", name: "医師A" },
-        { id: "医師B", name: "医師B" },
-        { id: "医師C", name: "医師C" },
-        { id: "医師指名なし", name: "医師指名なし" },
-    ];
-
-    const handleAddClick = (columnTitle: string) => {
+    const handleAddClick = useCallback((columnTitle: string) => {
         if (columnTitle === "受付予約") {
             navigate("/reservations");
         } else {
@@ -153,27 +162,27 @@ export const Dashboard = () => {
             });
             navigate("/reservations");
         }
-    };
+    }, [navigate]);
 
-    const handleCardClick = (appointment: Appointment) => {
+    const handleCardClick = useCallback((appointment: Appointment) => {
         setSelectedAppointment(appointment);
         setModalOpen(true);
-    };
+    }, []);
 
-    const handleConfirm = () => {
+    const handleAdvanceStatus = useCallback(() => {
         if (!selectedAppointment) return;
         advanceStatus(selectedAppointment);
         setModalOpen(false);
         setSelectedAppointment(null);
-    };
+    }, [selectedAppointment, advanceStatus]);
 
-    const handleEdit = (appointment: Appointment) => {
-        // Convert Appointment to ReservationAppointment stub
+    const handleEditAppointment = useCallback((appointment: Appointment) => {
+        // Appointment を ReservationAppointment のフォームデータに変換
         const now = new Date();
         const [hours, minutes] = appointment.time.split(':').map(Number);
         const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
 
-        const stub: Partial<ReservationAppointment> = {
+        const reservationFormData: Partial<ReservationAppointment> = {
             id: appointment.id,
             start: start,
             end: addHours(start, 1), // Default 1 hour duration
@@ -187,12 +196,12 @@ export const Dashboard = () => {
             petName: appointment.petName
         };
 
-        setEditingAppointment(stub);
+        setEditingAppointment(reservationFormData);
         setIsEditModalOpen(true);
         setModalOpen(false);
-    };
+    }, []);
 
-    const handleEditSave = (data: Partial<ReservationAppointment>, selectedPets: Pet[]) => {
+    const handleEditSave = useCallback((data: Partial<ReservationAppointment>, selectedPets: Pet[]) => {
         if (!editingAppointment?.id || !data.start) return;
 
         const updatedTime = format(data.start, "HH:mm");
@@ -214,41 +223,41 @@ export const Dashboard = () => {
         updateAppointment(updatedAppointment);
         setIsEditModalOpen(false);
         setEditingAppointment(null);
-    };
+    }, [editingAppointment?.id, updateAppointment]);
 
-    const handleCancel = (appointment: Appointment) => {
+    const handleCancelAppointment = useCallback((appointment: Appointment) => {
         setCancelTarget(appointment);
         setCancelConfirmOpen(true);
-    };
+    }, []);
 
-    const executeCancel = () => {
+    const executeCancel = useCallback(() => {
         if (!cancelTarget) return;
         cancelAppointment(cancelTarget.id);
         toast.success("予約を取り消しました");
         setModalOpen(false);
         setCancelConfirmOpen(false);
         setCancelTarget(null);
-    };
+    }, [cancelTarget, cancelAppointment]);
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-[#F7F6F3]">
+        <div className={`flex-1 flex flex-col h-full ${C.bgPage}`}>
             <FormHeader
                 title="当日の受付"
-                description={`${today} - 受付状況をリアルタイムで確認`}
+                description={`${todayLabel} - 受付状況をリアルタイムで確認`}
                 action={
                     <div className="flex gap-2">
                         <Button
                             variant={isFilterOpen ? "secondary" : "outline"}
                             size="sm"
-                            className="gap-2 bg-white h-10 text-sm text-[#37352F] border-[rgba(55,53,47,0.16)]"
-                            onClick={() => setIsFilterOpen(!isFilterOpen)}
+                            className={`gap-2 bg-white h-10 text-sm ${C.text} ${C.borderMedium}`}
+                            onClick={() => setIsFilterOpen(prev => !prev)}
                         >
                             <Filter className="size-4" />
                             フィルター
                         </Button>
                         <Button
                             size="sm"
-                            className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white h-10 text-sm shadow-sm"
+                            className={STYLE.confirmPrimary}
                             onClick={() => navigate("/reservations")}
                         >
                             新規予約
@@ -262,7 +271,7 @@ export const Dashboard = () => {
                     <div className="flex flex-wrap gap-8">
                         {/* Visit Type */}
                         <div className="space-y-2">
-                            <h4 className="font-bold text-sm text-[#37352F]">診察区分</h4>
+                            <h4 className={`font-bold text-sm ${C.text}`}>診察区分</h4>
                             <div className="flex gap-4">
                                 {["初診", "再診"].map(type => (
                                     <div key={type} className="flex items-center space-x-2">
@@ -272,7 +281,7 @@ export const Dashboard = () => {
                                             onCheckedChange={() => filters.toggleVisitType(type)}
                                             className="size-4"
                                         />
-                                        <Label htmlFor={`visit-${type}`} className="text-sm font-normal cursor-pointer text-[#37352F]">{type}</Label>
+                                        <Label htmlFor={`visit-${type}`} className={`text-sm font-normal cursor-pointer ${C.text}`}>{type}</Label>
                                     </div>
                                 ))}
                             </div>
@@ -280,13 +289,13 @@ export const Dashboard = () => {
 
                         {/* Doctor/Designation Selection */}
                         <div className="space-y-2">
-                            <h4 className="font-bold text-sm text-[#37352F]">指名</h4>
+                            <h4 className={`font-bold text-sm ${C.text}`}>指名</h4>
                             <Select value={filters.selectedDoctor} onValueChange={filters.setSelectedDoctor}>
                                 <SelectTrigger className="w-[200px] h-10 text-sm bg-white border-input">
                                     <SelectValue placeholder="指名を選択" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {doctors.map((doctor) => (
+                                    {DOCTORS.map((doctor) => (
                                         <SelectItem key={doctor.id} value={doctor.id}>
                                             {doctor.name}
                                         </SelectItem>
@@ -297,7 +306,7 @@ export const Dashboard = () => {
 
                         {/* Trimming */}
                         <div className="space-y-2">
-                            <h4 className="font-bold text-sm text-[#37352F]">種類</h4>
+                            <h4 className={`font-bold text-sm ${C.text}`}>種類</h4>
                             <div className="flex items-center space-x-2 pt-0.5">
                                 <Checkbox
                                     id="trimming-only"
@@ -305,7 +314,7 @@ export const Dashboard = () => {
                                     onCheckedChange={(c) => filters.setIsTrimmingOnly(!!c)}
                                     className="size-4"
                                 />
-                                <Label htmlFor="trimming-only" className="text-sm font-normal cursor-pointer text-[#37352F]">トリミングのみ表示</Label>
+                                <Label htmlFor="trimming-only" className={`text-sm font-normal cursor-pointer ${C.text}`}>トリミングのみ表示</Label>
                             </div>
                         </div>
                     </div>
@@ -320,7 +329,7 @@ export const Dashboard = () => {
                             <KanbanColumn
                                 key={index}
                                 data={column}
-                                onAddClick={["診療中", "会計待ち", "会計済"].includes(column.title) ? undefined : () => handleAddClick(column.title)}
+                                onAddClick={NO_ADD_BUTTON_COLUMNS.has(column.title) ? undefined : () => handleAddClick(column.title)}
                                 onCardClick={handleCardClick}
                             />
                         ))}
@@ -328,25 +337,33 @@ export const Dashboard = () => {
                 </DndContext>
             </div>
 
-            <DashboardDetailModal
-                isOpen={modalOpen}
-                onClose={() => setModalOpen(false)}
-                onConfirm={handleConfirm}
-                onEdit={handleEdit}
-                onCancel={handleCancel}
-                appointment={selectedAppointment}
-                currentStatus={selectedAppointment ? filteredColumns.find(c => c.appointments.some(a => a.id === selectedAppointment.id))?.title : undefined}
-            />
+            {modalOpen && (
+              <Suspense fallback={null}>
+                <DashboardDetailModal
+                    isOpen={modalOpen}
+                    onClose={() => setModalOpen(false)}
+                    onConfirm={handleAdvanceStatus}
+                    onEdit={handleEditAppointment}
+                    onCancel={handleCancelAppointment}
+                    appointment={selectedAppointment}
+                    currentStatus={selectedAppointment ? filteredColumns.find(c => c.appointments.some(a => a.id === selectedAppointment.id))?.title : undefined}
+                />
+              </Suspense>
+            )}
 
-            <ReservationFormModal
-                isOpen={isEditModalOpen}
-                onClose={() => {
-                    setIsEditModalOpen(false);
-                    setEditingAppointment(null);
-                }}
-                onSave={handleEditSave}
-                initialData={editingAppointment}
-            />
+            {isEditModalOpen && (
+              <Suspense fallback={null}>
+                <ReservationFormModal
+                    isOpen={isEditModalOpen}
+                    onClose={() => {
+                        setIsEditModalOpen(false);
+                        setEditingAppointment(null);
+                    }}
+                    onSave={handleEditSave}
+                    initialData={editingAppointment}
+                />
+              </Suspense>
+            )}
 
             <ConfirmDialog
                 open={cancelConfirmOpen}

@@ -1,16 +1,16 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import type { DashboardStatus } from "./types";
+import type { ReservationStatus } from "@/types";
 
 interface UpdateStatusPayload {
   id: string;
-  status: DashboardStatus;
+  status: ReservationStatus;
 }
 
 /** 予約ステータスを更新する */
 async function updateAppointmentStatus(
   id: string,
-  status: DashboardStatus
+  status: ReservationStatus
 ): Promise<void> {
   await axios.put(`/v1/reservations/${id}`, { status });
 }

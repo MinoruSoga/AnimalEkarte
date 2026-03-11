@@ -13,7 +13,7 @@ export const ownersLoader = async (): Promise<OwnersLoaderData> => {
 
   owners.forEach((owner) => {
     if (!owner.pets || owner.pets.length === 0) {
-      const dummyPet: Pet = {
+      const placeholderPet: Pet = {
         id: `owner-${owner.id}`,
         ownerId: owner.id,
         ownerName: owner.ownerName,
@@ -21,7 +21,7 @@ export const ownersLoader = async (): Promise<OwnersLoaderData> => {
         species: "-",
         petNumber: "-",
       };
-      pets.push(dummyPet);
+      pets.push(placeholderPet);
     } else {
       owner.pets.forEach((pet) => {
         pets.push({

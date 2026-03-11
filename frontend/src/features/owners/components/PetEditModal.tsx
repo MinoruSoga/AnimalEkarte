@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,15 +20,21 @@ import {
 import { toast } from "sonner";
 
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
+import { FormFieldError } from "@/components/shared/FormFieldError";
+import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
   PET_GENDER_VALUES,
   ACQUISITION_TYPE_VALUES,
   DANGER_LEVEL_VALUES,
   INSURANCE_COMPANY_VALUES,
   PET_INSURANCE_RATIO_VALUES,
+  PET_SPECIES_VALUES,
   PetFormData,
 } from "../types";
 import { isOneOf } from "@/lib/type-utils";
+
+const LABEL_CLS = `text-sm ${C.text60}`;
+const INPUT_CLS = STYLE.formInput;
 
 interface PetEditModalProps {
   open: boolean;
@@ -45,88 +51,71 @@ export function PetEditModal({
   petData,
   onSave,
 }: PetEditModalProps) {
-  const [formData, setFormData] = useState<PetFormData>({
-    id: "",
-    petNumber: "",
-    petName: "",
-    petNameKana: "",
-    species: "",
-    gender: "",
-    birthDate: "",
-    breed: "",
-    color: "",
-    weight: "",
-    neuteredDate: "",
-    acquisitionType: "購入",
-    dangerLevel: "低",
-    food: "",
-    environment: "",
-    status: "生存",
-    remarks: "",
-  });
+  const [formData, setFormData] = useState<PetFormData>(() => ({
+    id: petData?.id || "",
+    petNumber: petData?.petNumber || "",
+    petName: petData?.petName || "",
+    petNameKana: petData?.petNameKana || "",
+    species: petData?.species || "",
+    gender: petData?.gender || "",
+    birthDate: petData?.birthDate || "",
+    breed: petData?.breed || "",
+    color: petData?.color || "",
+    weight: petData?.weight || "",
+    neuteredDate: petData?.neuteredDate || "",
+    acquisitionType: (petData?.acquisitionType || "購入") as typeof ACQUISITION_TYPE_VALUES[number],
+    dangerLevel: (petData?.dangerLevel || "低") as typeof DANGER_LEVEL_VALUES[number],
+    food: petData?.food || "",
+    environment: petData?.environment || "",
+    status: petData?.status || "生存",
+    remarks: petData?.remarks || "",
+    insuranceName: petData?.insuranceName,
+    insuranceDetails: petData?.insuranceDetails,
+  }));
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  // Reset form data when modal opens
-  useEffect(() => {
-    if (open) {
-      setFormData({
-        id: petData?.id || "",
-        petNumber: petData?.petNumber || "",
-        petName: petData?.petName || "",
-        petNameKana: petData?.petNameKana || "",
-        species: petData?.species || "",
-        gender: petData?.gender || "",
-        birthDate: petData?.birthDate || "",
-        breed: petData?.breed || "",
-        color: petData?.color || "",
-        weight: petData?.weight || "",
-        neuteredDate: petData?.neuteredDate || "",
-        acquisitionType: (petData?.acquisitionType || "購入") as typeof ACQUISITION_TYPE_VALUES[number],
-        dangerLevel: (petData?.dangerLevel || "低") as typeof DANGER_LEVEL_VALUES[number],
-        food: petData?.food || "",
-        environment: petData?.environment || "",
-        status: petData?.status || "生存",
-        remarks: petData?.remarks || "",
-        insuranceName: petData?.insuranceName,
-        insuranceDetails: petData?.insuranceDetails,
-      });
-    }
-  }, [open, petData]);
+  const clearFieldError = useCallback((field: string) => {
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }, []);
 
   const handleSave = () => {
-    // Validation
-    if (!formData.petName.trim()) {
-      toast.error("ペット名を入力してください");
-      return;
-    }
-    if (!formData.species) {
-      toast.error("種を選択してください");
-      return;
-    }
-    if (!formData.gender) {
-      toast.error("性別を選択してください");
-      return;
-    }
-    if (!formData.birthDate) {
-      toast.error("生年月日を選択してください");
+    const errors: Record<string, string> = {};
+    if (!formData.petName.trim()) errors.petName = "ペット名を入力してください";
+    if (!formData.species) errors.species = "種別を選択してください";
+    if (!formData.gender) errors.gender = "性別を選択してください";
+    if (!formData.birthDate) errors.birthDate = "生年月日を選択してください";
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      toast.error("必須項目が未入力です", {
+        description: Object.values(errors).join("、"),
+      });
       return;
     }
 
+    setFieldErrors({});
     onSave(formData);
     onOpenChange(false);
-    toast.success(petData ? "ペット情報を更新しました" : "ペットを追加しました");
+    toast.success(petData?.id ? "ペット情報を更新しました" : "ペットを追加しました");
   };
 
   const isEdit = !!petData?.id;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[1000px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className={`${LAYOUT.modal.xl} overflow-y-auto`}>
         <DialogHeader>
-          <DialogTitle className="text-sm font-bold text-[#37352F]">
+          <DialogTitle className={`text-sm font-bold ${C.text}`}>
             {isEdit ? `${ownerName}のペット情報編集` : `${ownerName}のペット新規登録`}
           </DialogTitle>
-          <DialogDescription className="text-sm text-[#37352F]/60">
-            {isEdit ? "ペットの情報を編集してください。" : "ペットの基本情報を入力してください。"}
+          <DialogDescription className={`text-sm ${C.text60}`}>
+            {isEdit
+              ? "ペットの情報を編集してください。"
+              : "ペットの基本情報を入力してください。"}
           </DialogDescription>
         </DialogHeader>
 
@@ -134,35 +123,39 @@ export function PetEditModal({
           {/* Column 1 */}
           <div className="space-y-2">
             <div className="space-y-1">
-              <Label htmlFor="petNumber" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="petNumber" className={LABEL_CLS}>
                 ペットNo
               </Label>
               <Input
                 id="petNumber"
                 value={formData.petNumber}
                 onChange={(e) =>
-                  setFormData({ ...formData, petNumber: e.target.value })
+                  setFormData(prev => ({ ...prev, petNumber: e.target.value }))
                 }
-                className="h-10 text-sm bg-white text-[#37352F]"
+                className={INPUT_CLS}
               />
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="petName" className="text-sm text-[#37352F]/60">
-                ペット名 <span className="text-[#E03E3E]">*</span>
+              <Label htmlFor="petName" className={LABEL_CLS}>
+                ペット名 <span className={C.textRequired}>*</span>
               </Label>
               <Input
                 id="petName"
                 value={formData.petName}
-                onChange={(e) =>
-                  setFormData({ ...formData, petName: e.target.value })
-                }
-                className="h-10 text-sm bg-white text-[#37352F]"
+                aria-invalid={!!fieldErrors.petName}
+                aria-describedby={fieldErrors.petName ? "petName-error" : undefined}
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, petName: e.target.value }));
+                  clearFieldError("petName");
+                }}
+                className={`${INPUT_CLS} ${fieldErrors.petName ? STYLE.formInputError : ""}`}
               />
+              <FormFieldError id="petName-error" message={fieldErrors.petName} />
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="petNameKana" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="petNameKana" className={LABEL_CLS}>
                 ペット名(カナ)
               </Label>
               <Input
@@ -170,151 +163,164 @@ export function PetEditModal({
                 placeholder="例: イリス"
                 value={formData.petNameKana || ""}
                 onChange={(e) =>
-                  setFormData({ ...formData, petNameKana: e.target.value })
+                  setFormData(prev => ({ ...prev, petNameKana: e.target.value }))
                 }
-                className="h-10 text-sm bg-white text-[#37352F]"
+                className={INPUT_CLS}
               />
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="species" className="text-sm text-[#37352F]/60">
-                種 <span className="text-[#E03E3E]">*</span>
+              <Label htmlFor="species" className={LABEL_CLS}>
+                種 <span className={C.textRequired}>*</span>
               </Label>
               <Select
                 value={formData.species}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, species: value })
-                }
+                onValueChange={(value) => {
+                  if (isOneOf(value, PET_SPECIES_VALUES)) {
+                    setFormData(prev => ({ ...prev, species: value }));
+                    clearFieldError("species");
+                  }
+                }}
               >
-                <SelectTrigger className="h-10 text-sm bg-white text-[#37352F]">
+                <SelectTrigger
+                  className={`${INPUT_CLS} ${fieldErrors.species ? STYLE.formInputError : ""}`}
+                >
                   <SelectValue placeholder="選択してください" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="犬">犬</SelectItem>
-                  <SelectItem value="猫">猫</SelectItem>
-                  <SelectItem value="鳥">鳥</SelectItem>
-                  <SelectItem value="その他">その他</SelectItem>
+                  {PET_SPECIES_VALUES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              <FormFieldError message={fieldErrors.species} />
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="gender" className="text-sm text-[#37352F]/60">
-                性別 <span className="text-[#E03E3E]">*</span>
+              <Label htmlFor="gender" className={LABEL_CLS}>
+                性別 <span className={C.textRequired}>*</span>
               </Label>
               <Select
                 value={formData.gender}
                 onValueChange={(value) => {
                   if (isOneOf(value, PET_GENDER_VALUES)) {
-                    setFormData({ ...formData, gender: value });
+                    setFormData(prev => ({ ...prev, gender: value }));
+                    clearFieldError("gender");
                   }
                 }}
               >
-                <SelectTrigger className="h-10 text-sm bg-white text-[#37352F]">
+                <SelectTrigger
+                  className={`${INPUT_CLS} ${fieldErrors.gender ? STYLE.formInputError : ""}`}
+                >
                   <SelectValue placeholder="選択してください" />
                 </SelectTrigger>
                 <SelectContent>
-                  {PET_GENDER_VALUES.map((gender) => (
-                    <SelectItem key={gender} value={gender}>
-                      {gender}
+                  {PET_GENDER_VALUES.map((g) => (
+                    <SelectItem key={g} value={g}>
+                      {g}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <FormFieldError message={fieldErrors.gender} />
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="birthDate" className="text-sm text-[#37352F]/60">
-                生年月日 <span className="text-[#E03E3E]">*</span>
+              <Label htmlFor="birthDate" className={LABEL_CLS}>
+                生年月日 <span className={C.textRequired}>*</span>
               </Label>
               <NotionDatePicker
                 id="birthDate"
                 value={formData.birthDate}
-                onChange={(value) =>
-                  setFormData({ ...formData, birthDate: value })
-                }
+                onChange={(val) => {
+                  setFormData(prev => ({ ...prev, birthDate: val }));
+                  clearFieldError("birthDate");
+                }}
                 placeholder="生年月日を選択…"
               />
+              <FormFieldError message={fieldErrors.birthDate} />
             </div>
           </div>
 
           {/* Column 2 */}
           <div className="space-y-2">
             <div className="space-y-1">
-              <Label htmlFor="breed" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="breed" className={LABEL_CLS}>
                 品種
               </Label>
               <Input
                 id="breed"
                 value={formData.breed || ""}
                 onChange={(e) =>
-                  setFormData({ ...formData, breed: e.target.value })
+                  setFormData(prev => ({ ...prev, breed: e.target.value }))
                 }
-                className="h-10 text-sm bg-white text-[#37352F]"
+                className={INPUT_CLS}
               />
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="color" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="color" className={LABEL_CLS}>
                 毛色
               </Label>
               <Input
                 id="color"
                 value={formData.color || ""}
                 onChange={(e) =>
-                  setFormData({ ...formData, color: e.target.value })
+                  setFormData(prev => ({ ...prev, color: e.target.value }))
                 }
-                className="h-10 text-sm bg-white text-[#37352F]"
+                className={INPUT_CLS}
               />
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="weight" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="weight" className={LABEL_CLS}>
                 体重(kg)
               </Label>
               <Input
                 id="weight"
                 value={formData.weight || ""}
                 onChange={(e) =>
-                  setFormData({ ...formData, weight: e.target.value })
+                  setFormData(prev => ({ ...prev, weight: e.target.value }))
                 }
-                className="h-10 text-sm bg-white text-[#37352F]"
+                className={INPUT_CLS}
               />
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="neuteredDate" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="neuteredDate" className={LABEL_CLS}>
                 去勢・避妊手術日
               </Label>
               <NotionDatePicker
                 id="neuteredDate"
                 value={formData.neuteredDate || ""}
-                onChange={(value) =>
-                  setFormData({ ...formData, neuteredDate: value })
+                onChange={(val) =>
+                  setFormData(prev => ({ ...prev, neuteredDate: val }))
                 }
                 placeholder="手術日を選択…"
               />
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="acquisitionType" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="acquisitionType" className={LABEL_CLS}>
                 入手区分
               </Label>
               <Select
                 value={formData.acquisitionType || ""}
                 onValueChange={(value) => {
                   if (isOneOf(value, ACQUISITION_TYPE_VALUES)) {
-                    setFormData({ ...formData, acquisitionType: value });
+                    setFormData(prev => ({ ...prev, acquisitionType: value }));
                   }
                 }}
               >
-                <SelectTrigger className="h-10 text-sm bg-white text-[#37352F]">
+                <SelectTrigger className={INPUT_CLS}>
                   <SelectValue placeholder="選択してください" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ACQUISITION_TYPE_VALUES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
+                  {ACQUISITION_TYPE_VALUES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -322,24 +328,24 @@ export function PetEditModal({
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="dangerLevel" className="text-sm text-[#37352F]/60">
-                危険度
+              <Label htmlFor="dangerLevel" className={LABEL_CLS}>
+                ペットの危険度
               </Label>
               <Select
                 value={formData.dangerLevel || ""}
                 onValueChange={(value) => {
                   if (isOneOf(value, DANGER_LEVEL_VALUES)) {
-                    setFormData({ ...formData, dangerLevel: value });
+                    setFormData(prev => ({ ...prev, dangerLevel: value }));
                   }
                 }}
               >
-                <SelectTrigger className="h-10 text-sm bg-white text-[#37352F]">
+                <SelectTrigger className={INPUT_CLS}>
                   <SelectValue placeholder="選択してください" />
                 </SelectTrigger>
                 <SelectContent>
-                  {DANGER_LEVEL_VALUES.map((level) => (
-                    <SelectItem key={level} value={level}>
-                      {level}
+                  {DANGER_LEVEL_VALUES.map((d) => (
+                    <SelectItem key={d} value={d}>
+                      {d}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -350,46 +356,46 @@ export function PetEditModal({
           {/* Column 3 */}
           <div className="space-y-2">
             <div className="space-y-1">
-              <Label htmlFor="food" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="food" className={LABEL_CLS}>
                 食べ物
               </Label>
               <Input
                 id="food"
                 value={formData.food || ""}
                 onChange={(e) =>
-                  setFormData({ ...formData, food: e.target.value })
+                  setFormData(prev => ({ ...prev, food: e.target.value }))
                 }
-                className="h-10 text-sm bg-white text-[#37352F]"
+                className={INPUT_CLS}
               />
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="environment" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="environment" className={LABEL_CLS}>
                 飼育環境
               </Label>
               <Input
                 id="environment"
                 value={formData.environment || ""}
                 onChange={(e) =>
-                  setFormData({ ...formData, environment: e.target.value })
+                  setFormData(prev => ({ ...prev, environment: e.target.value }))
                 }
-                className="h-10 text-sm bg-white text-[#37352F]"
+                className={INPUT_CLS}
               />
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="insuranceName" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="insuranceName" className={LABEL_CLS}>
                 保険名
               </Label>
               <Select
                 value={formData.insuranceName || ""}
                 onValueChange={(value) => {
                   if (isOneOf(value, INSURANCE_COMPANY_VALUES)) {
-                    setFormData({ ...formData, insuranceName: value });
+                    setFormData(prev => ({ ...prev, insuranceName: value }));
                   }
                 }}
               >
-                <SelectTrigger className="h-10 text-sm bg-white text-[#37352F]">
+                <SelectTrigger className={INPUT_CLS}>
                   <SelectValue placeholder="選択してください" />
                 </SelectTrigger>
                 <SelectContent>
@@ -403,18 +409,18 @@ export function PetEditModal({
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="insuranceDetails" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="insuranceDetails" className={LABEL_CLS}>
                 保険詳細(負担割合など)
               </Label>
               <Select
                 value={formData.insuranceDetails || ""}
                 onValueChange={(value) => {
                   if (isOneOf(value, PET_INSURANCE_RATIO_VALUES)) {
-                    setFormData({ ...formData, insuranceDetails: value });
+                    setFormData(prev => ({ ...prev, insuranceDetails: value }));
                   }
                 }}
               >
-                <SelectTrigger className="h-10 text-sm bg-white text-[#37352F]">
+                <SelectTrigger className={INPUT_CLS}>
                   <SelectValue placeholder="選択してください" />
                 </SelectTrigger>
                 <SelectContent>
@@ -428,7 +434,7 @@ export function PetEditModal({
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="remarks" className="text-sm text-[#37352F]/60">
+              <Label htmlFor="remarks" className={LABEL_CLS}>
                 備考・特記事項
               </Label>
               <Textarea
@@ -436,25 +442,25 @@ export function PetEditModal({
                 rows={3}
                 value={formData.remarks || ""}
                 onChange={(e) =>
-                  setFormData({ ...formData, remarks: e.target.value })
+                  setFormData(prev => ({ ...prev, remarks: e.target.value }))
                 }
-                className="text-sm text-[#37352F] border-[rgba(55,53,47,0.16)] min-h-[80px] resize-none"
+                className={`text-sm ${C.text} ${C.borderMedium} min-h-[80px] resize-none`}
               />
             </div>
           </div>
         </div>
 
-        <div className="flex justify-end mt-4 pt-4 border-t border-[rgba(55,53,47,0.09)]">
+        <div className={`flex justify-end gap-2 mt-4 pt-4 border-t ${C.borderDivider}`}>
           <Button
             variant="outline"
-            className="mr-2 h-10 text-sm"
+            className={`h-10 text-sm ${C.borderMedium}`}
             onClick={() => onOpenChange(false)}
           >
             キャンセル
           </Button>
           <Button
             onClick={handleSave}
-            className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white h-10 text-sm px-4"
+            className={`${STYLE.confirmPrimary} h-10 text-sm px-4`}
           >
             {isEdit ? "更新" : "登録"}
           </Button>

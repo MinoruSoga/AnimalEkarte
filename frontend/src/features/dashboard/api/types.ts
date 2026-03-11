@@ -1,4 +1,5 @@
 // Backend Reservation を Dashboard で使用するための型定義
+import type { ReservationStatus } from "@/types";
 
 /** Backend から返ってくる Reservation の raw 型（snake_case） */
 export interface BackendDashboardReservation {
@@ -49,27 +50,17 @@ export interface DashboardAppointment {
   doctor?: string;
   petId: string;
   ownerId: string;
-  status: DashboardStatus;
+  status: ReservationStatus;
 }
-
-/** Dashboard カンバンカラムのステータス値（バックエンドの status フィールド値） */
-export type DashboardStatus =
-  | "pending"
-  | "confirmed"
-  | "checked_in"
-  | "in_consultation"
-  | "accounting"
-  | "completed"
-  | "canceled";
 
 /** Dashboard カンバンカラム */
 export interface DashboardColumn {
-  id: DashboardStatus;
+  id: ReservationStatus;
   title: string;
   appointments: DashboardAppointment[];
 }
 
 /** ステータス更新リクエスト */
 export interface UpdateAppointmentStatusRequest {
-  status: DashboardStatus;
+  status: ReservationStatus;
 }

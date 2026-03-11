@@ -1,10 +1,21 @@
 // React/Framework
+import { useCallback } from "react";
 import { useNavigate } from "react-router";
 
 // External
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Clock, Dog, Stethoscope, Scissors, Calendar, AlertCircle, Syringe, Activity, FileText, CreditCard, BedDouble } from "lucide-react";
+import Clock from "lucide-react/dist/esm/icons/clock";
+import Dog from "lucide-react/dist/esm/icons/dog";
+import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
+import Scissors from "lucide-react/dist/esm/icons/scissors";
+import Calendar from "lucide-react/dist/esm/icons/calendar";
+import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
+import Syringe from "lucide-react/dist/esm/icons/syringe";
+import Activity from "lucide-react/dist/esm/icons/activity";
+import FileText from "lucide-react/dist/esm/icons/file-text";
+import CreditCard from "lucide-react/dist/esm/icons/credit-card";
+import BedDouble from "lucide-react/dist/esm/icons/bed-double";
 
 // Internal
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +25,18 @@ import { C } from "@/lib/design-tokens";
 // Types
 import type { Appointment } from "@/types";
 
+interface ServiceIconProps {
+  service: string;
+}
+
+function ServiceIcon({ service }: ServiceIconProps) {
+  if (service.includes("トリミング")) return <Scissors className="size-3" />;
+  if (service.includes("ワクチン")) return <Syringe className="size-3" />;
+  if (service.includes("手術")) return <Activity className="size-3" />;
+  if (service.includes("診療")) return <Stethoscope className="size-3" />;
+  return <Stethoscope className="size-3" />;
+}
+
 interface AppointmentCardProps {
   appointment: Appointment;
   columnTitle: string;
@@ -21,12 +44,12 @@ interface AppointmentCardProps {
   isDragOverlay?: boolean;
 }
 
-export const AppointmentCard = ({
+export function AppointmentCard({
   appointment,
   columnTitle,
   onCardClick,
   isDragOverlay = false,
-}: AppointmentCardProps) => {
+}: AppointmentCardProps) {
   const navigate = useNavigate();
 
   const {
@@ -48,18 +71,10 @@ export const AppointmentCard = ({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const getServiceIcon = (service: string) => {
-    if (service.includes("トリミング")) return <Scissors className="size-3" />;
-    if (service.includes("ワクチン")) return <Syringe className="size-3" />;
-    if (service.includes("手術")) return <Activity className="size-3" />;
-    if (service.includes("診療")) return <Stethoscope className="size-3" />;
-    return <Stethoscope className="size-3" />;
-  };
-
   const isTrimming = appointment.serviceType.includes("トリミング");
   const isHospitalization = appointment.serviceType.includes("入院");
 
-  const handleKarteClick = (e: React.MouseEvent) => {
+  const handleKarteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (isTrimming) {
       navigate(appointment.petId ? `/trimming/new?petId=${appointment.petId}` : "/trimming/new", {
@@ -70,21 +85,21 @@ export const AppointmentCard = ({
         state: { from: "/", appointmentId: appointment.id },
       });
     }
-  };
+  }, [navigate, isTrimming, appointment.petId, appointment.id]);
 
-  const handleAccountingClick = (e: React.MouseEvent) => {
+  const handleAccountingClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     navigate(appointment.petId ? `/accounting/new?petId=${appointment.petId}` : "/accounting/new", {
       state: { from: "/", appointmentId: appointment.id },
     });
-  };
+  }, [navigate, appointment.petId, appointment.id]);
 
-  const handleHospitalizationClick = (e: React.MouseEvent) => {
+  const handleHospitalizationClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     navigate(appointment.petId ? `/hospitalization/new?petId=${appointment.petId}` : "/hospitalization/new", {
       state: { from: "/" },
     });
-  };
+  }, [navigate, appointment.petId]);
 
   return (
     <div
@@ -130,7 +145,7 @@ export const AppointmentCard = ({
               {appointment.visitType}
             </Badge>
             <Badge variant="outline" className="flex items-center gap-1 text-xs px-1.5 h-5 bg-white">
-              {getServiceIcon(appointment.serviceType)}
+              <ServiceIcon service={appointment.serviceType} />
               <span className="truncate max-w-[80px]">{appointment.serviceType}</span>
             </Badge>
 
@@ -180,4 +195,4 @@ export const AppointmentCard = ({
       </Card>
     </div>
   );
-};
+}

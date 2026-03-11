@@ -1,7 +1,7 @@
 // External
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Plus } from "lucide-react";
+import Plus from "lucide-react/dist/esm/icons/plus";
 
 // Internal
 import { Button } from "@/components/ui/button";
@@ -19,11 +19,11 @@ interface KanbanColumnProps {
   onCardClick: (appointment: Appointment) => void;
 }
 
-export const KanbanColumn = ({
+export function KanbanColumn({
   data,
   onAddClick,
   onCardClick
-}: KanbanColumnProps) => {
+}: KanbanColumnProps) {
   const colors = getDashboardColumnColor(data.title);
 
   const { setNodeRef, isOver } = useDroppable({
@@ -31,7 +31,7 @@ export const KanbanColumn = ({
     data: { columnTitle: data.title },
   });
 
-  const itemIds = data.appointments.map(a => a.id);
+  const itemIds = data.appointments.map(appt => appt.id);
 
   return (
     <div
@@ -72,4 +72,4 @@ export const KanbanColumn = ({
       )}
     </div>
   );
-};
+}
