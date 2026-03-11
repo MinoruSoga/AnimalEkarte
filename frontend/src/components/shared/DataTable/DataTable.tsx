@@ -10,7 +10,7 @@ import {
 
 interface DataTableProps<T> {
   columns: {
-    header: string;
+    header: ReactNode;
     className?: string;
     align?: "left" | "center" | "right";
   }[];

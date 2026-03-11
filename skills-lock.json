@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "skills": {
+    "database-schema-design": {
+      "source": "supercent-io/skills-template",
+      "sourceType": "github",
+      "computedHash": "c3193721f3420d8e669ad42f33de538acc1ddaeacfceb58309f80eafb0b00752"
+    },
+    "golang": {
+      "source": "saisudhir14/golang-agent-skill",
+      "sourceType": "github",
+      "computedHash": "9b51b75f48443bd04c8a34774aa0ba600eb78f2b6653f3673f38105a41e0e417"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "3462ec83f862abb2d532953df33a4dbf87f4616849da5d4b5cc7c13601aaf997"
+    }
+  }
+}

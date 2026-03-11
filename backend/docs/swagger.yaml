@@ -70,6 +70,33 @@ definitions:
       unit_price:
         type: number
     type: object
+  model.Cage:
+    properties:
+      billing_unit:
+        type: string
+      body_size:
+        type: string
+      cage_size:
+        type: string
+      cage_type:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
   model.CareLogRecord:
     properties:
       created_at:
@@ -140,11 +167,7 @@ definitions:
         type: string
       next_date:
         type: string
-      owner_name:
-        type: string
       pet_id:
-        type: string
-      pet_name:
         type: string
       result:
         type: string
@@ -213,6 +236,32 @@ definitions:
     - pet_name
     - scheduled_date
     type: object
+  model.CreateCageRequest:
+    properties:
+      billing_unit:
+        type: string
+      body_size:
+        type: string
+      cage_size:
+        type: string
+      cage_type:
+        type: string
+      code:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+    required:
+    - cage_size
+    - cage_type
+    - code
+    - name
+    type: object
   model.CreateClinicInfoRequest:
     properties:
       address:
@@ -250,11 +299,7 @@ definitions:
         type: string
       medical_record_id:
         type: string
-      owner_name:
-        type: string
       pet_id:
-        type: string
-      pet_name:
         type: string
       result_summary:
         type: string
@@ -266,10 +311,30 @@ definitions:
     - date
     - doctor
     - medical_record_id
-    - owner_name
     - pet_id
-    - pet_name
     - test_type
+    type: object
+  model.CreateExaminationTypeRequest:
+    properties:
+      code:
+        type: string
+      color:
+        type: string
+      description:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      parent_id:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+    required:
+    - code
+    - name
     type: object
   model.CreateHospitalizationRequest:
     properties:
@@ -309,6 +374,27 @@ definitions:
     - species
     - start_date
     type: object
+  model.CreateInsuranceCompanyRequest:
+    properties:
+      code:
+        type: string
+      contact_phone:
+        type: string
+      coverage_rate:
+        type: string
+      description:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      sort_order:
+        type: integer
+    required:
+    - code
+    - coverage_rate
+    - name
+    type: object
   model.CreateInventoryItemRequest:
     properties:
       category:
@@ -340,44 +426,13 @@ definitions:
     properties:
       anesthesia:
         type: string
-      billing_unit:
-        type: string
-      body_size:
-        type: string
-      cage_size:
-        type: string
-      cage_type:
-        type: string
       category:
         type: string
       code:
         type: string
-      color:
-        description: 拡張フィールド
-        type: string
-      combinable:
-        type: string
-      contact_phone:
-        type: string
-      coverage_rate:
-        type: string
-      default_quantity:
-        type: integer
       description:
         type: string
-      dosage_form:
-        type: string
-      duration:
-        type: string
-      email:
-        type: string
       interval:
-        type: string
-      inventory_id:
-        type: string
-      license_number:
-        type: string
-      medicine_unit:
         type: string
       name:
         type: string
@@ -388,18 +443,13 @@ definitions:
       sort_order:
         type: integer
       species:
-        type: string
-      staff_role:
+        description: 拡張フィールド
         type: string
       status:
         type: string
       target_age:
         type: string
-      target_size:
-        type: string
       time_condition:
-        type: string
-      user_type:
         type: string
     required:
     - category
@@ -448,6 +498,34 @@ definitions:
     - owner_name
     - pet_name
     - species
+    type: object
+  model.CreateMedicineRequest:
+    properties:
+      code:
+        type: string
+      default_quantity:
+        type: integer
+      description:
+        type: string
+      dosage_form:
+        type: string
+      inventory_id:
+        type: string
+      is_active:
+        type: boolean
+      medicine_unit:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+    required:
+    - code
+    - dosage_form
+    - medicine_unit
+    - name
     type: object
   model.CreateOwnerRequest:
     properties:
@@ -514,8 +592,6 @@ definitions:
         type: string
       owner_id:
         type: string
-      owner_name:
-        type: string
       pet_name_kana:
         type: string
       pet_number:
@@ -533,7 +609,6 @@ definitions:
     required:
     - name
     - owner_id
-    - owner_name
     - species
     type: object
   model.CreateReservationRequest:
@@ -569,6 +644,80 @@ definitions:
     - type
     - visit_type
     type: object
+  model.CreateStaffMemberRequest:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+      is_active:
+        type: boolean
+      license_number:
+        type: string
+      name:
+        type: string
+      name_kana:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+      sort_order:
+        type: integer
+    required:
+    - code
+    - name
+    - role
+    type: object
+  model.CreateTrimmingCourseRequest:
+    properties:
+      code:
+        type: string
+      description:
+        type: string
+      duration:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      parent_id:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      target_size:
+        type: string
+    required:
+    - code
+    - name
+    - target_size
+    type: object
+  model.CreateTrimmingOptionRequest:
+    properties:
+      code:
+        type: string
+      combinable:
+        type: string
+      description:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      parent_id:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      target_size:
+        type: string
+    required:
+    - code
+    - name
+    type: object
   model.CreateTrimmingRequest:
     properties:
       bt:
@@ -591,17 +740,9 @@ definitions:
         items:
           type: string
         type: array
-      owner_name:
-        type: string
       pet_id:
         type: string
-      pet_name:
-        type: string
-      pet_number:
-        type: string
       remarks:
-        type: string
-      species:
         type: string
       staff:
         type: string
@@ -619,11 +760,7 @@ definitions:
         type: string
     required:
     - date
-    - owner_name
     - pet_id
-    - pet_name
-    - pet_number
-    - species
     - staff
     type: object
   model.CreateVaccinationRecordRequest:
@@ -646,11 +783,7 @@ definitions:
         type: string
       next_schedule_type:
         type: string
-      owner_name:
-        type: string
       pet_id:
-        type: string
-      pet_name:
         type: string
       remarks:
         type: string
@@ -661,9 +794,7 @@ definitions:
     required:
     - date
     - medical_record_id
-    - owner_name
     - pet_id
-    - pet_name
     - vaccine_name
     type: object
   model.DailyRecord:
@@ -711,11 +842,7 @@ definitions:
         type: string
       medical_record_id:
         type: string
-      owner_name:
-        type: string
       pet_id:
-        type: string
-      pet_name:
         type: string
       result_summary:
         type: string
@@ -751,9 +878,61 @@ definitions:
       unit:
         type: string
     type: object
+  model.ExaminationType:
+    properties:
+      children:
+        description: Relations
+        items:
+          $ref: '#/definitions/model.ExaminationType'
+        type: array
+      code:
+        type: string
+      color:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      inspections:
+        items:
+          $ref: '#/definitions/model.ExaminationTypeInspection'
+        type: array
+      is_active:
+        type: boolean
+      name:
+        type: string
+      parent_id:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  model.ExaminationTypeInspection:
+    properties:
+      created_at:
+        type: string
+      examination_type_id:
+        type: string
+      id:
+        type: string
+      inspection_value:
+        type: string
+      name:
+        type: string
+      normal_value:
+        type: string
+      sort_order:
+        type: integer
+    type: object
   model.Hospitalization:
     properties:
       cage_id:
+        description: cages テーブルを参照
         type: string
       care_plan_items:
         description: Relations
@@ -801,6 +980,29 @@ definitions:
       updated_at:
         type: string
     type: object
+  model.InsuranceCompany:
+    properties:
+      code:
+        type: string
+      contact_phone:
+        type: string
+      coverage_rate:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
   model.InventoryItem:
     properties:
       category:
@@ -834,14 +1036,6 @@ definitions:
     properties:
       anesthesia:
         type: string
-      billing_unit:
-        type: string
-      body_size:
-        type: string
-      cage_size:
-        type: string
-      cage_type:
-        type: string
       category:
         type: string
       children:
@@ -849,50 +1043,15 @@ definitions:
         items:
           $ref: '#/definitions/model.MasterItem'
         type: array
-      clinics:
-        items:
-          type: string
-        type: array
       code:
-        type: string
-      color:
-        description: カテゴリ固有フィールド
-        type: string
-      combinable:
-        type: string
-      contact_phone:
-        type: string
-      coverage_rate:
         type: string
       created_at:
         type: string
-      default_quantity:
-        type: integer
       description:
-        type: string
-      dosage_form:
-        type: string
-      duration:
-        type: string
-      email:
         type: string
       id:
         type: string
-      inspections:
-        items:
-          $ref: '#/definitions/model.MasterItemInspection'
-        type: array
       interval:
-        type: string
-      inventory:
-        $ref: '#/definitions/model.InventoryItem'
-      inventory_id:
-        type: string
-      last_login_at:
-        type: string
-      license_number:
-        type: string
-      medicine_unit:
         type: string
       name:
         type: string
@@ -903,38 +1062,16 @@ definitions:
       sort_order:
         type: integer
       species:
-        type: string
-      staff_role:
+        description: カテゴリ固有フィールド
         type: string
       status:
         type: string
       target_age:
         type: string
-      target_size:
-        type: string
       time_condition:
         type: string
       updated_at:
         type: string
-      user_type:
-        type: string
-    type: object
-  model.MasterItemInspection:
-    properties:
-      created_at:
-        type: string
-      id:
-        type: string
-      inspection_value:
-        type: string
-      master_item_id:
-        type: string
-      name:
-        type: string
-      normal_value:
-        type: string
-      sort_order:
-        type: integer
     type: object
   model.MedicalRecord:
     properties:
@@ -999,6 +1136,35 @@ definitions:
         items:
           $ref: '#/definitions/model.VitalEntry'
         type: array
+    type: object
+  model.Medicine:
+    properties:
+      code:
+        type: string
+      created_at:
+        type: string
+      default_quantity:
+        type: integer
+      description:
+        type: string
+      dosage_form:
+        type: string
+      id:
+        type: string
+      inventory_id:
+        type: string
+      is_active:
+        type: boolean
+      medicine_unit:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
     type: object
   model.Owner:
     properties:
@@ -1115,8 +1281,6 @@ definitions:
         type: string
       owner_id:
         type: string
-      owner_name:
-        type: string
       pet_name_kana:
         type: string
       pet_number:
@@ -1163,6 +1327,33 @@ definitions:
       updated_at:
         type: string
       visit_type:
+        type: string
+    type: object
+  model.StaffMember:
+    properties:
+      code:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      license_number:
+        type: string
+      name:
+        type: string
+      name_kana:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+      sort_order:
+        type: integer
+      updated_at:
         type: string
     type: object
   model.StaffNoteRecord:
@@ -1242,6 +1433,70 @@ definitions:
       updated_at:
         type: string
     type: object
+  model.TrimmingCourse:
+    properties:
+      children:
+        description: Relations
+        items:
+          $ref: '#/definitions/model.TrimmingCourse'
+        type: array
+      code:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      duration:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      parent_id:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      target_size:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.TrimmingOption:
+    properties:
+      children:
+        description: Relations
+        items:
+          $ref: '#/definitions/model.TrimmingOption'
+        type: array
+      code:
+        type: string
+      combinable:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      parent_id:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      target_size:
+        type: string
+      updated_at:
+        type: string
+    type: object
   model.TrimmingRecord:
     properties:
       bt:
@@ -1255,6 +1510,7 @@ definitions:
       completed_image:
         type: string
       course_id:
+        description: trimming_courses テーブルを参照
         type: string
       created_at:
         type: string
@@ -1271,17 +1527,9 @@ definitions:
         items:
           $ref: '#/definitions/model.TrimmingRecordOption'
         type: array
-      owner_name:
-        type: string
       pet_id:
         type: string
-      pet_name:
-        type: string
-      pet_number:
-        type: string
       remarks:
-        type: string
-      species:
         type: string
       staff:
         type: string
@@ -1336,6 +1584,27 @@ definitions:
       status:
         type: string
     type: object
+  model.UpdateCageRequest:
+    properties:
+      billing_unit:
+        type: string
+      body_size:
+        type: string
+      cage_size:
+        type: string
+      cage_type:
+        type: string
+      code:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+    type: object
   model.UpdateClinicInfoRequest:
     properties:
       address:
@@ -1376,6 +1645,25 @@ definitions:
       test_type:
         type: string
     type: object
+  model.UpdateExaminationTypeRequest:
+    properties:
+      code:
+        type: string
+      color:
+        type: string
+      description:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      parent_id:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+    type: object
   model.UpdateHospitalizationRequest:
     properties:
       cage_id:
@@ -1407,6 +1695,23 @@ definitions:
       status:
         type: string
     type: object
+  model.UpdateInsuranceCompanyRequest:
+    properties:
+      code:
+        type: string
+      contact_phone:
+        type: string
+      coverage_rate:
+        type: string
+      description:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      sort_order:
+        type: integer
+    type: object
   model.UpdateInventoryItemRequest:
     properties:
       category:
@@ -1434,44 +1739,13 @@ definitions:
     properties:
       anesthesia:
         type: string
-      billing_unit:
-        type: string
-      body_size:
-        type: string
-      cage_size:
-        type: string
-      cage_type:
-        type: string
       category:
         type: string
       code:
         type: string
-      color:
-        description: 拡張フィールド
-        type: string
-      combinable:
-        type: string
-      contact_phone:
-        type: string
-      coverage_rate:
-        type: string
-      default_quantity:
-        type: integer
       description:
         type: string
-      dosage_form:
-        type: string
-      duration:
-        type: string
-      email:
-        type: string
       interval:
-        type: string
-      inventory_id:
-        type: string
-      license_number:
-        type: string
-      medicine_unit:
         type: string
       name:
         type: string
@@ -1482,18 +1756,13 @@ definitions:
       sort_order:
         type: integer
       species:
-        type: string
-      staff_role:
+        description: 拡張フィールド
         type: string
       status:
         type: string
       target_age:
         type: string
-      target_size:
-        type: string
       time_condition:
-        type: string
-      user_type:
         type: string
     type: object
   model.UpdateMedicalRecordRequest:
@@ -1530,6 +1799,29 @@ definitions:
         type: string
       treatment_policy:
         type: string
+    type: object
+  model.UpdateMedicineRequest:
+    properties:
+      code:
+        type: string
+      default_quantity:
+        type: integer
+      description:
+        type: string
+      dosage_form:
+        type: string
+      inventory_id:
+        type: string
+      is_active:
+        type: boolean
+      medicine_unit:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
     type: object
   model.UpdateOwnerRequest:
     properties:
@@ -1594,8 +1886,6 @@ definitions:
         type: string
       owner_id:
         type: string
-      owner_name:
-        type: string
       pet_name_kana:
         type: string
       pet_number:
@@ -1636,6 +1926,69 @@ definitions:
       visit_type:
         type: string
     type: object
+  model.UpdateStaffMemberRequest:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+      is_active:
+        type: boolean
+      license_number:
+        type: string
+      name:
+        type: string
+      name_kana:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+      sort_order:
+        type: integer
+    type: object
+  model.UpdateTrimmingCourseRequest:
+    properties:
+      code:
+        type: string
+      description:
+        type: string
+      duration:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      parent_id:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      target_size:
+        type: string
+    type: object
+  model.UpdateTrimmingOptionRequest:
+    properties:
+      code:
+        type: string
+      combinable:
+        type: string
+      description:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      parent_id:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      target_size:
+        type: string
+    type: object
   model.UpdateTrimmingRequest:
     properties:
       bt:
@@ -1658,17 +2011,9 @@ definitions:
         items:
           type: string
         type: array
-      owner_name:
-        type: string
       pet_id:
         type: string
-      pet_name:
-        type: string
-      pet_number:
-        type: string
       remarks:
-        type: string
-      species:
         type: string
       staff:
         type: string
@@ -1734,11 +2079,7 @@ definitions:
         type: string
       next_schedule_type:
         type: string
-      owner_name:
-        type: string
       pet_id:
-        type: string
-      pet_name:
         type: string
       remarks:
         type: string
@@ -2036,6 +2377,157 @@ paths:
       summary: ステータス別会計取得
       tags:
       - accountings
+  /cages:
+    get:
+      consumes:
+      - application/json
+      description: 登録されているケージの一覧を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Cage'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: ケージ一覧取得
+      tags:
+      - cages
+    post:
+      consumes:
+      - application/json
+      description: 新しいケージを作成します
+      parameters:
+      - description: ケージ情報
+        in: body
+        name: cage
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateCageRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Cage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: ケージ作成
+      tags:
+      - cages
+  /cages/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定されたケージを削除します
+      parameters:
+      - description: ケージID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: ケージ削除
+      tags:
+      - cages
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDのケージ情報を取得します
+      parameters:
+      - description: ケージID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Cage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: ケージ詳細取得
+      tags:
+      - cages
+    put:
+      consumes:
+      - application/json
+      description: 既存のケージを更新します
+      parameters:
+      - description: ケージID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: ケージ情報
+        in: body
+        name: cage
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateCageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Cage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: ケージ更新
+      tags:
+      - cages
   /clinics:
     get:
       consumes:
@@ -2213,6 +2705,190 @@ paths:
       summary: クリニック更新
       tags:
       - clinics
+  /examination-types:
+    get:
+      consumes:
+      - application/json
+      description: 登録されている検査種別の一覧を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.ExaminationType'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 検査種別一覧取得
+      tags:
+      - examination-types
+    post:
+      consumes:
+      - application/json
+      description: 新しい検査種別を作成します
+      parameters:
+      - description: 検査種別情報
+        in: body
+        name: examType
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateExaminationTypeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.ExaminationType'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 検査種別作成
+      tags:
+      - examination-types
+  /examination-types/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定された検査種別を削除します
+      parameters:
+      - description: 検査種別ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 検査種別削除
+      tags:
+      - examination-types
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDの検査種別情報を取得します
+      parameters:
+      - description: 検査種別ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ExaminationType'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 検査種別詳細取得
+      tags:
+      - examination-types
+    put:
+      consumes:
+      - application/json
+      description: 既存の検査種別を更新します
+      parameters:
+      - description: 検査種別ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 検査種別情報
+        in: body
+        name: examType
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateExaminationTypeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ExaminationType'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 検査種別更新
+      tags:
+      - examination-types
+  /examination-types/{id}/with-inspections:
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDの検査種別情報と検査項目定義を取得します
+      parameters:
+      - description: 検査種別ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ExaminationType'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 検査種別詳細取得（検査項目定義含む）
+      tags:
+      - examination-types
   /examinations:
     get:
       consumes:
@@ -2656,6 +3332,157 @@ paths:
       summary: ステータス別入院/ホテル取得
       tags:
       - hospitalizations
+  /insurance-companies:
+    get:
+      consumes:
+      - application/json
+      description: 登録されている保険会社の一覧を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.InsuranceCompany'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 保険会社一覧取得
+      tags:
+      - insurance-companies
+    post:
+      consumes:
+      - application/json
+      description: 新しい保険会社を作成します
+      parameters:
+      - description: 保険会社情報
+        in: body
+        name: company
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateInsuranceCompanyRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.InsuranceCompany'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 保険会社作成
+      tags:
+      - insurance-companies
+  /insurance-companies/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定された保険会社を削除します
+      parameters:
+      - description: 保険会社ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 保険会社削除
+      tags:
+      - insurance-companies
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDの保険会社情報を取得します
+      parameters:
+      - description: 保険会社ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.InsuranceCompany'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 保険会社詳細取得
+      tags:
+      - insurance-companies
+    put:
+      consumes:
+      - application/json
+      description: 既存の保険会社を更新します
+      parameters:
+      - description: 保険会社ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 保険会社情報
+        in: body
+        name: company
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateInsuranceCompanyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.InsuranceCompany'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 保険会社更新
+      tags:
+      - insurance-companies
   /inventory-items:
     get:
       consumes:
@@ -3396,6 +4223,157 @@ paths:
       summary: カルテ一覧取得（ページング）
       tags:
       - medical-records
+  /medicines:
+    get:
+      consumes:
+      - application/json
+      description: 登録されている薬剤の一覧を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Medicine'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 薬剤一覧取得
+      tags:
+      - medicines
+    post:
+      consumes:
+      - application/json
+      description: 新しい薬剤を作成します
+      parameters:
+      - description: 薬剤情報
+        in: body
+        name: medicine
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateMedicineRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Medicine'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 薬剤作成
+      tags:
+      - medicines
+  /medicines/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定された薬剤を削除します
+      parameters:
+      - description: 薬剤ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 薬剤削除
+      tags:
+      - medicines
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDの薬剤情報を取得します
+      parameters:
+      - description: 薬剤ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Medicine'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 薬剤詳細取得
+      tags:
+      - medicines
+    put:
+      consumes:
+      - application/json
+      description: 既存の薬剤を更新します
+      parameters:
+      - description: 薬剤ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 薬剤情報
+        in: body
+        name: medicine
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateMedicineRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Medicine'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 薬剤更新
+      tags:
+      - medicines
   /owners:
     get:
       consumes:
@@ -4444,6 +5422,459 @@ paths:
       summary: 予約更新
       tags:
       - reservations
+  /staff-members:
+    get:
+      consumes:
+      - application/json
+      description: 登録されているスタッフメンバーの一覧を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.StaffMember'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: スタッフメンバー一覧取得
+      tags:
+      - staff-members
+    post:
+      consumes:
+      - application/json
+      description: 新しいスタッフメンバーを作成します
+      parameters:
+      - description: スタッフメンバー情報
+        in: body
+        name: member
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateStaffMemberRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.StaffMember'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: スタッフメンバー作成
+      tags:
+      - staff-members
+  /staff-members/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定されたスタッフメンバーを削除します
+      parameters:
+      - description: スタッフメンバーID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: スタッフメンバー削除
+      tags:
+      - staff-members
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDのスタッフメンバー情報を取得します
+      parameters:
+      - description: スタッフメンバーID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.StaffMember'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: スタッフメンバー詳細取得
+      tags:
+      - staff-members
+    put:
+      consumes:
+      - application/json
+      description: 既存のスタッフメンバーを更新します
+      parameters:
+      - description: スタッフメンバーID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: スタッフメンバー情報
+        in: body
+        name: member
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateStaffMemberRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.StaffMember'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: スタッフメンバー更新
+      tags:
+      - staff-members
+  /trimming-courses:
+    get:
+      consumes:
+      - application/json
+      description: 登録されているトリミングコースの一覧を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.TrimmingCourse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: トリミングコース一覧取得
+      tags:
+      - trimming-courses
+    post:
+      consumes:
+      - application/json
+      description: 新しいトリミングコースを作成します
+      parameters:
+      - description: トリミングコース情報
+        in: body
+        name: course
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateTrimmingCourseRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.TrimmingCourse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: トリミングコース作成
+      tags:
+      - trimming-courses
+  /trimming-courses/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定されたトリミングコースを削除します
+      parameters:
+      - description: トリミングコースID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: トリミングコース削除
+      tags:
+      - trimming-courses
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDのトリミングコース情報を取得します
+      parameters:
+      - description: トリミングコースID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.TrimmingCourse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: トリミングコース詳細取得
+      tags:
+      - trimming-courses
+    put:
+      consumes:
+      - application/json
+      description: 既存のトリミングコースを更新します
+      parameters:
+      - description: トリミングコースID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: トリミングコース情報
+        in: body
+        name: course
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateTrimmingCourseRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.TrimmingCourse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: トリミングコース更新
+      tags:
+      - trimming-courses
+  /trimming-options:
+    get:
+      consumes:
+      - application/json
+      description: 登録されているトリミングオプションの一覧を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.TrimmingOption'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: トリミングオプション一覧取得
+      tags:
+      - trimming-options
+    post:
+      consumes:
+      - application/json
+      description: 新しいトリミングオプションを作成します
+      parameters:
+      - description: トリミングオプション情報
+        in: body
+        name: option
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateTrimmingOptionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.TrimmingOption'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: トリミングオプション作成
+      tags:
+      - trimming-options
+  /trimming-options/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定されたトリミングオプションを削除します
+      parameters:
+      - description: トリミングオプションID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: トリミングオプション削除
+      tags:
+      - trimming-options
+    get:
+      consumes:
+      - application/json
+      description: 指定されたIDのトリミングオプション情報を取得します
+      parameters:
+      - description: トリミングオプションID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.TrimmingOption'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: トリミングオプション詳細取得
+      tags:
+      - trimming-options
+    put:
+      consumes:
+      - application/json
+      description: 既存のトリミングオプションを更新します
+      parameters:
+      - description: トリミングオプションID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: トリミングオプション情報
+        in: body
+        name: option
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateTrimmingOptionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.TrimmingOption'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: トリミングオプション更新
+      tags:
+      - trimming-options
   /trimmings:
     get:
       consumes:

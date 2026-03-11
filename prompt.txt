@@ -1,0 +1,100 @@
+
+「飼主・ペット」ページを下記のFigmaデザインと同じUIを実装してください。
+
+/ui-sample/src/　はFigmaデザインのコードがあります。
+/ui-sample/src/　配下のコードは完全に機能するコードとはいえないので、UIのみを参考にしてください。
+
+エージェントチームを使ってもいいです。
+
+# Figmaデザイン
+・飼主一覧
+@https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=702-33820&m=dev
+
+・飼主登録
+@https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=703-2238&m=dev
+
+・飼主編集
+@https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=703-2943&m=dev
+
+・飼主登録_ペット登録
+@https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=703-2527&m=dev
+
+・飼主編集_ペット編集
+@https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=703-3297&m=dev
+
+
+
+
+
+
+
+
+/naming-analyzer
+「飼主・ペット」ページの全ファイルの命名を分析し、改善提案をしてください。
+
+【プロジェクト規約（CLAUDE.md準拠）】
+- コンポーネント: PascalCase
+- 関数・変数: camelCase
+- 定数: UPPER_SNAKE_CASE
+- 型・Interface: PascalCase
+- ファイル: kebab-case
+- Boolean変数: is/has/can/should プレフィックス
+- カスタムhooks: use プレフィックス
+
+問題箇所を重大度（Critical/Warning/Info）で分類して報告し、修正してください。
+
+
+
+
+
+
+
+
+
+/naming-analyzer
+「当日の受付」ページの全ファイルの命名を分析し、改善提案をしてください。
+
+【プロジェクト規約（CLAUDE.md準拠）】
+- コンポーネント: PascalCase
+- 関数・変数: camelCase
+- 定数: UPPER_SNAKE_CASE
+- 型・Interface: PascalCase
+- ファイル: kebab-case
+- Boolean変数: is/has/can/should プレフィックス
+- カスタムhooks: use プレフィックス
+
+問題箇所を重大度（Critical/Warning/Info）で分類して報告し、修正してください。
+
+
+
+
+
+/component-naming
+「飼主・ペット」ページの全コンポーネントの命名を確認し、規約違反を修正してください。
+「当日の受付」ページの全コンポーネントの命名を確認し、規約違反を修正してください。
+
+【プロジェクト規約】
+- ドメイン + 役割パターン（例: OwnerCard, PetEditModal, DashboardKanban）
+- PascalCase 必須
+- ファイル名は kebab-case（owner-card.tsx）、コンポーネント名は PascalCase（OwnerCard）
+- 汎用すぎる名前禁止（Card, Item, List 単体はNG）
+
+違反箇所を列挙し、適切な名前を提案して修正してください。
+
+
+
+
+
+
+
+
+「ログイン」ページを下記のFigmaデザインと同じUIを実装してください。
+
+/ui-sample/src/　はFigmaデザインのコードがあります。
+/ui-sample/src/　配下のコードは完全に機能するコードとはいえないので、UIのみを参考にしてください。
+
+エージェントチームを使ってもいいです。
+
+# Figmaデザイン
+・ログイン
+@https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=694-9314&m=dev

@@ -1,4 +1,4 @@
-export type AccountingStatus = "waiting" | "completed" | "canceled" | "pending";
+export type AccountingStatus = "waiting" | "completed" | "cancelled" | "pending";
 export type PaymentMethod = "cash" | "credit_card" | "electronic_money";
 export type ItemCategory =
   | "examination"

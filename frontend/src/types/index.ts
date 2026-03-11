@@ -282,7 +282,156 @@ export interface MasterItem {
   defaultQuantity?: number;
 }
 
-export type MasterCategory = "examination" | "vaccine" | "medicine" | "staff" | "insurance" | "cage" | "serviceType" | "trimming_course" | "trimming_option";
+// MasterCategory: master_items テーブルに残るカテゴリのみ
+// 分離されたカテゴリ (staff, cage, medicine, insurance, trimming_course, trimming_option, examination)
+// は専用テーブル・専用APIに移行済み
+export type MasterCategory = "vaccine" | "serviceType" | "consultation" | "procedure" | "hospitalization" | "diagnosis_category" | "diagnosis_name" | "checkup";
+
+// Staff Member Types
+export interface StaffMember {
+  id: string;
+  code: string;
+  name: string;
+  nameKana?: string;
+  role: StaffRole;
+  licenseNumber?: string;
+  email?: string;
+  phone?: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type StaffRole = 'veterinarian' | 'nurse' | 'trimmer' | 'reception' | 'manager';
+
+export const STAFF_ROLE_LABELS: Record<StaffRole, string> = {
+  veterinarian: '獣医師',
+  nurse: '看護師',
+  trimmer: 'トリマー',
+  reception: '受付',
+  manager: '管理職',
+};
+
+// Cage Types
+export interface Cage {
+  id: string;
+  code: string;
+  name: string;
+  cageType: CageType;
+  cageSize: CageSize;
+  bodySize?: BodySize;
+  billingUnit: BillingUnit;
+  price: number;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CageType = 'icu' | 'dog' | 'cat' | 'general';
+export type CageSize = 'small' | 'medium' | 'large';
+export type BodySize = 'small' | 'medium' | 'large';
+export type BillingUnit = 'per_day' | 'per_night';
+
+// Medicine Types
+export interface Medicine {
+  id: string;
+  code: string;
+  name: string;
+  dosageForm: DosageForm;
+  medicineUnit: MedicineUnit;
+  price: number;
+  defaultQuantity?: number;
+  inventoryId?: string;
+  description: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type DosageForm = 'tablet' | 'liquid' | 'injection' | 'topical' | 'powder';
+export type MedicineUnit = 'per_tablet' | 'per_ml' | 'per_dose' | 'per_gram';
+
+// InsuranceCompany Types
+export interface InsuranceCompany {
+  id: string;
+  code: string;
+  name: string;
+  coverageRate: CoverageRate;
+  contactPhone: string;
+  description: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CoverageRate = '50' | '70' | '80' | '100';
+
+// TrimmingCourse Types
+export interface TrimmingCourse {
+  id: string;
+  code: string;
+  name: string;
+  targetSize: TargetSize;
+  duration?: string;
+  price: number;
+  parentId?: string;
+  description: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// TrimmingOption Types
+export interface TrimmingOption {
+  id: string;
+  code: string;
+  name: string;
+  targetSize?: TargetSize;
+  combinable: Combinable;
+  price: number;
+  parentId?: string;
+  description: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type TargetSize = 'small' | 'medium' | 'large' | 'cat';
+export type Combinable = 'yes' | 'no';
+
+// ExaminationTypeInspection Types
+export interface ExaminationTypeInspection {
+  id: string;
+  examinationTypeId: string;
+  name: string;
+  inspectionValue: string;
+  normalValue: string;
+  sortOrder: number;
+  createdAt: string;
+}
+
+// ExaminationType Types
+export interface ExaminationType {
+  id: string;
+  code: string;
+  name: string;
+  color?: string;
+  price: number;
+  parentId?: string;
+  description: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  inspections?: ExaminationTypeInspection[];
+  children?: ExaminationType[];
+}
 
 // Inventory Types
 export interface InventoryItem {

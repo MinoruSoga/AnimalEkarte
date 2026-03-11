@@ -15,63 +15,63 @@ interface BackendOwnerRelation {
 
 interface BackendCarePlanItem {
   id: string;
-  hospitalizationId: string;
-  masterId?: string;
+  hospitalization_id: string;
+  master_id?: string;
   type: string;
   name: string;
   description: string;
   timing: string;
   status: string;
-  unitPrice?: number;
+  unit_price?: number;
   category?: string;
   notes?: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface BackendVital {
   id: string;
-  dailyRecordId: string;
-  staffId?: string;
-  recordedTime: string;
+  daily_record_id: string;
+  staff_id?: string;
+  recorded_time: string;
   temperature?: number;
-  heartRate?: number;
-  respirationRate?: number;
+  heart_rate?: number;
+  respiration_rate?: number;
   weight?: number;
   notes?: string;
-  createdAt: string;
+  created_at: string;
 }
 
 interface BackendCareLog {
   id: string;
-  dailyRecordId: string;
-  staffId?: string;
-  recordedTime: string;
+  daily_record_id: string;
+  staff_id?: string;
+  recorded_time: string;
   type: string;
   status: string;
   value?: string;
   notes?: string;
-  createdAt: string;
+  created_at: string;
 }
 
 interface BackendStaffNote {
   id: string;
-  dailyRecordId: string;
-  staffId?: string;
-  recordedTime: string;
+  daily_record_id: string;
+  staff_id?: string;
+  recorded_time: string;
   content: string;
-  createdAt: string;
+  created_at: string;
 }
 
 interface BackendDailyRecord {
   id: string;
-  hospitalizationId: string;
-  recordDate: string;
-  createdAt: string;
-  updatedAt: string;
+  hospitalization_id: string;
+  record_date: string;
+  created_at: string;
+  updated_at: string;
   vitals?: BackendVital[];
-  careLogs?: BackendCareLog[];
-  staffNotes?: BackendStaffNote[];
+  care_logs?: BackendCareLog[];
+  staff_notes?: BackendStaffNote[];
 }
 
 export interface BackendHospitalization {

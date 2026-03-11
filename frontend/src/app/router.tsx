@@ -1,7 +1,13 @@
+import { lazy, Suspense } from "react";
 import { createBrowserRouter } from "react-router";
 
 import { Layout } from "@/components/shared/Layout";
 import { RootErrorBoundary } from "@/components/errors/RouteErrorBoundary";
+
+/* bundle-dynamic-imports: ログインページは未認証ユーザー専用。認証済みユーザーのバンドルに含めない */
+const Login = lazy(() =>
+  import("@/features/auth/routes/Login").then((m) => ({ default: m.Login })),
+);
 
 import { dashboardRoutes } from "./routes/dashboard";
 import { ownersRoutes } from "./routes/owners";
@@ -17,6 +23,14 @@ import { settingsRoutes } from "./routes/settings";
 import { notFoundRoute } from "./routes/not-found";
 
 export const router = createBrowserRouter([
+  {
+    path: "/login",
+    element: (
+      <Suspense fallback={null}>
+        <Login />
+      </Suspense>
+    ),
+  },
   {
     element: <Layout />,
     errorElement: <RootErrorBoundary />,

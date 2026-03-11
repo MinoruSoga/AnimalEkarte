@@ -369,6 +369,234 @@ const docTemplate = `{
                 }
             }
         },
+        "/cages": {
+            "get": {
+                "description": "登録されているケージの一覧を取得します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cages"
+                ],
+                "summary": "ケージ一覧取得",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Cage"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "新しいケージを作成します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cages"
+                ],
+                "summary": "ケージ作成",
+                "parameters": [
+                    {
+                        "description": "ケージ情報",
+                        "name": "cage",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateCageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.Cage"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/cages/{id}": {
+            "get": {
+                "description": "指定されたIDのケージ情報を取得します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cages"
+                ],
+                "summary": "ケージ詳細取得",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ケージID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Cage"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "既存のケージを更新します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cages"
+                ],
+                "summary": "ケージ更新",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ケージID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "ケージ情報",
+                        "name": "cage",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateCageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Cage"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "指定されたケージを削除します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cages"
+                ],
+                "summary": "ケージ削除",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ケージID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/clinics": {
             "get": {
                 "security": [
@@ -633,6 +861,284 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/examination-types": {
+            "get": {
+                "description": "登録されている検査種別の一覧を取得します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "examination-types"
+                ],
+                "summary": "検査種別一覧取得",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.ExaminationType"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "新しい検査種別を作成します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "examination-types"
+                ],
+                "summary": "検査種別作成",
+                "parameters": [
+                    {
+                        "description": "検査種別情報",
+                        "name": "examType",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateExaminationTypeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.ExaminationType"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/examination-types/{id}": {
+            "get": {
+                "description": "指定されたIDの検査種別情報を取得します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "examination-types"
+                ],
+                "summary": "検査種別詳細取得",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "検査種別ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.ExaminationType"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "既存の検査種別を更新します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "examination-types"
+                ],
+                "summary": "検査種別更新",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "検査種別ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "検査種別情報",
+                        "name": "examType",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateExaminationTypeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.ExaminationType"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "指定された検査種別を削除します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "examination-types"
+                ],
+                "summary": "検査種別削除",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "検査種別ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/examination-types/{id}/with-inspections": {
+            "get": {
+                "description": "指定されたIDの検査種別情報と検査項目定義を取得します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "examination-types"
+                ],
+                "summary": "検査種別詳細取得（検査項目定義含む）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "検査種別ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.ExaminationType"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     }
                 }
@@ -1306,6 +1812,234 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/insurance-companies": {
+            "get": {
+                "description": "登録されている保険会社の一覧を取得します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "insurance-companies"
+                ],
+                "summary": "保険会社一覧取得",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.InsuranceCompany"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "新しい保険会社を作成します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "insurance-companies"
+                ],
+                "summary": "保険会社作成",
+                "parameters": [
+                    {
+                        "description": "保険会社情報",
+                        "name": "company",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateInsuranceCompanyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.InsuranceCompany"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/insurance-companies/{id}": {
+            "get": {
+                "description": "指定されたIDの保険会社情報を取得します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "insurance-companies"
+                ],
+                "summary": "保険会社詳細取得",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "保険会社ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.InsuranceCompany"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "既存の保険会社を更新します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "insurance-companies"
+                ],
+                "summary": "保険会社更新",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "保険会社ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "保険会社情報",
+                        "name": "company",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateInsuranceCompanyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.InsuranceCompany"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "指定された保険会社を削除します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "insurance-companies"
+                ],
+                "summary": "保険会社削除",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "保険会社ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     }
                 }
@@ -2428,6 +3162,234 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/medicines": {
+            "get": {
+                "description": "登録されている薬剤の一覧を取得します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "medicines"
+                ],
+                "summary": "薬剤一覧取得",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Medicine"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "新しい薬剤を作成します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "medicines"
+                ],
+                "summary": "薬剤作成",
+                "parameters": [
+                    {
+                        "description": "薬剤情報",
+                        "name": "medicine",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateMedicineRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.Medicine"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/medicines/{id}": {
+            "get": {
+                "description": "指定されたIDの薬剤情報を取得します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "medicines"
+                ],
+                "summary": "薬剤詳細取得",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "薬剤ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Medicine"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "既存の薬剤を更新します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "medicines"
+                ],
+                "summary": "薬剤更新",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "薬剤ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "薬剤情報",
+                        "name": "medicine",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateMedicineRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Medicine"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "指定された薬剤を削除します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "medicines"
+                ],
+                "summary": "薬剤削除",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "薬剤ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     }
                 }
@@ -4028,6 +4990,690 @@ const docTemplate = `{
                 }
             }
         },
+        "/staff-members": {
+            "get": {
+                "description": "登録されているスタッフメンバーの一覧を取得します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "staff-members"
+                ],
+                "summary": "スタッフメンバー一覧取得",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.StaffMember"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "新しいスタッフメンバーを作成します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "staff-members"
+                ],
+                "summary": "スタッフメンバー作成",
+                "parameters": [
+                    {
+                        "description": "スタッフメンバー情報",
+                        "name": "member",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateStaffMemberRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.StaffMember"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/staff-members/{id}": {
+            "get": {
+                "description": "指定されたIDのスタッフメンバー情報を取得します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "staff-members"
+                ],
+                "summary": "スタッフメンバー詳細取得",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "スタッフメンバーID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.StaffMember"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "既存のスタッフメンバーを更新します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "staff-members"
+                ],
+                "summary": "スタッフメンバー更新",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "スタッフメンバーID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "スタッフメンバー情報",
+                        "name": "member",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateStaffMemberRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.StaffMember"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "指定されたスタッフメンバーを削除します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "staff-members"
+                ],
+                "summary": "スタッフメンバー削除",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "スタッフメンバーID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/trimming-courses": {
+            "get": {
+                "description": "登録されているトリミングコースの一覧を取得します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trimming-courses"
+                ],
+                "summary": "トリミングコース一覧取得",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.TrimmingCourse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "新しいトリミングコースを作成します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trimming-courses"
+                ],
+                "summary": "トリミングコース作成",
+                "parameters": [
+                    {
+                        "description": "トリミングコース情報",
+                        "name": "course",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateTrimmingCourseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.TrimmingCourse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/trimming-courses/{id}": {
+            "get": {
+                "description": "指定されたIDのトリミングコース情報を取得します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trimming-courses"
+                ],
+                "summary": "トリミングコース詳細取得",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "トリミングコースID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.TrimmingCourse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "既存のトリミングコースを更新します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trimming-courses"
+                ],
+                "summary": "トリミングコース更新",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "トリミングコースID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "トリミングコース情報",
+                        "name": "course",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateTrimmingCourseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.TrimmingCourse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "指定されたトリミングコースを削除します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trimming-courses"
+                ],
+                "summary": "トリミングコース削除",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "トリミングコースID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/trimming-options": {
+            "get": {
+                "description": "登録されているトリミングオプションの一覧を取得します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trimming-options"
+                ],
+                "summary": "トリミングオプション一覧取得",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.TrimmingOption"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "新しいトリミングオプションを作成します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trimming-options"
+                ],
+                "summary": "トリミングオプション作成",
+                "parameters": [
+                    {
+                        "description": "トリミングオプション情報",
+                        "name": "option",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateTrimmingOptionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.TrimmingOption"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/trimming-options/{id}": {
+            "get": {
+                "description": "指定されたIDのトリミングオプション情報を取得します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trimming-options"
+                ],
+                "summary": "トリミングオプション詳細取得",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "トリミングオプションID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.TrimmingOption"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "既存のトリミングオプションを更新します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trimming-options"
+                ],
+                "summary": "トリミングオプション更新",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "トリミングオプションID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "トリミングオプション情報",
+                        "name": "option",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateTrimmingOptionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.TrimmingOption"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "指定されたトリミングオプションを削除します",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trimming-options"
+                ],
+                "summary": "トリミングオプション削除",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "トリミングオプションID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/trimmings": {
             "get": {
                 "security": [
@@ -4727,6 +6373,47 @@ const docTemplate = `{
                 }
             }
         },
+        "model.Cage": {
+            "type": "object",
+            "properties": {
+                "billing_unit": {
+                    "type": "string"
+                },
+                "body_size": {
+                    "type": "string"
+                },
+                "cage_size": {
+                    "type": "string"
+                },
+                "cage_type": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "model.CareLogRecord": {
             "type": "object",
             "properties": {
@@ -4833,13 +6520,7 @@ const docTemplate = `{
                 "next_date": {
                     "type": "string"
                 },
-                "owner_name": {
-                    "type": "string"
-                },
                 "pet_id": {
-                    "type": "string"
-                },
-                "pet_name": {
                     "type": "string"
                 },
                 "result": {
@@ -4942,6 +6623,44 @@ const docTemplate = `{
                 }
             }
         },
+        "model.CreateCageRequest": {
+            "type": "object",
+            "required": [
+                "cage_size",
+                "cage_type",
+                "code",
+                "name"
+            ],
+            "properties": {
+                "billing_unit": {
+                    "type": "string"
+                },
+                "body_size": {
+                    "type": "string"
+                },
+                "cage_size": {
+                    "type": "string"
+                },
+                "cage_type": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.CreateClinicInfoRequest": {
             "type": "object",
             "required": [
@@ -4989,9 +6708,7 @@ const docTemplate = `{
                 "date",
                 "doctor",
                 "medical_record_id",
-                "owner_name",
                 "pet_id",
-                "pet_name",
                 "test_type"
             ],
             "properties": {
@@ -5007,13 +6724,7 @@ const docTemplate = `{
                 "medical_record_id": {
                     "type": "string"
                 },
-                "owner_name": {
-                    "type": "string"
-                },
                 "pet_id": {
-                    "type": "string"
-                },
-                "pet_name": {
                     "type": "string"
                 },
                 "result_summary": {
@@ -5024,6 +6735,39 @@ const docTemplate = `{
                 },
                 "test_type": {
                     "type": "string"
+                }
+            }
+        },
+        "model.CreateExaminationTypeRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "name"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "color": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
                 }
             }
         },
@@ -5082,6 +6826,37 @@ const docTemplate = `{
                 }
             }
         },
+        "model.CreateInsuranceCompanyRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "coverage_rate",
+                "name"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "contact_phone": {
+                    "type": "string"
+                },
+                "coverage_rate": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.CreateInventoryItemRequest": {
             "type": "object",
             "required": [
@@ -5133,62 +6908,16 @@ const docTemplate = `{
                 "anesthesia": {
                     "type": "string"
                 },
-                "billing_unit": {
-                    "type": "string"
-                },
-                "body_size": {
-                    "type": "string"
-                },
-                "cage_size": {
-                    "type": "string"
-                },
-                "cage_type": {
-                    "type": "string"
-                },
                 "category": {
                     "type": "string"
                 },
                 "code": {
                     "type": "string"
                 },
-                "color": {
-                    "description": "拡張フィールド",
-                    "type": "string"
-                },
-                "combinable": {
-                    "type": "string"
-                },
-                "contact_phone": {
-                    "type": "string"
-                },
-                "coverage_rate": {
-                    "type": "string"
-                },
-                "default_quantity": {
-                    "type": "integer"
-                },
                 "description": {
                     "type": "string"
                 },
-                "dosage_form": {
-                    "type": "string"
-                },
-                "duration": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
                 "interval": {
-                    "type": "string"
-                },
-                "inventory_id": {
-                    "type": "string"
-                },
-                "license_number": {
-                    "type": "string"
-                },
-                "medicine_unit": {
                     "type": "string"
                 },
                 "name": {
@@ -5204,9 +6933,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "species": {
-                    "type": "string"
-                },
-                "staff_role": {
+                    "description": "拡張フィールド",
                     "type": "string"
                 },
                 "status": {
@@ -5215,13 +6942,7 @@ const docTemplate = `{
                 "target_age": {
                     "type": "string"
                 },
-                "target_size": {
-                    "type": "string"
-                },
                 "time_condition": {
-                    "type": "string"
-                },
-                "user_type": {
                     "type": "string"
                 }
             }
@@ -5289,6 +7010,47 @@ const docTemplate = `{
                 }
             }
         },
+        "model.CreateMedicineRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "dosage_form",
+                "medicine_unit",
+                "name"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "default_quantity": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "dosage_form": {
+                    "type": "string"
+                },
+                "inventory_id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "medicine_unit": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.CreateOwnerRequest": {
             "type": "object",
             "required": [
@@ -5350,7 +7112,6 @@ const docTemplate = `{
             "required": [
                 "name",
                 "owner_id",
-                "owner_name",
                 "species"
             ],
             "properties": {
@@ -5391,9 +7152,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "owner_id": {
-                    "type": "string"
-                },
-                "owner_name": {
                     "type": "string"
                 },
                 "pet_name_kana": {
@@ -5466,15 +7224,121 @@ const docTemplate = `{
                 }
             }
         },
+        "model.CreateStaffMemberRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "name",
+                "role"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "license_number": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "name_kana": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.CreateTrimmingCourseRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "name",
+                "target_size"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "target_size": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.CreateTrimmingOptionRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "name"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "combinable": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "target_size": {
+                    "type": "string"
+                }
+            }
+        },
         "model.CreateTrimmingRequest": {
             "type": "object",
             "required": [
                 "date",
-                "owner_name",
                 "pet_id",
-                "pet_name",
-                "pet_number",
-                "species",
                 "staff"
             ],
             "properties": {
@@ -5508,22 +7372,10 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
-                "owner_name": {
-                    "type": "string"
-                },
                 "pet_id": {
                     "type": "string"
                 },
-                "pet_name": {
-                    "type": "string"
-                },
-                "pet_number": {
-                    "type": "string"
-                },
                 "remarks": {
-                    "type": "string"
-                },
-                "species": {
                     "type": "string"
                 },
                 "staff": {
@@ -5554,9 +7406,7 @@ const docTemplate = `{
             "required": [
                 "date",
                 "medical_record_id",
-                "owner_name",
                 "pet_id",
-                "pet_name",
                 "vaccine_name"
             ],
             "properties": {
@@ -5587,13 +7437,7 @@ const docTemplate = `{
                 "next_schedule_type": {
                     "type": "string"
                 },
-                "owner_name": {
-                    "type": "string"
-                },
                 "pet_id": {
-                    "type": "string"
-                },
-                "pet_name": {
                     "type": "string"
                 },
                 "remarks": {
@@ -5674,13 +7518,7 @@ const docTemplate = `{
                 "medical_record_id": {
                     "type": "string"
                 },
-                "owner_name": {
-                    "type": "string"
-                },
                 "pet_id": {
-                    "type": "string"
-                },
-                "pet_name": {
                     "type": "string"
                 },
                 "result_summary": {
@@ -5735,10 +7573,88 @@ const docTemplate = `{
                 }
             }
         },
+        "model.ExaminationType": {
+            "type": "object",
+            "properties": {
+                "children": {
+                    "description": "Relations",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.ExaminationType"
+                    }
+                },
+                "code": {
+                    "type": "string"
+                },
+                "color": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "inspections": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.ExaminationTypeInspection"
+                    }
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ExaminationTypeInspection": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "examination_type_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "inspection_value": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "normal_value": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.Hospitalization": {
             "type": "object",
             "properties": {
                 "cage_id": {
+                    "description": "cages テーブルを参照",
                     "type": "string"
                 },
                 "care_plan_items": {
@@ -5810,6 +7726,41 @@ const docTemplate = `{
                 }
             }
         },
+        "model.InsuranceCompany": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "contact_phone": {
+                    "type": "string"
+                },
+                "coverage_rate": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "model.InventoryItem": {
             "type": "object",
             "properties": {
@@ -5860,18 +7811,6 @@ const docTemplate = `{
                 "anesthesia": {
                     "type": "string"
                 },
-                "billing_unit": {
-                    "type": "string"
-                },
-                "body_size": {
-                    "type": "string"
-                },
-                "cage_size": {
-                    "type": "string"
-                },
-                "cage_type": {
-                    "type": "string"
-                },
                 "category": {
                     "type": "string"
                 },
@@ -5882,71 +7821,19 @@ const docTemplate = `{
                         "$ref": "#/definitions/model.MasterItem"
                     }
                 },
-                "clinics": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
                 "code": {
-                    "type": "string"
-                },
-                "color": {
-                    "description": "カテゴリ固有フィールド",
-                    "type": "string"
-                },
-                "combinable": {
-                    "type": "string"
-                },
-                "contact_phone": {
-                    "type": "string"
-                },
-                "coverage_rate": {
                     "type": "string"
                 },
                 "created_at": {
                     "type": "string"
                 },
-                "default_quantity": {
-                    "type": "integer"
-                },
                 "description": {
-                    "type": "string"
-                },
-                "dosage_form": {
-                    "type": "string"
-                },
-                "duration": {
-                    "type": "string"
-                },
-                "email": {
                     "type": "string"
                 },
                 "id": {
                     "type": "string"
                 },
-                "inspections": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.MasterItemInspection"
-                    }
-                },
                 "interval": {
-                    "type": "string"
-                },
-                "inventory": {
-                    "$ref": "#/definitions/model.InventoryItem"
-                },
-                "inventory_id": {
-                    "type": "string"
-                },
-                "last_login_at": {
-                    "type": "string"
-                },
-                "license_number": {
-                    "type": "string"
-                },
-                "medicine_unit": {
                     "type": "string"
                 },
                 "name": {
@@ -5962,9 +7849,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "species": {
-                    "type": "string"
-                },
-                "staff_role": {
+                    "description": "カテゴリ固有フィールド",
                     "type": "string"
                 },
                 "status": {
@@ -5973,43 +7858,11 @@ const docTemplate = `{
                 "target_age": {
                     "type": "string"
                 },
-                "target_size": {
-                    "type": "string"
-                },
                 "time_condition": {
                     "type": "string"
                 },
                 "updated_at": {
                     "type": "string"
-                },
-                "user_type": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.MasterItemInspection": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "inspection_value": {
-                    "type": "string"
-                },
-                "master_item_id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "normal_value": {
-                    "type": "string"
-                },
-                "sort_order": {
-                    "type": "integer"
                 }
             }
         },
@@ -6106,6 +7959,50 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/model.VitalEntry"
                     }
+                }
+            }
+        },
+        "model.Medicine": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "default_quantity": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "dosage_form": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "inventory_id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "medicine_unit": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -6282,9 +8179,6 @@ const docTemplate = `{
                 "owner_id": {
                     "type": "string"
                 },
-                "owner_name": {
-                    "type": "string"
-                },
                 "pet_name_kana": {
                     "type": "string"
                 },
@@ -6354,6 +8248,47 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "visit_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.StaffMember": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "license_number": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "name_kana": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -6475,6 +8410,102 @@ const docTemplate = `{
                 }
             }
         },
+        "model.TrimmingCourse": {
+            "type": "object",
+            "properties": {
+                "children": {
+                    "description": "Relations",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.TrimmingCourse"
+                    }
+                },
+                "code": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "target_size": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.TrimmingOption": {
+            "type": "object",
+            "properties": {
+                "children": {
+                    "description": "Relations",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.TrimmingOption"
+                    }
+                },
+                "code": {
+                    "type": "string"
+                },
+                "combinable": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "target_size": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "model.TrimmingRecord": {
             "type": "object",
             "properties": {
@@ -6494,6 +8525,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "course_id": {
+                    "description": "trimming_courses テーブルを参照",
                     "type": "string"
                 },
                 "created_at": {
@@ -6518,22 +8550,10 @@ const docTemplate = `{
                         "$ref": "#/definitions/model.TrimmingRecordOption"
                     }
                 },
-                "owner_name": {
-                    "type": "string"
-                },
                 "pet_id": {
                     "type": "string"
                 },
-                "pet_name": {
-                    "type": "string"
-                },
-                "pet_number": {
-                    "type": "string"
-                },
                 "remarks": {
-                    "type": "string"
-                },
-                "species": {
                     "type": "string"
                 },
                 "staff": {
@@ -6617,6 +8637,38 @@ const docTemplate = `{
                 }
             }
         },
+        "model.UpdateCageRequest": {
+            "type": "object",
+            "properties": {
+                "billing_unit": {
+                    "type": "string"
+                },
+                "body_size": {
+                    "type": "string"
+                },
+                "cage_size": {
+                    "type": "string"
+                },
+                "cage_type": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.UpdateClinicInfoRequest": {
             "type": "object",
             "properties": {
@@ -6678,6 +8730,35 @@ const docTemplate = `{
                 }
             }
         },
+        "model.UpdateExaminationTypeRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "color": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.UpdateHospitalizationRequest": {
             "type": "object",
             "properties": {
@@ -6725,6 +8806,32 @@ const docTemplate = `{
                 }
             }
         },
+        "model.UpdateInsuranceCompanyRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "contact_phone": {
+                    "type": "string"
+                },
+                "coverage_rate": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.UpdateInventoryItemRequest": {
             "type": "object",
             "properties": {
@@ -6766,62 +8873,16 @@ const docTemplate = `{
                 "anesthesia": {
                     "type": "string"
                 },
-                "billing_unit": {
-                    "type": "string"
-                },
-                "body_size": {
-                    "type": "string"
-                },
-                "cage_size": {
-                    "type": "string"
-                },
-                "cage_type": {
-                    "type": "string"
-                },
                 "category": {
                     "type": "string"
                 },
                 "code": {
                     "type": "string"
                 },
-                "color": {
-                    "description": "拡張フィールド",
-                    "type": "string"
-                },
-                "combinable": {
-                    "type": "string"
-                },
-                "contact_phone": {
-                    "type": "string"
-                },
-                "coverage_rate": {
-                    "type": "string"
-                },
-                "default_quantity": {
-                    "type": "integer"
-                },
                 "description": {
                     "type": "string"
                 },
-                "dosage_form": {
-                    "type": "string"
-                },
-                "duration": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
                 "interval": {
-                    "type": "string"
-                },
-                "inventory_id": {
-                    "type": "string"
-                },
-                "license_number": {
-                    "type": "string"
-                },
-                "medicine_unit": {
                     "type": "string"
                 },
                 "name": {
@@ -6837,9 +8898,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "species": {
-                    "type": "string"
-                },
-                "staff_role": {
+                    "description": "拡張フィールド",
                     "type": "string"
                 },
                 "status": {
@@ -6848,13 +8907,7 @@ const docTemplate = `{
                 "target_age": {
                     "type": "string"
                 },
-                "target_size": {
-                    "type": "string"
-                },
                 "time_condition": {
-                    "type": "string"
-                },
-                "user_type": {
                     "type": "string"
                 }
             }
@@ -6909,6 +8962,41 @@ const docTemplate = `{
                 },
                 "treatment_policy": {
                     "type": "string"
+                }
+            }
+        },
+        "model.UpdateMedicineRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "default_quantity": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "dosage_form": {
+                    "type": "string"
+                },
+                "inventory_id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "medicine_unit": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
                 }
             }
         },
@@ -7007,9 +9095,6 @@ const docTemplate = `{
                 "owner_id": {
                     "type": "string"
                 },
-                "owner_name": {
-                    "type": "string"
-                },
                 "pet_name_kana": {
                     "type": "string"
                 },
@@ -7071,6 +9156,102 @@ const docTemplate = `{
                 }
             }
         },
+        "model.UpdateStaffMemberRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "license_number": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "name_kana": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.UpdateTrimmingCourseRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "target_size": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UpdateTrimmingOptionRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "combinable": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "target_size": {
+                    "type": "string"
+                }
+            }
+        },
         "model.UpdateTrimmingRequest": {
             "type": "object",
             "properties": {
@@ -7104,22 +9285,10 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
-                "owner_name": {
-                    "type": "string"
-                },
                 "pet_id": {
                     "type": "string"
                 },
-                "pet_name": {
-                    "type": "string"
-                },
-                "pet_number": {
-                    "type": "string"
-                },
                 "remarks": {
-                    "type": "string"
-                },
-                "species": {
                     "type": "string"
                 },
                 "staff": {
@@ -7219,13 +9388,7 @@ const docTemplate = `{
                 "next_schedule_type": {
                     "type": "string"
                 },
-                "owner_name": {
-                    "type": "string"
-                },
                 "pet_id": {
-                    "type": "string"
-                },
-                "pet_name": {
                     "type": "string"
                 },
                 "remarks": {

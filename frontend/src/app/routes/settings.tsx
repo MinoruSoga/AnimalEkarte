@@ -27,7 +27,7 @@ export const settingsRoutes: RouteObject[] = [
   {
     path: "/settings/clinic",
     lazy: async () => {
-      const { ClinicSettings } = await import("@/features/clinic/routes/ClinicSettings");
+      const { ClinicSettings } = await import("@/features/hospital-settings/routes/ClinicSettings");
       return { Component: ClinicSettings };
     },
   },

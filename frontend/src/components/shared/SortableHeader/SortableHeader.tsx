@@ -1,0 +1,31 @@
+import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { C } from "@/lib/design-tokens";
+
+type SortDirection = "ascending" | "descending" | "none";
+
+interface SortableHeaderProps {
+  label: string;
+  direction: SortDirection;
+  onToggle: () => void;
+}
+
+export function SortableHeader({ label, direction, onToggle }: SortableHeaderProps) {
+  const Icon =
+    direction === "ascending"
+      ? ArrowUp
+      : direction === "descending"
+        ? ArrowDown
+        : ArrowUpDown;
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`inline-flex items-center gap-1 cursor-pointer select-none ${C.hoverText60} transition-colors ${C.text}`}
+      aria-label={`${label}でソート`}
+    >
+      {label}
+      <Icon className={`size-3 ${direction === "none" ? C.text30 : C.text}`} />
+    </button>
+  );
+}

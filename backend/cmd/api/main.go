@@ -84,7 +84,22 @@ func main() {
 	trimmingRepo := repository.NewTrimmingRepository(db)
 	clinicRepo := repository.NewClinicRepository(db)
 	inventoryItemRepo := repository.NewInventoryItemRepository(db)
-	svc := service.New(repo, repo, medicalRecordRepo, reservationRepo, masterItemRepo, hospitalizationRepo, accountingRepo, examinationRepo, vaccinationRepo, trimmingRepo, clinicRepo, inventoryItemRepo, repo)
+	// 新専用マスタリポジトリ
+	staffMemberRepo := repository.NewStaffMemberRepository(db)
+	cageRepo := repository.NewCageRepository(db)
+	medicineRepo := repository.NewMedicineRepository(db)
+	insuranceCompanyRepo := repository.NewInsuranceCompanyRepository(db)
+	trimmingCourseRepo := repository.NewTrimmingCourseRepository(db)
+	trimmingOptionRepo := repository.NewTrimmingOptionRepository(db)
+	examinationTypeRepo := repository.NewExaminationTypeRepository(db)
+	svc := service.New(
+		repo, repo, medicalRecordRepo, reservationRepo, masterItemRepo,
+		hospitalizationRepo, accountingRepo, examinationRepo, vaccinationRepo,
+		trimmingRepo, clinicRepo, inventoryItemRepo,
+		staffMemberRepo, cageRepo, medicineRepo, insuranceCompanyRepo,
+		trimmingCourseRepo, trimmingOptionRepo, examinationTypeRepo,
+		repo,
+	)
 	h := handler.New(svc)
 
 	// ルーター設定

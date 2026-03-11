@@ -20,7 +20,7 @@ function toListAccounting(r: AccountingRecord): Accounting {
     ownerName: r.ownerName,
     petId: "",
     petName: r.petName,
-    status: isCompleted ? "completed" : r.status === "キャンセル" ? "canceled" : "waiting",
+    status: isCompleted ? "completed" : r.status === "キャンセル" ? "cancelled" : "waiting",
     scheduledDate: r.date,
     items: [],
     payment: isCompleted

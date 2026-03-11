@@ -40,7 +40,7 @@ function mapStatus(status: BackendAccounting["status"]): Accounting["status"] {
     未収: "waiting",
     保留: "pending",
     回収済: "completed",
-    キャンセル: "canceled",
+    キャンセル: "cancelled",
   };
   return map[status] ?? "waiting";
 }

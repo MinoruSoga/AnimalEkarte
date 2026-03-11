@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { axios } from "@/lib/axios";
 import type { ClinicInfo } from "@/types";
-import type { BackendClinic } from "@/features/clinic/api/types";
+import type { BackendClinic } from "@/features/hospital-settings/api/types";
 
 function transformToClinicInfo(data: BackendClinic): ClinicInfo {
   return {
