@@ -38,13 +38,13 @@
     },
     {
       "id": "DB-002",
-      "name": "マイグレーション基盤 + Goモデル実装",
-      "description": "001_init.sql（45テーブル）+ GORMモデル全25ファイル",
-      "status": "in_progress",
+      "name": "マイグレーション基盤 + Goモデル + 全層実装",
+      "description": "001_init.sql(45テーブル) + 002_seed_master.sql + GORMモデル25ファイル + repository/service/handler全層",
+      "status": "completed",
       "priority": "high",
       "dependencies": ["DB-001"],
-      "commit": null,
-      "completedAt": null
+      "commit": "354a752",
+      "completedAt": "2026-03-12"
     },
     {
       "id": "DOCKER-001",
