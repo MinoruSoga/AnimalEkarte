@@ -15,6 +15,7 @@ import {
   Pencil,
   TestTube,
   BedDouble,
+  ExternalLink,
 } from "lucide-react";
 
 // Internal
@@ -47,7 +48,7 @@ const STATUS_COLOR: Record<string, string> = {
   "受付予約": `bg-[#D3E5EF] text-[#183B56] border-[#2383E2]/30`,
   "受付済":   `bg-[#DDEDEA] text-[#0F7B6C] border-[#DDEDEA]`,
   "診療中":   `bg-[#EEE0F7] text-[#6940A5] border-[#6940A5]/20`,
-  "会計待ち": `bg-[#FDECC8] text-[#C29243] border-[#F2DBA7]`,
+  "会計待ち": `bg-[#FFF3CD]/50 text-[#B58105] border-[#B58105]/20`,
   "会計済":   `bg-[#EAE9E5] text-[#37352F] border-[rgba(55,53,47,0.09)]`,
 };
 
@@ -109,7 +110,7 @@ export const DashboardDetailModal = ({
         {/* カルテ / 施術 */}
         <button
           type="button"
-          className="flex items-center gap-1.5 text-sm text-[#2383E2] bg-[#D3E5EF]/40 hover:bg-[#D3E5EF] border border-[#2383E2]/30 rounded-md px-3 py-1.5 transition-colors"
+          className="flex items-center gap-1.5 text-sm text-[#2383E2] bg-[#D3E5EF]/40 hover:bg-[#D3E5EF] border border-[#2383E2]/30 rounded-md px-3 py-1.5 transition-colors group"
           onClick={() => {
             if (isTrimming) handleCreateTrimming();
             else handleCreateMedicalRecord();
@@ -117,26 +118,29 @@ export const DashboardDetailModal = ({
         >
           {isTrimming ? <Scissors className="size-3.5" /> : <FileText className="size-3.5" />}
           <span>{isTrimming ? "施術" : "カルテ"}</span>
+          <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
         </button>
 
         {/* 会計 */}
         <button
           type="button"
-          className="flex items-center gap-1.5 text-sm text-[#0F7B6C] bg-[#DDEDEA]/40 hover:bg-[#DDEDEA] border border-[#DDEDEA] rounded-md px-3 py-1.5 transition-colors"
+          className="flex items-center gap-1.5 text-sm text-[#0F7B6C] bg-[#DDEDEA]/40 hover:bg-[#DDEDEA] border border-[#DDEDEA] rounded-md px-3 py-1.5 transition-colors group"
           onClick={handleCreateAccounting}
         >
           <CreditCard className="size-3.5" />
           <span>会計</span>
+          <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
         </button>
 
         {/* 入院 */}
         <button
           type="button"
-          className="flex items-center gap-1.5 text-sm text-[#6940A5] bg-[#EEE0F7]/40 hover:bg-[#EEE0F7] border border-[#6940A5]/20 rounded-md px-3 py-1.5 transition-colors"
+          className="flex items-center gap-1.5 text-sm text-[#6940A5] bg-[#EEE0F7]/40 hover:bg-[#EEE0F7] border border-[#6940A5]/20 rounded-md px-3 py-1.5 transition-colors group"
           onClick={handleCreateHospitalization}
         >
           <BedDouble className="size-3.5" />
           <span>入院</span>
+          <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
         </button>
       </div>
     </div>
@@ -223,7 +227,7 @@ export const DashboardDetailModal = ({
             </>
           )}
           {isTrimming && (
-            <Button onClick={handleCreateTrimming} className="h-10 text-sm bg-[#2383E2] hover:bg-[#1B6EC2] text-white rounded-[4px] transition-colors shadow-none border-transparent">
+            <Button onClick={handleCreateTrimming} className="h-10 text-sm bg-[#D9730D] hover:bg-[#D9730D]/90 text-white rounded-[4px] transition-colors shadow-none border-transparent">
               <Scissors className="size-4" />
               施術記録
             </Button>
@@ -251,10 +255,11 @@ export const DashboardDetailModal = ({
       return (
         <>
           {ownerDetailBtn}
-          <Button onClick={() => handleCreateMedicalRecord()} className="h-10 text-sm bg-[#2383E2] hover:bg-[#1B6EC2] text-white rounded-[4px] transition-colors shadow-none border-transparent">
-            <FileText className="size-4" />
-            カルテ確認
-          </Button>
+          {onConfirm && (
+            <Button onClick={onConfirm} className="h-10 text-sm bg-[#2383E2] hover:bg-[#1B6EC2] text-white rounded-[4px] transition-colors shadow-none border-transparent">
+              完了/リストから削除
+            </Button>
+          )}
         </>
       );
     }
@@ -318,7 +323,7 @@ export const DashboardDetailModal = ({
         </DialogHeader>
 
         {/* Body */}
-        <div className="p-5 space-y-4 overflow-y-auto max-h-[60vh]">
+        <div className="p-5 space-y-4 overflow-y-auto">
           {/* Time */}
           <div className="flex items-center gap-3 p-3 bg-[#F7F6F3] rounded-lg">
             <Clock className="size-5 text-[#37352F]/60 shrink-0" />
@@ -378,7 +383,7 @@ export const DashboardDetailModal = ({
         </div>
 
         {/* Footer */}
-        <DialogFooter className="p-4 bg-[#F7F6F3] border-t border-[rgba(55,53,47,0.09)]">
+        <DialogFooter className="p-4 bg-[#F7F6F3]">
           <div className="flex flex-wrap gap-2 justify-end w-full">
             {renderActions()}
           </div>
