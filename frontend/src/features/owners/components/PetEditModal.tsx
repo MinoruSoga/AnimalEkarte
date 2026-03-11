@@ -454,7 +454,7 @@ export function PetEditModal({
           </Button>
           <Button
             onClick={handleSave}
-            className="bg-[#37352F] hover:bg-[#37352F]/90 text-white h-10 text-sm px-4"
+            className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white h-10 text-sm px-4"
           >
             {isEdit ? "更新" : "登録"}
           </Button>

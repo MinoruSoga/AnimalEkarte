@@ -122,13 +122,13 @@ export function MedicalRecordEstimate({ isNewRecord = false }: { isNewRecord?: b
       <div className="flex justify-end gap-2 mt-2">
         <Button
           size="sm"
-          className="bg-[#37352F] hover:bg-[#37352F]/90 text-white min-w-[70px] h-10 text-sm shadow-sm border-transparent"
+          className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white min-w-[70px] h-10 text-sm shadow-sm border-transparent"
         >
           保存
         </Button>
         <Button
           size="sm"
-          className="bg-[#37352F] hover:bg-[#37352F]/90 text-white min-w-[70px] h-10 text-sm shadow-sm border-transparent"
+          className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white min-w-[70px] h-10 text-sm shadow-sm border-transparent"
         >
           PDF出力
         </Button>

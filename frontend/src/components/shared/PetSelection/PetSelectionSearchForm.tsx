@@ -57,7 +57,7 @@ export const PetSelectionSearchForm = ({ searchParams, setSearchParams, onSearch
         <Button
           size="sm"
           onClick={onSearch}
-          className="gap-2 bg-[#37352F] hover:bg-[#37352F]/90 text-white focus-visible:ring-[#2EAADC] h-10 text-sm"
+          className="gap-2 bg-[#2383E2] hover:bg-[#1B6EC2] text-white focus-visible:ring-[#2EAADC] h-10 text-sm"
         >
           <Search className="size-4" />
           検索

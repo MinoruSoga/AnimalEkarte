@@ -97,7 +97,7 @@ export function PatientInfoCard({
             </Button>
             <Button
               size="sm"
-              className={`h-10 bg-[#37352F] hover:bg-[#37352F]/90 text-white text-sm gap-1 px-2 ${onStaffClick ? 'cursor-pointer' : ''}`}
+              className={`h-10 bg-[#2383E2] hover:bg-[#1B6EC2] text-white text-sm gap-1 px-2 ${onStaffClick ? 'cursor-pointer' : ''}`}
               onClick={onStaffClick}
             >
                 {onStaffClick && <ChevronDown className="size-3.5" />}

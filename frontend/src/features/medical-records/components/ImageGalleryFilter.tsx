@@ -42,7 +42,7 @@ export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
       <div className="flex justify-end">
         <Button
           size="sm"
-          className="bg-[#37352F] hover:bg-[#37352F]/90 text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4"
+          className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4"
         >
           <Upload className="size-4" />
           画像アップロード

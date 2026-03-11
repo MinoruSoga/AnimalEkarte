@@ -121,7 +121,7 @@ export const VaccinationForm = () => {
             )}
             <Button 
                 onClick={handleSave}
-                className="bg-[#37352F] hover:bg-[#37352F]/90 text-white shadow-sm px-6 h-10 text-sm"
+                className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white shadow-sm px-6 h-10 text-sm"
             >
                 保存
             </Button>

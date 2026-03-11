@@ -2,12 +2,49 @@ import type { Hospitalization, InventoryItem, MedicalRecord, ReservationStatus, 
 import { RESERVATION_STATUS_LABELS } from "@/types";
 import { C } from "@/lib/design-tokens";
 
+// ── Notion カラーパレット定数（インライン参照用） ──────────────────────────
+const N = {
+  // Blue（アクセント）
+  blueBg:    "bg-[#D3E5EF]",
+  blueText:  "text-[#183B56]",
+  blueBorder:"border-[#B8D4E3]",
+  // Green（ステータス緑）
+  greenBg:    "bg-[#DDEDEA]",
+  greenText:  "text-[#0F7B6C]",
+  greenBorder:"border-[#DDEDEA]",
+  // Purple（ステータス紫）
+  purpleBg:    "bg-[#EEE0F7]",
+  purpleText:  "text-[#6940A5]",
+  purpleBorder:"border-[#6940A5]/20",
+  // Orange（割引/会計）
+  orangeBg:    "bg-[#FAEBDD]",
+  orangeText:  "text-[#D9730D]",
+  orangeBorder:"border-[#D9730D]/20",
+  // Yellow（注意/保留）
+  yellowBg:    "bg-[#FDECC8]",
+  yellowText:  "text-[#C29243]",
+  yellowBorder:"border-[#F2DBA7]",
+  // Red（エラー/危険）
+  redBg:    "bg-[#FFDEDE]",
+  redText:  "text-[#EB5757]",
+  redBorder:"border-[#EB5757]/20",
+  // Gray（ニュートラル）
+  grayBg:    "bg-[#EAE9E5]",
+  grayText:  "text-[#37352F]/60",
+  grayBorder:"border-[rgba(55,53,47,0.09)]",
+} as const;
+
+const badge = (bg: string, text: string, border: string) =>
+  `${bg} ${text} ${border}`;
+
+// ────────────────────────────────────────────────────────────────
+
 export const getMedicalRecordStatusColor = (status: MedicalRecord["status"]) => {
   switch (status) {
     case "作成中":
-      return "bg-blue-500/10 text-blue-700 border-blue-200";
+      return badge(N.blueBg, N.blueText, N.blueBorder);
     case "確定済":
-      return "bg-gray-500/10 text-gray-700 border-gray-200";
+      return badge(N.grayBg, N.grayText, N.grayBorder);
     default:
       return "";
   }
@@ -16,11 +53,13 @@ export const getMedicalRecordStatusColor = (status: MedicalRecord["status"]) => 
 export const getHospitalizationStatusColor = (status: Hospitalization["status"]) => {
   switch (status) {
     case "入院中":
-      return "bg-blue-500/10 text-blue-700 border-blue-200";
+      return badge(N.blueBg, N.blueText, N.blueBorder);
     case "退院済":
-      return "bg-gray-500/10 text-gray-700 border-gray-200";
+      return badge(N.grayBg, N.grayText, N.grayBorder);
     case "予約":
-      return "bg-green-500/10 text-green-700 border-green-200";
+      return badge(N.greenBg, N.greenText, N.greenBorder);
+    case "一時帰宅":
+      return badge(N.yellowBg, N.yellowText, N.yellowBorder);
     default:
       return "";
   }
@@ -28,8 +67,8 @@ export const getHospitalizationStatusColor = (status: Hospitalization["status"])
 
 export const getHospitalizationTypeColor = (type: Hospitalization["hospitalizationType"]) => {
   return type === "入院"
-    ? "bg-red-500/10 text-red-700 border-red-200"
-    : "bg-purple-500/10 text-purple-700 border-purple-200";
+    ? badge(N.purpleBg, N.purpleText, N.purpleBorder)
+    : badge(N.blueBg, N.blueText, N.blueBorder);
 };
 
 interface DashboardColumnColorSet {
@@ -96,100 +135,101 @@ export const getDashboardColumnColor = (title: string): DashboardColumnColorSet 
 };
 
 export const getReservationTypeColor = (type: string) => {
-    switch (type) {
-      case "treatment":
-      case "診療":
-          return "bg-blue-100 text-blue-700 border-blue-200";
-      case "checkup":
-      case "検診":
-      case "検査":
-          return "bg-green-100 text-green-700 border-green-200";
-      case "surgery":
-      case "手術":
-          return "bg-red-100 text-red-700 border-red-200";
-      case "trimming":
-      case "トリミング":
-          return "bg-orange-100 text-orange-700 border-orange-200";
-      case "vaccine":
-      case "ワクチン":
-          return "bg-purple-100 text-purple-700 border-purple-200";
-      case "入院":
-      case "ホテル":
-          return "bg-cyan-100 text-cyan-700 border-cyan-200";
-      default: return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
+  switch (type) {
+    case "treatment":
+    case "診療":
+      return badge(N.blueBg, N.blueText, N.blueBorder);
+    case "checkup":
+    case "検診":
+    case "検査":
+      return badge(N.greenBg, N.greenText, N.greenBorder);
+    case "surgery":
+    case "手術":
+      return badge(N.redBg, N.redText, N.redBorder);
+    case "trimming":
+    case "トリミング":
+      return badge(N.orangeBg, N.orangeText, N.orangeBorder);
+    case "vaccine":
+    case "ワクチン":
+      return badge(N.purpleBg, N.purpleText, N.purpleBorder);
+    case "入院":
+    case "ホテル":
+      return badge(N.greenBg, N.greenText, N.greenBorder);
+    default:
+      return badge(N.grayBg, N.grayText, N.grayBorder);
+  }
+};
 
 export const getReservationTypeName = (type: string) => {
-    switch (type) {
-      case "treatment": return "診療";
-      case "checkup": return "検診";
-      case "surgery": return "手術";
-      case "trimming": return "トリミング";
-      case "vaccine": return "ワクチン";
-      default: return type || "その他";
-    }
-  };
+  switch (type) {
+    case "treatment": return "診療";
+    case "checkup": return "検診";
+    case "surgery": return "手術";
+    case "trimming": return "トリミング";
+    case "vaccine": return "ワクチン";
+    default: return type || "その他";
+  }
+};
 
 export const getExaminationStatusColor = (status: string) => {
-    switch (status) {
-      case "依頼中":
-        return "bg-yellow-500/10 text-yellow-700 border-yellow-200";
-      case "検査中":
-        return "bg-blue-500/10 text-blue-700 border-blue-200";
-      case "完了":
-        return "bg-green-500/10 text-green-700 border-green-200";
-      default:
-        return "";
-    }
-  };
+  switch (status) {
+    case "依頼中":
+      return badge(N.yellowBg, N.yellowText, N.yellowBorder);
+    case "検査中":
+      return badge(N.blueBg, N.blueText, N.blueBorder);
+    case "完了":
+      return badge(N.greenBg, N.greenText, N.greenBorder);
+    default:
+      return "";
+  }
+};
 
 export const getAccountingStatusColor = (status: string) => {
-    switch (status) {
-      case "未収":
-        return "bg-red-500/10 text-red-700 border-red-200";
-      case "回収済":
-        return "bg-green-500/10 text-green-700 border-green-200";
-      case "キャンセル":
-        return "bg-gray-500/10 text-gray-700 border-gray-200";
-      default:
-        return "";
-    }
-  };
+  switch (status) {
+    case "未収":
+      return badge(N.redBg, N.redText, N.redBorder);
+    case "回収済":
+      return badge(N.greenBg, N.greenText, N.greenBorder);
+    case "キャンセル":
+      return badge(N.grayBg, N.grayText, N.grayBorder);
+    default:
+      return "";
+  }
+};
 
 export const getTrimmingStatusColor = (status: string) => {
   switch (status) {
     case "完了":
-      return "bg-[#E8F5E9] text-[#2E7D32] border-[#E8F5E9]"; // Green badge
+      return badge(N.greenBg, N.greenText, N.greenBorder);
     case "予約":
-      return "bg-[#E3F2FD] text-[#1565C0] border-[#E3F2FD]"; // Blue badge
+      return badge(N.blueBg, N.blueText, N.blueBorder);
     case "進行中":
-      return "bg-[#FFF3E0] text-[#E65100] border-[#FFF3E0]"; // Orange badge
+      return badge(N.orangeBg, N.orangeText, N.orangeBorder);
     default:
-      return "bg-gray-100 text-gray-800 border-gray-200";
+      return badge(N.grayBg, N.grayText, N.grayBorder);
   }
 };
 
 export const getPetStatusColor = (status: string) => {
   return status === "生存"
-    ? "bg-[#DDEDEA] text-[#0F7B6C] border-[#DDEDEA] hover:bg-[#DDEDEA]"
-    : "bg-[#EBECED] text-[#9B9A97] border-[#EBECED] hover:bg-[#EBECED]";
+    ? `${N.greenBg} ${N.greenText} ${N.greenBorder} hover:bg-[#DDEDEA]`
+    : `${N.grayBg} text-[#9B9A97] ${N.grayBorder} hover:bg-[#EAE9E5]`;
 };
 
 export const getMasterStatusColor = (status: string) => {
   return status === "active"
-    ? "bg-green-50 text-green-700 border-green-200"
-    : "bg-gray-100 text-gray-500 border-gray-200";
+    ? badge(N.greenBg, N.greenText, N.greenBorder)
+    : badge(N.grayBg, N.grayText, N.grayBorder);
 };
 
 export const getInventoryStatusColor = (status: InventoryItem["status"]) => {
   switch (status) {
     case "sufficient":
-      return "bg-green-500/10 text-green-700 border-green-200";
+      return badge(N.greenBg, N.greenText, N.greenBorder);
     case "low":
-      return "bg-amber-500/10 text-amber-700 border-amber-200";
+      return badge(N.yellowBg, N.yellowText, N.yellowBorder);
     case "out_of_stock":
-      return "bg-red-500/10 text-red-700 border-red-200";
+      return badge(N.redBg, N.redText, N.redBorder);
     default:
       return "";
   }

@@ -94,7 +94,7 @@ export function MedicalRecordBillCheck({ isNewRecord = false }: BillCheckProps) 
       <div className="fixed bottom-6 right-6 z-50">
         <Button
           size="sm"
-          className="bg-[#37352F] hover:bg-[#37352F]/90 text-white min-w-[100px] shadow-lg h-10 text-sm shadow-sm border-transparent"
+          className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white min-w-[100px] shadow-lg h-10 text-sm shadow-sm border-transparent"
         >
           チェック完了
         </Button>

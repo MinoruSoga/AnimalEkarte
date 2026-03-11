@@ -80,7 +80,7 @@ export const PetSelectionResultsTable = ({ pets, onSelect }: PetSelectionResults
                 <TableCell className="whitespace-nowrap py-2" onClick={(e) => e.stopPropagation()}>
                   <Button
                     size="sm"
-                    className="h-10 gap-1 bg-[#37352F] hover:bg-[#37352F]/90 text-white text-sm px-4"
+                    className="h-10 gap-1 bg-[#2383E2] hover:bg-[#1B6EC2] text-white text-sm px-4"
                     onClick={() => onSelect(pet)}
                   >
                     <Check className="size-4" />

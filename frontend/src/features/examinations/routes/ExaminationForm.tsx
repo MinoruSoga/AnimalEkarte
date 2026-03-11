@@ -156,7 +156,7 @@ export const ExaminationForm = () => {
                 </Button>
               )}
               <Button variant="outline" onClick={handleBack} className="h-10 text-sm">キャンセル</Button>
-              <Button className="bg-[#37352F] hover:bg-[#37352F]/90 text-white h-10 text-sm" onClick={handleSave} disabled={isSaving}>{isSaving ? "保存中..." : "保存"}</Button>
+              <Button className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white h-10 text-sm" onClick={handleSave} disabled={isSaving}>{isSaving ? "保存中..." : "保存"}</Button>
             </div>
           </div>
       </div>

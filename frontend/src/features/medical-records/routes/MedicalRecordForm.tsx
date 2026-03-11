@@ -167,7 +167,7 @@ export const MedicalRecordForm = () => {
           <div className="fixed bottom-6 right-6 z-50">
             <Button 
                 onClick={handleSave}
-                className="bg-[#37352F] hover:bg-[#37352F]/90 text-white shadow-lg px-5 h-10 text-sm rounded-md"
+                className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white shadow-lg px-5 h-10 text-sm rounded-md"
             >
               保存
             </Button>
