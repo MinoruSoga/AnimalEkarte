@@ -41,8 +41,8 @@ export const TrimmingForm = () => {
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
 
-  const { data: courses } = useMasterItems("trimming_course");
-  const { data: options } = useMasterItems("trimming_option");
+  const { data: courses } = useMasterItems("trimmingCourse");
+  const { data: options } = useMasterItems("trimmingOption");
   const { data: staffItems } = useMasterItems("staff");
 
   const {
