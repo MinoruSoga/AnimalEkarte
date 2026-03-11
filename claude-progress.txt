@@ -1,0 +1,173 @@
+# Animal Ekarte - Claude 作業進捗
+
+**最終更新**: 2026-03-12
+**現在のブランチ**: main
+**最新コミット**: 4b1a594
+
+---
+
+## ✅ 完了した作業
+
+### ドキュメント v3.0 全面更新（2026-03-12）
+- `docs/SCREENS.md` v3.0: 全42ルート・15セクション（ui-sample/src/SCREENS.md 同期）
+- `docs/DESIGN_SYSTEM.md` v3.0: Notionトークン、D&D、アクセシビリティ仕様
+- `docs/AUTH.md` 新規作成: RBAC・マルチクリニック・権限マトリクス（991行）
+- `docs/DB_DEFINITION.md` 新規作成: 45テーブル完全スキーマ
+- `docs/README.md` v3.0 更新: 42ルート、45テーブル、AUTH.md反映
+- `docs/SPECIFICATION.md` 全面更新
+- `docs/screens/20-master-settings.md` 15カテゴリ対応
+
+### DB設計（2026-03-11〜12）
+- 45テーブル完全スキーマ（master_items STI廃止 → 16専用マスタテーブル）
+- `backend/migrations/001_init.sql` (1062行)
+- `backend/migrations/002_seed_master.sql` マスタシーダー
+
+### バックエンド モデル層（2026-03-11）
+完了ファイル（25ファイル）:
+- owner.go, pet.go, medical_record.go, hospitalization.go, accounting.go
+- reservation.go, trimming.go, trimming_master.go
+- examination_record.go, examination_type.go
+- vaccination_record.go, checkup_record.go, checkup_type.go
+- cage.go, staff.go, medicine.go, vaccine.go
+- insurance.go, inventory.go, clinic.go
+- diagnosis.go, consultation.go, procedure.go
+- hospitalization_plan.go, service_type.go
+
+### バックエンド Repository層（2026-03-12）
+完了ファイル（11ファイル）:
+- owner_repository.go, pet_repository.go
+- medical_record_repository.go, reservation_repository.go
+- trimming_repository.go, hospitalization_repository.go
+- accounting_repository.go, clinic_repository.go
+- inventory_repository.go, master_repository.go
+- repositories.go (Repositoriesコンテナ)
+
+### バックエンド Service層（着手中）
+完了:
+- owner_service.go (OwnerService: CRUD)
+- pet_service.go (PetService: CRUD)
+
+### フロントエンド マスタ設定（2026-03-12）
+- `master/routes/MasterSettingsIndex.tsx`: 設定トップ（15カテゴリグリッド）
+- `master/routes/DiagnosisSettings.tsx`: 診断カテゴリ/名称
+- `master/routes/StaffSettings.tsx`: スタッフ設定
+- `master/routes/TreatmentItemsSettings.tsx`: 診察/処置項目
+- `master/routes/TrimmingSettings.tsx`: トリミングコース/オプション
+- `master/constants/category-config.ts`: 15カテゴリ定数
+- Sidebar.tsx、settings.tsx、routes/index.ts: ルーティング統合
+
+---
+
+## 🚧 現在の作業状態
+
+### バックエンド実装が最優先
+`main.go` が参照する全レイヤーのうち、**Handler層が完全に空**、**Service層が2ファイルのみ**。
+コンパイル不可状態。
+
+### main.go が期待する未実装リポジトリ（repository/に未存在）
+```
+NewMasterItemRepository   → master_repository.go ✅ (作成済だが内容要確認)
+NewExaminationRepository  → ❌ 未実装
+NewVaccinationRepository  → ❌ 未実装
+NewStaffMemberRepository  → ❌ 未実装
+NewCageRepository         → ❌ 未実装
+NewMedicineRepository     → ❌ 未実装
+NewInsuranceCompanyRepository → ❌ 未実装
+NewTrimmingCourseRepository   → ❌ 未実装
+NewTrimmingOptionRepository   → ❌ 未実装
+NewExaminationTypeRepository  → ❌ 未実装
+```
+
+### Service層（service/に未実装）
+```
+medical_record_service.go ❌
+reservation_service.go    ❌
+hospitalization_service.go ❌
+accounting_service.go     ❌
+trimming_service.go       ❌
+examination_service.go    ❌
+vaccination_service.go    ❌
+clinic_service.go         ❌
+inventory_service.go      ❌
+master_service.go         ❌ (Staff/Cage/Medicine/Insurance/Course/Option)
+service.go (コンテナ)     ❌
+```
+
+### Handler層（handler/が空）
+全ハンドラ未実装:
+- owner_handler.go, pet_handler.go, medical_record_handler.go
+- reservation_handler.go, hospitalization_handler.go
+- accounting_handler.go, trimming_handler.go
+- examination_handler.go, vaccination_handler.go
+- clinic_handler.go, inventory_handler.go
+- master_handler.go (staff/cage/medicine/insurance/course/option)
+- handler.go (New() + RegisterRoutes())
+
+---
+
+## 📋 次のステップ（優先順位順）
+
+### 1. 不足Repositoryを実装
+ファイル: `backend/internal/repository/`
+- examination_repository.go (ExaminationRecord CRUD)
+- vaccination_repository.go (VaccinationRecord CRUD)
+- staff_member_repository.go (Staff CRUD, staffs table)
+- cage_repository.go (Cage CRUD)
+- medicine_repository.go (Medicine CRUD)
+- insurance_repository.go (Insurance CRUD, InsuranceCompanyRepository)
+- trimming_course_repository.go (TrimmingCourse CRUD)
+- trimming_option_repository.go (TrimmingOption CRUD)
+- examination_type_repository.go (ExaminationType CRUD)
+
+### 2. Service層を完全実装
+ファイル: `backend/internal/service/`
+- service.go (Service struct + New() + 全インターフェース)
+- 各サービスファイル（上記未実装分）
+
+### 3. Handler層を完全実装
+ファイル: `backend/internal/handler/`
+- handler.go (Handler struct + New() + RegisterRoutes())
+- 各ハンドラファイル
+
+### 4. ビルド確認
+```bash
+docker compose exec backend go build ./...
+docker compose exec backend go test ./...
+```
+
+### 5. Swagger再生成
+```bash
+docker compose exec backend swag init -g cmd/api/main.go
+```
+
+---
+
+## ⚠️ 注意事項
+
+### アーキテクチャ
+- `main.go` は変更しない（全Repositoryコンストラクタが定義済み）
+- Service.New() は20引数: (ownerRepo, petRepo, medicalRecordRepo, reservationRepo, masterItemRepo, hospitalizationRepo, accountingRepo, examinationRepo, vaccinationRepo, trimmingRepo, clinicRepo, inventoryItemRepo, staffMemberRepo, cageRepo, medicineRepo, insuranceCompanyRepo, trimmingCourseRepo, trimmingOptionRepo, examinationTypeRepo, shiftRepo)
+- 最後の `repo` (20番目) = ShiftRepository を composite Repositories struct に追加する必要あり
+
+### DB
+- AutoMigrateは無効（001_init.sql が正規の定義）
+- マスタデータは 002_seed_master.sql でシード
+- gen_random_uuid() を使用（PostgreSQL 18）
+
+### Docker
+- `npm/go コマンドはローカル実行禁止`
+- `docker compose exec backend go build ./...` で確認
+
+### TypeScript Frontend
+- `any` 型禁止
+- `FC` 型禁止（React 19）
+- feature間 import 禁止（bulletproof-react）
+
+---
+
+## 🔗 参照ドキュメント
+- [ERD](docs/ERD.md)
+- [DB定義](docs/DB_DEFINITION.md)
+- [画面仕様](docs/SCREENS.md)
+- [認証設計](docs/AUTH.md)
+- [デザインシステム](docs/DESIGN_SYSTEM.md)
