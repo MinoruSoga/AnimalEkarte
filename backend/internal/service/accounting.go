@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -72,23 +73,51 @@ func (s *Service) GetAccountingByStatus(ctx context.Context, status string) ([]m
 
 // CreateAccounting 会計を作成
 func (s *Service) CreateAccounting(ctx context.Context, req *model.CreateAccountingRequest) (*model.Accounting, error) {
+	ownerID, err := uuid.Parse(req.OwnerID)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("invalid owner ID format")
+	}
+
+	petID, err := uuid.Parse(req.PetID)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("invalid pet ID format")
+	}
+
+	scheduledDate, err := time.Parse("2006-01-02", req.ScheduledDate)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("invalid scheduled_date format, expected YYYY-MM-DD")
+	}
+
 	acc := &model.Accounting{
-		ID:              uuid.New(),
-		PetID:           req.PetID,
-		OwnerID:         req.OwnerID,
-		MedicalRecordID: req.MedicalRecordID,
-		ScheduledDate:   req.ScheduledDate,
-		Status:          "未収",
-		Subtotal:        req.Subtotal,
-		TaxTotal:        req.TaxTotal,
-		TotalAmount:     req.TotalAmount,
-		InsuranceName:   req.InsuranceName,
-		InsuranceRatio:  req.InsuranceRatio,
-		InsuranceAmount: req.InsuranceAmount,
-		DiscountAmount:  req.DiscountAmount,
-		BillingAmount:   req.BillingAmount,
-		PaymentMethod:   req.PaymentMethod,
-		Memo:            req.Memo,
+		ID:            uuid.New(),
+		OwnerID:       ownerID,
+		OwnerName:     req.OwnerName,
+		PetID:         petID,
+		PetName:       req.PetName,
+		PetSpecies:    req.PetSpecies,
+		Status:        req.Status,
+		ScheduledDate: scheduledDate,
+		Memo:          req.Memo,
+	}
+
+	if acc.Status == "" {
+		acc.Status = "waiting"
+	}
+
+	if req.MedicalRecordID != nil {
+		mrUID, err := uuid.Parse(*req.MedicalRecordID)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid medical record ID format")
+		}
+		acc.MedicalRecordID = &mrUID
+	}
+
+	if req.HospitalizationID != nil {
+		hospUID, err := uuid.Parse(*req.HospitalizationID)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid hospitalization ID format")
+		}
+		acc.HospitalizationID = &hospUID
 	}
 
 	if err := s.accountingRepo.CreateAccounting(ctx, acc); err != nil {
@@ -115,47 +144,55 @@ func (s *Service) UpdateAccounting(ctx context.Context, id string, req *model.Up
 	}
 
 	// Update fields
-	if req.Status != "" {
-		acc.Status = req.Status
+	if req.OwnerName != nil {
+		acc.OwnerName = *req.OwnerName
 	}
-	if req.Subtotal != nil {
-		acc.Subtotal = req.Subtotal
+	if req.PetName != nil {
+		acc.PetName = *req.PetName
 	}
-	if req.TaxTotal != nil {
-		acc.TaxTotal = req.TaxTotal
+	if req.PetSpecies != nil {
+		acc.PetSpecies = req.PetSpecies
 	}
-	if req.TotalAmount != nil {
-		acc.TotalAmount = req.TotalAmount
+	if req.Status != nil {
+		acc.Status = *req.Status
 	}
-	if req.InsuranceName != "" {
-		acc.InsuranceName = req.InsuranceName
+	if req.ScheduledDate != nil {
+		t, err := time.Parse("2006-01-02", *req.ScheduledDate)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid scheduled_date format, expected YYYY-MM-DD")
+		}
+		acc.ScheduledDate = t
 	}
-	if req.InsuranceRatio != nil {
-		acc.InsuranceRatio = req.InsuranceRatio
+	if req.Memo != nil {
+		acc.Memo = *req.Memo
 	}
-	if req.InsuranceAmount != nil {
-		acc.InsuranceAmount = req.InsuranceAmount
+	if req.MedicalRecordID != nil {
+		mrUID, err := uuid.Parse(*req.MedicalRecordID)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid medical record ID format")
+		}
+		acc.MedicalRecordID = &mrUID
 	}
-	if req.DiscountAmount != nil {
-		acc.DiscountAmount = req.DiscountAmount
+	if req.HospitalizationID != nil {
+		hospUID, err := uuid.Parse(*req.HospitalizationID)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid hospitalization ID format")
+		}
+		acc.HospitalizationID = &hospUID
 	}
-	if req.BillingAmount != nil {
-		acc.BillingAmount = req.BillingAmount
+	if req.OwnerID != nil {
+		ownerUID, err := uuid.Parse(*req.OwnerID)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid owner ID format")
+		}
+		acc.OwnerID = ownerUID
 	}
-	if req.ReceivedAmount != nil {
-		acc.ReceivedAmount = req.ReceivedAmount
-	}
-	if req.ChangeAmount != nil {
-		acc.ChangeAmount = req.ChangeAmount
-	}
-	if req.PaymentMethod != "" {
-		acc.PaymentMethod = req.PaymentMethod
-	}
-	if req.CompletedAt != nil {
-		acc.CompletedAt = req.CompletedAt
-	}
-	if req.Memo != "" {
-		acc.Memo = req.Memo
+	if req.PetID != nil {
+		petUID, err := uuid.Parse(*req.PetID)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid pet ID format")
+		}
+		acc.PetID = petUID
 	}
 
 	if err := s.accountingRepo.UpdateAccounting(ctx, acc); err != nil {

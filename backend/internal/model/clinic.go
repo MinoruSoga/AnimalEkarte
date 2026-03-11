@@ -6,98 +6,74 @@ import (
 	"github.com/google/uuid"
 )
 
-// Clinic クリニック情報モデル
+// ClinicInfo は病院情報（シングルトン）テーブルに対応するモデル
+type ClinicInfo struct {
+	ID                 uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Name               string    `gorm:"column:name;not null" json:"name"`
+	BranchName         string    `gorm:"column:branch_name;default:''" json:"branch_name"`
+	PostalCode         string    `gorm:"column:postal_code;default:''" json:"postal_code"`
+	Address            string    `gorm:"column:address;default:''" json:"address"`
+	PhoneNumber        string    `gorm:"column:phone_number;default:''" json:"phone_number"`
+	FaxNumber          string    `gorm:"column:fax_number;default:''" json:"fax_number"`
+	RegistrationNumber string    `gorm:"column:registration_number;default:''" json:"registration_number"`
+	DirectorName       string    `gorm:"column:director_name;default:''" json:"director_name"`
+	Email              string    `gorm:"column:email;default:''" json:"email"`
+	Website            string    `gorm:"column:website;default:''" json:"website"`
+	LogoURL            *string   `gorm:"column:logo_url" json:"logo_url,omitempty"`
+	CreatedAt          time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	UpdatedAt          time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
+}
+
+// TableName は GORM に対してテーブル名を明示する
+func (ClinicInfo) TableName() string {
+	return "clinic_info"
+}
+
+// Clinic はマルチクリニック対応テーブルに対応するモデル（認証用）
 type Clinic struct {
-	ID                 uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
-	Name               string    `json:"name" gorm:"type:varchar(100)"`
-	BranchName         string    `json:"branch_name" gorm:"type:varchar(100)"`
-	PostalCode         string    `json:"postal_code" gorm:"type:varchar(10)"`
-	Address            string    `json:"address" gorm:"type:text"`
-	PhoneNumber        string    `json:"phone_number" gorm:"type:varchar(20)"`
-	FaxNumber          string    `json:"fax_number" gorm:"type:varchar(20)"`
-	RegistrationNumber string    `json:"registration_number" gorm:"type:varchar(50)"`
-	DirectorName       string    `json:"director_name" gorm:"type:varchar(100)"`
-	Email              string    `json:"email" gorm:"type:varchar(255)"`
-	Website            string    `json:"website" gorm:"type:varchar(255)"`
-	LogoURL            string    `json:"logo_url" gorm:"type:text"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
-
-	// Relations
-	Staffs []Staff `json:"staffs,omitempty" gorm:"foreignKey:ClinicID"`
+	ID                 uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Name               string    `gorm:"column:name;not null" json:"name"`
+	BranchName         string    `gorm:"column:branch_name;default:''" json:"branch_name"`
+	PostalCode         string    `gorm:"column:postal_code;default:''" json:"postal_code"`
+	Address            string    `gorm:"column:address;default:''" json:"address"`
+	PhoneNumber        string    `gorm:"column:phone_number;default:''" json:"phone_number"`
+	FaxNumber          string    `gorm:"column:fax_number;default:''" json:"fax_number"`
+	RegistrationNumber string    `gorm:"column:registration_number;default:''" json:"registration_number"`
+	DirectorName       string    `gorm:"column:director_name;default:''" json:"director_name"`
+	Email              string    `gorm:"column:email;default:''" json:"email"`
+	Website            string    `gorm:"column:website;default:''" json:"website"`
+	LogoURL            *string   `gorm:"column:logo_url" json:"logo_url,omitempty"`
+	IsActive           bool      `gorm:"column:is_active;default:true" json:"is_active"`
+	CreatedAt          time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	UpdatedAt          time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
 }
 
-// TableName テーブル名を指定
-func (Clinic) TableName() string {
-	return "clinics"
+// CreateClinicInfoRequest は病院情報作成リクエスト
+type CreateClinicInfoRequest struct {
+	Name               string  `json:"name" binding:"required"`
+	BranchName         string  `json:"branch_name"`
+	PostalCode         string  `json:"postal_code"`
+	Address            string  `json:"address"`
+	PhoneNumber        string  `json:"phone_number"`
+	FaxNumber          string  `json:"fax_number"`
+	RegistrationNumber string  `json:"registration_number"`
+	DirectorName       string  `json:"director_name"`
+	Email              string  `json:"email"`
+	Website            string  `json:"website"`
+	LogoURL            *string `json:"logo_url"`
 }
 
-// Staff スタッフモデル
-type Staff struct {
-	ID        uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
-	ClinicID  *uuid.UUID `json:"clinic_id" gorm:"type:uuid"`
-	Name      string     `json:"name" gorm:"type:varchar(100)"`
-	Role      string     `json:"role" gorm:"type:varchar(50)"` // veterinarian, nurse, groomer, admin
-	Email     string     `json:"email" gorm:"type:varchar(255)"`
-	Phone     string     `json:"phone" gorm:"type:varchar(20)"`
-	IsActive  bool       `json:"is_active" gorm:"default:true"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
-
-	// Relations
-	Clinic *Clinic `json:"clinic,omitempty" gorm:"foreignKey:ClinicID"`
-}
-
-// TableName テーブル名を指定
-func (Staff) TableName() string {
-	return "staffs"
-}
-
-// CreateClinicRequest クリニック作成リクエスト
-type CreateClinicRequest struct {
-	Name               string `json:"name" binding:"required"`
-	BranchName         string `json:"branch_name"`
-	PostalCode         string `json:"postal_code"`
-	Address            string `json:"address"`
-	PhoneNumber        string `json:"phone_number"`
-	FaxNumber          string `json:"fax_number"`
-	RegistrationNumber string `json:"registration_number"`
-	DirectorName       string `json:"director_name"`
-	Email              string `json:"email"`
-	Website            string `json:"website"`
-	LogoURL            string `json:"logo_url"`
-}
-
-// UpdateClinicRequest クリニック更新リクエスト
-type UpdateClinicRequest struct {
-	Name               string `json:"name"`
-	BranchName         string `json:"branch_name"`
-	PostalCode         string `json:"postal_code"`
-	Address            string `json:"address"`
-	PhoneNumber        string `json:"phone_number"`
-	FaxNumber          string `json:"fax_number"`
-	RegistrationNumber string `json:"registration_number"`
-	DirectorName       string `json:"director_name"`
-	Email              string `json:"email"`
-	Website            string `json:"website"`
-	LogoURL            string `json:"logo_url"`
-}
-
-// CreateStaffRequest スタッフ作成リクエスト
-type CreateStaffRequest struct {
-	ClinicID *uuid.UUID `json:"clinic_id"`
-	Name     string     `json:"name" binding:"required"`
-	Role     string     `json:"role" binding:"required"`
-	Email    string     `json:"email"`
-	Phone    string     `json:"phone"`
-	IsActive bool       `json:"is_active"`
-}
-
-// UpdateStaffRequest スタッフ更新リクエスト
-type UpdateStaffRequest struct {
-	Name     string `json:"name"`
-	Role     string `json:"role"`
-	Email    string `json:"email"`
-	Phone    string `json:"phone"`
-	IsActive *bool  `json:"is_active"`
+// UpdateClinicInfoRequest は病院情報更新リクエスト
+type UpdateClinicInfoRequest struct {
+	Name               *string `json:"name"`
+	BranchName         *string `json:"branch_name"`
+	PostalCode         *string `json:"postal_code"`
+	Address            *string `json:"address"`
+	PhoneNumber        *string `json:"phone_number"`
+	FaxNumber          *string `json:"fax_number"`
+	RegistrationNumber *string `json:"registration_number"`
+	DirectorName       *string `json:"director_name"`
+	Email              *string `json:"email"`
+	Website            *string `json:"website"`
+	LogoURL            *string `json:"logo_url"`
 }

@@ -96,37 +96,35 @@ func (s *Service) UpdateMasterItem(ctx context.Context, id string, req *model.Up
 	}
 
 	// Update fields
-	if req.Code != "" {
-		item.Code = req.Code
+	if req.Code != nil {
+		item.Code = *req.Code
 	}
-	if req.Name != "" {
-		item.Name = req.Name
+	if req.Name != nil {
+		item.Name = *req.Name
 	}
-	if req.Category != "" {
-		item.Category = req.Category
+	if req.Category != nil {
+		item.Category = *req.Category
 	}
 	if req.Price != nil {
 		item.Price = req.Price
 	}
-	if req.Status != "" {
-		item.Status = req.Status
+	if req.Status != nil {
+		item.Status = *req.Status
 	}
-	if req.Description != "" {
-		item.Description = req.Description
+	if req.Description != nil {
+		item.Description = *req.Description
 	}
 	if req.DefaultQuantity != nil {
 		item.DefaultQuantity = req.DefaultQuantity
 	}
 
-	// InventoryIDの更新（明示的にnilを設定可能）
+	// InventoryIDの更新
 	if req.InventoryID != nil {
 		uid, err := uuid.Parse(*req.InventoryID)
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput("invalid inventory ID format")
 		}
 		item.InventoryID = &uid
-	} else if req.InventoryID == nil && item.InventoryID != nil {
-		// nullに設定されている場合は処理しない（POST bodyに含まれない場合）
 	}
 
 	if err := s.masterItemRepo.UpdateMasterItem(ctx, item); err != nil {

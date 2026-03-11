@@ -427,7 +427,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.CreateClinicRequest"
+                            "$ref": "#/definitions/model.CreateClinicInfoRequest"
                         }
                     }
                 ],
@@ -436,59 +436,6 @@ const docTemplate = `{
                         "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/model.Clinic"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/clinics/{clinicId}/staffs": {
-            "get": {
-                "description": "指定されたクリニックIDのスタッフ一覧を取得します",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "staffs"
-                ],
-                "summary": "クリニックのスタッフ一覧取得",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "クリニックID (UUID)",
-                        "name": "clinicId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/model.Staff"
-                            }
                         }
                     },
                     "400": {
@@ -596,7 +543,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.UpdateClinicRequest"
+                            "$ref": "#/definitions/model.UpdateClinicInfoRequest"
                         }
                     }
                 ],
@@ -698,7 +645,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "登録されている検査の一覧を取得します",
+                "description": "登録されている検査記録の一覧を取得します",
                 "consumes": [
                     "application/json"
                 ],
@@ -708,14 +655,14 @@ const docTemplate = `{
                 "tags": [
                     "examinations"
                 ],
-                "summary": "検査一覧取得",
+                "summary": "検査記録一覧取得",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Examination"
+                                "$ref": "#/definitions/model.ExaminationRecord"
                             }
                         }
                     },
@@ -731,7 +678,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "新しい検査を作成します",
+                "description": "新しい検査記録を作成します",
                 "consumes": [
                     "application/json"
                 ],
@@ -741,15 +688,15 @@ const docTemplate = `{
                 "tags": [
                     "examinations"
                 ],
-                "summary": "検査作成",
+                "summary": "検査記録作成",
                 "parameters": [
                     {
-                        "description": "検査情報",
+                        "description": "検査記録情報",
                         "name": "exam",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.CreateExaminationRequest"
+                            "$ref": "#/definitions/model.CreateExaminationRecordRequest"
                         }
                     }
                 ],
@@ -757,7 +704,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/model.Examination"
+                            "$ref": "#/definitions/model.ExaminationRecord"
                         }
                     },
                     "400": {
@@ -783,7 +730,7 @@ const docTemplate = `{
         },
         "/examinations/status/{status}": {
             "get": {
-                "description": "指定されたステータスの検査一覧を取得します",
+                "description": "指定されたステータスの検査記録一覧を取得します",
                 "consumes": [
                     "application/json"
                 ],
@@ -793,7 +740,7 @@ const docTemplate = `{
                 "tags": [
                     "examinations"
                 ],
-                "summary": "ステータス別検査取得",
+                "summary": "ステータス別検査記録取得",
                 "parameters": [
                     {
                         "type": "string",
@@ -809,7 +756,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Examination"
+                                "$ref": "#/definitions/model.ExaminationRecord"
                             }
                         }
                     },
@@ -836,7 +783,7 @@ const docTemplate = `{
         },
         "/examinations/{id}": {
             "get": {
-                "description": "指定されたIDの検査情報を取得します",
+                "description": "指定されたIDの検査記録情報を取得します",
                 "consumes": [
                     "application/json"
                 ],
@@ -846,11 +793,11 @@ const docTemplate = `{
                 "tags": [
                     "examinations"
                 ],
-                "summary": "検査詳細取得",
+                "summary": "検査記録詳細取得",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "検査ID (UUID)",
+                        "description": "検査記録ID (UUID)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -860,7 +807,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Examination"
+                            "$ref": "#/definitions/model.ExaminationRecord"
                         }
                     },
                     "400": {
@@ -893,7 +840,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "既存の検査を更新します",
+                "description": "既存の検査記録を更新します",
                 "consumes": [
                     "application/json"
                 ],
@@ -903,22 +850,22 @@ const docTemplate = `{
                 "tags": [
                     "examinations"
                 ],
-                "summary": "検査更新",
+                "summary": "検査記録更新",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "検査ID (UUID)",
+                        "description": "検査記録ID (UUID)",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "検査情報",
+                        "description": "検査記録情報",
                         "name": "exam",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.UpdateExaminationRequest"
+                            "$ref": "#/definitions/model.UpdateExaminationRecordRequest"
                         }
                     }
                 ],
@@ -926,7 +873,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Examination"
+                            "$ref": "#/definitions/model.ExaminationRecord"
                         }
                     },
                     "400": {
@@ -959,7 +906,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "指定された検査を削除します",
+                "description": "指定された検査記録を削除します",
                 "consumes": [
                     "application/json"
                 ],
@@ -969,11 +916,11 @@ const docTemplate = `{
                 "tags": [
                     "examinations"
                 ],
-                "summary": "検査削除",
+                "summary": "検査記録削除",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "検査ID (UUID)",
+                        "description": "検査記録ID (UUID)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2799,7 +2746,7 @@ const docTemplate = `{
         },
         "/owners/{ownerId}/examinations": {
             "get": {
-                "description": "指定された飼い主IDの検査一覧を取得します",
+                "description": "指定された飼い主IDに関連する検査記録一覧を取得します",
                 "consumes": [
                     "application/json"
                 ],
@@ -2809,7 +2756,7 @@ const docTemplate = `{
                 "tags": [
                     "examinations"
                 ],
-                "summary": "飼い主の検査一覧取得",
+                "summary": "飼い主の検査記録一覧取得",
                 "parameters": [
                     {
                         "type": "string",
@@ -2825,7 +2772,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Examination"
+                                "$ref": "#/definitions/model.ExaminationRecord"
                             }
                         }
                     },
@@ -2984,7 +2931,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Reservation"
+                                "$ref": "#/definitions/model.ReservationAppointment"
                             }
                         }
                     },
@@ -3037,7 +2984,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Trimming"
+                                "$ref": "#/definitions/model.TrimmingRecord"
                             }
                         }
                     },
@@ -3090,7 +3037,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Vaccination"
+                                "$ref": "#/definitions/model.VaccinationRecord"
                             }
                         }
                     },
@@ -3473,7 +3420,7 @@ const docTemplate = `{
         },
         "/pets/{petId}/examinations": {
             "get": {
-                "description": "指定されたペットIDの検査一覧を取得します",
+                "description": "指定されたペットIDの検査記録一覧を取得します",
                 "consumes": [
                     "application/json"
                 ],
@@ -3483,7 +3430,7 @@ const docTemplate = `{
                 "tags": [
                     "examinations"
                 ],
-                "summary": "ペットの検査一覧取得",
+                "summary": "ペットの検査記録一覧取得",
                 "parameters": [
                     {
                         "type": "string",
@@ -3499,7 +3446,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Examination"
+                                "$ref": "#/definitions/model.ExaminationRecord"
                             }
                         }
                     },
@@ -3658,7 +3605,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Reservation"
+                                "$ref": "#/definitions/model.ReservationAppointment"
                             }
                         }
                     },
@@ -3711,7 +3658,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Trimming"
+                                "$ref": "#/definitions/model.TrimmingRecord"
                             }
                         }
                     },
@@ -3764,7 +3711,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Vaccination"
+                                "$ref": "#/definitions/model.VaccinationRecord"
                             }
                         }
                     },
@@ -3827,7 +3774,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Reservation"
+                                "$ref": "#/definitions/model.ReservationAppointment"
                             }
                         }
                     },
@@ -3878,7 +3825,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/model.Reservation"
+                            "$ref": "#/definitions/model.ReservationAppointment"
                         }
                     },
                     "400": {
@@ -3928,7 +3875,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Reservation"
+                            "$ref": "#/definitions/model.ReservationAppointment"
                         }
                     },
                     "400": {
@@ -3994,7 +3941,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Reservation"
+                            "$ref": "#/definitions/model.ReservationAppointment"
                         }
                     },
                     "400": {
@@ -4081,275 +4028,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/staffs": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "登録されているスタッフの一覧を取得します",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "staffs"
-                ],
-                "summary": "スタッフ一覧取得",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/model.Staff"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "新しいスタッフを作成します",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "staffs"
-                ],
-                "summary": "スタッフ作成",
-                "parameters": [
-                    {
-                        "description": "スタッフ情報",
-                        "name": "staff",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/model.CreateStaffRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/model.Staff"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/staffs/{id}": {
-            "get": {
-                "description": "指定されたIDのスタッフ情報を取得します",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "staffs"
-                ],
-                "summary": "スタッフ詳細取得",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "スタッフID (UUID)",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/model.Staff"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "put": {
-                "description": "既存のスタッフを更新します",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "staffs"
-                ],
-                "summary": "スタッフ更新",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "スタッフID (UUID)",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "スタッフ情報",
-                        "name": "staff",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/model.UpdateStaffRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/model.Staff"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "指定されたスタッフを削除します",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "staffs"
-                ],
-                "summary": "スタッフ削除",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "スタッフID (UUID)",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/trimmings": {
             "get": {
                 "security": [
@@ -4374,7 +4052,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Trimming"
+                                "$ref": "#/definitions/model.TrimmingRecord"
                             }
                         }
                     },
@@ -4416,7 +4094,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/model.Trimming"
+                            "$ref": "#/definitions/model.TrimmingRecord"
                         }
                     },
                     "400": {
@@ -4468,7 +4146,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Trimming"
+                                "$ref": "#/definitions/model.TrimmingRecord"
                             }
                         }
                     },
@@ -4519,7 +4197,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Trimming"
+                            "$ref": "#/definitions/model.TrimmingRecord"
                         }
                     },
                     "400": {
@@ -4585,7 +4263,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Trimming"
+                            "$ref": "#/definitions/model.TrimmingRecord"
                         }
                     },
                     "400": {
@@ -4696,7 +4374,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Vaccination"
+                                "$ref": "#/definitions/model.VaccinationRecord"
                             }
                         }
                     },
@@ -4730,7 +4408,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.CreateVaccinationRequest"
+                            "$ref": "#/definitions/model.CreateVaccinationRecordRequest"
                         }
                     }
                 ],
@@ -4738,7 +4416,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/model.Vaccination"
+                            "$ref": "#/definitions/model.VaccinationRecord"
                         }
                     },
                     "400": {
@@ -4788,7 +4466,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Vaccination"
+                            "$ref": "#/definitions/model.VaccinationRecord"
                         }
                     },
                     "400": {
@@ -4846,7 +4524,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.UpdateVaccinationRequest"
+                            "$ref": "#/definitions/model.UpdateVaccinationRecordRequest"
                         }
                     }
                 ],
@@ -4854,7 +4532,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Vaccination"
+                            "$ref": "#/definitions/model.VaccinationRecord"
                         }
                     },
                     "400": {
@@ -4954,41 +4632,24 @@ const docTemplate = `{
         "model.Accounting": {
             "type": "object",
             "properties": {
-                "accounting_items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.AccountingItem"
-                    }
-                },
-                "billing_amount": {
-                    "type": "number"
-                },
-                "change_amount": {
-                    "type": "number"
-                },
                 "completed_at": {
                     "type": "string"
                 },
                 "created_at": {
                     "type": "string"
                 },
-                "discount_amount": {
-                    "type": "number"
+                "hospitalization_id": {
+                    "type": "string"
                 },
                 "id": {
                     "type": "string"
                 },
-                "insurance_amount": {
-                    "type": "number"
-                },
-                "insurance_name": {
-                    "type": "string"
-                },
-                "insurance_ratio": {
-                    "type": "number"
-                },
-                "medical_record": {
-                    "$ref": "#/definitions/model.MedicalRecord"
+                "items": {
+                    "description": "Relations",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.AccountingItem"
+                    }
                 },
                 "medical_record_id": {
                     "type": "string"
@@ -4996,45 +4657,29 @@ const docTemplate = `{
                 "memo": {
                     "type": "string"
                 },
-                "owner": {
-                    "$ref": "#/definitions/model.Owner"
-                },
                 "owner_id": {
                     "type": "string"
                 },
-                "payment_method": {
-                    "description": "現金, クレジットカード, 電子マネー",
+                "owner_name": {
                     "type": "string"
                 },
-                "pet": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/model.Pet"
-                        }
-                    ]
+                "payment_info": {
+                    "$ref": "#/definitions/model.PaymentInfo"
                 },
                 "pet_id": {
                     "type": "string"
                 },
-                "received_amount": {
-                    "type": "number"
+                "pet_name": {
+                    "type": "string"
+                },
+                "pet_species": {
+                    "type": "string"
                 },
                 "scheduled_date": {
                     "type": "string"
                 },
                 "status": {
-                    "description": "未収, 保留, 回収済, キャンセル",
                     "type": "string"
-                },
-                "subtotal": {
-                    "type": "number"
-                },
-                "tax_total": {
-                    "type": "number"
-                },
-                "total_amount": {
-                    "type": "number"
                 },
                 "updated_at": {
                     "type": "string"
@@ -5062,21 +4707,19 @@ const docTemplate = `{
                 "is_insurance_applicable": {
                     "type": "boolean"
                 },
-                "master_id": {
-                    "type": "string"
-                },
                 "name": {
                     "type": "string"
                 },
                 "quantity": {
                     "type": "integer"
                 },
+                "sort_order": {
+                    "type": "integer"
+                },
                 "source": {
-                    "description": "medical_record, manual",
                     "type": "string"
                 },
                 "tax_rate": {
-                    "description": "0.1, 0.08",
                     "type": "number"
                 },
                 "unit_price": {
@@ -5084,41 +4727,7 @@ const docTemplate = `{
                 }
             }
         },
-        "model.Cage": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_available": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "notes": {
-                    "type": "string"
-                },
-                "size": {
-                    "description": "S, M, L, XL",
-                    "type": "string"
-                },
-                "type": {
-                    "description": "犬用, 猫用, 共用",
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.CareLog": {
+        "model.CareLogRecord": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -5133,18 +4742,16 @@ const docTemplate = `{
                 "notes": {
                     "type": "string"
                 },
-                "recorded_time": {
-                    "type": "string"
-                },
-                "staff_id": {
+                "staff": {
                     "type": "string"
                 },
                 "status": {
-                    "description": "completed, partial, skipped",
+                    "type": "string"
+                },
+                "time": {
                     "type": "string"
                 },
                 "type": {
-                    "description": "food, excretion, medicine, treatment, other",
                     "type": "string"
                 },
                 "value": {
@@ -5179,20 +4786,64 @@ const docTemplate = `{
                 "notes": {
                     "type": "string"
                 },
+                "sort_order": {
+                    "type": "integer"
+                },
                 "status": {
-                    "description": "active, completed, discontinued",
                     "type": "string"
                 },
                 "timing": {
-                    "description": "JSON array",
-                    "type": "string"
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "type": {
-                    "description": "food, medicine, treatment, instruction, item",
                     "type": "string"
                 },
                 "unit_price": {
                     "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.CheckupRecord": {
+            "type": "object",
+            "properties": {
+                "checkup_type": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "doctor": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "medical_record_id": {
+                    "type": "string"
+                },
+                "next_date": {
+                    "type": "string"
+                },
+                "owner_name": {
+                    "type": "string"
+                },
+                "pet_id": {
+                    "type": "string"
+                },
+                "pet_name": {
+                    "type": "string"
+                },
+                "result": {
+                    "type": "string"
                 },
                 "updated_at": {
                     "type": "string"
@@ -5223,6 +4874,9 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "logo_url": {
                     "type": "string"
                 },
@@ -5238,13 +4892,6 @@ const docTemplate = `{
                 "registration_number": {
                     "type": "string"
                 },
-                "staffs": {
-                    "description": "Relations",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.Staff"
-                    }
-                },
                 "updated_at": {
                     "type": "string"
                 },
@@ -5257,24 +4904,14 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "owner_id",
+                "owner_name",
                 "pet_id",
+                "pet_name",
                 "scheduled_date"
             ],
             "properties": {
-                "billing_amount": {
-                    "type": "number"
-                },
-                "discount_amount": {
-                    "type": "number"
-                },
-                "insurance_amount": {
-                    "type": "number"
-                },
-                "insurance_name": {
+                "hospitalization_id": {
                     "type": "string"
-                },
-                "insurance_ratio": {
-                    "type": "number"
                 },
                 "medical_record_id": {
                     "type": "string"
@@ -5285,27 +4922,27 @@ const docTemplate = `{
                 "owner_id": {
                     "type": "string"
                 },
-                "payment_method": {
+                "owner_name": {
                     "type": "string"
                 },
                 "pet_id": {
                     "type": "string"
                 },
+                "pet_name": {
+                    "type": "string"
+                },
+                "pet_species": {
+                    "type": "string"
+                },
                 "scheduled_date": {
                     "type": "string"
                 },
-                "subtotal": {
-                    "type": "number"
-                },
-                "tax_total": {
-                    "type": "number"
-                },
-                "total_amount": {
-                    "type": "number"
+                "status": {
+                    "type": "string"
                 }
             }
         },
-        "model.CreateClinicRequest": {
+        "model.CreateClinicInfoRequest": {
             "type": "object",
             "required": [
                 "name"
@@ -5346,22 +4983,22 @@ const docTemplate = `{
                 }
             }
         },
-        "model.CreateExaminationRequest": {
+        "model.CreateExaminationRecordRequest": {
             "type": "object",
             "required": [
-                "examination_date",
-                "owner_id",
+                "date",
+                "doctor",
+                "medical_record_id",
+                "owner_name",
                 "pet_id",
+                "pet_name",
                 "test_type"
             ],
             "properties": {
-                "doctor_id": {
+                "date": {
                     "type": "string"
                 },
-                "examination_date": {
-                    "type": "string"
-                },
-                "items": {
+                "doctor": {
                     "type": "string"
                 },
                 "machine": {
@@ -5370,16 +5007,19 @@ const docTemplate = `{
                 "medical_record_id": {
                     "type": "string"
                 },
-                "notes": {
-                    "type": "string"
-                },
-                "owner_id": {
+                "owner_name": {
                     "type": "string"
                 },
                 "pet_id": {
                     "type": "string"
                 },
+                "pet_name": {
+                    "type": "string"
+                },
                 "result_summary": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 },
                 "test_type": {
@@ -5391,16 +5031,23 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "end_date",
-                "owner_id",
-                "pet_id",
-                "start_date",
-                "type"
+                "hospitalization_type",
+                "owner_name",
+                "pet_name",
+                "species",
+                "start_date"
             ],
             "properties": {
                 "cage_id": {
                     "type": "string"
                 },
+                "doctor_name": {
+                    "type": "string"
+                },
                 "end_date": {
+                    "type": "string"
+                },
+                "hospitalization_type": {
                     "type": "string"
                 },
                 "memo": {
@@ -5409,10 +5056,19 @@ const docTemplate = `{
                 "owner_id": {
                     "type": "string"
                 },
+                "owner_name": {
+                    "type": "string"
+                },
                 "owner_request": {
                     "type": "string"
                 },
                 "pet_id": {
+                    "type": "string"
+                },
+                "pet_name": {
+                    "type": "string"
+                },
+                "species": {
                     "type": "string"
                 },
                 "staff_notes": {
@@ -5421,8 +5077,7 @@ const docTemplate = `{
                 "start_date": {
                     "type": "string"
                 },
-                "type": {
-                    "description": "入院, ホテル",
+                "status": {
                     "type": "string"
                 }
             }
@@ -5432,7 +5087,6 @@ const docTemplate = `{
             "required": [
                 "category",
                 "name",
-                "quantity",
                 "unit"
             ],
             "properties": {
@@ -5457,6 +5111,9 @@ const docTemplate = `{
                 "quantity": {
                     "type": "integer"
                 },
+                "status": {
+                    "type": "string"
+                },
                 "supplier": {
                     "type": "string"
                 },
@@ -5473,10 +5130,38 @@ const docTemplate = `{
                 "name"
             ],
             "properties": {
+                "anesthesia": {
+                    "type": "string"
+                },
+                "billing_unit": {
+                    "type": "string"
+                },
+                "body_size": {
+                    "type": "string"
+                },
+                "cage_size": {
+                    "type": "string"
+                },
+                "cage_type": {
+                    "type": "string"
+                },
                 "category": {
                     "type": "string"
                 },
                 "code": {
+                    "type": "string"
+                },
+                "color": {
+                    "description": "拡張フィールド",
+                    "type": "string"
+                },
+                "combinable": {
+                    "type": "string"
+                },
+                "contact_phone": {
+                    "type": "string"
+                },
+                "coverage_rate": {
                     "type": "string"
                 },
                 "default_quantity": {
@@ -5485,71 +5170,121 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "dosage_form": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "interval": {
+                    "type": "string"
+                },
                 "inventory_id": {
+                    "type": "string"
+                },
+                "license_number": {
+                    "type": "string"
+                },
+                "medicine_unit": {
                     "type": "string"
                 },
                 "name": {
                     "type": "string"
                 },
+                "parent_id": {
+                    "type": "string"
+                },
                 "price": {
                     "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "species": {
+                    "type": "string"
+                },
+                "staff_role": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "target_age": {
+                    "type": "string"
+                },
+                "target_size": {
+                    "type": "string"
+                },
+                "time_condition": {
+                    "type": "string"
+                },
+                "user_type": {
+                    "type": "string"
                 }
             }
         },
         "model.CreateMedicalRecordRequest": {
             "type": "object",
             "required": [
-                "owner_id",
-                "pet_id",
-                "visit_date"
+                "date",
+                "doctor",
+                "owner_name",
+                "pet_name",
+                "species"
             ],
             "properties": {
-                "assessment": {
-                    "type": "string"
-                },
                 "chief_complaint": {
                     "type": "string"
                 },
-                "diagnosis": {
+                "date": {
                     "type": "string"
                 },
-                "doctor_id": {
+                "diagnosis1_category_id": {
                     "type": "string"
                 },
-                "notes": {
+                "diagnosis1_name_id": {
                     "type": "string"
                 },
-                "objective": {
+                "diagnosis2_category_id": {
+                    "type": "string"
+                },
+                "diagnosis2_name_id": {
+                    "type": "string"
+                },
+                "diagnosis_details": {
+                    "type": "string"
+                },
+                "doctor": {
                     "type": "string"
                 },
                 "owner_id": {
                     "type": "string"
                 },
+                "owner_name": {
+                    "type": "string"
+                },
                 "pet_id": {
                     "type": "string"
                 },
-                "plan": {
+                "pet_name": {
                     "type": "string"
                 },
-                "prescription": {
+                "physical_exam": {
+                    "type": "string"
+                },
+                "record_no": {
+                    "type": "string"
+                },
+                "species": {
                     "type": "string"
                 },
                 "status": {
                     "type": "string"
                 },
-                "subjective": {
-                    "type": "string"
-                },
-                "surgery_notes": {
-                    "type": "string"
-                },
-                "treatment": {
-                    "type": "string"
-                },
-                "visit_date": {
-                    "type": "string"
-                },
-                "visit_type": {
+                "treatment_policy": {
                     "type": "string"
                 }
             }
@@ -5557,25 +5292,55 @@ const docTemplate = `{
         "model.CreateOwnerRequest": {
             "type": "object",
             "required": [
-                "name"
+                "owner_name"
             ],
             "properties": {
-                "address": {
+                "address1": {
                     "type": "string"
+                },
+                "address2": {
+                    "type": "string"
+                },
+                "company": {
+                    "type": "string"
+                },
+                "company_phone": {
+                    "type": "string"
+                },
+                "discount_rate": {
+                    "type": "number"
                 },
                 "email": {
                     "type": "string"
                 },
-                "name": {
+                "home_address1": {
                     "type": "string"
                 },
-                "name_kana": {
+                "home_address2": {
                     "type": "string"
                 },
-                "notes": {
+                "home_postal_code": {
+                    "type": "string"
+                },
+                "is_dangerous": {
+                    "type": "boolean"
+                },
+                "membership_type": {
+                    "type": "string"
+                },
+                "owner_name": {
+                    "type": "string"
+                },
+                "owner_name_kana": {
                     "type": "string"
                 },
                 "phone": {
+                    "type": "string"
+                },
+                "postal_code": {
+                    "type": "string"
+                },
+                "remarks": {
                     "type": "string"
                 }
             }
@@ -5585,16 +5350,29 @@ const docTemplate = `{
             "required": [
                 "name",
                 "owner_id",
+                "owner_name",
                 "species"
             ],
             "properties": {
+                "acquisition_type": {
+                    "type": "string"
+                },
                 "birth_date": {
                     "type": "string"
                 },
                 "breed": {
                     "type": "string"
                 },
+                "color": {
+                    "type": "string"
+                },
+                "danger_level": {
+                    "type": "string"
+                },
                 "environment": {
+                    "type": "string"
+                },
+                "food": {
                     "type": "string"
                 },
                 "gender": {
@@ -5606,19 +5384,28 @@ const docTemplate = `{
                 "insurance_name": {
                     "type": "string"
                 },
-                "microchip_id": {
-                    "type": "string"
-                },
                 "name": {
                     "type": "string"
                 },
-                "notes": {
+                "neutered_date": {
                     "type": "string"
                 },
                 "owner_id": {
                     "type": "string"
                 },
+                "owner_name": {
+                    "type": "string"
+                },
+                "pet_name_kana": {
+                    "type": "string"
+                },
                 "pet_number": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "remarks": {
                     "type": "string"
                 },
                 "species": {
@@ -5628,22 +5415,23 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "weight": {
-                    "type": "number"
+                    "type": "string"
                 }
             }
         },
         "model.CreateReservationRequest": {
             "type": "object",
             "required": [
+                "doctor",
                 "end_time",
-                "owner_id",
-                "pet_id",
-                "service_type",
+                "owner_name",
+                "pet_name",
                 "start_time",
+                "type",
                 "visit_type"
             ],
             "properties": {
-                "doctor_id": {
+                "doctor": {
                     "type": "string"
                 },
                 "end_time": {
@@ -5655,47 +5443,25 @@ const docTemplate = `{
                 "notes": {
                     "type": "string"
                 },
-                "owner_id": {
+                "owner_name": {
                     "type": "string"
                 },
                 "pet_id": {
                     "type": "string"
                 },
-                "service_type": {
+                "pet_name": {
                     "type": "string"
                 },
                 "start_time": {
                     "type": "string"
                 },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
                 "visit_type": {
-                    "description": "first, revisit",
-                    "type": "string"
-                }
-            }
-        },
-        "model.CreateStaffRequest": {
-            "type": "object",
-            "required": [
-                "name",
-                "role"
-            ],
-            "properties": {
-                "clinic_id": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "phone": {
-                    "type": "string"
-                },
-                "role": {
                     "type": "string"
                 }
             }
@@ -5703,69 +5469,137 @@ const docTemplate = `{
         "model.CreateTrimmingRequest": {
             "type": "object",
             "required": [
-                "appointment_date",
-                "course",
-                "owner_id",
-                "pet_id"
+                "date",
+                "owner_name",
+                "pet_id",
+                "pet_name",
+                "pet_number",
+                "species",
+                "staff"
             ],
             "properties": {
-                "appointment_date": {
+                "bt": {
                     "type": "string"
                 },
-                "course": {
+                "bw": {
                     "type": "string"
                 },
-                "notes": {
+                "bw_unit": {
                     "type": "string"
                 },
-                "options": {
+                "charge": {
                     "type": "string"
                 },
-                "owner_id": {
+                "course_id": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "final_check": {
+                    "type": "string"
+                },
+                "medicine": {
+                    "type": "string"
+                },
+                "option_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "owner_name": {
                     "type": "string"
                 },
                 "pet_id": {
                     "type": "string"
                 },
-                "staff_id": {
+                "pet_name": {
+                    "type": "string"
+                },
+                "pet_number": {
+                    "type": "string"
+                },
+                "remarks": {
+                    "type": "string"
+                },
+                "species": {
+                    "type": "string"
+                },
+                "staff": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 },
                 "style_request": {
                     "type": "string"
+                },
+                "treatment": {
+                    "type": "string"
+                },
+                "used_ribbon": {
+                    "type": "string"
+                },
+                "used_shampoo": {
+                    "type": "string"
+                },
+                "weight": {
+                    "type": "string"
                 }
             }
         },
-        "model.CreateVaccinationRequest": {
+        "model.CreateVaccinationRecordRequest": {
             "type": "object",
             "required": [
-                "owner_id",
+                "date",
+                "medical_record_id",
+                "owner_name",
                 "pet_id",
-                "vaccination_date",
+                "pet_name",
                 "vaccine_name"
             ],
             "properties": {
-                "doctor_id": {
+                "date": {
                     "type": "string"
                 },
-                "lot_number": {
+                "doctor": {
+                    "type": "string"
+                },
+                "lot1": {
+                    "type": "string"
+                },
+                "lot2": {
+                    "type": "string"
+                },
+                "lot3": {
+                    "type": "string"
+                },
+                "lot4": {
+                    "type": "string"
+                },
+                "medical_record_id": {
                     "type": "string"
                 },
                 "next_date": {
                     "type": "string"
                 },
-                "notes": {
+                "next_schedule_type": {
                     "type": "string"
                 },
-                "owner_id": {
+                "owner_name": {
                     "type": "string"
                 },
                 "pet_id": {
                     "type": "string"
                 },
-                "vaccination_date": {
+                "pet_name": {
                     "type": "string"
                 },
-                "vaccine_master_id": {
+                "remarks": {
+                    "type": "string"
+                },
+                "supplemental": {
                     "type": "string"
                 },
                 "vaccine_name": {
@@ -5776,13 +5610,16 @@ const docTemplate = `{
         "model.DailyRecord": {
             "type": "object",
             "properties": {
-                "care_logs": {
+                "care_log_records": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/model.CareLog"
+                        "$ref": "#/definitions/model.CareLogRecord"
                     }
                 },
                 "created_at": {
+                    "type": "string"
+                },
+                "date": {
                     "type": "string"
                 },
                 "hospitalization_id": {
@@ -5791,80 +5628,65 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
-                "record_date": {
-                    "type": "string"
-                },
-                "staff_notes": {
+                "staff_note_records": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/model.StaffNote"
+                        "$ref": "#/definitions/model.StaffNoteRecord"
                     }
                 },
                 "updated_at": {
                     "type": "string"
                 },
-                "vitals": {
+                "vital_records": {
                     "description": "Relations",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/model.Vital"
+                        "$ref": "#/definitions/model.VitalRecord"
                     }
                 }
             }
         },
-        "model.Examination": {
+        "model.ExaminationRecord": {
             "type": "object",
             "properties": {
                 "created_at": {
                     "type": "string"
                 },
-                "doctor_id": {
+                "date": {
                     "type": "string"
                 },
-                "examination_date": {
+                "doctor": {
                     "type": "string"
                 },
                 "id": {
                     "type": "string"
                 },
                 "items": {
-                    "description": "JSON array",
-                    "type": "string"
+                    "description": "Relations",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.ExaminationRecordItem"
+                    }
                 },
                 "machine": {
                     "type": "string"
                 },
-                "medical_record": {
-                    "$ref": "#/definitions/model.MedicalRecord"
-                },
                 "medical_record_id": {
                     "type": "string"
                 },
-                "notes": {
+                "owner_name": {
                     "type": "string"
-                },
-                "owner": {
-                    "$ref": "#/definitions/model.Owner"
-                },
-                "owner_id": {
-                    "type": "string"
-                },
-                "pet": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/model.Pet"
-                        }
-                    ]
                 },
                 "pet_id": {
+                    "type": "string"
+                },
+                "pet_name": {
                     "type": "string"
                 },
                 "result_summary": {
                     "type": "string"
                 },
                 "status": {
-                    "description": "依頼中, 検査中, 完了",
                     "type": "string"
                 },
                 "test_type": {
@@ -5875,16 +5697,52 @@ const docTemplate = `{
                 }
             }
         },
+        "model.ExaminationRecordItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "examination_record_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "inspection_value": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "normal_value": {
+                    "type": "string"
+                },
+                "ref": {
+                    "type": "string"
+                },
+                "result": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "unit": {
+                    "type": "string"
+                }
+            }
+        },
         "model.Hospitalization": {
             "type": "object",
             "properties": {
-                "cage": {
-                    "$ref": "#/definitions/model.Cage"
-                },
                 "cage_id": {
                     "type": "string"
                 },
                 "care_plan_items": {
+                    "description": "Relations",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/model.CarePlanItem"
@@ -5899,10 +5757,13 @@ const docTemplate = `{
                         "$ref": "#/definitions/model.DailyRecord"
                     }
                 },
+                "doctor_name": {
+                    "type": "string"
+                },
                 "end_date": {
                     "type": "string"
                 },
-                "hospitalization_no": {
+                "hospitalization_type": {
                     "type": "string"
                 },
                 "id": {
@@ -5911,24 +5772,22 @@ const docTemplate = `{
                 "memo": {
                     "type": "string"
                 },
-                "owner": {
-                    "$ref": "#/definitions/model.Owner"
-                },
                 "owner_id": {
+                    "type": "string"
+                },
+                "owner_name": {
                     "type": "string"
                 },
                 "owner_request": {
                     "type": "string"
                 },
-                "pet": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/model.Pet"
-                        }
-                    ]
-                },
                 "pet_id": {
+                    "type": "string"
+                },
+                "pet_name": {
+                    "type": "string"
+                },
+                "species": {
                     "type": "string"
                 },
                 "staff_notes": {
@@ -5938,12 +5797,13 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "description": "入院中, 退院済, 予約, 一時帰宅",
                     "type": "string"
                 },
-                "type": {
-                    "description": "入院, ホテル",
-                    "type": "string"
+                "treatment_plans": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.TreatmentPlan"
+                    }
                 },
                 "updated_at": {
                     "type": "string"
@@ -5954,7 +5814,6 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "category": {
-                    "description": "medicine, consumable, food, other",
                     "type": "string"
                 },
                 "created_at": {
@@ -5982,7 +5841,6 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "status": {
-                    "description": "sufficient, low, out_of_stock",
                     "type": "string"
                 },
                 "supplier": {
@@ -5999,11 +5857,51 @@ const docTemplate = `{
         "model.MasterItem": {
             "type": "object",
             "properties": {
-                "category": {
-                    "description": "examination, vaccine, medicine, staff, insurance, cage, serviceType, trimming_course, trimming_option",
+                "anesthesia": {
                     "type": "string"
                 },
+                "billing_unit": {
+                    "type": "string"
+                },
+                "body_size": {
+                    "type": "string"
+                },
+                "cage_size": {
+                    "type": "string"
+                },
+                "cage_type": {
+                    "type": "string"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "children": {
+                    "description": "Relations",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.MasterItem"
+                    }
+                },
+                "clinics": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "code": {
+                    "type": "string"
+                },
+                "color": {
+                    "description": "カテゴリ固有フィールド",
+                    "type": "string"
+                },
+                "combinable": {
+                    "type": "string"
+                },
+                "contact_phone": {
+                    "type": "string"
+                },
+                "coverage_rate": {
                     "type": "string"
                 },
                 "created_at": {
@@ -6015,125 +5913,10 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
-                "id": {
+                "dosage_form": {
                     "type": "string"
                 },
-                "inventory_id": {
-                    "type": "string"
-                },
-                "inventory_item": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/model.InventoryItem"
-                        }
-                    ]
-                },
-                "name": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "number"
-                },
-                "status": {
-                    "description": "active, inactive",
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.MedicalRecord": {
-            "type": "object",
-            "properties": {
-                "assessment": {
-                    "description": "A: 評価",
-                    "type": "string"
-                },
-                "chief_complaint": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "diagnosis": {
-                    "type": "string"
-                },
-                "doctor_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "notes": {
-                    "type": "string"
-                },
-                "objective": {
-                    "description": "O: 客観的情報",
-                    "type": "string"
-                },
-                "owner": {
-                    "$ref": "#/definitions/model.Owner"
-                },
-                "owner_id": {
-                    "type": "string"
-                },
-                "pet": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/model.Pet"
-                        }
-                    ]
-                },
-                "pet_id": {
-                    "type": "string"
-                },
-                "plan": {
-                    "description": "P: 計画",
-                    "type": "string"
-                },
-                "prescription": {
-                    "type": "string"
-                },
-                "record_no": {
-                    "type": "string"
-                },
-                "status": {
-                    "description": "作成中, 確定済",
-                    "type": "string"
-                },
-                "subjective": {
-                    "description": "S: 主観的情報",
-                    "type": "string"
-                },
-                "surgery_notes": {
-                    "description": "S: 手術・特記事項",
-                    "type": "string"
-                },
-                "treatment": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "visit_date": {
-                    "type": "string"
-                },
-                "visit_type": {
-                    "description": "初診, 再診",
-                    "type": "string"
-                }
-            }
-        },
-        "model.Owner": {
-            "type": "object",
-            "properties": {
-                "address": {
-                    "type": "string"
-                },
-                "created_at": {
+                "duration": {
                     "type": "string"
                 },
                 "email": {
@@ -6142,17 +5925,240 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "inspections": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.MasterItemInspection"
+                    }
+                },
+                "interval": {
+                    "type": "string"
+                },
+                "inventory": {
+                    "$ref": "#/definitions/model.InventoryItem"
+                },
+                "inventory_id": {
+                    "type": "string"
+                },
+                "last_login_at": {
+                    "type": "string"
+                },
+                "license_number": {
+                    "type": "string"
+                },
+                "medicine_unit": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
-                "name_kana": {
+                "parent_id": {
                     "type": "string"
                 },
-                "notes": {
-                    "type": "string"
+                "price": {
+                    "type": "number"
                 },
-                "owner_number": {
+                "sort_order": {
                     "type": "integer"
+                },
+                "species": {
+                    "type": "string"
+                },
+                "staff_role": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "target_age": {
+                    "type": "string"
+                },
+                "target_size": {
+                    "type": "string"
+                },
+                "time_condition": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.MasterItemInspection": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "inspection_value": {
+                    "type": "string"
+                },
+                "master_item_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "normal_value": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.MedicalRecord": {
+            "type": "object",
+            "properties": {
+                "checkup_records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.CheckupRecord"
+                    }
+                },
+                "chief_complaint": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "diagnosis1_category_id": {
+                    "type": "string"
+                },
+                "diagnosis1_name_id": {
+                    "type": "string"
+                },
+                "diagnosis2_category_id": {
+                    "type": "string"
+                },
+                "diagnosis2_name_id": {
+                    "type": "string"
+                },
+                "diagnosis_details": {
+                    "type": "string"
+                },
+                "doctor": {
+                    "type": "string"
+                },
+                "examination_records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.ExaminationRecord"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "owner_id": {
+                    "type": "string"
+                },
+                "owner_name": {
+                    "type": "string"
+                },
+                "pet_id": {
+                    "type": "string"
+                },
+                "pet_name": {
+                    "type": "string"
+                },
+                "physical_exam": {
+                    "type": "string"
+                },
+                "record_no": {
+                    "type": "string"
+                },
+                "species": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "treatment_items": {
+                    "description": "Relations",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.TreatmentItem"
+                    }
+                },
+                "treatment_policy": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "vaccination_records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.VaccinationRecord"
+                    }
+                },
+                "vital_entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.VitalEntry"
+                    }
+                }
+            }
+        },
+        "model.Owner": {
+            "type": "object",
+            "properties": {
+                "address1": {
+                    "type": "string"
+                },
+                "address2": {
+                    "type": "string"
+                },
+                "birth_date": {
+                    "type": "string"
+                },
+                "company": {
+                    "type": "string"
+                },
+                "company_phone": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "discount_rate": {
+                    "type": "number"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "home_address1": {
+                    "type": "string"
+                },
+                "home_address2": {
+                    "type": "string"
+                },
+                "home_postal_code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_dangerous": {
+                    "type": "boolean"
+                },
+                "membership_type": {
+                    "type": "string"
+                },
+                "owner_name": {
+                    "type": "string"
+                },
+                "owner_name_kana": {
+                    "type": "string"
                 },
                 "pets": {
                     "description": "Relations",
@@ -6164,6 +6170,62 @@ const docTemplate = `{
                 "phone": {
                     "type": "string"
                 },
+                "postal_code": {
+                    "type": "string"
+                },
+                "remarks": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.PaymentInfo": {
+            "type": "object",
+            "properties": {
+                "accounting_id": {
+                    "type": "string"
+                },
+                "billing_amount": {
+                    "type": "number"
+                },
+                "change_amount": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "discount_amount": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "insurance_amount": {
+                    "type": "number"
+                },
+                "insurance_name": {
+                    "type": "string"
+                },
+                "insurance_ratio": {
+                    "type": "number"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "received_amount": {
+                    "type": "number"
+                },
+                "subtotal": {
+                    "type": "number"
+                },
+                "tax_total": {
+                    "type": "number"
+                },
+                "total_amount": {
+                    "type": "number"
+                },
                 "updated_at": {
                     "type": "string"
                 }
@@ -6172,16 +6234,28 @@ const docTemplate = `{
         "model.Pet": {
             "type": "object",
             "properties": {
+                "acquisition_type": {
+                    "type": "string"
+                },
                 "birth_date": {
                     "type": "string"
                 },
                 "breed": {
                     "type": "string"
                 },
+                "color": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
+                "danger_level": {
+                    "type": "string"
+                },
                 "environment": {
+                    "type": "string"
+                },
+                "food": {
                     "type": "string"
                 },
                 "gender": {
@@ -6199,33 +6273,28 @@ const docTemplate = `{
                 "last_visit": {
                     "type": "string"
                 },
-                "medical_records": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.MedicalRecord"
-                    }
-                },
-                "microchip_id": {
-                    "type": "string"
-                },
                 "name": {
                     "type": "string"
                 },
-                "notes": {
+                "neutered_date": {
                     "type": "string"
-                },
-                "owner": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/model.Owner"
-                        }
-                    ]
                 },
                 "owner_id": {
                     "type": "string"
                 },
+                "owner_name": {
+                    "type": "string"
+                },
+                "pet_name_kana": {
+                    "type": "string"
+                },
                 "pet_number": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "remarks": {
                     "type": "string"
                 },
                 "species": {
@@ -6238,17 +6307,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "weight": {
-                    "type": "number"
+                    "type": "string"
                 }
             }
         },
-        "model.Reservation": {
+        "model.ReservationAppointment": {
             "type": "object",
             "properties": {
                 "created_at": {
                     "type": "string"
                 },
-                "doctor_id": {
+                "doctor": {
                     "type": "string"
                 },
                 "end_time": {
@@ -6263,85 +6332,33 @@ const docTemplate = `{
                 "notes": {
                     "type": "string"
                 },
-                "owner": {
-                    "$ref": "#/definitions/model.Owner"
-                },
-                "owner_id": {
+                "owner_name": {
                     "type": "string"
-                },
-                "pet": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/model.Pet"
-                        }
-                    ]
                 },
                 "pet_id": {
                     "type": "string"
                 },
-                "service_type": {
-                    "description": "診療, 検診, 手術, etc.",
+                "pet_name": {
                     "type": "string"
                 },
                 "start_time": {
                     "type": "string"
                 },
                 "status": {
-                    "description": "pending, confirmed, checked_in, in_consultation, accounting, completed, canceled",
+                    "type": "string"
+                },
+                "type": {
                     "type": "string"
                 },
                 "updated_at": {
                     "type": "string"
                 },
                 "visit_type": {
-                    "description": "first, revisit",
                     "type": "string"
                 }
             }
         },
-        "model.Staff": {
-            "type": "object",
-            "properties": {
-                "clinic": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/model.Clinic"
-                        }
-                    ]
-                },
-                "clinic_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "phone": {
-                    "type": "string"
-                },
-                "role": {
-                    "description": "veterinarian, nurse, groomer, admin",
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.StaffNote": {
+        "model.StaffNoteRecord": {
             "type": "object",
             "properties": {
                 "content": {
@@ -6356,64 +6373,57 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
-                "recorded_time": {
+                "staff": {
                     "type": "string"
                 },
-                "staff_id": {
+                "time": {
                     "type": "string"
                 }
             }
         },
-        "model.Trimming": {
+        "model.TreatmentItem": {
             "type": "object",
             "properties": {
-                "appointment_date": {
-                    "type": "string"
-                },
-                "course": {
+                "content": {
                     "type": "string"
                 },
                 "created_at": {
                     "type": "string"
                 },
+                "discount_amount": {
+                    "type": "number"
+                },
+                "discount_rate": {
+                    "type": "number"
+                },
                 "id": {
                     "type": "string"
                 },
-                "notes": {
+                "insurance": {
+                    "type": "boolean"
+                },
+                "inventory_id": {
                     "type": "string"
                 },
-                "options": {
-                    "description": "JSON array",
+                "medical_record_id": {
                     "type": "string"
                 },
-                "owner": {
-                    "$ref": "#/definitions/model.Owner"
-                },
-                "owner_id": {
+                "memo": {
                     "type": "string"
                 },
-                "pet": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/model.Pet"
-                        }
-                    ]
+                "quantity": {
+                    "type": "integer"
                 },
-                "pet_id": {
-                    "type": "string"
+                "selected": {
+                    "type": "boolean"
                 },
-                "staff_id": {
-                    "type": "string"
+                "sort_order": {
+                    "type": "integer"
                 },
                 "status": {
-                    "description": "予約, 進行中, 完了",
                     "type": "string"
                 },
-                "style_request": {
-                    "type": "string"
-                },
-                "total_price": {
+                "unit_price": {
                     "type": "number"
                 },
                 "updated_at": {
@@ -6421,54 +6431,193 @@ const docTemplate = `{
                 }
             }
         },
-        "model.UpdateAccountingRequest": {
+        "model.TreatmentPlan": {
             "type": "object",
             "properties": {
-                "billing_amount": {
-                    "type": "number"
-                },
-                "change_amount": {
-                    "type": "number"
-                },
-                "completed_at": {
+                "created_at": {
                     "type": "string"
                 },
                 "discount_amount": {
                     "type": "number"
                 },
-                "insurance_amount": {
+                "discount_rate": {
                     "type": "number"
                 },
-                "insurance_name": {
+                "hospitalization_id": {
                     "type": "string"
                 },
-                "insurance_ratio": {
-                    "type": "number"
+                "id": {
+                    "type": "string"
+                },
+                "insurance": {
+                    "type": "boolean"
                 },
                 "memo": {
                     "type": "string"
                 },
-                "payment_method": {
-                    "type": "string"
+                "quantity": {
+                    "type": "integer"
                 },
-                "received_amount": {
-                    "type": "number"
-                },
-                "status": {
-                    "type": "string"
+                "sort_order": {
+                    "type": "integer"
                 },
                 "subtotal": {
                     "type": "number"
                 },
-                "tax_total": {
+                "treatment_content": {
+                    "type": "string"
+                },
+                "unit_price": {
                     "type": "number"
                 },
-                "total_amount": {
-                    "type": "number"
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
-        "model.UpdateClinicRequest": {
+        "model.TrimmingRecord": {
+            "type": "object",
+            "properties": {
+                "bt": {
+                    "type": "string"
+                },
+                "bw": {
+                    "type": "string"
+                },
+                "bw_unit": {
+                    "type": "string"
+                },
+                "charge": {
+                    "type": "string"
+                },
+                "completed_image": {
+                    "type": "string"
+                },
+                "course_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "final_check": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "medicine": {
+                    "type": "string"
+                },
+                "options": {
+                    "description": "Relations",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.TrimmingRecordOption"
+                    }
+                },
+                "owner_name": {
+                    "type": "string"
+                },
+                "pet_id": {
+                    "type": "string"
+                },
+                "pet_name": {
+                    "type": "string"
+                },
+                "pet_number": {
+                    "type": "string"
+                },
+                "remarks": {
+                    "type": "string"
+                },
+                "species": {
+                    "type": "string"
+                },
+                "staff": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "style_image": {
+                    "type": "string"
+                },
+                "style_request": {
+                    "type": "string"
+                },
+                "treatment": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "used_ribbon": {
+                    "type": "string"
+                },
+                "used_shampoo": {
+                    "type": "string"
+                },
+                "weight": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.TrimmingRecordOption": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "option_id": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "trimming_record_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UpdateAccountingRequest": {
+            "type": "object",
+            "properties": {
+                "hospitalization_id": {
+                    "type": "string"
+                },
+                "medical_record_id": {
+                    "type": "string"
+                },
+                "memo": {
+                    "type": "string"
+                },
+                "owner_id": {
+                    "type": "string"
+                },
+                "owner_name": {
+                    "type": "string"
+                },
+                "pet_id": {
+                    "type": "string"
+                },
+                "pet_name": {
+                    "type": "string"
+                },
+                "pet_species": {
+                    "type": "string"
+                },
+                "scheduled_date": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UpdateClinicInfoRequest": {
             "type": "object",
             "properties": {
                 "address": {
@@ -6506,19 +6655,16 @@ const docTemplate = `{
                 }
             }
         },
-        "model.UpdateExaminationRequest": {
+        "model.UpdateExaminationRecordRequest": {
             "type": "object",
             "properties": {
-                "examination_date": {
+                "date": {
                     "type": "string"
                 },
-                "items": {
+                "doctor": {
                     "type": "string"
                 },
                 "machine": {
-                    "type": "string"
-                },
-                "notes": {
                     "type": "string"
                 },
                 "result_summary": {
@@ -6538,22 +6684,43 @@ const docTemplate = `{
                 "cage_id": {
                     "type": "string"
                 },
+                "doctor_name": {
+                    "type": "string"
+                },
                 "end_date": {
+                    "type": "string"
+                },
+                "hospitalization_type": {
                     "type": "string"
                 },
                 "memo": {
                     "type": "string"
                 },
+                "owner_id": {
+                    "type": "string"
+                },
+                "owner_name": {
+                    "type": "string"
+                },
                 "owner_request": {
+                    "type": "string"
+                },
+                "pet_id": {
+                    "type": "string"
+                },
+                "pet_name": {
+                    "type": "string"
+                },
+                "species": {
                     "type": "string"
                 },
                 "staff_notes": {
                     "type": "string"
                 },
-                "status": {
+                "start_date": {
                     "type": "string"
                 },
-                "type": {
+                "status": {
                     "type": "string"
                 }
             }
@@ -6596,10 +6763,38 @@ const docTemplate = `{
         "model.UpdateMasterItemRequest": {
             "type": "object",
             "properties": {
+                "anesthesia": {
+                    "type": "string"
+                },
+                "billing_unit": {
+                    "type": "string"
+                },
+                "body_size": {
+                    "type": "string"
+                },
+                "cage_size": {
+                    "type": "string"
+                },
+                "cage_type": {
+                    "type": "string"
+                },
                 "category": {
                     "type": "string"
                 },
                 "code": {
+                    "type": "string"
+                },
+                "color": {
+                    "description": "拡張フィールド",
+                    "type": "string"
+                },
+                "combinable": {
+                    "type": "string"
+                },
+                "contact_phone": {
+                    "type": "string"
+                },
+                "coverage_rate": {
                     "type": "string"
                 },
                 "default_quantity": {
@@ -6608,16 +6803,58 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "dosage_form": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "interval": {
+                    "type": "string"
+                },
                 "inventory_id": {
+                    "type": "string"
+                },
+                "license_number": {
+                    "type": "string"
+                },
+                "medicine_unit": {
                     "type": "string"
                 },
                 "name": {
                     "type": "string"
                 },
+                "parent_id": {
+                    "type": "string"
+                },
                 "price": {
                     "type": "number"
                 },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "species": {
+                    "type": "string"
+                },
+                "staff_role": {
+                    "type": "string"
+                },
                 "status": {
+                    "type": "string"
+                },
+                "target_age": {
+                    "type": "string"
+                },
+                "target_size": {
+                    "type": "string"
+                },
+                "time_condition": {
+                    "type": "string"
+                },
+                "user_type": {
                     "type": "string"
                 }
             }
@@ -6625,52 +6862,52 @@ const docTemplate = `{
         "model.UpdateMedicalRecordRequest": {
             "type": "object",
             "properties": {
-                "assessment": {
-                    "type": "string"
-                },
                 "chief_complaint": {
                     "type": "string"
                 },
-                "diagnosis": {
+                "date": {
                     "type": "string"
                 },
-                "doctor_id": {
+                "diagnosis1_category_id": {
                     "type": "string"
                 },
-                "notes": {
+                "diagnosis1_name_id": {
                     "type": "string"
                 },
-                "objective": {
+                "diagnosis2_category_id": {
+                    "type": "string"
+                },
+                "diagnosis2_name_id": {
+                    "type": "string"
+                },
+                "diagnosis_details": {
+                    "type": "string"
+                },
+                "doctor": {
                     "type": "string"
                 },
                 "owner_id": {
                     "type": "string"
                 },
+                "owner_name": {
+                    "type": "string"
+                },
                 "pet_id": {
                     "type": "string"
                 },
-                "plan": {
+                "pet_name": {
                     "type": "string"
                 },
-                "prescription": {
+                "physical_exam": {
+                    "type": "string"
+                },
+                "species": {
                     "type": "string"
                 },
                 "status": {
                     "type": "string"
                 },
-                "subjective": {
-                    "type": "string"
-                },
-                "surgery_notes": {
-                    "type": "string"
-                },
-                "treatment": {
-                    "type": "string"
-                },
-                "visit_date": {
-                    "type": "string"
-                },
-                "visit_type": {
+                "treatment_policy": {
                     "type": "string"
                 }
             }
@@ -6678,22 +6915,52 @@ const docTemplate = `{
         "model.UpdateOwnerRequest": {
             "type": "object",
             "properties": {
-                "address": {
+                "address1": {
                     "type": "string"
+                },
+                "address2": {
+                    "type": "string"
+                },
+                "company": {
+                    "type": "string"
+                },
+                "company_phone": {
+                    "type": "string"
+                },
+                "discount_rate": {
+                    "type": "number"
                 },
                 "email": {
                     "type": "string"
                 },
-                "name": {
+                "home_address1": {
                     "type": "string"
                 },
-                "name_kana": {
+                "home_address2": {
                     "type": "string"
                 },
-                "notes": {
+                "home_postal_code": {
+                    "type": "string"
+                },
+                "is_dangerous": {
+                    "type": "boolean"
+                },
+                "membership_type": {
+                    "type": "string"
+                },
+                "owner_name": {
+                    "type": "string"
+                },
+                "owner_name_kana": {
                     "type": "string"
                 },
                 "phone": {
+                    "type": "string"
+                },
+                "postal_code": {
+                    "type": "string"
+                },
+                "remarks": {
                     "type": "string"
                 }
             }
@@ -6701,13 +6968,25 @@ const docTemplate = `{
         "model.UpdatePetRequest": {
             "type": "object",
             "properties": {
+                "acquisition_type": {
+                    "type": "string"
+                },
                 "birth_date": {
                     "type": "string"
                 },
                 "breed": {
                     "type": "string"
                 },
+                "color": {
+                    "type": "string"
+                },
+                "danger_level": {
+                    "type": "string"
+                },
                 "environment": {
+                    "type": "string"
+                },
+                "food": {
                     "type": "string"
                 },
                 "gender": {
@@ -6719,19 +6998,28 @@ const docTemplate = `{
                 "insurance_name": {
                     "type": "string"
                 },
-                "microchip_id": {
-                    "type": "string"
-                },
                 "name": {
                     "type": "string"
                 },
-                "notes": {
+                "neutered_date": {
                     "type": "string"
                 },
                 "owner_id": {
                     "type": "string"
                 },
+                "owner_name": {
+                    "type": "string"
+                },
+                "pet_name_kana": {
+                    "type": "string"
+                },
                 "pet_number": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "remarks": {
                     "type": "string"
                 },
                 "species": {
@@ -6741,14 +7029,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "weight": {
-                    "type": "number"
+                    "type": "string"
                 }
             }
         },
         "model.UpdateReservationRequest": {
             "type": "object",
             "properties": {
-                "doctor_id": {
+                "doctor": {
                     "type": "string"
                 },
                 "end_time": {
@@ -6760,7 +7048,13 @@ const docTemplate = `{
                 "notes": {
                     "type": "string"
                 },
-                "service_type": {
+                "owner_name": {
+                    "type": "string"
+                },
+                "pet_id": {
+                    "type": "string"
+                },
+                "pet_name": {
                     "type": "string"
                 },
                 "start_time": {
@@ -6769,27 +7063,10 @@ const docTemplate = `{
                 "status": {
                     "type": "string"
                 },
+                "type": {
+                    "type": "string"
+                },
                 "visit_type": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.UpdateStaffRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "phone": {
-                    "type": "string"
-                },
-                "role": {
                     "type": "string"
                 }
             }
@@ -6797,16 +7074,55 @@ const docTemplate = `{
         "model.UpdateTrimmingRequest": {
             "type": "object",
             "properties": {
-                "appointment_date": {
+                "bt": {
                     "type": "string"
                 },
-                "course": {
+                "bw": {
                     "type": "string"
                 },
-                "notes": {
+                "bw_unit": {
                     "type": "string"
                 },
-                "options": {
+                "charge": {
+                    "type": "string"
+                },
+                "course_id": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "final_check": {
+                    "type": "string"
+                },
+                "medicine": {
+                    "type": "string"
+                },
+                "option_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "owner_name": {
+                    "type": "string"
+                },
+                "pet_id": {
+                    "type": "string"
+                },
+                "pet_name": {
+                    "type": "string"
+                },
+                "pet_number": {
+                    "type": "string"
+                },
+                "remarks": {
+                    "type": "string"
+                },
+                "species": {
+                    "type": "string"
+                },
+                "staff": {
                     "type": "string"
                 },
                 "status": {
@@ -6815,24 +7131,51 @@ const docTemplate = `{
                 "style_request": {
                     "type": "string"
                 },
-                "total_price": {
-                    "type": "number"
+                "treatment": {
+                    "type": "string"
+                },
+                "used_ribbon": {
+                    "type": "string"
+                },
+                "used_shampoo": {
+                    "type": "string"
+                },
+                "weight": {
+                    "type": "string"
                 }
             }
         },
-        "model.UpdateVaccinationRequest": {
+        "model.UpdateVaccinationRecordRequest": {
             "type": "object",
             "properties": {
-                "lot_number": {
+                "date": {
+                    "type": "string"
+                },
+                "doctor": {
+                    "type": "string"
+                },
+                "lot1": {
+                    "type": "string"
+                },
+                "lot2": {
+                    "type": "string"
+                },
+                "lot3": {
+                    "type": "string"
+                },
+                "lot4": {
                     "type": "string"
                 },
                 "next_date": {
                     "type": "string"
                 },
-                "notes": {
+                "next_schedule_type": {
                     "type": "string"
                 },
-                "vaccination_date": {
+                "remarks": {
+                    "type": "string"
+                },
+                "supplemental": {
                     "type": "string"
                 },
                 "vaccine_name": {
@@ -6840,51 +7183,58 @@ const docTemplate = `{
                 }
             }
         },
-        "model.Vaccination": {
+        "model.VaccinationRecord": {
             "type": "object",
             "properties": {
                 "created_at": {
                     "type": "string"
                 },
-                "doctor_id": {
+                "date": {
+                    "type": "string"
+                },
+                "doctor": {
                     "type": "string"
                 },
                 "id": {
                     "type": "string"
                 },
-                "lot_number": {
+                "lot1": {
+                    "type": "string"
+                },
+                "lot2": {
+                    "type": "string"
+                },
+                "lot3": {
+                    "type": "string"
+                },
+                "lot4": {
+                    "type": "string"
+                },
+                "medical_record_id": {
                     "type": "string"
                 },
                 "next_date": {
                     "type": "string"
                 },
-                "notes": {
+                "next_schedule_type": {
                     "type": "string"
                 },
-                "owner": {
-                    "$ref": "#/definitions/model.Owner"
-                },
-                "owner_id": {
+                "owner_name": {
                     "type": "string"
-                },
-                "pet": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/model.Pet"
-                        }
-                    ]
                 },
                 "pet_id": {
                     "type": "string"
                 },
+                "pet_name": {
+                    "type": "string"
+                },
+                "remarks": {
+                    "type": "string"
+                },
+                "supplemental": {
+                    "type": "string"
+                },
                 "updated_at": {
-                    "type": "string"
-                },
-                "vaccination_date": {
-                    "type": "string"
-                },
-                "vaccine_master_id": {
                     "type": "string"
                 },
                 "vaccine_name": {
@@ -6892,7 +7242,42 @@ const docTemplate = `{
                 }
             }
         },
-        "model.Vital": {
+        "model.VitalEntry": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "heart_rate": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "medical_record_id": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "recorded_at": {
+                    "type": "string"
+                },
+                "respiration_rate": {
+                    "type": "integer"
+                },
+                "staff": {
+                    "type": "string"
+                },
+                "temperature": {
+                    "type": "number"
+                },
+                "weight": {
+                    "type": "number"
+                }
+            }
+        },
+        "model.VitalRecord": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -6910,17 +7295,17 @@ const docTemplate = `{
                 "notes": {
                     "type": "string"
                 },
-                "recorded_time": {
-                    "type": "string"
-                },
                 "respiration_rate": {
                     "type": "integer"
                 },
-                "staff_id": {
+                "staff": {
                     "type": "string"
                 },
                 "temperature": {
                     "type": "number"
+                },
+                "time": {
+                    "type": "string"
                 },
                 "weight": {
                     "type": "number"

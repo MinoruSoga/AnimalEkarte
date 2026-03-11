@@ -13,13 +13,13 @@ import (
 
 // TrimmingRepository トリミングリポジトリインターフェース
 type TrimmingRepository interface {
-	GetAllTrimmings(ctx context.Context) ([]model.Trimming, error)
-	GetTrimmingByID(ctx context.Context, id string) (*model.Trimming, error)
-	GetTrimmingsByPetID(ctx context.Context, petID string) ([]model.Trimming, error)
-	GetTrimmingsByOwnerID(ctx context.Context, ownerID string) ([]model.Trimming, error)
-	GetTrimmingsByStatus(ctx context.Context, status string) ([]model.Trimming, error)
-	CreateTrimming(ctx context.Context, trim *model.Trimming) error
-	UpdateTrimming(ctx context.Context, trim *model.Trimming) error
+	GetAllTrimmings(ctx context.Context) ([]model.TrimmingRecord, error)
+	GetTrimmingByID(ctx context.Context, id string) (*model.TrimmingRecord, error)
+	GetTrimmingsByPetID(ctx context.Context, petID string) ([]model.TrimmingRecord, error)
+	GetTrimmingsByOwnerID(ctx context.Context, ownerID string) ([]model.TrimmingRecord, error)
+	GetTrimmingsByStatus(ctx context.Context, status string) ([]model.TrimmingRecord, error)
+	CreateTrimming(ctx context.Context, trim *model.TrimmingRecord) error
+	UpdateTrimming(ctx context.Context, trim *model.TrimmingRecord) error
 	DeleteTrimming(ctx context.Context, id string) error
 }
 
@@ -34,12 +34,11 @@ func NewTrimmingRepository(db *gorm.DB) TrimmingRepository {
 }
 
 // GetAllTrimmings 全てのトリミングを取得
-func (r *trimmingRepository) GetAllTrimmings(ctx context.Context) ([]model.Trimming, error) {
-	var trims []model.Trimming
+func (r *trimmingRepository) GetAllTrimmings(ctx context.Context) ([]model.TrimmingRecord, error) {
+	var trims []model.TrimmingRecord
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Order("appointment_date DESC, created_at DESC").
+		Preload("Options").
+		Order("date DESC, created_at DESC").
 		Find(&trims)
 
 	if result.Error != nil {
@@ -50,11 +49,10 @@ func (r *trimmingRepository) GetAllTrimmings(ctx context.Context) ([]model.Trimm
 }
 
 // GetTrimmingByID IDでトリミングを取得
-func (r *trimmingRepository) GetTrimmingByID(ctx context.Context, id string) (*model.Trimming, error) {
-	var trim model.Trimming
+func (r *trimmingRepository) GetTrimmingByID(ctx context.Context, id string) (*model.TrimmingRecord, error) {
+	var trim model.TrimmingRecord
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
+		Preload("Options").
 		First(&trim, "id = ?", id)
 
 	if result.Error != nil {
@@ -68,13 +66,12 @@ func (r *trimmingRepository) GetTrimmingByID(ctx context.Context, id string) (*m
 }
 
 // GetTrimmingsByPetID ペットIDでトリミングを取得
-func (r *trimmingRepository) GetTrimmingsByPetID(ctx context.Context, petID string) ([]model.Trimming, error) {
-	var trims []model.Trimming
+func (r *trimmingRepository) GetTrimmingsByPetID(ctx context.Context, petID string) ([]model.TrimmingRecord, error) {
+	var trims []model.TrimmingRecord
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
+		Preload("Options").
 		Where("pet_id = ?", petID).
-		Order("appointment_date DESC, created_at DESC").
+		Order("date DESC, created_at DESC").
 		Find(&trims)
 
 	if result.Error != nil {
@@ -84,14 +81,13 @@ func (r *trimmingRepository) GetTrimmingsByPetID(ctx context.Context, petID stri
 	return trims, nil
 }
 
-// GetTrimmingsByOwnerID 飼い主IDでトリミングを取得
-func (r *trimmingRepository) GetTrimmingsByOwnerID(ctx context.Context, ownerID string) ([]model.Trimming, error) {
-	var trims []model.Trimming
+// GetTrimmingsByOwnerID 飼い主名でトリミングを取得
+func (r *trimmingRepository) GetTrimmingsByOwnerID(ctx context.Context, ownerID string) ([]model.TrimmingRecord, error) {
+	var trims []model.TrimmingRecord
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Where("owner_id = ?", ownerID).
-		Order("appointment_date DESC, created_at DESC").
+		Preload("Options").
+		Where("owner_name IN (SELECT owner_name FROM owners WHERE id = ?)", ownerID).
+		Order("date DESC, created_at DESC").
 		Find(&trims)
 
 	if result.Error != nil {
@@ -102,13 +98,12 @@ func (r *trimmingRepository) GetTrimmingsByOwnerID(ctx context.Context, ownerID 
 }
 
 // GetTrimmingsByStatus ステータスでトリミングを取得
-func (r *trimmingRepository) GetTrimmingsByStatus(ctx context.Context, status string) ([]model.Trimming, error) {
-	var trims []model.Trimming
+func (r *trimmingRepository) GetTrimmingsByStatus(ctx context.Context, status string) ([]model.TrimmingRecord, error) {
+	var trims []model.TrimmingRecord
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
+		Preload("Options").
 		Where("status = ?", status).
-		Order("appointment_date DESC, created_at DESC").
+		Order("date DESC, created_at DESC").
 		Find(&trims)
 
 	if result.Error != nil {
@@ -119,7 +114,7 @@ func (r *trimmingRepository) GetTrimmingsByStatus(ctx context.Context, status st
 }
 
 // CreateTrimming トリミングを作成
-func (r *trimmingRepository) CreateTrimming(ctx context.Context, trim *model.Trimming) error {
+func (r *trimmingRepository) CreateTrimming(ctx context.Context, trim *model.TrimmingRecord) error {
 	// Generate UUID if not set
 	if trim.ID == uuid.Nil {
 		trim.ID = uuid.New()
@@ -132,7 +127,7 @@ func (r *trimmingRepository) CreateTrimming(ctx context.Context, trim *model.Tri
 }
 
 // UpdateTrimming トリミングを更新
-func (r *trimmingRepository) UpdateTrimming(ctx context.Context, trim *model.Trimming) error {
+func (r *trimmingRepository) UpdateTrimming(ctx context.Context, trim *model.TrimmingRecord) error {
 	result := r.db.WithContext(ctx).Save(trim)
 	if result.Error != nil {
 		return result.Error
@@ -142,7 +137,7 @@ func (r *trimmingRepository) UpdateTrimming(ctx context.Context, trim *model.Tri
 
 // DeleteTrimming トリミングを削除
 func (r *trimmingRepository) DeleteTrimming(ctx context.Context, id string) error {
-	result := r.db.WithContext(ctx).Delete(&model.Trimming{}, "id = ?", id)
+	result := r.db.WithContext(ctx).Delete(&model.TrimmingRecord{}, "id = ?", id)
 	if result.Error != nil {
 		return result.Error
 	}

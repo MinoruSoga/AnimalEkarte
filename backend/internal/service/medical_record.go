@@ -74,68 +74,82 @@ func (s *Service) CreateMedicalRecord(ctx context.Context, req *model.CreateMedi
 		return nil, err
 	}
 
-	// PetIDをUUIDに変換
-	petID, err := uuid.Parse(req.PetID)
+	// Dateをパース
+	date, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
-		return nil, apperrors.WrapInvalidInput("invalid pet ID format")
+		return nil, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD")
 	}
 
-	// OwnerIDをUUIDに変換
-	ownerID, err := uuid.Parse(req.OwnerID)
-	if err != nil {
-		return nil, apperrors.WrapInvalidInput("invalid owner ID format")
+	// RecordNoを生成
+	recordNo := req.RecordNo
+	if recordNo == "" {
+		recordNo = generateRecordNo()
 	}
-
-	// VisitDateをパース
-	var visitDate time.Time
-	if req.VisitDate != "" {
-		visitDate, err = parseVisitDate(req.VisitDate)
-		if err != nil {
-			return nil, apperrors.WrapInvalidInput("invalid visit date format")
-		}
-	} else {
-		visitDate = time.Now()
-	}
-
-	// DoctorIDをUUIDに変換（オプショナル）
-	var doctorID *uuid.UUID
-	if req.DoctorID != "" {
-		doctorUUID, err := uuid.Parse(req.DoctorID)
-		if err != nil {
-			return nil, apperrors.WrapInvalidInput("invalid doctor ID format")
-		}
-		doctorID = &doctorUUID
-	}
-
-	// RecordNoを生成（現在のタイムスタンプを使用）
-	recordNo := generateRecordNo()
 
 	record := &model.MedicalRecord{
-		RecordNo:       recordNo,
-		PetID:          petID,
-		OwnerID:        ownerID,
-		DoctorID:       doctorID,
-		VisitDate:      visitDate,
-		VisitType:      req.VisitType,
-		ChiefComplaint: req.ChiefComplaint,
-		Subjective:     req.Subjective,
-		Objective:      req.Objective,
-		Assessment:     req.Assessment,
-		Plan:           req.Plan,
-		SurgeryNotes:   req.SurgeryNotes,
-		Diagnosis:      req.Diagnosis,
-		Treatment:      req.Treatment,
-		Prescription:   req.Prescription,
-		Notes:          req.Notes,
-		Status:         req.Status,
+		RecordNo:        recordNo,
+		Date:            date,
+		OwnerName:       req.OwnerName,
+		PetName:         req.PetName,
+		Species:         req.Species,
+		ChiefComplaint:  req.ChiefComplaint,
+		TreatmentPolicy: req.TreatmentPolicy,
+		PhysicalExam:    req.PhysicalExam,
+		DiagnosisDetails: req.DiagnosisDetails,
+		Doctor:          req.Doctor,
+		Status:          req.Status,
 	}
 
-	// デフォルト値設定
-	if record.VisitType == "" {
-		record.VisitType = "初診"
-	}
 	if record.Status == "" {
 		record.Status = "作成中"
+	}
+
+	// OwnerIDをUUIDに変換（オプショナル）
+	if req.OwnerID != nil && *req.OwnerID != "" {
+		ownerUID, err := uuid.Parse(*req.OwnerID)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid owner ID format")
+		}
+		record.OwnerID = &ownerUID
+	}
+
+	// PetIDをUUIDに変換（オプショナル）
+	if req.PetID != nil && *req.PetID != "" {
+		petUID, err := uuid.Parse(*req.PetID)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid pet ID format")
+		}
+		record.PetID = &petUID
+	}
+
+	// 診断カテゴリID
+	if req.Diagnosis1CategoryID != nil && *req.Diagnosis1CategoryID != "" {
+		diagUID, err := uuid.Parse(*req.Diagnosis1CategoryID)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid diagnosis1_category_id format")
+		}
+		record.Diagnosis1CategoryID = &diagUID
+	}
+	if req.Diagnosis1NameID != nil && *req.Diagnosis1NameID != "" {
+		diagUID, err := uuid.Parse(*req.Diagnosis1NameID)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid diagnosis1_name_id format")
+		}
+		record.Diagnosis1NameID = &diagUID
+	}
+	if req.Diagnosis2CategoryID != nil && *req.Diagnosis2CategoryID != "" {
+		diagUID, err := uuid.Parse(*req.Diagnosis2CategoryID)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid diagnosis2_category_id format")
+		}
+		record.Diagnosis2CategoryID = &diagUID
+	}
+	if req.Diagnosis2NameID != nil && *req.Diagnosis2NameID != "" {
+		diagUID, err := uuid.Parse(*req.Diagnosis2NameID)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid diagnosis2_name_id format")
+		}
+		record.Diagnosis2NameID = &diagUID
 	}
 
 	if err := s.medicalRecordRepo.CreateMedicalRecord(ctx, record); err != nil {
@@ -158,88 +172,117 @@ func (s *Service) UpdateMedicalRecord(ctx context.Context, id string, req *model
 	}
 
 	// 各フィールドを更新
-	if req.PetID != nil {
-		petID, err := uuid.Parse(*req.PetID)
+	if req.Date != nil {
+		t, err := time.Parse("2006-01-02", *req.Date)
 		if err != nil {
-			return nil, apperrors.WrapInvalidInput("invalid pet ID format")
+			return nil, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD")
 		}
-		record.PetID = petID
+		record.Date = t
 	}
 
 	if req.OwnerID != nil {
-		ownerID, err := uuid.Parse(*req.OwnerID)
-		if err != nil {
-			return nil, apperrors.WrapInvalidInput("invalid owner ID format")
-		}
-		record.OwnerID = ownerID
-	}
-
-	if req.DoctorID != nil {
-		if *req.DoctorID == "" {
-			record.DoctorID = nil
+		if *req.OwnerID == "" {
+			record.OwnerID = nil
 		} else {
-			doctorID, err := uuid.Parse(*req.DoctorID)
+			ownerUID, err := uuid.Parse(*req.OwnerID)
 			if err != nil {
-				return nil, apperrors.WrapInvalidInput("invalid doctor ID format")
+				return nil, apperrors.WrapInvalidInput("invalid owner ID format")
 			}
-			record.DoctorID = &doctorID
+			record.OwnerID = &ownerUID
 		}
 	}
 
-	if req.VisitDate != nil {
-		visitDate, err := parseVisitDate(*req.VisitDate)
-		if err != nil {
-			return nil, apperrors.WrapInvalidInput("invalid visit date format")
-		}
-		record.VisitDate = visitDate
+	if req.OwnerName != nil {
+		record.OwnerName = *req.OwnerName
 	}
 
-	if req.VisitType != nil {
-		record.VisitType = *req.VisitType
+	if req.PetID != nil {
+		if *req.PetID == "" {
+			record.PetID = nil
+		} else {
+			petUID, err := uuid.Parse(*req.PetID)
+			if err != nil {
+				return nil, apperrors.WrapInvalidInput("invalid pet ID format")
+			}
+			record.PetID = &petUID
+		}
+	}
+
+	if req.PetName != nil {
+		record.PetName = *req.PetName
+	}
+
+	if req.Species != nil {
+		record.Species = *req.Species
 	}
 
 	if req.ChiefComplaint != nil {
 		record.ChiefComplaint = *req.ChiefComplaint
 	}
 
-	if req.Subjective != nil {
-		record.Subjective = *req.Subjective
+	if req.TreatmentPolicy != nil {
+		record.TreatmentPolicy = *req.TreatmentPolicy
 	}
 
-	if req.Objective != nil {
-		record.Objective = *req.Objective
+	if req.PhysicalExam != nil {
+		record.PhysicalExam = *req.PhysicalExam
 	}
 
-	if req.Assessment != nil {
-		record.Assessment = *req.Assessment
+	if req.DiagnosisDetails != nil {
+		record.DiagnosisDetails = *req.DiagnosisDetails
 	}
 
-	if req.Plan != nil {
-		record.Plan = *req.Plan
-	}
-
-	if req.SurgeryNotes != nil {
-		record.SurgeryNotes = *req.SurgeryNotes
-	}
-
-	if req.Diagnosis != nil {
-		record.Diagnosis = *req.Diagnosis
-	}
-
-	if req.Treatment != nil {
-		record.Treatment = *req.Treatment
-	}
-
-	if req.Prescription != nil {
-		record.Prescription = *req.Prescription
-	}
-
-	if req.Notes != nil {
-		record.Notes = *req.Notes
+	if req.Doctor != nil {
+		record.Doctor = *req.Doctor
 	}
 
 	if req.Status != nil {
 		record.Status = *req.Status
+	}
+
+	if req.Diagnosis1CategoryID != nil {
+		if *req.Diagnosis1CategoryID == "" {
+			record.Diagnosis1CategoryID = nil
+		} else {
+			diagUID, err := uuid.Parse(*req.Diagnosis1CategoryID)
+			if err != nil {
+				return nil, apperrors.WrapInvalidInput("invalid diagnosis1_category_id format")
+			}
+			record.Diagnosis1CategoryID = &diagUID
+		}
+	}
+	if req.Diagnosis1NameID != nil {
+		if *req.Diagnosis1NameID == "" {
+			record.Diagnosis1NameID = nil
+		} else {
+			diagUID, err := uuid.Parse(*req.Diagnosis1NameID)
+			if err != nil {
+				return nil, apperrors.WrapInvalidInput("invalid diagnosis1_name_id format")
+			}
+			record.Diagnosis1NameID = &diagUID
+		}
+	}
+	if req.Diagnosis2CategoryID != nil {
+		if *req.Diagnosis2CategoryID == "" {
+			record.Diagnosis2CategoryID = nil
+		} else {
+			diagUID, err := uuid.Parse(*req.Diagnosis2CategoryID)
+			if err != nil {
+				return nil, apperrors.WrapInvalidInput("invalid diagnosis2_category_id format")
+			}
+			record.Diagnosis2CategoryID = &diagUID
+		}
+	}
+	if req.Diagnosis2NameID != nil {
+		if *req.Diagnosis2NameID == "" {
+			record.Diagnosis2NameID = nil
+		} else {
+			diagUID, err := uuid.Parse(*req.Diagnosis2NameID)
+			if err != nil {
+				return nil, apperrors.WrapInvalidInput("invalid diagnosis2_name_id format")
+			}
+			record.Diagnosis2NameID = &diagUID
+		}
 	}
 
 	if err := s.medicalRecordRepo.UpdateMedicalRecord(ctx, record); err != nil {
@@ -263,26 +306,6 @@ func (s *Service) DeleteMedicalRecord(ctx context.Context, id string) error {
 	}
 
 	return s.medicalRecordRepo.DeleteMedicalRecord(ctx, uid.String())
-}
-
-// parseVisitDate 診察日時をパースするヘルパー関数
-func parseVisitDate(dateStr string) (time.Time, error) {
-	// RFC3339形式
-	if t, err := time.Parse(time.RFC3339, dateStr); err == nil {
-		return t, nil
-	}
-
-	// YYYY-MM-DD HH:MM:SS形式
-	if t, err := time.Parse("2006-01-02 15:04:05", dateStr); err == nil {
-		return t, nil
-	}
-
-	// YYYY-MM-DD形式
-	if t, err := time.Parse("2006-01-02", dateStr); err == nil {
-		return t, nil
-	}
-
-	return time.Time{}, apperrors.WrapInvalidInput("invalid date format")
 }
 
 // generateRecordNo カルテ番号を生成するヘルパー関数

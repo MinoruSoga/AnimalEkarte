@@ -17,7 +17,7 @@ import (
 // @Produce json
 // @Param date query string false "日付フィルタ（YYYY-MM-DD）。指定した場合は当日の予約のみ返す"
 // @Param status query string false "ステータスでフィルタリング"
-// @Success 200 {array} model.Reservation
+// @Success 200 {array} model.ReservationAppointment
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /reservations [get]
@@ -55,7 +55,7 @@ func (h *Handler) GetAllReservations(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path string true "予約ID (UUID)"
-// @Success 200 {object} model.Reservation
+// @Success 200 {object} model.ReservationAppointment
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
@@ -80,7 +80,7 @@ func (h *Handler) GetReservationByID(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param petId path string true "ペットID (UUID)"
-// @Success 200 {array} model.Reservation
+// @Success 200 {array} model.ReservationAppointment
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /pets/{petId}/reservations [get]
@@ -104,7 +104,7 @@ func (h *Handler) GetReservationsByPetID(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param ownerId path string true "飼い主ID (UUID)"
-// @Success 200 {array} model.Reservation
+// @Success 200 {array} model.ReservationAppointment
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /owners/{ownerId}/reservations [get]
@@ -128,7 +128,7 @@ func (h *Handler) GetReservationsByOwnerID(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param reservation body model.CreateReservationRequest true "予約情報"
-// @Success 201 {object} model.Reservation
+// @Success 201 {object} model.ReservationAppointment
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /reservations [post]
@@ -158,7 +158,7 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 // @Produce json
 // @Param id path string true "予約ID (UUID)"
 // @Param reservation body model.UpdateReservationRequest true "予約情報"
-// @Success 200 {object} model.Reservation
+// @Success 200 {object} model.ReservationAppointment
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string

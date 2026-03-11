@@ -6,69 +6,81 @@ import (
 	"github.com/google/uuid"
 )
 
-// Pet ペットモデル
+// Pet はペット（患者）テーブルに対応するモデル
 type Pet struct {
-	ID               uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
-	OwnerID          uuid.UUID  `json:"owner_id" gorm:"type:uuid;not null;index:idx_pets_owner_id"`
-	PetNumber        string     `json:"pet_number" gorm:"type:varchar(20);uniqueIndex:idx_pets_pet_number"`
-	Name             string     `json:"name" gorm:"type:varchar(100);not null"`
-	Species          string     `json:"species" gorm:"type:varchar(50);not null"`
-	Breed            string     `json:"breed" gorm:"type:varchar(100)"`
-	Gender           string     `json:"gender" gorm:"type:varchar(10)"`
-	BirthDate        *time.Time `json:"birth_date" gorm:"type:date"`
-	Weight           *float64   `json:"weight" gorm:"type:decimal(5,2)"`
-	MicrochipID      string     `json:"microchip_id" gorm:"type:varchar(50)"`
-	Environment      string     `json:"environment" gorm:"type:varchar(50)"`
-	Status           string     `json:"status" gorm:"type:varchar(10);default:'生存'"`
-	InsuranceName    string     `json:"insurance_name" gorm:"type:varchar(100)"`
-	InsuranceDetails string     `json:"insurance_details" gorm:"type:text"`
-	LastVisit        *time.Time `json:"last_visit" gorm:"type:date"`
-	Notes            string     `json:"notes" gorm:"type:text"`
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
-
-	// Relations
-	Owner          *Owner          `json:"owner,omitempty" gorm:"foreignKey:OwnerID"`
-	MedicalRecords []MedicalRecord `json:"medical_records,omitempty" gorm:"foreignKey:PetID"`
+	ID               uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	OwnerID          uuid.UUID  `gorm:"column:owner_id;type:uuid;not null" json:"owner_id"`
+	OwnerName        string     `gorm:"column:owner_name;not null" json:"owner_name"`
+	PetNumber        *string    `gorm:"column:pet_number" json:"pet_number,omitempty"`
+	Name             string     `gorm:"column:name;not null" json:"name"`
+	PetNameKana      *string    `gorm:"column:pet_name_kana" json:"pet_name_kana,omitempty"`
+	Species          string     `gorm:"column:species;type:pet_species;not null" json:"species"`
+	Gender           *string    `gorm:"column:gender;type:pet_gender" json:"gender,omitempty"`
+	Status           string     `gorm:"column:status;type:pet_status;default:'生存'" json:"status"`
+	BirthDate        *time.Time `gorm:"column:birth_date" json:"birth_date,omitempty"`
+	Breed            *string    `gorm:"column:breed" json:"breed,omitempty"`
+	Color            *string    `gorm:"column:color" json:"color,omitempty"`
+	Weight           *string    `gorm:"column:weight" json:"weight,omitempty"`
+	NeuteredDate     *time.Time `gorm:"column:neutered_date" json:"neutered_date,omitempty"`
+	AcquisitionType  *string    `gorm:"column:acquisition_type;type:acquisition_type" json:"acquisition_type,omitempty"`
+	DangerLevel      *string    `gorm:"column:danger_level;type:danger_level" json:"danger_level,omitempty"`
+	Food             *string    `gorm:"column:food" json:"food,omitempty"`
+	Environment      *string    `gorm:"column:environment" json:"environment,omitempty"`
+	Phone            *string    `gorm:"column:phone" json:"phone,omitempty"`
+	LastVisit        *time.Time `gorm:"column:last_visit" json:"last_visit,omitempty"`
+	InsuranceName    *string    `gorm:"column:insurance_name" json:"insurance_name,omitempty"`
+	InsuranceDetails *string    `gorm:"column:insurance_details" json:"insurance_details,omitempty"`
+	Remarks          *string    `gorm:"column:remarks" json:"remarks,omitempty"`
+	CreatedAt        time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	UpdatedAt        time.Time  `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
 }
 
-// TableName テーブル名を指定
-func (Pet) TableName() string {
-	return "pets"
-}
-
-// CreatePetRequest ペット作成リクエスト
+// CreatePetRequest はペット作成リクエスト
 type CreatePetRequest struct {
 	OwnerID          string  `json:"owner_id" binding:"required"`
-	PetNumber        string  `json:"pet_number"`
+	OwnerName        string  `json:"owner_name" binding:"required"`
+	PetNumber        *string `json:"pet_number"`
 	Name             string  `json:"name" binding:"required"`
+	PetNameKana      *string `json:"pet_name_kana"`
 	Species          string  `json:"species" binding:"required"`
-	Breed            string  `json:"breed"`
-	Gender           string  `json:"gender"`
-	BirthDate        string  `json:"birth_date"`
-	Weight           float64 `json:"weight"`
-	MicrochipID      string  `json:"microchip_id"`
-	Environment      string  `json:"environment"`
+	Gender           *string `json:"gender"`
 	Status           string  `json:"status"`
-	InsuranceName    string  `json:"insurance_name"`
-	InsuranceDetails string  `json:"insurance_details"`
-	Notes            string  `json:"notes"`
+	BirthDate        *string `json:"birth_date"`
+	Breed            *string `json:"breed"`
+	Color            *string `json:"color"`
+	Weight           *string `json:"weight"`
+	NeuteredDate     *string `json:"neutered_date"`
+	AcquisitionType  *string `json:"acquisition_type"`
+	DangerLevel      *string `json:"danger_level"`
+	Food             *string `json:"food"`
+	Environment      *string `json:"environment"`
+	Phone            *string `json:"phone"`
+	InsuranceName    *string `json:"insurance_name"`
+	InsuranceDetails *string `json:"insurance_details"`
+	Remarks          *string `json:"remarks"`
 }
 
-// UpdatePetRequest ペット更新リクエスト
+// UpdatePetRequest はペット更新リクエスト
 type UpdatePetRequest struct {
-	OwnerID          string  `json:"owner_id"`
-	PetNumber        string  `json:"pet_number"`
-	Name             string  `json:"name"`
-	Species          string  `json:"species"`
-	Breed            string  `json:"breed"`
-	Gender           string  `json:"gender"`
-	BirthDate        string  `json:"birth_date"`
-	Weight           float64 `json:"weight"`
-	MicrochipID      string  `json:"microchip_id"`
-	Environment      string  `json:"environment"`
-	Status           string  `json:"status"`
-	InsuranceName    string  `json:"insurance_name"`
-	InsuranceDetails string  `json:"insurance_details"`
-	Notes            string  `json:"notes"`
+	OwnerID          *string `json:"owner_id"`
+	OwnerName        *string `json:"owner_name"`
+	PetNumber        *string `json:"pet_number"`
+	Name             *string `json:"name"`
+	PetNameKana      *string `json:"pet_name_kana"`
+	Species          *string `json:"species"`
+	Gender           *string `json:"gender"`
+	Status           *string `json:"status"`
+	BirthDate        *string `json:"birth_date"`
+	Breed            *string `json:"breed"`
+	Color            *string `json:"color"`
+	Weight           *string `json:"weight"`
+	NeuteredDate     *string `json:"neutered_date"`
+	AcquisitionType  *string `json:"acquisition_type"`
+	DangerLevel      *string `json:"danger_level"`
+	Food             *string `json:"food"`
+	Environment      *string `json:"environment"`
+	Phone            *string `json:"phone"`
+	InsuranceName    *string `json:"insurance_name"`
+	InsuranceDetails *string `json:"insurance_details"`
+	Remarks          *string `json:"remarks"`
 }

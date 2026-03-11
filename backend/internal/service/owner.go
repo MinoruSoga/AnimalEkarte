@@ -35,12 +35,22 @@ func (s *Service) GetOwnerByID(ctx context.Context, id string) (*model.Owner, er
 // CreateOwner creates a new owner.
 func (s *Service) CreateOwner(ctx context.Context, req *model.CreateOwnerRequest) (*model.Owner, error) {
 	owner := &model.Owner{
-		Name:     req.Name,
-		NameKana: req.NameKana,
-		Phone:    req.Phone,
-		Email:    req.Email,
-		Address:  req.Address,
-		Notes:    req.Notes,
+		OwnerName:      req.OwnerName,
+		OwnerNameKana:  req.OwnerNameKana,
+		Company:        req.Company,
+		PostalCode:     req.PostalCode,
+		Address1:       req.Address1,
+		Address2:       req.Address2,
+		HomePostalCode: req.HomePostalCode,
+		HomeAddress1:   req.HomeAddress1,
+		HomeAddress2:   req.HomeAddress2,
+		Phone:          req.Phone,
+		CompanyPhone:   req.CompanyPhone,
+		Email:          req.Email,
+		Remarks:        req.Remarks,
+		IsDangerous:    req.IsDangerous,
+		DiscountRate:   req.DiscountRate,
+		MembershipType: req.MembershipType,
 	}
 
 	if err := s.ownerRepo.CreateOwner(ctx, owner); err != nil {
@@ -65,23 +75,53 @@ func (s *Service) UpdateOwner(ctx context.Context, id string, req *model.UpdateO
 		return nil, fmt.Errorf("failed to find owner for update: %w", err)
 	}
 
-	if req.Name != "" {
-		owner.Name = req.Name
+	if req.OwnerName != nil {
+		owner.OwnerName = *req.OwnerName
 	}
-	if req.NameKana != "" {
-		owner.NameKana = req.NameKana
+	if req.OwnerNameKana != nil {
+		owner.OwnerNameKana = req.OwnerNameKana
 	}
-	if req.Phone != "" {
-		owner.Phone = req.Phone
+	if req.Company != nil {
+		owner.Company = *req.Company
 	}
-	if req.Email != "" {
-		owner.Email = req.Email
+	if req.PostalCode != nil {
+		owner.PostalCode = *req.PostalCode
 	}
-	if req.Address != "" {
-		owner.Address = req.Address
+	if req.Address1 != nil {
+		owner.Address1 = *req.Address1
 	}
-	if req.Notes != "" {
-		owner.Notes = req.Notes
+	if req.Address2 != nil {
+		owner.Address2 = *req.Address2
+	}
+	if req.HomePostalCode != nil {
+		owner.HomePostalCode = *req.HomePostalCode
+	}
+	if req.HomeAddress1 != nil {
+		owner.HomeAddress1 = *req.HomeAddress1
+	}
+	if req.HomeAddress2 != nil {
+		owner.HomeAddress2 = *req.HomeAddress2
+	}
+	if req.Phone != nil {
+		owner.Phone = *req.Phone
+	}
+	if req.CompanyPhone != nil {
+		owner.CompanyPhone = *req.CompanyPhone
+	}
+	if req.Email != nil {
+		owner.Email = *req.Email
+	}
+	if req.Remarks != nil {
+		owner.Remarks = *req.Remarks
+	}
+	if req.IsDangerous != nil {
+		owner.IsDangerous = *req.IsDangerous
+	}
+	if req.DiscountRate != nil {
+		owner.DiscountRate = *req.DiscountRate
+	}
+	if req.MembershipType != nil {
+		owner.MembershipType = *req.MembershipType
 	}
 
 	if err := s.ownerRepo.UpdateOwner(ctx, owner); err != nil {

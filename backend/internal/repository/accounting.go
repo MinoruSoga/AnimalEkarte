@@ -37,10 +37,8 @@ func NewAccountingRepository(db *gorm.DB) AccountingRepository {
 func (r *accountingRepository) GetAllAccounting(ctx context.Context) ([]model.Accounting, error) {
 	var accs []model.Accounting
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Preload("MedicalRecord").
-		Preload("AccountingItems").
+		Preload("Items").
+		Preload("PaymentInfo").
 		Order("scheduled_date DESC, created_at DESC").
 		Find(&accs)
 
@@ -55,10 +53,8 @@ func (r *accountingRepository) GetAllAccounting(ctx context.Context) ([]model.Ac
 func (r *accountingRepository) GetAccountingByID(ctx context.Context, id string) (*model.Accounting, error) {
 	var acc model.Accounting
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Preload("MedicalRecord").
-		Preload("AccountingItems").
+		Preload("Items").
+		Preload("PaymentInfo").
 		First(&acc, "id = ?", id)
 
 	if result.Error != nil {
@@ -75,10 +71,8 @@ func (r *accountingRepository) GetAccountingByID(ctx context.Context, id string)
 func (r *accountingRepository) GetAccountingByPetID(ctx context.Context, petID string) ([]model.Accounting, error) {
 	var accs []model.Accounting
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Preload("MedicalRecord").
-		Preload("AccountingItems").
+		Preload("Items").
+		Preload("PaymentInfo").
 		Where("pet_id = ?", petID).
 		Order("scheduled_date DESC, created_at DESC").
 		Find(&accs)
@@ -94,10 +88,8 @@ func (r *accountingRepository) GetAccountingByPetID(ctx context.Context, petID s
 func (r *accountingRepository) GetAccountingByOwnerID(ctx context.Context, ownerID string) ([]model.Accounting, error) {
 	var accs []model.Accounting
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Preload("MedicalRecord").
-		Preload("AccountingItems").
+		Preload("Items").
+		Preload("PaymentInfo").
 		Where("owner_id = ?", ownerID).
 		Order("scheduled_date DESC, created_at DESC").
 		Find(&accs)
@@ -113,10 +105,8 @@ func (r *accountingRepository) GetAccountingByOwnerID(ctx context.Context, owner
 func (r *accountingRepository) GetAccountingByStatus(ctx context.Context, status string) ([]model.Accounting, error) {
 	var accs []model.Accounting
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Preload("MedicalRecord").
-		Preload("AccountingItems").
+		Preload("Items").
+		Preload("PaymentInfo").
 		Where("status = ?", status).
 		Order("scheduled_date DESC, created_at DESC").
 		Find(&accs)

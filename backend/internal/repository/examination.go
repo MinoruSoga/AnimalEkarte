@@ -13,14 +13,13 @@ import (
 
 // ExaminationRepository 検査リポジトリインターフェース
 type ExaminationRepository interface {
-	GetAllExaminations(ctx context.Context) ([]model.Examination, error)
-	GetExaminationByID(ctx context.Context, id string) (*model.Examination, error)
-	GetExaminationsByPetID(ctx context.Context, petID string) ([]model.Examination, error)
-	GetExaminationsByOwnerID(ctx context.Context, ownerID string) ([]model.Examination, error)
-	GetExaminationsByStatus(ctx context.Context, status string) ([]model.Examination, error)
-	CreateExamination(ctx context.Context, exam *model.Examination) error
-	UpdateExamination(ctx context.Context, exam *model.Examination) error
-	DeleteExamination(ctx context.Context, id string) error
+	GetAllExaminationRecords(ctx context.Context) ([]model.ExaminationRecord, error)
+	GetExaminationRecordByID(ctx context.Context, id string) (*model.ExaminationRecord, error)
+	GetExaminationRecordsByMedicalRecordID(ctx context.Context, medicalRecordID string) ([]model.ExaminationRecord, error)
+	GetExaminationRecordsByPetID(ctx context.Context, petID string) ([]model.ExaminationRecord, error)
+	CreateExaminationRecord(ctx context.Context, exam *model.ExaminationRecord) error
+	UpdateExaminationRecord(ctx context.Context, exam *model.ExaminationRecord) error
+	DeleteExaminationRecord(ctx context.Context, id string) error
 }
 
 // examinationRepository 検査リポジトリ実装
@@ -33,14 +32,12 @@ func NewExaminationRepository(db *gorm.DB) ExaminationRepository {
 	return &examinationRepository{db: db}
 }
 
-// GetAllExaminations 全ての検査を取得
-func (r *examinationRepository) GetAllExaminations(ctx context.Context) ([]model.Examination, error) {
-	var exams []model.Examination
+// GetAllExaminationRecords 全ての検査記録を取得
+func (r *examinationRepository) GetAllExaminationRecords(ctx context.Context) ([]model.ExaminationRecord, error) {
+	var exams []model.ExaminationRecord
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Preload("MedicalRecord").
-		Order("examination_date DESC, created_at DESC").
+		Preload("Items").
+		Order("date DESC, created_at DESC").
 		Find(&exams)
 
 	if result.Error != nil {
@@ -50,34 +47,46 @@ func (r *examinationRepository) GetAllExaminations(ctx context.Context) ([]model
 	return exams, nil
 }
 
-// GetExaminationByID IDで検査を取得
-func (r *examinationRepository) GetExaminationByID(ctx context.Context, id string) (*model.Examination, error) {
-	var exam model.Examination
+// GetExaminationRecordByID IDで検査記録を取得
+func (r *examinationRepository) GetExaminationRecordByID(ctx context.Context, id string) (*model.ExaminationRecord, error) {
+	var exam model.ExaminationRecord
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Preload("MedicalRecord").
+		Preload("Items").
 		First(&exam, "id = ?", id)
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("examination with id %s not found", id)
+			return nil, apperrors.WrapNotFound("examination record with id %s not found", id)
 		}
-		return nil, apperrors.WrapInternal(result.Error, "failed to get examination")
+		return nil, apperrors.WrapInternal(result.Error, "failed to get examination record")
 	}
 
 	return &exam, nil
 }
 
-// GetExaminationsByPetID ペットIDで検査を取得
-func (r *examinationRepository) GetExaminationsByPetID(ctx context.Context, petID string) ([]model.Examination, error) {
-	var exams []model.Examination
+// GetExaminationRecordsByMedicalRecordID カルテIDで検査記録を取得
+func (r *examinationRepository) GetExaminationRecordsByMedicalRecordID(ctx context.Context, medicalRecordID string) ([]model.ExaminationRecord, error) {
+	var exams []model.ExaminationRecord
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Preload("MedicalRecord").
+		Preload("Items").
+		Where("medical_record_id = ?", medicalRecordID).
+		Order("date DESC, created_at DESC").
+		Find(&exams)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return exams, nil
+}
+
+// GetExaminationRecordsByPetID ペットIDで検査記録を取得
+func (r *examinationRepository) GetExaminationRecordsByPetID(ctx context.Context, petID string) ([]model.ExaminationRecord, error) {
+	var exams []model.ExaminationRecord
+	result := r.db.WithContext(ctx).
+		Preload("Items").
 		Where("pet_id = ?", petID).
-		Order("examination_date DESC, created_at DESC").
+		Order("date DESC, created_at DESC").
 		Find(&exams)
 
 	if result.Error != nil {
@@ -87,44 +96,8 @@ func (r *examinationRepository) GetExaminationsByPetID(ctx context.Context, petI
 	return exams, nil
 }
 
-// GetExaminationsByOwnerID 飼い主IDで検査を取得
-func (r *examinationRepository) GetExaminationsByOwnerID(ctx context.Context, ownerID string) ([]model.Examination, error) {
-	var exams []model.Examination
-	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Preload("MedicalRecord").
-		Where("owner_id = ?", ownerID).
-		Order("examination_date DESC, created_at DESC").
-		Find(&exams)
-
-	if result.Error != nil {
-		return nil, result.Error
-	}
-
-	return exams, nil
-}
-
-// GetExaminationsByStatus ステータスで検査を取得
-func (r *examinationRepository) GetExaminationsByStatus(ctx context.Context, status string) ([]model.Examination, error) {
-	var exams []model.Examination
-	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Preload("MedicalRecord").
-		Where("status = ?", status).
-		Order("examination_date DESC, created_at DESC").
-		Find(&exams)
-
-	if result.Error != nil {
-		return nil, result.Error
-	}
-
-	return exams, nil
-}
-
-// CreateExamination 検査を作成
-func (r *examinationRepository) CreateExamination(ctx context.Context, exam *model.Examination) error {
+// CreateExaminationRecord 検査記録を作成
+func (r *examinationRepository) CreateExaminationRecord(ctx context.Context, exam *model.ExaminationRecord) error {
 	// Generate UUID if not set
 	if exam.ID == uuid.Nil {
 		exam.ID = uuid.New()
@@ -136,8 +109,8 @@ func (r *examinationRepository) CreateExamination(ctx context.Context, exam *mod
 	return nil
 }
 
-// UpdateExamination 検査を更新
-func (r *examinationRepository) UpdateExamination(ctx context.Context, exam *model.Examination) error {
+// UpdateExaminationRecord 検査記録を更新
+func (r *examinationRepository) UpdateExaminationRecord(ctx context.Context, exam *model.ExaminationRecord) error {
 	result := r.db.WithContext(ctx).Save(exam)
 	if result.Error != nil {
 		return result.Error
@@ -145,9 +118,9 @@ func (r *examinationRepository) UpdateExamination(ctx context.Context, exam *mod
 	return nil
 }
 
-// DeleteExamination 検査を削除
-func (r *examinationRepository) DeleteExamination(ctx context.Context, id string) error {
-	result := r.db.WithContext(ctx).Delete(&model.Examination{}, "id = ?", id)
+// DeleteExaminationRecord 検査記録を削除
+func (r *examinationRepository) DeleteExaminationRecord(ctx context.Context, id string) error {
+	result := r.db.WithContext(ctx).Delete(&model.ExaminationRecord{}, "id = ?", id)
 	if result.Error != nil {
 		return result.Error
 	}

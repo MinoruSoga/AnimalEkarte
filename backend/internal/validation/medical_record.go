@@ -10,8 +10,7 @@ import (
 )
 
 var (
-	visitTypeRegex = regexp.MustCompile(`^(初診|再診)$`)
-	statusRegex    = regexp.MustCompile(`^(作成中|確定済)$`)
+	statusRegex = regexp.MustCompile(`^(作成中|確定済)$`)
 )
 
 // ValidateCreateMedicalRecord カルテ作成リクエストのバリデーション
@@ -20,97 +19,61 @@ func ValidateCreateMedicalRecord(req *model.CreateMedicalRecordRequest) error {
 		return fmt.Errorf("request is nil")
 	}
 
-	var errors []string
+	var errs []string
 
-	// PetIDの検証
-	if strings.TrimSpace(req.PetID) == "" {
-		errors = append(errors, "pet_id is required")
-	}
-
-	// OwnerIDの検証
-	if strings.TrimSpace(req.OwnerID) == "" {
-		errors = append(errors, "owner_id is required")
-	}
-
-	// VisitDateの検証
-	if strings.TrimSpace(req.VisitDate) == "" {
-		errors = append(errors, "visit_date is required")
+	// Dateの検証
+	if strings.TrimSpace(req.Date) == "" {
+		errs = append(errs, "date is required")
 	} else {
-		if _, err := time.Parse("2006-01-02T15:04:05Z07:00", req.VisitDate); err != nil {
-			if _, err := time.Parse("2006-01-02 15:04:05", req.VisitDate); err != nil {
-				if _, err := time.Parse("2006-01-02", req.VisitDate); err != nil {
-					errors = append(errors, "visit_date must be a valid date format (YYYY-MM-DD, YYYY-MM-DD HH:MM:SS, or RFC3339)")
-				}
-			}
+		if _, err := time.Parse("2006-01-02", req.Date); err != nil {
+			errs = append(errs, "date must be a valid date format (YYYY-MM-DD)")
 		}
 	}
 
-	// VisitTypeの検証
-	if req.VisitType != "" {
-		if !visitTypeRegex.MatchString(req.VisitType) {
-			errors = append(errors, "visit_type must be '初診' or '再診'")
-		}
+	// OwnerNameの検証
+	if strings.TrimSpace(req.OwnerName) == "" {
+		errs = append(errs, "owner_name is required")
+	}
+
+	// PetNameの検証
+	if strings.TrimSpace(req.PetName) == "" {
+		errs = append(errs, "pet_name is required")
+	}
+
+	// Doctorの検証
+	if strings.TrimSpace(req.Doctor) == "" {
+		errs = append(errs, "doctor is required")
 	}
 
 	// ChiefComplaintの検証
 	if len(req.ChiefComplaint) > 1000 {
-		errors = append(errors, "chief_complaint must be less than 1000 characters")
+		errs = append(errs, "chief_complaint must be less than 1000 characters")
 	}
 
-	// Subjectiveの検証
-	if len(req.Subjective) > 2000 {
-		errors = append(errors, "subjective must be less than 2000 characters")
+	// TreatmentPolicyの検証
+	if len(req.TreatmentPolicy) > 2000 {
+		errs = append(errs, "treatment_policy must be less than 2000 characters")
 	}
 
-	// Objectiveの検証
-	if len(req.Objective) > 2000 {
-		errors = append(errors, "objective must be less than 2000 characters")
+	// PhysicalExamの検証
+	if len(req.PhysicalExam) > 2000 {
+		errs = append(errs, "physical_exam must be less than 2000 characters")
 	}
 
-	// Assessmentの検証
-	if len(req.Assessment) > 2000 {
-		errors = append(errors, "assessment must be less than 2000 characters")
-	}
-
-	// Planの検証
-	if len(req.Plan) > 2000 {
-		errors = append(errors, "plan must be less than 2000 characters")
-	}
-
-	// Diagnosisの検証
-	if len(req.Diagnosis) > 1000 {
-		errors = append(errors, "diagnosis must be less than 1000 characters")
-	}
-
-	// Treatmentの検証
-	if len(req.Treatment) > 2000 {
-		errors = append(errors, "treatment must be less than 2000 characters")
-	}
-
-	// Prescriptionの検証
-	if len(req.Prescription) > 2000 {
-		errors = append(errors, "prescription must be less than 2000 characters")
-	}
-
-	// Notesの検証
-	if len(req.Notes) > 2000 {
-		errors = append(errors, "notes must be less than 2000 characters")
-	}
-
-	// SurgeryNotesの検証
-	if len(req.SurgeryNotes) > 2000 {
-		errors = append(errors, "surgery_notes must be less than 2000 characters")
+	// DiagnosisDetailsの検証
+	if len(req.DiagnosisDetails) > 2000 {
+		errs = append(errs, "diagnosis_details must be less than 2000 characters")
 	}
 
 	// Statusの検証
 	if req.Status != "" {
 		if !statusRegex.MatchString(req.Status) {
-			errors = append(errors, "status must be '作成中' or '確定済'")
+			errs = append(errs, "status must be '作成中' or '確定済'")
 		}
 	}
 
-	if len(errors) > 0 {
-		return fmt.Errorf("validation failed: %s", strings.Join(errors, "; "))
+	if len(errs) > 0 {
+		return fmt.Errorf("validation failed: %s", strings.Join(errs, "; "))
 	}
 
 	return nil
@@ -122,85 +85,59 @@ func ValidateUpdateMedicalRecord(req *model.UpdateMedicalRecordRequest) error {
 		return fmt.Errorf("request is nil")
 	}
 
-	var errors []string
+	var errs []string
 
-	// VisitDateの検証
-	if req.VisitDate != nil && *req.VisitDate != "" {
-		if _, err := time.Parse("2006-01-02T15:04:05Z07:00", *req.VisitDate); err != nil {
-			if _, err := time.Parse("2006-01-02 15:04:05", *req.VisitDate); err != nil {
-				if _, err := time.Parse("2006-01-02", *req.VisitDate); err != nil {
-					errors = append(errors, "visit_date must be a valid date format (YYYY-MM-DD, YYYY-MM-DD HH:MM:SS, or RFC3339)")
-				}
-			}
+	// Dateの検証
+	if req.Date != nil && *req.Date != "" {
+		if _, err := time.Parse("2006-01-02", *req.Date); err != nil {
+			errs = append(errs, "date must be a valid date format (YYYY-MM-DD)")
 		}
 	}
 
-	// VisitTypeの検証
-	if req.VisitType != nil && *req.VisitType != "" {
-		if !visitTypeRegex.MatchString(*req.VisitType) {
-			errors = append(errors, "visit_type must be '初診' or '再診'")
-		}
+	// OwnerNameの検証
+	if req.OwnerName != nil && strings.TrimSpace(*req.OwnerName) == "" {
+		errs = append(errs, "owner_name must not be empty")
+	}
+
+	// PetNameの検証
+	if req.PetName != nil && strings.TrimSpace(*req.PetName) == "" {
+		errs = append(errs, "pet_name must not be empty")
+	}
+
+	// Doctorの検証
+	if req.Doctor != nil && strings.TrimSpace(*req.Doctor) == "" {
+		errs = append(errs, "doctor must not be empty")
 	}
 
 	// ChiefComplaintの検証
 	if req.ChiefComplaint != nil && len(*req.ChiefComplaint) > 1000 {
-		errors = append(errors, "chief_complaint must be less than 1000 characters")
+		errs = append(errs, "chief_complaint must be less than 1000 characters")
 	}
 
-	// Subjectiveの検証
-	if req.Subjective != nil && len(*req.Subjective) > 2000 {
-		errors = append(errors, "subjective must be less than 2000 characters")
+	// TreatmentPolicyの検証
+	if req.TreatmentPolicy != nil && len(*req.TreatmentPolicy) > 2000 {
+		errs = append(errs, "treatment_policy must be less than 2000 characters")
 	}
 
-	// Objectiveの検証
-	if req.Objective != nil && len(*req.Objective) > 2000 {
-		errors = append(errors, "objective must be less than 2000 characters")
+	// PhysicalExamの検証
+	if req.PhysicalExam != nil && len(*req.PhysicalExam) > 2000 {
+		errs = append(errs, "physical_exam must be less than 2000 characters")
 	}
 
-	// Assessmentの検証
-	if req.Assessment != nil && len(*req.Assessment) > 2000 {
-		errors = append(errors, "assessment must be less than 2000 characters")
-	}
-
-	// Planの検証
-	if req.Plan != nil && len(*req.Plan) > 2000 {
-		errors = append(errors, "plan must be less than 2000 characters")
-	}
-
-	// Diagnosisの検証
-	if req.Diagnosis != nil && len(*req.Diagnosis) > 1000 {
-		errors = append(errors, "diagnosis must be less than 1000 characters")
-	}
-
-	// Treatmentの検証
-	if req.Treatment != nil && len(*req.Treatment) > 2000 {
-		errors = append(errors, "treatment must be less than 2000 characters")
-	}
-
-	// Prescriptionの検証
-	if req.Prescription != nil && len(*req.Prescription) > 2000 {
-		errors = append(errors, "prescription must be less than 2000 characters")
-	}
-
-	// Notesの検証
-	if req.Notes != nil && len(*req.Notes) > 2000 {
-		errors = append(errors, "notes must be less than 2000 characters")
-	}
-
-	// SurgeryNotesの検証
-	if req.SurgeryNotes != nil && len(*req.SurgeryNotes) > 2000 {
-		errors = append(errors, "surgery_notes must be less than 2000 characters")
+	// DiagnosisDetailsの検証
+	if req.DiagnosisDetails != nil && len(*req.DiagnosisDetails) > 2000 {
+		errs = append(errs, "diagnosis_details must be less than 2000 characters")
 	}
 
 	// Statusの検証
-	if req.Status != nil {
+	if req.Status != nil && *req.Status != "" {
 		if !statusRegex.MatchString(*req.Status) {
-			errors = append(errors, "status must be '作成中' or '確定済'")
+			errs = append(errs, "status must be '作成中' or '確定済'")
 		}
 	}
 
-	if len(errors) > 0 {
-		return fmt.Errorf("validation failed: %s", strings.Join(errors, "; "))
+	if len(errs) > 0 {
+		return fmt.Errorf("validation failed: %s", strings.Join(errs, "; "))
 	}
 
 	return nil

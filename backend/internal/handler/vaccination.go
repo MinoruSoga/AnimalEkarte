@@ -15,7 +15,7 @@ import (
 // @Tags vaccinations
 // @Accept json
 // @Produce json
-// @Success 200 {array} model.Vaccination
+// @Success 200 {array} model.VaccinationRecord
 // @Failure 500 {object} map[string]string
 // @Router /vaccinations [get]
 // @Security ApiKeyAuth
@@ -38,7 +38,7 @@ func (h *Handler) GetAllVaccinations(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path string true "ワクチン接種ID (UUID)"
-// @Success 200 {object} model.Vaccination
+// @Success 200 {object} model.VaccinationRecord
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
@@ -63,7 +63,7 @@ func (h *Handler) GetVaccinationByID(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param petId path string true "ペットID (UUID)"
-// @Success 200 {array} model.Vaccination
+// @Success 200 {array} model.VaccinationRecord
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /pets/{petId}/vaccinations [get]
@@ -87,7 +87,7 @@ func (h *Handler) GetVaccinationsByPetID(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param ownerId path string true "飼い主ID (UUID)"
-// @Success 200 {array} model.Vaccination
+// @Success 200 {array} model.VaccinationRecord
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /owners/{ownerId}/vaccinations [get]
@@ -110,14 +110,14 @@ func (h *Handler) GetVaccinationsByOwnerID(c *gin.Context) {
 // @Tags vaccinations
 // @Accept json
 // @Produce json
-// @Param vac body model.CreateVaccinationRequest true "ワクチン接種情報"
-// @Success 201 {object} model.Vaccination
+// @Param vac body model.CreateVaccinationRecordRequest true "ワクチン接種情報"
+// @Success 201 {object} model.VaccinationRecord
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /vaccinations [post]
 func (h *Handler) CreateVaccination(c *gin.Context) {
 	ctx := c.Request.Context()
-	var req model.CreateVaccinationRequest
+	var req model.CreateVaccinationRecordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		slog.ErrorContext(ctx, "invalid request body", slog.String("error", err.Error()))
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
@@ -140,8 +140,8 @@ func (h *Handler) CreateVaccination(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path string true "ワクチン接種ID (UUID)"
-// @Param vac body model.UpdateVaccinationRequest true "ワクチン接種情報"
-// @Success 200 {object} model.Vaccination
+// @Param vac body model.UpdateVaccinationRecordRequest true "ワクチン接種情報"
+// @Success 200 {object} model.VaccinationRecord
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
@@ -150,7 +150,7 @@ func (h *Handler) UpdateVaccination(c *gin.Context) {
 	ctx := c.Request.Context()
 	id := c.Param("id")
 
-	var req model.UpdateVaccinationRequest
+	var req model.UpdateVaccinationRecordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		slog.ErrorContext(ctx, "invalid request body", slog.String("error", err.Error()))
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})

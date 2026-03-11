@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -11,23 +12,23 @@ import (
 
 // TrimmingService トリミングサービスインターフェース
 type TrimmingService interface {
-	GetAllTrimmings(ctx context.Context) ([]model.Trimming, error)
-	GetTrimmingByID(ctx context.Context, id string) (*model.Trimming, error)
-	GetTrimmingsByPetID(ctx context.Context, petID string) ([]model.Trimming, error)
-	GetTrimmingsByOwnerID(ctx context.Context, ownerID string) ([]model.Trimming, error)
-	GetTrimmingsByStatus(ctx context.Context, status string) ([]model.Trimming, error)
-	CreateTrimming(ctx context.Context, req *model.CreateTrimmingRequest) (*model.Trimming, error)
-	UpdateTrimming(ctx context.Context, id string, req *model.UpdateTrimmingRequest) (*model.Trimming, error)
+	GetAllTrimmings(ctx context.Context) ([]model.TrimmingRecord, error)
+	GetTrimmingByID(ctx context.Context, id string) (*model.TrimmingRecord, error)
+	GetTrimmingsByPetID(ctx context.Context, petID string) ([]model.TrimmingRecord, error)
+	GetTrimmingsByOwnerID(ctx context.Context, ownerID string) ([]model.TrimmingRecord, error)
+	GetTrimmingsByStatus(ctx context.Context, status string) ([]model.TrimmingRecord, error)
+	CreateTrimming(ctx context.Context, req *model.CreateTrimmingRequest) (*model.TrimmingRecord, error)
+	UpdateTrimming(ctx context.Context, id string, req *model.UpdateTrimmingRequest) (*model.TrimmingRecord, error)
 	DeleteTrimming(ctx context.Context, id string) error
 }
 
 // GetAllTrimmings 全てのトリミングを取得
-func (s *Service) GetAllTrimmings(ctx context.Context) ([]model.Trimming, error) {
+func (s *Service) GetAllTrimmings(ctx context.Context) ([]model.TrimmingRecord, error) {
 	return s.trimmingRepo.GetAllTrimmings(ctx)
 }
 
 // GetTrimmingByID IDでトリミングを取得
-func (s *Service) GetTrimmingByID(ctx context.Context, id string) (*model.Trimming, error) {
+func (s *Service) GetTrimmingByID(ctx context.Context, id string) (*model.TrimmingRecord, error) {
 	uid, err := uuid.Parse(id)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("invalid trimming ID format")
@@ -46,7 +47,7 @@ func (s *Service) GetTrimmingByID(ctx context.Context, id string) (*model.Trimmi
 }
 
 // GetTrimmingsByPetID ペットIDでトリミングを取得
-func (s *Service) GetTrimmingsByPetID(ctx context.Context, petID string) ([]model.Trimming, error) {
+func (s *Service) GetTrimmingsByPetID(ctx context.Context, petID string) ([]model.TrimmingRecord, error) {
 	uid, err := uuid.Parse(petID)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("invalid pet ID format")
@@ -56,7 +57,7 @@ func (s *Service) GetTrimmingsByPetID(ctx context.Context, petID string) ([]mode
 }
 
 // GetTrimmingsByOwnerID 飼い主IDでトリミングを取得
-func (s *Service) GetTrimmingsByOwnerID(ctx context.Context, ownerID string) ([]model.Trimming, error) {
+func (s *Service) GetTrimmingsByOwnerID(ctx context.Context, ownerID string) ([]model.TrimmingRecord, error) {
 	uid, err := uuid.Parse(ownerID)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("invalid owner ID format")
@@ -66,23 +67,56 @@ func (s *Service) GetTrimmingsByOwnerID(ctx context.Context, ownerID string) ([]
 }
 
 // GetTrimmingsByStatus ステータスでトリミングを取得
-func (s *Service) GetTrimmingsByStatus(ctx context.Context, status string) ([]model.Trimming, error) {
+func (s *Service) GetTrimmingsByStatus(ctx context.Context, status string) ([]model.TrimmingRecord, error) {
 	return s.trimmingRepo.GetTrimmingsByStatus(ctx, status)
 }
 
 // CreateTrimming トリミングを作成
-func (s *Service) CreateTrimming(ctx context.Context, req *model.CreateTrimmingRequest) (*model.Trimming, error) {
-	trim := &model.Trimming{
-		ID:              uuid.New(),
-		PetID:           req.PetID,
-		OwnerID:         req.OwnerID,
-		StaffID:         req.StaffID,
-		AppointmentDate: req.AppointmentDate,
-		Course:          req.Course,
-		Options:         req.Options,
-		StyleRequest:    req.StyleRequest,
-		Status:          "予約",
-		Notes:           req.Notes,
+func (s *Service) CreateTrimming(ctx context.Context, req *model.CreateTrimmingRequest) (*model.TrimmingRecord, error) {
+	petID, err := uuid.Parse(req.PetID)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("invalid pet ID format")
+	}
+
+	date, err := time.Parse("2006-01-02", req.Date)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD")
+	}
+
+	trim := &model.TrimmingRecord{
+		ID:           uuid.New(),
+		PetID:        petID,
+		Date:         date,
+		PetNumber:    req.PetNumber,
+		PetName:      req.PetName,
+		OwnerName:    req.OwnerName,
+		Species:      req.Species,
+		Weight:       req.Weight,
+		StyleRequest: req.StyleRequest,
+		Staff:        req.Staff,
+		Status:       req.Status,
+		Bw:           req.Bw,
+		BwUnit:       req.BwUnit,
+		Bt:           req.Bt,
+		UsedShampoo:  req.UsedShampoo,
+		UsedRibbon:   req.UsedRibbon,
+		Treatment:    req.Treatment,
+		Medicine:     req.Medicine,
+		Charge:       req.Charge,
+		Remarks:      req.Remarks,
+		FinalCheck:   req.FinalCheck,
+	}
+
+	if trim.Status == "" {
+		trim.Status = "予約"
+	}
+
+	if req.CourseID != nil {
+		courseUID, err := uuid.Parse(*req.CourseID)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid course ID format")
+		}
+		trim.CourseID = &courseUID
 	}
 
 	if err := s.trimmingRepo.CreateTrimming(ctx, trim); err != nil {
@@ -93,7 +127,7 @@ func (s *Service) CreateTrimming(ctx context.Context, req *model.CreateTrimmingR
 }
 
 // UpdateTrimming トリミングを更新
-func (s *Service) UpdateTrimming(ctx context.Context, id string, req *model.UpdateTrimmingRequest) (*model.Trimming, error) {
+func (s *Service) UpdateTrimming(ctx context.Context, id string, req *model.UpdateTrimmingRequest) (*model.TrimmingRecord, error) {
 	uid, err := uuid.Parse(id)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("invalid trimming ID format")
@@ -109,26 +143,70 @@ func (s *Service) UpdateTrimming(ctx context.Context, id string, req *model.Upda
 	}
 
 	// Update fields
-	if req.Status != "" {
-		trim.Status = req.Status
+	if req.Date != nil {
+		t, err := time.Parse("2006-01-02", *req.Date)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD")
+		}
+		trim.Date = t
 	}
-	if req.AppointmentDate != nil {
-		trim.AppointmentDate = *req.AppointmentDate
+	if req.PetName != nil {
+		trim.PetName = *req.PetName
 	}
-	if req.Course != "" {
-		trim.Course = req.Course
+	if req.OwnerName != nil {
+		trim.OwnerName = *req.OwnerName
 	}
-	if req.Options != "" {
-		trim.Options = req.Options
+	if req.Species != nil {
+		trim.Species = *req.Species
 	}
-	if req.StyleRequest != "" {
-		trim.StyleRequest = req.StyleRequest
+	if req.Weight != nil {
+		trim.Weight = *req.Weight
 	}
-	if req.TotalPrice != nil {
-		trim.TotalPrice = req.TotalPrice
+	if req.StyleRequest != nil {
+		trim.StyleRequest = *req.StyleRequest
 	}
-	if req.Notes != "" {
-		trim.Notes = req.Notes
+	if req.Staff != nil {
+		trim.Staff = *req.Staff
+	}
+	if req.Status != nil {
+		trim.Status = *req.Status
+	}
+	if req.CourseID != nil {
+		courseUID, err := uuid.Parse(*req.CourseID)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid course ID format")
+		}
+		trim.CourseID = &courseUID
+	}
+	if req.Bw != nil {
+		trim.Bw = *req.Bw
+	}
+	if req.BwUnit != nil {
+		trim.BwUnit = *req.BwUnit
+	}
+	if req.Bt != nil {
+		trim.Bt = *req.Bt
+	}
+	if req.UsedShampoo != nil {
+		trim.UsedShampoo = *req.UsedShampoo
+	}
+	if req.UsedRibbon != nil {
+		trim.UsedRibbon = *req.UsedRibbon
+	}
+	if req.Treatment != nil {
+		trim.Treatment = *req.Treatment
+	}
+	if req.Medicine != nil {
+		trim.Medicine = *req.Medicine
+	}
+	if req.Charge != nil {
+		trim.Charge = *req.Charge
+	}
+	if req.Remarks != nil {
+		trim.Remarks = *req.Remarks
+	}
+	if req.FinalCheck != nil {
+		trim.FinalCheck = *req.FinalCheck
 	}
 
 	if err := s.trimmingRepo.UpdateTrimming(ctx, trim); err != nil {

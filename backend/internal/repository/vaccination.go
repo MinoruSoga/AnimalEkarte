@@ -13,12 +13,12 @@ import (
 
 // VaccinationRepository ワクチン接種リポジトリインターフェース
 type VaccinationRepository interface {
-	GetAllVaccinations(ctx context.Context) ([]model.Vaccination, error)
-	GetVaccinationByID(ctx context.Context, id string) (*model.Vaccination, error)
-	GetVaccinationsByPetID(ctx context.Context, petID string) ([]model.Vaccination, error)
-	GetVaccinationsByOwnerID(ctx context.Context, ownerID string) ([]model.Vaccination, error)
-	CreateVaccination(ctx context.Context, vac *model.Vaccination) error
-	UpdateVaccination(ctx context.Context, vac *model.Vaccination) error
+	GetAllVaccinations(ctx context.Context) ([]model.VaccinationRecord, error)
+	GetVaccinationByID(ctx context.Context, id string) (*model.VaccinationRecord, error)
+	GetVaccinationsByPetID(ctx context.Context, petID string) ([]model.VaccinationRecord, error)
+	GetVaccinationsByOwnerID(ctx context.Context, ownerID string) ([]model.VaccinationRecord, error)
+	CreateVaccination(ctx context.Context, vac *model.VaccinationRecord) error
+	UpdateVaccination(ctx context.Context, vac *model.VaccinationRecord) error
 	DeleteVaccination(ctx context.Context, id string) error
 }
 
@@ -32,13 +32,11 @@ func NewVaccinationRepository(db *gorm.DB) VaccinationRepository {
 	return &vaccinationRepository{db: db}
 }
 
-// GetAllVaccinations 全てのワクチン接種を取得
-func (r *vaccinationRepository) GetAllVaccinations(ctx context.Context) ([]model.Vaccination, error) {
-	var vacs []model.Vaccination
+// GetAllVaccinations 全てのワクチン接種記録を取得
+func (r *vaccinationRepository) GetAllVaccinations(ctx context.Context) ([]model.VaccinationRecord, error) {
+	var vacs []model.VaccinationRecord
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Order("vaccination_date DESC, created_at DESC").
+		Order("date DESC, created_at DESC").
 		Find(&vacs)
 
 	if result.Error != nil {
@@ -48,12 +46,10 @@ func (r *vaccinationRepository) GetAllVaccinations(ctx context.Context) ([]model
 	return vacs, nil
 }
 
-// GetVaccinationByID IDでワクチン接種を取得
-func (r *vaccinationRepository) GetVaccinationByID(ctx context.Context, id string) (*model.Vaccination, error) {
-	var vac model.Vaccination
+// GetVaccinationByID IDでワクチン接種記録を取得
+func (r *vaccinationRepository) GetVaccinationByID(ctx context.Context, id string) (*model.VaccinationRecord, error) {
+	var vac model.VaccinationRecord
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
 		First(&vac, "id = ?", id)
 
 	if result.Error != nil {
@@ -66,14 +62,12 @@ func (r *vaccinationRepository) GetVaccinationByID(ctx context.Context, id strin
 	return &vac, nil
 }
 
-// GetVaccinationsByPetID ペットIDでワクチン接種を取得
-func (r *vaccinationRepository) GetVaccinationsByPetID(ctx context.Context, petID string) ([]model.Vaccination, error) {
-	var vacs []model.Vaccination
+// GetVaccinationsByPetID ペットIDでワクチン接種記録を取得
+func (r *vaccinationRepository) GetVaccinationsByPetID(ctx context.Context, petID string) ([]model.VaccinationRecord, error) {
+	var vacs []model.VaccinationRecord
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
 		Where("pet_id = ?", petID).
-		Order("vaccination_date DESC, created_at DESC").
+		Order("date DESC, created_at DESC").
 		Find(&vacs)
 
 	if result.Error != nil {
@@ -83,14 +77,12 @@ func (r *vaccinationRepository) GetVaccinationsByPetID(ctx context.Context, petI
 	return vacs, nil
 }
 
-// GetVaccinationsByOwnerID 飼い主IDでワクチン接種を取得
-func (r *vaccinationRepository) GetVaccinationsByOwnerID(ctx context.Context, ownerID string) ([]model.Vaccination, error) {
-	var vacs []model.Vaccination
+// GetVaccinationsByOwnerID 飼い主名でワクチン接種記録を取得
+func (r *vaccinationRepository) GetVaccinationsByOwnerID(ctx context.Context, ownerID string) ([]model.VaccinationRecord, error) {
+	var vacs []model.VaccinationRecord
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Where("owner_id = ?", ownerID).
-		Order("vaccination_date DESC, created_at DESC").
+		Where("owner_name IN (SELECT owner_name FROM owners WHERE id = ?)", ownerID).
+		Order("date DESC, created_at DESC").
 		Find(&vacs)
 
 	if result.Error != nil {
@@ -100,8 +92,8 @@ func (r *vaccinationRepository) GetVaccinationsByOwnerID(ctx context.Context, ow
 	return vacs, nil
 }
 
-// CreateVaccination ワクチン接種を作成
-func (r *vaccinationRepository) CreateVaccination(ctx context.Context, vac *model.Vaccination) error {
+// CreateVaccination ワクチン接種記録を作成
+func (r *vaccinationRepository) CreateVaccination(ctx context.Context, vac *model.VaccinationRecord) error {
 	// Generate UUID if not set
 	if vac.ID == uuid.Nil {
 		vac.ID = uuid.New()
@@ -113,8 +105,8 @@ func (r *vaccinationRepository) CreateVaccination(ctx context.Context, vac *mode
 	return nil
 }
 
-// UpdateVaccination ワクチン接種を更新
-func (r *vaccinationRepository) UpdateVaccination(ctx context.Context, vac *model.Vaccination) error {
+// UpdateVaccination ワクチン接種記録を更新
+func (r *vaccinationRepository) UpdateVaccination(ctx context.Context, vac *model.VaccinationRecord) error {
 	result := r.db.WithContext(ctx).Save(vac)
 	if result.Error != nil {
 		return result.Error
@@ -122,9 +114,9 @@ func (r *vaccinationRepository) UpdateVaccination(ctx context.Context, vac *mode
 	return nil
 }
 
-// DeleteVaccination ワクチン接種を削除
+// DeleteVaccination ワクチン接種記録を削除
 func (r *vaccinationRepository) DeleteVaccination(ctx context.Context, id string) error {
-	result := r.db.WithContext(ctx).Delete(&model.Vaccination{}, "id = ?", id)
+	result := r.db.WithContext(ctx).Delete(&model.VaccinationRecord{}, "id = ?", id)
 	if result.Error != nil {
 		return result.Error
 	}

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -11,141 +12,142 @@ import (
 
 // ExaminationService 検査サービスインターフェース
 type ExaminationService interface {
-	GetAllExaminations(ctx context.Context) ([]model.Examination, error)
-	GetExaminationByID(ctx context.Context, id string) (*model.Examination, error)
-	GetExaminationsByPetID(ctx context.Context, petID string) ([]model.Examination, error)
-	GetExaminationsByOwnerID(ctx context.Context, ownerID string) ([]model.Examination, error)
-	GetExaminationsByStatus(ctx context.Context, status string) ([]model.Examination, error)
-	CreateExamination(ctx context.Context, req *model.CreateExaminationRequest) (*model.Examination, error)
-	UpdateExamination(ctx context.Context, id string, req *model.UpdateExaminationRequest) (*model.Examination, error)
-	DeleteExamination(ctx context.Context, id string) error
+	GetAllExaminationRecords(ctx context.Context) ([]model.ExaminationRecord, error)
+	GetExaminationRecordByID(ctx context.Context, id string) (*model.ExaminationRecord, error)
+	GetExaminationRecordsByPetID(ctx context.Context, petID string) ([]model.ExaminationRecord, error)
+	CreateExaminationRecord(ctx context.Context, req *model.CreateExaminationRecordRequest) (*model.ExaminationRecord, error)
+	UpdateExaminationRecord(ctx context.Context, id string, req *model.UpdateExaminationRecordRequest) (*model.ExaminationRecord, error)
+	DeleteExaminationRecord(ctx context.Context, id string) error
 }
 
-// GetAllExaminations 全ての検査を取得
-func (s *Service) GetAllExaminations(ctx context.Context) ([]model.Examination, error) {
-	return s.examinationRepo.GetAllExaminations(ctx)
+// GetAllExaminationRecords 全ての検査記録を取得
+func (s *Service) GetAllExaminationRecords(ctx context.Context) ([]model.ExaminationRecord, error) {
+	return s.examinationRepo.GetAllExaminationRecords(ctx)
 }
 
-// GetExaminationByID IDで検査を取得
-func (s *Service) GetExaminationByID(ctx context.Context, id string) (*model.Examination, error) {
+// GetExaminationRecordByID IDで検査記録を取得
+func (s *Service) GetExaminationRecordByID(ctx context.Context, id string) (*model.ExaminationRecord, error) {
 	uid, err := uuid.Parse(id)
 	if err != nil {
-		return nil, apperrors.WrapInvalidInput("invalid examination ID format")
+		return nil, apperrors.WrapInvalidInput("invalid examination record ID format")
 	}
 
-	exam, err := s.examinationRepo.GetExaminationByID(ctx, uid.String())
+	exam, err := s.examinationRepo.GetExaminationRecordByID(ctx, uid.String())
 	if err != nil {
 		return nil, err
 	}
 
 	if exam == nil {
-		return nil, apperrors.WrapNotFound("examination with id %s not found", id)
+		return nil, apperrors.WrapNotFound("examination record with id %s not found", id)
 	}
 
 	return exam, nil
 }
 
-// GetExaminationsByPetID ペットIDで検査を取得
-func (s *Service) GetExaminationsByPetID(ctx context.Context, petID string) ([]model.Examination, error) {
+// GetExaminationRecordsByPetID ペットIDで検査記録を取得
+func (s *Service) GetExaminationRecordsByPetID(ctx context.Context, petID string) ([]model.ExaminationRecord, error) {
 	uid, err := uuid.Parse(petID)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("invalid pet ID format")
 	}
 
-	return s.examinationRepo.GetExaminationsByPetID(ctx, uid.String())
+	return s.examinationRepo.GetExaminationRecordsByPetID(ctx, uid.String())
 }
 
-// GetExaminationsByOwnerID 飼い主IDで検査を取得
-func (s *Service) GetExaminationsByOwnerID(ctx context.Context, ownerID string) ([]model.Examination, error) {
-	uid, err := uuid.Parse(ownerID)
+// CreateExaminationRecord 検査記録を作成
+func (s *Service) CreateExaminationRecord(ctx context.Context, req *model.CreateExaminationRecordRequest) (*model.ExaminationRecord, error) {
+	medicalRecordID, err := uuid.Parse(req.MedicalRecordID)
 	if err != nil {
-		return nil, apperrors.WrapInvalidInput("invalid owner ID format")
+		return nil, apperrors.WrapInvalidInput("invalid medical record ID format")
 	}
 
-	return s.examinationRepo.GetExaminationsByOwnerID(ctx, uid.String())
-}
+	petID, err := uuid.Parse(req.PetID)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("invalid pet ID format")
+	}
 
-// GetExaminationsByStatus ステータスで検査を取得
-func (s *Service) GetExaminationsByStatus(ctx context.Context, status string) ([]model.Examination, error) {
-	return s.examinationRepo.GetExaminationsByStatus(ctx, status)
-}
+	date, err := time.Parse("2006-01-02", req.Date)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD")
+	}
 
-// CreateExamination 検査を作成
-func (s *Service) CreateExamination(ctx context.Context, req *model.CreateExaminationRequest) (*model.Examination, error) {
-	exam := &model.Examination{
+	exam := &model.ExaminationRecord{
 		ID:              uuid.New(),
-		PetID:           req.PetID,
-		OwnerID:         req.OwnerID,
-		DoctorID:        req.DoctorID,
-		MedicalRecordID: req.MedicalRecordID,
-		ExaminationDate: req.ExaminationDate,
+		MedicalRecordID: medicalRecordID,
+		PetID:           petID,
+		Date:            date,
+		OwnerName:       req.OwnerName,
+		PetName:         req.PetName,
 		TestType:        req.TestType,
-		Machine:         req.Machine,
-		Status:          "依頼中",
+		Doctor:          req.Doctor,
+		Status:          req.Status,
 		ResultSummary:   req.ResultSummary,
-		Items:           req.Items,
-		Notes:           req.Notes,
+		Machine:         req.Machine,
 	}
 
-	if err := s.examinationRepo.CreateExamination(ctx, exam); err != nil {
+	if exam.Status == "" {
+		exam.Status = "依頼中"
+	}
+
+	if err := s.examinationRepo.CreateExaminationRecord(ctx, exam); err != nil {
 		return nil, err
 	}
 
 	return exam, nil
 }
 
-// UpdateExamination 検査を更新
-func (s *Service) UpdateExamination(ctx context.Context, id string, req *model.UpdateExaminationRequest) (*model.Examination, error) {
+// UpdateExaminationRecord 検査記録を更新
+func (s *Service) UpdateExaminationRecord(ctx context.Context, id string, req *model.UpdateExaminationRecordRequest) (*model.ExaminationRecord, error) {
 	uid, err := uuid.Parse(id)
 	if err != nil {
-		return nil, apperrors.WrapInvalidInput("invalid examination ID format")
+		return nil, apperrors.WrapInvalidInput("invalid examination record ID format")
 	}
 
-	exam, err := s.examinationRepo.GetExaminationByID(ctx, uid.String())
+	exam, err := s.examinationRepo.GetExaminationRecordByID(ctx, uid.String())
 	if err != nil {
 		return nil, err
 	}
 
 	if exam == nil {
-		return nil, apperrors.WrapNotFound("examination with id %s not found", id)
+		return nil, apperrors.WrapNotFound("examination record with id %s not found", id)
 	}
 
-	// Update fields
-	if req.Status != "" {
-		exam.Status = req.Status
+	if req.Date != nil && *req.Date != "" {
+		t, err := time.Parse("2006-01-02", *req.Date)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD")
+		}
+		exam.Date = t
 	}
-	if req.ResultSummary != "" {
-		exam.ResultSummary = req.ResultSummary
+	if req.TestType != nil {
+		exam.TestType = *req.TestType
 	}
-	if req.Items != "" {
-		exam.Items = req.Items
+	if req.Doctor != nil {
+		exam.Doctor = *req.Doctor
 	}
-	if req.Notes != "" {
-		exam.Notes = req.Notes
+	if req.Status != nil {
+		exam.Status = *req.Status
 	}
-	if req.ExaminationDate != nil {
-		exam.ExaminationDate = *req.ExaminationDate
+	if req.ResultSummary != nil {
+		exam.ResultSummary = *req.ResultSummary
 	}
-	if req.TestType != "" {
-		exam.TestType = req.TestType
-	}
-	if req.Machine != "" {
-		exam.Machine = req.Machine
+	if req.Machine != nil {
+		exam.Machine = *req.Machine
 	}
 
-	if err := s.examinationRepo.UpdateExamination(ctx, exam); err != nil {
+	if err := s.examinationRepo.UpdateExaminationRecord(ctx, exam); err != nil {
 		return nil, err
 	}
 
 	return exam, nil
 }
 
-// DeleteExamination 検査を削除
-func (s *Service) DeleteExamination(ctx context.Context, id string) error {
+// DeleteExaminationRecord 検査記録を削除
+func (s *Service) DeleteExaminationRecord(ctx context.Context, id string) error {
 	uid, err := uuid.Parse(id)
 	if err != nil {
-		return apperrors.WrapInvalidInput("invalid examination ID format")
+		return apperrors.WrapInvalidInput("invalid examination record ID format")
 	}
 
-	return s.examinationRepo.DeleteExamination(ctx, uid.String())
+	return s.examinationRepo.DeleteExaminationRecord(ctx, uid.String())
 }

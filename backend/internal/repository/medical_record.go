@@ -36,9 +36,12 @@ func NewMedicalRecordRepository(db *gorm.DB) MedicalRecordRepository {
 func (r *medicalRecordRepository) GetAllMedicalRecords(ctx context.Context) ([]model.MedicalRecord, error) {
 	var records []model.MedicalRecord
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Order("visit_date DESC, created_at DESC").
+		Preload("TreatmentItems").
+		Preload("VitalEntries").
+		Preload("ExaminationRecords").
+		Preload("VaccinationRecords").
+		Preload("CheckupRecords").
+		Order("date DESC, created_at DESC").
 		Find(&records)
 
 	if result.Error != nil {
@@ -52,8 +55,11 @@ func (r *medicalRecordRepository) GetAllMedicalRecords(ctx context.Context) ([]m
 func (r *medicalRecordRepository) GetMedicalRecordByID(ctx context.Context, id string) (*model.MedicalRecord, error) {
 	var record model.MedicalRecord
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
+		Preload("TreatmentItems").
+		Preload("VitalEntries").
+		Preload("ExaminationRecords").
+		Preload("VaccinationRecords").
+		Preload("CheckupRecords").
 		First(&record, "id = ?", id)
 
 	if result.Error != nil {
@@ -70,10 +76,10 @@ func (r *medicalRecordRepository) GetMedicalRecordByID(ctx context.Context, id s
 func (r *medicalRecordRepository) GetMedicalRecordsByPetID(ctx context.Context, petID string) ([]model.MedicalRecord, error) {
 	var records []model.MedicalRecord
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
+		Preload("TreatmentItems").
+		Preload("VitalEntries").
 		Where("pet_id = ?", petID).
-		Order("visit_date DESC, created_at DESC").
+		Order("date DESC, created_at DESC").
 		Find(&records)
 
 	if result.Error != nil {
@@ -87,10 +93,10 @@ func (r *medicalRecordRepository) GetMedicalRecordsByPetID(ctx context.Context, 
 func (r *medicalRecordRepository) GetMedicalRecordsByOwnerID(ctx context.Context, ownerID string) ([]model.MedicalRecord, error) {
 	var records []model.MedicalRecord
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
+		Preload("TreatmentItems").
+		Preload("VitalEntries").
 		Where("owner_id = ?", ownerID).
-		Order("visit_date DESC, created_at DESC").
+		Order("date DESC, created_at DESC").
 		Find(&records)
 
 	if result.Error != nil {

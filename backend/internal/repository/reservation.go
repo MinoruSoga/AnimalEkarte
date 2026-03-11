@@ -13,13 +13,13 @@ import (
 
 // ReservationRepository 予約リポジトリインターフェース
 type ReservationRepository interface {
-	GetAllReservations(ctx context.Context) ([]model.Reservation, error)
-	GetReservationsByDate(ctx context.Context, date string) ([]model.Reservation, error)
-	GetReservationByID(ctx context.Context, id string) (*model.Reservation, error)
-	GetReservationsByPetID(ctx context.Context, petID string) ([]model.Reservation, error)
-	GetReservationsByOwnerID(ctx context.Context, ownerID string) ([]model.Reservation, error)
-	CreateReservation(ctx context.Context, reservation *model.Reservation) error
-	UpdateReservation(ctx context.Context, reservation *model.Reservation) error
+	GetAllReservations(ctx context.Context) ([]model.ReservationAppointment, error)
+	GetReservationsByDate(ctx context.Context, date string) ([]model.ReservationAppointment, error)
+	GetReservationByID(ctx context.Context, id string) (*model.ReservationAppointment, error)
+	GetReservationsByPetID(ctx context.Context, petID string) ([]model.ReservationAppointment, error)
+	GetReservationsByOwnerID(ctx context.Context, ownerID string) ([]model.ReservationAppointment, error)
+	CreateReservation(ctx context.Context, reservation *model.ReservationAppointment) error
+	UpdateReservation(ctx context.Context, reservation *model.ReservationAppointment) error
 	DeleteReservation(ctx context.Context, id string) error
 }
 
@@ -34,11 +34,9 @@ func NewReservationRepository(db *gorm.DB) ReservationRepository {
 }
 
 // GetAllReservations 全ての予約を取得
-func (r *reservationRepository) GetAllReservations(ctx context.Context) ([]model.Reservation, error) {
-	var reservations []model.Reservation
+func (r *reservationRepository) GetAllReservations(ctx context.Context) ([]model.ReservationAppointment, error) {
+	var reservations []model.ReservationAppointment
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
 		Order("start_time ASC, created_at ASC").
 		Find(&reservations)
 
@@ -50,12 +48,9 @@ func (r *reservationRepository) GetAllReservations(ctx context.Context) ([]model
 }
 
 // GetReservationsByDate 指定日の予約を取得
-func (r *reservationRepository) GetReservationsByDate(ctx context.Context, date string) ([]model.Reservation, error) {
-	var reservations []model.Reservation
-	// date は YYYY-MM-DD 形式。start_time が当日の 00:00:00 〜 23:59:59 の範囲を対象とする
+func (r *reservationRepository) GetReservationsByDate(ctx context.Context, date string) ([]model.ReservationAppointment, error) {
+	var reservations []model.ReservationAppointment
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
 		Where("DATE(start_time) = ?", date).
 		Order("start_time ASC, created_at ASC").
 		Find(&reservations)
@@ -68,11 +63,9 @@ func (r *reservationRepository) GetReservationsByDate(ctx context.Context, date 
 }
 
 // GetReservationByID IDで予約を取得
-func (r *reservationRepository) GetReservationByID(ctx context.Context, id string) (*model.Reservation, error) {
-	var reservation model.Reservation
+func (r *reservationRepository) GetReservationByID(ctx context.Context, id string) (*model.ReservationAppointment, error) {
+	var reservation model.ReservationAppointment
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
 		First(&reservation, "id = ?", id)
 
 	if result.Error != nil {
@@ -86,11 +79,9 @@ func (r *reservationRepository) GetReservationByID(ctx context.Context, id strin
 }
 
 // GetReservationsByPetID ペットIDで予約を取得
-func (r *reservationRepository) GetReservationsByPetID(ctx context.Context, petID string) ([]model.Reservation, error) {
-	var reservations []model.Reservation
+func (r *reservationRepository) GetReservationsByPetID(ctx context.Context, petID string) ([]model.ReservationAppointment, error) {
+	var reservations []model.ReservationAppointment
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
 		Where("pet_id = ?", petID).
 		Order("start_time DESC, created_at DESC").
 		Find(&reservations)
@@ -103,12 +94,10 @@ func (r *reservationRepository) GetReservationsByPetID(ctx context.Context, petI
 }
 
 // GetReservationsByOwnerID 飼い主IDで予約を取得
-func (r *reservationRepository) GetReservationsByOwnerID(ctx context.Context, ownerID string) ([]model.Reservation, error) {
-	var reservations []model.Reservation
+func (r *reservationRepository) GetReservationsByOwnerID(ctx context.Context, ownerID string) ([]model.ReservationAppointment, error) {
+	var reservations []model.ReservationAppointment
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Where("owner_id = ?", ownerID).
+		Where("owner_name IN (SELECT owner_name FROM owners WHERE id = ?)", ownerID).
 		Order("start_time DESC, created_at DESC").
 		Find(&reservations)
 
@@ -120,7 +109,7 @@ func (r *reservationRepository) GetReservationsByOwnerID(ctx context.Context, ow
 }
 
 // CreateReservation 予約を作成
-func (r *reservationRepository) CreateReservation(ctx context.Context, reservation *model.Reservation) error {
+func (r *reservationRepository) CreateReservation(ctx context.Context, reservation *model.ReservationAppointment) error {
 	// Generate UUID if not set
 	if reservation.ID == uuid.Nil {
 		reservation.ID = uuid.New()
@@ -133,7 +122,7 @@ func (r *reservationRepository) CreateReservation(ctx context.Context, reservati
 }
 
 // UpdateReservation 予約を更新
-func (r *reservationRepository) UpdateReservation(ctx context.Context, reservation *model.Reservation) error {
+func (r *reservationRepository) UpdateReservation(ctx context.Context, reservation *model.ReservationAppointment) error {
 	result := r.db.WithContext(ctx).Save(reservation)
 	if result.Error != nil {
 		return result.Error
@@ -143,7 +132,7 @@ func (r *reservationRepository) UpdateReservation(ctx context.Context, reservati
 
 // DeleteReservation 予約を削除
 func (r *reservationRepository) DeleteReservation(ctx context.Context, id string) error {
-	result := r.db.WithContext(ctx).Delete(&model.Reservation{}, "id = ?", id)
+	result := r.db.WithContext(ctx).Delete(&model.ReservationAppointment{}, "id = ?", id)
 	if result.Error != nil {
 		return result.Error
 	}

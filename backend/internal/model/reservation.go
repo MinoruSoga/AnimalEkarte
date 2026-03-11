@@ -6,53 +6,56 @@ import (
 	"github.com/google/uuid"
 )
 
-// Reservation 予約モデル
-type Reservation struct {
-	ID           uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
-	PetID        uuid.UUID  `json:"pet_id" gorm:"type:uuid;not null;index:idx_res_pet_id"`
-	OwnerID      uuid.UUID  `json:"owner_id" gorm:"type:uuid;not null"`
-	DoctorID     *uuid.UUID `json:"doctor_id" gorm:"type:uuid;index:idx_res_doctor_id"`
-	StartTime    time.Time  `json:"start_time" gorm:"index:idx_res_start_time"`
-	EndTime      time.Time  `json:"end_time"`
-	VisitType    string     `json:"visit_type" gorm:"type:varchar(20)"`   // first, revisit
-	ServiceType  string     `json:"service_type" gorm:"type:varchar(30)"` // 診療, 検診, 手術, etc.
-	IsDesignated bool       `json:"is_designated" gorm:"default:false"`
-	Status       string     `json:"status" gorm:"type:varchar(30);default:'pending'"` // pending, confirmed, checked_in, in_consultation, accounting, completed, canceled
-	Notes        string     `json:"notes" gorm:"type:text"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-
-	// Relations
-	Pet   *Pet   `json:"pet,omitempty" gorm:"foreignKey:PetID"`
-	Owner *Owner `json:"owner,omitempty" gorm:"foreignKey:OwnerID"`
+// ReservationAppointment は予約テーブルに対応するモデル
+// DB テーブル名: reservation_appointments
+type ReservationAppointment struct {
+	ID           uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	StartTime    time.Time  `gorm:"column:start_time;not null" json:"start_time"`
+	EndTime      time.Time  `gorm:"column:end_time;not null" json:"end_time"`
+	OwnerName    string     `gorm:"column:owner_name;not null" json:"owner_name"`
+	PetName      string     `gorm:"column:pet_name;not null" json:"pet_name"`
+	PetID        *uuid.UUID `gorm:"column:pet_id;type:uuid" json:"pet_id,omitempty"`
+	VisitType    string     `gorm:"column:visit_type;type:visit_type;not null" json:"visit_type"`
+	Type         string     `gorm:"column:type;not null" json:"type"`
+	Doctor       string     `gorm:"column:doctor;not null" json:"doctor"`
+	IsDesignated bool       `gorm:"column:is_designated;default:false" json:"is_designated"`
+	Status       string     `gorm:"column:status;type:reservation_status;default:'pending'" json:"status"`
+	Notes        string     `gorm:"column:notes;default:''" json:"notes"`
+	CreatedAt    time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	UpdatedAt    time.Time  `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
 }
 
-// TableName テーブル名を指定
-func (Reservation) TableName() string {
-	return "reservations"
+// TableName は GORM に対してテーブル名を明示する
+func (ReservationAppointment) TableName() string {
+	return "reservation_appointments"
 }
 
-// CreateReservationRequest リクエスト用構造体
+// CreateReservationRequest は予約作成リクエスト
 type CreateReservationRequest struct {
-	PetID        uuid.UUID  `json:"pet_id" binding:"required"`
-	OwnerID      uuid.UUID  `json:"owner_id" binding:"required"`
-	DoctorID     *uuid.UUID `json:"doctor_id"`
-	StartTime    time.Time  `json:"start_time" binding:"required"`
-	EndTime      time.Time  `json:"end_time" binding:"required"`
-	VisitType    string     `json:"visit_type" binding:"required"` // first, revisit
-	ServiceType  string     `json:"service_type" binding:"required"`
-	IsDesignated bool       `json:"is_designated"`
-	Notes        string     `json:"notes"`
+	StartTime    string  `json:"start_time" binding:"required"`
+	EndTime      string  `json:"end_time" binding:"required"`
+	OwnerName    string  `json:"owner_name" binding:"required"`
+	PetName      string  `json:"pet_name" binding:"required"`
+	PetID        *string `json:"pet_id"`
+	VisitType    string  `json:"visit_type" binding:"required"`
+	Type         string  `json:"type" binding:"required"`
+	Doctor       string  `json:"doctor" binding:"required"`
+	IsDesignated bool    `json:"is_designated"`
+	Status       string  `json:"status"`
+	Notes        string  `json:"notes"`
 }
 
-// UpdateReservationRequest 更新用リクエスト構造体
+// UpdateReservationRequest は予約更新リクエスト
 type UpdateReservationRequest struct {
-	StartTime    *time.Time `json:"start_time"`
-	EndTime      *time.Time `json:"end_time"`
-	VisitType    string     `json:"visit_type"`
-	ServiceType  string     `json:"service_type"`
-	DoctorID     *uuid.UUID `json:"doctor_id"`
-	IsDesignated bool       `json:"is_designated"`
-	Status       string     `json:"status"`
-	Notes        string     `json:"notes"`
+	StartTime    *string `json:"start_time"`
+	EndTime      *string `json:"end_time"`
+	OwnerName    *string `json:"owner_name"`
+	PetName      *string `json:"pet_name"`
+	PetID        *string `json:"pet_id"`
+	VisitType    *string `json:"visit_type"`
+	Type         *string `json:"type"`
+	Doctor       *string `json:"doctor"`
+	IsDesignated *bool   `json:"is_designated"`
+	Status       *string `json:"status"`
+	Notes        *string `json:"notes"`
 }

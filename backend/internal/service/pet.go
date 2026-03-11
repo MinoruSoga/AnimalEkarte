@@ -37,23 +37,30 @@ func (s *Service) CreatePet(ctx context.Context, req *model.CreatePetRequest) (*
 
 	pet := &model.Pet{
 		OwnerID:   ownerID,
+		OwnerName: req.OwnerName,
 		PetNumber: req.PetNumber,
 		Name:      req.Name,
 		Species:   req.Species,
 		Breed:     req.Breed,
 		Gender:    req.Gender,
+		Weight:    req.Weight,
+		Status:    req.Status,
 	}
 
-	if req.Weight > 0 {
-		pet.Weight = &req.Weight
-	}
-
-	if req.BirthDate != "" {
-		t, err := time.Parse("2006-01-02", req.BirthDate)
+	if req.BirthDate != nil && *req.BirthDate != "" {
+		t, err := time.Parse("2006-01-02", *req.BirthDate)
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput("invalid birth date format, expected YYYY-MM-DD")
 		}
 		pet.BirthDate = &t
+	}
+
+	if req.NeuteredDate != nil && *req.NeuteredDate != "" {
+		t, err := time.Parse("2006-01-02", *req.NeuteredDate)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid neutered date format, expected YYYY-MM-DD")
+		}
+		pet.NeuteredDate = &t
 	}
 
 	if err := s.repo.CreatePet(ctx, pet); err != nil {
@@ -73,27 +80,40 @@ func (s *Service) UpdatePet(ctx context.Context, id string, req *model.UpdatePet
 		return nil, err
 	}
 
-	if req.Name != "" {
-		pet.Name = req.Name
+	if req.Name != nil {
+		pet.Name = *req.Name
 	}
-	if req.Species != "" {
-		pet.Species = req.Species
+	if req.OwnerName != nil {
+		pet.OwnerName = *req.OwnerName
 	}
-	if req.Breed != "" {
+	if req.Species != nil {
+		pet.Species = *req.Species
+	}
+	if req.Breed != nil {
 		pet.Breed = req.Breed
 	}
-	if req.Gender != "" {
+	if req.Gender != nil {
 		pet.Gender = req.Gender
 	}
-	if req.Weight > 0 {
-		pet.Weight = &req.Weight
+	if req.Weight != nil {
+		pet.Weight = req.Weight
 	}
-	if req.BirthDate != "" {
-		t, err := time.Parse("2006-01-02", req.BirthDate)
+	if req.Status != nil {
+		pet.Status = *req.Status
+	}
+	if req.BirthDate != nil && *req.BirthDate != "" {
+		t, err := time.Parse("2006-01-02", *req.BirthDate)
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput("invalid birth date format, expected YYYY-MM-DD")
 		}
 		pet.BirthDate = &t
+	}
+	if req.NeuteredDate != nil && *req.NeuteredDate != "" {
+		t, err := time.Parse("2006-01-02", *req.NeuteredDate)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid neutered date format, expected YYYY-MM-DD")
+		}
+		pet.NeuteredDate = &t
 	}
 
 	if err := s.repo.UpdatePet(ctx, pet); err != nil {

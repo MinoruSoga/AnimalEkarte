@@ -14,7 +14,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/handler"
 	"github.com/animal-ekarte/backend/internal/logger"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 
@@ -68,41 +67,10 @@ func main() {
 	}
 	logger.Info("database connected successfully")
 
-	// マイグレーション（全モデルを依存関係順に登録）
-	if err := db.AutoMigrate(
-		// 独立テーブル
-		&model.Clinic{},
-		&model.InventoryItem{},
-		&model.Cage{},
-		// Clinic依存
-		&model.Staff{},
-		// InventoryItem依存
-		&model.MasterItem{},
-		// コアテーブル
-		&model.Owner{},
-		&model.Pet{},
-		// Pet依存
-		&model.MedicalRecord{},
-		&model.Reservation{},
-		&model.Hospitalization{},
-		&model.Vaccination{},
-		&model.Trimming{},
-		&model.Examination{},
-		&model.Accounting{},
-		// Hospitalization依存
-		&model.CarePlanItem{},
-		&model.DailyRecord{},
-		// DailyRecord依存
-		&model.Vital{},
-		&model.CareLog{},
-		&model.StaffNote{},
-		// Accounting依存
-		&model.AccountingItem{},
-	); err != nil {
-		logger.Error("failed to migrate database", slog.String("error", err.Error()))
-		os.Exit(1)
-	}
-	logger.Info("database migrated successfully (20 tables)")
+	// NOTE: スキーマは 001_init.sql で完全定義済み（FK制約あり）
+	// AutoMigrate は FK の二重定義を避けるため無効化。
+	// 新テーブル追加時は migrations/*.sql に追記すること。
+	logger.Info("database schema managed by migrations/001_init.sql (31 tables)")
 
 	// レイヤー初期化
 	repo := repository.New(db)
@@ -115,9 +83,8 @@ func main() {
 	vaccinationRepo := repository.NewVaccinationRepository(db)
 	trimmingRepo := repository.NewTrimmingRepository(db)
 	clinicRepo := repository.NewClinicRepository(db)
-	staffRepo := repository.NewStaffRepository(db)
 	inventoryItemRepo := repository.NewInventoryItemRepository(db)
-	svc := service.New(repo, repo, medicalRecordRepo, reservationRepo, masterItemRepo, hospitalizationRepo, accountingRepo, examinationRepo, vaccinationRepo, trimmingRepo, clinicRepo, staffRepo, inventoryItemRepo, repo)
+	svc := service.New(repo, repo, medicalRecordRepo, reservationRepo, masterItemRepo, hospitalizationRepo, accountingRepo, examinationRepo, vaccinationRepo, trimmingRepo, clinicRepo, inventoryItemRepo, repo)
 	h := handler.New(svc)
 
 	// ルーター設定

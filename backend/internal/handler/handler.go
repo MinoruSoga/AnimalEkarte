@@ -24,7 +24,6 @@ type Service interface {
 	service.VaccinationService     // from vaccination.go
 	service.TrimmingService        // from trimming.go
 	service.ClinicService          // from clinic.go
-	service.StaffService           // from clinic.go
 	service.InventoryItemService   // from inventory.go
 	GetDB() (interface{ DB() *gorm.DB }, error)
 }
@@ -169,20 +168,10 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	v1.GET("/clinics", h.GetAllClinics)
 	v1.POST("/clinics", h.CreateClinic)
 
-	// Clinic nested routes (register before /:id)
-	v1.GET("/clinics/:id/staffs", h.GetStaffByClinicID)
-
 	// Clinic single resource
 	v1.GET("/clinics/:id", h.GetClinicByID)
 	v1.PUT("/clinics/:id", h.UpdateClinic)
 	v1.DELETE("/clinics/:id", h.DeleteClinic)
-
-	// Staffs CRUD
-	v1.GET("/staffs", h.GetAllStaff)
-	v1.GET("/staffs/:id", h.GetStaffByID)
-	v1.POST("/staffs", h.CreateStaff)
-	v1.PUT("/staffs/:id", h.UpdateStaff)
-	v1.DELETE("/staffs/:id", h.DeleteStaff)
 
 	// Inventory Items CRUD
 	v1.GET("/inventory-items", h.GetAllInventoryItems)

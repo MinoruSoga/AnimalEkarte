@@ -15,7 +15,7 @@ import (
 // @Tags trimmings
 // @Accept json
 // @Produce json
-// @Success 200 {array} model.Trimming
+// @Success 200 {array} model.TrimmingRecord
 // @Failure 500 {object} map[string]string
 // @Router /trimmings [get]
 // @Security ApiKeyAuth
@@ -38,7 +38,7 @@ func (h *Handler) GetAllTrimmings(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path string true "トリミングID (UUID)"
-// @Success 200 {object} model.Trimming
+// @Success 200 {object} model.TrimmingRecord
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
@@ -63,7 +63,7 @@ func (h *Handler) GetTrimmingByID(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param petId path string true "ペットID (UUID)"
-// @Success 200 {array} model.Trimming
+// @Success 200 {array} model.TrimmingRecord
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /pets/{petId}/trimmings [get]
@@ -87,7 +87,7 @@ func (h *Handler) GetTrimmingsByPetID(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param ownerId path string true "飼い主ID (UUID)"
-// @Success 200 {array} model.Trimming
+// @Success 200 {array} model.TrimmingRecord
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /owners/{ownerId}/trimmings [get]
@@ -111,7 +111,7 @@ func (h *Handler) GetTrimmingsByOwnerID(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param status path string true "ステータス (予約,進行中,完了)"
-// @Success 200 {array} model.Trimming
+// @Success 200 {array} model.TrimmingRecord
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /trimmings/status/{status} [get]
@@ -135,7 +135,7 @@ func (h *Handler) GetTrimmingsByStatus(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param trim body model.CreateTrimmingRequest true "トリミング情報"
-// @Success 201 {object} model.Trimming
+// @Success 201 {object} model.TrimmingRecord
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /trimmings [post]
@@ -165,7 +165,7 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 // @Produce json
 // @Param id path string true "トリミングID (UUID)"
 // @Param trim body model.UpdateTrimmingRequest true "トリミング情報"
-// @Success 200 {object} model.Trimming
+// @Success 200 {object} model.TrimmingRecord
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string

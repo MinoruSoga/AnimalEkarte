@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -57,11 +58,14 @@ func (s *Service) GetInventoryItemsByStatus(ctx context.Context, status string) 
 // CreateInventoryItem 在庫アイテムを作成
 func (s *Service) CreateInventoryItem(ctx context.Context, req *model.CreateInventoryItemRequest) (*model.InventoryItem, error) {
 	// Determine initial status based on quantity
-	status := "sufficient"
-	if req.Quantity == 0 {
-		status = "out_of_stock"
-	} else if req.MinStockLevel > 0 && req.Quantity <= req.MinStockLevel {
-		status = "low"
+	status := req.Status
+	if status == "" {
+		status = "sufficient"
+		if req.Quantity == 0 {
+			status = "out_of_stock"
+		} else if req.MinStockLevel > 0 && req.Quantity <= req.MinStockLevel {
+			status = "low"
+		}
 	}
 
 	item := &model.InventoryItem{
@@ -72,10 +76,24 @@ func (s *Service) CreateInventoryItem(ctx context.Context, req *model.CreateInve
 		Unit:          req.Unit,
 		MinStockLevel: req.MinStockLevel,
 		Location:      req.Location,
-		ExpiryDate:    req.ExpiryDate,
 		Supplier:      req.Supplier,
-		LastRestocked: req.LastRestocked,
 		Status:        status,
+	}
+
+	if req.ExpiryDate != nil && *req.ExpiryDate != "" {
+		t, err := time.Parse("2006-01-02", *req.ExpiryDate)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid expiry_date format, expected YYYY-MM-DD")
+		}
+		item.ExpiryDate = &t
+	}
+
+	if req.LastRestocked != nil && *req.LastRestocked != "" {
+		t, err := time.Parse("2006-01-02", *req.LastRestocked)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid last_restocked format, expected YYYY-MM-DD")
+		}
+		item.LastRestocked = &t
 	}
 
 	if err := s.inventoryItemRepo.CreateInventoryItem(ctx, item); err != nil {
@@ -102,35 +120,43 @@ func (s *Service) UpdateInventoryItem(ctx context.Context, id string, req *model
 	}
 
 	// Update fields
-	if req.Name != "" {
-		item.Name = req.Name
+	if req.Name != nil {
+		item.Name = *req.Name
 	}
-	if req.Category != "" {
-		item.Category = req.Category
+	if req.Category != nil {
+		item.Category = *req.Category
 	}
-	if req.Quantity != 0 {
-		item.Quantity = req.Quantity
+	if req.Quantity != nil {
+		item.Quantity = *req.Quantity
 	}
-	if req.Unit != "" {
-		item.Unit = req.Unit
+	if req.Unit != nil {
+		item.Unit = *req.Unit
 	}
-	if req.MinStockLevel != 0 {
-		item.MinStockLevel = req.MinStockLevel
+	if req.MinStockLevel != nil {
+		item.MinStockLevel = *req.MinStockLevel
 	}
-	if req.Location != "" {
-		item.Location = req.Location
+	if req.Location != nil {
+		item.Location = *req.Location
 	}
-	if req.ExpiryDate != nil {
-		item.ExpiryDate = req.ExpiryDate
+	if req.ExpiryDate != nil && *req.ExpiryDate != "" {
+		t, err := time.Parse("2006-01-02", *req.ExpiryDate)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid expiry_date format, expected YYYY-MM-DD")
+		}
+		item.ExpiryDate = &t
 	}
-	if req.Supplier != "" {
-		item.Supplier = req.Supplier
+	if req.Supplier != nil {
+		item.Supplier = *req.Supplier
 	}
-	if req.LastRestocked != nil {
-		item.LastRestocked = req.LastRestocked
+	if req.LastRestocked != nil && *req.LastRestocked != "" {
+		t, err := time.Parse("2006-01-02", *req.LastRestocked)
+		if err != nil {
+			return nil, apperrors.WrapInvalidInput("invalid last_restocked format, expected YYYY-MM-DD")
+		}
+		item.LastRestocked = &t
 	}
-	if req.Status != "" {
-		item.Status = req.Status
+	if req.Status != nil {
+		item.Status = *req.Status
 	}
 
 	if err := s.inventoryItemRepo.UpdateInventoryItem(ctx, item); err != nil {

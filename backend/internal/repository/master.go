@@ -35,7 +35,7 @@ func NewMasterItemRepository(db *gorm.DB) MasterItemRepository {
 func (r *masterItemRepository) GetAllMasterItems(ctx context.Context) ([]model.MasterItem, error) {
 	var items []model.MasterItem
 	result := r.db.WithContext(ctx).
-		Preload("InventoryItem").
+		Preload("Inventory").
 		Order("category, code").
 		Find(&items)
 
@@ -50,7 +50,7 @@ func (r *masterItemRepository) GetAllMasterItems(ctx context.Context) ([]model.M
 func (r *masterItemRepository) GetMasterItemByID(ctx context.Context, id string) (*model.MasterItem, error) {
 	var item model.MasterItem
 	result := r.db.WithContext(ctx).
-		Preload("InventoryItem").
+		Preload("Inventory").
 		First(&item, "id = ?", id)
 
 	if result.Error != nil {
@@ -67,7 +67,7 @@ func (r *masterItemRepository) GetMasterItemByID(ctx context.Context, id string)
 func (r *masterItemRepository) GetMasterItemsByCategory(ctx context.Context, category string) ([]model.MasterItem, error) {
 	var items []model.MasterItem
 	result := r.db.WithContext(ctx).
-		Preload("InventoryItem").
+		Preload("Inventory").
 		Where("category = ?", category).
 		Order("code").
 		Find(&items)

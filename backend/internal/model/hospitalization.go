@@ -4,169 +4,153 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
-// Hospitalization 入院/ホテルモデル
+// Hospitalization は入院/ホテル記録テーブルに対応するモデル
 type Hospitalization struct {
-	ID                uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
-	HospitalizationNo string     `json:"hospitalization_no" gorm:"type:varchar(20)"`
-	PetID             uuid.UUID  `json:"pet_id" gorm:"type:uuid;not null;index:idx_hosp_pet_id"`
-	OwnerID           uuid.UUID  `json:"owner_id" gorm:"type:uuid;not null"`
-	CageID            *uuid.UUID `json:"cage_id" gorm:"type:uuid"`
-	Type              string     `json:"type" gorm:"type:varchar(20)"` // 入院, ホテル
-	StartDate         time.Time  `json:"start_date" gorm:"type:date"`
-	EndDate           time.Time  `json:"end_date" gorm:"type:date"`
-	Status            string     `json:"status" gorm:"type:varchar(20);index:idx_hosp_status;default:'予約'"` // 入院中, 退院済, 予約, 一時帰宅
-	OwnerRequest      string     `json:"owner_request" gorm:"type:text"`
-	StaffNotes        string     `json:"staff_notes" gorm:"type:text"`
-	Memo              string     `json:"memo" gorm:"type:text"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
+	ID                  uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	OwnerID             *uuid.UUID `gorm:"column:owner_id;type:uuid" json:"owner_id,omitempty"`
+	OwnerName           string     `gorm:"column:owner_name;not null" json:"owner_name"`
+	PetID               *uuid.UUID `gorm:"column:pet_id;type:uuid" json:"pet_id,omitempty"`
+	PetName             string     `gorm:"column:pet_name;not null" json:"pet_name"`
+	Species             string     `gorm:"column:species;type:pet_species;not null" json:"species"`
+	HospitalizationType string     `gorm:"column:hospitalization_type;type:hospitalization_type;not null" json:"hospitalization_type"`
+	StartDate           time.Time  `gorm:"column:start_date;type:date;not null" json:"start_date"`
+	EndDate             time.Time  `gorm:"column:end_date;type:date;not null" json:"end_date"`
+	Status              string     `gorm:"column:status;type:hospitalization_status;default:'予約'" json:"status"`
+	CageID              *uuid.UUID `gorm:"column:cage_id;type:uuid" json:"cage_id,omitempty"`
+	DoctorName          *string    `gorm:"column:doctor_name" json:"doctor_name,omitempty"`
+	Memo                string     `gorm:"column:memo;default:''" json:"memo"`
+	OwnerRequest        string     `gorm:"column:owner_request;default:''" json:"owner_request"`
+	StaffNotes          string     `gorm:"column:staff_notes;default:''" json:"staff_notes"`
+	CreatedAt           time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	UpdatedAt           time.Time  `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
 
 	// Relations
-	Pet           *Pet           `json:"pet,omitempty" gorm:"foreignKey:PetID"`
-	Owner         *Owner         `json:"owner,omitempty" gorm:"foreignKey:OwnerID"`
-	Cage          *Cage          `json:"cage,omitempty" gorm:"foreignKey:CageID"`
-	CarePlanItems []CarePlanItem `json:"care_plan_items,omitempty" gorm:"foreignKey:HospitalizationID"`
-	DailyRecords  []DailyRecord  `json:"daily_records,omitempty" gorm:"foreignKey:HospitalizationID"`
+	CarePlanItems  []CarePlanItem  `gorm:"foreignKey:HospitalizationID" json:"care_plan_items,omitempty"`
+	DailyRecords   []DailyRecord   `gorm:"foreignKey:HospitalizationID" json:"daily_records,omitempty"`
+	TreatmentPlans []TreatmentPlan `gorm:"foreignKey:HospitalizationID" json:"treatment_plans,omitempty"`
 }
 
-// TableName テーブル名を指定
-func (Hospitalization) TableName() string {
-	return "hospitalizations"
-}
-
-// Cage ケージマスタモデル
-type Cage struct {
-	ID          uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
-	Code        string    `json:"code" gorm:"type:varchar(20)"`
-	Name        string    `json:"name" gorm:"type:varchar(100)"`
-	Size        string    `json:"size" gorm:"type:varchar(50)"` // S, M, L, XL
-	Type        string    `json:"type" gorm:"type:varchar(50)"` // 犬用, 猫用, 共用
-	IsAvailable bool      `json:"is_available" gorm:"default:true"`
-	Notes       string    `json:"notes" gorm:"type:text"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-}
-
-// TableName テーブル名を指定
-func (Cage) TableName() string {
-	return "cages"
-}
-
-// CarePlanItem ケアプラン項目モデル
+// CarePlanItem はケアプラン項目テーブルに対応するモデル
 type CarePlanItem struct {
-	ID                uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
-	HospitalizationID uuid.UUID  `json:"hospitalization_id" gorm:"type:uuid;not null"`
-	MasterID          *uuid.UUID `json:"master_id" gorm:"type:uuid"`
-	Type              string     `json:"type" gorm:"type:varchar(30)"` // food, medicine, treatment, instruction, item
-	Name              string     `json:"name" gorm:"type:varchar(100)"`
-	Description       string     `json:"description" gorm:"type:text"`
-	Timing            string     `json:"timing" gorm:"type:json"`                         // JSON array
-	Status            string     `json:"status" gorm:"type:varchar(20);default:'active'"` // active, completed, discontinued
-	UnitPrice         *float64   `json:"unit_price" gorm:"type:decimal(10,2)"`
-	Category          string     `json:"category" gorm:"type:varchar(50)"`
-	Notes             string     `json:"notes" gorm:"type:text"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
+	ID                uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	HospitalizationID uuid.UUID      `gorm:"column:hospitalization_id;type:uuid;not null" json:"hospitalization_id"`
+	Type              string         `gorm:"column:type;type:care_plan_type;not null" json:"type"`
+	Name              string         `gorm:"column:name;not null" json:"name"`
+	Description       string         `gorm:"column:description;default:''" json:"description"`
+	Timing            pq.StringArray `gorm:"column:timing;type:plan_timing[]" json:"timing" swaggertype:"array,string"`
+	Status            string         `gorm:"column:status;type:care_plan_status;default:'active'" json:"status"`
+	Notes             string         `gorm:"column:notes;default:''" json:"notes"`
+	MasterID          *uuid.UUID     `gorm:"column:master_id;type:uuid" json:"master_id,omitempty"`
+	UnitPrice         *float64       `gorm:"column:unit_price;type:numeric(10,2)" json:"unit_price,omitempty"`
+	Category          *string        `gorm:"column:category" json:"category,omitempty"`
+	SortOrder         int            `gorm:"column:sort_order;default:0" json:"sort_order"`
+	CreatedAt         time.Time      `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	UpdatedAt         time.Time      `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
 }
 
-// TableName テーブル名を指定
-func (CarePlanItem) TableName() string {
-	return "care_plan_items"
-}
-
-// DailyRecord 日次記録モデル
+// DailyRecord は日次記録コンテナテーブルに対応するモデル
 type DailyRecord struct {
-	ID                uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
-	HospitalizationID uuid.UUID `json:"hospitalization_id" gorm:"type:uuid;not null"`
-	RecordDate        time.Time `json:"record_date" gorm:"type:date"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	ID                uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	HospitalizationID uuid.UUID `gorm:"column:hospitalization_id;type:uuid;not null" json:"hospitalization_id"`
+	Date              time.Time `gorm:"column:date;type:date;not null" json:"date"`
+	CreatedAt         time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	UpdatedAt         time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
 
 	// Relations
-	Vitals     []Vital     `json:"vitals,omitempty" gorm:"foreignKey:DailyRecordID"`
-	CareLogs   []CareLog   `json:"care_logs,omitempty" gorm:"foreignKey:DailyRecordID"`
-	StaffNotes []StaffNote `json:"staff_notes,omitempty" gorm:"foreignKey:DailyRecordID"`
+	VitalRecords     []VitalRecord     `gorm:"foreignKey:DailyRecordID" json:"vital_records,omitempty"`
+	CareLogRecords   []CareLogRecord   `gorm:"foreignKey:DailyRecordID" json:"care_log_records,omitempty"`
+	StaffNoteRecords []StaffNoteRecord `gorm:"foreignKey:DailyRecordID" json:"staff_note_records,omitempty"`
 }
 
-// TableName テーブル名を指定
-func (DailyRecord) TableName() string {
-	return "daily_records"
+// VitalRecord は入院バイタルサインテーブルに対応するモデル
+type VitalRecord struct {
+	ID              uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	DailyRecordID   uuid.UUID `gorm:"column:daily_record_id;type:uuid;not null" json:"daily_record_id"`
+	Time            string    `gorm:"column:time;not null" json:"time"`
+	Temperature     *float64  `gorm:"column:temperature;type:numeric(4,1)" json:"temperature,omitempty"`
+	HeartRate       *int      `gorm:"column:heart_rate" json:"heart_rate,omitempty"`
+	RespirationRate *int      `gorm:"column:respiration_rate" json:"respiration_rate,omitempty"`
+	Weight          *float64  `gorm:"column:weight;type:numeric(6,2)" json:"weight,omitempty"`
+	Notes           string    `gorm:"column:notes;default:''" json:"notes"`
+	Staff           string    `gorm:"column:staff;not null" json:"staff"`
+	CreatedAt       time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 }
 
-// Vital バイタル記録モデル
-type Vital struct {
-	ID              uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
-	DailyRecordID   uuid.UUID  `json:"daily_record_id" gorm:"type:uuid;not null"`
-	StaffID         *uuid.UUID `json:"staff_id" gorm:"type:uuid"`
-	RecordedTime    string     `json:"recorded_time" gorm:"type:time"`
-	Temperature     *float64   `json:"temperature" gorm:"type:decimal(4,1)"`
-	HeartRate       *int       `json:"heart_rate"`
-	RespirationRate *int       `json:"respiration_rate"`
-	Weight          *float64   `json:"weight" gorm:"type:decimal(5,2)"`
-	Notes           string     `json:"notes" gorm:"type:text"`
-	CreatedAt       time.Time  `json:"created_at"`
+// CareLogRecord はケアログテーブルに対応するモデル
+type CareLogRecord struct {
+	ID            uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	DailyRecordID uuid.UUID `gorm:"column:daily_record_id;type:uuid;not null" json:"daily_record_id"`
+	Time          string    `gorm:"column:time;not null" json:"time"`
+	Type          string    `gorm:"column:type;type:care_log_type;not null" json:"type"`
+	Status        string    `gorm:"column:status;type:care_log_status;not null" json:"status"`
+	Value         string    `gorm:"column:value;default:''" json:"value"`
+	Staff         string    `gorm:"column:staff;not null" json:"staff"`
+	Notes         string    `gorm:"column:notes;default:''" json:"notes"`
+	CreatedAt     time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 }
 
-// TableName テーブル名を指定
-func (Vital) TableName() string {
-	return "vitals"
+// StaffNoteRecord はスタッフメモテーブルに対応するモデル
+type StaffNoteRecord struct {
+	ID            uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	DailyRecordID uuid.UUID `gorm:"column:daily_record_id;type:uuid;not null" json:"daily_record_id"`
+	Time          string    `gorm:"column:time;not null" json:"time"`
+	Content       string    `gorm:"column:content;not null" json:"content"`
+	Staff         string    `gorm:"column:staff;not null" json:"staff"`
+	CreatedAt     time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 }
 
-// CareLog ケアログモデル
-type CareLog struct {
-	ID            uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
-	DailyRecordID uuid.UUID  `json:"daily_record_id" gorm:"type:uuid;not null"`
-	StaffID       *uuid.UUID `json:"staff_id" gorm:"type:uuid"`
-	RecordedTime  string     `json:"recorded_time" gorm:"type:time"`
-	Type          string     `json:"type" gorm:"type:varchar(30)"`   // food, excretion, medicine, treatment, other
-	Status        string     `json:"status" gorm:"type:varchar(20)"` // completed, partial, skipped
-	Value         string     `json:"value" gorm:"type:varchar(100)"`
-	Notes         string     `json:"notes" gorm:"type:text"`
-	CreatedAt     time.Time  `json:"created_at"`
+// TreatmentPlan は入院治療プランテーブルに対応するモデル
+type TreatmentPlan struct {
+	ID                uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	HospitalizationID uuid.UUID `gorm:"column:hospitalization_id;type:uuid;not null" json:"hospitalization_id"`
+	TreatmentContent  string    `gorm:"column:treatment_content;not null" json:"treatment_content"`
+	Memo              string    `gorm:"column:memo;default:''" json:"memo"`
+	Insurance         bool      `gorm:"column:insurance;default:false" json:"insurance"`
+	UnitPrice         float64   `gorm:"column:unit_price;type:numeric(10,2);default:0" json:"unit_price"`
+	Quantity          int       `gorm:"column:quantity;default:1" json:"quantity"`
+	DiscountRate      float64   `gorm:"column:discount_rate;type:numeric(5,2);default:0" json:"discount_rate"`
+	DiscountAmount    float64   `gorm:"column:discount_amount;type:numeric(10,2);default:0" json:"discount_amount"`
+	Subtotal          float64   `gorm:"column:subtotal;type:numeric(10,2);default:0" json:"subtotal"`
+	SortOrder         int       `gorm:"column:sort_order;default:0" json:"sort_order"`
+	CreatedAt         time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	UpdatedAt         time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
 }
 
-// TableName テーブル名を指定
-func (CareLog) TableName() string {
-	return "care_logs"
-}
-
-// StaffNote スタッフメモモデル
-type StaffNote struct {
-	ID            uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
-	DailyRecordID uuid.UUID  `json:"daily_record_id" gorm:"type:uuid;not null"`
-	StaffID       *uuid.UUID `json:"staff_id" gorm:"type:uuid"`
-	RecordedTime  string     `json:"recorded_time" gorm:"type:time"`
-	Content       string     `json:"content" gorm:"type:text"`
-	CreatedAt     time.Time  `json:"created_at"`
-}
-
-// TableName テーブル名を指定
-func (StaffNote) TableName() string {
-	return "staff_notes"
-}
-
-// CreateHospitalizationRequest 入院/ホテル作成リクエスト
+// CreateHospitalizationRequest は入院作成リクエスト
 type CreateHospitalizationRequest struct {
-	PetID         uuid.UUID  `json:"pet_id" binding:"required"`
-	OwnerID       uuid.UUID  `json:"owner_id" binding:"required"`
-	CageID        *uuid.UUID `json:"cage_id"`
-	Type          string     `json:"type" binding:"required"` // 入院, ホテル
-	StartDate     time.Time  `json:"start_date" binding:"required"`
-	EndDate       time.Time  `json:"end_date" binding:"required"`
-	OwnerRequest  string     `json:"owner_request"`
-	StaffNotes    string     `json:"staff_notes"`
-	Memo          string     `json:"memo"`
+	OwnerID             *string `json:"owner_id"`
+	OwnerName           string  `json:"owner_name" binding:"required"`
+	PetID               *string `json:"pet_id"`
+	PetName             string  `json:"pet_name" binding:"required"`
+	Species             string  `json:"species" binding:"required"`
+	HospitalizationType string  `json:"hospitalization_type" binding:"required"`
+	StartDate           string  `json:"start_date" binding:"required"`
+	EndDate             string  `json:"end_date" binding:"required"`
+	Status              string  `json:"status"`
+	CageID              *string `json:"cage_id"`
+	DoctorName          *string `json:"doctor_name"`
+	Memo                string  `json:"memo"`
+	OwnerRequest        string  `json:"owner_request"`
+	StaffNotes          string  `json:"staff_notes"`
 }
 
-// UpdateHospitalizationRequest 入院/ホテル更新リクエスト
+// UpdateHospitalizationRequest は入院更新リクエスト
 type UpdateHospitalizationRequest struct {
-	Type         string     `json:"type"`
-	CageID       *uuid.UUID `json:"cage_id"`
-	EndDate      *time.Time `json:"end_date"`
-	Status       string     `json:"status"`
-	OwnerRequest string     `json:"owner_request"`
-	StaffNotes   string     `json:"staff_notes"`
-	Memo         string     `json:"memo"`
+	OwnerID             *string `json:"owner_id"`
+	OwnerName           *string `json:"owner_name"`
+	PetID               *string `json:"pet_id"`
+	PetName             *string `json:"pet_name"`
+	Species             *string `json:"species"`
+	HospitalizationType *string `json:"hospitalization_type"`
+	StartDate           *string `json:"start_date"`
+	EndDate             *string `json:"end_date"`
+	Status              *string `json:"status"`
+	CageID              *string `json:"cage_id"`
+	DoctorName          *string `json:"doctor_name"`
+	Memo                *string `json:"memo"`
+	OwnerRequest        *string `json:"owner_request"`
+	StaffNotes          *string `json:"staff_notes"`
 }

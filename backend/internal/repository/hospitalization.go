@@ -37,9 +37,6 @@ func NewHospitalizationRepository(db *gorm.DB) HospitalizationRepository {
 func (r *hospitalizationRepository) GetAllHospitalizations(ctx context.Context) ([]model.Hospitalization, error) {
 	var hosps []model.Hospitalization
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Preload("Cage").
 		Order("start_date DESC, created_at DESC").
 		Find(&hosps)
 
@@ -54,11 +51,9 @@ func (r *hospitalizationRepository) GetAllHospitalizations(ctx context.Context) 
 func (r *hospitalizationRepository) GetHospitalizationByID(ctx context.Context, id string) (*model.Hospitalization, error) {
 	var hosp model.Hospitalization
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Preload("Cage").
 		Preload("CarePlanItems").
 		Preload("DailyRecords").
+		Preload("TreatmentPlans").
 		First(&hosp, "id = ?", id)
 
 	if result.Error != nil {
@@ -75,9 +70,6 @@ func (r *hospitalizationRepository) GetHospitalizationByID(ctx context.Context, 
 func (r *hospitalizationRepository) GetHospitalizationsByPetID(ctx context.Context, petID string) ([]model.Hospitalization, error) {
 	var hosps []model.Hospitalization
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Preload("Cage").
 		Where("pet_id = ?", petID).
 		Order("start_date DESC, created_at DESC").
 		Find(&hosps)
@@ -93,9 +85,6 @@ func (r *hospitalizationRepository) GetHospitalizationsByPetID(ctx context.Conte
 func (r *hospitalizationRepository) GetHospitalizationsByOwnerID(ctx context.Context, ownerID string) ([]model.Hospitalization, error) {
 	var hosps []model.Hospitalization
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Preload("Cage").
 		Where("owner_id = ?", ownerID).
 		Order("start_date DESC, created_at DESC").
 		Find(&hosps)
@@ -111,9 +100,6 @@ func (r *hospitalizationRepository) GetHospitalizationsByOwnerID(ctx context.Con
 func (r *hospitalizationRepository) GetHospitalizationsByStatus(ctx context.Context, status string) ([]model.Hospitalization, error) {
 	var hosps []model.Hospitalization
 	result := r.db.WithContext(ctx).
-		Preload("Pet").
-		Preload("Owner").
-		Preload("Cage").
 		Where("status = ?", status).
 		Order("start_date DESC, created_at DESC").
 		Find(&hosps)
@@ -130,10 +116,6 @@ func (r *hospitalizationRepository) CreateHospitalization(ctx context.Context, h
 	// Generate UUID if not set
 	if hosp.ID == uuid.Nil {
 		hosp.ID = uuid.New()
-	}
-	// Generate hospitalization number if not set
-	if hosp.HospitalizationNo == "" {
-		hosp.HospitalizationNo = uuid.New().String()[:8]
 	}
 	result := r.db.WithContext(ctx).Create(hosp)
 	if result.Error != nil {

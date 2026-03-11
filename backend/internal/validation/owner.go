@@ -14,10 +14,10 @@ var (
 
 // ValidateCreateOwner validates the create owner request
 func ValidateCreateOwner(req *model.CreateOwnerRequest) error {
-	if req.Name == "" {
+	if req.OwnerName == "" {
 		return apperrors.WrapInvalidInput("owner name is required")
 	}
-	if len(req.Name) > 100 {
+	if len(req.OwnerName) > 100 {
 		return apperrors.WrapInvalidInput("owner name must be less than 100 characters")
 	}
 
@@ -44,26 +44,26 @@ func ValidateCreateOwner(req *model.CreateOwnerRequest) error {
 
 // ValidateUpdateOwner validates the update owner request
 func ValidateUpdateOwner(req *model.UpdateOwnerRequest) error {
-	if req.Name != "" {
-		if len(req.Name) > 100 {
+	if req.OwnerName != nil && *req.OwnerName != "" {
+		if len(*req.OwnerName) > 100 {
 			return apperrors.WrapInvalidInput("owner name must be less than 100 characters")
 		}
 	}
 
-	if req.Phone != "" {
-		if len(req.Phone) > 20 {
+	if req.Phone != nil && *req.Phone != "" {
+		if len(*req.Phone) > 20 {
 			return apperrors.WrapInvalidInput("phone number must be less than 20 characters")
 		}
-		if !phoneRegex.MatchString(req.Phone) {
+		if !phoneRegex.MatchString(*req.Phone) {
 			return apperrors.WrapInvalidInput("invalid phone number format")
 		}
 	}
 
-	if req.Email != "" {
-		if len(req.Email) > 255 {
+	if req.Email != nil && *req.Email != "" {
+		if len(*req.Email) > 255 {
 			return apperrors.WrapInvalidInput("email must be less than 255 characters")
 		}
-		if !emailRegex.MatchString(req.Email) {
+		if !emailRegex.MatchString(*req.Email) {
 			return apperrors.WrapInvalidInput("invalid email format")
 		}
 	}
