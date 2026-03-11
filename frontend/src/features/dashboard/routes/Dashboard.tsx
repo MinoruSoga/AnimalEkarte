@@ -248,7 +248,7 @@ export const Dashboard = () => {
                         </Button>
                         <Button
                             size="sm"
-                            className="bg-[#37352F] hover:bg-[#37352F]/90 text-white h-10 text-sm shadow-sm"
+                            className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white h-10 text-sm shadow-sm"
                             onClick={() => navigate("/reservations")}
                         >
                             新規予約
