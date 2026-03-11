@@ -14,6 +14,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/handler"
 	"github.com/animal-ekarte/backend/internal/logger"
+	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 
@@ -24,23 +25,10 @@ import (
 )
 
 // @title Animal Ekarte API
-// @version 1.0
-// @description 動物病院 電子カルテシステム API
-// @description.en Animal Hospital Electronic Medical Record System API
-// @termsOfService http://localhost:8080/terms
-// @contact.name Animal Ekarte Support
-// @contact.url http://localhost:8080/support
-// @contact.email support@animal-ekarte.com
-// @license.name MIT
-// @license.url https://opensource.org/licenses/MIT
+// @version 2.0
+// @description 動物病院 電子カルテシステム API（45テーブル・専用マスタテーブル版）
 // @host localhost:8080
 // @BasePath /api/v1
-// @schemes http https
-
-// @securityDefinitions.apikey ApiKeyAuth
-// @in header
-// @name Authorization
-// @description API Key for authentication
 
 func main() {
 	// ロガー初期化
@@ -53,8 +41,7 @@ func main() {
 		Format: "json",
 		Output: os.Stdout,
 	})
-
-	logger.Info("starting Animal Ekarte API")
+	logger.Info("starting Animal Ekarte API v2.0 (45 tables)")
 
 	// 設定読み込み
 	cfg := config.Load()
@@ -65,48 +52,22 @@ func main() {
 		logger.Error("failed to connect to database", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
-	logger.Info("database connected successfully")
+	logger.Info("database connected")
 
-	// NOTE: スキーマは 001_init.sql で完全定義済み（FK制約あり）
-	// AutoMigrate は FK の二重定義を避けるため無効化。
-	// 新テーブル追加時は migrations/*.sql に追記すること。
-	logger.Info("database schema managed by migrations/001_init.sql (31 tables)")
+	// リポジトリ初期化
+	repos := repository.NewRepositories(db)
 
-	// レイヤー初期化
-	repo := repository.New(db)
-	medicalRecordRepo := repository.NewMedicalRecordRepository(db)
-	reservationRepo := repository.NewReservationRepository(db)
-	masterItemRepo := repository.NewMasterItemRepository(db)
-	hospitalizationRepo := repository.NewHospitalizationRepository(db)
-	accountingRepo := repository.NewAccountingRepository(db)
-	examinationRepo := repository.NewExaminationRepository(db)
-	vaccinationRepo := repository.NewVaccinationRepository(db)
-	trimmingRepo := repository.NewTrimmingRepository(db)
-	clinicRepo := repository.NewClinicRepository(db)
-	inventoryItemRepo := repository.NewInventoryItemRepository(db)
-	// 新専用マスタリポジトリ
-	staffMemberRepo := repository.NewStaffMemberRepository(db)
-	cageRepo := repository.NewCageRepository(db)
-	medicineRepo := repository.NewMedicineRepository(db)
-	insuranceCompanyRepo := repository.NewInsuranceCompanyRepository(db)
-	trimmingCourseRepo := repository.NewTrimmingCourseRepository(db)
-	trimmingOptionRepo := repository.NewTrimmingOptionRepository(db)
-	examinationTypeRepo := repository.NewExaminationTypeRepository(db)
-	svc := service.New(
-		repo, repo, medicalRecordRepo, reservationRepo, masterItemRepo,
-		hospitalizationRepo, accountingRepo, examinationRepo, vaccinationRepo,
-		trimmingRepo, clinicRepo, inventoryItemRepo,
-		staffMemberRepo, cageRepo, medicineRepo, insuranceCompanyRepo,
-		trimmingCourseRepo, trimmingOptionRepo, examinationTypeRepo,
-		repo,
-	)
-	h := handler.New(svc)
+	// サービス初期化
+	svcs := service.NewServices(repos)
+
+	// ハンドラー初期化
+	h := handler.New(svcs)
 
 	// ルーター設定
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
+	r.Use(middleware.CORS())
 	h.RegisterRoutes(r)
-
-	// Swagger UI
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// HTTPサーバー設定
@@ -143,8 +104,7 @@ func main() {
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		logger.Error("server forced to shutdown", slog.String("error", err.Error()))
+		logger.Error("shutdown error", slog.String("error", err.Error()))
 	}
-
 	logger.Info("server stopped")
 }
