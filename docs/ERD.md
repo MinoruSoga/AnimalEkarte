@@ -13,8 +13,8 @@ PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 
 | 変更内容 | 詳細 |
 |---------|------|
-| `soap_notes` テーブル追加 | 診察/治療タブ専用。`medical_records` から診察・診断フィールドを移動。1:1 |
-| `medical_records` スリム化 | `physical_exam`, `treatment_policy`, `diagnosis_details`, `diagnosis1/2` FK を `soap_notes` に移動 |
+| `clinical_plans` テーブル追加 | 診察/治療タブ専用。`medical_records` から診察・診断フィールドを移動。1:1 |
+| `medical_records` スリム化 | `physical_exam`, `treatment_policy`, `diagnosis_details`, `diagnosis1/2` FK を `clinical_plans` に移動 |
 | テーブル総数 | 50 → 51 |
 
 ## 変更概要（v5.0 → v6.0）
@@ -69,7 +69,7 @@ PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 | タブ | テーブル | 状態 |
 |------|---------|------|
 | 問診 | `inquiries` | v7.0追加 |
-| 診察/治療 | `soap_notes` | v9.0追加 |
+| 診察/治療 | `clinical_plans` | v9.0追加 |
 | 治療 | `treatments` | 既存 |
 | 予防接種 | `vaccinations` | 既存 |
 | 定期健診 | `checkups` | 既存 |
@@ -112,7 +112,7 @@ PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 | 23 | `diagnosis_names` | マスタ | 診断名 |
 | 24 | `checkup_types` | マスタ | 健診種別 |
 | 25 | `medical_records` | 診療 | カルテ（診療記録） |
-| 26 | `soap_notes` | 診療 | 診察所見・診断・治療方針（診察/治療タブ） |
+| 26 | `clinical_plans` | 診療 | 診察所見・診断・治療方針（診察/治療タブ） |
 | 27 | `inquiries` | 診療 | 問診情報（カルテ問診タブ） |
 | 28 | `treatments` | 診療 | 処置・診察・薬剤明細 |
 | 29 | `vitals` | 診療 | バイタル記録（外来） |
@@ -356,7 +356,7 @@ erDiagram
         timestamptz updated_at
     }
 
-    soap_notes {
+    clinical_plans {
         uuid id PK
         uuid medical_record_id FK
         text physical_exam
@@ -664,11 +664,11 @@ erDiagram
     owners ||--o{ medical_records : "owner_id"
     pets ||--o{ medical_records : "pet_id"
     staffs ||--o{ medical_records : "doctor_id"
-    medical_records ||--o| soap_notes : "medical_record_id"
-    soap_notes }o--|| diagnosis_categories : "diagnosis1_category_id"
-    soap_notes }o--|| diagnosis_categories : "diagnosis2_category_id"
-    soap_notes }o--|| diagnosis_names : "diagnosis1_name_id"
-    soap_notes }o--|| diagnosis_names : "diagnosis2_name_id"
+    medical_records ||--o| clinical_plans : "medical_record_id"
+    clinical_plans }o--|| diagnosis_categories : "diagnosis1_category_id"
+    clinical_plans }o--|| diagnosis_categories : "diagnosis2_category_id"
+    clinical_plans }o--|| diagnosis_names : "diagnosis1_name_id"
+    clinical_plans }o--|| diagnosis_names : "diagnosis2_name_id"
 
     medical_records ||--o{ treatments : "medical_record_id"
     consultations ||--o{ treatments : "consultation_id"
@@ -1356,7 +1356,7 @@ erDiagram
 用途: カルテ（診療記録）。1回の来院に対し1件作成。record_noはUNIQUE。
 
 > ⚠️ v7.0: `chief_complaint` は `inquiries.chief_complaint` に移動。
-> ⚠️ v9.0: `physical_exam`, `treatment_policy`, `diagnosis_details`, `diagnosis1/2` FK は `soap_notes` に移動。
+> ⚠️ v9.0: `physical_exam`, `treatment_policy`, `diagnosis_details`, `diagnosis1/2` FK は `clinical_plans` に移動。
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
@@ -1380,7 +1380,7 @@ erDiagram
 
 ---
 
-#### `soap_notes`
+#### `clinical_plans`
 
 **用途**: 診察/治療タブ。医師による身体検査所見・診断・治療方針を記録。1カルテに1件（1:1）。
 
@@ -2226,7 +2226,7 @@ erDiagram
 | owner_id | owners.id | SET NULL |
 | pet_id | pets.id | SET NULL |
 
-### soap_notes
+### clinical_plans
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
@@ -2360,7 +2360,7 @@ erDiagram
 | テーブル | カラム | 備考 |
 |---------|-------|------|
 | medical_records | record_no | カルテ番号の一意性 |
-| soap_notes | medical_record_id | 1カルテ1診察記録（1:1保証） |
+| clinical_plans | medical_record_id | 1カルテ1診察記録（1:1保証） |
 | inquiries | medical_record_id | 1カルテ1問診（1:1保証） |
 | billing_reviews | medical_record_id | 1カルテ1医師確認（1:1保証） |
 | estimates | estimate_no | 見積書番号の一意性 |
