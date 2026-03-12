@@ -1,6 +1,6 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v7.0（カルテタブ対応・50テーブル）
+バージョン: v8.0（命名規則統一・50テーブル）
 更新日: 2026-03-12
 状態: Production Ready
 
@@ -15,19 +15,29 @@ PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 |---------|------|
 | 法人テーブル追加 | `company`（ノア動物病院法人情報、シングルトン） |
 | 医院テーブル追加 | `clinics`（八王子医院・城東医院・敷島医院等） |
-| clinic_id追加予定 | `003_add_clinic_id.sql` にて以下テーブルに追加予定: owners, staffs, inventory_items, cages, service_types, consultations, procedures, hospitalization_plans, trimming_courses, trimming_options, examination_types, vaccines, medicines, insurances, diagnosis_categories, checkup_types |
+| clinic_id追加予定 | `003_add_clinic_id.sql` にて以下テーブルに追加予定: owners, staffs, inventory_items, cages, service_types, consultations, procedures, hospitalization_plans, trimming_courses, trimming_options, exam_types, vaccines, medicines, insurances, diagnosis_categories, checkup_types |
 | clinic_id保持済 | `user_clinic_memberships`, `user_permissions` のみ現時点で保持 |
 
-## 変更概要（v6.0 → v7.0）
+## 変更概要（v7.0 → v8.0）
 
 | 変更内容 | 詳細 |
 |---------|------|
-| 問診テーブル追加 | `medical_inquiries`（1:1 with medical_records） |
-| 画像テーブル追加 | `medical_images`（1:N with medical_records） |
-| 見積書テーブル追加 | `estimates` + `estimate_items` |
-| 会計医師確認テーブル追加 | `billing_confirmations`（1:1 with medical_records） |
-| medical_records修正 | `chief_complaint` を `medical_inquiries` に移動 |
-| テーブル総数 | 45 → 50 |
+| 命名規則統一 | `_records`/`_entries`/`_items` サフィックスを排除し、短縮形に統一 |
+| `examination_records` → `exams` | 検査記録 |
+| `examination_record_items` → `exam_items` | 検査結果項目 |
+| `examination_types` → `exam_types` | 検査種別マスタ |
+| `examination_type_items` → `exam_type_items` | 検査項目定義マスタ |
+| `treatment_items` → `treatments` | 治療項目 |
+| `vital_entries` → `vitals` | バイタル（外来） |
+| `vaccination_records` → `vaccinations` | 予防接種記録 |
+| `checkup_records` → `checkups` | 健診記録 |
+| `accountings` → `billings` | 会計 |
+| `accounting_items` → `billing_items` | 会計明細 |
+| `payment_infos` → `payments` | 支払情報 |
+| `medical_inquiries` → `inquiries` | 問診（不要なプレフィックス削除） |
+| `medical_images` → `record_images` | 診療画像 |
+| `billing_confirmations` → `billing_reviews` | 会計医師確認 |
+| テーブル総数 | 50テーブル（変更なし） |
 
 ---
 
@@ -50,17 +60,17 @@ PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 
 | タブ | テーブル | 状態 |
 |------|---------|------|
-| 問診 | `medical_inquiries` | v7.0追加 |
-| 診察/治療 | `medical_records`（SOAP） + `treatment_items` | 既存 |
-| 治療 | `treatment_items`（フィルタビュー） | 既存 |
-| 予防接種 | `vaccination_records` | 既存 |
-| 定期健診 | `checkup_records` | 既存 |
-| 検査 | `examination_records` + `examination_record_items` | 既存 |
-| 画像 | `medical_images` | v7.0追加 |
+| 問診 | `inquiries` | v7.0追加 |
+| 診察/治療 | `medical_records`（SOAP） + `treatments` | 既存 |
+| 治療 | `treatments`（フィルタビュー） | 既存 |
+| 予防接種 | `vaccinations` | 既存 |
+| 定期健診 | `checkups` | 既存 |
+| 検査 | `exams` + `exam_items` | 既存 |
+| 画像 | `record_images` | v7.0追加 |
 | 見積書 | `estimates` + `estimate_items` | v7.0追加 |
-| 会計（医師確認） | `billing_confirmations` | v7.0追加 |
-| 会計情報 | `accountings` + `accounting_items` + `payment_infos` | 既存 |
-| 生体情報 | `vital_entries` | 既存 |
+| 会計（医師確認） | `billing_reviews` | v7.0追加 |
+| 会計情報 | `billings` + `billing_items` + `payments` | 既存 |
+| 生体情報 | `vitals` | 既存 |
 | ペット情報 | `pets`（参照） | 既存 |
 
 ---
@@ -78,8 +88,8 @@ PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 | 7 | `pets` | コア | ペット |
 | 8 | `staffs` | マスタ | スタッフ（獣医師・看護師等） |
 | 9 | `inventory_items` | 在庫 | 在庫アイテム |
-| 10 | `examination_types` | マスタ | 検査種別 |
-| 11 | `examination_type_items` | マスタ | 検査種別の検査項目定義 |
+| 10 | `exam_types` | マスタ | 検査種別 |
+| 11 | `exam_type_items` | マスタ | 検査種別の検査項目定義 |
 | 12 | `vaccines` | マスタ | ワクチン |
 | 13 | `medicines` | マスタ | 薬剤 |
 | 14 | `insurances` | マスタ | 保険 |
@@ -94,17 +104,17 @@ PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 | 23 | `diagnosis_names` | マスタ | 診断名 |
 | 24 | `checkup_types` | マスタ | 健診種別 |
 | 25 | `medical_records` | 診療 | カルテ（診療記録） |
-| 26 | `medical_inquiries` | 診療 | 問診情報（カルテ問診タブ） |
-| 27 | `treatment_items` | 診療 | 処置・診察・薬剤明細 |
-| 28 | `vital_entries` | 診療 | バイタル記録（外来） |
-| 29 | `examination_records` | 診療 | 検査記録 |
-| 30 | `examination_record_items` | 診療 | 検査記録の検査結果項目 |
-| 31 | `vaccination_records` | 診療 | ワクチン接種記録 |
-| 32 | `checkup_records` | 診療 | 健診記録 |
-| 33 | `medical_images` | 診療 | 診療画像（レントゲン・エコー等） |
+| 26 | `inquiries` | 診療 | 問診情報（カルテ問診タブ） |
+| 27 | `treatments` | 診療 | 処置・診察・薬剤明細 |
+| 28 | `vitals` | 診療 | バイタル記録（外来） |
+| 29 | `exams` | 診療 | 検査記録 |
+| 30 | `exam_items` | 診療 | 検査記録の検査結果項目 |
+| 31 | `vaccinations` | 診療 | ワクチン接種記録 |
+| 32 | `checkups` | 診療 | 健診記録 |
+| 33 | `record_images` | 診療 | 診療画像（レントゲン・エコー等） |
 | 34 | `estimates` | 診療 | 見積書 |
 | 35 | `estimate_items` | 診療 | 見積書明細 |
-| 36 | `billing_confirmations` | 診療 | 会計医師確認 |
+| 36 | `billing_reviews` | 診療 | 会計医師確認 |
 | 37 | `reservation_appointments` | 予約 | 予約 |
 | 38 | `hospitalizations` | 入院 | 入院・ホテル |
 | 39 | `daily_records` | 入院 | 入院日次記録 |
@@ -115,9 +125,9 @@ PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 | 44 | `treatment_plans` | 入院 | 入院治療プラン |
 | 45 | `trimming_records` | トリミング | トリミング記録 |
 | 46 | `trimming_record_options` | トリミング | トリミング記録のオプション選択 |
-| 47 | `accountings` | 会計 | 会計 |
-| 48 | `accounting_items` | 会計 | 会計明細 |
-| 49 | `payment_infos` | 会計 | 支払い情報 |
+| 47 | `billings` | 会計 | 会計 |
+| 48 | `billing_items` | 会計 | 会計明細 |
+| 49 | `payments` | 会計 | 支払い情報 |
 | 50 | `shift_entries` | シフト | スタッフシフト |
 
 ---
@@ -202,16 +212,16 @@ erDiagram
         inventory_status status
     }
 
-    examination_types {
+    exam_types {
         uuid id PK
         text code
         text name
         master_status status
     }
 
-    examination_type_items {
+    exam_type_items {
         uuid id PK
-        uuid examination_type_id FK
+        uuid exam_type_id FK
         text name
         integer sort_order
     }
@@ -336,7 +346,7 @@ erDiagram
         uuid diagnosis2_name_id FK
     }
 
-    treatment_items {
+    treatments {
         uuid id PK
         uuid medical_record_id FK
         treatment_item_type item_type
@@ -348,7 +358,7 @@ erDiagram
         integer quantity
     }
 
-    vital_entries {
+    vitals {
         uuid id PK
         uuid medical_record_id FK
         timestamptz recorded_at
@@ -358,24 +368,24 @@ erDiagram
         numeric weight
     }
 
-    examination_records {
+    exams {
         uuid id PK
         uuid medical_record_id FK
         uuid pet_id FK
-        uuid examination_type_id FK
+        uuid exam_type_id FK
         uuid doctor_id FK
         examination_status status
     }
 
-    examination_record_items {
+    exam_items {
         uuid id PK
-        uuid examination_record_id FK
+        uuid exam_id FK
         text name
         text inspection_value
         examination_result_status status
     }
 
-    vaccination_records {
+    vaccinations {
         uuid id PK
         uuid medical_record_id FK
         uuid pet_id FK
@@ -385,7 +395,7 @@ erDiagram
         uuid doctor_id FK
     }
 
-    checkup_records {
+    checkups {
         uuid id PK
         uuid medical_record_id FK
         uuid pet_id FK
@@ -394,7 +404,7 @@ erDiagram
         uuid doctor_id FK
     }
 
-    medical_inquiries {
+    inquiries {
         uuid id PK
         uuid medical_record_id FK
         text chief_complaint
@@ -413,7 +423,7 @@ erDiagram
         timestamptz updated_at
     }
 
-    medical_images {
+    record_images {
         uuid id PK
         uuid medical_record_id FK
         text image_url
@@ -424,7 +434,7 @@ erDiagram
         medical_image_type image_type
         text description
         timestamptz taken_at
-        uuid examination_record_id FK
+        uuid exam_id FK
         uuid staff_id FK
         integer sort_order
         timestamptz created_at
@@ -470,7 +480,7 @@ erDiagram
         timestamptz created_at
     }
 
-    billing_confirmations {
+    billing_reviews {
         uuid id PK
         uuid medical_record_id FK
         billing_confirmation_status status
@@ -572,7 +582,7 @@ erDiagram
     }
 
     %% ===== 会計 =====
-    accountings {
+    billings {
         uuid id PK
         uuid medical_record_id FK
         uuid hospitalization_id FK
@@ -582,18 +592,18 @@ erDiagram
         date scheduled_date
     }
 
-    accounting_items {
+    billing_items {
         uuid id PK
-        uuid accounting_id FK
+        uuid billing_id FK
         item_category category
         text name
         numeric unit_price
         integer quantity
     }
 
-    payment_infos {
+    payments {
         uuid id PK
-        uuid accounting_id FK
+        uuid billing_id FK
         numeric total_amount
         numeric billing_amount
         payment_method method
@@ -622,7 +632,7 @@ erDiagram
     insurances ||--o{ pets : "insurance_id"
 
     %% マスタ
-    examination_types ||--o{ examination_type_items : "examination_type_id"
+    exam_types ||--o{ exam_type_items : "exam_type_id"
     diagnosis_categories ||--o{ diagnosis_names : "diagnosis_category_id"
     inventory_items ||--o{ medicines : "inventory_id"
 
@@ -635,36 +645,36 @@ erDiagram
     diagnosis_names ||--o{ medical_records : "diagnosis1_name_id"
     diagnosis_names ||--o{ medical_records : "diagnosis2_name_id"
 
-    medical_records ||--o{ treatment_items : "medical_record_id"
-    consultations ||--o{ treatment_items : "consultation_id"
-    procedures ||--o{ treatment_items : "procedure_id"
-    medicines ||--o{ treatment_items : "medicine_id"
-    inventory_items ||--o{ treatment_items : "inventory_id"
+    medical_records ||--o{ treatments : "medical_record_id"
+    consultations ||--o{ treatments : "consultation_id"
+    procedures ||--o{ treatments : "procedure_id"
+    medicines ||--o{ treatments : "medicine_id"
+    inventory_items ||--o{ treatments : "inventory_id"
 
-    medical_records ||--o{ vital_entries : "medical_record_id"
-    staffs ||--o{ vital_entries : "staff_id"
+    medical_records ||--o{ vitals : "medical_record_id"
+    staffs ||--o{ vitals : "staff_id"
 
-    medical_records ||--o{ examination_records : "medical_record_id"
-    pets ||--o{ examination_records : "pet_id"
-    examination_types ||--o{ examination_records : "examination_type_id"
-    staffs ||--o{ examination_records : "doctor_id"
-    examination_records ||--o{ examination_record_items : "examination_record_id"
+    medical_records ||--o{ exams : "medical_record_id"
+    pets ||--o{ exams : "pet_id"
+    exam_types ||--o{ exams : "exam_type_id"
+    staffs ||--o{ exams : "doctor_id"
+    exams ||--o{ exam_items : "exam_id"
 
-    medical_records ||--o{ vaccination_records : "medical_record_id"
-    pets ||--o{ vaccination_records : "pet_id"
-    vaccines ||--o{ vaccination_records : "vaccine_id"
-    staffs ||--o{ vaccination_records : "doctor_id"
+    medical_records ||--o{ vaccinations : "medical_record_id"
+    pets ||--o{ vaccinations : "pet_id"
+    vaccines ||--o{ vaccinations : "vaccine_id"
+    staffs ||--o{ vaccinations : "doctor_id"
 
-    medical_records ||--o{ checkup_records : "medical_record_id"
-    pets ||--o{ checkup_records : "pet_id"
-    checkup_types ||--o{ checkup_records : "checkup_type_id"
-    staffs ||--o{ checkup_records : "doctor_id"
+    medical_records ||--o{ checkups : "medical_record_id"
+    pets ||--o{ checkups : "pet_id"
+    checkup_types ||--o{ checkups : "checkup_type_id"
+    staffs ||--o{ checkups : "doctor_id"
 
-    medical_records ||--o| medical_inquiries : "medical_record_id"
-    staffs ||--o{ medical_inquiries : "staff_id"
-    medical_records ||--o{ medical_images : "medical_record_id"
-    examination_records ||--o{ medical_images : "examination_record_id"
-    staffs ||--o{ medical_images : "staff_id"
+    medical_records ||--o| inquiries : "medical_record_id"
+    staffs ||--o{ inquiries : "staff_id"
+    medical_records ||--o{ record_images : "medical_record_id"
+    exams ||--o{ record_images : "exam_id"
+    staffs ||--o{ record_images : "staff_id"
     medical_records ||--o{ estimates : "medical_record_id"
     owners ||--o{ estimates : "owner_id"
     staffs ||--o{ estimates : "created_by"
@@ -672,9 +682,9 @@ erDiagram
     consultations ||--o{ estimate_items : "consultation_id"
     procedures ||--o{ estimate_items : "procedure_id"
     medicines ||--o{ estimate_items : "medicine_id"
-    medical_records ||--o| billing_confirmations : "medical_record_id"
-    staffs ||--o{ billing_confirmations : "confirmed_by"
-    staffs ||--o{ billing_confirmations : "returned_by"
+    medical_records ||--o| billing_reviews : "medical_record_id"
+    staffs ||--o{ billing_reviews : "confirmed_by"
+    staffs ||--o{ billing_reviews : "returned_by"
 
     %% 予約
     pets ||--o{ reservation_appointments : "pet_id"
@@ -711,12 +721,12 @@ erDiagram
     trimming_options ||--o{ trimming_record_options : "option_id"
 
     %% 会計
-    medical_records ||--o| accountings : "medical_record_id"
-    hospitalizations ||--o{ accountings : "hospitalization_id"
-    owners ||--o{ accountings : "owner_id"
-    pets ||--o{ accountings : "pet_id"
-    accountings ||--o{ accounting_items : "accounting_id"
-    accountings ||--|| payment_infos : "accounting_id"
+    medical_records ||--o| billings : "medical_record_id"
+    hospitalizations ||--o{ billings : "hospitalization_id"
+    owners ||--o{ billings : "owner_id"
+    pets ||--o{ billings : "pet_id"
+    billings ||--o{ billing_items : "billing_id"
+    billings ||--|| payments : "billing_id"
 
     %% シフト
     staffs ||--o{ shift_entries : "staff_id"
@@ -1018,7 +1028,7 @@ erDiagram
 
 ---
 
-#### `examination_types`
+#### `exam_types`
 
 用途: 検査種別マスタ（血液検査・尿検査等）。
 
@@ -1036,21 +1046,21 @@ erDiagram
 
 ---
 
-#### `examination_type_items`
+#### `exam_type_items`
 
 用途: 検査種別に属する検査項目定義（検査結果のテンプレート）。
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| examination_type_id | uuid | NO | | examination_types.id FK |
+| exam_type_id | uuid | NO | | exam_types.id FK |
 | name | text | NO | | 検査項目名 |
 | inspection_value | text | YES | '' | 検査値（テンプレート） |
 | normal_value | text | YES | '' | 正常値 |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 
-**FK:** `examination_type_id` → `examination_types.id` (CASCADE)
+**FK:** `exam_type_id` → `exam_types.id` (CASCADE)
 
 ---
 
@@ -1320,7 +1330,7 @@ erDiagram
 
 用途: カルテ（診療記録）。1回の来院に対し1件作成。record_noはUNIQUE。
 
-> ⚠️ `chief_complaint`（主訴）は v7.0 で `medical_inquiries.chief_complaint` に移動。
+> ⚠️ `chief_complaint`（主訴）は v7.0 で `inquiries.chief_complaint` に移動。
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
@@ -1355,7 +1365,7 @@ erDiagram
 
 ---
 
-#### `medical_inquiries`
+#### `inquiries`
 
 **用途**: カルテ問診タブ。飼主からの問診情報を記録。1カルテに1件（1:1）。
 
@@ -1384,7 +1394,7 @@ erDiagram
 
 ---
 
-#### `treatment_items`
+#### `treatments`
 
 用途: カルテに紐づく処置・診察・薬剤の明細。item_typeで種別を区別し、対応するFKが設定される。
 
@@ -1421,7 +1431,7 @@ erDiagram
 
 ---
 
-#### `vital_entries`
+#### `vitals`
 
 用途: 外来診療時のバイタル記録（体温・心拍数・体重等）。カルテに紐づく。
 
@@ -1444,7 +1454,7 @@ erDiagram
 
 ---
 
-#### `examination_records`
+#### `exams`
 
 用途: 検査記録。カルテ・ペットに紐づき、検査種別マスタを参照する。
 
@@ -1456,7 +1466,7 @@ erDiagram
 | date | date | NO | | 検査日 |
 | owner_name | text | NO | '' | 飼い主名スナップショット |
 | pet_name | text | NO | '' | ペット名スナップショット |
-| examination_type_id | uuid | NO | | examination_types.id FK |
+| exam_type_id | uuid | NO | | exam_types.id FK |
 | doctor_id | uuid | YES | | staffs.id FK |
 | status | examination_status | YES | '依頼中' | 検査状態 |
 | result_summary | text | YES | '' | 検査結果サマリ |
@@ -1467,19 +1477,19 @@ erDiagram
 **FK:**
 - `medical_record_id` → `medical_records.id` (CASCADE)
 - `pet_id` → `pets.id` (CASCADE)
-- `examination_type_id` → `examination_types.id` (RESTRICT)
+- `exam_type_id` → `exam_types.id` (RESTRICT)
 - `doctor_id` → `staffs.id` (SET NULL)
 
 ---
 
-#### `examination_record_items`
+#### `exam_items`
 
 用途: 検査記録の各検査項目結果。
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| examination_record_id | uuid | NO | | examination_records.id FK |
+| exam_id | uuid | NO | | exams.id FK |
 | name | text | NO | '' | 検査項目名 |
 | inspection_value | text | YES | '' | 検査値 |
 | normal_value | text | YES | '' | 正常値 |
@@ -1490,11 +1500,11 @@ erDiagram
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 
-**FK:** `examination_record_id` → `examination_records.id` (CASCADE)
+**FK:** `exam_id` → `exams.id` (CASCADE)
 
 ---
 
-#### `vaccination_records`
+#### `vaccinations`
 
 用途: ワクチン接種記録。vaccine_name_snapshotにて接種時のワクチン名を保持。
 
@@ -1528,7 +1538,7 @@ erDiagram
 
 ---
 
-#### `checkup_records`
+#### `checkups`
 
 用途: 健診記録。健診種別マスタを参照し、次回健診日を管理。
 
@@ -1555,7 +1565,7 @@ erDiagram
 
 ---
 
-#### `medical_images`
+#### `record_images`
 
 **用途**: カルテ画像タブ。レントゲン・エコー・写真等の診療画像を管理。1カルテに複数件。
 
@@ -1571,14 +1581,14 @@ erDiagram
 | image_type | medical_image_type | NO | 'other' | 画像種別 |
 | description | text | YES | '' | 説明・所見メモ |
 | taken_at | timestamptz | YES | - | 撮影日時 |
-| examination_record_id | uuid | YES | - | FK → examination_records(id) SET NULL |
+| exam_id | uuid | YES | - | FK → exams(id) SET NULL |
 | staff_id | uuid | YES | - | FK → staffs(id) SET NULL（撮影者） |
 | sort_order | integer | YES | 0 | 表示順 |
 | created_at | timestamptz | YES | now() | |
 
-**FK**: medical_record_id → medical_records(id) CASCADE, examination_record_id → examination_records(id) SET NULL, staff_id → staffs(id) SET NULL
+**FK**: medical_record_id → medical_records(id) CASCADE, exam_id → exams(id) SET NULL, staff_id → staffs(id) SET NULL
 
-**インデックス**: (medical_record_id), (image_type), (taken_at DESC), (examination_record_id) WHERE NOT NULL
+**インデックス**: (medical_record_id), (image_type), (taken_at DESC), (exam_id) WHERE NOT NULL
 
 ---
 
@@ -1642,7 +1652,7 @@ erDiagram
 
 ---
 
-#### `billing_confirmations`
+#### `billing_reviews`
 
 **用途**: カルテ会計（医師確認）タブ。医師が会計内容を確認・承認するレコード。1カルテに1件（1:1）。
 
@@ -1936,7 +1946,7 @@ erDiagram
 
 ---
 
-#### `accountings`
+#### `billings`
 
 用途: 会計情報。カルテまたは入院に1件対応（medical_record_idはUNIQUE）。
 
@@ -1965,14 +1975,14 @@ erDiagram
 
 ---
 
-#### `accounting_items`
+#### `billing_items`
 
 用途: 会計明細。会計に紐づく各請求項目。
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| accounting_id | uuid | NO | | accountings.id FK |
+| billing_id | uuid | NO | | billings.id FK |
 | code | text | YES | '' | コード |
 | category | item_category | NO | | 明細カテゴリ |
 | name | text | NO | '' | 項目名 |
@@ -1984,18 +1994,18 @@ erDiagram
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 
-**FK:** `accounting_id` → `accountings.id` (CASCADE)
+**FK:** `billing_id` → `billings.id` (CASCADE)
 
 ---
 
-#### `payment_infos`
+#### `payments`
 
-用途: 支払い情報。会計に1対1で紐づく（accounting_idはUNIQUE）。
+用途: 支払い情報。会計に1対1で紐づく（billing_idはUNIQUE）。
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| accounting_id | uuid | NO | | accountings.id FK（UNIQUE） |
+| billing_id | uuid | NO | | billings.id FK（UNIQUE） |
 | subtotal | numeric | NO | 0 | 小計 |
 | tax_total | numeric | NO | 0 | 消費税合計 |
 | total_amount | numeric | NO | 0 | 合計金額 |
@@ -2010,7 +2020,7 @@ erDiagram
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
-**FK:** `accounting_id` → `accountings.id` (CASCADE)
+**FK:** `billing_id` → `billings.id` (CASCADE)
 
 ---
 
@@ -2042,7 +2052,7 @@ erDiagram
 
 ## FK関係一覧
 
-### accountings
+### billings
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
@@ -2051,7 +2061,7 @@ erDiagram
 | owner_id | owners.id | CASCADE |
 | pet_id | pets.id | CASCADE |
 
-### billing_confirmations
+### billing_reviews
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
@@ -2076,26 +2086,26 @@ erDiagram
 | owner_id | owners.id | SET NULL |
 | created_by | staffs.id | SET NULL |
 
-### medical_images
+### record_images
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
 | medical_record_id | medical_records.id | CASCADE |
-| examination_record_id | examination_records.id | SET NULL |
+| exam_id | exams.id | SET NULL |
 | staff_id | staffs.id | SET NULL |
 
-### medical_inquiries
+### inquiries
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
 | medical_record_id | medical_records.id | CASCADE |
 | staff_id | staffs.id | SET NULL |
 
-### accounting_items
+### billing_items
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
-| accounting_id | accountings.id | CASCADE |
+| billing_id | billings.id | CASCADE |
 
 ### care_log_records
 
@@ -2113,7 +2123,7 @@ erDiagram
 | medicine_id | medicines.id | SET NULL |
 | procedure_id | procedures.id | SET NULL |
 
-### checkup_records
+### checkups
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
@@ -2134,26 +2144,26 @@ erDiagram
 |-----------|-------|--------|
 | diagnosis_category_id | diagnosis_categories.id | CASCADE |
 
-### examination_record_items
+### exam_items
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
-| examination_record_id | examination_records.id | CASCADE |
+| exam_id | exams.id | CASCADE |
 
-### examination_records
+### exams
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
 | doctor_id | staffs.id | SET NULL |
-| examination_type_id | examination_types.id | RESTRICT |
+| exam_type_id | exam_types.id | RESTRICT |
 | medical_record_id | medical_records.id | CASCADE |
 | pet_id | pets.id | CASCADE |
 
-### examination_type_items
+### exam_type_items
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
-| examination_type_id | examination_types.id | CASCADE |
+| exam_type_id | exam_types.id | CASCADE |
 
 ### hospitalizations
 
@@ -2182,11 +2192,11 @@ erDiagram
 |-----------|-------|--------|
 | inventory_id | inventory_items.id | SET NULL |
 
-### payment_infos
+### payments
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
-| accounting_id | accountings.id | CASCADE |
+| billing_id | billings.id | CASCADE |
 
 ### pets
 
@@ -2216,7 +2226,7 @@ erDiagram
 | daily_record_id | daily_records.id | CASCADE |
 | staff_id | staffs.id | SET NULL |
 
-### treatment_items
+### treatments
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
@@ -2268,7 +2278,7 @@ erDiagram
 | granted_by | user_accounts.id | SET NULL |
 | user_id | user_accounts.id | CASCADE |
 
-### vaccination_records
+### vaccinations
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
@@ -2277,7 +2287,7 @@ erDiagram
 | pet_id | pets.id | CASCADE |
 | vaccine_id | vaccines.id | RESTRICT |
 
-### vital_entries
+### vitals
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
@@ -2300,11 +2310,11 @@ erDiagram
 | テーブル | カラム | 備考 |
 |---------|-------|------|
 | medical_records | record_no | カルテ番号の一意性 |
-| medical_inquiries | medical_record_id | 1カルテ1問診（1:1保証） |
-| billing_confirmations | medical_record_id | 1カルテ1医師確認（1:1保証） |
+| inquiries | medical_record_id | 1カルテ1問診（1:1保証） |
+| billing_reviews | medical_record_id | 1カルテ1医師確認（1:1保証） |
 | estimates | estimate_no | 見積書番号の一意性 |
-| accountings | medical_record_id | 1カルテ1会計（1対1） |
-| payment_infos | accounting_id | 1会計1支払情報（1対1） |
+| billings | medical_record_id | 1カルテ1会計（1対1） |
+| payments | billing_id | 1会計1支払情報（1対1） |
 | user_accounts | email | メールアドレスの一意性 |
 | daily_records | (hospitalization_id, date) | 1入院1日1件 |
 | shift_entries | (staff_id, date) | 1スタッフ1日1シフト |
@@ -2317,7 +2327,7 @@ erDiagram
 以下のテーブルは `code` カラムに `WHERE code != ''` の部分UNIQUEインデックスを持つ。
 
 - staffs
-- examination_types
+- exam_types
 - vaccines
 - medicines
 - insurances
@@ -2338,18 +2348,18 @@ erDiagram
 
 | テーブル | カラム | 備考 |
 |---------|-------|------|
-| medical_inquiries | (medical_record_id) UNIQUE | 1:1保証 |
-| medical_images | (medical_record_id) | カルテ別画像検索 |
-| medical_images | (image_type) | 種別フィルタ |
-| medical_images | (taken_at DESC) | 撮影日時ソート |
-| medical_images | (examination_record_id) WHERE NOT NULL | 検査別画像検索 |
+| inquiries | (medical_record_id) UNIQUE | 1:1保証 |
+| record_images | (medical_record_id) | カルテ別画像検索 |
+| record_images | (image_type) | 種別フィルタ |
+| record_images | (taken_at DESC) | 撮影日時ソート |
+| record_images | (exam_id) WHERE NOT NULL | 検査別画像検索 |
 | estimates | (estimate_no) UNIQUE | 見積書番号の一意性 |
 | estimates | (medical_record_id) | カルテ別見積書検索 |
 | estimates | (status) | ステータスフィルタ |
 | estimates | (owner_id) | 飼主別見積書検索 |
 | estimate_items | (estimate_id) | 見積書明細検索 |
-| billing_confirmations | (medical_record_id) UNIQUE | 1:1保証 |
-| billing_confirmations | (status) | ステータスフィルタ |
+| billing_reviews | (medical_record_id) UNIQUE | 1:1保証 |
+| billing_reviews | (status) | ステータスフィルタ |
 
 ---
 
@@ -2371,7 +2381,7 @@ erDiagram
 | hospitalization_plans | 医院別の入院プラン |
 | trimming_courses | 医院別のトリミングコース |
 | trimming_options | 医院別のトリミングオプション |
-| examination_types | 医院別の検査種別 |
+| exam_types | 医院別の検査種別 |
 | vaccines | 医院別のワクチン |
 | medicines | 医院別の薬剤 |
 | insurances | 医院別の保険 |
@@ -2382,10 +2392,10 @@ erDiagram
 
 ### chief_complaint 移行（004_migrate_chief_complaint.sql 予定）
 
-`medical_records.chief_complaint` を `medical_inquiries.chief_complaint` に移行するマイグレーション。
+`medical_records.chief_complaint` を `inquiries.chief_complaint` に移行するマイグレーション。
 
 | 作業 | 内容 |
 |------|------|
-| 004_migrate_chief_complaint.sql | `medical_inquiries` レコードを既存 `medical_records` 分だけ生成し、`chief_complaint` の値をコピー後、`medical_records.chief_complaint` カラムを削除 |
+| 004_migrate_chief_complaint.sql | `inquiries` レコードを既存 `medical_records` 分だけ生成し、`chief_complaint` の値をコピー後、`medical_records.chief_complaint` カラムを削除 |
 
-> v7.0 時点では `medical_records.chief_complaint` は削除済み。新規カルテ作成時は `medical_inquiries` に書き込むこと。
+> v7.0 時点では `medical_records.chief_complaint` は削除済み。新規カルテ作成時は `inquiries` に書き込むこと。
