@@ -974,7 +974,7 @@ erDiagram
 
 **FK:**
 - `user_id` → `user_accounts.id` (CASCADE)
-- `clinic_id` → `clinics.id` (CASCADE)
+- `clinic_id` → `clinics.id` (RESTRICT)
 
 **インデックス:**
 - `(user_id, clinic_id)` UNIQUE
@@ -997,7 +997,7 @@ erDiagram
 
 **FK:**
 - `user_id` → `user_accounts.id` (CASCADE)
-- `clinic_id` → `clinics.id` (CASCADE)
+- `clinic_id` → `clinics.id` (RESTRICT)
 - `granted_by` → `user_accounts.id` (SET NULL)
 
 ---
@@ -1013,7 +1013,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | owner_name | text | NO | | 飼い主名 |
 | owner_name_kana | text | YES | '' | 飼い主名カナ |
 | company | text | YES | '' | 会社名 |
@@ -1034,7 +1034,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 
 **インデックス:** `(clinic_id)`
 
@@ -1047,7 +1047,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | owner_id | uuid | NO | | owners.id FK |
 | pet_number | text | YES | '' | ペット番号 |
 | name | text | NO | | ペット名 |
@@ -1074,7 +1074,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 - `owner_id` → `owners.id` (CASCADE)
 - `insurance_id` → `insurances.id` (SET NULL)
 
@@ -1093,7 +1093,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | スタッフコード |
 | name | text | NO | | スタッフ名 |
 | status | master_status | YES | 'active' | 状態 |
@@ -1104,7 +1104,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 
 **インデックス:** `(clinic_id)`
 
@@ -1117,7 +1117,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 品目名 |
 | category | inventory_category | NO | | カテゴリ |
 | quantity | integer | YES | 0 | 在庫数量 |
@@ -1132,7 +1132,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 
 **インデックス:** `(clinic_id)`
 
@@ -1145,7 +1145,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | 検査種別名 |
 | price | numeric | YES | | 価格 |
@@ -1156,7 +1156,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 
 **インデックス:** `(clinic_id)`
 
@@ -1187,7 +1187,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | ワクチン名 |
 | price | numeric | YES | | 価格 |
@@ -1200,7 +1200,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 
 **インデックス:** `(clinic_id)`
 
@@ -1213,7 +1213,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | 薬剤名 |
 | price | numeric | YES | | 価格 |
@@ -1228,7 +1228,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 - `inventory_id` → `inventory_items.id` (SET NULL)
 
 **インデックス:** `(clinic_id)`
@@ -1242,7 +1242,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | 保険名 |
 | status | master_status | YES | 'active' | 状態 |
@@ -1254,7 +1254,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 
 **インデックス:** `(clinic_id)`
 
@@ -1267,7 +1267,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | ケージ名 |
 | price | numeric | YES | | 価格 |
@@ -1280,7 +1280,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 
 **インデックス:** `(clinic_id)`
 
@@ -1293,7 +1293,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | サービス種別名 |
 | status | master_status | YES | 'active' | 状態 |
@@ -1304,7 +1304,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 
 **インデックス:** `(clinic_id)`
 
@@ -1317,7 +1317,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | 診察項目名 |
 | price | numeric | YES | | 価格 |
@@ -1330,7 +1330,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 
 **インデックス:** `(clinic_id)`
 
@@ -1343,7 +1343,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | 処置項目名 |
 | price | numeric | YES | | 価格 |
@@ -1356,7 +1356,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 
 **インデックス:** `(clinic_id)`
 
@@ -1369,7 +1369,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | プラン名 |
 | price | numeric | YES | | 価格 |
@@ -1382,7 +1382,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 
 **インデックス:** `(clinic_id)`
 
@@ -1395,7 +1395,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | コース名 |
 | price | numeric | YES | | 価格 |
@@ -1408,7 +1408,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 
 **インデックス:** `(clinic_id)`
 
@@ -1421,7 +1421,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | オプション名 |
 | price | numeric | YES | | 価格 |
@@ -1434,7 +1434,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 
 **インデックス:** `(clinic_id)`
 
@@ -1447,7 +1447,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | カテゴリ名 |
 | status | master_status | YES | 'active' | 状態 |
@@ -1457,7 +1457,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 
 **インデックス:** `(clinic_id)`
 
@@ -1470,7 +1470,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | 診断名 |
 | status | master_status | YES | 'active' | 状態 |
@@ -1481,7 +1481,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 - `diagnosis_category_id` → `diagnosis_categories.id` (CASCADE)
 
 **インデックス:** `(clinic_id)`
@@ -1495,7 +1495,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | 健診種別名 |
 | price | numeric | YES | | 価格 |
@@ -1508,7 +1508,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 
 **インデックス:** `(clinic_id)`
 
@@ -1528,7 +1528,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | record_no | text | NO | | カルテ番号（UNIQUE） |
 | date | date | NO | | 診療日 |
 | owner_id | uuid | YES | | FK → owners(id) SET NULL |
@@ -1542,7 +1542,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 - `owner_id` → `owners.id` (SET NULL)
 - `pet_id` → `pets.id` (SET NULL)
 - `doctor_id` → `staffs.id` (SET NULL)
@@ -1691,7 +1691,7 @@ erDiagram
 
 **FK:**
 - `medical_record_id` → `medical_records.id` (CASCADE)
-- `pet_id` → `pets.id` (CASCADE)
+- `pet_id` → `pets.id` (SET NULL)
 - `exam_type_id` → `exam_types.id` (RESTRICT)
 - `doctor_id` → `staffs.id` (SET NULL)
 
@@ -1747,7 +1747,7 @@ erDiagram
 
 **FK:**
 - `medical_record_id` → `medical_records.id` (CASCADE)
-- `pet_id` → `pets.id` (CASCADE)
+- `pet_id` → `pets.id` (SET NULL)
 - `vaccine_id` → `vaccines.id` (RESTRICT)
 - `doctor_id` → `staffs.id` (SET NULL)
 
@@ -1774,7 +1774,7 @@ erDiagram
 
 **FK:**
 - `medical_record_id` → `medical_records.id` (CASCADE)
-- `pet_id` → `pets.id` (CASCADE)
+- `pet_id` → `pets.id` (SET NULL)
 - `checkup_type_id` → `checkup_types.id` (RESTRICT)
 - `doctor_id` → `staffs.id` (SET NULL)
 
@@ -1902,7 +1902,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | start_time | timestamptz | NO | | 開始日時 |
 | end_time | timestamptz | NO | | 終了日時 |
 | owner_name | text | NO | '' | 飼い主名スナップショット |
@@ -1918,7 +1918,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 - `pet_id` → `pets.id` (SET NULL)
 - `service_type_id` → `service_types.id` (SET NULL)
 - `doctor_id` → `staffs.id` (RESTRICT)
@@ -1938,7 +1938,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | owner_id | uuid | YES | | owners.id FK |
 | owner_name | text | NO | '' | 飼い主名スナップショット |
 | pet_id | uuid | YES | | pets.id FK |
@@ -1957,7 +1957,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 - `owner_id` → `owners.id` (SET NULL)
 - `pet_id` → `pets.id` (SET NULL)
 - `cage_id` → `cages.id` (SET NULL)
@@ -2117,7 +2117,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | date | date | NO | | トリミング日 |
 | pet_id | uuid | NO | | pets.id FK |
 | pet_number | text | NO | '' | ペット番号スナップショット |
@@ -2141,7 +2141,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 - `pet_id` → `pets.id` (CASCADE)
 - `staff_id` → `staffs.id` (RESTRICT)
 - `course_id` → `trimming_courses.id` (SET NULL)
@@ -2180,7 +2180,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | medical_record_id | uuid | YES | | medical_records.id FK（UNIQUE） |
 | hospitalization_id | uuid | YES | | hospitalizations.id FK |
 | owner_id | uuid | NO | | owners.id FK |
@@ -2196,7 +2196,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 - `medical_record_id` → `medical_records.id` (SET NULL)
 - `hospitalization_id` → `hospitalizations.id` (SET NULL)
 - `owner_id` → `owners.id` (CASCADE)
@@ -2266,7 +2266,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
+| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | staff_id | uuid | NO | | staffs.id FK |
 | date | date | NO | | 日付 |
 | shift_type | shift_type | NO | | シフト種別 |
@@ -2277,7 +2277,7 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
-- `clinic_id` → `clinics.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
 - `staff_id` → `staffs.id` (CASCADE)
 
 **インデックス:**
@@ -2292,7 +2292,7 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 | medical_record_id | medical_records.id | SET NULL |
 | hospitalization_id | hospitalizations.id | SET NULL |
 | owner_id | owners.id | CASCADE |
@@ -2367,7 +2367,7 @@ erDiagram
 | checkup_type_id | checkup_types.id | RESTRICT |
 | doctor_id | staffs.id | SET NULL |
 | medical_record_id | medical_records.id | CASCADE |
-| pet_id | pets.id | CASCADE |
+| pet_id | pets.id | SET NULL |
 
 ### daily_records
 
@@ -2379,7 +2379,7 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 | diagnosis_category_id | diagnosis_categories.id | CASCADE |
 
 ### exam_items
@@ -2395,7 +2395,7 @@ erDiagram
 | doctor_id | staffs.id | SET NULL |
 | exam_type_id | exam_types.id | RESTRICT |
 | medical_record_id | medical_records.id | CASCADE |
-| pet_id | pets.id | CASCADE |
+| pet_id | pets.id | SET NULL |
 
 ### exam_type_items
 
@@ -2407,7 +2407,7 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 | cage_id | cages.id | SET NULL |
 | doctor_id | staffs.id | SET NULL |
 | owner_id | owners.id | SET NULL |
@@ -2417,7 +2417,7 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 | doctor_id | staffs.id | SET NULL |
 | owner_id | owners.id | SET NULL |
 | pet_id | pets.id | SET NULL |
@@ -2436,7 +2436,7 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 | inventory_id | inventory_items.id | SET NULL |
 
 ### payments
@@ -2449,7 +2449,7 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 | insurance_id | insurances.id | SET NULL |
 | owner_id | owners.id | CASCADE |
 
@@ -2457,7 +2457,7 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 | doctor_id | staffs.id | RESTRICT |
 | pet_id | pets.id | SET NULL |
 | service_type_id | service_types.id | SET NULL |
@@ -2466,7 +2466,7 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 | staff_id | staffs.id | CASCADE |
 
 ### staff_note_records
@@ -2503,7 +2503,7 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 | course_id | trimming_courses.id | SET NULL |
 | pet_id | pets.id | CASCADE |
 | staff_id | staffs.id | RESTRICT |
@@ -2512,91 +2512,91 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 
 ### checkup_types
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 
 ### consultations
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 
 ### diagnosis_categories
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 
 ### exam_types
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 
 ### hospitalization_plans
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 
 ### insurances
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 
 ### inventory_items
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 
 ### owners
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 
 ### procedures
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 
 ### service_types
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 
 ### staffs
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 
 ### trimming_courses
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 
 ### trimming_options
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 
 ### vaccines
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | SET NULL |
+| clinic_id | clinics.id | RESTRICT |
 
 ### user_accounts
 
@@ -2608,14 +2608,14 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | CASCADE |
+| clinic_id | clinics.id | RESTRICT |
 | user_id | user_accounts.id | CASCADE |
 
 ### user_permissions
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
-| clinic_id | clinics.id | CASCADE |
+| clinic_id | clinics.id | RESTRICT |
 | granted_by | user_accounts.id | SET NULL |
 | user_id | user_accounts.id | CASCADE |
 
@@ -2625,7 +2625,7 @@ erDiagram
 | ----------- | ------- | -------- |
 | doctor_id | staffs.id | SET NULL |
 | medical_record_id | medical_records.id | CASCADE |
-| pet_id | pets.id | CASCADE |
+| pet_id | pets.id | SET NULL |
 | vaccine_id | vaccines.id | RESTRICT |
 
 ### vitals
