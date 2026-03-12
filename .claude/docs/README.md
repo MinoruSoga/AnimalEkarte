@@ -46,6 +46,15 @@
 | [16-quality-monitoring.md](16-quality-monitoring.md) | 品質監視ベストプラクティス |
 | [17-long-running-agents.md](17-long-running-agents.md) | 長時間エージェント |
 
+### Skills リファレンス
+
+| ファイル | 内容 |
+|---------|------|
+| [react-naming-skills.md](react-naming-skills.md) | React命名規則スキルと推奨プロンプト |
+| [golang-skills.md](golang-skills.md) | Goスキルと推奨プロンプト |
+| [database-skills.md](database-skills.md) | DBスキルと推奨プロンプト |
+| [design-extraction-skills.md](design-extraction-skills.md) | URLからデザイン抽出→Reactコンポーネント生成 |
+
 ### その他
 
 | ファイル | 内容 |
