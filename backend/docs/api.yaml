@@ -69,7 +69,15 @@ components:
           type: string
         address2:
           type: string
+        home_postal_code:
+          type: string
+        home_address1:
+          type: string
+        home_address2:
+          type: string
         phone:
+          type: string
+        company_phone:
           type: string
         email:
           type: string
@@ -95,7 +103,7 @@ components:
           readOnly: true
     Pet:
       type: object
-      required: [owner_id, pet_name]
+      required: [owner_id, name]
       properties:
         id:
           type: string
@@ -107,42 +115,73 @@ components:
         owner_id:
           type: string
           format: uuid
-        pet_name:
-          type: string
-        pet_number:
-          type: string
-          description: カルテ番号
         animal_species_id:
           type: string
           format: uuid
-        breed:
+        pet_number:
           type: string
-        sex:
+          description: カルテ番号
+        name:
           type: string
-          enum: [male, female, unknown]
+          description: ペット名（必須）
+        pet_name_kana:
+          type: string
+        gender:
+          type: string
+          enum: ["雄", "雌", "不明"]
+        status:
+          type: string
+          enum: ["生存", "死亡"]
         birth_date:
           type: string
           format: date
           nullable: true
+        breed:
+          type: string
+        color:
+          type: string
         weight:
           type: number
+          format: double
+          nullable: true
+        neutered_date:
+          type: string
+          format: date
+          nullable: true
+        acquisition_type:
+          type: string
+          enum: ["購入", "譲渡", "保護", "その他"]
+          nullable: true
+        danger_level:
+          type: string
+          enum: ["低", "中", "高"]
+        food:
+          type: string
+        environment:
+          type: string
+        phone:
+          type: string
+        last_visit:
+          type: string
+          format: date
+          nullable: true
         insurance_id:
           type: string
           format: uuid
           nullable: true
-        is_neutered:
-          type: boolean
-        color:
-          type: string
         remarks:
           type: string
         created_at:
           type: string
           format: date-time
           readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     ReservationAppointment:
       type: object
-      required: [pet_id, reservation_date, start_time]
+      required: [start_time, end_time, service_type_id]
       properties:
         id:
           type: string
@@ -151,91 +190,96 @@ components:
         clinic_id:
           type: string
           format: uuid
-        pet_id:
+        start_time:
           type: string
-          format: uuid
+          format: date-time
+          description: 開始日時
+        end_time:
+          type: string
+          format: date-time
+          description: 終了日時
         owner_id:
           type: string
           format: uuid
-        reservation_date:
+          nullable: true
+        pet_id:
           type: string
-          format: date
-          description: 予約日
-        start_time:
-          type: string
-          description: 開始時刻 (HH:MM)
-        end_time:
-          type: string
-          description: 終了時刻 (HH:MM)
+          format: uuid
+          nullable: true
         visit_type:
           type: string
-          enum: [walk_in, reservation, hospitalization, return_visit]
-        status:
+          enum: [first, revisit]
+        service_type_id:
           type: string
-          enum: [scheduled, confirmed, in_progress, completed, cancelled, no_show]
+          format: uuid
         doctor_id:
           type: string
           format: uuid
           nullable: true
+        is_designated:
+          type: boolean
+          default: false
+        status:
+          type: string
+          enum: [confirmed, pending, cancelled, checked_in, in_consultation, accounting, completed]
         notes:
           type: string
         created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
           type: string
           format: date-time
           readOnly: true
     MedicalRecord:
       type: object
-      required: [pet_id]
+      required: [date, record_no]
       properties:
         id:
           type: string
           format: uuid
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
-        pet_id:
           type: string
           format: uuid
         record_no:
           type: string
           description: カルテ番号（自動採番）
-        visit_date:
+        date:
           type: string
           format: date
+          description: 診察日
+        owner_id:
+          type: string
+          format: uuid
+          nullable: true
+        pet_id:
+          type: string
+          format: uuid
+          nullable: true
         doctor_id:
           type: string
           format: uuid
           nullable: true
-        chief_complaint:
+        reservation_appointment_id:
           type: string
-          description: 主訴
-        subjective:
+          format: uuid
+          nullable: true
+        status:
           type: string
-          description: S（主観）
-        objective:
-          type: string
-          description: O（客観）
-        assessment:
-          type: string
-          description: A（評価）
-        plan:
-          type: string
-          description: P（計画）
-        summary:
-          type: string
-          description: サマリー
-        body_weight:
-          type: number
-        body_temperature:
-          type: number
+          enum: ["作成中", "確定済"]
         created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
           type: string
           format: date-time
           readOnly: true
     Hospitalization:
       type: object
-      required: [pet_id, admission_date]
+      required: [owner_id, pet_id, hospitalization_type, start_date, end_date]
       properties:
         id:
           type: string
@@ -244,46 +288,55 @@ components:
         clinic_id:
           type: string
           format: uuid
+        owner_id:
+          type: string
+          format: uuid
         pet_id:
           type: string
           format: uuid
+        hospitalization_type:
+          type: string
+          enum: ["入院", "ホテル"]
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: ["入院中", "退院済", "予約"]
         cage_id:
           type: string
           format: uuid
           nullable: true
-        admission_date:
-          type: string
-          format: date
-        discharge_date:
-          type: string
-          format: date
-          nullable: true
-        status:
-          type: string
-          enum: [admitted, discharged, transferred]
         doctor_id:
           type: string
           format: uuid
           nullable: true
-        diagnosis:
+        memo:
           type: string
-        notes:
+        owner_request:
+          type: string
+        staff_notes:
           type: string
         created_at:
           type: string
           format: date-time
           readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     Billing:
       type: object
+      required: [scheduled_date]
       properties:
         id:
           type: string
           format: uuid
           readOnly: true
-        pet_id:
-          type: string
-          format: uuid
-        owner_id:
+        clinic_id:
           type: string
           format: uuid
         medical_record_id:
@@ -294,30 +347,45 @@ components:
           type: string
           format: uuid
           nullable: true
-        status:
+        owner_id:
           type: string
-          enum: [pending, paid, cancelled]
+          format: uuid
+          nullable: true
+        pet_id:
+          type: string
+          format: uuid
+          nullable: true
         subtotal:
           type: integer
-        tax:
+        tax_total:
           type: integer
-        total:
+        total_amount:
           type: integer
         has_insurance:
           type: boolean
-        insurance_amount:
-          type: integer
-        payment_date:
+        status:
+          type: string
+          enum: [waiting, completed, cancelled, pending]
+        scheduled_date:
           type: string
           format: date
+        completed_at:
+          type: string
+          format: date-time
           nullable: true
+        memo:
+          type: string
         created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
           type: string
           format: date-time
           readOnly: true
     TrimmingRecord:
       type: object
-      required: [pet_id]
+      required: [date, staff_id, course_id]
       properties:
         id:
           type: string
@@ -326,72 +394,130 @@ components:
         clinic_id:
           type: string
           format: uuid
+        date:
+          type: string
+          format: date
         pet_id:
           type: string
           format: uuid
-        trimming_date:
-          type: string
-          format: date
-        status:
-          type: string
-          enum: [scheduled, in_progress, completed, cancelled]
+          nullable: true
         staff_id:
           type: string
           format: uuid
-          nullable: true
-        body_weight:
-          type: number
-          nullable: true
-        notes:
+        course_id:
+          type: string
+          format: uuid
+        weight:
+          type: string
+        status:
+          type: string
+          enum: ["完了", "予約", "進行中"]
+        style_request:
+          type: string
+        bw:
+          type: string
+        bw_unit:
+          type: string
+          enum: [Kg, g]
+        bt:
+          type: string
+        used_shampoo:
+          type: string
+        used_ribbon:
+          type: string
+        remarks:
+          type: string
+        style_image:
+          type: string
+        completed_image:
           type: string
         created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
           type: string
           format: date-time
           readOnly: true
     InventoryItem:
       type: object
-      required: [name]
+      required: [name, category, unit]
       properties:
         id:
           type: string
           format: uuid
           readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
         name:
           type: string
         category:
           type: string
-        stock_quantity:
+          enum: [medicine, consumable, food, other]
+        quantity:
           type: integer
         unit:
           type: string
-        unit_price:
-          type: number
-        reorder_point:
+        min_stock_level:
           type: integer
-        is_active:
-          type: boolean
+        location:
+          type: string
+        expiry_date:
+          type: string
+          format: date
+          nullable: true
+        supplier:
+          type: string
+        last_restocked:
+          type: string
+          format: date
+          nullable: true
+        status:
+          type: string
+          enum: [sufficient, low, out_of_stock]
         created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
           type: string
           format: date-time
           readOnly: true
     Staff:
       type: object
-      required: [name]
+      required: [name, staff_role]
       properties:
         id:
           type: string
           format: uuid
           readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        code:
+          type: string
         name:
           type: string
+        status:
+          type: string
+          enum: [active, inactive]
         staff_role:
           type: string
           enum: [veterinarian, nurse, trimmer, reception, manager]
+        job_title_id:
+          type: string
+          format: uuid
+          nullable: true
         license_number:
           type: string
-        is_active:
-          type: boolean
+        sort_order:
+          type: integer
         created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
           type: string
           format: date-time
           readOnly: true
@@ -403,18 +529,40 @@ components:
           type: string
           format: uuid
           readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        code:
+          type: string
         name:
+          type: string
+        price:
+          type: number
+          format: double
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+        description:
           type: string
         cage_type:
           type: string
           enum: [icu, dog, cat, general]
+          nullable: true
         cage_size:
           type: string
           enum: [small, medium, large, xl]
-        price:
-          type: number
-        is_active:
-          type: boolean
+          nullable: true
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     Medicine:
       type: object
       required: [name]
@@ -423,14 +571,46 @@ components:
           type: string
           format: uuid
           readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        code:
+          type: string
         name:
+          type: string
+        price:
+          type: number
+          format: double
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+        description:
           type: string
         dosage_form:
           type: string
-        unit_price:
-          type: number
-        is_active:
-          type: boolean
+          enum: [tablet, liquid, injection, topical, powder]
+          nullable: true
+        medicine_unit:
+          type: string
+          enum: [per_tablet, per_ml, per_dose, per_gram]
+          nullable: true
+        inventory_id:
+          type: string
+          format: uuid
+          nullable: true
+        default_quantity:
+          type: integer
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     Vaccine:
       type: object
       required: [name]
@@ -439,15 +619,38 @@ components:
           type: string
           format: uuid
           readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        code:
+          type: string
         name:
           type: string
-        target_species:
+        price:
+          type: number
+          format: double
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+        description:
+          type: string
+        species:
           type: string
           enum: [dog, cat, both]
-        interval_months:
+          nullable: true
+        interval:
+          type: string
+        sort_order:
           type: integer
-        is_active:
-          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     Insurance:
       type: object
       required: [name]
@@ -456,14 +659,34 @@ components:
           type: string
           format: uuid
           readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        code:
+          type: string
         name:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+        description:
           type: string
         coverage_rate:
           type: number
+          format: double
+          nullable: true
         contact_phone:
           type: string
-        is_active:
-          type: boolean
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     ServiceType:
       type: object
       required: [name]
@@ -472,12 +695,30 @@ components:
           type: string
           format: uuid
           readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        code:
+          type: string
         name:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+        description:
           type: string
         color:
           type: string
-        is_active:
-          type: boolean
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     Consultation:
       type: object
       required: [name]
@@ -486,15 +727,38 @@ components:
           type: string
           format: uuid
           readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        code:
+          type: string
         name:
+          type: string
+        price:
+          type: number
+          format: double
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+        description:
+          type: string
+        time_condition:
           type: string
         duration:
           type: integer
           description: 所要時間（分）
-        unit_price:
-          type: number
-        is_active:
-          type: boolean
+          nullable: true
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     Procedure:
       type: object
       required: [name]
@@ -503,17 +767,39 @@ components:
           type: string
           format: uuid
           readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        code:
+          type: string
         name:
+          type: string
+        price:
+          type: number
+          format: double
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+        description:
           type: string
         duration:
           type: integer
-        anesthesia_type:
+          nullable: true
+        anesthesia:
           type: string
           enum: [none, local, general]
-        unit_price:
-          type: number
-        is_active:
-          type: boolean
+          nullable: true
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     HospitalizationPlan:
       type: object
       required: [name]
@@ -522,18 +808,38 @@ components:
           type: string
           format: uuid
           readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        code:
+          type: string
         name:
+          type: string
+        price:
+          type: number
+          format: double
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+        description:
           type: string
         body_size:
           type: string
-          enum: [small, medium, large]
+          nullable: true
         billing_unit:
           type: string
-          enum: [per_day, per_night]
-        unit_price:
-          type: number
-        is_active:
-          type: boolean
+          nullable: true
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     TrimmingCourse:
       type: object
       required: [name]
@@ -542,16 +848,38 @@ components:
           type: string
           format: uuid
           readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        code:
+          type: string
         name:
+          type: string
+        price:
+          type: number
+          format: double
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+        description:
           type: string
         target_size:
           type: string
+          nullable: true
         duration:
           type: integer
-        unit_price:
-          type: number
-        is_active:
-          type: boolean
+          nullable: true
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     TrimmingOption:
       type: object
       required: [name]
@@ -560,14 +888,37 @@ components:
           type: string
           format: uuid
           readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        code:
+          type: string
         name:
           type: string
-        unit_price:
+        price:
           type: number
+          format: double
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+        description:
+          type: string
+        duration:
+          type: integer
+          nullable: true
         combinable:
           type: boolean
-        is_active:
-          type: boolean
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     ExaminationType:
       type: object
       required: [name]
@@ -576,10 +927,32 @@ components:
           type: string
           format: uuid
           readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        code:
+          type: string
         name:
           type: string
-        is_active:
-          type: boolean
+        price:
+          type: number
+          format: double
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+        description:
+          type: string
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     DiagnosisCategory:
       type: object
       required: [name]
@@ -588,25 +961,61 @@ components:
           type: string
           format: uuid
           readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        code:
+          type: string
         name:
           type: string
-        is_active:
-          type: boolean
+        status:
+          type: string
+          enum: [active, inactive]
+        description:
+          type: string
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     DiagnosisName:
       type: object
-      required: [name, category_id]
+      required: [name, diagnosis_category_id]
       properties:
         id:
           type: string
           format: uuid
           readOnly: true
-        name:
-          type: string
-        category_id:
+        clinic_id:
           type: string
           format: uuid
-        is_active:
-          type: boolean
+        code:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+        description:
+          type: string
+        diagnosis_category_id:
+          type: string
+          format: uuid
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     CheckupType:
       type: object
       required: [name]
@@ -615,15 +1024,40 @@ components:
           type: string
           format: uuid
           readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        code:
+          type: string
         name:
           type: string
-        interval_months:
-          type: integer
-        target_age_months:
-          type: integer
+        price:
+          type: number
+          format: double
           nullable: true
-        is_active:
-          type: boolean
+        status:
+          type: string
+          enum: [active, inactive]
+        description:
+          type: string
+        interval:
+          type: string
+          description: 推奨間隔
+          nullable: true
+        target_age:
+          type: string
+          description: 対象年齢
+          nullable: true
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     Clinic:
       type: object
       properties:
@@ -635,15 +1069,35 @@ components:
           type: string
         branch_name:
           type: string
+        postal_code:
+          type: string
         address:
           type: string
         phone_number:
           type: string
+        fax_number:
+          type: string
+        registration_number:
+          type: string
+        director_name:
+          type: string
         email:
           type: string
           format: email
+        website:
+          type: string
+        logo_url:
+          type: string
         is_active:
           type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     LoginRequest:
       type: object
       required: [email, password]
