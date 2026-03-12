@@ -1,0 +1,2427 @@
+openapi: "3.0.3"
+info:
+  title: Animal Ekarte API
+  description: |
+    動物病院電子カルテシステム API
+
+    ## 認証
+    全エンドポイント（`/auth/login` を除く）は `Authorization: Bearer <JWT>` ヘッダーが必要。
+
+    ## ページネーション
+    一覧エンドポイントは `page` / `limit` クエリパラメータでページネーション。
+    レスポンスは `{ data: [], total: number, page: number, limit: number }` 形式。
+  version: "2.0.0"
+  contact:
+    name: Animal Ekarte
+servers:
+  - url: http://localhost:8080/api/v1
+    description: 開発環境
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "resource not found"
+    PaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items: {}
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+    Owner:
+      type: object
+      required: [owner_name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        owner_name:
+          type: string
+          description: 飼主名（必須）
+        owner_name_kana:
+          type: string
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+        company:
+          type: string
+        postal_code:
+          type: string
+        address1:
+          type: string
+        address2:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+        remarks:
+          type: string
+        is_dangerous:
+          type: boolean
+          default: false
+        discount_rate:
+          type: number
+          format: double
+        membership_type:
+          type: string
+          enum: ["非会員", "会員", "退亡者", "他診/準"]
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    Pet:
+      type: object
+      required: [owner_id, pet_name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        owner_id:
+          type: string
+          format: uuid
+        pet_name:
+          type: string
+        pet_number:
+          type: string
+          description: カルテ番号
+        animal_species_id:
+          type: string
+          format: uuid
+        breed:
+          type: string
+        sex:
+          type: string
+          enum: [male, female, unknown]
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+        weight:
+          type: number
+        insurance_id:
+          type: string
+          format: uuid
+          nullable: true
+        is_neutered:
+          type: boolean
+        color:
+          type: string
+        remarks:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    ReservationAppointment:
+      type: object
+      required: [pet_id, reservation_date, start_time]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        pet_id:
+          type: string
+          format: uuid
+        owner_id:
+          type: string
+          format: uuid
+        reservation_date:
+          type: string
+          format: date
+          description: 予約日
+        start_time:
+          type: string
+          description: 開始時刻 (HH:MM)
+        end_time:
+          type: string
+          description: 終了時刻 (HH:MM)
+        visit_type:
+          type: string
+          enum: [walk_in, reservation, hospitalization, return_visit]
+        status:
+          type: string
+          enum: [scheduled, confirmed, in_progress, completed, cancelled, no_show]
+        doctor_id:
+          type: string
+          format: uuid
+          nullable: true
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    MedicalRecord:
+      type: object
+      required: [pet_id]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        pet_id:
+          type: string
+          format: uuid
+        record_no:
+          type: string
+          description: カルテ番号（自動採番）
+        visit_date:
+          type: string
+          format: date
+        doctor_id:
+          type: string
+          format: uuid
+          nullable: true
+        chief_complaint:
+          type: string
+          description: 主訴
+        subjective:
+          type: string
+          description: S（主観）
+        objective:
+          type: string
+          description: O（客観）
+        assessment:
+          type: string
+          description: A（評価）
+        plan:
+          type: string
+          description: P（計画）
+        summary:
+          type: string
+          description: サマリー
+        body_weight:
+          type: number
+        body_temperature:
+          type: number
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    Hospitalization:
+      type: object
+      required: [pet_id, admission_date]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        pet_id:
+          type: string
+          format: uuid
+        cage_id:
+          type: string
+          format: uuid
+          nullable: true
+        admission_date:
+          type: string
+          format: date
+        discharge_date:
+          type: string
+          format: date
+          nullable: true
+        status:
+          type: string
+          enum: [admitted, discharged, transferred]
+        doctor_id:
+          type: string
+          format: uuid
+          nullable: true
+        diagnosis:
+          type: string
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    Billing:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        pet_id:
+          type: string
+          format: uuid
+        owner_id:
+          type: string
+          format: uuid
+        medical_record_id:
+          type: string
+          format: uuid
+          nullable: true
+        hospitalization_id:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum: [pending, paid, cancelled]
+        subtotal:
+          type: integer
+        tax:
+          type: integer
+        total:
+          type: integer
+        has_insurance:
+          type: boolean
+        insurance_amount:
+          type: integer
+        payment_date:
+          type: string
+          format: date
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    TrimmingRecord:
+      type: object
+      required: [pet_id]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        clinic_id:
+          type: string
+          format: uuid
+        pet_id:
+          type: string
+          format: uuid
+        trimming_date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [scheduled, in_progress, completed, cancelled]
+        staff_id:
+          type: string
+          format: uuid
+          nullable: true
+        body_weight:
+          type: number
+          nullable: true
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    InventoryItem:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        category:
+          type: string
+        stock_quantity:
+          type: integer
+        unit:
+          type: string
+        unit_price:
+          type: number
+        reorder_point:
+          type: integer
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    Staff:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        staff_role:
+          type: string
+          enum: [veterinarian, nurse, trimmer, reception, manager]
+        license_number:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    Cage:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        cage_type:
+          type: string
+          enum: [icu, dog, cat, general]
+        cage_size:
+          type: string
+          enum: [small, medium, large, xl]
+        price:
+          type: number
+        is_active:
+          type: boolean
+    Medicine:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        dosage_form:
+          type: string
+        unit_price:
+          type: number
+        is_active:
+          type: boolean
+    Vaccine:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        target_species:
+          type: string
+          enum: [dog, cat, both]
+        interval_months:
+          type: integer
+        is_active:
+          type: boolean
+    Insurance:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        coverage_rate:
+          type: number
+        contact_phone:
+          type: string
+        is_active:
+          type: boolean
+    ServiceType:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        color:
+          type: string
+        is_active:
+          type: boolean
+    Consultation:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        duration:
+          type: integer
+          description: 所要時間（分）
+        unit_price:
+          type: number
+        is_active:
+          type: boolean
+    Procedure:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        duration:
+          type: integer
+        anesthesia_type:
+          type: string
+          enum: [none, local, general]
+        unit_price:
+          type: number
+        is_active:
+          type: boolean
+    HospitalizationPlan:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        body_size:
+          type: string
+          enum: [small, medium, large]
+        billing_unit:
+          type: string
+          enum: [per_day, per_night]
+        unit_price:
+          type: number
+        is_active:
+          type: boolean
+    TrimmingCourse:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        target_size:
+          type: string
+        duration:
+          type: integer
+        unit_price:
+          type: number
+        is_active:
+          type: boolean
+    TrimmingOption:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        unit_price:
+          type: number
+        combinable:
+          type: boolean
+        is_active:
+          type: boolean
+    ExaminationType:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        is_active:
+          type: boolean
+    DiagnosisCategory:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        is_active:
+          type: boolean
+    DiagnosisName:
+      type: object
+      required: [name, category_id]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        category_id:
+          type: string
+          format: uuid
+        is_active:
+          type: boolean
+    CheckupType:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        interval_months:
+          type: integer
+        target_age_months:
+          type: integer
+          nullable: true
+        is_active:
+          type: boolean
+    Clinic:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        branch_name:
+          type: string
+        address:
+          type: string
+        phone_number:
+          type: string
+        email:
+          type: string
+          format: email
+        is_active:
+          type: boolean
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT トークン
+        expires_at:
+          type: integer
+          description: Unix timestamp
+        user_type:
+          type: string
+    MeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        display_name:
+          type: string
+        user_type:
+          type: string
+        job_title:
+          type: string
+          nullable: true
+        main_clinic_id:
+          type: string
+          format: uuid
+        clinics:
+          type: array
+          items:
+            type: object
+            properties:
+              clinic_id:
+                type: string
+                format: uuid
+              clinic_name:
+                type: string
+              branch_name:
+                type: string
+              is_main:
+                type: boolean
+        permissions:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+security:
+  - BearerAuth: []
+paths:
+  /auth/login:
+    post:
+      summary: ログイン
+      description: メールアドレスとパスワードで認証してJWTトークンを返す
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: ログイン成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 認証失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /me:
+    get:
+      summary: ログインユーザー情報取得
+      description: JWTクレームからログインユーザーの詳細情報（所属クリニック・権限含む）を返す
+      tags: [Auth]
+      responses:
+        '200':
+          description: ユーザー情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '401':
+          description: 未認証
+  /owners:
+    get:
+      summary: 飼主一覧
+      description: クリニックの飼主一覧をページネーション付きで取得
+      tags: [Owners]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: search
+          in: query
+          description: 飼主名・かな・電話番号などで部分一致検索
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 飼主一覧
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Owner'
+    post:
+      summary: 飼主登録
+      tags: [Owners]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Owner'
+      responses:
+        '201':
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Owner'
+        '400':
+          description: バリデーションエラー
+  /owners/{id}:
+    get:
+      summary: 飼主取得
+      tags: [Owners]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 飼主情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Owner'
+        '404':
+          description: 見つからない
+    put:
+      summary: 飼主更新
+      tags: [Owners]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Owner'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Owner'
+    delete:
+      summary: 飼主削除
+      tags: [Owners]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /pets:
+    get:
+      summary: ペット一覧
+      tags: [Pets]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: owner_id
+          in: query
+          description: 飼主IDで絞り込み
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: ペット一覧
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Pet'
+    post:
+      summary: ペット登録
+      tags: [Pets]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pet'
+      responses:
+        '201':
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+  /pets/{id}:
+    get:
+      summary: ペット取得
+      tags: [Pets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: ペット情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        '404':
+          description: 見つからない
+    put:
+      summary: ペット更新
+      tags: [Pets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pet'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+    delete:
+      summary: ペット削除
+      tags: [Pets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /reservations:
+    get:
+      summary: 予約一覧
+      tags: [Reservations]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: date
+          in: query
+          description: 日付フィルター (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 予約一覧
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ReservationAppointment'
+    post:
+      summary: 予約作成
+      tags: [Reservations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationAppointment'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationAppointment'
+  /reservations/{id}:
+    get:
+      summary: 予約取得
+      tags: [Reservations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 予約情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationAppointment'
+    put:
+      summary: 予約更新
+      tags: [Reservations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationAppointment'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationAppointment'
+    delete:
+      summary: 予約削除
+      tags: [Reservations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /medical-records:
+    get:
+      summary: カルテ一覧
+      tags: [MedicalRecords]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: pet_id
+          in: query
+          description: ペットIDで絞り込み
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: カルテ一覧
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MedicalRecord'
+    post:
+      summary: カルテ作成
+      tags: [MedicalRecords]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicalRecord'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicalRecord'
+  /medical-records/{id}:
+    get:
+      summary: カルテ取得
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: カルテ情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicalRecord'
+    put:
+      summary: カルテ更新
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicalRecord'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicalRecord'
+    delete:
+      summary: カルテ削除
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /hospitalizations:
+    get:
+      summary: 入院一覧
+      tags: [Hospitalizations]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 入院一覧
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Hospitalization'
+    post:
+      summary: 入院登録
+      tags: [Hospitalizations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Hospitalization'
+      responses:
+        '201':
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hospitalization'
+  /hospitalizations/{id}:
+    get:
+      summary: 入院情報取得
+      tags: [Hospitalizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 入院情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hospitalization'
+    put:
+      summary: 入院情報更新
+      tags: [Hospitalizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Hospitalization'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hospitalization'
+    delete:
+      summary: 入院削除
+      tags: [Hospitalizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /accountings:
+    get:
+      summary: 会計一覧
+      tags: [Accountings]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, paid, cancelled]
+      responses:
+        '200':
+          description: 会計一覧
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Billing'
+    post:
+      summary: 会計作成
+      tags: [Accountings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Billing'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Billing'
+  /accountings/{id}:
+    get:
+      summary: 会計取得
+      tags: [Accountings]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 会計情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Billing'
+    put:
+      summary: 会計更新
+      tags: [Accountings]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Billing'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Billing'
+  /trimmings:
+    get:
+      summary: トリミング一覧
+      tags: [Trimmings]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: トリミング一覧
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TrimmingRecord'
+    post:
+      summary: トリミング登録
+      tags: [Trimmings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrimmingRecord'
+      responses:
+        '201':
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrimmingRecord'
+  /trimmings/{id}:
+    get:
+      summary: トリミング取得
+      tags: [Trimmings]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: トリミング情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrimmingRecord'
+    put:
+      summary: トリミング更新
+      tags: [Trimmings]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrimmingRecord'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrimmingRecord'
+  /inventory:
+    get:
+      summary: 在庫一覧
+      tags: [Inventory]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: category
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 在庫一覧
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/InventoryItem'
+    post:
+      summary: 在庫登録
+      tags: [Inventory]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryItem'
+      responses:
+        '201':
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+  /inventory/{id}:
+    get:
+      summary: 在庫取得
+      tags: [Inventory]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 在庫情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+    put:
+      summary: 在庫更新
+      tags: [Inventory]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryItem'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItem'
+  /clinics:
+    get:
+      summary: クリニック一覧
+      tags: [Clinics]
+      responses:
+        '200':
+          description: クリニック一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Clinic'
+  /clinics/{id}:
+    get:
+      summary: クリニック取得
+      tags: [Clinics]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: クリニック情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Clinic'
+  /company:
+    get:
+      summary: 法人情報取得
+      tags: [Company]
+      responses:
+        '200':
+          description: 法人情報
+    put:
+      summary: 法人情報更新
+      tags: [Company]
+      responses:
+        '200':
+          description: 更新成功
+  /masters/staffs:
+    get:
+      summary: スタッフ一覧
+      tags: [Masters]
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: スタッフ一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Staff'
+    post:
+      summary: スタッフ登録
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Staff'
+      responses:
+        '201':
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Staff'
+  /masters/staffs/{id}:
+    put:
+      summary: スタッフ更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Staff'
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: スタッフ削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /masters/cages:
+    get:
+      summary: ケージ一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: ケージ一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Cage'
+    post:
+      summary: ケージ登録
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Cage'
+      responses:
+        '201':
+          description: 登録成功
+  /masters/cages/{id}:
+    put:
+      summary: ケージ更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Cage'
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: ケージ削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /masters/medicines:
+    get:
+      summary: 薬剤一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: 薬剤一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Medicine'
+    post:
+      summary: 薬剤登録
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Medicine'
+      responses:
+        '201':
+          description: 登録成功
+  /masters/medicines/{id}:
+    put:
+      summary: 薬剤更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Medicine'
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: 薬剤削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /masters/vaccines:
+    get:
+      summary: ワクチン一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: ワクチン一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Vaccine'
+    post:
+      summary: ワクチン登録
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Vaccine'
+      responses:
+        '201':
+          description: 登録成功
+  /masters/vaccines/{id}:
+    put:
+      summary: ワクチン更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Vaccine'
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: ワクチン削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /masters/insurances:
+    get:
+      summary: 保険一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: 保険一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Insurance'
+    post:
+      summary: 保険登録
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Insurance'
+      responses:
+        '201':
+          description: 登録成功
+  /masters/insurances/{id}:
+    put:
+      summary: 保険更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Insurance'
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: 保険削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /masters/service-types:
+    get:
+      summary: サービス種別一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: サービス種別一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceType'
+    post:
+      summary: サービス種別登録
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceType'
+      responses:
+        '201':
+          description: 登録成功
+  /masters/service-types/{id}:
+    put:
+      summary: サービス種別更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: サービス種別削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /masters/consultations:
+    get:
+      summary: 診察項目一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: 診察項目一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Consultation'
+    post:
+      summary: 診察項目登録
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Consultation'
+      responses:
+        '201':
+          description: 登録成功
+  /masters/consultations/{id}:
+    put:
+      summary: 診察項目更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: 診察項目削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /masters/procedures:
+    get:
+      summary: 処置項目一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: 処置項目一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Procedure'
+    post:
+      summary: 処置項目登録
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Procedure'
+      responses:
+        '201':
+          description: 登録成功
+  /masters/procedures/{id}:
+    put:
+      summary: 処置項目更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: 処置項目削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /masters/hospitalization-plans:
+    get:
+      summary: 入院プラン一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: 入院プラン一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HospitalizationPlan'
+    post:
+      summary: 入院プラン登録
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HospitalizationPlan'
+      responses:
+        '201':
+          description: 登録成功
+  /masters/hospitalization-plans/{id}:
+    put:
+      summary: 入院プラン更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: 入院プラン削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /masters/trimming-courses:
+    get:
+      summary: トリミングコース一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: トリミングコース一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrimmingCourse'
+    post:
+      summary: トリミングコース登録
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrimmingCourse'
+      responses:
+        '201':
+          description: 登録成功
+  /masters/trimming-courses/{id}:
+    put:
+      summary: トリミングコース更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: トリミングコース削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /masters/trimming-options:
+    get:
+      summary: トリミングオプション一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: トリミングオプション一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrimmingOption'
+    post:
+      summary: トリミングオプション登録
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrimmingOption'
+      responses:
+        '201':
+          description: 登録成功
+  /masters/trimming-options/{id}:
+    put:
+      summary: トリミングオプション更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: トリミングオプション削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /masters/examination-types:
+    get:
+      summary: 検査種別一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: 検査種別一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExaminationType'
+    post:
+      summary: 検査種別登録
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExaminationType'
+      responses:
+        '201':
+          description: 登録成功
+  /masters/examination-types/{id}:
+    put:
+      summary: 検査種別更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: 検査種別削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /masters/diagnosis-categories:
+    get:
+      summary: 診断カテゴリ一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: 診断カテゴリ一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DiagnosisCategory'
+    post:
+      summary: 診断カテゴリ登録
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiagnosisCategory'
+      responses:
+        '201':
+          description: 登録成功
+  /masters/diagnosis-categories/{id}:
+    put:
+      summary: 診断カテゴリ更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: 診断カテゴリ削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /masters/diagnosis-names:
+    get:
+      summary: 診断名一覧
+      tags: [Masters]
+      parameters:
+        - name: category_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 診断名一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DiagnosisName'
+    post:
+      summary: 診断名登録
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiagnosisName'
+      responses:
+        '201':
+          description: 登録成功
+  /masters/diagnosis-names/{id}:
+    put:
+      summary: 診断名更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: 診断名削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+  /masters/checkup-types:
+    get:
+      summary: 健診種別一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: 健診種別一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CheckupType'
+    post:
+      summary: 健診種別登録
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckupType'
+      responses:
+        '201':
+          description: 登録成功
+  /masters/checkup-types/{id}:
+    put:
+      summary: 健診種別更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: 健診種別削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
