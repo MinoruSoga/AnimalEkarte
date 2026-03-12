@@ -3563,7 +3563,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "新規スタッフを登録する。",
+                "description": "新規スタッフを登録する。スタッフ情報とシステムアカウントをアトミックに作成する。",
                 "consumes": [
                     "application/json"
                 ],
@@ -3576,12 +3576,12 @@ const docTemplate = `{
                 "summary": "スタッフ作成",
                 "parameters": [
                     {
-                        "description": "スタッフ情報",
+                        "description": "スタッフ登録情報",
                         "name": "staff",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
+                            "$ref": "#/definitions/internal_handler.createStaffRequest"
                         }
                     }
                 ],
@@ -3594,6 +3594,15 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -9321,6 +9330,42 @@ const docTemplate = `{
                 },
                 "total": {
                     "type": "integer"
+                }
+            }
+        },
+        "internal_handler.createStaffRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "name",
+                "password",
+                "staff_role"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "job_title_id": {
+                    "type": "string"
+                },
+                "license_number": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 8
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "staff_role": {
+                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.StaffRole"
                 }
             }
         }

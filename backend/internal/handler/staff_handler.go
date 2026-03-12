@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- Staff ----
@@ -35,30 +36,62 @@ func (h *Handler) ListStaffs(c *gin.Context) {
 	c.JSON(http.StatusOK, staffs)
 }
 
+// createStaffRequest はスタッフ登録リクエスト。
+// スタッフ情報とシステムアカウント情報を同時に受け取る。
+type createStaffRequest struct {
+	Name          string          `json:"name"           binding:"required"`
+	StaffRole     model.StaffRole `json:"staff_role"     binding:"required"`
+	Email         string          `json:"email"          binding:"required,email"`
+	Password      string          `json:"password"       binding:"required,min=8"`
+	Code          string          `json:"code"`
+	LicenseNumber string          `json:"license_number"`
+	JobTitleID    *uuid.UUID      `json:"job_title_id"`
+	SortOrder     int             `json:"sort_order"`
+}
+
 // CreateStaff godoc
 // @Summary スタッフ作成
-// @Description 新規スタッフを登録する。
+// @Description 新規スタッフを登録する。スタッフ情報とシステムアカウントをアトミックに作成する。
 // @Tags StaffMasters
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param staff body model.Staff true "スタッフ情報"
+// @Param staff body createStaffRequest true "スタッフ登録情報"
 // @Success 201 {object} model.Staff
 // @Failure 400 {object} map[string]string
+// @Failure 409 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /masters/staffs [post]
 func (h *Handler) CreateStaff(c *gin.Context) {
-	var input model.Staff
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req createStaffRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = uuid.New()
-	if err := h.svc.Staff.Create(c.Request.Context(), &input); err != nil {
+
+	clinicIDStr := c.GetString("clinic_id")
+	clinicID, err := uuid.Parse(clinicIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid clinic_id in token"})
+		return
+	}
+
+	staff, err := h.svc.Staff.CreateWithAccount(c.Request.Context(), &service.CreateStaffInput{
+		ClinicID:      clinicID,
+		Name:          req.Name,
+		StaffRole:     req.StaffRole,
+		Email:         req.Email,
+		Password:      req.Password,
+		Code:          req.Code,
+		LicenseNumber: req.LicenseNumber,
+		JobTitleID:    req.JobTitleID,
+		SortOrder:     req.SortOrder,
+	})
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, input)
+	c.JSON(http.StatusCreated, staff)
 }
 
 // UpdateStaff godoc

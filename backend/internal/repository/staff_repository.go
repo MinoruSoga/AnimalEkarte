@@ -17,7 +17,8 @@ import (
 type StaffRepository interface {
 	FindAll(ctx context.Context, role *string) ([]model.Staff, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*model.Staff, error)
-	Create(ctx context.Context, staff *model.Staff) error
+	// CreateWithAccount はスタッフ・ユーザーアカウント・クリニック所属を単一トランザクションで作成する。
+	CreateWithAccount(ctx context.Context, staff *model.Staff, account *model.UserAccount, membership *model.UserClinicMembership) error
 	Update(ctx context.Context, staff *model.Staff) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
@@ -49,14 +50,30 @@ func (r *staffRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.St
 	return &staff, nil
 }
 
-func (r *staffRepository) Create(ctx context.Context, staff *model.Staff) error {
-	if err := r.db.WithContext(ctx).Create(staff).Error; err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("staff", staff.Name)
+func (r *staffRepository) CreateWithAccount(ctx context.Context, staff *model.Staff, account *model.UserAccount, membership *model.UserClinicMembership) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(staff).Error; err != nil {
+			if isUniqueConstraintErr(err) {
+				return apperrors.WrapAlreadyExists("staff", staff.Name)
+			}
+			return apperrors.Wrap(err, "create staff")
 		}
-		return apperrors.Wrap(err, "create staff")
-	}
-	return nil
+
+		account.StaffID = &staff.ID
+		if err := tx.Create(account).Error; err != nil {
+			if isUniqueConstraintErr(err) {
+				return apperrors.WrapAlreadyExists("user_account", account.Email)
+			}
+			return apperrors.Wrap(err, "create user account")
+		}
+
+		membership.UserID = account.ID
+		if err := tx.Create(membership).Error; err != nil {
+			return apperrors.Wrap(err, "create user clinic membership")
+		}
+
+		return nil
+	})
 }
 
 func (r *staffRepository) Update(ctx context.Context, staff *model.Staff) error {

@@ -2170,6 +2170,31 @@ definitions:
       total:
         type: integer
     type: object
+  internal_handler.createStaffRequest:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+      job_title_id:
+        type: string
+      license_number:
+        type: string
+      name:
+        type: string
+      password:
+        minLength: 8
+        type: string
+      sort_order:
+        type: integer
+      staff_role:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.StaffRole'
+    required:
+    - email
+    - name
+    - password
+    - staff_role
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -4441,14 +4466,14 @@ paths:
     post:
       consumes:
       - application/json
-      description: 新規スタッフを登録する。
+      description: 新規スタッフを登録する。スタッフ情報とシステムアカウントをアトミックに作成する。
       parameters:
-      - description: スタッフ情報
+      - description: スタッフ登録情報
         in: body
         name: staff
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+          $ref: '#/definitions/internal_handler.createStaffRequest'
       produces:
       - application/json
       responses:
@@ -4458,6 +4483,12 @@ paths:
             $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
         "400":
           description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
           schema:
             additionalProperties:
               type: string

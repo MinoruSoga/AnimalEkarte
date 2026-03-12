@@ -1430,7 +1430,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-    put:
+    patch:
       operationId: updateOwner
       summary: 飼主更新
       tags: [Owners]
@@ -1593,7 +1593,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-    put:
+    patch:
       operationId: updatePet
       summary: ペット更新
       tags: [Pets]
@@ -1756,7 +1756,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-    put:
+    patch:
       operationId: updateReservation
       summary: 予約更新
       tags: [Reservations]
@@ -1915,7 +1915,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-    put:
+    patch:
       operationId: updateMedicalRecord
       summary: カルテ更新
       tags: [MedicalRecords]
@@ -2072,7 +2072,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-    put:
+    patch:
       operationId: updateHospitalization
       summary: 入院情報更新
       tags: [Hospitalizations]
@@ -2230,7 +2230,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-    put:
+    patch:
       operationId: updateAccounting
       summary: 会計更新
       tags: [Accountings]
@@ -2361,7 +2361,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-    put:
+    patch:
       operationId: updateTrimming
       summary: トリミング更新
       tags: [Trimmings]
@@ -2496,7 +2496,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-    put:
+    patch:
       operationId: updateInventoryItem
       summary: 在庫更新
       tags: [Inventory]
@@ -2564,7 +2564,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
-    put:
+    patch:
       operationId: updateCompany
       summary: 法人情報更新
       tags: [Company]
@@ -2650,7 +2650,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/staffs/{id}:
-    put:
+    patch:
       operationId: updateStaff
       summary: スタッフ更新
       tags: [Masters]
@@ -2761,7 +2761,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/cages/{id}:
-    put:
+    patch:
       operationId: updateCage
       summary: ケージ更新
       tags: [Masters]
@@ -2872,7 +2872,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/medicines/{id}:
-    put:
+    patch:
       operationId: updateMedicine
       summary: 薬剤更新
       tags: [Masters]
@@ -2983,7 +2983,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/vaccines/{id}:
-    put:
+    patch:
       operationId: updateVaccine
       summary: ワクチン更新
       tags: [Masters]
@@ -3094,7 +3094,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/insurances/{id}:
-    put:
+    patch:
       operationId: updateInsurance
       summary: 保険更新
       tags: [Masters]
@@ -3205,7 +3205,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/service-types/{id}:
-    put:
+    patch:
       operationId: updateServiceType
       summary: サービス種別更新
       tags: [Masters]
@@ -3316,7 +3316,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/consultations/{id}:
-    put:
+    patch:
       operationId: updateConsultation
       summary: 診察項目更新
       tags: [Masters]
@@ -3427,7 +3427,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/procedures/{id}:
-    put:
+    patch:
       operationId: updateProcedure
       summary: 処置項目更新
       tags: [Masters]
@@ -3538,7 +3538,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/hospitalization-plans/{id}:
-    put:
+    patch:
       operationId: updateHospitalizationPlan
       summary: 入院プラン更新
       tags: [Masters]
@@ -3649,7 +3649,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/trimming-courses/{id}:
-    put:
+    patch:
       operationId: updateTrimmingCourse
       summary: トリミングコース更新
       tags: [Masters]
@@ -3760,7 +3760,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/trimming-options/{id}:
-    put:
+    patch:
       operationId: updateTrimmingOption
       summary: トリミングオプション更新
       tags: [Masters]
@@ -3871,7 +3871,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/examination-types/{id}:
-    put:
+    patch:
       operationId: updateExaminationType
       summary: 検査種別更新
       tags: [Masters]
@@ -3982,7 +3982,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/diagnosis-categories/{id}:
-    put:
+    patch:
       operationId: updateDiagnosisCategory
       summary: 診断カテゴリ更新
       tags: [Masters]
@@ -4099,7 +4099,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/diagnosis-names/{id}:
-    put:
+    patch:
       operationId: updateDiagnosisName
       summary: 診断名更新
       tags: [Masters]
@@ -4210,7 +4210,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/checkup-types/{id}:
-    put:
+    patch:
       operationId: updateCheckupType
       summary: 健診種別更新
       tags: [Masters]
