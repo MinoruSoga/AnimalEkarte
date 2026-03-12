@@ -1909,7 +1909,7 @@ erDiagram
 | pet_name | text | NO | '' | ペット名スナップショット |
 | pet_id | uuid | YES | | pets.id FK |
 | visit_type | visit_type | NO | 'revisit' | 来院種別 |
-| service_type_id | uuid | YES | | service_types.id FK |
+| service_type_id | uuid | NO  | | service_types.id FK |
 | doctor_id | uuid | NO | | staffs.id FK |
 | is_designated | boolean | YES | false | 担当医指名フラグ |
 | status | reservation_status | YES | 'pending' | 予約状態 |
@@ -1920,7 +1920,7 @@ erDiagram
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
 - `pet_id` → `pets.id` (SET NULL)
-- `service_type_id` → `service_types.id` (SET NULL)
+- `service_type_id` → `service_types.id` (RESTRICT)
 - `doctor_id` → `staffs.id` (RESTRICT)
 
 **インデックス:** `(clinic_id)`
@@ -2128,7 +2128,7 @@ erDiagram
 | style_request | text | YES | '' | スタイルリクエスト |
 | staff_id | uuid | NO | | staffs.id FK |
 | status | trimming_status | YES | '予約' | 状態 |
-| course_id | uuid | YES | | trimming_courses.id FK |
+| course_id | uuid | NO  | | trimming_courses.id FK |
 | bw | text | YES | '' | 体重測定値 |
 | bw_unit | body_weight_unit | YES | 'Kg' | 体重単位 |
 | bt | text | YES | '' | 体温 |
@@ -2144,7 +2144,7 @@ erDiagram
 - `clinic_id` → `clinics.id` (RESTRICT)
 - `pet_id` → `pets.id` (CASCADE)
 - `staff_id` → `staffs.id` (RESTRICT)
-- `course_id` → `trimming_courses.id` (SET NULL)
+- `course_id` → `trimming_courses.id` (RESTRICT)
 
 **インデックス:** `(clinic_id)`
 
@@ -2460,7 +2460,7 @@ erDiagram
 | clinic_id | clinics.id | RESTRICT |
 | doctor_id | staffs.id | RESTRICT |
 | pet_id | pets.id | SET NULL |
-| service_type_id | service_types.id | SET NULL |
+| service_type_id | service_types.id | RESTRICT |
 
 ### shift_entries
 
@@ -2504,7 +2504,7 @@ erDiagram
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
 | clinic_id | clinics.id | RESTRICT |
-| course_id | trimming_courses.id | SET NULL |
+| course_id | trimming_courses.id | RESTRICT |
 | pet_id | pets.id | CASCADE |
 | staff_id | staffs.id | RESTRICT |
 
