@@ -1,1365 +1,2391 @@
-# 動物病院管理システム ER図 (Entity Relationship Diagram)
+# ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: 5.0（45テーブル 専用マスタテーブル版）
+バージョン: v7.0（カルテタブ対応・50テーブル）
 更新日: 2026-03-12
 状態: Production Ready
 
-本ドキュメントは、システムの全45テーブルとそのリレーションを定義します。
+本ドキュメントは、Animal Ekarteの全50テーブルとそのリレーションを定義します。
 PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 
 ---
 
-## 変更概要（v4.0 → v5.0）
+## 変更概要（v5.0 → v6.0）
 
 | 変更内容 | 詳細 |
 |---------|------|
-| STIテーブル廃止 | `master_items`（15カテゴリ統合）を削除 |
-| 検査マスタ廃止 | `master_item_inspections` を削除 |
-| 専用マスタ追加 | 16の専用マスタテーブルに分離 |
-| スタッフ正規化 | `staffs` テーブルを独立させ、全 `doctor TEXT` フィールドをFKに正規化 |
-| 診断名正規化 | `diagnosis_names` テーブルで self-referencing `parent_id` を廃止し、明示的FK（`diagnosis_category_id`）を追加 |
-| ケアプラン正規化 | `care_plan_items` のポリモーフィック参照（`master_id`）を解消し、3専用FKに分離 |
-| テーブル総数 | 31 → 45 |
+| 法人テーブル追加 | `company`（ノア動物病院法人情報、シングルトン） |
+| 医院テーブル追加 | `clinics`（八王子医院・城東医院・敷島医院等） |
+| clinic_id追加予定 | `003_add_clinic_id.sql` にて以下テーブルに追加予定: owners, staffs, inventory_items, cages, service_types, consultations, procedures, hospitalization_plans, trimming_courses, trimming_options, examination_types, vaccines, medicines, insurances, diagnosis_categories, checkup_types |
+| clinic_id保持済 | `user_clinic_memberships`, `user_permissions` のみ現時点で保持 |
+
+## 変更概要（v6.0 → v7.0）
+
+| 変更内容 | 詳細 |
+|---------|------|
+| 問診テーブル追加 | `medical_inquiries`（1:1 with medical_records） |
+| 画像テーブル追加 | `medical_images`（1:N with medical_records） |
+| 見積書テーブル追加 | `estimates` + `estimate_items` |
+| 会計医師確認テーブル追加 | `billing_confirmations`（1:1 with medical_records） |
+| medical_records修正 | `chief_complaint` を `medical_inquiries` に移動 |
+| テーブル総数 | 45 → 50 |
 
 ---
 
-## テーブル一覧（45テーブル）
+## 設計方針
 
-| # | テーブル名 | 区分 | 状態 |
+### 法人・医院の区別
+
+| テーブル | 役割 | レコード数 |
+|---------|------|-----------|
+| `company` | 法人情報（ノア動物病院）。FK参照なし。設定画面で参照のみ | 1件固定 |
+| `clinics` | 各医院（八王子医院等）。ユーザー・権限管理で参照 | 複数（増加あり） |
+
+### clinic_id 戦略
+
+現在は `user_clinic_memberships` と `user_permissions` のみ `clinic_id` を保持。
+`003_add_clinic_id.sql` にてマスタ系テーブルへの `clinic_id` 追加を予定。
+追加後はマスタ情報（staffs, cages, medicines等）を医院ごとに独立管理できる。
+
+### カルテタブ ↔ テーブル対応表
+
+| タブ | テーブル | 状態 |
+|------|---------|------|
+| 問診 | `medical_inquiries` | v7.0追加 |
+| 診察/治療 | `medical_records`（SOAP） + `treatment_items` | 既存 |
+| 治療 | `treatment_items`（フィルタビュー） | 既存 |
+| 予防接種 | `vaccination_records` | 既存 |
+| 定期健診 | `checkup_records` | 既存 |
+| 検査 | `examination_records` + `examination_record_items` | 既存 |
+| 画像 | `medical_images` | v7.0追加 |
+| 見積書 | `estimates` + `estimate_items` | v7.0追加 |
+| 会計（医師確認） | `billing_confirmations` | v7.0追加 |
+| 会計情報 | `accountings` + `accounting_items` + `payment_infos` | 既存 |
+| 生体情報 | `vital_entries` | 既存 |
+| ペット情報 | `pets`（参照） | 既存 |
+
+---
+
+## テーブル一覧（50テーブル）
+
+| # | テーブル名 | 区分 | 説明 |
 |---|-----------|------|------|
-| 1 | `inventory_items` | 独立 | 変更なし |
-| 2 | `clinic_info` | マスタ | 変更なし |
-| 3 | `clinics` | 認証 | 変更なし |
-| 4 | `owners` | コア | 変更なし |
-| 5 | `examination_types` | マスタ | 新規 |
-| 6 | `examination_type_items` | マスタ | 新規 |
-| 7 | `vaccines` | マスタ | 新規 |
-| 8 | `medicines` | マスタ | 新規（inventory_id FK） |
-| 9 | `staffs` | マスタ | 新規 |
-| 10 | `insurances` | マスタ | 新規 |
-| 11 | `cages` | マスタ | 新規 |
-| 12 | `service_types` | マスタ | 新規 |
-| 13 | `consultations` | マスタ | 新規 |
-| 14 | `procedures` | マスタ | 新規 |
-| 15 | `hospitalization_plans` | マスタ | 新規 |
-| 16 | `trimming_courses` | マスタ | 新規 |
-| 17 | `trimming_options` | マスタ | 新規 |
-| 18 | `diagnosis_categories` | マスタ | 新規 |
-| 19 | `diagnosis_names` | マスタ | 新規（diagnosis_category_id FK） |
-| 20 | `checkup_types` | マスタ | 新規 |
-| 21 | `user_accounts` | 認証 | staff_id FK変更 |
-| 22 | `shift_entries` | シフト | staff_id FK変更 |
-| 23 | `user_clinic_memberships` | 認証 | 変更なし |
-| 24 | `user_permissions` | 認証 | 変更なし |
-| 25 | `pets` | コア | insurance_id FK追加 |
-| 26 | `medical_records` | カルテ | diagnosis FK変更、doctor_id FK追加 |
-| 27 | `treatment_items` | カルテ | item_type追加、consultation/procedure/medicine_id FK追加 |
-| 28 | `vital_entries` | カルテ | staff_id FK変更 |
-| 29 | `examination_records` | カルテ | examination_type_id FK変更、doctor_id FK変更 |
-| 30 | `examination_record_items` | カルテ | 変更なし |
-| 31 | `vaccination_records` | カルテ | vaccine_id FK追加、doctor_id FK変更 |
-| 32 | `checkup_records` | カルテ | checkup_type_id FK変更、doctor_id FK変更 |
-| 33 | `hospitalizations` | 入院 | cage_id/doctor_id FK変更 |
-| 34 | `care_plan_items` | 入院 | medicine/procedure/hospitalization_plan_id FK追加 |
-| 35 | `treatment_plans` | 入院 | 変更なし |
-| 36 | `daily_records` | 入院 | 変更なし |
-| 37 | `vital_records` | 入院 | staff_id FK変更 |
-| 38 | `care_log_records` | 入院 | staff_id FK変更 |
-| 39 | `staff_note_records` | 入院 | staff_id FK変更 |
-| 40 | `reservation_appointments` | 予約 | service_type_id/doctor_id FK変更 |
-| 41 | `trimming_records` | トリミング | staff_id/course_id FK変更 |
-| 42 | `trimming_record_options` | トリミング | option_id FK変更 |
-| 43 | `accountings` | 会計 | 変更なし |
-| 44 | `accounting_items` | 会計 | 変更なし |
-| 45 | `payment_infos` | 会計 | 変更なし |
+| 1 | `company` | 法人情報 | 法人（ノア動物病院）情報シングルトン |
+| 2 | `clinics` | 医院情報 | 各医院（八王子・城東・敷島） |
+| 3 | `user_accounts` | 認証 | ログインアカウント |
+| 4 | `user_clinic_memberships` | 認証 | ユーザーの医院所属 |
+| 5 | `user_permissions` | 認証 | ユーザーの権限 |
+| 6 | `owners` | コア | 飼い主 |
+| 7 | `pets` | コア | ペット |
+| 8 | `staffs` | マスタ | スタッフ（獣医師・看護師等） |
+| 9 | `inventory_items` | 在庫 | 在庫アイテム |
+| 10 | `examination_types` | マスタ | 検査種別 |
+| 11 | `examination_type_items` | マスタ | 検査種別の検査項目定義 |
+| 12 | `vaccines` | マスタ | ワクチン |
+| 13 | `medicines` | マスタ | 薬剤 |
+| 14 | `insurances` | マスタ | 保険 |
+| 15 | `cages` | マスタ | ケージ |
+| 16 | `service_types` | マスタ | サービス種別 |
+| 17 | `consultations` | マスタ | 診察項目 |
+| 18 | `procedures` | マスタ | 処置項目 |
+| 19 | `hospitalization_plans` | マスタ | 入院プラン |
+| 20 | `trimming_courses` | マスタ | トリミングコース |
+| 21 | `trimming_options` | マスタ | トリミングオプション |
+| 22 | `diagnosis_categories` | マスタ | 診断カテゴリ |
+| 23 | `diagnosis_names` | マスタ | 診断名 |
+| 24 | `checkup_types` | マスタ | 健診種別 |
+| 25 | `medical_records` | 診療 | カルテ（診療記録） |
+| 26 | `medical_inquiries` | 診療 | 問診情報（カルテ問診タブ） |
+| 27 | `treatment_items` | 診療 | 処置・診察・薬剤明細 |
+| 28 | `vital_entries` | 診療 | バイタル記録（外来） |
+| 29 | `examination_records` | 診療 | 検査記録 |
+| 30 | `examination_record_items` | 診療 | 検査記録の検査結果項目 |
+| 31 | `vaccination_records` | 診療 | ワクチン接種記録 |
+| 32 | `checkup_records` | 診療 | 健診記録 |
+| 33 | `medical_images` | 診療 | 診療画像（レントゲン・エコー等） |
+| 34 | `estimates` | 診療 | 見積書 |
+| 35 | `estimate_items` | 診療 | 見積書明細 |
+| 36 | `billing_confirmations` | 診療 | 会計医師確認 |
+| 37 | `reservation_appointments` | 予約 | 予約 |
+| 38 | `hospitalizations` | 入院 | 入院・ホテル |
+| 39 | `daily_records` | 入院 | 入院日次記録 |
+| 40 | `care_plan_items` | 入院 | ケアプラン項目 |
+| 41 | `care_log_records` | 入院 | ケアログ |
+| 42 | `vital_records` | 入院 | バイタル記録（入院） |
+| 43 | `staff_note_records` | 入院 | スタッフノート |
+| 44 | `treatment_plans` | 入院 | 入院治療プラン |
+| 45 | `trimming_records` | トリミング | トリミング記録 |
+| 46 | `trimming_record_options` | トリミング | トリミング記録のオプション選択 |
+| 47 | `accountings` | 会計 | 会計 |
+| 48 | `accounting_items` | 会計 | 会計明細 |
+| 49 | `payment_infos` | 会計 | 支払い情報 |
+| 50 | `shift_entries` | シフト | スタッフシフト |
 
 ---
 
-## システム全体 ER図（概要）
-
-全リレーションを俯瞰するための概要図（フィールド詳細は省略）。
+## システム全体 ER図
 
 ```mermaid
 erDiagram
-    %% ===== コア =====
-    owners ||--o{ pets : "飼育"
-    pets ||--o{ medical_records : "診療記録"
-    pets ||--o{ hospitalizations : "入院記録"
-    pets ||--o{ trimming_records : "トリミング記録"
-    pets ||--o{ reservation_appointments : "予約"
-    pets ||--o{ examination_records : "検査記録"
-    pets ||--o{ vaccination_records : "予防接種記録"
-    pets ||--o{ checkup_records : "健診記録"
-    pets }o--o| insurances : "保険参照"
+    %% ===== 法人・医院 =====
+    company {
+        uuid id PK
+        text name
+        text branch_name
+    }
 
-    %% ===== カルテ =====
-    medical_records ||--o{ treatment_items : "治療項目"
-    medical_records ||--o{ vital_entries : "バイタル"
-    medical_records ||--o{ examination_records : "検査"
-    medical_records ||--o{ vaccination_records : "予防接種"
-    medical_records ||--o{ checkup_records : "健診"
-    medical_records |o--o| accountings : "会計連携"
-    medical_records }o--o| diagnosis_categories : "診断1カテゴリ"
-    medical_records }o--o| diagnosis_names : "診断1名"
-    examination_records ||--o{ examination_record_items : "検査結果項目"
-
-    %% ===== 入院 =====
-    hospitalizations ||--o{ care_plan_items : "ケアプラン"
-    hospitalizations ||--o{ daily_records : "日次記録"
-    hospitalizations ||--o{ treatment_plans : "治療プラン"
-    hospitalizations |o--o| accountings : "入院会計連携"
-    hospitalizations }o--o| cages : "ケージ参照"
-    daily_records ||--o{ vital_records : "バイタル"
-    daily_records ||--o{ care_log_records : "ケアログ"
-    daily_records ||--o{ staff_note_records : "スタッフメモ"
-
-    %% ===== 会計 =====
-    accountings ||--o{ accounting_items : "明細"
-    accountings ||--|| payment_infos : "支払情報"
-    owners ||--o{ accountings : "会計"
-
-    %% ===== トリミング =====
-    trimming_records ||--o{ trimming_record_options : "オプション選択"
-    trimming_records }o--o| trimming_courses : "コース参照"
-    trimming_record_options }o--|| trimming_options : "オプション参照"
-
-    %% ===== マスタ =====
-    examination_types ||--o{ examination_type_items : "検査項目定義"
-    examination_types ||--o{ examination_records : "検査種別参照"
-    vaccines ||--o{ vaccination_records : "ワクチン参照"
-    medicines |o--o| inventory_items : "在庫連携"
-    medicines ||--o{ treatment_items : "薬剤参照"
-    medicines ||--o{ care_plan_items : "投薬参照"
-    consultations ||--o{ treatment_items : "診察参照"
-    procedures ||--o{ treatment_items : "処置参照"
-    procedures ||--o{ care_plan_items : "処置参照"
-    hospitalization_plans ||--o{ care_plan_items : "入院プラン参照"
-    diagnosis_categories ||--o{ diagnosis_names : "診断名"
-    checkup_types ||--o{ checkup_records : "健診種別参照"
-    cages ||--o{ hospitalizations : "ケージ参照"
-    service_types ||--o{ reservation_appointments : "サービス種別"
-    insurances |o--o{ pets : "保険参照"
-
-    %% ===== スタッフ =====
-    staffs ||--o{ shift_entries : "シフト"
-    staffs |o--o{ medical_records : "担当医"
-    staffs |o--o{ reservation_appointments : "担当医予約"
-    staffs |o--o{ trimming_records : "トリマー"
-    staffs |o--o{ examination_records : "検査担当医"
-    staffs |o--o| user_accounts : "スタッフマスタ紐付け"
+    clinics {
+        uuid id PK
+        text name
+        text branch_name
+        boolean is_active
+    }
 
     %% ===== 認証 =====
-    user_accounts ||--o{ user_clinic_memberships : "クリニック所属"
-    clinics ||--o{ user_clinic_memberships : "所属メンバー"
-    user_accounts ||--o{ user_permissions : "権限付与"
-    clinics ||--o{ user_permissions : "権限スコープ"
-```
+    user_accounts {
+        uuid id PK
+        text email
+        text display_name
+        user_type user_type
+        job_title job_title
+        account_status status
+        uuid staff_id FK
+    }
 
----
+    user_clinic_memberships {
+        uuid id PK
+        uuid user_id FK
+        uuid clinic_id FK
+        boolean is_main
+    }
 
-## マスタサブシステム図
+    user_permissions {
+        uuid id PK
+        uuid user_id FK
+        uuid clinic_id FK
+        permission_type permission
+        uuid granted_by FK
+    }
 
-専用マスタテーブル16個の詳細ER図。
+    %% ===== コア =====
+    owners {
+        uuid id PK
+        text owner_name
+        text phone
+        text email
+        membership_type membership_type
+    }
 
-```mermaid
-erDiagram
+    pets {
+        uuid id PK
+        uuid owner_id FK
+        text name
+        pet_species species
+        pet_gender gender
+        pet_status status
+        uuid insurance_id FK
+    }
+
+    %% ===== マスタ =====
+    staffs {
+        uuid id PK
+        text code
+        text name
+        master_status status
+        staff_role staff_role
+    }
+
+    inventory_items {
+        uuid id PK
+        text name
+        inventory_category category
+        integer quantity
+        inventory_status status
+    }
+
     examination_types {
         uuid id PK
-        string code
-        string name "NOT NULL"
-        master_item_status status
-        text description
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        text code
+        text name
+        master_status status
     }
 
     examination_type_items {
         uuid id PK
-        uuid examination_type_id FK "NOT NULL"
-        string name "NOT NULL"
-        string normal_value
-        string unit
+        uuid examination_type_id FK
+        text name
         integer sort_order
     }
 
     vaccines {
         uuid id PK
-        string code
-        string name "NOT NULL"
-        vaccine_species species "NOT NULL"
-        string interval
-        string target_age
-        master_item_status status
-        text description
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        text code
+        text name
+        master_status status
+        vaccine_species species
     }
 
     medicines {
         uuid id PK
-        string code
-        string name "NOT NULL"
+        text code
+        text name
+        master_status status
         dosage_form dosage_form
-        medicine_unit medicine_unit
-        decimal price
-        integer default_quantity
         uuid inventory_id FK
-        master_item_status status
-        text description
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    staffs {
-        uuid id PK
-        string code
-        string name "NOT NULL"
-        string name_kana
-        staff_role role "NOT NULL"
-        string license_number
-        master_item_status status
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     insurances {
         uuid id PK
-        string code
-        string name "NOT NULL"
+        text code
+        text name
+        master_status status
         coverage_rate coverage_rate
-        string contact_phone
-        master_item_status status
-        text description
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     cages {
         uuid id PK
-        string code
-        string name "NOT NULL"
+        text code
+        text name
+        master_status status
         cage_type cage_type
         cage_size cage_size
-        master_item_status status
-        text description
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     service_types {
         uuid id PK
-        string code
-        string name "NOT NULL"
-        string color
-        string duration
-        master_item_status status
-        text description
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        text code
+        text name
+        master_status status
+        text color
     }
 
     consultations {
         uuid id PK
-        string code
-        string name "NOT NULL"
-        decimal price
-        string time_condition
-        master_item_status status
-        text description
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        text code
+        text name
+        master_status status
     }
 
     procedures {
         uuid id PK
-        string code
-        string name "NOT NULL"
-        decimal price
-        string anesthesia
-        master_item_status status
-        text description
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        text code
+        text name
+        master_status status
+        anesthesia_type anesthesia
     }
 
     hospitalization_plans {
         uuid id PK
-        string code
-        string name "NOT NULL"
-        decimal price
-        billing_unit billing_unit
+        text code
+        text name
+        master_status status
         body_size body_size
-        master_item_status status
-        text description
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        billing_unit billing_unit
     }
 
     trimming_courses {
         uuid id PK
-        string code
-        string name "NOT NULL"
-        decimal price
+        text code
+        text name
+        master_status status
         target_size target_size
-        master_item_status status
-        text description
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     trimming_options {
         uuid id PK
-        string code
-        string name "NOT NULL"
-        decimal price
+        text code
+        text name
+        master_status status
         combinable combinable
-        master_item_status status
-        text description
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     diagnosis_categories {
         uuid id PK
-        string code
-        string name "NOT NULL"
-        master_item_status status
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        text code
+        text name
+        master_status status
     }
 
     diagnosis_names {
         uuid id PK
-        uuid diagnosis_category_id FK "NOT NULL"
-        string code
-        string name "NOT NULL"
-        master_item_status status
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        text code
+        text name
+        master_status status
+        uuid diagnosis_category_id FK
     }
 
     checkup_types {
         uuid id PK
-        string code
-        string name "NOT NULL"
-        master_item_status status
-        text description
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        text code
+        text name
+        master_status status
+        text interval
     }
 
-    inventory_items {
-        uuid id PK
-        string name "NOT NULL"
-        inventory_category category "NOT NULL"
-        integer quantity
-        string unit "NOT NULL"
-        integer min_stock_level
-        string location
-        date expiry_date
-        string supplier
-        date last_restocked
-        inventory_status status
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    examination_types ||--o{ examination_type_items : "検査項目定義"
-    diagnosis_categories ||--o{ diagnosis_names : "診断名"
-    medicines |o--o| inventory_items : "在庫連携"
-```
-
----
-
-## コアエンティティ詳細図
-
-```mermaid
-erDiagram
-    owners {
-        uuid id PK
-        string owner_name "NOT NULL"
-        string owner_name_kana
-        string company
-        string postal_code
-        string address1
-        string address2
-        string home_postal_code
-        string home_address1
-        string home_address2
-        string phone
-        string company_phone
-        string email
-        string remarks
-        boolean is_dangerous
-        decimal discount_rate
-        membership_type membership_type
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    pets {
-        uuid id PK
-        uuid owner_id FK "NOT NULL"
-        uuid insurance_id FK "REFERENCES insurances(id) ON DELETE SET NULL"
-        string pet_number
-        string name "NOT NULL"
-        string pet_name_kana
-        pet_species species "NOT NULL"
-        pet_gender gender
-        pet_status status
-        date birth_date
-        string breed
-        string color
-        string weight
-        date neutered_date
-        acquisition_type acquisition_type
-        danger_level danger_level
-        string food
-        string environment
-        string phone
-        date last_visit
-        string insurance_name
-        string insurance_details
-        string remarks
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
+    %% ===== 診療 =====
     medical_records {
         uuid id PK
-        string record_no UK
-        date date "NOT NULL"
-        uuid owner_id FK
-        string owner_name "NOT NULL"
-        uuid pet_id FK
-        string pet_name "NOT NULL"
-        pet_species species "NOT NULL"
-        text chief_complaint
-        text treatment_policy
-        text physical_exam
-        text diagnosis_details
-        uuid diagnosis1_category_id FK "REFERENCES diagnosis_categories(id) ON DELETE SET NULL"
-        uuid diagnosis1_name_id FK "REFERENCES diagnosis_names(id) ON DELETE SET NULL"
-        uuid diagnosis2_category_id FK "REFERENCES diagnosis_categories(id) ON DELETE SET NULL"
-        uuid diagnosis2_name_id FK "REFERENCES diagnosis_names(id) ON DELETE SET NULL"
-        uuid doctor_id FK "REFERENCES staffs(id) ON DELETE SET NULL"
-        medical_record_status status
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    reservation_appointments {
-        uuid id PK
-        timestamptz start_time "NOT NULL"
-        timestamptz end_time "NOT NULL"
-        string owner_name "NOT NULL"
-        string pet_name "NOT NULL"
-        uuid pet_id FK
-        visit_type visit_type "NOT NULL"
-        uuid service_type_id FK "REFERENCES service_types(id) ON DELETE SET NULL"
-        uuid doctor_id FK "REFERENCES staffs(id) ON DELETE SET NULL"
-        boolean is_designated
-        reservation_status status
-        text notes
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    owners ||--o{ pets : "飼育"
-    pets ||--o{ medical_records : "診療記録"
-    pets ||--o{ reservation_appointments : "予約"
-    pets }o--o| insurances : "保険参照"
-```
-
----
-
-## 電子カルテ サブシステム図
-
-```mermaid
-erDiagram
-    medical_records {
-        uuid id PK
-        string record_no UK
-        date date "NOT NULL"
+        text record_no
+        date date
         uuid owner_id FK
         uuid pet_id FK
-        uuid doctor_id FK "REFERENCES staffs(id) ON DELETE SET NULL"
+        uuid doctor_id FK
         medical_record_status status
+        uuid diagnosis1_category_id FK
+        uuid diagnosis1_name_id FK
+        uuid diagnosis2_category_id FK
+        uuid diagnosis2_name_id FK
     }
 
     treatment_items {
         uuid id PK
-        uuid medical_record_id FK "NOT NULL"
-        treatment_item_type item_type "NOT NULL"
-        boolean selected
-        treatment_status status
-        text content "NOT NULL スナップショット"
-        uuid consultation_id FK "REFERENCES consultations(id) ON DELETE SET NULL"
-        uuid procedure_id FK "REFERENCES procedures(id) ON DELETE SET NULL"
-        uuid medicine_id FK "REFERENCES medicines(id) ON DELETE SET NULL"
-        text memo
-        boolean insurance
-        decimal unit_price
-        integer quantity
-        decimal discount_rate
-        decimal discount_amount
+        uuid medical_record_id FK
+        treatment_item_type item_type
+        uuid consultation_id FK
+        uuid procedure_id FK
+        uuid medicine_id FK
         uuid inventory_id FK
-        integer sort_order
+        numeric unit_price
+        integer quantity
     }
 
     vital_entries {
         uuid id PK
-        uuid medical_record_id FK "NOT NULL"
-        timestamptz recorded_at "NOT NULL"
-        uuid staff_id FK "REFERENCES staffs(id) ON DELETE SET NULL"
-        decimal temperature
+        uuid medical_record_id FK
+        timestamptz recorded_at
+        uuid staff_id FK
+        numeric temperature
         integer heart_rate
-        integer respiration_rate
-        decimal weight
-        text notes
+        numeric weight
     }
 
     examination_records {
         uuid id PK
         uuid medical_record_id FK
         uuid pet_id FK
-        date date "NOT NULL"
-        string owner_name "NOT NULL"
-        string pet_name "NOT NULL"
-        uuid examination_type_id FK "REFERENCES examination_types(id) ON DELETE SET NULL"
-        uuid doctor_id FK "REFERENCES staffs(id) ON DELETE SET NULL"
+        uuid examination_type_id FK
+        uuid doctor_id FK
         examination_status status
-        text result_summary
-        string machine
     }
 
     examination_record_items {
         uuid id PK
-        uuid examination_record_id FK "NOT NULL"
-        string name "NOT NULL"
-        string inspection_value
-        string normal_value
-        string result
-        string unit
-        string ref
+        uuid examination_record_id FK
+        text name
+        text inspection_value
         examination_result_status status
-        integer sort_order
     }
 
     vaccination_records {
         uuid id PK
         uuid medical_record_id FK
         uuid pet_id FK
-        string owner_name "NOT NULL"
-        string pet_name "NOT NULL"
-        uuid vaccine_id FK "REFERENCES vaccines(id) ON DELETE SET NULL"
-        string vaccine_name "NOT NULL スナップショット"
-        date date "NOT NULL"
-        date next_date
-        next_schedule_type next_schedule_type
-        uuid doctor_id FK "REFERENCES staffs(id) ON DELETE SET NULL"
-        string supplemental
-        string lot1
-        string lot2
-        string lot3
-        string lot4
-        text remarks
+        uuid vaccine_id FK
+        text vaccine_name_snapshot
+        date date
+        uuid doctor_id FK
     }
 
     checkup_records {
         uuid id PK
         uuid medical_record_id FK
         uuid pet_id FK
-        string owner_name "NOT NULL"
-        string pet_name "NOT NULL"
-        uuid checkup_type_id FK "REFERENCES checkup_types(id) ON DELETE SET NULL"
-        string checkup_name "NOT NULL スナップショット"
-        date date "NOT NULL"
-        date next_date
-        uuid doctor_id FK "REFERENCES staffs(id) ON DELETE SET NULL"
-        text result
+        uuid checkup_type_id FK
+        date date
+        uuid doctor_id FK
     }
 
-    medical_records ||--o{ treatment_items : "治療項目"
-    medical_records ||--o{ vital_entries : "バイタル記録"
-    medical_records ||--o{ examination_records : "検査記録"
-    medical_records ||--o{ vaccination_records : "予防接種記録"
-    medical_records ||--o{ checkup_records : "健診記録"
-    examination_records ||--o{ examination_record_items : "検査結果項目"
-    treatment_items }o--o| consultations : "診察参照"
-    treatment_items }o--o| procedures : "処置参照"
-    treatment_items }o--o| medicines : "薬剤参照"
-    vaccination_records }o--o| vaccines : "ワクチン参照"
-    checkup_records }o--o| checkup_types : "健診種別参照"
-    examination_records }o--o| examination_types : "検査種別参照"
-```
+    medical_inquiries {
+        uuid id PK
+        uuid medical_record_id FK
+        text chief_complaint
+        text history
+        text current_medications
+        text allergy_info
+        text last_meal
+        text last_defecation
+        text last_urination
+        appetite_level appetite
+        water_intake_level water_intake
+        text owner_observations
+        text notes
+        uuid staff_id FK
+        timestamptz created_at
+        timestamptz updated_at
+    }
 
----
+    medical_images {
+        uuid id PK
+        uuid medical_record_id FK
+        text image_url
+        text thumbnail_url
+        text file_name
+        bigint file_size
+        text mime_type
+        medical_image_type image_type
+        text description
+        timestamptz taken_at
+        uuid examination_record_id FK
+        uuid staff_id FK
+        integer sort_order
+        timestamptz created_at
+    }
 
-## 入院管理 サブシステム図
+    estimates {
+        uuid id PK
+        text estimate_no
+        uuid medical_record_id FK
+        text title
+        uuid owner_id FK
+        text owner_name
+        text pet_name
+        estimate_status status
+        numeric subtotal
+        numeric tax_total
+        numeric total_amount
+        numeric insurance_amount
+        numeric discount_amount
+        date valid_until
+        text comment
+        text notes
+        uuid created_by FK
+        timestamptz created_at
+        timestamptz updated_at
+    }
 
-```mermaid
-erDiagram
+    estimate_items {
+        uuid id PK
+        uuid estimate_id FK
+        text name
+        item_category category
+        numeric unit_price
+        integer quantity
+        numeric tax_rate
+        numeric discount_rate
+        numeric discount_amount
+        boolean is_insurance_applicable
+        uuid consultation_id FK
+        uuid procedure_id FK
+        uuid medicine_id FK
+        integer sort_order
+        timestamptz created_at
+    }
+
+    billing_confirmations {
+        uuid id PK
+        uuid medical_record_id FK
+        billing_confirmation_status status
+        uuid confirmed_by FK
+        timestamptz confirmed_at
+        uuid returned_by FK
+        timestamptz returned_at
+        text return_reason
+        text memo
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    %% ===== 予約 =====
+    reservation_appointments {
+        uuid id PK
+        timestamptz start_time
+        timestamptz end_time
+        uuid pet_id FK
+        uuid service_type_id FK
+        uuid doctor_id FK
+        reservation_status status
+    }
+
+    %% ===== 入院 =====
     hospitalizations {
         uuid id PK
         uuid owner_id FK
-        string owner_name "NOT NULL"
         uuid pet_id FK
-        string pet_name "NOT NULL"
-        pet_species species "NOT NULL"
-        hospitalization_type hospitalization_type "NOT NULL"
-        date start_date "NOT NULL"
-        date end_date "NOT NULL"
+        hospitalization_type hospitalization_type
+        date start_date
+        date end_date
+        uuid cage_id FK
+        uuid doctor_id FK
         hospitalization_status status
-        uuid cage_id FK "REFERENCES cages(id) ON DELETE SET NULL"
-        uuid doctor_id FK "REFERENCES staffs(id) ON DELETE SET NULL"
-        text memo
-        text owner_request
-        text staff_notes
-    }
-
-    care_plan_items {
-        uuid id PK
-        uuid hospitalization_id FK "NOT NULL"
-        care_plan_type type "NOT NULL"
-        string name "NOT NULL"
-        text description
-        plan_timing[] timing
-        care_plan_status status
-        text notes
-        uuid medicine_id FK "REFERENCES medicines(id) ON DELETE SET NULL"
-        uuid procedure_id FK "REFERENCES procedures(id) ON DELETE SET NULL"
-        uuid hospitalization_plan_id FK "REFERENCES hospitalization_plans(id) ON DELETE SET NULL"
-        decimal unit_price
-        integer sort_order
     }
 
     daily_records {
         uuid id PK
-        uuid hospitalization_id FK "NOT NULL"
-        date date "NOT NULL"
-        timestamptz created_at
-        timestamptz updated_at
+        uuid hospitalization_id FK
+        date date
     }
 
-    vital_records {
+    care_plan_items {
         uuid id PK
-        uuid daily_record_id FK "NOT NULL"
-        string time "NOT NULL"
-        decimal temperature
-        integer heart_rate
-        integer respiration_rate
-        decimal weight
-        text notes
-        uuid staff_id FK "REFERENCES staffs(id) ON DELETE SET NULL"
+        uuid hospitalization_id FK
+        care_plan_type type
+        uuid medicine_id FK
+        uuid procedure_id FK
+        uuid hospitalization_plan_id FK
+        care_plan_status status
     }
 
     care_log_records {
         uuid id PK
-        uuid daily_record_id FK "NOT NULL"
-        string time "NOT NULL"
-        care_log_type type "NOT NULL"
-        care_log_status status "NOT NULL"
-        string value
-        uuid staff_id FK "REFERENCES staffs(id) ON DELETE SET NULL"
-        text notes
+        uuid daily_record_id FK
+        care_log_type type
+        uuid staff_id FK
+    }
+
+    vital_records {
+        uuid id PK
+        uuid daily_record_id FK
+        text time
+        uuid staff_id FK
+        numeric temperature
     }
 
     staff_note_records {
         uuid id PK
-        uuid daily_record_id FK "NOT NULL"
-        string time "NOT NULL"
-        text content "NOT NULL"
-        uuid staff_id FK "REFERENCES staffs(id) ON DELETE SET NULL"
+        uuid daily_record_id FK
+        text time
+        uuid staff_id FK
+        text content
     }
 
     treatment_plans {
         uuid id PK
-        uuid hospitalization_id FK "NOT NULL"
-        text treatment_content "NOT NULL"
-        text memo
-        boolean insurance
-        decimal unit_price
-        integer quantity
-        decimal discount_rate
-        decimal discount_amount
-        decimal subtotal
-        integer sort_order
-    }
-
-    hospitalizations ||--o{ care_plan_items : "ケアプラン"
-    hospitalizations ||--o{ daily_records : "日次記録"
-    hospitalizations ||--o{ treatment_plans : "治療プラン"
-    hospitalizations }o--o| cages : "ケージ参照"
-    daily_records ||--o{ vital_records : "バイタル"
-    daily_records ||--o{ care_log_records : "ケアログ"
-    daily_records ||--o{ staff_note_records : "スタッフメモ"
-    care_plan_items }o--o| medicines : "投薬参照"
-    care_plan_items }o--o| procedures : "処置参照"
-    care_plan_items }o--o| hospitalization_plans : "入院プラン参照"
-```
-
----
-
-## 会計・トリミング サブシステム図
-
-```mermaid
-erDiagram
-    accountings {
-        uuid id PK
-        uuid medical_record_id FK "UNIQUE"
         uuid hospitalization_id FK
-        uuid owner_id FK "NOT NULL"
-        string owner_name "NOT NULL"
-        uuid pet_id FK "NOT NULL"
-        string pet_name "NOT NULL"
-        pet_species pet_species
-        accounting_status status
-        date scheduled_date "NOT NULL"
-        timestamptz completed_at
-        text memo
-    }
-
-    accounting_items {
-        uuid id PK
-        uuid accounting_id FK "NOT NULL"
-        string code
-        item_category category "NOT NULL"
-        string name "NOT NULL"
-        decimal unit_price "NOT NULL"
+        text treatment_content
+        numeric unit_price
         integer quantity
-        decimal tax_rate
-        boolean is_insurance_applicable
-        item_source source
-        integer sort_order
     }
 
-    payment_infos {
-        uuid id PK
-        uuid accounting_id FK "UNIQUE"
-        decimal subtotal "NOT NULL"
-        decimal tax_total "NOT NULL"
-        decimal total_amount "NOT NULL"
-        string insurance_name
-        decimal insurance_ratio
-        decimal insurance_amount
-        decimal discount_amount
-        decimal billing_amount "NOT NULL"
-        decimal received_amount
-        decimal change_amount
-        payment_method method
-    }
-
+    %% ===== トリミング =====
     trimming_records {
         uuid id PK
-        date date "NOT NULL"
-        uuid pet_id FK "NOT NULL"
-        string pet_number "NOT NULL"
-        string pet_name "NOT NULL"
-        string owner_name "NOT NULL"
-        pet_species species "NOT NULL"
-        string weight
-        text style_request
-        uuid staff_id FK "REFERENCES staffs(id) ON DELETE RESTRICT"
+        date date
+        uuid pet_id FK
+        uuid staff_id FK
+        uuid course_id FK
         trimming_status status
-        uuid course_id FK "REFERENCES trimming_courses(id) ON DELETE SET NULL"
-        string bw
-        body_weight_unit bw_unit
-        string bt
-        string used_shampoo
-        string used_ribbon
-        string remarks
-        text style_image
-        text completed_image
     }
 
     trimming_record_options {
         uuid id PK
-        uuid trimming_record_id FK "NOT NULL"
-        uuid option_id FK "NOT NULL REFERENCES trimming_options(id)"
-        integer sort_order
+        uuid trimming_record_id FK
+        uuid option_id FK
     }
 
-    accountings ||--o{ accounting_items : "明細"
-    accountings ||--|| payment_infos : "支払情報"
-    trimming_records ||--o{ trimming_record_options : "オプション(N:M)"
-    trimming_records }o--o| trimming_courses : "コース参照"
-    trimming_record_options }o--|| trimming_options : "オプション参照"
-```
-
----
-
-## スタッフ・シフト管理 図
-
-```mermaid
-erDiagram
-    staffs {
+    %% ===== 会計 =====
+    accountings {
         uuid id PK
-        string code
-        string name "NOT NULL"
-        string name_kana
-        staff_role role "NOT NULL"
-        string license_number
-        master_item_status status
-        integer sort_order
-        timestamptz created_at
-        timestamptz updated_at
+        uuid medical_record_id FK
+        uuid hospitalization_id FK
+        uuid owner_id FK
+        uuid pet_id FK
+        accounting_status status
+        date scheduled_date
     }
 
+    accounting_items {
+        uuid id PK
+        uuid accounting_id FK
+        item_category category
+        text name
+        numeric unit_price
+        integer quantity
+    }
+
+    payment_infos {
+        uuid id PK
+        uuid accounting_id FK
+        numeric total_amount
+        numeric billing_amount
+        payment_method method
+    }
+
+    %% ===== シフト =====
     shift_entries {
         uuid id PK
-        uuid staff_id FK "REFERENCES staffs(id) ON DELETE CASCADE"
-        date date "NOT NULL"
-        shift_type shift_type "NOT NULL"
-        string start_time
-        string end_time
-        string note
+        uuid staff_id FK
+        date date
+        shift_type shift_type
     }
 
-    user_accounts {
-        uuid id PK
-        string email UK "NOT NULL"
-        string display_name "NOT NULL"
-        string display_name_kana
-        user_type user_type "NOT NULL"
-        job_title job_title
-        account_status status
-        string avatar_url
-        uuid staff_id FK "REFERENCES staffs(id) ON DELETE SET NULL"
-    }
+    %% ===== リレーション =====
 
-    staffs ||--o{ shift_entries : "シフト"
-    staffs |o--o| user_accounts : "スタッフマスタ紐付け"
+    %% 認証
+    user_accounts ||--o{ user_clinic_memberships : "user_id"
+    user_accounts ||--o{ user_permissions : "user_id"
+    user_accounts }o--|| staffs : "staff_id"
+    user_permissions }o--|| user_accounts : "granted_by"
+    clinics ||--o{ user_clinic_memberships : "clinic_id"
+    clinics ||--o{ user_permissions : "clinic_id"
+
+    %% コア
+    owners ||--o{ pets : "owner_id"
+    insurances ||--o{ pets : "insurance_id"
+
+    %% マスタ
+    examination_types ||--o{ examination_type_items : "examination_type_id"
+    diagnosis_categories ||--o{ diagnosis_names : "diagnosis_category_id"
+    inventory_items ||--o{ medicines : "inventory_id"
+
+    %% 診療
+    owners ||--o{ medical_records : "owner_id"
+    pets ||--o{ medical_records : "pet_id"
+    staffs ||--o{ medical_records : "doctor_id"
+    diagnosis_categories ||--o{ medical_records : "diagnosis1_category_id"
+    diagnosis_categories ||--o{ medical_records : "diagnosis2_category_id"
+    diagnosis_names ||--o{ medical_records : "diagnosis1_name_id"
+    diagnosis_names ||--o{ medical_records : "diagnosis2_name_id"
+
+    medical_records ||--o{ treatment_items : "medical_record_id"
+    consultations ||--o{ treatment_items : "consultation_id"
+    procedures ||--o{ treatment_items : "procedure_id"
+    medicines ||--o{ treatment_items : "medicine_id"
+    inventory_items ||--o{ treatment_items : "inventory_id"
+
+    medical_records ||--o{ vital_entries : "medical_record_id"
+    staffs ||--o{ vital_entries : "staff_id"
+
+    medical_records ||--o{ examination_records : "medical_record_id"
+    pets ||--o{ examination_records : "pet_id"
+    examination_types ||--o{ examination_records : "examination_type_id"
+    staffs ||--o{ examination_records : "doctor_id"
+    examination_records ||--o{ examination_record_items : "examination_record_id"
+
+    medical_records ||--o{ vaccination_records : "medical_record_id"
+    pets ||--o{ vaccination_records : "pet_id"
+    vaccines ||--o{ vaccination_records : "vaccine_id"
+    staffs ||--o{ vaccination_records : "doctor_id"
+
+    medical_records ||--o{ checkup_records : "medical_record_id"
+    pets ||--o{ checkup_records : "pet_id"
+    checkup_types ||--o{ checkup_records : "checkup_type_id"
+    staffs ||--o{ checkup_records : "doctor_id"
+
+    medical_records ||--o| medical_inquiries : "medical_record_id"
+    staffs ||--o{ medical_inquiries : "staff_id"
+    medical_records ||--o{ medical_images : "medical_record_id"
+    examination_records ||--o{ medical_images : "examination_record_id"
+    staffs ||--o{ medical_images : "staff_id"
+    medical_records ||--o{ estimates : "medical_record_id"
+    owners ||--o{ estimates : "owner_id"
+    staffs ||--o{ estimates : "created_by"
+    estimates ||--o{ estimate_items : "estimate_id"
+    consultations ||--o{ estimate_items : "consultation_id"
+    procedures ||--o{ estimate_items : "procedure_id"
+    medicines ||--o{ estimate_items : "medicine_id"
+    medical_records ||--o| billing_confirmations : "medical_record_id"
+    staffs ||--o{ billing_confirmations : "confirmed_by"
+    staffs ||--o{ billing_confirmations : "returned_by"
+
+    %% 予約
+    pets ||--o{ reservation_appointments : "pet_id"
+    service_types ||--o{ reservation_appointments : "service_type_id"
+    staffs ||--o{ reservation_appointments : "doctor_id"
+
+    %% 入院
+    owners ||--o{ hospitalizations : "owner_id"
+    pets ||--o{ hospitalizations : "pet_id"
+    cages ||--o{ hospitalizations : "cage_id"
+    staffs ||--o{ hospitalizations : "doctor_id"
+
+    hospitalizations ||--o{ daily_records : "hospitalization_id"
+    hospitalizations ||--o{ care_plan_items : "hospitalization_id"
+    hospitalizations ||--o{ treatment_plans : "hospitalization_id"
+
+    daily_records ||--o{ care_log_records : "daily_record_id"
+    daily_records ||--o{ vital_records : "daily_record_id"
+    daily_records ||--o{ staff_note_records : "daily_record_id"
+
+    staffs ||--o{ care_log_records : "staff_id"
+    staffs ||--o{ vital_records : "staff_id"
+    staffs ||--o{ staff_note_records : "staff_id"
+
+    medicines ||--o{ care_plan_items : "medicine_id"
+    procedures ||--o{ care_plan_items : "procedure_id"
+    hospitalization_plans ||--o{ care_plan_items : "hospitalization_plan_id"
+
+    %% トリミング
+    pets ||--o{ trimming_records : "pet_id"
+    staffs ||--o{ trimming_records : "staff_id"
+    trimming_courses ||--o{ trimming_records : "course_id"
+    trimming_records ||--o{ trimming_record_options : "trimming_record_id"
+    trimming_options ||--o{ trimming_record_options : "option_id"
+
+    %% 会計
+    medical_records ||--o| accountings : "medical_record_id"
+    hospitalizations ||--o{ accountings : "hospitalization_id"
+    owners ||--o{ accountings : "owner_id"
+    pets ||--o{ accountings : "pet_id"
+    accountings ||--o{ accounting_items : "accounting_id"
+    accountings ||--|| payment_infos : "accounting_id"
+
+    %% シフト
+    staffs ||--o{ shift_entries : "staff_id"
 ```
 
 ---
 
-## 認証・認可 サブシステム図
+## ENUM型定義
 
-```mermaid
-erDiagram
-    clinics {
-        uuid id PK
-        string name "NOT NULL"
-        string branch_name
-        string postal_code
-        string address
-        string phone_number
-        string fax_number
-        string registration_number
-        string director_name
-        string email
-        string website
-        string logo_url
-        boolean is_active
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    clinic_info {
-        uuid id PK
-        string name "NOT NULL"
-        string name_kana
-        string postal_code
-        string address
-        string phone
-        string fax
-        string email
-        string website
-        string director_name
-        string registration_number
-        string logo_url
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    user_accounts {
-        uuid id PK
-        string email UK "NOT NULL"
-        string display_name "NOT NULL"
-        string display_name_kana
-        user_type user_type "NOT NULL"
-        job_title job_title
-        account_status status
-        string avatar_url
-        uuid staff_id FK "REFERENCES staffs(id) ON DELETE SET NULL"
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    user_clinic_memberships {
-        uuid id PK
-        uuid user_id FK "NOT NULL"
-        uuid clinic_id FK "NOT NULL"
-        boolean is_main
-        timestamptz joined_at
-    }
-
-    user_permissions {
-        uuid id PK
-        uuid user_id FK "NOT NULL"
-        uuid clinic_id FK "NOT NULL"
-        permission_type permission "NOT NULL"
-        uuid granted_by FK "REFERENCES user_accounts(id)"
-        timestamptz granted_at
-    }
-
-    user_accounts ||--o{ user_clinic_memberships : "クリニック所属"
-    clinics ||--o{ user_clinic_memberships : "所属メンバー"
-    user_accounts ||--o{ user_permissions : "権限"
-    clinics ||--o{ user_permissions : "権限スコープ"
-```
+| ENUM名 | 値 |
+|-------|----|
+| `account_status` | active, inactive, locked |
+| `appetite_level` | normal, increased, decreased, none |
+| `billing_confirmation_status` | pending, confirmed, returned |
+| `accounting_status` | waiting, completed, cancelled, pending |
+| `acquisition_type` | 購入, 譲渡, 保護, その他 |
+| `anesthesia_type` | none, local, general |
+| `billing_unit` | per_day, per_night |
+| `body_size` | small, medium, large |
+| `body_weight_unit` | Kg, g |
+| `cage_size` | small, medium, large |
+| `cage_type` | icu, dog, cat, general |
+| `care_log_status` | completed, partial, skipped |
+| `care_log_type` | food, excretion, medicine, treatment, other |
+| `care_plan_status` | active, completed, discontinued |
+| `care_plan_type` | food, medicine, treatment, instruction, item |
+| `combinable` | yes, no |
+| `coverage_rate` | 50, 70, 80, 100 |
+| `danger_level` | 低, 中, 高 |
+| `dosage_form` | tablet, liquid, injection, topical, powder |
+| `estimate_status` | draft, sent, approved, rejected |
+| `examination_result_status` | normal, high, low |
+| `examination_status` | 依頼中, 検査中, 完了 |
+| `hospitalization_status` | 入院中, 退院済, 予約 |
+| `hospitalization_type` | 入院, ホテル |
+| `inventory_category` | medicine, consumable, food, other |
+| `inventory_status` | sufficient, low, out_of_stock |
+| `item_category` | examination, test, procedure, surgery, medicine, food, goods, other |
+| `item_source` | medical_record, manual, hospitalization |
+| `job_title` | veterinarian, nurse, trimmer, reception, general_staff |
+| `master_status` | active, inactive |
+| `medical_image_type` | xray, echo, photo, endoscope, ct, mri, microscope, other |
+| `medical_record_status` | 作成中, 確定済 |
+| `medicine_unit` | per_tablet, per_ml, per_dose, per_gram |
+| `membership_type` | 非会員, 会員, 退亡者, 他診/準 |
+| `next_schedule_type` | 3weeks, 4weeks, 1year, other |
+| `payment_method` | cash, credit_card, electronic_money |
+| `permission_type` | account_admin, medical, medical_read, trimming, billing, reception, hospitalization, master_admin, shift_admin, inventory |
+| `pet_gender` | 雄, 雌, 不明 |
+| `pet_species` | 犬, 猫, 鳥, その他 |
+| `pet_status` | 生存, 死亡 |
+| `plan_timing` | morning, noon, night |
+| `reservation_status` | confirmed, pending, cancelled, checked_in, in_consultation, accounting, completed |
+| `shift_type` | full, morning, afternoon, off, paid_leave |
+| `staff_role` | veterinarian, nurse, trimmer, reception, manager |
+| `target_size` | small, medium, large, cat |
+| `treatment_item_type` | consultation, procedure, medicine, other |
+| `treatment_status` | 未完了, 完了, - |
+| `trimming_status` | 完了, 予約, 進行中 |
+| `user_type` | system_admin, clinic_admin, staff |
+| `vaccine_species` | dog, cat, both |
+| `visit_type` | first, revisit |
+| `water_intake_level` | normal, increased, decreased, none |
 
 ---
 
-## エンティティ一覧（詳細）
+## テーブル詳細
 
-### コアエンティティ
-
-| # | エンティティ | テーブル | 説明 |
-|---|------------|---------|------|
-| 1 | Owner | `owners` | 飼主（顧客）。住所2種類（会社/自宅）、割引率、会員種別 |
-| 2 | Pet | `pets` | ペット（患者）。種別・性別・ステータス・保険FKへ変更 |
-| 3 | MedicalRecord | `medical_records` | 電子カルテ。SOAPS形式対応。診断名最大2つ。doctor_id FK |
-| 4 | Hospitalization | `hospitalizations` | 入院/ホテル記録。cage_id FK・doctor_id FK正規化 |
-| 5 | Accounting | `accountings` | 会計レコード。カルテ/入院どちらからも生成可 |
-| 6 | ReservationAppointment | `reservation_appointments` | 予約。service_type_id FK・doctor_id FKへ正規化 |
-| 7 | TrimmingRecord | `trimming_records` | トリミング記録。staff_id FK・course_id FK正規化 |
-| 8 | ExaminationRecord | `examination_records` | 検査記録（院内/院外）。examination_type_id FK |
-| 9 | VaccinationRecord | `vaccination_records` | 予防接種記録。vaccine_id FK追加。LOT番号4つ対応 |
-| 10 | InventoryItem | `inventory_items` | 在庫品目 |
-| 11 | ClinicInfo | `clinic_info` | 病院情報（シングルトン） |
-
-### マスタエンティティ（専用テーブル・新規16テーブル）
-
-| # | エンティティ | テーブル | 説明 |
-|---|------------|---------|------|
-| 12 | ExaminationType | `examination_types` | 検査種別マスタ（院内/院外/血液等） |
-| 13 | ExaminationTypeItem | `examination_type_items` | 検査項目定義（正常値範囲・単位付き） |
-| 14 | Vaccine | `vaccines` | ワクチンマスタ（対象種・接種間隔） |
-| 15 | Medicine | `medicines` | 薬剤マスタ（剤形・単位・在庫連携FK） |
-| 16 | Staff | `staffs` | スタッフマスタ（業務情報のみ。認証はuser_accountsが担当） |
-| 17 | Insurance | `insurances` | 保険マスタ（補償率・連絡先） |
-| 18 | Cage | `cages` | ケージマスタ（タイプ・サイズ） |
-| 19 | ServiceType | `service_types` | サービス種別マスタ（予約区分・色・所要時間） |
-| 20 | Consultation | `consultations` | 診察マスタ（価格・時間条件） |
-| 21 | Procedure | `procedures` | 処置マスタ（価格・麻酔情報） |
-| 22 | HospitalizationPlan | `hospitalization_plans` | 入院プランマスタ（価格・課金単位・体格区分） |
-| 23 | TrimmingCourse | `trimming_courses` | トリミングコースマスタ（価格・対象サイズ） |
-| 24 | TrimmingOption | `trimming_options` | トリミングオプションマスタ（価格・併用可否） |
-| 25 | DiagnosisCategory | `diagnosis_categories` | 診断カテゴリマスタ |
-| 26 | DiagnosisName | `diagnosis_names` | 診断名マスタ（diagnosis_category_id FK） |
-| 27 | CheckupType | `checkup_types` | 健診種別マスタ |
-
-### 入院サブエンティティ
-
-| # | エンティティ | テーブル | 親 | 説明 |
-|---|------------|---------|-----|------|
-| 28 | CarePlanItem | `care_plan_items` | hospitalizations | ケアプラン項目。medicine_id/procedure_id/hospitalization_plan_id FK |
-| 29 | DailyRecord | `daily_records` | hospitalizations | 日次記録コンテナ（日付ごとにUNIQUE） |
-| 30 | VitalRecord | `vital_records` | daily_records | 入院バイタルサイン（時刻付き、staff_id FK） |
-| 31 | CareLogRecord | `care_log_records` | daily_records | ケアログ（食事/排泄/投薬等、staff_id FK） |
-| 32 | StaffNoteRecord | `staff_note_records` | daily_records | スタッフメモ（staff_id FK） |
-| 33 | TreatmentPlan | `treatment_plans` | hospitalizations | 入院治療プラン（入院費用計算に使用） |
-
-### 電子カルテサブエンティティ
-
-| # | エンティティ | テーブル | 親 | 説明 |
-|---|------------|---------|-----|------|
-| 34 | TreatmentItem | `treatment_items` | medical_records | 治療/処置項目。item_type追加、3専用FK正規化 |
-| 35 | VitalEntry | `vital_entries` | medical_records | カルテ内バイタル（staff_id FK） |
-| 36 | ExaminationRecordItem | `examination_record_items` | examination_records | 検査結果項目（正常値/異常値判定） |
-| 37 | CheckupRecord | `checkup_records` | medical_records | 定期健診記録（checkup_type_id FK） |
-
-### 会計サブエンティティ
-
-| # | エンティティ | テーブル | 親 | 説明 |
-|---|------------|---------|-----|------|
-| 38 | AccountingItem | `accounting_items` | accountings | 会計明細行（3ソース: カルテ/手動/入院） |
-| 39 | PaymentInfo | `payment_infos` | accountings | 支払情報（1:1）。保険負担内訳対応 |
-
-### トリミングサブエンティティ
-
-| # | エンティティ | テーブル | 親 | 説明 |
-|---|------------|---------|-----|------|
-| 40 | TrimmingRecordOption | `trimming_record_options` | trimming_records | トリミングオプション中間テーブル（N:M、option_id FK正規化） |
-
-### シフト管理エンティティ
-
-| # | エンティティ | テーブル | 説明 |
-|---|------------|---------|------|
-| 41 | ShiftEntry | `shift_entries` | シフトエントリ（staff_id FK正規化、UNIQUE: staff_id×date） |
-
-### 認証・認可エンティティ
-
-| # | エンティティ | テーブル | 説明 |
-|---|------------|---------|------|
-| 42 | Clinic | `clinics` | クリニック（マルチクリニック対応） |
-| 43 | UserAccount | `user_accounts` | ユーザーアカウント（認証の主エンティティ、staff_id FK） |
-| 44 | UserClinicMembership | `user_clinic_memberships` | ユーザー・クリニック所属（N:M中間テーブル） |
-| 45 | UserPermission | `user_permissions` | ユーザー権限（クリニックスコープ、10権限種別） |
-
-> テーブル総数: 45
+### 法人・医院
 
 ---
 
-## リレーション詳細
+#### `company`
 
-### コアリレーション
+用途: ノア動物病院の法人情報。システム全体で1件のみ存在するシングルトン。FK参照なし。
 
-| 親テーブル | 子テーブル | カラム名 | 削除動作 | 説明 |
-|-----------|-----------|---------|---------|------|
-| `owners` | `pets` | `pets.owner_id` | CASCADE | 1人の飼主が複数のペットを飼育 |
-| `insurances` | `pets` | `pets.insurance_id` | SET NULL | ペットへの保険マスタ参照 |
-| `pets` | `medical_records` | `medical_records.pet_id` | SET NULL | 1匹のペットに複数の診療記録 |
-| `pets` | `hospitalizations` | `hospitalizations.pet_id` | SET NULL | ペット削除後も入院記録を保持 |
-| `pets` | `trimming_records` | `trimming_records.pet_id` | RESTRICT | トリミング履歴を保全 |
-| `pets` | `reservation_appointments` | `reservation_appointments.pet_id` | SET NULL | 予約記録を保持 |
-| `pets` | `examination_records` | `examination_records.pet_id` | SET NULL | 検査記録を保持 |
-| `pets` | `vaccination_records` | `vaccination_records.pet_id` | SET NULL | 予防接種記録を保持 |
-| `pets` | `checkup_records` | `checkup_records.pet_id` | SET NULL | 健診記録を保持 |
-
-### カルテリレーション
-
-| 親テーブル | 子テーブル | カラム名 | 削除動作 | 説明 |
-|-----------|-----------|---------|---------|------|
-| `medical_records` | `treatment_items` | `treatment_items.medical_record_id` | CASCADE | カルテ削除で治療項目も削除 |
-| `medical_records` | `vital_entries` | `vital_entries.medical_record_id` | CASCADE | カルテ削除でバイタルも削除 |
-| `medical_records` | `examination_records` | `examination_records.medical_record_id` | CASCADE | カルテ削除で検査記録も削除 |
-| `medical_records` | `vaccination_records` | `vaccination_records.medical_record_id` | CASCADE | カルテ削除で予防接種記録も削除 |
-| `medical_records` | `checkup_records` | `checkup_records.medical_record_id` | CASCADE | カルテ削除で健診記録も削除 |
-| `medical_records` | `accountings` | `accountings.medical_record_id` | SET NULL | UNIQUE制約付き。カルテ→会計の連携 |
-| `examination_records` | `examination_record_items` | `examination_record_items.examination_record_id` | CASCADE | 検査記録削除で結果項目も削除 |
-
-### カルテ診断FK（diagnosis正規化）
-
-| 親テーブル | 子テーブル | カラム名 | 削除動作 | 説明 |
-|-----------|-----------|---------|---------|------|
-| `diagnosis_categories` | `medical_records` | `medical_records.diagnosis1_category_id` | SET NULL | 第1診断カテゴリ |
-| `diagnosis_names` | `medical_records` | `medical_records.diagnosis1_name_id` | SET NULL | 第1診断名 |
-| `diagnosis_categories` | `medical_records` | `medical_records.diagnosis2_category_id` | SET NULL | 第2診断カテゴリ |
-| `diagnosis_names` | `medical_records` | `medical_records.diagnosis2_name_id` | SET NULL | 第2診断名 |
-| `diagnosis_categories` | `diagnosis_names` | `diagnosis_names.diagnosis_category_id` | CASCADE | 診断カテゴリ→診断名の親子関係 |
-
-### カルテ担当医FK（doctor正規化）
-
-| 親テーブル | 子テーブル | カラム名 | 削除動作 | 説明 |
-|-----------|-----------|---------|---------|------|
-| `staffs` | `medical_records` | `medical_records.doctor_id` | SET NULL | カルテ担当医 |
-| `staffs` | `examination_records` | `examination_records.doctor_id` | SET NULL | 検査担当医 |
-| `staffs` | `vaccination_records` | `vaccination_records.doctor_id` | SET NULL | 予防接種担当医 |
-| `staffs` | `checkup_records` | `checkup_records.doctor_id` | SET NULL | 健診担当医 |
-| `staffs` | `vital_entries` | `vital_entries.staff_id` | SET NULL | バイタル記録スタッフ |
-| `staffs` | `hospitalizations` | `hospitalizations.doctor_id` | SET NULL | 入院担当医 |
-| `staffs` | `vital_records` | `vital_records.staff_id` | SET NULL | 入院バイタル記録スタッフ |
-| `staffs` | `care_log_records` | `care_log_records.staff_id` | SET NULL | ケアログ記録スタッフ |
-| `staffs` | `staff_note_records` | `staff_note_records.staff_id` | SET NULL | スタッフメモ記録者 |
-| `staffs` | `reservation_appointments` | `reservation_appointments.doctor_id` | SET NULL | 予約担当医 |
-| `staffs` | `trimming_records` | `trimming_records.staff_id` | RESTRICT | トリマー（実績保全のためRESTRICT） |
-| `staffs` | `shift_entries` | `shift_entries.staff_id` | CASCADE | シフトエントリのスタッフ参照 |
-
-### 治療項目FK（treatment_items正規化）
-
-| 親テーブル | 子テーブル | カラム名 | 削除動作 | 説明 |
-|-----------|-----------|---------|---------|------|
-| `consultations` | `treatment_items` | `treatment_items.consultation_id` | SET NULL | 診察マスタ参照 |
-| `procedures` | `treatment_items` | `treatment_items.procedure_id` | SET NULL | 処置マスタ参照 |
-| `medicines` | `treatment_items` | `treatment_items.medicine_id` | SET NULL | 薬剤マスタ参照 |
-| `inventory_items` | `treatment_items` | `treatment_items.inventory_id` | SET NULL | 在庫消費連動 |
-
-### ケアプランFK（care_plan_items正規化）
-
-| 親テーブル | 子テーブル | カラム名 | 削除動作 | 説明 |
-|-----------|-----------|---------|---------|------|
-| `hospitalizations` | `care_plan_items` | `care_plan_items.hospitalization_id` | CASCADE | 入院削除でケアプランも削除 |
-| `medicines` | `care_plan_items` | `care_plan_items.medicine_id` | SET NULL | 投薬計画の薬剤参照 |
-| `procedures` | `care_plan_items` | `care_plan_items.procedure_id` | SET NULL | 処置計画の処置参照 |
-| `hospitalization_plans` | `care_plan_items` | `care_plan_items.hospitalization_plan_id` | SET NULL | 入院プランマスタ参照 |
-
-### 入院サブリレーション
-
-| 親テーブル | 子テーブル | カラム名 | 削除動作 | 説明 |
-|-----------|-----------|---------|---------|------|
-| `cages` | `hospitalizations` | `hospitalizations.cage_id` | SET NULL | ケージマスタ参照 |
-| `hospitalizations` | `daily_records` | `daily_records.hospitalization_id` | CASCADE | 入院削除で日次記録も削除 |
-| `hospitalizations` | `treatment_plans` | `treatment_plans.hospitalization_id` | CASCADE | 入院削除で治療プランも削除 |
-| `hospitalizations` | `accountings` | `accountings.hospitalization_id` | SET NULL | 入院→会計の連携 |
-| `daily_records` | `vital_records` | `vital_records.daily_record_id` | CASCADE | 日次記録削除でバイタルも削除 |
-| `daily_records` | `care_log_records` | `care_log_records.daily_record_id` | CASCADE | 日次記録削除でケアログも削除 |
-| `daily_records` | `staff_note_records` | `staff_note_records.daily_record_id` | CASCADE | 日次記録削除でメモも削除 |
-
-### マスタ参照リレーション
-
-| 親テーブル | 子テーブル | カラム名 | 削除動作 | 説明 |
-|-----------|-----------|---------|---------|------|
-| `examination_types` | `examination_records` | `examination_records.examination_type_id` | SET NULL | 検査種別参照 |
-| `examination_types` | `examination_type_items` | `examination_type_items.examination_type_id` | CASCADE | 検査項目定義 |
-| `vaccines` | `vaccination_records` | `vaccination_records.vaccine_id` | SET NULL | ワクチン参照 |
-| `medicines` | `inventory_items` | `medicines.inventory_id` | SET NULL | 薬剤→在庫連携 |
-| `checkup_types` | `checkup_records` | `checkup_records.checkup_type_id` | SET NULL | 健診種別参照 |
-| `service_types` | `reservation_appointments` | `reservation_appointments.service_type_id` | SET NULL | 予約サービス種別 |
-| `trimming_courses` | `trimming_records` | `trimming_records.course_id` | SET NULL | トリミングコース参照 |
-| `trimming_options` | `trimming_record_options` | `trimming_record_options.option_id` | RESTRICT | オプション参照（使用中は削除不可） |
-| `trimming_records` | `trimming_record_options` | `trimming_record_options.trimming_record_id` | CASCADE | オプション中間テーブル |
-
-### 認証・認可リレーション
-
-| 親テーブル | 子テーブル | カラム名 | 削除動作 | 説明 |
-|-----------|-----------|---------|---------|------|
-| `staffs` | `user_accounts` | `user_accounts.staff_id` | SET NULL | スタッフマスタとアカウントの紐付け |
-| `user_accounts` | `user_clinic_memberships` | `user_clinic_memberships.user_id` | CASCADE | ユーザー削除で所属も削除 |
-| `clinics` | `user_clinic_memberships` | `user_clinic_memberships.clinic_id` | CASCADE | クリニック削除で所属も削除 |
-| `user_accounts` | `user_permissions` | `user_permissions.user_id` | CASCADE | ユーザー削除で権限も削除 |
-| `clinics` | `user_permissions` | `user_permissions.clinic_id` | CASCADE | クリニック削除で権限も削除 |
-
-### UNIQUE制約一覧
-
-| テーブル | UNIQUE制約 | 説明 |
-|---------|-----------|------|
-| `medical_records` | `record_no` | カルテ番号のグローバル一意性 |
-| `accountings` | `medical_record_id` | カルテ1件につき会計1件 |
-| `payment_infos` | `accounting_id` | 会計1件につき支払情報1件 |
-| `daily_records` | `(hospitalization_id, date)` | 同一入院の同日重複を防止 |
-| `shift_entries` | `(staff_id, date)` | 同一スタッフの同日重複を防止 |
-| `trimming_record_options` | `(trimming_record_id, option_id)` | 同一オプションの重複選択を防止 |
-| `user_clinic_memberships` | `(user_id, clinic_id)` | 同一ユーザーの同一クリニック重複を防止 |
-| `user_accounts` | `email` | メールアドレスの一意性 |
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| name | text | NO | | 法人名 |
+| branch_name | text | YES | '' | 支店名 |
+| postal_code | text | YES | '' | 郵便番号 |
+| address | text | YES | '' | 住所 |
+| phone_number | text | YES | '' | 電話番号 |
+| fax_number | text | YES | '' | FAX番号 |
+| registration_number | text | YES | '' | 登録番号 |
+| director_name | text | YES | '' | 院長名 |
+| email | text | YES | '' | メールアドレス |
+| website | text | YES | '' | ウェブサイトURL |
+| logo_url | text | YES | '' | ロゴ画像URL |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
 
 ---
 
-## ENUM型一覧
+#### `clinics`
 
-### グローバルENUM型
+用途: 各医院（八王子医院・城東医院・敷島医院等）の情報。ユーザーの所属・権限管理で参照される。
 
-| ENUM型 | 値 | 用途 |
-|--------|-----|------|
-| `pet_species` | dog, cat, bird, other | ペット種別 |
-| `pet_status` | alive, deceased | ペット状態 |
-| `medical_record_status` | draft, confirmed | カルテステータス |
-| `hospitalization_type` | hospitalization, hotel | 入院区分 |
-| `hospitalization_status` | admitted, discharged, reserved | 入院ステータス |
-| `care_plan_type` | food, medicine, treatment, instruction, item | ケアプラン種別 |
-| `care_plan_status` | active, completed, discontinued | ケアプランステータス |
-| `care_log_type` | food, excretion, medicine, treatment, other | ケアログ種別 |
-| `care_log_status` | completed, partial, skipped | ケアログステータス |
-| `plan_timing` | morning, noon, night | 実施タイミング |
-| `reservation_status` | confirmed, pending, cancelled, checked_in, in_consultation, accounting, completed | 予約ステータス（7種） |
-| `visit_type` | first, revisit | 来院種別 |
-| `trimming_status` | completed, reserved, in_progress | トリミングステータス |
-| `examination_status` | requested, in_progress, completed | 検査ステータス |
-| `master_item_status` | active, inactive | マスタ有効性（全専用マスタ共通） |
-| `inventory_category` | medicine, consumable, food, other | 在庫カテゴリ |
-| `inventory_status` | sufficient, low, out_of_stock | 在庫ステータス |
-| `treatment_item_type` | consultation, procedure, medicine, other | 治療項目種別（新規） |
-
-### Feature固有ENUM型
-
-| ENUM型 | 値 | 用途 |
-|--------|-----|------|
-| `pet_gender` | male, female, unknown | ペット性別 |
-| `acquisition_type` | purchase, transfer, rescue, other | ペット入手経路 |
-| `danger_level` | low, medium, high | 危険度 |
-| `membership_type` | non_member, member, deceased, other | 会員種別 |
-| `accounting_status` | waiting, completed, cancelled, pending | 会計ステータス |
-| `payment_method` | cash, credit_card, electronic_money | 支払方法 |
-| `item_category` | examination, test, procedure, surgery, medicine, food, goods, other | 会計品目カテゴリ |
-| `item_source` | medical_record, manual, hospitalization | 会計品目ソース |
-| `treatment_status` | incomplete, completed | 治療ステータス |
-| `next_schedule_type` | 3weeks, 4weeks, 1year, other | 次回接種間隔 |
-| `examination_result_status` | normal, high, low | 検査結果状態 |
-| `vaccine_species` | dog, cat, both | 予防接種対象種 |
-| `dosage_form` | tablet, liquid, injection, topical, powder | 剤形 |
-| `medicine_unit` | per_tablet, per_ml, per_dose, per_gram | 薬剤単位 |
-| `staff_role` | veterinarian, nurse, trimmer, reception, manager | スタッフロール |
-| `cage_type` | icu, dog, cat, general | ケージタイプ |
-| `cage_size` | small, medium, large | ケージサイズ |
-| `coverage_rate` | 50, 70, 80, 100 | 保険補償率 |
-| `target_size` | small, medium, large, cat | トリミング対象サイズ |
-| `combinable` | yes, no | トリミング併用可否 |
-| `body_size` | small, medium, large | 入院体格区分 |
-| `billing_unit` | per_day, per_night | 入院課金単位 |
-| `body_weight_unit` | kg, g | 体重単位 |
-| `shift_type` | full, morning, afternoon, off, paid_leave | シフト種別 |
-| `anesthesia_type` | none, local, general | 麻酔種別（新規） |
-
-### 認証・認可ENUM型
-
-| ENUM型 | 値 | 用途 |
-|--------|-----|------|
-| `user_type` | system_admin, clinic_admin, staff | ユーザー種別（3層モデル） |
-| `job_title` | veterinarian, nurse, trimmer, reception, general_staff | 職種 |
-| `permission_type` | account_admin, medical, medical_read, trimming, billing, reception, hospitalization, master_admin, shift_admin, inventory | 権限種別（10種） |
-| `account_status` | active, inactive, locked | アカウントステータス |
-
-### 廃止ENUM型
-
-| ENUM型 | 廃止理由 |
-|--------|---------|
-| `master_category` | `master_items`（STI）廃止に伴い削除。各マスタテーブルに専用フィールドで代替 |
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| name | text | NO | | 医院名 |
+| branch_name | text | YES | '' | 支店名 |
+| postal_code | text | YES | '' | 郵便番号 |
+| address | text | YES | '' | 住所 |
+| phone_number | text | YES | '' | 電話番号 |
+| fax_number | text | YES | '' | FAX番号 |
+| registration_number | text | YES | '' | 登録番号 |
+| director_name | text | YES | '' | 院長名 |
+| email | text | YES | '' | メールアドレス |
+| website | text | YES | '' | ウェブサイトURL |
+| logo_url | text | YES | '' | ロゴ画像URL |
+| is_active | boolean | YES | true | 有効フラグ |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
 
 ---
 
-## インデックス設計
-
-| テーブル | インデックス対象カラム | 用途 |
-|---------|---------------------|------|
-| `pets` | `owner_id`, `species`, `name`, `insurance_id` | 飼主別ペット取得、種別検索、保険絞り込み |
-| `medical_records` | `pet_id`, `owner_id`, `date DESC`, `status`, `doctor_id` | ペット別カルテ、日付降順一覧、担当医絞り込み |
-| `hospitalizations` | `pet_id`, `status`, `start_date DESC`, `cage_id`, `doctor_id` | 入院中絞り込み、ケージ・担当医検索 |
-| `reservation_appointments` | `start_time`, `status`, `pet_id`, `service_type_id`, `doctor_id` | カレンダー表示、担当医・種別絞り込み |
-| `trimming_records` | `pet_id`, `date DESC`, `status`, `staff_id`, `course_id` | トリミング履歴、スタッフ・コース絞り込み |
-| `accountings` | `owner_id`, `pet_id`, `status`, `scheduled_date DESC` | 会計一覧 |
-| `treatment_items` | `medical_record_id`, `item_type`, `medicine_id` | カルテ治療項目、薬剤参照 |
-| `vital_entries` | `medical_record_id`, `staff_id` | バイタルグラフ、スタッフ別 |
-| `examination_records` | `medical_record_id`, `pet_id`, `examination_type_id`, `doctor_id` | 検査履歴、種別・担当医絞り込み |
-| `vaccination_records` | `medical_record_id`, `pet_id`, `vaccine_id`, `doctor_id` | 予防接種履歴、ワクチン別 |
-| `checkup_records` | `medical_record_id`, `pet_id`, `checkup_type_id`, `doctor_id` | 健診履歴、種別別 |
-| `care_plan_items` | `hospitalization_id`, `medicine_id`, `procedure_id` | ケアプラン参照 |
-| `vital_records` | `daily_record_id`, `staff_id` | 入院バイタル |
-| `care_log_records` | `daily_record_id`, `staff_id`, `type` | ケアログ種別絞り込み |
-| `staff_note_records` | `daily_record_id`, `staff_id` | メモ検索 |
-| `shift_entries` | `staff_id`, `date` | シフトカレンダー表示 |
-| `staffs` | `role`, `status` | スタッフロール絞り込み |
-| `examination_types` | `status` | 有効検査種別一覧 |
-| `examination_type_items` | `examination_type_id` | 検査項目一覧 |
-| `vaccines` | `species`, `status` | ワクチン種別絞り込み |
-| `medicines` | `status`, `inventory_id` | 薬剤一覧、在庫連携確認 |
-| `diagnosis_names` | `diagnosis_category_id`, `status` | カテゴリ別診断名一覧 |
-| `inventory_items` | `category`, `status` | 在庫カテゴリ絞り込み |
-| `user_accounts` | `email`, `user_type`, `status`, `staff_id` | 認証・権限確認、スタッフ紐付け |
-| `user_clinic_memberships` | `clinic_id`, `user_id` | クリニック所属確認 |
-| `user_permissions` | `clinic_id`, `user_id`, `permission` | 権限確認 |
+### 認証
 
 ---
 
-## データフロー概要
+#### `user_accounts`
 
-```
-  ┌──────────────────────────────────────────────────────────┐
-  │                   専用マスタテーブル群                    │
-  │                                                          │
-  │  examination_types  vaccines  medicines  staffs          │
-  │  consultations  procedures  hospitalization_plans        │
-  │  trimming_courses  trimming_options  cages               │
-  │  service_types  insurances  checkup_types                │
-  │  diagnosis_categories  diagnosis_names                   │
-  └─────────────┬──────────────┬──────────────┬─────────────┘
-                │ FK参照       │ FK参照       │ FK参照
-                ▼              ▼              ▼
-  ┌─────────────────┐  ┌──────────────┐  ┌──────────────┐
-  │ treatment_items │  │care_plan_items│  │inventory_items│
-  │ (カルテ治療)    │  │(入院ケア)    │  │(在庫管理)    │
-  └────────┬────────┘  └──────┬───────┘  └──────────────┘
-           │                  │                ▲
-           │                  │         consumeStock
-           ▼                  ▼
-  ┌──────────────────┐  ┌──────────────────┐
-  │  medical_records │  │  hospitalizations │
-  │  (電子カルテ)    │  │  (入院管理)      │
-  └────────┬─────────┘  └──────┬───────────┘
-           │  1:0..1           │ 1:N
-           ▼                   ▼
-  ┌──────────────────┐  ┌──────────────────┐
-  │    accountings   │  │   daily_records  │
-  │    (会計)        │  │  (日次記録)      │
-  └────────┬─────────┘  └──────────────────┘
-           │
-           ▼
-  ┌──────────────────┐
-  │   payment_infos  │
-  │   (支払情報)     │
-  └──────────────────┘
+用途: システムへのログインアカウント。staffsと1対1で紐づく（任意）。
 
-  owners 1:N ──▶ pets 1:N ──▶ medical_records
-                          ├──▶ hospitalizations
-                          ├──▶ trimming_records
-                          ├──▶ reservation_appointments
-                          ├──▶ examination_records
-                          ├──▶ vaccination_records
-                          └──▶ checkup_records
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| email | text | NO | | メールアドレス（UNIQUE） |
+| display_name | text | NO | | 表示名 |
+| display_name_kana | text | YES | '' | 表示名カナ |
+| user_type | user_type | NO | 'staff' | ユーザー種別 |
+| job_title | job_title | YES | | 職種 |
+| status | account_status | YES | 'active' | アカウント状態 |
+| avatar_url | text | YES | '' | アバター画像URL |
+| staff_id | uuid | YES | | staffs.id FK |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
 
-  staffs ──▶ medical_records.doctor_id
-         ──▶ examination_records.doctor_id
-         ──▶ vaccination_records.doctor_id
-         ──▶ checkup_records.doctor_id
-         ──▶ hospitalizations.doctor_id
-         ──▶ reservation_appointments.doctor_id
-         ──▶ trimming_records.staff_id
-         ──▶ vital_entries.staff_id
-         ──▶ vital_records.staff_id
-         ──▶ care_log_records.staff_id
-         ──▶ staff_note_records.staff_id
-         ──▶ shift_entries.staff_id
-```
+**FK:** `staff_id` → `staffs.id` (SET NULL)
 
 ---
 
-## 設計変更の判断理由
+#### `user_clinic_memberships`
 
-### STI（Single Table Inheritance）廃止の理由
+用途: ユーザーの医院所属。1ユーザーが複数医院に所属可能。is_main=trueは各ユーザーにつき1件のみ。
 
-v4.0 では `master_items` テーブルに15カテゴリを `category` カラムで区別するSTIパターンを採用していた。廃止の理由は以下の通り。
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| user_id | uuid | NO | | user_accounts.id FK |
+| clinic_id | uuid | NO | | clinics.id FK |
+| is_main | boolean | YES | false | 主所属医院フラグ |
+| joined_at | timestamptz | YES | now() | 所属開始日時 |
 
-| 問題点 | 詳細 |
-|--------|------|
-| カラムの肥大化 | カテゴリ固有フィールドが全てNULLABLE。50以上のカラムのうち、各カテゴリが使用するのは一部のみ |
-| FK型安全性の欠如 | `cage_id UUID REFERENCES master_items(id)` では、誤ってvaccineのIDを設定してもDBレベルで防げない |
-| クエリの複雑性 | 常に `WHERE category = 'xxx'` が必要。インデックスも複合インデックス必須 |
-| 型システムとの乖離 | 各カテゴリは実質的に別エンティティであり、同一テーブルに収める設計上のメリットがない |
+**FK:**
+- `user_id` → `user_accounts.id` (CASCADE)
+- `clinic_id` → `clinics.id` (CASCADE)
 
-専用マスタテーブルへの分離により、各テーブルは自身のドメインに必要なカラムのみを持つ。FKも型安全になる（`cage_id REFERENCES cages(id)` はケージ以外を参照できない）。
+**インデックス:**
+- `(user_id, clinic_id)` UNIQUE
+- `(user_id) WHERE is_main = true` UNIQUE（部分インデックス）
 
-### self-referencing parent_id 廃止の理由
+---
 
-v4.0 では `master_items.parent_id = master_items.id` で診断カテゴリ→診断名の親子関係を表現していた。廃止の理由は以下の通り。
+#### `user_permissions`
 
-| 問題点 | 詳細 |
-|--------|------|
-| 意図の不明確さ | `parent_id` がある場合とない場合でレコードの意味が変わる。カテゴリなのか診断名なのかをコードで判断する必要がある |
-| カテゴリ混在リスク | 誤ったカテゴリのIDを `parent_id` に設定してもDBレベルで防げない |
-| JOINの複雑性 | 自己JOINが必要になり、ORMでの扱いが煩雑 |
+用途: ユーザーの医院別権限。医院ごとに複数の権限を付与可能。
 
-`diagnosis_categories` と `diagnosis_names` を分離し、`diagnosis_names.diagnosis_category_id REFERENCES diagnosis_categories(id)` とすることで、意図が明確になり型安全性も向上する。
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| user_id | uuid | NO | | user_accounts.id FK |
+| clinic_id | uuid | NO | | clinics.id FK |
+| permission | permission_type | NO | | 権限種別 |
+| granted_by | uuid | YES | | 付与者 user_accounts.id FK |
+| granted_at | timestamptz | YES | now() | 付与日時 |
 
-### care_plan_itemsのポリモーフィック参照解消
+**FK:**
+- `user_id` → `user_accounts.id` (CASCADE)
+- `clinic_id` → `clinics.id` (CASCADE)
+- `granted_by` → `user_accounts.id` (SET NULL)
 
-v4.0 では `care_plan_items.master_id UUID REFERENCES master_items(id)` で投薬/処置/入院プランの参照を単一FKで管理していた。
+---
 
-専用マスタテーブルへの分離に伴い、`medicine_id`, `procedure_id`, `hospitalization_plan_id` の3専用FKに分離した。各カラムはNULLABLEで、`care_plan_type` に応じて使用するFKが決まる。これにより、どのマスタを参照しているかがカラム名から明確になる。
+### コア
 
-### doctor TEXTフィールドの全面FK化
+---
 
-v4.0 では `medical_records.doctor TEXT`, `examination_records.doctor TEXT` 等、スタッフ名を文字列で直接保存していた。問題点は以下の通り。
+#### `owners`
 
-| 問題点 | 詳細 |
-|--------|------|
-| 名前変更非対応 | スタッフ名が変わった場合、過去の記録が自動更新されない |
-| 集計不可 | 担当医別の統計を取る際、名前の表記ゆれで集計が壊れる |
-| 参照整合性なし | 存在しないスタッフ名でも保存できてしまう |
+用途: ペットの飼い主情報。
 
-`staffs` テーブルを独立させ、全doctor/staff TEXTフィールドを `staff_id UUID REFERENCES staffs(id)` に変更した。削除動作は `SET NULL` とし、スタッフ削除後も記録を保持する（trimming_records のみ実績保全のため `RESTRICT`）。
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| owner_name | text | NO | | 飼い主名 |
+| owner_name_kana | text | YES | '' | 飼い主名カナ |
+| company | text | YES | '' | 会社名 |
+| postal_code | text | YES | '' | 郵便番号（会社） |
+| address1 | text | YES | '' | 住所1（会社） |
+| address2 | text | YES | '' | 住所2（会社） |
+| home_postal_code | text | YES | '' | 郵便番号（自宅） |
+| home_address1 | text | YES | '' | 住所1（自宅） |
+| home_address2 | text | YES | '' | 住所2（自宅） |
+| phone | text | YES | '' | 電話番号 |
+| company_phone | text | YES | '' | 会社電話番号 |
+| email | text | YES | '' | メールアドレス |
+| remarks | text | YES | '' | 備考 |
+| is_dangerous | boolean | YES | false | 危険フラグ |
+| discount_rate | numeric | YES | 0 | 割引率 |
+| membership_type | membership_type | YES | '非会員' | 会員種別 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
 
-### トレードオフ
+---
 
-| 変更 | メリット | デメリット |
-|------|---------|-----------|
-| STI廃止 | 型安全性向上、クエリ簡素化 | テーブル数増加（+16）、マイグレーション複雑 |
-| 専用FK | 参照整合性強化 | 旧TEXT値の移行コスト |
-| ポリモーフィック解消 | 意図明確化 | NULLABLEカラム増加 |
+#### `pets`
 
-> テーブル総数: 45
+用途: ペット情報。飼い主（owners）に属する。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| owner_id | uuid | NO | | owners.id FK |
+| pet_number | text | YES | '' | ペット番号 |
+| name | text | NO | | ペット名 |
+| pet_name_kana | text | YES | '' | ペット名カナ |
+| species | pet_species | NO | | 動物種別 |
+| gender | pet_gender | YES | '不明' | 性別 |
+| status | pet_status | YES | '生存' | 生存状態 |
+| birth_date | date | YES | | 誕生日 |
+| breed | text | YES | '' | 品種 |
+| color | text | YES | '' | 毛色 |
+| weight | text | YES | '' | 体重 |
+| neutered_date | date | YES | | 去勢・避妊手術日 |
+| acquisition_type | acquisition_type | YES | | 取得区分 |
+| danger_level | danger_level | YES | '低' | 危険度 |
+| food | text | YES | '' | 食事内容 |
+| environment | text | YES | '' | 飼育環境 |
+| phone | text | YES | '' | ペット専用電話 |
+| last_visit | date | YES | | 最終来院日 |
+| insurance_id | uuid | YES | | insurances.id FK |
+| insurance_name | text | YES | '' | 保険名スナップショット |
+| insurance_details | text | YES | '' | 保険詳細 |
+| remarks | text | YES | '' | 備考 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:**
+- `owner_id` → `owners.id` (CASCADE)
+- `insurance_id` → `insurances.id` (SET NULL)
+
+---
+
+### マスタ
+
+---
+
+#### `staffs`
+
+用途: スタッフ（獣医師・看護師・トリマー等）のマスタ。認証情報は持たず user_accounts と別管理。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| code | text | YES | '' | スタッフコード |
+| name | text | NO | | スタッフ名 |
+| status | master_status | YES | 'active' | 状態 |
+| staff_role | staff_role | NO | | 役割 |
+| license_number | text | YES | '' | 免許番号 |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+---
+
+#### `inventory_items`
+
+用途: 在庫アイテム。薬剤マスタ（medicines）から参照される。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| name | text | NO | | 品目名 |
+| category | inventory_category | NO | | カテゴリ |
+| quantity | integer | YES | 0 | 在庫数量 |
+| unit | text | NO | '' | 単位 |
+| min_stock_level | integer | YES | 0 | 最低在庫数 |
+| location | text | YES | '' | 保管場所 |
+| expiry_date | date | YES | | 有効期限 |
+| supplier | text | YES | '' | 仕入先 |
+| last_restocked | date | YES | | 最終補充日 |
+| status | inventory_status | YES | 'sufficient' | 在庫状態 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+---
+
+#### `examination_types`
+
+用途: 検査種別マスタ（血液検査・尿検査等）。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| code | text | YES | '' | コード |
+| name | text | NO | | 検査種別名 |
+| price | numeric | YES | | 価格 |
+| status | master_status | YES | 'active' | 状態 |
+| description | text | YES | '' | 説明 |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+---
+
+#### `examination_type_items`
+
+用途: 検査種別に属する検査項目定義（検査結果のテンプレート）。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| examination_type_id | uuid | NO | | examination_types.id FK |
+| name | text | NO | | 検査項目名 |
+| inspection_value | text | YES | '' | 検査値（テンプレート） |
+| normal_value | text | YES | '' | 正常値 |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+
+**FK:** `examination_type_id` → `examination_types.id` (CASCADE)
+
+---
+
+#### `vaccines`
+
+用途: ワクチンマスタ。動物種別・接種間隔を管理。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| code | text | YES | '' | コード |
+| name | text | NO | | ワクチン名 |
+| price | numeric | YES | | 価格 |
+| status | master_status | YES | 'active' | 状態 |
+| description | text | YES | '' | 説明 |
+| species | vaccine_species | YES | | 対象動物種 |
+| interval | text | YES | '' | 接種間隔 |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+---
+
+#### `medicines`
+
+用途: 薬剤マスタ。在庫アイテム（inventory_items）と紐づく。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| code | text | YES | '' | コード |
+| name | text | NO | | 薬剤名 |
+| price | numeric | YES | | 価格 |
+| status | master_status | YES | 'active' | 状態 |
+| description | text | YES | '' | 説明 |
+| dosage_form | dosage_form | YES | | 剤形 |
+| medicine_unit | medicine_unit | YES | | 単位 |
+| inventory_id | uuid | YES | | inventory_items.id FK |
+| default_quantity | integer | YES | 1 | デフォルト数量 |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:** `inventory_id` → `inventory_items.id` (SET NULL)
+
+---
+
+#### `insurances`
+
+用途: 保険マスタ。保険種別・補償率を管理。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| code | text | YES | '' | コード |
+| name | text | NO | | 保険名 |
+| status | master_status | YES | 'active' | 状態 |
+| description | text | YES | '' | 説明 |
+| coverage_rate | coverage_rate | YES | | 補償率 |
+| contact_phone | text | YES | '' | 問い合わせ電話番号 |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+---
+
+#### `cages`
+
+用途: ケージマスタ。入院・ホテルで使用するケージの種別・サイズを管理。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| code | text | YES | '' | コード |
+| name | text | NO | | ケージ名 |
+| price | numeric | YES | | 価格 |
+| status | master_status | YES | 'active' | 状態 |
+| description | text | YES | '' | 説明 |
+| cage_type | cage_type | NO | | ケージ種別 |
+| cage_size | cage_size | NO | | ケージサイズ |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+---
+
+#### `service_types`
+
+用途: サービス種別マスタ（予約に使用）。表示色を保持。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| code | text | YES | '' | コード |
+| name | text | NO | | サービス種別名 |
+| status | master_status | YES | 'active' | 状態 |
+| description | text | YES | '' | 説明 |
+| color | text | YES | '#3B82F6' | 表示色（HEX） |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+---
+
+#### `consultations`
+
+用途: 診察項目マスタ（初診・再診・往診等）。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| code | text | YES | '' | コード |
+| name | text | NO | | 診察項目名 |
+| price | numeric | YES | | 価格 |
+| status | master_status | YES | 'active' | 状態 |
+| description | text | YES | '' | 説明 |
+| time_condition | text | YES | '' | 時間条件 |
+| duration | text | YES | '' | 所要時間 |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+---
+
+#### `procedures`
+
+用途: 処置項目マスタ（手術・注射・処置等）。麻酔種別を保持。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| code | text | YES | '' | コード |
+| name | text | NO | | 処置項目名 |
+| price | numeric | YES | | 価格 |
+| status | master_status | YES | 'active' | 状態 |
+| description | text | YES | '' | 説明 |
+| duration | text | YES | '' | 所要時間 |
+| anesthesia | anesthesia_type | YES | 'none' | 麻酔種別 |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+---
+
+#### `hospitalization_plans`
+
+用途: 入院プランマスタ。体格・課金単位（1泊/1日）を管理。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| code | text | YES | '' | コード |
+| name | text | NO | | プラン名 |
+| price | numeric | YES | | 価格 |
+| status | master_status | YES | 'active' | 状態 |
+| description | text | YES | '' | 説明 |
+| body_size | body_size | YES | | 体格区分 |
+| billing_unit | billing_unit | YES | 'per_day' | 課金単位 |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+---
+
+#### `trimming_courses`
+
+用途: トリミングコースマスタ。対象サイズ・所要時間を管理。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| code | text | YES | '' | コード |
+| name | text | NO | | コース名 |
+| price | numeric | YES | | 価格 |
+| status | master_status | YES | 'active' | 状態 |
+| description | text | YES | '' | 説明 |
+| target_size | target_size | YES | | 対象サイズ |
+| duration | text | YES | '' | 所要時間 |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+---
+
+#### `trimming_options`
+
+用途: トリミングオプションマスタ（シャンプー・カット等の追加オプション）。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| code | text | YES | '' | コード |
+| name | text | NO | | オプション名 |
+| price | numeric | YES | | 価格 |
+| status | master_status | YES | 'active' | 状態 |
+| description | text | YES | '' | 説明 |
+| duration | text | YES | '' | 追加所要時間 |
+| combinable | combinable | YES | 'yes' | 組み合わせ可否 |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+---
+
+#### `diagnosis_categories`
+
+用途: 診断カテゴリマスタ（消化器・循環器等）。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| code | text | YES | '' | コード |
+| name | text | NO | | カテゴリ名 |
+| status | master_status | YES | 'active' | 状態 |
+| description | text | YES | '' | 説明 |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+---
+
+#### `diagnosis_names`
+
+用途: 診断名マスタ。診断カテゴリに属する具体的な診断名。self-referencing廃止・明示的FK採用。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| code | text | YES | '' | コード |
+| name | text | NO | | 診断名 |
+| status | master_status | YES | 'active' | 状態 |
+| description | text | YES | '' | 説明 |
+| diagnosis_category_id | uuid | NO | | diagnosis_categories.id FK |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:** `diagnosis_category_id` → `diagnosis_categories.id` (CASCADE)
+
+---
+
+#### `checkup_types`
+
+用途: 健診種別マスタ（定期健診・シニア健診等）。間隔・対象年齢を管理。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| code | text | YES | '' | コード |
+| name | text | NO | | 健診種別名 |
+| price | numeric | YES | | 価格 |
+| status | master_status | YES | 'active' | 状態 |
+| description | text | YES | '' | 説明 |
+| interval | text | YES | '' | 推奨間隔 |
+| target_age | text | YES | '' | 対象年齢 |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+---
+
+### 診療
+
+---
+
+#### `medical_records`
+
+用途: カルテ（診療記録）。1回の来院に対し1件作成。record_noはUNIQUE。
+
+> ⚠️ `chief_complaint`（主訴）は v7.0 で `medical_inquiries.chief_complaint` に移動。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| record_no | text | NO | | カルテ番号（UNIQUE） |
+| date | date | NO | | 診療日 |
+| owner_id | uuid | YES | | owners.id FK |
+| owner_name | text | NO | '' | 飼い主名スナップショット |
+| pet_id | uuid | YES | | pets.id FK |
+| pet_name | text | NO | '' | ペット名スナップショット |
+| species | pet_species | NO | | 動物種別スナップショット |
+| treatment_policy | text | YES | '' | 治療方針 |
+| physical_exam | text | YES | '' | 身体検査所見 |
+| diagnosis_details | text | YES | '' | 診断詳細 |
+| diagnosis1_category_id | uuid | YES | | diagnosis_categories.id FK（第1診断カテゴリ） |
+| diagnosis1_name_id | uuid | YES | | diagnosis_names.id FK（第1診断名） |
+| diagnosis2_category_id | uuid | YES | | diagnosis_categories.id FK（第2診断カテゴリ） |
+| diagnosis2_name_id | uuid | YES | | diagnosis_names.id FK（第2診断名） |
+| doctor_id | uuid | YES | | staffs.id FK |
+| status | medical_record_status | YES | '作成中' | カルテ状態 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:**
+- `owner_id` → `owners.id` (SET NULL)
+- `pet_id` → `pets.id` (SET NULL)
+- `doctor_id` → `staffs.id` (SET NULL)
+- `diagnosis1_category_id` → `diagnosis_categories.id` (SET NULL)
+- `diagnosis1_name_id` → `diagnosis_names.id` (SET NULL)
+- `diagnosis2_category_id` → `diagnosis_categories.id` (SET NULL)
+- `diagnosis2_name_id` → `diagnosis_names.id` (SET NULL)
+
+---
+
+#### `medical_inquiries`
+
+**用途**: カルテ問診タブ。飼主からの問診情報を記録。1カルテに1件（1:1）。
+
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| medical_record_id | uuid | NO | - | FK → medical_records(id) CASCADE, UNIQUE |
+| chief_complaint | text | YES | '' | 主訴 |
+| history | text | YES | '' | 既往歴・現病歴 |
+| current_medications | text | YES | '' | 現在の投薬状況 |
+| allergy_info | text | YES | '' | アレルギー情報 |
+| last_meal | text | YES | '' | 最終食事 |
+| last_defecation | text | YES | '' | 最終排便 |
+| last_urination | text | YES | '' | 最終排尿 |
+| appetite | appetite_level | YES | - | 食欲レベル |
+| water_intake | water_intake_level | YES | - | 飲水量レベル |
+| owner_observations | text | YES | '' | 飼主の気になる点 |
+| notes | text | YES | '' | その他メモ |
+| staff_id | uuid | YES | - | FK → staffs(id) SET NULL（問診担当） |
+| created_at | timestamptz | YES | now() | |
+| updated_at | timestamptz | YES | now() | |
+
+**FK**: medical_record_id → medical_records(id) CASCADE, staff_id → staffs(id) SET NULL
+
+**インデックス**: medical_record_id UNIQUE（1:1保証）
+
+---
+
+#### `treatment_items`
+
+用途: カルテに紐づく処置・診察・薬剤の明細。item_typeで種別を区別し、対応するFKが設定される。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| medical_record_id | uuid | NO | | medical_records.id FK |
+| item_type | treatment_item_type | NO | 'other' | 明細種別 |
+| consultation_id | uuid | YES | | consultations.id FK |
+| procedure_id | uuid | YES | | procedures.id FK |
+| medicine_id | uuid | YES | | medicines.id FK |
+| selected | boolean | YES | false | 選択フラグ |
+| status | treatment_status | YES | '未完了' | 処置状態 |
+| content | text | NO | '' | 内容 |
+| memo | text | YES | '' | メモ |
+| insurance | boolean | YES | false | 保険適用フラグ |
+| unit_price | numeric | YES | 0 | 単価 |
+| quantity | integer | YES | 1 | 数量 |
+| discount_rate | numeric | YES | 0 | 割引率 |
+| discount_amount | numeric | YES | 0 | 割引額 |
+| inventory_id | uuid | YES | | inventory_items.id FK |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:**
+- `medical_record_id` → `medical_records.id` (CASCADE)
+- `consultation_id` → `consultations.id` (SET NULL)
+- `procedure_id` → `procedures.id` (SET NULL)
+- `medicine_id` → `medicines.id` (SET NULL)
+- `inventory_id` → `inventory_items.id` (SET NULL)
+
+**CHECK制約:** `chk_treatment_item_ref` — item_typeとFK列の整合性
+
+---
+
+#### `vital_entries`
+
+用途: 外来診療時のバイタル記録（体温・心拍数・体重等）。カルテに紐づく。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| medical_record_id | uuid | NO | | medical_records.id FK |
+| recorded_at | timestamptz | NO | now() | 測定日時 |
+| staff_id | uuid | YES | | staffs.id FK |
+| temperature | numeric | YES | | 体温（℃） |
+| heart_rate | integer | YES | | 心拍数（bpm） |
+| respiration_rate | integer | YES | | 呼吸数（回/分） |
+| weight | numeric | YES | | 体重（kg） |
+| notes | text | YES | '' | 備考 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+
+**FK:**
+- `medical_record_id` → `medical_records.id` (CASCADE)
+- `staff_id` → `staffs.id` (SET NULL)
+
+---
+
+#### `examination_records`
+
+用途: 検査記録。カルテ・ペットに紐づき、検査種別マスタを参照する。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| medical_record_id | uuid | YES | | medical_records.id FK |
+| pet_id | uuid | YES | | pets.id FK |
+| date | date | NO | | 検査日 |
+| owner_name | text | NO | '' | 飼い主名スナップショット |
+| pet_name | text | NO | '' | ペット名スナップショット |
+| examination_type_id | uuid | NO | | examination_types.id FK |
+| doctor_id | uuid | YES | | staffs.id FK |
+| status | examination_status | YES | '依頼中' | 検査状態 |
+| result_summary | text | YES | '' | 検査結果サマリ |
+| machine | text | YES | '' | 使用機器 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:**
+- `medical_record_id` → `medical_records.id` (CASCADE)
+- `pet_id` → `pets.id` (CASCADE)
+- `examination_type_id` → `examination_types.id` (RESTRICT)
+- `doctor_id` → `staffs.id` (SET NULL)
+
+---
+
+#### `examination_record_items`
+
+用途: 検査記録の各検査項目結果。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| examination_record_id | uuid | NO | | examination_records.id FK |
+| name | text | NO | '' | 検査項目名 |
+| inspection_value | text | YES | '' | 検査値 |
+| normal_value | text | YES | '' | 正常値 |
+| result | text | YES | '' | 結果コメント |
+| unit | text | YES | '' | 単位 |
+| ref | text | YES | '' | 参考値 |
+| status | examination_result_status | YES | 'normal' | 結果状態 |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+
+**FK:** `examination_record_id` → `examination_records.id` (CASCADE)
+
+---
+
+#### `vaccination_records`
+
+用途: ワクチン接種記録。vaccine_name_snapshotにて接種時のワクチン名を保持。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| medical_record_id | uuid | YES | | medical_records.id FK |
+| pet_id | uuid | YES | | pets.id FK |
+| owner_name | text | NO | '' | 飼い主名スナップショット |
+| pet_name | text | NO | '' | ペット名スナップショット |
+| vaccine_id | uuid | NO | | vaccines.id FK |
+| vaccine_name_snapshot | text | NO | '' | ワクチン名スナップショット |
+| date | date | NO | | 接種日 |
+| next_date | date | YES | | 次回接種予定日 |
+| next_schedule_type | next_schedule_type | YES | | 次回スケジュール種別 |
+| doctor_id | uuid | YES | | staffs.id FK |
+| supplemental | text | YES | '' | 補足情報 |
+| lot1 | text | YES | '' | ロット番号1 |
+| lot2 | text | YES | '' | ロット番号2 |
+| lot3 | text | YES | '' | ロット番号3 |
+| lot4 | text | YES | '' | ロット番号4 |
+| remarks | text | YES | '' | 備考 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:**
+- `medical_record_id` → `medical_records.id` (CASCADE)
+- `pet_id` → `pets.id` (CASCADE)
+- `vaccine_id` → `vaccines.id` (RESTRICT)
+- `doctor_id` → `staffs.id` (SET NULL)
+
+---
+
+#### `checkup_records`
+
+用途: 健診記録。健診種別マスタを参照し、次回健診日を管理。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| medical_record_id | uuid | YES | | medical_records.id FK |
+| pet_id | uuid | YES | | pets.id FK |
+| owner_name | text | NO | '' | 飼い主名スナップショット |
+| pet_name | text | NO | '' | ペット名スナップショット |
+| checkup_type_id | uuid | NO | | checkup_types.id FK |
+| date | date | NO | | 健診日 |
+| next_date | date | YES | | 次回健診予定日 |
+| doctor_id | uuid | YES | | staffs.id FK |
+| result | text | YES | '' | 健診結果 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:**
+- `medical_record_id` → `medical_records.id` (CASCADE)
+- `pet_id` → `pets.id` (CASCADE)
+- `checkup_type_id` → `checkup_types.id` (RESTRICT)
+- `doctor_id` → `staffs.id` (SET NULL)
+
+---
+
+#### `medical_images`
+
+**用途**: カルテ画像タブ。レントゲン・エコー・写真等の診療画像を管理。1カルテに複数件。
+
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| medical_record_id | uuid | NO | - | FK → medical_records(id) CASCADE |
+| image_url | text | NO | '' | 画像URL（オブジェクトストレージ） |
+| thumbnail_url | text | YES | '' | サムネイルURL |
+| file_name | text | NO | '' | 元ファイル名 |
+| file_size | bigint | YES | 0 | ファイルサイズ（bytes） |
+| mime_type | text | YES | '' | MIMEタイプ |
+| image_type | medical_image_type | NO | 'other' | 画像種別 |
+| description | text | YES | '' | 説明・所見メモ |
+| taken_at | timestamptz | YES | - | 撮影日時 |
+| examination_record_id | uuid | YES | - | FK → examination_records(id) SET NULL |
+| staff_id | uuid | YES | - | FK → staffs(id) SET NULL（撮影者） |
+| sort_order | integer | YES | 0 | 表示順 |
+| created_at | timestamptz | YES | now() | |
+
+**FK**: medical_record_id → medical_records(id) CASCADE, examination_record_id → examination_records(id) SET NULL, staff_id → staffs(id) SET NULL
+
+**インデックス**: (medical_record_id), (image_type), (taken_at DESC), (examination_record_id) WHERE NOT NULL
+
+---
+
+#### `estimates`
+
+**用途**: カルテ見積書タブ。診察前後の費用見積書。1カルテに複数件作成可。
+
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| estimate_no | text | NO | - | 見積書番号（UNIQUE） |
+| medical_record_id | uuid | NO | - | FK → medical_records(id) CASCADE |
+| title | text | YES | '' | 件名 |
+| owner_id | uuid | YES | - | FK → owners(id) SET NULL |
+| owner_name | text | NO | '' | 飼主名スナップショット |
+| pet_name | text | NO | '' | ペット名スナップショット |
+| status | estimate_status | YES | 'draft' | draft/sent/approved/rejected |
+| subtotal | numeric | NO | 0 | 小計 |
+| tax_total | numeric | NO | 0 | 税合計 |
+| total_amount | numeric | NO | 0 | 合計金額 |
+| insurance_amount | numeric | YES | 0 | 保険適用額 |
+| discount_amount | numeric | YES | 0 | 値引き額 |
+| valid_until | date | YES | - | 有効期限 |
+| comment | text | YES | '' | コメント |
+| notes | text | YES | '' | 備考 |
+| created_by | uuid | YES | - | FK → staffs(id) SET NULL（作成者） |
+| created_at | timestamptz | YES | now() | |
+| updated_at | timestamptz | YES | now() | |
+
+**FK**: medical_record_id → medical_records(id) CASCADE, owner_id → owners(id) SET NULL, created_by → staffs(id) SET NULL
+
+**インデックス**: (estimate_no) UNIQUE, (medical_record_id), (status), (owner_id)
+
+---
+
+#### `estimate_items`
+
+**用途**: 見積書の明細行。診察・処置・薬剤等を行単位で管理。
+
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| estimate_id | uuid | NO | - | FK → estimates(id) CASCADE |
+| name | text | NO | '' | 項目名 |
+| category | item_category | NO | - | 区分 |
+| unit_price | numeric | NO | 0 | 単価 |
+| quantity | integer | NO | 1 | 数量 |
+| tax_rate | numeric | YES | 0.10 | 税率 |
+| discount_rate | numeric | YES | 0 | 割引率 |
+| discount_amount | numeric | YES | 0 | 値引額 |
+| is_insurance_applicable | boolean | YES | false | 保険適用可否 |
+| consultation_id | uuid | YES | - | FK → consultations(id) SET NULL |
+| procedure_id | uuid | YES | - | FK → procedures(id) SET NULL |
+| medicine_id | uuid | YES | - | FK → medicines(id) SET NULL |
+| sort_order | integer | YES | 0 | 表示順 |
+| created_at | timestamptz | YES | now() | |
+
+**FK**: estimate_id → estimates(id) CASCADE, consultation_id → consultations(id) SET NULL, procedure_id → procedures(id) SET NULL, medicine_id → medicines(id) SET NULL
+
+**インデックス**: (estimate_id)
+
+---
+
+#### `billing_confirmations`
+
+**用途**: カルテ会計（医師確認）タブ。医師が会計内容を確認・承認するレコード。1カルテに1件（1:1）。
+
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| medical_record_id | uuid | NO | - | FK → medical_records(id) CASCADE, UNIQUE |
+| status | billing_confirmation_status | YES | 'pending' | pending/confirmed/returned |
+| confirmed_by | uuid | YES | - | FK → staffs(id) SET NULL（確認医師） |
+| confirmed_at | timestamptz | YES | - | 確認日時 |
+| returned_by | uuid | YES | - | FK → staffs(id) SET NULL（差戻し者） |
+| returned_at | timestamptz | YES | - | 差戻し日時 |
+| return_reason | text | YES | '' | 差戻し理由 |
+| memo | text | YES | '' | メモ |
+| created_at | timestamptz | YES | now() | |
+| updated_at | timestamptz | YES | now() | |
+
+**FK**: medical_record_id → medical_records(id) CASCADE, confirmed_by → staffs(id) SET NULL, returned_by → staffs(id) SET NULL
+
+**インデックス**: (medical_record_id) UNIQUE, (status)
+
+---
+
+### 予約
+
+---
+
+#### `reservation_appointments`
+
+用途: 予約情報。ペット・サービス種別・担当医に紐づく。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| start_time | timestamptz | NO | | 開始日時 |
+| end_time | timestamptz | NO | | 終了日時 |
+| owner_name | text | NO | '' | 飼い主名スナップショット |
+| pet_name | text | NO | '' | ペット名スナップショット |
+| pet_id | uuid | YES | | pets.id FK |
+| visit_type | visit_type | NO | 'revisit' | 来院種別 |
+| service_type_id | uuid | YES | | service_types.id FK |
+| doctor_id | uuid | NO | | staffs.id FK |
+| is_designated | boolean | YES | false | 担当医指名フラグ |
+| status | reservation_status | YES | 'pending' | 予約状態 |
+| notes | text | YES | '' | 備考 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:**
+- `pet_id` → `pets.id` (SET NULL)
+- `service_type_id` → `service_types.id` (SET NULL)
+- `doctor_id` → `staffs.id` (RESTRICT)
+
+---
+
+### 入院
+
+---
+
+#### `hospitalizations`
+
+用途: 入院・ホテル管理。ペット・ケージ・担当医に紐づく。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| owner_id | uuid | YES | | owners.id FK |
+| owner_name | text | NO | '' | 飼い主名スナップショット |
+| pet_id | uuid | YES | | pets.id FK |
+| pet_name | text | NO | '' | ペット名スナップショット |
+| species | pet_species | NO | | 動物種別スナップショット |
+| hospitalization_type | hospitalization_type | NO | | 入院種別 |
+| start_date | date | NO | | 入院開始日 |
+| end_date | date | NO | | 入院終了日 |
+| status | hospitalization_status | YES | '予約' | 入院状態 |
+| cage_id | uuid | YES | | cages.id FK |
+| doctor_id | uuid | YES | | staffs.id FK |
+| memo | text | YES | '' | メモ |
+| owner_request | text | YES | '' | 飼い主要望 |
+| staff_notes | text | YES | '' | スタッフメモ |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:**
+- `owner_id` → `owners.id` (SET NULL)
+- `pet_id` → `pets.id` (SET NULL)
+- `cage_id` → `cages.id` (SET NULL)
+- `doctor_id` → `staffs.id` (SET NULL)
+
+---
+
+#### `daily_records`
+
+用途: 入院の日次記録ヘッダ。1入院・1日につき1件（UNIQUE制約）。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| hospitalization_id | uuid | NO | | hospitalizations.id FK |
+| date | date | NO | | 日付 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:** `hospitalization_id` → `hospitalizations.id` (CASCADE)
+
+**インデックス:** `(hospitalization_id, date)` UNIQUE
+
+---
+
+#### `care_plan_items`
+
+用途: 入院のケアプラン項目。食事・投薬・処置・指示・物品を管理。ポリモーフィック参照廃止・3専用FK採用。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| hospitalization_id | uuid | NO | | hospitalizations.id FK |
+| type | care_plan_type | NO | | ケアプラン種別 |
+| name | text | NO | '' | 項目名 |
+| description | text | YES | '' | 説明 |
+| timing | plan_timing[] | YES | '{}' | 実施タイミング（配列） |
+| status | care_plan_status | YES | 'active' | 状態 |
+| notes | text | YES | '' | 備考 |
+| medicine_id | uuid | YES | | medicines.id FK |
+| procedure_id | uuid | YES | | procedures.id FK |
+| hospitalization_plan_id | uuid | YES | | hospitalization_plans.id FK |
+| unit_price | numeric | YES | 0 | 単価 |
+| category | text | YES | '' | カテゴリ |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:**
+- `hospitalization_id` → `hospitalizations.id` (CASCADE)
+- `medicine_id` → `medicines.id` (SET NULL)
+- `procedure_id` → `procedures.id` (SET NULL)
+- `hospitalization_plan_id` → `hospitalization_plans.id` (SET NULL)
+
+**CHECK制約:** `chk_care_plan_item_ref` — typeとFK列の整合性
+
+---
+
+#### `care_log_records`
+
+用途: 日次記録に紐づくケアログ（実際の処置・食事・排泄等の記録）。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| daily_record_id | uuid | NO | | daily_records.id FK |
+| time | text | NO | '' | 実施時刻 |
+| type | care_log_type | NO | | ケアログ種別 |
+| status | care_log_status | NO | 'completed' | 実施状態 |
+| value | text | YES | '' | 値（量・回数等） |
+| staff_id | uuid | YES | | staffs.id FK |
+| notes | text | YES | '' | 備考 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+
+**FK:**
+- `daily_record_id` → `daily_records.id` (CASCADE)
+- `staff_id` → `staffs.id` (SET NULL)
+
+---
+
+#### `vital_records`
+
+用途: 入院中のバイタル記録（日次記録に紐づく）。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| daily_record_id | uuid | NO | | daily_records.id FK |
+| time | text | NO | '' | 測定時刻 |
+| temperature | numeric | YES | | 体温（℃） |
+| heart_rate | integer | YES | | 心拍数（bpm） |
+| respiration_rate | integer | YES | | 呼吸数（回/分） |
+| weight | numeric | YES | | 体重（kg） |
+| notes | text | YES | '' | 備考 |
+| staff_id | uuid | YES | | staffs.id FK |
+| created_at | timestamptz | YES | now() | 作成日時 |
+
+**FK:**
+- `daily_record_id` → `daily_records.id` (CASCADE)
+- `staff_id` → `staffs.id` (SET NULL)
+
+---
+
+#### `staff_note_records`
+
+用途: 入院中のスタッフノート（日次記録に紐づく自由記述）。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| daily_record_id | uuid | NO | | daily_records.id FK |
+| time | text | NO | '' | 記録時刻 |
+| content | text | NO | '' | 内容 |
+| staff_id | uuid | YES | | staffs.id FK |
+| created_at | timestamptz | YES | now() | 作成日時 |
+
+**FK:**
+- `daily_record_id` → `daily_records.id` (CASCADE)
+- `staff_id` → `staffs.id` (SET NULL)
+
+---
+
+#### `treatment_plans`
+
+用途: 入院の治療プラン・費用明細。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| hospitalization_id | uuid | NO | | hospitalizations.id FK |
+| treatment_content | text | NO | '' | 治療内容 |
+| memo | text | YES | '' | メモ |
+| insurance | boolean | YES | false | 保険適用フラグ |
+| unit_price | numeric | YES | 0 | 単価 |
+| quantity | integer | YES | 1 | 数量 |
+| discount_rate | numeric | YES | 0 | 割引率 |
+| discount_amount | numeric | YES | 0 | 割引額 |
+| subtotal | numeric | YES | 0 | 小計 |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:** `hospitalization_id` → `hospitalizations.id` (CASCADE)
+
+---
+
+### トリミング
+
+---
+
+#### `trimming_records`
+
+用途: トリミング実施記録。ペット・担当スタッフ・コースに紐づく。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| date | date | NO | | トリミング日 |
+| pet_id | uuid | NO | | pets.id FK |
+| pet_number | text | NO | '' | ペット番号スナップショット |
+| pet_name | text | NO | '' | ペット名スナップショット |
+| owner_name | text | NO | '' | 飼い主名スナップショット |
+| species | pet_species | NO | | 動物種別 |
+| weight | text | YES | '' | 体重 |
+| style_request | text | YES | '' | スタイルリクエスト |
+| staff_id | uuid | NO | | staffs.id FK |
+| status | trimming_status | YES | '予約' | 状態 |
+| course_id | uuid | YES | | trimming_courses.id FK |
+| bw | text | YES | '' | 体重測定値 |
+| bw_unit | body_weight_unit | YES | 'Kg' | 体重単位 |
+| bt | text | YES | '' | 体温 |
+| used_shampoo | text | YES | '' | 使用シャンプー |
+| used_ribbon | text | YES | '' | 使用リボン |
+| remarks | text | YES | '' | 備考 |
+| style_image | text | YES | '' | スタイル見本画像URL |
+| completed_image | text | YES | '' | 完成画像URL |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:**
+- `pet_id` → `pets.id` (CASCADE)
+- `staff_id` → `staffs.id` (RESTRICT)
+- `course_id` → `trimming_courses.id` (SET NULL)
+
+---
+
+#### `trimming_record_options`
+
+用途: トリミング記録に紐づく選択オプション（多対多中間テーブル）。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| trimming_record_id | uuid | NO | | trimming_records.id FK |
+| option_id | uuid | NO | | trimming_options.id FK |
+| sort_order | integer | YES | 0 | 並び順 |
+
+**FK:**
+- `trimming_record_id` → `trimming_records.id` (CASCADE)
+- `option_id` → `trimming_options.id` (CASCADE)
+
+**インデックス:** `(trimming_record_id, option_id)` UNIQUE
+
+---
+
+### 会計
+
+---
+
+#### `accountings`
+
+用途: 会計情報。カルテまたは入院に1件対応（medical_record_idはUNIQUE）。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| medical_record_id | uuid | YES | | medical_records.id FK（UNIQUE） |
+| hospitalization_id | uuid | YES | | hospitalizations.id FK |
+| owner_id | uuid | NO | | owners.id FK |
+| owner_name | text | NO | '' | 飼い主名スナップショット |
+| pet_id | uuid | NO | | pets.id FK |
+| pet_name | text | NO | '' | ペット名スナップショット |
+| pet_species | pet_species | YES | | 動物種別スナップショット |
+| status | accounting_status | YES | 'waiting' | 会計状態 |
+| scheduled_date | date | NO | | 会計予定日 |
+| completed_at | timestamptz | YES | | 会計完了日時 |
+| memo | text | YES | '' | メモ |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:**
+- `medical_record_id` → `medical_records.id` (SET NULL)
+- `hospitalization_id` → `hospitalizations.id` (SET NULL)
+- `owner_id` → `owners.id` (CASCADE)
+- `pet_id` → `pets.id` (CASCADE)
+
+---
+
+#### `accounting_items`
+
+用途: 会計明細。会計に紐づく各請求項目。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| accounting_id | uuid | NO | | accountings.id FK |
+| code | text | YES | '' | コード |
+| category | item_category | NO | | 明細カテゴリ |
+| name | text | NO | '' | 項目名 |
+| unit_price | numeric | NO | 0 | 単価 |
+| quantity | integer | NO | 1 | 数量 |
+| tax_rate | numeric | YES | 0.10 | 税率 |
+| is_insurance_applicable | boolean | YES | false | 保険適用フラグ |
+| source | item_source | YES | 'manual' | 明細元 |
+| sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+
+**FK:** `accounting_id` → `accountings.id` (CASCADE)
+
+---
+
+#### `payment_infos`
+
+用途: 支払い情報。会計に1対1で紐づく（accounting_idはUNIQUE）。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| accounting_id | uuid | NO | | accountings.id FK（UNIQUE） |
+| subtotal | numeric | NO | 0 | 小計 |
+| tax_total | numeric | NO | 0 | 消費税合計 |
+| total_amount | numeric | NO | 0 | 合計金額 |
+| insurance_name | text | YES | '' | 保険名 |
+| insurance_ratio | numeric | YES | 0 | 保険割合 |
+| insurance_amount | numeric | YES | 0 | 保険補填額 |
+| discount_amount | numeric | YES | 0 | 割引額 |
+| billing_amount | numeric | NO | 0 | 請求額 |
+| received_amount | numeric | YES | 0 | 受取金額 |
+| change_amount | numeric | YES | 0 | お釣り |
+| method | payment_method | YES | 'cash' | 支払い方法 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:** `accounting_id` → `accountings.id` (CASCADE)
+
+---
+
+### シフト
+
+---
+
+#### `shift_entries`
+
+用途: スタッフのシフト情報。1スタッフ・1日につき1件（UNIQUE制約）。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| staff_id | uuid | NO | | staffs.id FK |
+| date | date | NO | | 日付 |
+| shift_type | shift_type | NO | | シフト種別 |
+| start_time | text | YES | '' | 開始時刻 |
+| end_time | text | YES | '' | 終了時刻 |
+| note | text | YES | '' | 備考 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:** `staff_id` → `staffs.id` (CASCADE)
+
+**インデックス:** `(staff_id, date)` UNIQUE
+
+---
+
+## FK関係一覧
+
+### accountings
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| medical_record_id | medical_records.id | SET NULL |
+| hospitalization_id | hospitalizations.id | SET NULL |
+| owner_id | owners.id | CASCADE |
+| pet_id | pets.id | CASCADE |
+
+### billing_confirmations
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| medical_record_id | medical_records.id | CASCADE |
+| confirmed_by | staffs.id | SET NULL |
+| returned_by | staffs.id | SET NULL |
+
+### estimate_items
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| estimate_id | estimates.id | CASCADE |
+| consultation_id | consultations.id | SET NULL |
+| procedure_id | procedures.id | SET NULL |
+| medicine_id | medicines.id | SET NULL |
+
+### estimates
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| medical_record_id | medical_records.id | CASCADE |
+| owner_id | owners.id | SET NULL |
+| created_by | staffs.id | SET NULL |
+
+### medical_images
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| medical_record_id | medical_records.id | CASCADE |
+| examination_record_id | examination_records.id | SET NULL |
+| staff_id | staffs.id | SET NULL |
+
+### medical_inquiries
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| medical_record_id | medical_records.id | CASCADE |
+| staff_id | staffs.id | SET NULL |
+
+### accounting_items
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| accounting_id | accountings.id | CASCADE |
+
+### care_log_records
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| daily_record_id | daily_records.id | CASCADE |
+| staff_id | staffs.id | SET NULL |
+
+### care_plan_items
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| hospitalization_id | hospitalizations.id | CASCADE |
+| hospitalization_plan_id | hospitalization_plans.id | SET NULL |
+| medicine_id | medicines.id | SET NULL |
+| procedure_id | procedures.id | SET NULL |
+
+### checkup_records
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| checkup_type_id | checkup_types.id | RESTRICT |
+| doctor_id | staffs.id | SET NULL |
+| medical_record_id | medical_records.id | CASCADE |
+| pet_id | pets.id | CASCADE |
+
+### daily_records
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| hospitalization_id | hospitalizations.id | CASCADE |
+
+### diagnosis_names
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| diagnosis_category_id | diagnosis_categories.id | CASCADE |
+
+### examination_record_items
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| examination_record_id | examination_records.id | CASCADE |
+
+### examination_records
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| doctor_id | staffs.id | SET NULL |
+| examination_type_id | examination_types.id | RESTRICT |
+| medical_record_id | medical_records.id | CASCADE |
+| pet_id | pets.id | CASCADE |
+
+### examination_type_items
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| examination_type_id | examination_types.id | CASCADE |
+
+### hospitalizations
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| cage_id | cages.id | SET NULL |
+| doctor_id | staffs.id | SET NULL |
+| owner_id | owners.id | SET NULL |
+| pet_id | pets.id | SET NULL |
+
+### medical_records
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| diagnosis1_category_id | diagnosis_categories.id | SET NULL |
+| diagnosis1_name_id | diagnosis_names.id | SET NULL |
+| diagnosis2_category_id | diagnosis_categories.id | SET NULL |
+| diagnosis2_name_id | diagnosis_names.id | SET NULL |
+| doctor_id | staffs.id | SET NULL |
+| owner_id | owners.id | SET NULL |
+| pet_id | pets.id | SET NULL |
+
+### medicines
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| inventory_id | inventory_items.id | SET NULL |
+
+### payment_infos
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| accounting_id | accountings.id | CASCADE |
+
+### pets
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| insurance_id | insurances.id | SET NULL |
+| owner_id | owners.id | CASCADE |
+
+### reservation_appointments
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| doctor_id | staffs.id | RESTRICT |
+| pet_id | pets.id | SET NULL |
+| service_type_id | service_types.id | SET NULL |
+
+### shift_entries
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| staff_id | staffs.id | CASCADE |
+
+### staff_note_records
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| daily_record_id | daily_records.id | CASCADE |
+| staff_id | staffs.id | SET NULL |
+
+### treatment_items
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| consultation_id | consultations.id | SET NULL |
+| inventory_id | inventory_items.id | SET NULL |
+| medical_record_id | medical_records.id | CASCADE |
+| medicine_id | medicines.id | SET NULL |
+| procedure_id | procedures.id | SET NULL |
+
+### treatment_plans
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| hospitalization_id | hospitalizations.id | CASCADE |
+
+### trimming_record_options
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| option_id | trimming_options.id | CASCADE |
+| trimming_record_id | trimming_records.id | CASCADE |
+
+### trimming_records
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| course_id | trimming_courses.id | SET NULL |
+| pet_id | pets.id | CASCADE |
+| staff_id | staffs.id | RESTRICT |
+
+### user_accounts
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| staff_id | staffs.id | SET NULL |
+
+### user_clinic_memberships
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| clinic_id | clinics.id | CASCADE |
+| user_id | user_accounts.id | CASCADE |
+
+### user_permissions
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| clinic_id | clinics.id | CASCADE |
+| granted_by | user_accounts.id | SET NULL |
+| user_id | user_accounts.id | CASCADE |
+
+### vaccination_records
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| doctor_id | staffs.id | SET NULL |
+| medical_record_id | medical_records.id | CASCADE |
+| pet_id | pets.id | CASCADE |
+| vaccine_id | vaccines.id | RESTRICT |
+
+### vital_entries
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| medical_record_id | medical_records.id | CASCADE |
+| staff_id | staffs.id | SET NULL |
+
+### vital_records
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| daily_record_id | daily_records.id | CASCADE |
+| staff_id | staffs.id | SET NULL |
+
+---
+
+## インデックス一覧
+
+### UNIQUE制約・インデックス
+
+| テーブル | カラム | 備考 |
+|---------|-------|------|
+| medical_records | record_no | カルテ番号の一意性 |
+| medical_inquiries | medical_record_id | 1カルテ1問診（1:1保証） |
+| billing_confirmations | medical_record_id | 1カルテ1医師確認（1:1保証） |
+| estimates | estimate_no | 見積書番号の一意性 |
+| accountings | medical_record_id | 1カルテ1会計（1対1） |
+| payment_infos | accounting_id | 1会計1支払情報（1対1） |
+| user_accounts | email | メールアドレスの一意性 |
+| daily_records | (hospitalization_id, date) | 1入院1日1件 |
+| shift_entries | (staff_id, date) | 1スタッフ1日1シフト |
+| user_clinic_memberships | (user_id, clinic_id) | 重複所属防止 |
+| user_clinic_memberships | (user_id) WHERE is_main = true | 主所属医院は1件のみ（部分インデックス） |
+| trimming_record_options | (trimming_record_id, option_id) | 重複オプション防止 |
+
+### マスタテーブル code 部分UNIQUEインデックス
+
+以下のテーブルは `code` カラムに `WHERE code != ''` の部分UNIQUEインデックスを持つ。
+
+- staffs
+- examination_types
+- vaccines
+- medicines
+- insurances
+- cages
+- service_types
+- consultations
+- procedures
+- hospitalization_plans
+- trimming_courses
+- trimming_options
+- diagnosis_categories
+- diagnosis_names
+- checkup_types
+
+> `ON CONFLICT DO NOTHING`（ターゲット未指定）を使用すること。部分インデックスは `ON CONFLICT (code)` 構文と不一致となるため。
+
+### v7.0 追加テーブルのインデックス
+
+| テーブル | カラム | 備考 |
+|---------|-------|------|
+| medical_inquiries | (medical_record_id) UNIQUE | 1:1保証 |
+| medical_images | (medical_record_id) | カルテ別画像検索 |
+| medical_images | (image_type) | 種別フィルタ |
+| medical_images | (taken_at DESC) | 撮影日時ソート |
+| medical_images | (examination_record_id) WHERE NOT NULL | 検査別画像検索 |
+| estimates | (estimate_no) UNIQUE | 見積書番号の一意性 |
+| estimates | (medical_record_id) | カルテ別見積書検索 |
+| estimates | (status) | ステータスフィルタ |
+| estimates | (owner_id) | 飼主別見積書検索 |
+| estimate_items | (estimate_id) | 見積書明細検索 |
+| billing_confirmations | (medical_record_id) UNIQUE | 1:1保証 |
+| billing_confirmations | (status) | ステータスフィルタ |
+
+---
+
+## 未対応事項・今後の予定
+
+### clinic_id 追加（003_add_clinic_id.sql 予定）
+
+以下テーブルへの `clinic_id` 追加が予定されている。追加後は医院ごとにマスタを独立管理できる。
+
+| テーブル | 追加後の用途 |
+|---------|------------|
+| owners | 医院別の飼い主管理 |
+| staffs | 医院別のスタッフ管理 |
+| inventory_items | 医院別の在庫管理 |
+| cages | 医院別のケージ管理 |
+| service_types | 医院別のサービス種別 |
+| consultations | 医院別の診察項目 |
+| procedures | 医院別の処置項目 |
+| hospitalization_plans | 医院別の入院プラン |
+| trimming_courses | 医院別のトリミングコース |
+| trimming_options | 医院別のトリミングオプション |
+| examination_types | 医院別の検査種別 |
+| vaccines | 医院別のワクチン |
+| medicines | 医院別の薬剤 |
+| insurances | 医院別の保険 |
+| diagnosis_categories | 医院別の診断カテゴリ |
+| checkup_types | 医院別の健診種別 |
+
+**現時点で clinic_id を保持するテーブル:** `user_clinic_memberships`, `user_permissions` のみ。
+
+### chief_complaint 移行（004_migrate_chief_complaint.sql 予定）
+
+`medical_records.chief_complaint` を `medical_inquiries.chief_complaint` に移行するマイグレーション。
+
+| 作業 | 内容 |
+|------|------|
+| 004_migrate_chief_complaint.sql | `medical_inquiries` レコードを既存 `medical_records` 分だけ生成し、`chief_complaint` の値をコピー後、`medical_records.chief_complaint` カラムを削除 |
+
+> v7.0 時点では `medical_records.chief_complaint` は削除済み。新規カルテ作成時は `medical_inquiries` に書き込むこと。
