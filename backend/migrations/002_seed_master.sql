@@ -1,577 +1,317 @@
 -- =============================================================================
--- Animal Ekarte - マスタデータシード
+-- Animal Ekarte - マスタデータシード (新スキーマ対応版)
 -- PostgreSQL 18
--- 冪等性保証: ON CONFLICT (code) DO NOTHING
--- 対象DBスキーマ: 現行DBに合わせた実テーブル構造に準拠
+-- 冪等性保証: ON CONFLICT DO NOTHING
+-- 対象スキーマ: 001_init.sql (45テーブル・専用マスタテーブル版)
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- 1. staff_members（スタッフ）
---    実テーブル: staff_members
---    カラム: id, code, name, name_kana, role, license_number, email, phone,
---            is_active, sort_order
+-- 1. staffs（スタッフ）
 -- -----------------------------------------------------------------------------
-INSERT INTO staff_members (id, code, name, name_kana, role, license_number, email, phone, is_active, sort_order) VALUES
-    (gen_random_uuid(), 'S-001', '山田 太郎',   'ヤマダ タロウ',   'veterinarian', 'V-001', 'yamada@animal-clinic-tanaka.jp',   '090-1111-0001', true, 1),
-    (gen_random_uuid(), 'S-002', '高橋 健一',   'タカハシ ケンイチ', 'veterinarian', 'V-002', 'takahashi@animal-clinic-tanaka.jp', '090-1111-0002', true, 2),
-    (gen_random_uuid(), 'S-003', '渡辺 博',     'ワタナベ ヒロシ', 'manager',      '',      'watanabe@animal-clinic-tanaka.jp', '090-1111-0003', true, 3),
-    (gen_random_uuid(), 'S-004', '佐藤 花子',   'サトウ ハナコ',   'nurse',        '',      'sato@animal-clinic-tanaka.jp',     '090-1111-0004', true, 4),
-    (gen_random_uuid(), 'S-005', '伊藤 さくら', 'イトウ サクラ',   'nurse',        '',      'ito@animal-clinic-tanaka.jp',      '090-1111-0005', true, 5),
-    (gen_random_uuid(), 'S-006', '鈴木 一郎',   'スズキ イチロウ', 'trimmer',      '',      'suzuki@animal-clinic-tanaka.jp',   '090-1111-0006', true, 6),
-    (gen_random_uuid(), 'S-007', '田中 美咲',   'タナカ ミサキ',   'reception',    '',      'tanaka@animal-clinic-tanaka.jp',   '090-1111-0007', true, 7)
-ON CONFLICT (code) DO NOTHING;
+INSERT INTO staffs (id, code, name, status, staff_role, license_number, sort_order) VALUES
+    (gen_random_uuid(), 'S-001', '山田 太郎',   'active', 'veterinarian', 'V-001', 1),
+    (gen_random_uuid(), 'S-002', '高橋 健一',   'active', 'veterinarian', 'V-002', 2),
+    (gen_random_uuid(), 'S-003', '渡辺 博',     'active', 'manager',      '',      3),
+    (gen_random_uuid(), 'S-004', '佐藤 花子',   'active', 'nurse',        '',      4),
+    (gen_random_uuid(), 'S-005', '伊藤 さくら', 'active', 'nurse',        '',      5),
+    (gen_random_uuid(), 'S-006', '鈴木 一郎',   'active', 'trimmer',      '',      6),
+    (gen_random_uuid(), 'S-007', '田中 美咲',   'active', 'reception',    '',      7)
+ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 2. examination_types（検査種別）
---    実テーブル: examination_types
---    カラム: id, code, name, color, price, parent_id, description, is_active, sort_order
+-- 2. service_types（サービス種別）
 -- -----------------------------------------------------------------------------
-INSERT INTO examination_types (id, code, name, price, description, is_active, sort_order) VALUES
-    (gen_random_uuid(), 'ET-001', '血液検査（CBC）',     3000.00, '全血球計算（Complete Blood Count）',                  true,  1),
-    (gen_random_uuid(), 'ET-002', '血液生化学検査',      5000.00, '臓器機能・代謝状態を評価する血液検査',                true,  2),
-    (gen_random_uuid(), 'ET-003', '尿検査',              1500.00, '腎機能・膀胱・尿路系の評価',                          true,  3),
-    (gen_random_uuid(), 'ET-004', 'X線検査（胸部）',     3500.00, '胸部レントゲン撮影',                                  true,  4),
-    (gen_random_uuid(), 'ET-005', 'X線検査（腹部）',     3500.00, '腹部レントゲン撮影',                                  true,  5),
-    (gen_random_uuid(), 'ET-006', 'エコー検査',          5000.00, '超音波による腹部・心臓の画像診断',                    true,  6),
-    (gen_random_uuid(), 'ET-007', '心電図検査',          3000.00, '心臓の電気的活動を記録する検査',                      true,  7),
-    (gen_random_uuid(), 'ET-008', '眼科検査',            2000.00, '眼圧・眼底・スリットランプ検査',                      true,  8),
-    (gen_random_uuid(), 'ET-009', '皮膚検査',            2000.00, '皮膚掻爬・毛検査・真菌培養',                          true,  9),
-    (gen_random_uuid(), 'ET-010', '糞便検査',            1000.00, '寄生虫卵・細菌の検査',                                true, 10)
-ON CONFLICT (code) DO NOTHING;
+INSERT INTO service_types (id, code, name, status, description, color, sort_order) VALUES
+    (gen_random_uuid(), 'SV-001', '一般診療',     'active', '内科・外科・皮膚科などの一般的な診療',   '#3B82F6', 1),
+    (gen_random_uuid(), 'SV-002', 'ワクチン接種', 'active', '各種ワクチン接種（予防接種）',           '#10B981', 2),
+    (gen_random_uuid(), 'SV-003', '健康診断',     'active', '定期健康診断・フィラリア検査など',       '#8B5CF6', 3),
+    (gen_random_uuid(), 'SV-004', '手術・処置',   'active', '去勢・避妊・その他外科手術',             '#EF4444', 4),
+    (gen_random_uuid(), 'SV-005', 'トリミング',   'active', 'グルーミング・爪切り・耳掃除など',       '#F59E0B', 5),
+    (gen_random_uuid(), 'SV-006', '入院',         'active', '入院・ホテル管理',                       '#6B7280', 6),
+    (gen_random_uuid(), 'SV-007', '検査',         'active', '血液検査・尿検査・画像診断など',         '#EC4899', 7),
+    (gen_random_uuid(), 'SV-008', '再診',         'active', '前回診察の経過確認・投薬管理',           '#06B6D4', 8)
+ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 3. examination_type_inspections（検査項目定義）
---    実テーブル: examination_type_inspections
---    カラム: id, examination_type_id, name, inspection_value, normal_value, sort_order
---    ※ テーブルにUNIQUE制約がないため、既存データとの重複チェックをWHEREで行う
+-- 3. consultations（診察項目）
 -- -----------------------------------------------------------------------------
-
--- 血液検査（CBC）の項目
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '白血球数（WBC）',     '5000〜15000 /μL',      1
-FROM examination_types et WHERE et.code = 'ET-001'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '白血球数（WBC）');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '赤血球数（RBC）',     '550〜850 万/μL',         2
-FROM examination_types et WHERE et.code = 'ET-001'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '赤血球数（RBC）');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, 'ヘモグロビン（Hb）',  '12〜18 g/dL',            3
-FROM examination_types et WHERE et.code = 'ET-001'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = 'ヘモグロビン（Hb）');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '血小板数（PLT）',     '20〜50 万/μL',           4
-FROM examination_types et WHERE et.code = 'ET-001'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '血小板数（PLT）');
-
--- 血液生化学検査の項目
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, 'ALT（GPT）',          '10〜100 U/L',             1
-FROM examination_types et WHERE et.code = 'ET-002'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = 'ALT（GPT）');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, 'AST（GOT）',          '10〜60 U/L',              2
-FROM examination_types et WHERE et.code = 'ET-002'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = 'AST（GOT）');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, 'BUN（尿素窒素）',     '8〜30 mg/dL',             3
-FROM examination_types et WHERE et.code = 'ET-002'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = 'BUN（尿素窒素）');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, 'クレアチニン',        '0.4〜1.4 mg/dL',          4
-FROM examination_types et WHERE et.code = 'ET-002'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = 'クレアチニン');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '総タンパク（TP）',    '5.5〜7.5 g/dL',           5
-FROM examination_types et WHERE et.code = 'ET-002'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '総タンパク（TP）');
-
--- 尿検査の項目
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, 'pH',                  '5.5〜7.5',                1
-FROM examination_types et WHERE et.code = 'ET-003'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = 'pH');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '比重',                '1.015〜1.045',            2
-FROM examination_types et WHERE et.code = 'ET-003'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '比重');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, 'タンパク',            '陰性（−）',               3
-FROM examination_types et WHERE et.code = 'ET-003'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = 'タンパク');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '糖',                  '陰性（−）',               4
-FROM examination_types et WHERE et.code = 'ET-003'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '糖');
-
--- X線検査（胸部）の項目
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '心臓サイズ',          '正常範囲内',              1
-FROM examination_types et WHERE et.code = 'ET-004'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '心臓サイズ');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '肺野',                '透過性良好・異常陰影なし', 2
-FROM examination_types et WHERE et.code = 'ET-004'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '肺野');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '縦隔',                '正常',                    3
-FROM examination_types et WHERE et.code = 'ET-004'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '縦隔');
-
--- X線検査（腹部）の項目
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '消化管ガス',          '生理的範囲内',            1
-FROM examination_types et WHERE et.code = 'ET-005'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '消化管ガス');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '肝臓・脾臓',          '腫大なし',                2
-FROM examination_types et WHERE et.code = 'ET-005'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '肝臓・脾臓');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '結石・異物',          '認めない',                3
-FROM examination_types et WHERE et.code = 'ET-005'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '結石・異物');
-
--- エコー検査の項目
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '肝臓エコー輝度',      '均一・正常',              1
-FROM examination_types et WHERE et.code = 'ET-006'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '肝臓エコー輝度');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '腎臓',                '大きさ・形態正常',        2
-FROM examination_types et WHERE et.code = 'ET-006'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '腎臓');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '膀胱',                '壁肥厚なし・結石なし',    3
-FROM examination_types et WHERE et.code = 'ET-006'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '膀胱');
-
--- 心電図検査の項目
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '心拍数',              '犬60〜160 bpm / 猫120〜240 bpm', 1
-FROM examination_types et WHERE et.code = 'ET-007'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '心拍数');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, 'リズム',              '正常洞調律',              2
-FROM examination_types et WHERE et.code = 'ET-007'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = 'リズム');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, 'P波・QRS波',          '形態正常',                3
-FROM examination_types et WHERE et.code = 'ET-007'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = 'P波・QRS波');
-
--- 眼科検査の項目
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '眼圧',                '10〜25 mmHg',             1
-FROM examination_types et WHERE et.code = 'ET-008'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '眼圧');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, 'シルマーティア試験',  '15 mm/min 以上',          2
-FROM examination_types et WHERE et.code = 'ET-008'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = 'シルマーティア試験');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '角膜フルオレセイン染色', '染色なし',              3
-FROM examination_types et WHERE et.code = 'ET-008'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '角膜フルオレセイン染色');
-
--- 皮膚検査の項目
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '皮膚掻爬検査',        '寄生虫・真菌なし',        1
-FROM examination_types et WHERE et.code = 'ET-009'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '皮膚掻爬検査');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '毛検査',              '異常なし',                2
-FROM examination_types et WHERE et.code = 'ET-009'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '毛検査');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, 'ウッド灯検査',        '蛍光なし',                3
-FROM examination_types et WHERE et.code = 'ET-009'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = 'ウッド灯検査');
-
--- 糞便検査の項目
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '寄生虫卵',            '検出なし',                1
-FROM examination_types et WHERE et.code = 'ET-010'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '寄生虫卵');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, '細菌（グラム染色）',  '正常腸内細菌叢',          2
-FROM examination_types et WHERE et.code = 'ET-010'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = '細菌（グラム染色）');
-
-INSERT INTO examination_type_inspections (id, examination_type_id, name, normal_value, sort_order)
-SELECT gen_random_uuid(), et.id, 'ジアルジア・コクシジウム', '陰性',               3
-FROM examination_types et WHERE et.code = 'ET-010'
-  AND NOT EXISTS (SELECT 1 FROM examination_type_inspections ei WHERE ei.examination_type_id = et.id AND ei.name = 'ジアルジア・コクシジウム');
+INSERT INTO consultations (id, code, name, price, status, description, sort_order) VALUES
+    (gen_random_uuid(), 'C-001', '初診料',         2000.00, 'active', '初めての受診または6ヶ月以上受診がない場合', 1),
+    (gen_random_uuid(), 'C-002', '再診料',          800.00, 'active', '継続通院の診察料',                         2),
+    (gen_random_uuid(), 'C-003', '往診料',         5000.00, 'active', '自宅への往診料（基本料金）',               3),
+    (gen_random_uuid(), 'C-004', '時間外診療料',   3000.00, 'active', '診療時間外・休日の緊急診察',               4),
+    (gen_random_uuid(), 'C-005', '電話相談料',      500.00, 'active', '電話による診察相談',                       5)
+ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 4. master_items - vaccines（ワクチン）
---    実テーブル: master_items (category='vaccine')
---    カラム: id, code, name, category, price, status, description, species, interval, sort_order
---    ※ codeにUNIQUE制約なし -> NOT EXISTSで冪等性を保証
+-- 4. procedures（処置項目）
 -- -----------------------------------------------------------------------------
-INSERT INTO master_items (id, code, name, category, price, status, description, species, interval, sort_order)
-SELECT gen_random_uuid(), 'VAC-007', '混合ワクチン8種（犬）', 'vaccine', 6000.00, 'active', '5種にレプトスピラ3型を加えた8種混合ワクチン', 'dog', '1year', 7
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'VAC-007');
-
-INSERT INTO master_items (id, code, name, category, price, status, description, species, interval, sort_order)
-SELECT gen_random_uuid(), 'VAC-008', '混合ワクチン5種（猫）', 'vaccine', 5000.00, 'active', '3種に猫白血病・クラミジアを含む5種混合（拡張型）', 'cat', '1year', 8
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'VAC-008');
-
-INSERT INTO master_items (id, code, name, category, price, status, description, species, interval, sort_order)
-SELECT gen_random_uuid(), 'VAC-009', 'ノミ・マダニ予防薬', 'vaccine', 1500.00, 'active', '経口または外用による月1回投与の予防薬', 'both', '', 9
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'VAC-009');
-
-INSERT INTO master_items (id, code, name, category, price, status, description, species, interval, sort_order)
-SELECT gen_random_uuid(), 'VAC-010', 'フィラリア予防薬', 'vaccine', 800.00, 'active', '毎月1回投与・蚊のいる季節（5〜12月）に実施', 'dog', '1year', 10
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'VAC-010');
-
--- -----------------------------------------------------------------------------
--- 5. master_items - serviceType（サービス種別・予約区分）
---    category='serviceType'
--- -----------------------------------------------------------------------------
-INSERT INTO master_items (id, code, name, category, status, description, sort_order)
-SELECT gen_random_uuid(), 'SRVTYPE-006', '健康診断', 'serviceType', 'active', '定期健診・シニア検診', 6
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'SRVTYPE-006');
-
-INSERT INTO master_items (id, code, name, category, status, description, sort_order)
-SELECT gen_random_uuid(), 'SRVTYPE-007', '緊急診察', 'serviceType', 'active', '時間外・緊急対応', 7
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'SRVTYPE-007');
+INSERT INTO procedures (id, code, name, price, status, description, anesthesia, sort_order) VALUES
+    (gen_random_uuid(), 'P-001', '去勢手術（犬）',         25000.00, 'active', '雄犬の去勢手術',                         'general', 1),
+    (gen_random_uuid(), 'P-002', '去勢手術（猫）',         20000.00, 'active', '雄猫の去勢手術',                         'general', 2),
+    (gen_random_uuid(), 'P-003', '避妊手術（犬）',         35000.00, 'active', '雌犬の避妊手術',                         'general', 3),
+    (gen_random_uuid(), 'P-004', '避妊手術（猫）',         25000.00, 'active', '雌猫の避妊手術',                         'general', 4),
+    (gen_random_uuid(), 'P-005', '歯石除去',               15000.00, 'active', '全身麻酔下での歯石除去・歯周治療',       'general', 5),
+    (gen_random_uuid(), 'P-006', '腫瘍摘出（皮膚）',       20000.00, 'active', '皮膚腫瘍の外科的摘出',                   'local',   6),
+    (gen_random_uuid(), 'P-007', '骨折手術',               80000.00, 'active', '骨折の外科的整復・固定',                 'general', 7),
+    (gen_random_uuid(), 'P-008', '傷口縫合',                5000.00, 'active', '裂傷・切傷の縫合処置',                   'local',   8),
+    (gen_random_uuid(), 'P-009', '点滴（静脈内）',          3000.00, 'active', '静脈内点滴（1時間）',                    'none',    9),
+    (gen_random_uuid(), 'P-010', '注射（皮下・筋肉）',      1000.00, 'active', '皮下注射・筋肉注射',                     'none',   10),
+    (gen_random_uuid(), 'P-011', '耳道洗浄',                2500.00, 'active', '外耳炎治療・耳道内の洗浄処置',           'none',   11),
+    (gen_random_uuid(), 'P-012', '膀胱洗浄',                3000.00, 'active', '膀胱内の洗浄処置',                       'none',   12),
+    (gen_random_uuid(), 'P-013', '肛門嚢絞り',               500.00, 'active', '肛門嚢の分泌液除去',                     'none',   13),
+    (gen_random_uuid(), 'P-014', '爪切り（医療）',           500.00, 'active', '医療目的の爪切り・巻き爪処置',           'none',   14),
+    (gen_random_uuid(), 'P-015', 'カテーテル挿入',          2000.00, 'active', '尿路閉塞・採尿のカテーテル挿入',         'none',   15)
+ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 6. master_items - consultation（診察項目）
---    category='consultation', time_condition カラム使用
+-- 5. vaccines（ワクチン）
 -- -----------------------------------------------------------------------------
-INSERT INTO master_items (id, code, name, category, price, status, time_condition, description, sort_order)
-SELECT gen_random_uuid(), 'CONS-005', '救急診察料', 'consultation', 8000.00, 'active', '救急', '緊急処置・救急対応が必要な診察', 5
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'CONS-005');
-
-INSERT INTO master_items (id, code, name, category, price, status, time_condition, description, sort_order)
-SELECT gen_random_uuid(), 'CONS-006', '電話相談料', 'consultation', 500.00, 'active', '', '電話による症状相談・診察アドバイス', 6
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'CONS-006');
-
-INSERT INTO master_items (id, code, name, category, price, status, time_condition, description, sort_order)
-SELECT gen_random_uuid(), 'CONS-007', '皮膚科診察', 'consultation', 2000.00, 'active', '', '皮膚疾患専門診察（皮膚検査含む）', 7
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'CONS-007');
-
-INSERT INTO master_items (id, code, name, category, price, status, time_condition, description, sort_order)
-SELECT gen_random_uuid(), 'CONS-008', '眼科診察', 'consultation', 2000.00, 'active', '', '眼科専門診察（眼圧測定含む）', 8
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'CONS-008');
+INSERT INTO vaccines (id, code, name, price, status, description, species, interval, sort_order) VALUES
+    (gen_random_uuid(), 'V-001', '混合ワクチン5種（犬）',   4500.00, 'active', 'ジステンパー・パルボ・アデノ1・アデノ2・パラインフルエンザ', 'dog', '1年', 1),
+    (gen_random_uuid(), 'V-002', '混合ワクチン8種（犬）',   6500.00, 'active', '5種＋レプトスピラ3種',                                          'dog', '1年', 2),
+    (gen_random_uuid(), 'V-003', '混合ワクチン10種（犬）',  8000.00, 'active', '5種＋レプトスピラ5種',                                          'dog', '1年', 3),
+    (gen_random_uuid(), 'V-004', '狂犬病ワクチン（犬）',    3000.00, 'active', '狂犬病予防法に基づく接種',                                      'dog', '1年', 4),
+    (gen_random_uuid(), 'V-005', '混合ワクチン3種（猫）',   4000.00, 'active', '猫ウイルス性鼻気管炎・カリシウイルス・汎白血球減少症',          'cat', '1年', 5),
+    (gen_random_uuid(), 'V-006', '混合ワクチン5種（猫）',   5500.00, 'active', '3種＋猫白血病・猫クラミジア',                                   'cat', '1年', 6),
+    (gen_random_uuid(), 'V-007', '猫白血病ワクチン',        4000.00, 'active', '猫白血病ウイルス感染症予防',                                    'cat', '1年', 7),
+    (gen_random_uuid(), 'V-008', '猫エイズワクチン',        5000.00, 'active', '猫免疫不全ウイルス感染症予防',                                  'cat', '1年', 8)
+ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 7. master_items - procedure（処置項目）
---    category='procedure', anesthesia カラム使用
+-- 6. medicines（薬剤）
 -- -----------------------------------------------------------------------------
-INSERT INTO master_items (id, code, name, category, price, status, anesthesia, description, sort_order)
-SELECT gen_random_uuid(), 'PROC-009', '点滴（1時間）', 'procedure', 3000.00, 'active', 'none', '持続点滴（1時間あたり）', 9
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'PROC-009');
-
-INSERT INTO master_items (id, code, name, category, price, status, anesthesia, description, sort_order)
-SELECT gen_random_uuid(), 'PROC-010', '外科縫合（小）', 'procedure', 5000.00, 'active', 'local', '局所麻酔下での小創傷縫合', 10
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'PROC-010');
-
-INSERT INTO master_items (id, code, name, category, price, status, anesthesia, description, sort_order)
-SELECT gen_random_uuid(), 'PROC-011', '外科縫合（中）', 'procedure', 10000.00, 'active', 'general', '全身麻酔下での中程度創傷縫合', 11
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'PROC-011');
-
-INSERT INTO master_items (id, code, name, category, price, status, anesthesia, description, sort_order)
-SELECT gen_random_uuid(), 'PROC-012', '去勢手術（犬）', 'procedure', 30000.00, 'active', 'general', '雄犬の精巣摘出術（全身麻酔・術後管理含む）', 12
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'PROC-012');
-
-INSERT INTO master_items (id, code, name, category, price, status, anesthesia, description, sort_order)
-SELECT gen_random_uuid(), 'PROC-013', '避妊手術（犬）', 'procedure', 50000.00, 'active', 'general', '雌犬の子宮卵巣摘出術（全身麻酔・術後管理含む）', 13
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'PROC-013');
-
-INSERT INTO master_items (id, code, name, category, price, status, anesthesia, description, sort_order)
-SELECT gen_random_uuid(), 'PROC-014', '去勢手術（猫）', 'procedure', 20000.00, 'active', 'general', '雄猫の精巣摘出術（全身麻酔・術後管理含む）', 14
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'PROC-014');
-
-INSERT INTO master_items (id, code, name, category, price, status, anesthesia, description, sort_order)
-SELECT gen_random_uuid(), 'PROC-015', '避妊手術（猫）', 'procedure', 35000.00, 'active', 'general', '雌猫の子宮卵巣摘出術（全身麻酔・術後管理含む）', 15
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'PROC-015');
-
-INSERT INTO master_items (id, code, name, category, price, status, anesthesia, description, sort_order)
-SELECT gen_random_uuid(), 'PROC-016', '浣腸', 'procedure', 1500.00, 'active', 'none', '便秘・消化管閉塞時の浣腸処置', 16
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'PROC-016');
+INSERT INTO medicines (id, code, name, price, status, description, dosage_form, medicine_unit, default_quantity, sort_order) VALUES
+    (gen_random_uuid(), 'M-001', 'アモキシシリン 50mg',       500.00, 'active', '広域スペクトラム抗生物質',                 'tablet',    'per_tablet', 1,   1),
+    (gen_random_uuid(), 'M-002', 'メトロニダゾール 250mg',    600.00, 'active', '嫌気性菌・原虫感染症治療薬',               'tablet',    'per_tablet', 1,   2),
+    (gen_random_uuid(), 'M-003', 'プレドニゾロン 5mg',        400.00, 'active', 'ステロイド系抗炎症・免疫抑制剤',           'tablet',    'per_tablet', 1,   3),
+    (gen_random_uuid(), 'M-004', 'フロセミド注射液 20mg/2ml', 800.00, 'active', '利尿剤（心臓・腎臓病の浮腫治療）',        'injection', 'per_ml',     2,   4),
+    (gen_random_uuid(), 'M-005', 'メロキシカム経口液',        700.00, 'active', 'NSAIDs・痛み・炎症の緩和',                 'liquid',    'per_ml',     1,   5),
+    (gen_random_uuid(), 'M-006', 'ガバペンチン 100mg',        550.00, 'active', '神経因性疼痛・てんかん補助療法',           'tablet',    'per_tablet', 1,   6),
+    (gen_random_uuid(), 'M-007', 'フィラリア予防薬（小型犬）',900.00, 'active', '体重10kg以下犬用フィラリア予防',           'tablet',    'per_tablet', 1,   7),
+    (gen_random_uuid(), 'M-008', 'フィラリア予防薬（中型犬）',1100.00,'active', '体重11-25kg犬用フィラリア予防',            'tablet',    'per_tablet', 1,   8),
+    (gen_random_uuid(), 'M-009', 'ノミ・ダニ駆除薬（犬）',   2500.00, 'active', '外部寄生虫予防・駆除（スポットオン）',    'topical',   'per_dose',   1,   9),
+    (gen_random_uuid(), 'M-010', 'ノミ・ダニ駆除薬（猫）',   2500.00, 'active', '外部寄生虫予防・駆除（スポットオン）',    'topical',   'per_dose',   1,  10),
+    (gen_random_uuid(), 'M-011', 'マロピタント 16mg',          800.00, 'active', '制吐剤（乗り物酔い・嘔吐治療）',           'tablet',    'per_tablet', 1,  11),
+    (gen_random_uuid(), 'M-012', 'ラクツロース液',             500.00, 'active', '便秘・肝性脳症の治療',                     'liquid',    'per_ml',     5,  12),
+    (gen_random_uuid(), 'M-013', '抗生剤点眼薬',               600.00, 'active', '眼科用抗菌点眼剤',                         'liquid',    'per_ml',     1,  13),
+    (gen_random_uuid(), 'M-014', 'デキサメタゾン注射液',       700.00, 'active', '強力ステロイド・アレルギー緊急治療',       'injection', 'per_ml',     1,  14),
+    (gen_random_uuid(), 'M-015', '生理食塩水 500ml',           400.00, 'active', '点滴・洗浄用生理食塩水',                   'liquid',    'per_ml',   500,  15)
+ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 8. master_items - hospitalization（入院プラン）
---    category='hospitalization'
+-- 7. insurances（ペット保険）
 -- -----------------------------------------------------------------------------
-INSERT INTO master_items (id, code, name, category, price, status, description, sort_order)
-SELECT gen_random_uuid(), 'HOSP-004', '入院（中型犬）', 'hospitalization', 7000.00, 'active', '10〜25kgの中型犬の入院（24時間ケア込み）', 4
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'HOSP-004');
-
-INSERT INTO master_items (id, code, name, category, price, status, description, sort_order)
-SELECT gen_random_uuid(), 'HOSP-005', '入院（大型犬）', 'hospitalization', 9000.00, 'active', '25kg超の大型犬の入院（24時間ケア込み）', 5
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'HOSP-005');
-
-INSERT INTO master_items (id, code, name, category, price, status, description, sort_order)
-SELECT gen_random_uuid(), 'HOSP-006', 'ホテル（小型犬・猫）', 'hospitalization', 3000.00, 'active', '10kg以下の小型犬・猫のペットホテル（1泊）', 6
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'HOSP-006');
-
-INSERT INTO master_items (id, code, name, category, price, status, description, sort_order)
-SELECT gen_random_uuid(), 'HOSP-007', 'ホテル（中型犬）', 'hospitalization', 4000.00, 'active', '10〜25kgの中型犬のペットホテル（1泊）', 7
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'HOSP-007');
-
-INSERT INTO master_items (id, code, name, category, price, status, description, sort_order)
-SELECT gen_random_uuid(), 'HOSP-008', 'ホテル（大型犬）', 'hospitalization', 5000.00, 'active', '25kg超の大型犬のペットホテル（1泊）', 8
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'HOSP-008');
+INSERT INTO insurances (id, code, name, status, description, coverage_rate, contact_phone, sort_order) VALUES
+    (gen_random_uuid(), 'I-001', 'アニコム損保',      'active', 'ペット保険大手・どうぶつ健保シリーズ',  '70', '0120-025-034',  1),
+    (gen_random_uuid(), 'I-002', 'アイペット損保',    'active', 'うちの子シリーズ',                      '70', '0120-956-099',  2),
+    (gen_random_uuid(), 'I-003', 'ペット&ファミリー', 'active', 'げんきナンバーワンシリーズ',             '70', '0120-81-8505',  3),
+    (gen_random_uuid(), 'I-004', 'ドコモペット保険',  'active', 'ドコモが提供するペット保険',             '70', '0120-001-731',  4),
+    (gen_random_uuid(), 'I-005', 'SBIいきいき少短',   'active', 'SBIグループのペット保険',               '80', '0800-888-0819', 5),
+    (gen_random_uuid(), 'I-006', 'PS保険',            'active', 'プリズムコール・70%補償プラン',          '70', '0120-099-317',  6),
+    (gen_random_uuid(), 'I-007', 'FPC',               'active', 'ファミリー少額短期保険',                '50', '0120-210-616',  7),
+    (gen_random_uuid(), 'I-008', '自費（保険なし）',  'active', '保険未加入・全額自費',                   '50', '',              8)
+ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 9. master_items - diagnosis_category（診断カテゴリ）
---    category='diagnosis_category'
+-- 8. cages（ケージ）
 -- -----------------------------------------------------------------------------
-INSERT INTO master_items (id, code, name, category, status, description, sort_order)
-SELECT gen_random_uuid(), 'DIAGCAT-005', '内分泌・代謝疾患', 'diagnosis_category', 'active', '糖尿病・甲状腺・副腎疾患等の内分泌代謝疾患', 5
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAGCAT-005');
-
-INSERT INTO master_items (id, code, name, category, status, description, sort_order)
-SELECT gen_random_uuid(), 'DIAGCAT-006', '泌尿器科', 'diagnosis_category', 'active', '膀胱炎・尿路結石・腎疾患等の泌尿器系疾患', 6
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAGCAT-006');
-
-INSERT INTO master_items (id, code, name, category, status, description, sort_order)
-SELECT gen_random_uuid(), 'DIAGCAT-007', '神経科', 'diagnosis_category', 'active', 'てんかん・脊髄疾患等の神経系疾患', 7
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAGCAT-007');
-
-INSERT INTO master_items (id, code, name, category, status, description, sort_order)
-SELECT gen_random_uuid(), 'DIAGCAT-008', '眼科', 'diagnosis_category', 'active', '結膜炎・白内障・緑内障等の眼科疾患', 8
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAGCAT-008');
-
-INSERT INTO master_items (id, code, name, category, status, description, sort_order)
-SELECT gen_random_uuid(), 'DIAGCAT-009', '耳科', 'diagnosis_category', 'active', '外耳炎・中耳炎等の耳科疾患', 9
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAGCAT-009');
-
-INSERT INTO master_items (id, code, name, category, status, description, sort_order)
-SELECT gen_random_uuid(), 'DIAGCAT-010', '感染症', 'diagnosis_category', 'active', 'ウイルス・細菌・寄生虫による感染症', 10
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAGCAT-010');
+INSERT INTO cages (id, code, name, price, status, description, cage_type, cage_size, sort_order) VALUES
+    (gen_random_uuid(), 'CG-001', 'ICUケージA',      8000.00, 'active', '酸素吸入可・重症患者用',    'icu',     'medium', 1),
+    (gen_random_uuid(), 'CG-002', 'ICUケージB',      8000.00, 'active', '酸素吸入可・重症患者用',    'icu',     'medium', 2),
+    (gen_random_uuid(), 'CG-003', '犬用大型ケージA', 4000.00, 'active', '大型犬・術後管理用',         'dog',     'large',  3),
+    (gen_random_uuid(), 'CG-004', '犬用大型ケージB', 4000.00, 'active', '大型犬・術後管理用',         'dog',     'large',  4),
+    (gen_random_uuid(), 'CG-005', '犬用中型ケージA', 3500.00, 'active', '中型犬・一般入院用',         'dog',     'medium', 5),
+    (gen_random_uuid(), 'CG-006', '犬用中型ケージB', 3500.00, 'active', '中型犬・一般入院用',         'dog',     'medium', 6),
+    (gen_random_uuid(), 'CG-007', '犬用小型ケージA', 3000.00, 'active', '小型犬・ホテル利用可',       'dog',     'small',  7),
+    (gen_random_uuid(), 'CG-008', '犬用小型ケージB', 3000.00, 'active', '小型犬・ホテル利用可',       'dog',     'small',  8),
+    (gen_random_uuid(), 'CG-009', '猫用ケージA',     3000.00, 'active', '猫専用・ストレス軽減設計',   'cat',     'medium', 9),
+    (gen_random_uuid(), 'CG-010', '猫用ケージB',     3000.00, 'active', '猫専用・ストレス軽減設計',   'cat',     'medium', 10),
+    (gen_random_uuid(), 'CG-011', '汎用ケージA',     2500.00, 'active', '小動物・鳥類等対応',         'general', 'small',  11),
+    (gen_random_uuid(), 'CG-012', '汎用ケージB',     2500.00, 'active', '小動物・鳥類等対応',         'general', 'small',  12)
+ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 10. master_items - diagnosis_name（診断名）
---     category='diagnosis_name', parent_id は diagnosis_category のIDを参照
+-- 9. hospitalization_plans（入院プラン）
 -- -----------------------------------------------------------------------------
-
--- 内分泌・代謝疾患 の診断名
-INSERT INTO master_items (id, code, name, category, status, parent_id, sort_order)
-SELECT gen_random_uuid(), 'DIAG-016', '糖尿病', 'diagnosis_name', 'active', mi.id, 1
-FROM master_items mi WHERE mi.code = 'DIAGCAT-005'
-  AND NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAG-016');
-
-INSERT INTO master_items (id, code, name, category, status, parent_id, sort_order)
-SELECT gen_random_uuid(), 'DIAG-017', '甲状腺機能低下症', 'diagnosis_name', 'active', mi.id, 2
-FROM master_items mi WHERE mi.code = 'DIAGCAT-005'
-  AND NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAG-017');
-
-INSERT INTO master_items (id, code, name, category, status, parent_id, sort_order)
-SELECT gen_random_uuid(), 'DIAG-018', 'クッシング症候群（副腎皮質機能亢進症）', 'diagnosis_name', 'active', mi.id, 3
-FROM master_items mi WHERE mi.code = 'DIAGCAT-005'
-  AND NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAG-018');
-
--- 泌尿器科 の診断名
-INSERT INTO master_items (id, code, name, category, status, parent_id, sort_order)
-SELECT gen_random_uuid(), 'DIAG-019', '膀胱炎', 'diagnosis_name', 'active', mi.id, 1
-FROM master_items mi WHERE mi.code = 'DIAGCAT-006'
-  AND NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAG-019');
-
-INSERT INTO master_items (id, code, name, category, status, parent_id, sort_order)
-SELECT gen_random_uuid(), 'DIAG-020', '尿路結石', 'diagnosis_name', 'active', mi.id, 2
-FROM master_items mi WHERE mi.code = 'DIAGCAT-006'
-  AND NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAG-020');
-
-INSERT INTO master_items (id, code, name, category, status, parent_id, sort_order)
-SELECT gen_random_uuid(), 'DIAG-021', '慢性腎臓病', 'diagnosis_name', 'active', mi.id, 3
-FROM master_items mi WHERE mi.code = 'DIAGCAT-006'
-  AND NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAG-021');
-
--- 神経科 の診断名
-INSERT INTO master_items (id, code, name, category, status, parent_id, sort_order)
-SELECT gen_random_uuid(), 'DIAG-022', 'てんかん', 'diagnosis_name', 'active', mi.id, 1
-FROM master_items mi WHERE mi.code = 'DIAGCAT-007'
-  AND NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAG-022');
-
-INSERT INTO master_items (id, code, name, category, status, parent_id, sort_order)
-SELECT gen_random_uuid(), 'DIAG-023', '椎間板ヘルニア', 'diagnosis_name', 'active', mi.id, 2
-FROM master_items mi WHERE mi.code = 'DIAGCAT-007'
-  AND NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAG-023');
-
--- 眼科 の診断名
-INSERT INTO master_items (id, code, name, category, status, parent_id, sort_order)
-SELECT gen_random_uuid(), 'DIAG-024', '結膜炎', 'diagnosis_name', 'active', mi.id, 1
-FROM master_items mi WHERE mi.code = 'DIAGCAT-008'
-  AND NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAG-024');
-
-INSERT INTO master_items (id, code, name, category, status, parent_id, sort_order)
-SELECT gen_random_uuid(), 'DIAG-025', '白内障', 'diagnosis_name', 'active', mi.id, 2
-FROM master_items mi WHERE mi.code = 'DIAGCAT-008'
-  AND NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAG-025');
-
-INSERT INTO master_items (id, code, name, category, status, parent_id, sort_order)
-SELECT gen_random_uuid(), 'DIAG-026', '緑内障', 'diagnosis_name', 'active', mi.id, 3
-FROM master_items mi WHERE mi.code = 'DIAGCAT-008'
-  AND NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAG-026');
-
--- 耳科 の診断名
-INSERT INTO master_items (id, code, name, category, status, parent_id, sort_order)
-SELECT gen_random_uuid(), 'DIAG-027', '外耳炎', 'diagnosis_name', 'active', mi.id, 1
-FROM master_items mi WHERE mi.code = 'DIAGCAT-009'
-  AND NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAG-027');
-
-INSERT INTO master_items (id, code, name, category, status, parent_id, sort_order)
-SELECT gen_random_uuid(), 'DIAG-028', '中耳炎', 'diagnosis_name', 'active', mi.id, 2
-FROM master_items mi WHERE mi.code = 'DIAGCAT-009'
-  AND NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAG-028');
-
--- 感染症 の診断名
-INSERT INTO master_items (id, code, name, category, status, parent_id, sort_order)
-SELECT gen_random_uuid(), 'DIAG-029', 'パルボウイルス感染症', 'diagnosis_name', 'active', mi.id, 1
-FROM master_items mi WHERE mi.code = 'DIAGCAT-010'
-  AND NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAG-029');
-
-INSERT INTO master_items (id, code, name, category, status, parent_id, sort_order)
-SELECT gen_random_uuid(), 'DIAG-030', '猫白血病ウイルス感染症（FeLV）', 'diagnosis_name', 'active', mi.id, 2
-FROM master_items mi WHERE mi.code = 'DIAGCAT-010'
-  AND NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAG-030');
-
-INSERT INTO master_items (id, code, name, category, status, parent_id, sort_order)
-SELECT gen_random_uuid(), 'DIAG-031', '猫免疫不全ウイルス感染症（FIV）', 'diagnosis_name', 'active', mi.id, 3
-FROM master_items mi WHERE mi.code = 'DIAGCAT-010'
-  AND NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'DIAG-031');
+INSERT INTO hospitalization_plans (id, code, name, price, status, description, body_size, billing_unit, sort_order) VALUES
+    (gen_random_uuid(), 'HP-001', '入院プラン（小型・1日）',   3000.00, 'active', '体重10kg以下の入院管理料（1日）',    'small',  'per_day',   1),
+    (gen_random_uuid(), 'HP-002', '入院プラン（中型・1日）',   3500.00, 'active', '体重10-25kgの入院管理料（1日）',    'medium', 'per_day',   2),
+    (gen_random_uuid(), 'HP-003', '入院プラン（大型・1日）',   4500.00, 'active', '体重25kg以上の入院管理料（1日）',   'large',  'per_day',   3),
+    (gen_random_uuid(), 'HP-004', 'ICU管理料（1日）',          8000.00, 'active', '集中治療室管理料（1日）',            'small',  'per_day',   4),
+    (gen_random_uuid(), 'HP-005', 'ホテルプラン（小型・1泊）', 2500.00, 'active', '体重10kg以下のペットホテル（1泊）', 'small',  'per_night', 5),
+    (gen_random_uuid(), 'HP-006', 'ホテルプラン（中型・1泊）', 3000.00, 'active', '体重10-25kgのペットホテル（1泊）',  'medium', 'per_night', 6),
+    (gen_random_uuid(), 'HP-007', 'ホテルプラン（大型・1泊）', 3500.00, 'active', '体重25kg以上のペットホテル（1泊）', 'large',  'per_night', 7)
+ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 11. master_items - checkup（健診種別）
---     category='checkup', target_age カラム使用
+-- 10. trimming_courses（トリミングコース）
 -- -----------------------------------------------------------------------------
-INSERT INTO master_items (id, code, name, category, price, status, interval, target_age, description, sort_order)
-SELECT gen_random_uuid(), 'CHECKUP-004', '歯科検診', 'checkup', 2000.00, 'active', '1year', '', '口腔内チェック・歯垢・歯石の評価', 4
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'CHECKUP-004');
-
-INSERT INTO master_items (id, code, name, category, price, status, interval, target_age, description, sort_order)
-SELECT gen_random_uuid(), 'CHECKUP-005', '心臓検診', 'checkup', 5000.00, 'active', '', '', '聴診・心電図・胸部X線による心臓専門検診', 5
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'CHECKUP-005');
-
-INSERT INTO master_items (id, code, name, category, price, status, interval, target_age, description, sort_order)
-SELECT gen_random_uuid(), 'CHECKUP-006', '子犬・子猫健康診断', 'checkup', 3000.00, 'active', '', '1歳未満', '初回ワクチン前後の身体検査・寄生虫検査', 6
-WHERE NOT EXISTS (SELECT 1 FROM master_items WHERE code = 'CHECKUP-006');
+INSERT INTO trimming_courses (id, code, name, price, status, description, target_size, duration, sort_order) VALUES
+    (gen_random_uuid(), 'TC-001', 'シャンプーコース（小型）',   4000.00, 'active', 'シャンプー・ブロー・ブラッシング',            'small',  '60分',  1),
+    (gen_random_uuid(), 'TC-002', 'シャンプーコース（中型）',   5500.00, 'active', 'シャンプー・ブロー・ブラッシング',            'medium', '90分',  2),
+    (gen_random_uuid(), 'TC-003', 'シャンプーコース（大型）',   7000.00, 'active', 'シャンプー・ブロー・ブラッシング',            'large',  '120分', 3),
+    (gen_random_uuid(), 'TC-004', 'フルトリミング（小型）',     7000.00, 'active', 'カット・シャンプー・ブロー・爪切り・耳掃除', 'small',  '120分', 4),
+    (gen_random_uuid(), 'TC-005', 'フルトリミング（中型）',     9000.00, 'active', 'カット・シャンプー・ブロー・爪切り・耳掃除', 'medium', '150分', 5),
+    (gen_random_uuid(), 'TC-006', 'フルトリミング（大型）',    12000.00, 'active', 'カット・シャンプー・ブロー・爪切り・耳掃除', 'large',  '180分', 6),
+    (gen_random_uuid(), 'TC-007', 'シャンプーコース（猫）',     5000.00, 'active', '猫専用シャンプー・ブロー・ブラッシング',      'cat',    '90分',  7),
+    (gen_random_uuid(), 'TC-008', 'フルトリミング（猫）',       8000.00, 'active', '猫専用カット・シャンプー・ブロー・爪切り',   'cat',    '120分', 8)
+ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 12. medicines（薬剤）
---    実テーブル: medicines
---    カラム: id, code, name, dosage_form, medicine_unit, price, default_quantity,
---            inventory_id, description, is_active, sort_order
+-- 11. trimming_options（トリミングオプション）
 -- -----------------------------------------------------------------------------
-INSERT INTO medicines (id, code, name, dosage_form, medicine_unit, price, default_quantity, description, is_active, sort_order) VALUES
-    (gen_random_uuid(), 'MED-009', 'エンロフロキサシン錠',           'tablet',    'per_tablet',    80.00, 1, 'フルオロキノロン系抗菌薬・尿路・皮膚・消化器感染に使用',     true,  9),
-    (gen_random_uuid(), 'MED-010', 'プレドニゾロン錠',               'tablet',    'per_tablet',    30.00, 1, 'ステロイド系抗炎症薬・アレルギー・免疫疾患に使用',           true, 10),
-    (gen_random_uuid(), 'MED-011', 'フロセミド錠',                   'tablet',    'per_tablet',    20.00, 1, 'ループ利尿薬・心疾患・腎疾患による浮腫に使用',               true, 11),
-    (gen_random_uuid(), 'MED-012', 'ビタミンB12注射液',              'injection', 'per_dose',     500.00, 1, '貧血・神経疾患・食欲不振時の補助療法',                       true, 12),
-    (gen_random_uuid(), 'MED-013', 'クロルヘキシジン消毒液',         'liquid',    'per_ml',        10.00, 10, '創傷・皮膚・耳道の消毒・洗浄に使用',                         true, 13),
-    (gen_random_uuid(), 'MED-014', 'ネクスガード（ノミ・マダニ）',   'tablet',    'per_tablet', 1500.00, 1, 'アフォキソラネル製剤・ノミ・マダニ駆除（月1回経口投与）',    true, 14),
-    (gen_random_uuid(), 'MED-015', 'モキシデクチン',                 'liquid',    'per_dose',     800.00, 1, 'フィラリア・回虫・鉤虫予防に使用',                           true, 15),
-    (gen_random_uuid(), 'MED-016', 'フィプロスポット（ノミ予防）',   'topical',   'per_dose',    1200.00, 1, 'フィプロニル製剤・ノミ・マダニ駆除用スポットオン',           true, 16),
-    (gen_random_uuid(), 'MED-017', '酢酸メチルプレドニゾロン注射',  'injection', 'per_dose',     800.00, 1, '長時間作用型注射ステロイド・アレルギー・関節炎に使用',       true, 17),
-    (gen_random_uuid(), 'MED-018', '硫酸アトロピン点眼液',           'liquid',    'per_ml',       200.00, 1, '散瞳・眼底検査・虹彩毛様体炎治療に使用',                     true, 18),
-    (gen_random_uuid(), 'MED-019', 'テトラサイクリン眼軟膏',         'topical',   'per_dose',     600.00, 1, '細菌性結膜炎・角膜炎の治療に使用',                           true, 19),
-    (gen_random_uuid(), 'MED-020', 'カルプロフェン（NSAIDs）',       'tablet',    'per_tablet',   100.00, 1, 'NSAIDs系鎮痛消炎薬・術後疼痛・骨関節炎に使用',              true, 20)
-ON CONFLICT (code) DO NOTHING;
+INSERT INTO trimming_options (id, code, name, price, status, description, combinable, sort_order) VALUES
+    (gen_random_uuid(), 'TO-001', '爪切り',                  500.00, 'active', '爪のカット・やすりがけ',            'yes', 1),
+    (gen_random_uuid(), 'TO-002', '耳掃除',                  500.00, 'active', '外耳道の洗浄・清掃',                'yes', 2),
+    (gen_random_uuid(), 'TO-003', '肛門嚢絞り',              500.00, 'active', '肛門嚢の分泌液除去',                'yes', 3),
+    (gen_random_uuid(), 'TO-004', '歯磨き',                  800.00, 'active', '歯ブラシによるデンタルケア',        'yes', 4),
+    (gen_random_uuid(), 'TO-005', '足裏バリカン',            500.00, 'active', '足裏の毛のバリカン処理',            'yes', 5),
+    (gen_random_uuid(), 'TO-006', 'リボン・バンダナ',        300.00, 'active', '仕上げのアクセサリー装着',          'yes', 6),
+    (gen_random_uuid(), 'TO-007', 'ノミ・ダニ駆除スプレー', 1000.00, 'active', '外部寄生虫予防スプレー処理',        'yes', 7),
+    (gen_random_uuid(), 'TO-008', 'フレッシュグルーミング',  500.00, 'active', '仕上げの整毛・コーム通し',          'yes', 8)
+ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 13. insurance_companies（保険会社）
---    実テーブル: insurance_companies
---    カラム: id, code, name, coverage_rate, contact_phone, description, is_active, sort_order
+-- 12. examination_types（検査種別）
 -- -----------------------------------------------------------------------------
-INSERT INTO insurance_companies (id, code, name, coverage_rate, contact_phone, description, is_active, sort_order) VALUES
-    (gen_random_uuid(), 'INS-004', 'ペット&ファミリー損害保険', '50', '0120-81-8320',  'げんきナンバーわんスリム等を取り扱い',  true, 4),
-    (gen_random_uuid(), 'INS-005', '楽天ペット保険',            '70', '0800-600-0204', '楽天グループのペット保険サービス',      true, 5)
-ON CONFLICT (code) DO NOTHING;
+INSERT INTO examination_types (id, code, name, price, status, description, sort_order) VALUES
+    (gen_random_uuid(), 'ET-001', '血液検査（CBC）',            3000.00, 'active', '全血球計算（Complete Blood Count）',                   1),
+    (gen_random_uuid(), 'ET-002', '血液化学検査（BIO）',        5000.00, 'active', '肝機能・腎機能・血糖値など生化学的検査',               2),
+    (gen_random_uuid(), 'ET-003', '血液検査（CBC+BIO）',        7000.00, 'active', '全血球計算＋生化学検査のセット',                       3),
+    (gen_random_uuid(), 'ET-004', '尿検査',                     1500.00, 'active', '尿試験紙・尿沈渣検査',                                 4),
+    (gen_random_uuid(), 'ET-005', '便検査',                     1500.00, 'active', '糞便検査・腸内寄生虫検査',                             5),
+    (gen_random_uuid(), 'ET-006', 'レントゲン検査（胸部）',     3000.00, 'active', '胸部X線撮影（2方向）',                                6),
+    (gen_random_uuid(), 'ET-007', 'レントゲン検査（腹部）',     3000.00, 'active', '腹部X線撮影（2方向）',                                7),
+    (gen_random_uuid(), 'ET-008', 'レントゲン検査（四肢）',     3000.00, 'active', '四肢X線撮影（2方向）',                                8),
+    (gen_random_uuid(), 'ET-009', '超音波検査（腹部）',         5000.00, 'active', '腹部エコー検査',                                       9),
+    (gen_random_uuid(), 'ET-010', '超音波検査（心臓）',         6000.00, 'active', '心臓エコー・心臓超音波検査',                          10),
+    (gen_random_uuid(), 'ET-011', 'フィラリア抗原検査',         2000.00, 'active', 'フィラリア感染の抗原検査',                            11),
+    (gen_random_uuid(), 'ET-012', 'ノミ・ダニ検査',             1000.00, 'active', '外部寄生虫の検査',                                    12),
+    (gen_random_uuid(), 'ET-013', '皮膚掻爬検査',               2000.00, 'active', '皮膚病変の顕微鏡検査',                                13),
+    (gen_random_uuid(), 'ET-014', '培養・感受性検査',           5000.00, 'active', '細菌培養と抗生物質感受性試験',                        14),
+    (gen_random_uuid(), 'ET-015', '甲状腺機能検査',             4000.00, 'active', 'T4・TSH測定（甲状腺疾患スクリーニング）',             15)
+ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 14. cages（ケージ）
---    実テーブル: cages
---    カラム: id, code, name, cage_type, cage_size, body_size, billing_unit,
---            price, is_active, sort_order
+-- 13. diagnosis_categories（診断カテゴリ）
 -- -----------------------------------------------------------------------------
-INSERT INTO cages (id, code, name, cage_type, cage_size, price, is_active, sort_order) VALUES
-    (gen_random_uuid(), 'CAGE-007', 'ICUケージ大',   'icu',     'large',  0.00, true,  7),
-    (gen_random_uuid(), 'CAGE-008', 'ICUケージ中',   'icu',     'medium', 0.00, true,  8),
-    (gen_random_uuid(), 'CAGE-009', '犬用ケージ大1', 'dog',     'large',  0.00, true,  9),
-    (gen_random_uuid(), 'CAGE-010', '犬用ケージ大2', 'dog',     'large',  0.00, true, 10),
-    (gen_random_uuid(), 'CAGE-011', '犬用ケージ中1', 'dog',     'medium', 0.00, true, 11),
-    (gen_random_uuid(), 'CAGE-012', '犬用ケージ中2', 'dog',     'medium', 0.00, true, 12),
-    (gen_random_uuid(), 'CAGE-013', '犬用ケージ小1', 'dog',     'small',  0.00, true, 13),
-    (gen_random_uuid(), 'CAGE-014', '猫用ケージ1',   'cat',     'small',  0.00, true, 14),
-    (gen_random_uuid(), 'CAGE-015', '猫用ケージ2',   'cat',     'small',  0.00, true, 15),
-    (gen_random_uuid(), 'CAGE-016', '猫用ケージ3',   'cat',     'small',  0.00, true, 16),
-    (gen_random_uuid(), 'CAGE-017', '一般ケージ大',  'general', 'large',  0.00, true, 17),
-    (gen_random_uuid(), 'CAGE-018', '一般ケージ中',  'general', 'medium', 0.00, true, 18)
-ON CONFLICT (code) DO NOTHING;
+INSERT INTO diagnosis_categories (id, code, name, status, description, sort_order) VALUES
+    (gen_random_uuid(), 'DC-001', '消化器疾患',    'active', '胃腸・肝臓・膵臓などの消化器系疾患',   1),
+    (gen_random_uuid(), 'DC-002', '呼吸器疾患',    'active', '肺・気管・鼻腔などの呼吸器系疾患',     2),
+    (gen_random_uuid(), 'DC-003', '循環器疾患',    'active', '心臓・血管などの循環器系疾患',          3),
+    (gen_random_uuid(), 'DC-004', '泌尿器疾患',    'active', '腎臓・膀胱・尿道などの泌尿器系疾患',   4),
+    (gen_random_uuid(), 'DC-005', '皮膚疾患',      'active', 'アレルギー・感染症などの皮膚疾患',     5),
+    (gen_random_uuid(), 'DC-006', '整形外科疾患',  'active', '骨・関節・筋肉などの整形外科疾患',     6),
+    (gen_random_uuid(), 'DC-007', '神経疾患',      'active', '脳・脊髄・末梢神経などの神経系疾患',   7),
+    (gen_random_uuid(), 'DC-008', '眼科疾患',      'active', '目・眼瞼などの眼科疾患',               8),
+    (gen_random_uuid(), 'DC-009', '耳科疾患',      'active', '外耳・中耳などの耳の疾患',             9),
+    (gen_random_uuid(), 'DC-010', '内分泌疾患',    'active', '糖尿病・甲状腺・副腎などの内分泌疾患',10),
+    (gen_random_uuid(), 'DC-011', '腫瘍性疾患',    'active', '良性・悪性腫瘍（がん）',              11),
+    (gen_random_uuid(), 'DC-012', '感染症',        'active', '細菌・ウイルス・寄生虫感染症',        12),
+    (gen_random_uuid(), 'DC-013', '歯科・口腔疾患','active', '歯周病・口内炎などの口腔内疾患',      13),
+    (gen_random_uuid(), 'DC-014', '生殖器疾患',    'active', '子宮・卵巣・精巣などの生殖器疾患',    14),
+    (gen_random_uuid(), 'DC-015', '外傷・中毒',    'active', '骨折・咬傷・中毒症状など',            15)
+ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 15. trimming_courses（トリミングコース）
---    実テーブル: trimming_courses
---    カラム: id, code, name, target_size, duration, price, parent_id, description, is_active, sort_order
+-- 14. diagnosis_names（診断名）- diagnosis_categoriesに依存
 -- -----------------------------------------------------------------------------
-INSERT INTO trimming_courses (id, code, name, target_size, duration, price, description, is_active, sort_order) VALUES
-    (gen_random_uuid(), 'TRIM-006', '猫フルコース（スタンダード）', 'cat',    '90分',  6500.00, 'シャンプー・ドライ・爪切り・耳掃除・ブラッシング込み', true, 6),
-    (gen_random_uuid(), 'TRIM-007', '小型犬プレミアムコース',       'small',  '75分',  5000.00, 'フルトリミング＋歯磨き・肛門腺絞り付き',              true, 7),
-    (gen_random_uuid(), 'TRIM-008', '中型犬プレミアムコース',       'medium', '105分', 7500.00, 'フルトリミング＋歯磨き・肛門腺絞り付き',              true, 8),
-    (gen_random_uuid(), 'TRIM-009', '大型犬プレミアムコース',       'large',  '150分', 11000.00, 'フルトリミング＋歯磨き・肛門腺絞り付き',             true, 9),
-    (gen_random_uuid(), 'TRIM-010', 'シャンプー＆ブラッシング',     'small',  '45分',  3000.00, 'シャンプー・ドライ・ブラッシングのみ（中型犬以上は別途加算）', true, 10)
-ON CONFLICT (code) DO NOTHING;
+INSERT INTO diagnosis_names (id, code, name, status, description, diagnosis_category_id, sort_order)
+SELECT
+    gen_random_uuid(), dn.code, dn.name, 'active', dn.description, dc.id, dn.sort_order
+FROM (VALUES
+    ('DN-001', '嘔吐症',                 '原因を問わない嘔吐症状',               'DC-001', 1),
+    ('DN-002', '下痢症',                 '軟便・水様便・血便など',               'DC-001', 2),
+    ('DN-003', '便秘',                   '排便困難・排便回数の減少',             'DC-001', 3),
+    ('DN-004', '胃腸炎',                 '胃・腸の炎症',                         'DC-001', 4),
+    ('DN-005', '肝臓疾患',               '肝炎・肝不全・脂肪肝など',             'DC-001', 5),
+    ('DN-006', '膵炎',                   '膵臓の炎症',                           'DC-001', 6),
+    ('DN-010', '気管支炎',               '気管支の炎症',                         'DC-002', 1),
+    ('DN-011', '肺炎',                   '肺の感染性・非感染性炎症',             'DC-002', 2),
+    ('DN-012', '鼻炎',                   '鼻腔の炎症・鼻水',                     'DC-002', 3),
+    ('DN-020', '心臓病（僧帽弁閉鎖不全）','犬に多い僧帽弁の変性疾患',           'DC-003', 1),
+    ('DN-021', '心筋症',                 '心筋の疾患（拡張型・肥大型）',         'DC-003', 2),
+    ('DN-030', '膀胱炎',                 '細菌性・特発性膀胱炎',                 'DC-004', 1),
+    ('DN-031', '腎不全',                 '急性・慢性腎不全',                     'DC-004', 2),
+    ('DN-032', '尿路結石',               '腎結石・膀胱結石・尿道結石',           'DC-004', 3),
+    ('DN-040', 'アトピー性皮膚炎',       'アレルゲンによるアレルギー性皮膚炎',  'DC-005', 1),
+    ('DN-041', '細菌性皮膚炎',           '膿皮症・毛包炎など',                   'DC-005', 2),
+    ('DN-042', 'ノミアレルギー性皮膚炎', 'ノミ刺咬アレルギー',                  'DC-005', 3),
+    ('DN-050', '椎間板ヘルニア',         '頸椎・腰椎の椎間板突出',               'DC-006', 1),
+    ('DN-051', '骨折',                   '各部位の骨折',                         'DC-006', 2),
+    ('DN-052', '股関節形成不全',         '犬の股関節発育不全',                   'DC-006', 3),
+    ('DN-060', '白内障',                 '水晶体の混濁',                         'DC-008', 1),
+    ('DN-061', '結膜炎',                 '結膜の炎症・充血・分泌物',             'DC-008', 2),
+    ('DN-062', '緑内障',                 '眼圧上昇による視神経障害',             'DC-008', 3),
+    ('DN-070', '外耳炎',                 '外耳道の炎症',                         'DC-009', 1),
+    ('DN-071', '中耳炎',                 '中耳腔の感染・炎症',                   'DC-009', 2),
+    ('DN-080', '糖尿病',                 'インスリン不足による高血糖',           'DC-010', 1),
+    ('DN-081', '甲状腺機能低下症',       '甲状腺ホルモン分泌低下（犬）',         'DC-010', 2),
+    ('DN-082', '甲状腺機能亢進症',       '甲状腺ホルモン過剰分泌（猫）',         'DC-010', 3),
+    ('DN-083', '副腎皮質機能亢進症',     'クッシング症候群',                     'DC-010', 4),
+    ('DN-090', '肥満細胞腫',             '皮膚または内臓の肥満細胞腫瘍',         'DC-011', 1),
+    ('DN-091', 'リンパ腫',               '悪性リンパ腫',                         'DC-011', 2),
+    ('DN-092', '乳腺腫瘍',               '乳腺の良性・悪性腫瘍',                 'DC-011', 3),
+    ('DN-100', 'パルボウイルス感染症',   '犬パルボウイルスによる感染症',         'DC-012', 1),
+    ('DN-101', '猫汎白血球減少症',       '猫パルボウイルスによる感染症',         'DC-012', 2),
+    ('DN-102', 'フィラリア症',           '犬糸状虫による心肺疾患',               'DC-012', 3),
+    ('DN-110', '歯周病',                 '歯肉炎・歯周炎・歯槽骨融解',           'DC-013', 1),
+    ('DN-111', '口内炎',                 '口腔粘膜の炎症',                       'DC-013', 2),
+    ('DN-120', '子宮蓄膿症',             '細菌による子宮内膿汁蓄積',             'DC-014', 1),
+    ('DN-121', '前立腺肥大',             '雄犬の前立腺肥大症',                   'DC-014', 2),
+    ('DN-130', '咬傷',                   '他動物による咬傷・咬傷感染',           'DC-015', 1),
+    ('DN-131', '中毒症状',               '食物・薬物・植物中毒',                 'DC-015', 2),
+    ('DN-132', '熱中症',                 '高温環境による体温上昇・脱水',         'DC-015', 3)
+) AS dn(code, name, description, dc_code, sort_order)
+JOIN diagnosis_categories dc ON dc.code = dn.dc_code
+ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 16. trimming_options（トリミングオプション）
---    実テーブル: trimming_options
---    カラム: id, code, name, target_size, combinable, price, parent_id, description, is_active, sort_order
+-- 15. checkup_types（健診種別）
 -- -----------------------------------------------------------------------------
-INSERT INTO trimming_options (id, code, name, combinable, price, description, is_active, sort_order) VALUES
-    (gen_random_uuid(), 'TRIMOPT-006', '薬浴シャンプー',   'yes', 2000.00, '皮膚疾患・アレルギー用薬用シャンプーで洗浄',        true, 6),
-    (gen_random_uuid(), 'TRIMOPT-007', 'ノミ取りシャンプー', 'yes', 1500.00, 'ノミ駆除成分配合シャンプーによる洗浄',            true, 7),
-    (gen_random_uuid(), 'TRIMOPT-008', '毛並み整えブラッシング', 'yes', 500.00, '丁寧なブラッシングと毛並み整え',                true, 8)
-ON CONFLICT (code) DO NOTHING;
+INSERT INTO checkup_types (id, code, name, price, status, description, interval, target_age, sort_order) VALUES
+    (gen_random_uuid(), 'CK-001', '一般健康診断（基本）',        5000.00, 'active', '身体検査・体重測定・問診',                              '6ヶ月', '全年齢',  1),
+    (gen_random_uuid(), 'CK-002', '一般健康診断（血液検査付）', 10000.00, 'active', '身体検査＋血液検査（CBC+BIO）',                         '6ヶ月', '全年齢',  2),
+    (gen_random_uuid(), 'CK-003', 'シニア健康診断（7歳以上）',  15000.00, 'active', '身体検査＋血液検査＋レントゲン＋超音波',                 '6ヶ月', '7歳以上', 3),
+    (gen_random_uuid(), 'CK-004', 'フィラリア検査',              2500.00, 'active', 'フィラリア抗原検査（予防シーズン前）',                  '1年',   '全年齢',  4),
+    (gen_random_uuid(), 'CK-005', '術前健康診断',                8000.00, 'active', '手術前の全身状態確認（血液・レントゲン・心電図）',       '随時',  '手術前',  5),
+    (gen_random_uuid(), 'CK-006', '妊婦健診',                    5000.00, 'active', '妊娠中の定期健康確認',                                  '随時',  '妊娠中',  6)
+ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 17. clinic_info（病院情報）
---    実テーブル: clinic_info（1レコードのみ想定）
---    カラム: id, name, branch_name, postal_code, address, phone_number,
---            fax_number, registration_number, director_name, email, website
+-- 16. clinic_info（クリニック基本情報）- 1件のみ
 -- -----------------------------------------------------------------------------
 INSERT INTO clinic_info (id, name, branch_name, postal_code, address, phone_number, fax_number, registration_number, director_name, email, website)
 SELECT
     gen_random_uuid(),
-    'アニマルクリニック田中',
+    '田中動物病院',
     '',
     '150-0001',
     '東京都渋谷区神宮前1-1-1',
     '03-1234-5678',
     '03-1234-5679',
-    'REG-123456',
-    '田中 博',
+    'VH-001',
+    '田中 太郎',
     'info@animal-clinic-tanaka.jp',
     'https://animal-clinic-tanaka.jp'
 WHERE NOT EXISTS (SELECT 1 FROM clinic_info);
 
--- =============================================================================
--- シード完了
--- =============================================================================
+-- -----------------------------------------------------------------------------
+-- 17. clinics（クリニック一覧）
+-- -----------------------------------------------------------------------------
+INSERT INTO clinics (id, name, branch_name, postal_code, address, phone_number, fax_number, registration_number, director_name, email, website, is_active)
+SELECT
+    gen_random_uuid(),
+    '田中動物病院',
+    '本院',
+    '150-0001',
+    '東京都渋谷区神宮前1-1-1',
+    '03-1234-5678',
+    '03-1234-5679',
+    'VH-001',
+    '田中 太郎',
+    'info@animal-clinic-tanaka.jp',
+    'https://animal-clinic-tanaka.jp',
+    true
+WHERE NOT EXISTS (SELECT 1 FROM clinics WHERE registration_number = 'VH-001');

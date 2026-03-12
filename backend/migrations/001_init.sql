@@ -1060,3 +1060,23 @@ ALTER TABLE care_plan_items ADD CONSTRAINT chk_care_plan_item_ref CHECK (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_user_clinic_memberships_main
     ON user_clinic_memberships (user_id)
     WHERE is_main = true;
+
+-- -----------------------------------------------------------------------------
+-- 7. マスタテーブル codeカラム 部分一意インデックス
+--    code='' の空文字は除外（デフォルト値として複数レコードが持てる）
+-- -----------------------------------------------------------------------------
+CREATE UNIQUE INDEX IF NOT EXISTS idx_staffs_code               ON staffs               (code) WHERE code != '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vaccines_code             ON vaccines             (code) WHERE code != '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_medicines_code            ON medicines            (code) WHERE code != '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_insurances_code           ON insurances           (code) WHERE code != '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cages_code                ON cages                (code) WHERE code != '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_service_types_code        ON service_types        (code) WHERE code != '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_consultations_code        ON consultations        (code) WHERE code != '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_procedures_code           ON procedures           (code) WHERE code != '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_hospitalization_plans_code ON hospitalization_plans (code) WHERE code != '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_trimming_courses_code     ON trimming_courses     (code) WHERE code != '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_trimming_options_code     ON trimming_options     (code) WHERE code != '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_examination_types_code    ON examination_types    (code) WHERE code != '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_diagnosis_categories_code ON diagnosis_categories (code) WHERE code != '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_diagnosis_names_code      ON diagnosis_names      (code) WHERE code != '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_checkup_types_code        ON checkup_types        (code) WHERE code != '';
