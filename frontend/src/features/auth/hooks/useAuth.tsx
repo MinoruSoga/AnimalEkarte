@@ -80,16 +80,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     let cancelled = false;
-    refreshToken().then((result) => {
-      if (cancelled) return;
-      if (result) {
-        setUser(result.user);
-        const storedClinic = readStorageItem(STORAGE_KEY_CLINIC);
-        const validClinic = result.user.clinics.some((c) => c.clinicId === storedClinic);
-        setCurrentClinicId(validClinic ? storedClinic : result.user.mainClinicId);
+    (async () => {
+      try {
+        const result = await refreshToken();
+        if (cancelled) return;
+        if (result) {
+          setUser(result.user);
+          const storedClinic = readStorageItem(STORAGE_KEY_CLINIC);
+          const validClinic = result.user.clinics.some((c) => c.clinicId === storedClinic);
+          setCurrentClinicId(validClinic ? storedClinic : result.user.mainClinicId);
+        }
+      } catch {
+        /* refreshToken は内部で catch して null を返すが、念のため */
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
-      setIsLoading(false);
-    });
+    })();
     return () => {
       cancelled = true;
     };

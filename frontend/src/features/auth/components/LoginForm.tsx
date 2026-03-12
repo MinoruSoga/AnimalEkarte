@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, memo } from "react";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import Eye from "lucide-react/dist/esm/icons/eye";
 import EyeOff from "lucide-react/dist/esm/icons/eye-off";
@@ -18,7 +18,7 @@ interface DemoAccountProps {
   onSelect: (email: string) => void;
 }
 
-function DemoAccount({ email, displayName, user, onSelect }: DemoAccountProps) {
+const DemoAccount = memo(function DemoAccount({ email, displayName, user, onSelect }: DemoAccountProps) {
   const roleLabel =
     user.userType === "system_admin"
       ? USER_TYPE_LABELS.system_admin
@@ -48,7 +48,7 @@ function DemoAccount({ email, displayName, user, onSelect }: DemoAccountProps) {
       </div>
     </button>
   );
-}
+});
 
 /* ---- Shared input classes (padding-x set per field to avoid conflict) ---- */
 // Figma実測: fontSize=15px, height=~48px, bg=rgba(242,241,238,0.6), borderRadius=3px
@@ -64,6 +64,16 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    setError(null);
+  }, []);
+
+  const handlePasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+    setError(null);
+  }, []);
 
   const handleSelectDemo = useCallback((demoEmail: string) => {
     setEmail(demoEmail);
@@ -123,7 +133,7 @@ export function LoginForm() {
             type="email"
             autoComplete="email"
             value={email}
-            onChange={(e) => { setEmail(e.target.value); setError(null); }}
+            onChange={handleEmailChange}
             placeholder="例: admin@example.com"
             className={`${INPUT_BASE} px-2.5`}
             aria-invalid={error !== null}
@@ -143,7 +153,7 @@ export function LoginForm() {
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               value={password}
-              onChange={(e) => { setPassword(e.target.value); setError(null); }}
+              onChange={handlePasswordChange}
               placeholder="パスワードを入力"
               className={`${INPUT_BASE} pl-2.5 pr-10`}
               aria-invalid={error !== null}
