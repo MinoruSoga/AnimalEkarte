@@ -20,9 +20,9 @@ import {
   Package,
   CalendarDays,
   ClipboardCheck,
-  User,
   Clipboard,
   LogOut,
+  User,
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
@@ -213,7 +213,7 @@ export function Sidebar() {
           <div className="flex items-center justify-between w-full">
             <button
               type="button"
-              className="flex items-center gap-1 min-w-0 text-sm font-semibold text-[#37352F] hover:bg-[rgba(55,53,47,0.04)] rounded-[3px] px-1.5 py-1 transition-colors outline-none"
+              className="flex items-center gap-1 min-w-0 text-base font-semibold text-[#37352F] hover:bg-[rgba(55,53,47,0.04)] rounded-[3px] px-1.5 py-1 transition-colors outline-none"
             >
               <span className="size-2 rounded-full bg-[#038B94] shrink-0" />
               <span className="truncate">{clinicInfo.name}</span>
@@ -251,10 +251,10 @@ export function Sidebar() {
       <div className="border-t border-[rgba(55,53,47,0.06)] px-1 py-1.5">
         {!collapsed ? (
           <div className="flex items-center gap-2 px-2 py-1 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors">
-            <div className="size-6 rounded-full flex items-center justify-center shrink-0 bg-[rgba(55,53,47,0.08)]">
-              <User className="size-3 text-[#37352F]/50" />
+            <div className="size-[26px] rounded-full flex items-center justify-center shrink-0 bg-[rgba(55,53,47,0.08)]">
+              <User className="size-[13px] text-[#37352F]/50" />
             </div>
-            <p className="flex-1 min-w-0 text-sm text-[#37352F] truncate">
+            <p className="flex-1 min-w-0 text-base text-[#37352F] truncate">
               {user?.displayName ?? ""}
             </p>
             <button
@@ -262,14 +262,14 @@ export function Sidebar() {
               onClick={logout}
               aria-label="ログアウト"
               title="ログアウト"
-              className="size-6 flex items-center justify-center rounded-[3px] text-[#37352F]/35 hover:text-[#37352F] hover:bg-[rgba(55,53,47,0.08)] transition-colors shrink-0"
+              className="size-[26px] flex items-center justify-center rounded-[3px] text-[#37352F]/35 hover:text-[#37352F] hover:bg-[rgba(55,53,47,0.08)] transition-colors shrink-0"
             >
-              <LogOut className="size-3.5" />
+              <LogOut className="size-[15px]" />
             </button>
           </div>
         ) : (
           <div className="flex items-center justify-center h-[30px]">
-            <User className="size-3.5 text-[#37352F]/40" />
+            <LogOut className="size-[15px] text-[#37352F]/40" />
           </div>
         )}
       </div>

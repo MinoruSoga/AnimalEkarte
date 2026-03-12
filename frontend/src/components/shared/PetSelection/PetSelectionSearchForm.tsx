@@ -48,7 +48,7 @@ export const PetSelectionSearchForm = ({ searchParams, setSearchParams, onSearch
               onChange={(e) =>
                 setSearchParams({ ...searchParams, [id]: e.target.value })
               }
-              className="text-sm h-10 bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
+              className="text-sm h-11 bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
             />
           </div>
         ))}
@@ -57,7 +57,7 @@ export const PetSelectionSearchForm = ({ searchParams, setSearchParams, onSearch
         <Button
           size="sm"
           onClick={onSearch}
-          className="gap-2 bg-[#2383E2] hover:bg-[#1B6EC2] text-white focus-visible:ring-[#2EAADC] h-10 text-sm"
+          className="gap-2 bg-[#2383E2] hover:bg-[#1B6EC2] text-white focus-visible:ring-[#2EAADC] h-11 text-sm"
         >
           <Search className="size-4" />
           検索

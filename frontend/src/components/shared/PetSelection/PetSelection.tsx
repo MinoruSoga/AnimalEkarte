@@ -31,7 +31,7 @@ export const PetSelection = ({
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="飼主名、ペット名で検索..."
-            className="pl-9 bg-white h-10 text-sm border-[rgba(55,53,47,0.16)]"
+            className="pl-9 bg-white h-11 text-sm border-[rgba(55,53,47,0.16)]"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
           />

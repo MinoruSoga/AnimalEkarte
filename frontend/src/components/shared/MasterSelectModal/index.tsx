@@ -87,7 +87,7 @@ export function MasterSelectModal({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={searchPlaceholder}
-            className="pl-9 h-10 text-sm bg-white border-[rgba(55,53,47,0.16)]"
+            className="pl-9 h-11 text-sm bg-white border-[rgba(55,53,47,0.16)]"
           />
           {searchTerm && (
             <button
@@ -218,7 +218,7 @@ export function MasterSelectTrigger({
     return (
       <div
         onClick={onClick}
-        className="h-10 px-3 border border-[#37352F] bg-[#F7F6F3] rounded-md cursor-pointer hover:bg-[#F7F6F3]/80 transition-colors flex items-center justify-between"
+        className="h-11 px-3 border border-[#37352F] bg-[#F7F6F3] rounded-md cursor-pointer hover:bg-[#F7F6F3]/80 transition-colors flex items-center justify-between"
       >
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm text-[#37352F] truncate">
@@ -259,7 +259,7 @@ export function MasterSelectTrigger({
     <button
       type="button"
       onClick={onClick}
-      className="w-full h-10 px-3 border border-[rgba(55,53,47,0.16)] rounded-md bg-white hover:bg-[#F7F6F3]/50 transition-colors text-left cursor-pointer flex items-center gap-2"
+      className="w-full h-11 px-3 border border-[rgba(55,53,47,0.16)] rounded-md bg-white hover:bg-[#F7F6F3]/50 transition-colors text-left cursor-pointer flex items-center gap-2"
     >
       <span className="text-[#37352F]/30">{icon}</span>
       <span className="text-sm text-[#37352F]/40">{placeholder}</span>

@@ -85,7 +85,7 @@ export function NotionDatePicker({
           id={id}
           type="button"
           className={cn(
-            "flex h-10 w-full items-center justify-between rounded-md border border-[rgba(55,53,47,0.16)] bg-white px-3 text-sm text-[#37352F] transition-colors",
+            "flex h-11 w-full items-center justify-between rounded-md border border-[rgba(55,53,47,0.16)] bg-white px-3 text-sm text-[#37352F] transition-colors",
             "hover:bg-[#F7F6F3] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
             !value && "text-[#37352F]/40",
             className,

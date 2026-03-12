@@ -11,7 +11,7 @@ interface FormHeaderProps {
 
 export function FormHeader({ title, description, icon, onBack, action }: FormHeaderProps) {
   return (
-    <div className="sticky top-0 z-10 bg-[#F7F6F3] border-b border-[rgba(55,53,47,0.16)] px-4 flex items-center justify-between h-12">
+    <div className="sticky top-0 z-10 bg-[#F7F6F3] border-b border-[rgba(55,53,47,0.09)] px-4 flex items-center justify-between h-[53px]">
       <div className="flex items-center gap-2">
         {onBack && (
           <Button
@@ -26,7 +26,7 @@ export function FormHeader({ title, description, icon, onBack, action }: FormHea
         <div className="flex items-center gap-2">
           {icon && <div className="shrink-0">{icon}</div>}
           <div className="flex flex-col">
-            <h1 className="text-base font-semibold text-[#37352F] leading-tight tracking-[var(--tracking-notion)]">{title}</h1>
+            <h1 className="text-base text-[#37352F] leading-tight tracking-[var(--tracking-notion)]">{title}</h1>
             {description && <p className="text-sm text-[rgba(55,53,47,0.5)] mt-0.5 tracking-[var(--tracking-notion-sm)]">{description}</p>}
           </div>
         </div>

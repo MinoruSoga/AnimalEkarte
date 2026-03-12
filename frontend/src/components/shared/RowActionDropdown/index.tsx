@@ -29,7 +29,7 @@ export function RowActionDropdown({ actions }: RowActionDropdownProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-10 text-[#37352F]/60 hover:text-[#37352F]"
+            className="h-11 w-11 text-[#37352F]/60 hover:text-[#37352F]"
             onClick={(e) => e.stopPropagation()}
           >
             <MoreHorizontal className="h-5 w-5" />

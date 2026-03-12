@@ -7,6 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { STYLE } from "@/lib/design-tokens";
 
 interface DataTableProps<T> {
   columns: {
@@ -28,15 +29,15 @@ export function DataTable<T>({
   className = "",
 }: DataTableProps<T>) {
   return (
-    <div className={`bg-[#fafafa] border border-[#e5e5e5] rounded-lg shadow-sm flex flex-col h-[calc(100vh-220px)] ${className}`}>
+    <div className={`${STYLE.tableContainer} ${className}`}>
       <div className="flex-1 overflow-auto relative">
         <Table className="min-w-[800px]">
-          <TableHeader className="sticky top-0 z-10 shadow-sm">
-            <TableRow className="border-b-[#e5e5e5] bg-[#fafafa] hover:bg-[#fafafa] h-11">
+          <TableHeader className="sticky top-0 z-10">
+            <TableRow className={STYLE.tableHeaderRow}>
               {columns.map((col, index) => (
                 <TableHead
                   key={index}
-                  className={`text-sm font-medium text-[#737373] h-11 ${
+                  className={`${STYLE.tableHeaderCell} ${
                     col.align === "right" ? "text-right" :
                     col.align === "center" ? "text-center" : ""
                   } ${col.className || ""}`}
@@ -51,7 +52,7 @@ export function DataTable<T>({
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
-                  className="text-center py-12 text-[#37352F]/60 text-sm"
+                  className={STYLE.tableEmpty}
                 >
                   {emptyMessage}
                 </TableCell>

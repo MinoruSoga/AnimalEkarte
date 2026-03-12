@@ -26,7 +26,7 @@ export const PageLayout = ({
 }: PageLayoutProps) => {
   return (
     <div
-      className={`flex flex-col h-full bg-[#fafafa] overflow-hidden ${className || ""}`}
+      className={`flex flex-col h-full bg-[#F7F6F3] overflow-hidden ${className || ""}`}
     >
       <FormHeader
         title={title}
@@ -34,9 +34,9 @@ export const PageLayout = ({
         icon={icon}
         action={headerAction}
       />
-      <div className="flex-1 w-full">
+      <div className="flex-1 overflow-y-auto w-full">
         <div
-          className={`${maxWidth} ${align === "center" ? "mx-auto" : ""} w-full p-2`}
+          className={`${maxWidth} ${align === "center" ? "mx-auto" : ""} w-full px-3 py-5`}
         >
           {children}
         </div>
