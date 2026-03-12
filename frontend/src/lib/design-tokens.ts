@@ -536,19 +536,19 @@ export const LAYOUT = {
 
   /* ── Form Header ── */
   header: {
-    h:             "h-12",
+    h:             "h-[53px]",
   },
 
   /* ── Touch Targets (tablet-first) ── */
   touch: {
     /** Primary action buttons, input fields */
-    md:            "h-10",
+    md:            "h-11",
     /** Secondary / compact buttons */
-    sm:            "h-10",
+    sm:            "h-11",
     /** Comfortable table row */
     row:           "h-12",
     /** Table header */
-    tableHead:     "h-10",
+    tableHead:     "h-11",
     /** Toolbar icon button */
     iconBtn:       "size-9",
     /** Status badge */
@@ -599,29 +599,29 @@ export const STYLE = {
 
   /* ── Form Header ── */
   formHeader:
-    `sticky top-0 z-10 ${C.bgPage} border-b ${C.borderLight} px-4 py-2 flex items-center justify-between gap-2 h-12`,
+    `sticky top-0 z-10 ${C.bgPage} border-b ${C.borderLight} px-4 flex items-center justify-between gap-2 h-[53px]`,
   formHeaderTitle: `text-sm ${C.text} leading-tight`,
   formHeaderDesc:  `text-xs ${C.text50} mt-0.5`,
 
   /* ── Primary Button ── */
   btnPrimary:
-    `${C.bgAccent} ${C.bgAccentHover} text-white h-10 px-4 text-sm shadow-none border-transparent rounded-[4px] transition-colors`,
+    `${C.bgAccent} ${C.bgAccentHover} text-white h-11 px-4 text-sm shadow-none border-transparent rounded-[4px] transition-colors`,
   btnGhost:
     `${C.text60} ${C.hoverText} hover:bg-transparent`,
   btnAccent:
-    `text-white ${C.bgAccent} ${C.bgAccentHover} h-10 px-4 text-sm rounded-[4px] transition-colors shadow-none border-transparent`,
+    `text-white ${C.bgAccent} ${C.bgAccentHover} h-11 px-4 text-sm rounded-[4px] transition-colors shadow-none border-transparent`,
   btnDanger:
-    `${C.bgDanger} text-white ${C.hoverBgDanger90} h-10 px-4 text-sm rounded-[4px] transition-colors shadow-none border-transparent`,
+    `${C.bgDanger} text-white ${C.hoverBgDanger90} h-11 px-4 text-sm rounded-[4px] transition-colors shadow-none border-transparent`,
   btnOutline:
-    `bg-white ${C.borderMedium} ${C.hoverBgLight} h-10 px-4 text-sm rounded-[4px] shadow-[var(--notion-shadow-btn)] transition-colors`,
+    `bg-white ${C.borderMedium} ${C.hoverBgLight} h-11 px-4 text-sm rounded-[4px] shadow-[var(--notion-shadow-btn)] transition-colors`,
 
   /* ── Table ── */
   tableContainer:
     `bg-white border ${C.borderLight} rounded-[4px] flex flex-col flex-1 min-h-0`,
   tableHeaderRow:
-    `border-b ${C.borderLight} ${C.bgPage} ${C.hoverBgPage} h-10`,
+    `border-b ${C.borderLight} ${C.bgPage30} h-11`,
   tableHeaderCell:
-    `text-xs ${C.text70} h-10`,
+    `text-xs font-medium ${C.text70} h-11`,
   tableRow:
     `border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors cursor-pointer h-12`,
   tableCell:
@@ -633,15 +633,15 @@ export const STYLE = {
   tableEmpty:
     `text-center py-12 ${C.text70} text-sm`,
   tableActionBtn:
-    `h-10 w-10 ${C.text60} ${C.hoverText}`,
+    `h-11 w-11 ${C.text60} ${C.hoverText}`,
 
   /* ── Search Filter Bar ── */
   searchInput:
-    `pl-8 h-10 w-full text-sm ${C.text} ${C.textPlaceholder} ${C.bgPage} border border-transparent rounded-[4px] outline-none transition-colors ${C.hoverBgPageDark} focus:bg-white ${C.focusBorderLight}`,
+    `pl-8 h-11 w-full text-sm ${C.text} ${C.textPlaceholder} ${C.bgPage} border border-transparent rounded-[4px] outline-none transition-colors ${C.hoverBgPageDark} focus:bg-white ${C.focusBorderLight}`,
   searchIcon:
     `absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 ${C.text30}`,
   searchCount:
-    `text-xs ${C.text60} whitespace-nowrap`,
+    `text-sm ${C.text60} whitespace-nowrap`,
 
   /* ── Pagination ── */
   paginationBtn:
@@ -705,11 +705,11 @@ export const STYLE = {
 
   /* ── Status Badge ── */
   badge:
-    "text-sm px-2 h-8 font-normal border",
+    "text-sm px-2 h-9 font-normal border",
 
   /* ── Confirm dialog primary ── */
   confirmPrimary:
-    `${C.bgAccent} text-white ${C.bgAccentHover} h-10 px-4 text-sm rounded-[4px] transition-colors shadow-none border-transparent`,
+    `${C.bgAccent} text-white ${C.bgAccentHover} h-11 px-4 text-sm rounded-[4px] transition-colors shadow-none border-transparent`,
 
   /* ── Master settings index row ── */
   settingsRow:
@@ -725,10 +725,10 @@ export const STYLE = {
   formLabel:
     `text-sm ${C.text70}`,
   formInput:
-    `h-10 text-sm bg-white ${C.borderMedium} ${C.text}`,
+    `h-11 text-sm bg-white ${C.borderMedium} ${C.text}`,
   /** Lighter border + hover variant — use for SelectTrigger in reservation/form fields */
   formInputLight:
-    `h-10 text-sm bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`,
+    `h-11 text-sm bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`,
   /** Error ring for form inputs — use with conditional classnames */
   formInputError:
     "ring-2 ring-red-300 border-red-400",
