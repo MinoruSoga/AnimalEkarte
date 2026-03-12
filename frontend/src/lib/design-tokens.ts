@@ -655,7 +655,7 @@ export const STYLE = {
   sidebarContainer:
     `h-full ${C.bgPage} border-r ${C.borderLight} flex flex-col transition-all duration-300`,
   sidebarHeader:
-    `h-12 flex items-center px-2.5 border-b ${C.borderDivider}`,
+    `h-[53px] flex items-center px-2.5 border-b ${C.borderDivider}`,
   sidebarItemActive:
     `bg-[#038B94]/8 ${C.text} border-l-2 border-l-[#038B94]`,
   sidebarItemIdle:
