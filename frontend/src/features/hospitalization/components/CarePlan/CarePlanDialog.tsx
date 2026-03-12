@@ -37,13 +37,13 @@ const DEFAULT_FORM_STATE: Partial<CarePlanItem> = {
     status: "active"
 };
 
-export const CarePlanDialog = ({
+export function CarePlanDialog({
     open,
     onOpenChange,
     editingPlan,
     onCreate,
     onUpdate
-}: CarePlanDialogProps) => {
+}: CarePlanDialogProps) {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [formData, setFormData] = useState<Partial<CarePlanItem>>(DEFAULT_FORM_STATE);
     const [prevOpen, setPrevOpen] = useState(false);
@@ -226,4 +226,4 @@ export const CarePlanDialog = ({
             />
         </Dialog>
     );
-};
+}

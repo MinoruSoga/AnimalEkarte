@@ -18,7 +18,7 @@ import { getMedicalRecordStatusColor } from "@/utils/status-helpers";
 // Relative
 import { useMedicalRecords } from "../hooks/useMedicalRecords";
 
-export const MedicalRecords = () => {
+export function MedicalRecords() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const { data: filteredRecords } = useMedicalRecords(searchTerm);

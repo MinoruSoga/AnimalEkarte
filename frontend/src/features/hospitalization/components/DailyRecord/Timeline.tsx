@@ -11,7 +11,7 @@ interface TimelineProps {
     items: TimelineItem[];
 }
 
-export const Timeline = ({ items }: TimelineProps) => {
+export function Timeline({ items }: TimelineProps) {
     if (items.length === 0) {
         return (
             <div className={`${H_STYLES.text.base} text-[#37352F]/40 text-center py-4`}>
@@ -51,10 +51,10 @@ export const Timeline = ({ items }: TimelineProps) => {
                         )}
                         {item.kind === 'vital' && (
                             <div className={`grid grid-cols-4 ${H_STYLES.gap.tight} mt-1 ${H_STYLES.text.sm} text-[#37352F]/60 bg-gray-50 ${H_STYLES.padding.tight} rounded font-medium`}>
-                                {item.temperature && <div>T: {item.temperature}℃</div>}
-                                {item.heartRate && <div>HR: {item.heartRate}</div>}
-                                {item.respirationRate && <div>RR: {item.respirationRate}</div>}
-                                {item.weight && <div>BW: {item.weight}kg</div>}
+                                {item.temperature ? <div>T: {item.temperature}℃</div> : null}
+                                {item.heartRate ? <div>HR: {item.heartRate}</div> : null}
+                                {item.respirationRate ? <div>RR: {item.respirationRate}</div> : null}
+                                {item.weight ? <div>BW: {item.weight}kg</div> : null}
                             </div>
                         )}
                     </div>
@@ -62,4 +62,4 @@ export const Timeline = ({ items }: TimelineProps) => {
             ))}
         </div>
     );
-};
+}

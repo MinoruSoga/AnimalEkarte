@@ -18,7 +18,7 @@ import { HospitalizationNoteCard } from "../components/HospitalizationNoteCard";
 import { HospitalizationTreatmentTable } from "../components/HospitalizationTreatmentTable";
 import { HospitalizationCostSummary } from "../components/HospitalizationCostSummary";
 
-export const HospitalizationForm = () => {
+export function HospitalizationForm() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id: hospitalizationId } = useParams();

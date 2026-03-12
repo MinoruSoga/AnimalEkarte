@@ -1,4 +1,4 @@
-import type { ReservationAppointment, Pet, VisitType, ReservationStatus } from "@/types";
+import type { Pet, VisitType, ReservationStatus } from "@/types";
 export type {
   ReservationAppointment,
   ReservationStatus,

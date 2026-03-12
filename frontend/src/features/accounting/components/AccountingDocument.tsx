@@ -22,7 +22,7 @@ interface AccountingDocumentProps {
   paymentInfo: PaymentInfo;
 }
 
-export const AccountingDocument = ({ type, accounting, paymentInfo }: AccountingDocumentProps) => {
+export function AccountingDocument({ type, accounting, paymentInfo }: AccountingDocumentProps) {
   const { clinicInfo } = useClinicInfo();
 
   const currentDate = format(new Date(), "yyyy年MM月dd日", { locale: ja });
@@ -86,7 +86,7 @@ export const AccountingDocument = ({ type, accounting, paymentInfo }: Accounting
           <p className="font-bold text-sm text-black mb-1">{clinicInfo.name}</p>
           <p>〒{clinicInfo.postalCode} {clinicInfo.address}</p>
           <p>TEL: {clinicInfo.phoneNumber}</p>
-          {clinicInfo.registrationNumber && <p>登録番号: {clinicInfo.registrationNumber}</p>}
+          {clinicInfo.registrationNumber ? <p>登録番号: {clinicInfo.registrationNumber}</p> : null}
         </div>
       </div>
     );
@@ -131,7 +131,7 @@ export const AccountingDocument = ({ type, accounting, paymentInfo }: Accounting
             <tr key={i}>
               <td className="py-2">
                 <div className="font-medium">{item.name}</div>
-                {item.category && <span className="text-xs text-gray-500">{item.category}</span>}
+                {item.category ? <span className="text-xs text-gray-500">{item.category}</span> : null}
               </td>
               <td className="py-2 text-right">¥{item.unitPrice.toLocaleString()}</td>
               <td className="py-2 text-center">{item.quantity}</td>
@@ -176,4 +176,4 @@ export const AccountingDocument = ({ type, accounting, paymentInfo }: Accounting
       </div>
     </div>
   );
-};
+}

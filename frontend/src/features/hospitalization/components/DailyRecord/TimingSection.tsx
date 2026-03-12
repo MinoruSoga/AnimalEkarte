@@ -20,7 +20,7 @@ interface TimingSectionProps {
     onTaskClick: (task: Task) => void;
 }
 
-export const TimingSection = ({ title, icon: Icon, tasks, colorClass, onTaskClick }: TimingSectionProps) => {
+export function TimingSection({ title, icon: Icon, tasks, colorClass, onTaskClick }: TimingSectionProps) {
     if (tasks.length === 0) return null;
 
     return (
@@ -80,4 +80,4 @@ export const TimingSection = ({ title, icon: Icon, tasks, colorClass, onTaskClic
             </div>
         </div>
     );
-};
+}

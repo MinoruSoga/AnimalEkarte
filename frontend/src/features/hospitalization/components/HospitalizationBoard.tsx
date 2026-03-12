@@ -115,7 +115,7 @@ const CageCard = ({ cage, occupant, onNavigateToForm }: CageCardProps) => {
     );
 };
 
-export const HospitalizationBoard = ({ cages, hospitalizations, onNavigateToForm, onMovePet }: HospitalizationBoardProps) => {
+export function HospitalizationBoard({ cages, hospitalizations, onNavigateToForm, onMovePet }: HospitalizationBoardProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
@@ -173,4 +173,4 @@ export const HospitalizationBoard = ({ cages, hospitalizations, onNavigateToForm
       </div>
     </DndContext>
   );
-};
+}

@@ -16,7 +16,7 @@ interface HospitalizationListViewProps {
   onNavigate: (id: string) => void;
 }
 
-export const HospitalizationListView = ({ hospitalizations, onNavigate }: HospitalizationListViewProps) => {
+export function HospitalizationListView({ hospitalizations, onNavigate }: HospitalizationListViewProps) {
   const columns = [
     { header: "入院No", className: "w-[120px]" },
     { header: "飼主名" },
@@ -61,4 +61,4 @@ export const HospitalizationListView = ({ hospitalizations, onNavigate }: Hospit
       )}
     />
   );
-};
+}

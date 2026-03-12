@@ -1,8 +1,8 @@
 // React/Framework
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 
 // External
-import { Check, Filter, Search, SearchX, RotateCcw } from "lucide-react";
+import { Check, Search, SearchX, RotateCcw } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
@@ -72,11 +72,11 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
     return result;
   }, [hasSearched, allPets, searchParams]);
 
-  const handleSearch = () => {
+  const handleSearch = useCallback(() => {
     setHasSearched(true);
-  };
+  }, []);
 
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     setSearchParams({
       ownerId: "",
       ownerName: "",
@@ -87,7 +87,7 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
       species: "",
     });
     setHasSearched(false);
-  };
+  }, []);
 
   const selectedPetIds = useMemo(
     () => new Set(selectedPets.map((p) => p.id)),

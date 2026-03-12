@@ -18,7 +18,7 @@ interface HospitalizationDetailActionsProps {
     onDischargeClick: () => void;
 }
 
-export const HospitalizationDetailActions = ({ hospitalization, onDischargeClick }: HospitalizationDetailActionsProps) => {
+export function HospitalizationDetailActions({ hospitalization, onDischargeClick }: HospitalizationDetailActionsProps) {
     const navigate = useNavigate();
 
     return (
@@ -43,4 +43,4 @@ export const HospitalizationDetailActions = ({ hospitalization, onDischargeClick
             </Button>
         </div>
     );
-};
+}

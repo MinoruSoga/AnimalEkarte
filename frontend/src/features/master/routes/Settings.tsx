@@ -14,9 +14,8 @@ import KeyRound from "lucide-react/dist/esm/icons/key-round";
 import Settings2 from "lucide-react/dist/esm/icons/settings-2";
 
 // Internal
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -52,7 +51,6 @@ interface StaffFormExtras {
   licenseNumber?: string;
   affiliatedClinic?: string;
   email?: string;
-  password?: string;
   userType?: string;
   lastLoginAt?: string;
 }
@@ -186,6 +184,7 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
   const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState<Partial<MasterItem>>({});
   const [staffExtras, setStaffExtras] = useState<StaffFormExtras>({});
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const { data: filteredItems, add, update, remove } = useMasterItems(
     hookCategory,
@@ -274,14 +273,18 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
 
   const handleDelete = () => {
     if (!selectedItem) return;
-    if (window.confirm("本当に削除しますか？")) {
-      remove(selectedItem.id, {
-        onSuccess: () => {
-          handleCloseEdit();
-          toast.success("削除しました");
-        },
-      });
-    }
+    setDeleteConfirmOpen(true);
+  };
+
+  const executeDelete = () => {
+    if (!selectedItem) return;
+    remove(selectedItem.id, {
+      onSuccess: () => {
+        handleCloseEdit();
+        toast.success("削除しました");
+        setDeleteConfirmOpen(false);
+      },
+    });
   };
 
   // ── Edit Form ──────────────────────────────────
@@ -360,16 +363,6 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
                     onChange={(v) => setStaffExtras({ ...staffExtras, email: v })}
                     placeholder="example@clinic.jp"
                     type="email"
-                  />
-                </PropertyRow>
-                <PropertyRow label="パスワード">
-                  <PropInput
-                    value={staffExtras.password ?? ""}
-                    onChange={(v) =>
-                      setStaffExtras({ ...staffExtras, password: v })
-                    }
-                    placeholder="••••••••"
-                    type="password"
                   />
                 </PropertyRow>
                 <PropertyRow label="ユーザー種別">
@@ -543,6 +536,16 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
             </div>
           </div>
         </div>
+        <ConfirmDialog
+          open={deleteConfirmOpen}
+          onClose={() => setDeleteConfirmOpen(false)}
+          onConfirm={executeDelete}
+          title="削除しますか？"
+          description={`「${selectedItem?.name ?? ""}」を削除します。この操作は取り消せません。`}
+          confirmLabel="削除する"
+          cancelLabel="キャンセル"
+          variant="destructive"
+        />
       </PageLayout>
     );
   }

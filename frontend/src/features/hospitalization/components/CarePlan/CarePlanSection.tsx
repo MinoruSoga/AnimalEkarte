@@ -22,7 +22,7 @@ interface CarePlanSectionProps {
     onDelete: (id: string) => void;
 }
 
-export const CarePlanSection = ({ plans, onAdd, onUpdate, onDelete }: CarePlanSectionProps) => {
+export function CarePlanSection({ plans, onAdd, onUpdate, onDelete }: CarePlanSectionProps) {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<CarePlanItem | undefined>(undefined);
 
@@ -66,4 +66,4 @@ export const CarePlanSection = ({ plans, onAdd, onUpdate, onDelete }: CarePlanSe
             />
         </div>
     );
-};
+}

@@ -19,7 +19,7 @@ import { getExaminationStatusColor } from "@/utils/status-helpers";
 // Relative
 import { useExaminationRecords } from "../hooks/useExaminationRecords";
 
-export const Examinations = () => {
+export function Examinations() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const { data: filteredRecords, isLoading } = useExaminationRecords(searchTerm);

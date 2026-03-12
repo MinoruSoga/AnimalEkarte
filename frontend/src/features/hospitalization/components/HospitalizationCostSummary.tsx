@@ -14,13 +14,13 @@ interface HospitalizationCostSummaryProps {
     setGlobalDiscountAmount: (val: number) => void;
 }
 
-export const HospitalizationCostSummary = ({ 
-    totals, 
-    globalDiscount, 
-    setGlobalDiscount, 
-    globalDiscountAmount, 
-    setGlobalDiscountAmount 
-}: HospitalizationCostSummaryProps) => {
+export function HospitalizationCostSummary({
+    totals,
+    globalDiscount,
+    setGlobalDiscount,
+    globalDiscountAmount,
+    setGlobalDiscountAmount
+}: HospitalizationCostSummaryProps) {
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box}`}>
       <h2 className={`${H_STYLES.text.base} font-bold mb-3 text-[#37352F]`}>診療費計算</h2>
@@ -110,4 +110,4 @@ export const HospitalizationCostSummary = ({
       </div>
     </div>
   );
-};
+}

@@ -14,7 +14,7 @@ import {
 } from "../components";
 import { useHospitalizationDetail } from "../hooks/useHospitalizationDetail";
 
-export const HospitalizationDetail = () => {
+export function HospitalizationDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
 
@@ -80,4 +80,4 @@ export const HospitalizationDetail = () => {
             />
         </PageLayout>
     );
-};
+}

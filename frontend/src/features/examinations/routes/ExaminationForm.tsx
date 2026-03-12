@@ -17,7 +17,7 @@ import { PageLayout } from "@/components/shared/PageLayout";
 import { useExaminationForm } from "../hooks/useExaminationForm";
 import { useMasterItems } from "@/hooks/use-master-items";
 
-export const ExaminationForm = () => {
+export function ExaminationForm() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();

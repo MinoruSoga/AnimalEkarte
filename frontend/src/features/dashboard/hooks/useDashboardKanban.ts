@@ -32,7 +32,7 @@ function toAppointment(appt: DashboardAppointment): Appointment {
 }
 
 export function useDashboardKanban() {
-  const today = todayISO();
+  const today = useMemo(() => todayISO(), []);
   const { data: apiColumns, isLoading } = useDashboardData(today);
   const updateStatusMutation = useUpdateAppointmentStatus();
 

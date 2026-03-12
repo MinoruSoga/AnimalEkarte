@@ -21,7 +21,7 @@ import { useAccountingRecords } from "../hooks/useAccountingRecords";
 // Types
 import type { Accounting as AccountingType } from "../types";
 
-export const Accounting = () => {
+export function Accounting() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const { data: filteredRecords } = useAccountingRecords(searchTerm);

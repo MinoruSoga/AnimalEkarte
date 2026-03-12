@@ -25,7 +25,7 @@ import { PageLayout } from "@/components/shared/PageLayout";
 import { useVaccinationForm } from "../hooks/useVaccinationForm";
 import { useMasterItems } from "@/hooks/use-master-items";
 
-export const VaccinationForm = () => {
+export function VaccinationForm() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();

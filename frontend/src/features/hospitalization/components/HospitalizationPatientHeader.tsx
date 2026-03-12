@@ -9,7 +9,7 @@ interface HospitalizationPatientHeaderProps {
     currentWeight?: string;
 }
 
-export const HospitalizationPatientHeader = ({ hospitalization, currentWeight }: HospitalizationPatientHeaderProps) => {
+export function HospitalizationPatientHeader({ hospitalization, currentWeight }: HospitalizationPatientHeaderProps) {
     return (
         <PatientInfoCard
             ownerName={hospitalization.ownerName}
@@ -25,4 +25,4 @@ export const HospitalizationPatientHeader = ({ hospitalization, currentWeight }:
             nextVisitContent="退院予定"
         />
     );
-};
+}

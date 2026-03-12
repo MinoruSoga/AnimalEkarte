@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import type { TreatmentPlan } from "@/types";
 import type { HospitalizationFormData } from "../types";
 import { usePetSelection } from "@/hooks/use-pet-selection";
-import { getPet } from "@/features/pets/api/get-pet";
+import { usePetInfo } from "@/hooks/use-pet";
 import { axios } from "@/lib/axios";
 import { createHospitalization, updateHospitalization } from "../api";
 import type { BackendHospitalization } from "../api/types";
@@ -18,6 +18,9 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
 
   const petSelection = usePetSelection();
   const { selectedPets, setSelectedPets } = petSelection;
+
+  // petId が URL にある場合は React Query でフェッチ（cross-feature 直接呼び出しを回避）
+  const { pet: petFromQuery, isLoading: isPetLoading } = usePetInfo(petId ?? "");
 
   const [formData, setFormData] = useState<HospitalizationFormData>({
     hospitalizationType: "入院",
@@ -105,20 +108,20 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
         }
       };
       loadHospitalization();
-    } else if (petId) {
-      // petId が URL から来た場合は Pet API で取得
-      const loadPet = async () => {
-        try {
-          const pet = await getPet(petId);
-          setSelectedPets([pet]);
-        } catch {
-          toast.error("ペット情報の取得に失敗しました");
-          navigate("/hospitalization/select-pet");
-        }
-      };
-      loadPet();
     }
-  }, [id, petId, setSelectedPets, navigate]);
+  }, [id, setSelectedPets]);
+
+  // petId が URL から来た場合: usePetInfo の結果を selectedPets に反映
+  useEffect(() => {
+    if (!petId || id) return;
+    if (isPetLoading) return;
+    if (petFromQuery) {
+      setSelectedPets([petFromQuery]);
+    } else {
+      toast.error("ペット情報の取得に失敗しました");
+      navigate("/hospitalization/select-pet");
+    }
+  }, [petId, id, petFromQuery, isPetLoading, setSelectedPets, navigate]);
 
   // ペット選択情報をフォームデータにマージ
   const formDataWithPet =

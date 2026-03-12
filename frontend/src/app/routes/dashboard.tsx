@@ -1,6 +1,11 @@
 import type { RouteObject } from "react-router";
-import { Dashboard } from "@/features/dashboard/routes";
 
 export const dashboardRoutes: RouteObject[] = [
-  { path: "/", element: <Dashboard /> },
+  {
+    path: "/",
+    lazy: async () => {
+      const { Dashboard } = await import("@/features/dashboard/routes");
+      return { Component: Dashboard };
+    },
+  },
 ];

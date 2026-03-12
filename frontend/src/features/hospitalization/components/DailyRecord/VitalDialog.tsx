@@ -23,7 +23,7 @@ interface VitalDialogProps {
     onSave: (data: CreateVitalDTO) => void;
 }
 
-export const VitalDialog = ({ open, onOpenChange, onSave }: VitalDialogProps) => {
+export function VitalDialog({ open, onOpenChange, onSave }: VitalDialogProps) {
     const getCurrentTime = () => format(new Date(), "HH:mm");
 
     const [form, setForm] = useState({
@@ -105,4 +105,4 @@ export const VitalDialog = ({ open, onOpenChange, onSave }: VitalDialogProps) =>
             </DialogContent>
         </Dialog>
     );
-};
+}

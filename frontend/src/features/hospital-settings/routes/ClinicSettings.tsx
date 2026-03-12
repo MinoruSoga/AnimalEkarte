@@ -18,7 +18,7 @@ import { useClinicInfo } from "@/hooks/use-clinic-info";
 // Types
 import type { ClinicInfo } from "@/types";
 
-export const ClinicSettings = () => {
+export function ClinicSettings() {
   const { clinicInfo, updateClinicInfo, loading } = useClinicInfo();
   
   const { register, handleSubmit, reset, formState: { isDirty } } = useForm<ClinicInfo>({
@@ -29,7 +29,7 @@ export const ClinicSettings = () => {
     if (!loading) {
       reset(clinicInfo);
     }
-  }, [loading, reset]);
+  }, [loading, clinicInfo, reset]);
 
   const onSubmit = (data: ClinicInfo) => {
     updateClinicInfo(data);

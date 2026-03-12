@@ -18,7 +18,7 @@ import { MedicalRecordBillCheck } from "../components/MedicalRecordBillCheck";
 import { MedicalRecordExamination } from "../components/MedicalRecordExamination";
 import { useMedicalRecordForm } from "../hooks/useMedicalRecordForm";
 
-export const MedicalRecordForm = () => {
+export function MedicalRecordForm() {
   const { id: recordId } = useParams();
   const navigate = useNavigate();
   const {

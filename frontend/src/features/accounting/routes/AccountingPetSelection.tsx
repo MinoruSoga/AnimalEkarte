@@ -2,7 +2,7 @@ import { PageLayout } from "@/components/shared/PageLayout";
 import { PetSelectionSearchForm, PetSelectionResultsTable } from "@/components/shared/PetSelection";
 import { usePetSelectionPage } from "@/hooks/use-pet-selection-page";
 
-export const AccountingPetSelection = () => {
+export function AccountingPetSelection() {
   const { searchParams, setSearchParams, filteredPets, handleSearch, handleSelect, handleBack } =
     usePetSelectionPage({ selectPath: "/accounting/new", backPath: "/accounting" });
 
@@ -12,4 +12,4 @@ export const AccountingPetSelection = () => {
       <PetSelectionResultsTable pets={filteredPets} onSelect={handleSelect} />
     </PageLayout>
   );
-};
+}

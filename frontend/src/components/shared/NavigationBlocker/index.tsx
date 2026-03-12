@@ -85,11 +85,7 @@ export function NavigationBlocker({
   const [active, setActive] = useState(false);
 
   useEffect(() => {
-    if (when) {
-      setActive(true);
-    } else {
-      setActive(false);
-    }
+    setActive(when);
   }, [when]);
 
   if (!active) {

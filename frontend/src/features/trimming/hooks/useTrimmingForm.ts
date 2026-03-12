@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
 import { usePetSelection } from "@/hooks/use-pet-selection";
-import { useGetPet } from "@/features/pets/api/get-pet";
+import { usePetInfo } from "@/hooks/use-pet";
 import {
   useGetTrimming,
   useCreateTrimming,
@@ -83,7 +83,7 @@ export function useTrimmingForm(id?: string) {
 
   // API hooks
   const { data: existingTrimming } = useGetTrimming(id ?? "");
-  const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(
+  const { pet: petFromQuery, isLoading: isPetLoading } = usePetInfo(
     petId ?? ""
   );
   const createMutation = useCreateTrimming();

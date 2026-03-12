@@ -21,7 +21,7 @@ interface HospitalizationBasicInfoProps {
   cageItems: MasterItem[];
 }
 
-export const HospitalizationBasicInfo = ({ formData, onChange, cageItems }: HospitalizationBasicInfoProps) => {
+export function HospitalizationBasicInfo({ formData, onChange, cageItems }: HospitalizationBasicInfoProps) {
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box}`}>
       <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 text-[#37352F]`}>
@@ -111,4 +111,4 @@ export const HospitalizationBasicInfo = ({ formData, onChange, cageItems }: Hosp
       </div>
     </div>
   );
-};
+}

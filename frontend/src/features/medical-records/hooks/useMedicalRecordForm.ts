@@ -87,13 +87,7 @@ export function useMedicalRecordForm(recordId?: string) {
       try {
         await createMutation.mutateAsync(req);
         toast.success("カルテを作成しました");
-        setTimeout(() => {
-          if (location.state?.from) {
-            navigate(location.state.from);
-          } else {
-            navigate("/medical-records");
-          }
-        }, 800);
+        navigate(location.state?.from ?? "/medical-records");
       } catch {
         toast.error("カルテの作成に失敗しました");
       }
@@ -109,13 +103,7 @@ export function useMedicalRecordForm(recordId?: string) {
       try {
         await updateMutation.mutateAsync({ id: recordId, req });
         toast.success("カルテを更新しました");
-        setTimeout(() => {
-          if (location.state?.from) {
-            navigate(location.state.from);
-          } else {
-            navigate("/medical-records");
-          }
-        }, 800);
+        navigate(location.state?.from ?? "/medical-records");
       } catch {
         toast.error("カルテの更新に失敗しました");
       }

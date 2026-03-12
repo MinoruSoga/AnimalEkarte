@@ -20,7 +20,7 @@ interface DailyRecordSectionProps {
     onAddLog: (date: string, data: CreateCareLogDTO) => void;
 }
 
-export const DailyRecordSection = ({ records, plans = [], onAddVital, onAddLog }: DailyRecordSectionProps) => {
+export function DailyRecordSection({ records, plans = [], onAddVital, onAddLog }: DailyRecordSectionProps) {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const currentDateStr = format(selectedDate, "yyyy-MM-dd");
     const { tasks, groupedTasks, timelineItems } = useDailyRecordLogic(records, plans, currentDateStr);
@@ -135,4 +135,4 @@ export const DailyRecordSection = ({ records, plans = [], onAddVital, onAddLog }
             />
         </div>
     );
-};
+}

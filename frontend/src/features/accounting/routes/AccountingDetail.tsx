@@ -48,7 +48,7 @@ import { AccountingDocument } from "../components/AccountingDocument";
 // Types
 import type { Accounting, AccountingItem, PaymentInfo, ItemCategory, PaymentMethod } from "../types";
 
-export const AccountingDetail = () => {
+export function AccountingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -630,4 +630,4 @@ export const AccountingDetail = () => {
       )}
     </>
   );
-};
+}

@@ -19,7 +19,7 @@ interface DischargeAlertDialogProps {
     onConfirm: () => void;
 }
 
-export const DischargeAlertDialog = ({ open, onOpenChange, onConfirm }: DischargeAlertDialogProps) => {
+export function DischargeAlertDialog({ open, onOpenChange, onConfirm }: DischargeAlertDialogProps) {
     return (
         <AlertDialog open={open} onOpenChange={onOpenChange}>
             <AlertDialogContent>
@@ -39,4 +39,4 @@ export const DischargeAlertDialog = ({ open, onOpenChange, onConfirm }: Discharg
             </AlertDialogContent>
         </AlertDialog>
     );
-};
+}

@@ -11,12 +11,12 @@ interface HospitalizationTreatmentTableProps {
   onUpdate: (id: string, field: keyof TreatmentPlan, value: string | number | boolean) => void;
 }
 
-export const HospitalizationTreatmentTable = ({ 
-    treatmentPlans, 
-    onAdd, 
-    onRemove, 
-    onUpdate 
-}: HospitalizationTreatmentTableProps) => {
+export function HospitalizationTreatmentTable({
+    treatmentPlans,
+    onAdd,
+    onRemove,
+    onUpdate
+}: HospitalizationTreatmentTableProps) {
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box} mb-3`}>
       <div className="flex items-center justify-between mb-3">
@@ -107,4 +107,4 @@ export const HospitalizationTreatmentTable = ({
       </div>
     </div>
   );
-};
+}

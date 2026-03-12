@@ -35,7 +35,7 @@ const HEADER_ROW = (
   </div>
 );
 
-export const MonthView = ({ currentDate, appointments, onAppointmentClick, dynamicColorMap }: MonthViewProps) => {
+export function MonthView({ currentDate, appointments, onAppointmentClick, dynamicColorMap }: MonthViewProps) {
 
   const rows = useMemo(() => {
     const monthStart = startOfMonth(currentDate);
@@ -119,4 +119,4 @@ export const MonthView = ({ currentDate, appointments, onAppointmentClick, dynam
       </div>
     </div>
   );
-};
+}

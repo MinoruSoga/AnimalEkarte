@@ -73,12 +73,12 @@ function SelectedPetChip({ pet, onRemove }: { pet: Pet; onRemove: () => void }) 
   );
 }
 
-export const ReservationFormModal = ({
+export function ReservationFormModal({
   isOpen,
   onClose,
   onSave,
   initialData,
-}: ReservationFormModalProps) => {
+}: ReservationFormModalProps) {
   const [formData, setFormData] = useState<Partial<ReservationAppointment>>({});
   const [pendingPetId, setPendingPetId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<"search" | "form">("search");
@@ -128,7 +128,7 @@ export const ReservationFormModal = ({
       setSelectedPets([]);
       setPendingPetId(null);
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, setSelectedPets]);
 
   const handleSave = useCallback(() => {
     const errors: Record<string, string> = {};
@@ -309,4 +309,4 @@ export const ReservationFormModal = ({
       </DialogContent>
     </Dialog>
   );
-};
+}

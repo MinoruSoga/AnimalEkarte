@@ -26,7 +26,7 @@ interface LogDialogProps {
     onSave: (data: CreateCareLogDTO) => void;
 }
 
-export const LogDialog = ({ open, onOpenChange, type, onSave }: LogDialogProps) => {
+export function LogDialog({ open, onOpenChange, type, onSave }: LogDialogProps) {
     const getCurrentTime = () => format(new Date(), "HH:mm");
 
     const [form, setForm] = useState({
@@ -112,4 +112,4 @@ export const LogDialog = ({ open, onOpenChange, type, onSave }: LogDialogProps) 
             </DialogContent>
         </Dialog>
     );
-};
+}

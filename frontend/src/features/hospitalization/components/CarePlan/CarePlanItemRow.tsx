@@ -16,7 +16,7 @@ interface CarePlanItemProps {
     onDelete: (id: string) => void;
 }
 
-export const CarePlanItemRow = ({ plan, onEdit, onDelete }: CarePlanItemProps) => {
+export function CarePlanItemRow({ plan, onEdit, onDelete }: CarePlanItemProps) {
     const getTypeIcon = (type: string) => {
         switch (type) {
             case "food": return <Utensils className={H_STYLES.button.icon} />;
@@ -86,4 +86,4 @@ export const CarePlanItemRow = ({ plan, onEdit, onDelete }: CarePlanItemProps) =
             </div>
         </div>
     );
-};
+}

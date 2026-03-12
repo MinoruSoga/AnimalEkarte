@@ -35,7 +35,7 @@ interface HospitalizationDesktopLayoutProps {
     onAddLog: (date: string, data: CreateCareLogDTO) => void;
 }
 
-export const HospitalizationDesktopLayout = ({
+export function HospitalizationDesktopLayout({
     hospitalization,
     plans,
     records,
@@ -44,7 +44,7 @@ export const HospitalizationDesktopLayout = ({
     onDeletePlan,
     onAddVital,
     onAddLog
-}: HospitalizationDesktopLayoutProps) => {
+}: HospitalizationDesktopLayoutProps) {
     const latestWeight = useMemo(() => {
         // Find latest weight from records
         const allVitals = records.flatMap(r => 
@@ -104,4 +104,4 @@ export const HospitalizationDesktopLayout = ({
             </div>
         </div>
     );
-};
+}

@@ -23,7 +23,7 @@ const isValidFilterStatus = (v: string): v is HospitalizationFilterStatus =>
 type ViewMode = "list" | "board";
 const isValidViewMode = (v: string): v is ViewMode => v === "list" || v === "board";
 
-export const HospitalizationList = () => {
+export function HospitalizationList() {
   const { 
     searchTerm, setSearchTerm,
     statusFilter, setStatusFilter,

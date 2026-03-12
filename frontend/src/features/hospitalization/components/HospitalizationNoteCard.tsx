@@ -15,7 +15,7 @@ interface HospitalizationNoteCardProps {
   placeholder?: string;
 }
 
-export const HospitalizationNoteCard = ({ title, icon: Icon, value, onChange, placeholder }: HospitalizationNoteCardProps) => {
+export function HospitalizationNoteCard({ title, icon: Icon, value, onChange, placeholder }: HospitalizationNoteCardProps) {
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box} h-full`}>
       <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 text-[#37352F]`}>
@@ -30,4 +30,4 @@ export const HospitalizationNoteCard = ({ title, icon: Icon, value, onChange, pl
       />
     </div>
   );
-};
+}

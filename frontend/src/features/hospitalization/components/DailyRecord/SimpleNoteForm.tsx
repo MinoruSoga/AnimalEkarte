@@ -19,7 +19,7 @@ interface SimpleNoteFormProps {
     onSave: (data: CreateCareLogDTO) => void;
 }
 
-export const SimpleNoteForm = ({ onSave }: SimpleNoteFormProps) => {
+export function SimpleNoteForm({ onSave }: SimpleNoteFormProps) {
     const [note, setNote] = useState("");
 
     const handleSubmit = () => {
@@ -59,4 +59,4 @@ export const SimpleNoteForm = ({ onSave }: SimpleNoteFormProps) => {
             </div>
         </div>
     );
-};
+}

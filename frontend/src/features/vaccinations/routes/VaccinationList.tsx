@@ -18,7 +18,7 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 // Relative
 import { useVaccinations } from "../hooks/useVaccinations";
 
-export const VaccinationList = () => {
+export function VaccinationList() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const { data: filteredRecords } = useVaccinations(searchTerm);

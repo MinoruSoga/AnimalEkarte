@@ -19,7 +19,7 @@ interface TaskCompleteDialogProps {
     onConfirm: (log: CreateCareLogDTO) => void;
 }
 
-export const TaskCompleteDialog = ({ open, onOpenChange, task, onConfirm }: TaskCompleteDialogProps) => {
+export function TaskCompleteDialog({ open, onOpenChange, task, onConfirm }: TaskCompleteDialogProps) {
     const getCurrentTime = () => format(new Date(), "HH:mm");
 
     const [form, setForm] = useState({
@@ -90,4 +90,4 @@ export const TaskCompleteDialog = ({ open, onOpenChange, task, onConfirm }: Task
             </DialogContent>
         </Dialog>
     );
-};
+}
