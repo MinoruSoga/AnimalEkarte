@@ -1,29 +1,17 @@
 package handler
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/middleware"
 )
-
-// devAdminUserID は dev モードで使用する固定ユーザー UUID
-const devAdminUserID = "00000000-0000-0000-0000-000000000010"
-
-// devAdminClinicID は dev モードで使用する固定クリニック UUID（002_seed_master.sql の渋谷院）
-const devAdminClinicID = "00000000-0000-0000-0000-000000000001"
-
-// allPermissions は管理者に付与する全権限リスト
-var allPermissions = []string{
-	"account_admin", "medical", "medical_read", "trimming",
-	"billing", "reception", "hospitalization", "master_admin",
-	"shift_admin", "inventory",
-}
 
 // MeClinicMembership は GET /me のクリニック所属情報
 type MeClinicMembership struct {
@@ -35,15 +23,15 @@ type MeClinicMembership struct {
 
 // MeResponse は GET /me のレスポンス（フロントエンド AuthUser と対応）
 type MeResponse struct {
-	ID           string                `json:"id"`
-	Email        string                `json:"email"`
-	DisplayName  string                `json:"display_name"`
-	UserType     string                `json:"user_type"`
-	JobTitle     *string               `json:"job_title"`
-	AvatarURL    *string               `json:"avatar_url"`
-	MainClinicID string                `json:"main_clinic_id"`
-	Clinics      []MeClinicMembership  `json:"clinics"`
-	Permissions  map[string][]string   `json:"permissions"`
+	ID           string               `json:"id"`
+	Email        string               `json:"email"`
+	DisplayName  string               `json:"display_name"`
+	UserType     string               `json:"user_type"`
+	JobTitle     *string              `json:"job_title"`
+	AvatarURL    *string              `json:"avatar_url"`
+	MainClinicID string               `json:"main_clinic_id"`
+	Clinics      []MeClinicMembership `json:"clinics"`
+	Permissions  map[string][]string  `json:"permissions"`
 }
 
 // LoginInput はログインリクエストのボディ
@@ -59,42 +47,64 @@ type LoginResponse struct {
 	UserType  string `json:"user_type"`
 }
 
-// Login はメール/パスワードで認証してJWTトークンを返す
-//
-// 現在は DEV_ADMIN_EMAIL / DEV_ADMIN_PASSWORD 環境変数で設定した認証情報のみ受け付ける。
-// TODO: UserAccount モデルに password_hash フィールドが存在しない。
-// 本番実装時は以下の対応が必要:
-//  1. user_accounts テーブルに password_hash TEXT NOT NULL カラムを追加
-//  2. マイグレーションを作成
-//  3. UserAccount モデル(internal/model/clinic.go)に PasswordHash フィールドを追加
-//  4. UserAccountRepository に FindByEmail メソッドを追加
-//  5. bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password)) で検証
+// Login はメール/パスワードで認証してJWTトークンを返す。
+// user_accounts.password_hash を bcrypt で検証する。
 func (h *Handler) Login(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	var input LoginInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Dev mode: 環境変数で設定した管理者認証情報でのみ認証を許可する。
-	// DEV_ADMIN_EMAIL が空の場合は無効化される。
-	// TODO: 本番実装では UserAccount をメールアドレスで検索し、
-	// bcrypt でパスワードを検証すること。
-	//  1. user_accounts テーブルに password_hash TEXT NOT NULL カラムを追加
-	//  2. マイグレーションを作成
-	//  3. UserAccount モデル(internal/model/clinic.go)に PasswordHash フィールドを追加
-	//  4. UserAccountRepository に FindByEmail メソッドを追加
-	//  5. bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password)) で検証
-	if h.cfg.DevAdminEmail == "" || input.Email != h.cfg.DevAdminEmail || input.Password != h.cfg.DevAdminPassword {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid email or password"})
+	// DB からユーザーを取得
+	account, err := h.svc.UserAccount.FindByEmail(ctx, input.Email)
+	if err != nil {
+		if apperrors.IsNotFound(err) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "メールアドレスまたはパスワードが正しくありません"})
+			return
+		}
+		slog.ErrorContext(ctx, "failed to find user account",
+			slog.String("email", input.Email),
+			slog.String("error", err.Error()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
+	}
+
+	// アカウント状態チェック
+	if account.Status != "active" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "アカウントが無効です"})
+		return
+	}
+
+	// パスワード検証
+	if err := bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(input.Password)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "メールアドレスまたはパスワードが正しくありません"})
+		return
+	}
+
+	// 所属クリニックを取得してメインクリニックIDを決定
+	memberships, mErr := h.svc.UserAccount.GetMemberships(ctx, account.ID)
+	mainClinicID := ""
+	if mErr == nil {
+		for _, m := range memberships {
+			if m.IsMain {
+				mainClinicID = m.ClinicID.String()
+				break
+			}
+		}
+		// isMain がなければ先頭を使う
+		if mainClinicID == "" && len(memberships) > 0 {
+			mainClinicID = memberships[0].ClinicID.String()
+		}
 	}
 
 	expiresAt := time.Now().Add(24 * time.Hour)
 	claims := &middleware.JWTClaims{
-		UserID:   devAdminUserID,   // dev モード固定 UUID
-		ClinicID: devAdminClinicID, // 002_seed_master.sql の渋谷院
-		UserType: "clinic_admin",
+		UserID:   account.ID.String(),
+		ClinicID: mainClinicID,
+		UserType: string(account.UserType),
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -104,8 +114,7 @@ func (h *Handler) Login(c *gin.Context) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenStr, err := token.SignedString([]byte(h.cfg.JWTSecret))
 	if err != nil {
-		slog.ErrorContext(c.Request.Context(), "failed to sign JWT",
-			slog.String("error", err.Error()))
+		slog.ErrorContext(ctx, "failed to sign JWT", slog.String("error", err.Error()))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
@@ -118,46 +127,71 @@ func (h *Handler) Login(c *gin.Context) {
 }
 
 // GetMe はJWTクレームからログインユーザー情報を返す。
-// dev モードでは全クリニック・全権限を返す。
 func (h *Handler) GetMe(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	userIDVal, _ := c.Get("user_id")
-	clinicIDVal, _ := c.Get("clinic_id")
-	userTypeVal, _ := c.Get("user_type")
+	mainClinicIDVal, _ := c.Get("clinic_id")
+	mainClinicIDStr, _ := mainClinicIDVal.(string)
 
-	mainClinicIDStr := fmt.Sprintf("%v", clinicIDVal)
-
-	clinics, err := h.svc.Clinic.ListClinics(ctx)
+	data, err := h.svc.UserAccount.GetWithMemberships(ctx, userIDVal.(string))
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list clinics for /me",
-			slog.String("error", err.Error()))
+		slog.ErrorContext(ctx, "failed to get user account", slog.String("error", err.Error()))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 
-	meClinicList := make([]MeClinicMembership, 0, len(clinics))
-	permissions := make(map[string][]string, len(clinics))
-	for _, cl := range clinics {
-		clIDStr := cl.ID.String()
+	// クリニック情報（全クリニック名を解決するため Clinic サービス経由）
+	allClinics, err := h.svc.Clinic.ListClinics(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list clinics for /me", slog.String("error", err.Error()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	clinicNameMap := make(map[string]struct{ Name, BranchName string }, len(allClinics))
+	for _, cl := range allClinics {
+		clinicNameMap[cl.ID.String()] = struct{ Name, BranchName string }{cl.Name, cl.BranchName}
+	}
+
+	meClinicList := make([]MeClinicMembership, 0, len(data.Memberships))
+	for _, m := range data.Memberships {
+		clIDStr := m.ClinicID.String()
+		info := clinicNameMap[clIDStr]
 		meClinicList = append(meClinicList, MeClinicMembership{
 			ClinicID:   clIDStr,
-			ClinicName: cl.Name,
-			BranchName: cl.BranchName,
+			ClinicName: info.Name,
+			BranchName: info.BranchName,
 			IsMain:     clIDStr == mainClinicIDStr,
 		})
-		permissions[clIDStr] = allPermissions
+	}
+
+	// 権限マップ: clinic_id → []permission
+	permMap := make(map[string][]string)
+	for _, p := range data.Permissions {
+		clIDStr := p.ClinicID.String()
+		permMap[clIDStr] = append(permMap[clIDStr], string(p.Permission))
+	}
+
+	var jobTitle *string
+	if data.JobTitle != nil {
+		jt := data.JobTitle.Name
+		jobTitle = &jt
+	}
+	var avatarURL *string
+	if data.UserAccount.AvatarURL != "" {
+		av := data.UserAccount.AvatarURL
+		avatarURL = &av
 	}
 
 	c.JSON(http.StatusOK, MeResponse{
-		ID:           fmt.Sprintf("%v", userIDVal),
-		Email:        h.cfg.DevAdminEmail,
-		DisplayName:  "管理者",
-		UserType:     fmt.Sprintf("%v", userTypeVal),
-		JobTitle:     nil,
-		AvatarURL:    nil,
+		ID:           data.UserAccount.ID.String(),
+		Email:        data.UserAccount.Email,
+		DisplayName:  data.UserAccount.DisplayName,
+		UserType:     string(data.UserAccount.UserType),
+		JobTitle:     jobTitle,
+		AvatarURL:    avatarURL,
 		MainClinicID: mainClinicIDStr,
 		Clinics:      meClinicList,
-		Permissions:  permissions,
+		Permissions:  permMap,
 	})
 }

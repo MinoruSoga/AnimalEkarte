@@ -68,6 +68,7 @@ type UserAccount struct {
 	Status          AccountStatus  `gorm:"type:account_status;default:'active'"           json:"status"`
 	AvatarURL       string         `gorm:"default:''"                                     json:"avatar_url"`
 	StaffID         *uuid.UUID     `gorm:"type:uuid"                                      json:"staff_id,omitempty"`
+	PasswordHash    string         `gorm:"not null;default:''"                            json:"-"`
 	CreatedAt       time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 	DeletedAt       gorm.DeletedAt `                                                      json:"deleted_at"`

@@ -30,6 +30,7 @@ type Repositories struct {
 	DiagnosisName       DiagnosisNameRepository
 	CheckupType         CheckupTypeRepository
 	Clinic              ClinicRepository
+	UserAccount         UserAccountRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -59,5 +60,6 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		DiagnosisName:       NewDiagnosisNameRepository(db),
 		CheckupType:         NewCheckupTypeRepository(db),
 		Clinic:              NewClinicRepository(db),
+		UserAccount:         NewUserAccountRepository(db),
 	}
 }
