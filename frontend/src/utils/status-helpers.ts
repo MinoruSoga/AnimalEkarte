@@ -134,7 +134,11 @@ export const getDashboardColumnColor = (title: string): DashboardColumnColorSet 
   };
 };
 
-export const getReservationTypeColor = (type: string) => {
+export const getReservationTypeColor = (type: string, dynamicColorMap?: Map<string, string>) => {
+  if (dynamicColorMap) {
+    const mapped = dynamicColorMap.get(type);
+    if (mapped) return mapped;
+  }
   switch (type) {
     case "treatment":
     case "診療":

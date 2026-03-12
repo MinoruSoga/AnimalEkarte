@@ -1,11 +1,16 @@
 // React/Framework
 import type { ReactNode } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router";
 
 // External
 import {
+  Building2,
   ChevronRight,
+  FolderTree,
+  Scissors,
   Settings,
+  Stethoscope,
 } from "lucide-react";
 import { CATEGORY_CONFIG } from "@/features/master/constants/category-config";
 import type { MasterSettingsCategory } from "@/features/master/constants/category-config";
@@ -16,8 +21,78 @@ import { useMasterItems } from "@/hooks/use-master-items";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 
 // ─────────────────────────────────────────────────
-// Category → backend label map (for item counting)
+// Types
 // ─────────────────────────────────────────────────
+
+/** Group keys that are NOT individual MasterSettingsCategory */
+type GroupKey = "clinic" | "treatmentItems" | "diagnosisGroup" | "trimmingGroup";
+
+/** All possible card keys in the settings index */
+type MasterCardKey = MasterSettingsCategory | GroupKey;
+
+interface SectionDef {
+  title: string;
+  keys: MasterCardKey[];
+}
+
+// ─────────────────────────────────────────────────
+// Group card definitions (hardcoded)
+// ─────────────────────────────────────────────────
+interface GroupCardConfig {
+  label: string;
+  description: string;
+  IconComponent: (props: { className?: string }) => ReactNode;
+  path: string;
+  /** Which individual categories to sum for the count */
+  countCategories: MasterSettingsCategory[];
+}
+
+const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
+  clinic: {
+    label: "病院情報",
+    description: "病院名、住所、電話番号などの基本情報を管理します",
+    IconComponent: Building2,
+    path: "/settings/clinic",
+    countCategories: [],
+  },
+  treatmentItems: {
+    label: "診療項目マスタ",
+    description: "診察・検査・処置・予防接種・定期健診の項目と単価(税込)を管理します",
+    IconComponent: Stethoscope,
+    path: "/settings/treatment-items",
+    countCategories: ["consultation", "examination", "procedure", "vaccine", "checkup"],
+  },
+  diagnosisGroup: {
+    label: "診断マスタ",
+    description: "診断カテゴリと診断名を管理します",
+    IconComponent: FolderTree,
+    path: "/settings/diagnosis",
+    countCategories: ["diagnosis_category", "diagnosis_name"],
+  },
+  trimmingGroup: {
+    label: "トリミングマスタ",
+    description: "トリミングコースとオプションを管理します",
+    IconComponent: Scissors,
+    path: "/settings/trimming",
+    countCategories: ["trimming_course", "trimming_option"],
+  },
+};
+
+// ─────────────────────────────────────────────────
+// Section definitions
+// ─────────────────────────────────────────────────
+const MASTER_SECTIONS: SectionDef[] = [
+  { title: "基本設定", keys: ["clinic"] },
+  {
+    title: "診療関連マスタ",
+    keys: ["serviceType", "treatmentItems", "medicine", "diagnosisGroup"],
+  },
+  { title: "入院・ケージ管理", keys: ["hospitalization", "cage"] },
+  { title: "トリミング関連", keys: ["trimmingGroup"] },
+  { title: "スタッフ・保険", keys: ["staff", "job_title", "insurance"] },
+];
+
+// Backend category label map (for item counting)
 const CATEGORY_LABEL_MAP: Record<MasterSettingsCategory, string> = {
   serviceType: "診療内容",
   medicine: "薬剤",
@@ -36,42 +111,6 @@ const CATEGORY_LABEL_MAP: Record<MasterSettingsCategory, string> = {
   trimming_course: "トリミングコース",
   trimming_option: "トリミングオプション",
 };
-
-interface SectionDef {
-  title: string;
-  keys: MasterSettingsCategory[];
-}
-
-// ─── "clinic" is special (not a MasterSettingsCategory) ───
-interface ClinicCard {
-  type: "clinic";
-  label: string;
-  description: string;
-  IconComponent: (props: { className?: string }) => ReactNode;
-  path: string;
-}
-
-// Suppress unused variable warning — ClinicCard is referenced via inline object literals below
-type _ClinicCardRef = ClinicCard;
-
-const SECTIONS: SectionDef[] = [
-  {
-    title: "診療関連マスタ",
-    keys: ["serviceType", "consultation", "examination", "procedure", "vaccine", "checkup", "medicine", "diagnosis_category", "diagnosis_name"],
-  },
-  {
-    title: "入院・ケージ管理",
-    keys: ["hospitalization", "cage"],
-  },
-  {
-    title: "トリミング関連",
-    keys: ["trimming_course", "trimming_option"],
-  },
-  {
-    title: "スタッフ・保険",
-    keys: ["staff", "job_title", "insurance"],
-  },
-];
 
 // ─────────────────────────────────────────────────
 // CardRow
@@ -109,18 +148,63 @@ export function MasterSettingsIndex() {
   const navigate = useNavigate();
   const { data: allItems } = useMasterItems();
 
-  // Build count map: backend category label → count
-  const countByLabel: Record<string, number> = {};
-  for (const item of allItems) {
-    if (item.category) {
-      countByLabel[item.category] = (countByLabel[item.category] ?? 0) + 1;
+  // Build count map: backend category label → count (memoized to avoid O(n) on every render)
+  const countByLabel = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const item of allItems) {
+      if (item.category) {
+        map[item.category] = (map[item.category] ?? 0) + 1;
+      }
     }
+    return map;
+  }, [allItems]);
+
+  function getIndividualCount(cat: MasterSettingsCategory): number {
+    const label = CATEGORY_LABEL_MAP[cat];
+    return countByLabel[label] ?? 0;
   }
 
-  function getCount(cat: MasterSettingsCategory): number | undefined {
-    const label = CATEGORY_LABEL_MAP[cat];
-    if (!label) return undefined;
-    return countByLabel[label] ?? 0;
+  function getGroupCount(groupKey: GroupKey): number | undefined {
+    const cfg = GROUP_CARD_CONFIG[groupKey];
+    if (cfg.countCategories.length === 0) {
+      // clinic: 件数非表示
+      return undefined;
+    }
+    return cfg.countCategories.reduce((sum, cat) => sum + getIndividualCount(cat), 0);
+  }
+
+  function renderCard(key: MasterCardKey) {
+    // Check if it is a group key
+    if (key in GROUP_CARD_CONFIG) {
+      const groupKey = key as GroupKey;
+      const cfg = GROUP_CARD_CONFIG[groupKey];
+      const Icon = cfg.IconComponent;
+      return (
+        <CardRow
+          key={groupKey}
+          label={cfg.label}
+          description={cfg.description}
+          icon={<Icon className="size-[16px]" />}
+          count={getGroupCount(groupKey)}
+          onClick={() => navigate(cfg.path)}
+        />
+      );
+    }
+
+    // Individual category card
+    const cat = key as MasterSettingsCategory;
+    const cfg = CATEGORY_CONFIG[cat];
+    const Icon = cfg.IconComponent;
+    return (
+      <CardRow
+        key={cat}
+        label={cfg.label}
+        description={cfg.description}
+        icon={<Icon className="size-[16px]" />}
+        count={getIndividualCount(cat)}
+        onClick={() => navigate(cfg.settingsPath)}
+      />
+    );
   }
 
   return (
@@ -158,43 +242,14 @@ export function MasterSettingsIndex() {
         {/* Thin divider */}
         <div className={`${STYLE.sectionDivider} mb-6`} />
 
-        {/* ── 基本設定 ── */}
-        <div className="mb-5">
-          <div className={`px-1 pb-1.5 text-xs ${C.text40} uppercase tracking-wide select-none`}>
-            基本設定
-          </div>
-          <div className={`bg-white rounded-lg border ${C.borderLight} overflow-hidden divide-y ${C.divideDivider}`}>
-            <CardRow
-              label="病院情報"
-              description="病院名、住所、電話番号などの基本情報を管理します"
-              icon={<Settings className="size-[16px]" />}
-              count={undefined}
-              onClick={() => navigate("/settings/clinic")}
-            />
-          </div>
-        </div>
-
-        {/* ── Category sections ── */}
-        {SECTIONS.map((section) => (
+        {/* Sections */}
+        {MASTER_SECTIONS.map((section) => (
           <div key={section.title} className="mb-5">
             <div className={`px-1 pb-1.5 text-xs ${C.text40} uppercase tracking-wide select-none`}>
               {section.title}
             </div>
             <div className={`bg-white rounded-lg border ${C.borderLight} overflow-hidden divide-y ${C.divideDivider}`}>
-              {section.keys.map((cat) => {
-                const cfg = CATEGORY_CONFIG[cat];
-                const Icon = cfg.IconComponent;
-                return (
-                  <CardRow
-                    key={cat}
-                    label={cfg.label}
-                    description={cfg.description}
-                    icon={<Icon className="size-[16px]" />}
-                    count={getCount(cat)}
-                    onClick={() => navigate(cfg.settingsPath)}
-                  />
-                );
-              })}
+              {section.keys.map((key) => renderCard(key))}
             </div>
           </div>
         ))}
