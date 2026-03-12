@@ -110,17 +110,17 @@ export function AppointmentCard({
       className="cursor-grab active:cursor-grabbing group touch-none"
       onClick={() => onCardClick(appointment)}
     >
-      <Card className={`w-full ${C.hoverBgPage} transition-colors border ${C.borderLight}`}>
-        <CardContent className="p-3 space-y-2">
+      <Card className={`w-full ${C.hoverBgPage} transition-colors border ${C.borderLight} rounded-[6px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.06)]`}>
+        <CardContent className="p-[13px] space-y-[9px]">
           <div className="flex items-start justify-between gap-2">
             <div className={`flex items-center gap-1.5 ${C.text60} min-w-0`}>
               <Clock className="size-3.5 flex-shrink-0" />
-              <span className="text-sm font-medium font-mono">{appointment.time}</span>
+              <span className="text-base font-medium font-mono tracking-[var(--tracking-notion)]">{appointment.time}</span>
             </div>
             {appointment.nextAppointment && (
               <Badge
                 variant={appointment.nextAppointment === "精算未確認" ? "destructive" : "secondary"}
-                className="text-xs px-1.5 h-5 flex items-center gap-0.5 flex-shrink-0"
+                className="text-sm px-[7.5px] h-[22px] flex items-center gap-0.5 flex-shrink-0 tracking-[var(--tracking-notion-sm)]"
               >
                 {appointment.nextAppointment === "精算未確認" && <AlertCircle className="size-3" />}
                 {appointment.nextAppointment === "次回予約済" && <Calendar className="size-3" />}
@@ -130,29 +130,29 @@ export function AppointmentCard({
           </div>
 
           <div className="space-y-0.5">
-            <p className="text-sm font-semibold truncate leading-tight">{appointment.ownerName}</p>
+            <p className="text-base font-semibold truncate leading-tight tracking-[var(--tracking-notion)]">{appointment.ownerName}</p>
             <div className={`flex items-center gap-1 ${C.text60}`}>
               <Dog className="size-3.5 flex-shrink-0" />
-              <p className="text-sm truncate">{appointment.petType} - {appointment.petName}</p>
+              <p className="text-base truncate tracking-[var(--tracking-notion)]">{appointment.petType} - {appointment.petName}</p>
             </div>
           </div>
 
           <div className="flex items-center flex-wrap gap-1 pt-0.5">
             <Badge
               variant="secondary"
-              className={`text-xs px-1.5 h-5 ${appointment.visitType === "初診" ? `bg-[#D3E5EF]/60 text-[#183B56]/90 border-[#B8D4E3]/50` : `bg-[#F7F6F3]/60 text-[#37352F]/90 border-[rgba(55,53,47,0.09)]/50`}`}
+              className={`text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-notion-sm)] ${appointment.visitType === "初診" ? `bg-[#D3E5EF]/60 text-[#183B56]/90 border-[#B8D4E3]/50` : `bg-[#F7F6F3]/60 text-[#37352F]/90 border-[rgba(55,53,47,0.09)]/50`}`}
             >
               {appointment.visitType}
             </Badge>
-            <Badge variant="outline" className="flex items-center gap-1 text-xs px-1.5 h-5 bg-white">
+            <Badge variant="outline" className="flex items-center gap-1 text-sm px-[7.5px] h-[22px] bg-white tracking-[var(--tracking-notion-sm)]">
               <ServiceIcon service={appointment.serviceType} />
               <span className="truncate max-w-[80px]">{appointment.serviceType}</span>
             </Badge>
 
             {(appointment.doctor || appointment.isDesignated) && (
-                 <Badge variant="outline" className={`flex items-center gap-1 text-xs px-1.5 h-5 ${appointment.isDesignated ? `bg-[#FAEBDD] text-[#D9730D] border-[#D9730D]/20` : `bg-white text-[#37352F]/60`}`}>
+                 <Badge variant="outline" className={`flex items-center gap-1 text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-notion-sm)] ${appointment.isDesignated ? `bg-[#FAEBDD] text-[#D9730D] border-[#D9730D]/20` : `bg-white text-[#37352F]/60`}`}>
                     <span className="truncate max-w-[80px]">{appointment.doctor || "指名あり"}</span>
-                    {appointment.isDesignated && <span className="text-[10px] ml-0.5 font-bold">指</span>}
+                    {appointment.isDesignated && <span className="text-[10px] ml-0.5 font-bold tracking-[0.12em]">指</span>}
                  </Badge>
             )}
           </div>
@@ -162,7 +162,7 @@ export function AppointmentCard({
             <button
               type="button"
               aria-label={isTrimming ? `${appointment.petName}のトリミング記録` : `${appointment.petName}のカルテ`}
-              className="flex items-center gap-1 text-[11px] text-[#2383E2] bg-[#D3E5EF]/30 border border-[#B8D4E3]/40 rounded px-1.5 py-0.5 hover:bg-[#D3E5EF]/60 transition-colors"
+              className="flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] text-[#2383E2] bg-[#D3E5EF]/30 border border-[#B8D4E3]/40 rounded px-1.5 py-0.5 hover:bg-[#D3E5EF]/60 transition-colors"
               onClick={handleKarteClick}
             >
               {isTrimming ? <Scissors className="size-3 shrink-0" /> : <FileText className="size-3 shrink-0" />}
@@ -172,7 +172,7 @@ export function AppointmentCard({
               <button
                 type="button"
                 aria-label={`${appointment.petName}の会計`}
-                className="flex items-center gap-1 text-[11px] text-[#0F7B6C] bg-[#DDEDEA]/30 border border-[#DDEDEA]/40 rounded px-1.5 py-0.5 hover:bg-[#DDEDEA]/60 transition-colors"
+                className="flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] text-[#0F7B6C] bg-[#DDEDEA]/30 border border-[#DDEDEA]/40 rounded px-1.5 py-0.5 hover:bg-[#DDEDEA]/60 transition-colors"
                 onClick={handleAccountingClick}
               >
                 <CreditCard className="size-3 shrink-0" />
@@ -183,7 +183,7 @@ export function AppointmentCard({
               <button
                 type="button"
                 aria-label={`${appointment.petName}の入院登録`}
-                className="flex items-center gap-1 text-[11px] text-[#6940A5] bg-[#EEE0F7]/30 border border-[#6940A5]/20 rounded px-1.5 py-0.5 hover:bg-[#EEE0F7]/60 transition-colors"
+                className="flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] text-[#6940A5] bg-[#EEE0F7]/30 border border-[#6940A5]/20 rounded px-1.5 py-0.5 hover:bg-[#EEE0F7]/60 transition-colors"
                 onClick={handleHospitalizationClick}
               >
                 <BedDouble className="size-3 shrink-0" />

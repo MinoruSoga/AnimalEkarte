@@ -29,6 +29,9 @@ import (
 // @description 動物病院 電子カルテシステム API（45テーブル・専用マスタテーブル版）
 // @host localhost:8080
 // @BasePath /api/v1
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 
 func main() {
 	// ロガー初期化

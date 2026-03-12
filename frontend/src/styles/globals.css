@@ -1,7 +1,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --font-size: 16px;
+  --font-size: 15px;
   --background: #ffffff;
   --foreground: #37352F;
   --card: #ffffff;
@@ -80,6 +80,10 @@
 
 @theme inline {
   --font-sans: 'Inter', 'Noto Sans JP', sans-serif;
+  /* Notion-inspired letter-spacing (matches Figma design) */
+  --tracking-notion: -0.0156em;   /* -0.2344px at 15px — for body/heading text */
+  --tracking-notion-sm: -0.0059em; /* -0.0762px at 13px — for badge text */
+  --tracking-notion-xs: 0.0059em;  /* +0.065px at 11px — for small action buttons */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

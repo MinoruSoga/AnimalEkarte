@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useCallback, lazy, Suspense } from "react";
+import { useState, useCallback, useMemo, lazy, Suspense } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -164,6 +164,17 @@ export function Dashboard() {
         }
     }, [navigate]);
 
+    const addClickHandlers = useMemo(() => {
+        const handlers = new Map<string, (() => void) | undefined>();
+        for (const column of filteredColumns) {
+            handlers.set(
+                column.title,
+                NO_ADD_BUTTON_COLUMNS.has(column.title) ? undefined : () => handleAddClick(column.title)
+            );
+        }
+        return handlers;
+    }, [filteredColumns, handleAddClick]);
+
     const handleCardClick = useCallback((appointment: Appointment) => {
         setSelectedAppointment(appointment);
         setModalOpen(true);
@@ -223,7 +234,7 @@ export function Dashboard() {
         updateAppointment(updatedAppointment);
         setIsEditModalOpen(false);
         setEditingAppointment(null);
-    }, [editingAppointment?.id, updateAppointment]);
+    }, [editingAppointment, updateAppointment]);
 
     const handleCancelAppointment = useCallback((appointment: Appointment) => {
         setCancelTarget(appointment);
@@ -248,16 +259,14 @@ export function Dashboard() {
                     <div className="flex gap-2">
                         <Button
                             variant={isFilterOpen ? "secondary" : "outline"}
-                            size="sm"
-                            className={`gap-2 bg-white h-10 text-sm ${C.text} ${C.borderMedium}`}
+                            className={`gap-2 bg-white h-11 text-base tracking-[var(--tracking-notion)] ${C.text} ${C.borderMedium}`}
                             onClick={() => setIsFilterOpen(prev => !prev)}
                         >
-                            <Filter className="size-4" />
+                            <Filter className="size-[17.5px]" />
                             フィルター
                         </Button>
                         <Button
-                            size="sm"
-                            className={STYLE.confirmPrimary}
+                            className={`${STYLE.confirmPrimary} h-11 text-base tracking-[var(--tracking-notion)]`}
                             onClick={() => navigate("/reservations")}
                         >
                             新規予約
@@ -325,11 +334,11 @@ export function Dashboard() {
                 <DndContext sensors={sensors} collisionDetection={closestCorners} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
                     {/* タブレット: 2-3列グリッド、デスクトップ: 5列flex */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:flex gap-2 h-full w-full overflow-y-auto lg:overflow-x-auto lg:overflow-y-hidden pb-2 bg-transparent">
-                        {filteredColumns.map((column, index) => (
+                        {filteredColumns.map((column) => (
                             <KanbanColumn
-                                key={index}
+                                key={column.title}
                                 data={column}
-                                onAddClick={NO_ADD_BUTTON_COLUMNS.has(column.title) ? undefined : () => handleAddClick(column.title)}
+                                onAddClick={addClickHandlers.get(column.title)}
                                 onCardClick={handleCardClick}
                             />
                         ))}

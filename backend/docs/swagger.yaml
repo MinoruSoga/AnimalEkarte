@@ -1,9 +1,6085 @@
 basePath: /api/v1
+definitions:
+  github_com_animal-ekarte_backend_internal_model.AcquisitionType:
+    enum:
+    - 購入
+    - 譲渡
+    - 保護
+    - その他
+    type: string
+    x-enum-varnames:
+    - AcquisitionTypePurchase
+    - AcquisitionTypeTransfer
+    - AcquisitionTypeProtected
+    - AcquisitionTypeOther
+  github_com_animal-ekarte_backend_internal_model.AnesthesiaType:
+    enum:
+    - none
+    - local
+    - general
+    type: string
+    x-enum-varnames:
+    - AnesthesiaTypeNone
+    - AnesthesiaTypeLocal
+    - AnesthesiaTypeGeneral
+  github_com_animal-ekarte_backend_internal_model.AnimalSpecies:
+    properties:
+      code:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.AppetiteLevel:
+    enum:
+    - normal
+    - increased
+    - decreased
+    - none
+    type: string
+    x-enum-varnames:
+    - AppetiteLevelNormal
+    - AppetiteLevelIncreased
+    - AppetiteLevelDecreased
+    - AppetiteLevelNone
+  github_com_animal-ekarte_backend_internal_model.Billing:
+    properties:
+      clinic_id:
+        type: string
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      has_insurance:
+        type: boolean
+      hospitalization_id:
+        type: string
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.BillingItem'
+        type: array
+      medical_record:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+      medical_record_id:
+        type: string
+      memo:
+        type: string
+      owner:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
+        description: Relations
+      owner_id:
+        type: string
+      payments:
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Payment'
+        type: array
+      pet:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+      pet_id:
+        type: string
+      scheduled_date:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.BillingStatus'
+      subtotal:
+        type: integer
+      tax_total:
+        type: integer
+      total_amount:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.BillingItem:
+    properties:
+      billing_id:
+        type: string
+      category:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ItemCategory'
+      code:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      is_insurance_applicable:
+        type: boolean
+      name:
+        type: string
+      quantity:
+        type: integer
+      sort_order:
+        type: integer
+      source:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ItemSource'
+      tax_rate:
+        type: number
+      unit_price:
+        type: number
+    type: object
+  github_com_animal-ekarte_backend_internal_model.BillingReview:
+    properties:
+      confirmed_at:
+        type: string
+      confirmed_by:
+        type: string
+      confirmed_staff:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+      created_at:
+        type: string
+      id:
+        type: string
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: string
+      memo:
+        type: string
+      return_reason:
+        type: string
+      returned_at:
+        type: string
+      returned_by:
+        type: string
+      returned_staff:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.BillingReviewStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.BillingReviewStatus:
+    enum:
+    - pending
+    - confirmed
+    - returned
+    type: string
+    x-enum-varnames:
+    - BillingReviewStatusPending
+    - BillingReviewStatusConfirmed
+    - BillingReviewStatusReturned
+  github_com_animal-ekarte_backend_internal_model.BillingStatus:
+    enum:
+    - waiting
+    - completed
+    - cancelled
+    - pending
+    type: string
+    x-enum-varnames:
+    - BillingStatusWaiting
+    - BillingStatusCompleted
+    - BillingStatusCancelled
+    - BillingStatusPending
+  github_com_animal-ekarte_backend_internal_model.BillingUnit:
+    enum:
+    - per_day
+    - per_night
+    type: string
+    x-enum-varnames:
+    - BillingUnitPerDay
+    - BillingUnitPerNight
+  github_com_animal-ekarte_backend_internal_model.BodySize:
+    enum:
+    - small
+    - medium
+    - large
+    type: string
+    x-enum-varnames:
+    - BodySizeSmall
+    - BodySizeMedium
+    - BodySizeLarge
+  github_com_animal-ekarte_backend_internal_model.BodyWeightUnit:
+    enum:
+    - Kg
+    - g
+    type: string
+    x-enum-varnames:
+    - BodyWeightUnitKg
+    - BodyWeightUnitG
+  github_com_animal-ekarte_backend_internal_model.Cage:
+    properties:
+      cage_size:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CageSize'
+      cage_type:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CageType'
+      clinic_id:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.CageSize:
+    enum:
+    - small
+    - medium
+    - large
+    type: string
+    x-enum-varnames:
+    - CageSizeSmall
+    - CageSizeMedium
+    - CageSizeLarge
+  github_com_animal-ekarte_backend_internal_model.CageType:
+    enum:
+    - icu
+    - dog
+    - cat
+    - general
+    type: string
+    x-enum-varnames:
+    - CageTypeICU
+    - CageTypeDog
+    - CageTypeCat
+    - CageTypeGeneral
+  github_com_animal-ekarte_backend_internal_model.CareLogRecord:
+    properties:
+      created_at:
+        type: string
+      daily_record_id:
+        type: string
+      id:
+        type: string
+      notes:
+        type: string
+      staff:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+        description: Relations
+      staff_id:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CareLogStatus'
+      time:
+        type: string
+      type:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CareLogType'
+      value:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.CareLogStatus:
+    enum:
+    - completed
+    - partial
+    - skipped
+    type: string
+    x-enum-varnames:
+    - CareLogStatusCompleted
+    - CareLogStatusPartial
+    - CareLogStatusSkipped
+  github_com_animal-ekarte_backend_internal_model.CareLogType:
+    enum:
+    - food
+    - excretion
+    - medicine
+    - treatment
+    - other
+    type: string
+    x-enum-varnames:
+    - CareLogTypeFood
+    - CareLogTypeExcretion
+    - CareLogTypeMedicine
+    - CareLogTypeTreatment
+    - CareLogTypeOther
+  github_com_animal-ekarte_backend_internal_model.CarePlanItem:
+    properties:
+      category:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      hospitalization_id:
+        type: string
+      hospitalization_plan:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationPlan'
+      hospitalization_plan_id:
+        type: string
+      id:
+        type: string
+      medicine:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine'
+        description: Relations
+      medicine_id:
+        type: string
+      name:
+        type: string
+      notes:
+        type: string
+      procedure:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure'
+      procedure_id:
+        type: string
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CarePlanStatus'
+      timing:
+        items:
+          type: string
+        type: array
+      type:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CarePlanType'
+      unit_price:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.CarePlanStatus:
+    enum:
+    - active
+    - completed
+    - discontinued
+    type: string
+    x-enum-varnames:
+    - CarePlanStatusActive
+    - CarePlanStatusCompleted
+    - CarePlanStatusDiscontinued
+  github_com_animal-ekarte_backend_internal_model.CarePlanType:
+    enum:
+    - food
+    - medicine
+    - treatment
+    - instruction
+    - item
+    type: string
+    x-enum-varnames:
+    - CarePlanTypeFood
+    - CarePlanTypeMedicine
+    - CarePlanTypeTreatment
+    - CarePlanTypeInstruction
+    - CarePlanTypeItem
+  github_com_animal-ekarte_backend_internal_model.Checkup:
+    properties:
+      checkup_type:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CheckupType'
+      checkup_type_id:
+        type: string
+      created_at:
+        type: string
+      date:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      doctor:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+      doctor_id:
+        type: string
+      id:
+        type: string
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: string
+      next_date:
+        type: string
+      pet:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+      pet_id:
+        type: string
+      result:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.CheckupType:
+    properties:
+      clinic_id:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      interval:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
+      target_age:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.ChiefComplaintCategory:
+    properties:
+      clinic_id:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.Clinic:
+    properties:
+      address:
+        type: string
+      branch_name:
+        type: string
+      created_at:
+        type: string
+      director_name:
+        type: string
+      email:
+        type: string
+      fax_number:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      logo_url:
+        type: string
+      name:
+        type: string
+      phone_number:
+        type: string
+      postal_code:
+        type: string
+      registration_number:
+        type: string
+      updated_at:
+        type: string
+      website:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.ClinicalPlan:
+    properties:
+      created_at:
+        type: string
+      diagnosis_category:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory'
+      diagnosis_category_id:
+        type: string
+      diagnosis_details:
+        type: string
+      diagnosis_name:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName'
+      diagnosis_name_id:
+        type: string
+      id:
+        type: string
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: string
+      physical_exam:
+        type: string
+      treatment_policy:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.Company:
+    properties:
+      address:
+        type: string
+      branch_name:
+        type: string
+      created_at:
+        type: string
+      director_name:
+        type: string
+      email:
+        type: string
+      fax_number:
+        type: string
+      id:
+        type: string
+      logo_url:
+        type: string
+      name:
+        type: string
+      phone_number:
+        type: string
+      postal_code:
+        type: string
+      registration_number:
+        type: string
+      updated_at:
+        type: string
+      website:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.Consultation:
+    properties:
+      clinic_id:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      duration:
+        type: integer
+      id:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
+      time_condition:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.DailyRecord:
+    properties:
+      care_log_records:
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CareLogRecord'
+        type: array
+      created_at:
+        type: string
+      date:
+        type: string
+      hospitalization_id:
+        type: string
+      id:
+        type: string
+      staff_note_records:
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.StaffNoteRecord'
+        type: array
+      updated_at:
+        type: string
+      vital_records:
+        description: Relations
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.VitalRecord'
+        type: array
+    type: object
+  github_com_animal-ekarte_backend_internal_model.DangerLevel:
+    enum:
+    - 低
+    - 中
+    - 高
+    type: string
+    x-enum-varnames:
+    - DangerLevelLow
+    - DangerLevelMedium
+    - DangerLevelHigh
+  github_com_animal-ekarte_backend_internal_model.DiagnosisCategory:
+    properties:
+      clinic_id:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      names:
+        description: Relations
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName'
+        type: array
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.DiagnosisName:
+    properties:
+      category:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory'
+        description: Relations
+      clinic_id:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      diagnosis_category_id:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.DosageForm:
+    enum:
+    - tablet
+    - liquid
+    - injection
+    - topical
+    - powder
+    type: string
+    x-enum-varnames:
+    - DosageFormTablet
+    - DosageFormLiquid
+    - DosageFormInjection
+    - DosageFormTopical
+    - DosageFormPowder
+  github_com_animal-ekarte_backend_internal_model.Estimate:
+    properties:
+      clinic_id:
+        type: string
+      comment:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      created_staff:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      discount_amount:
+        type: number
+      estimate_no:
+        type: string
+      id:
+        type: string
+      insurance_amount:
+        type: number
+      items:
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.EstimateItem'
+        type: array
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: string
+      notes:
+        type: string
+      owner:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
+      owner_id:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.EstimateStatus'
+      subtotal:
+        type: number
+      tax_total:
+        type: number
+      title:
+        type: string
+      total_amount:
+        type: number
+      updated_at:
+        type: string
+      valid_until:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.EstimateItem:
+    properties:
+      category:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ItemCategory'
+      consultation:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation'
+        description: Relations
+      consultation_id:
+        type: string
+      created_at:
+        type: string
+      discount_amount:
+        type: number
+      discount_rate:
+        type: number
+      estimate_id:
+        type: string
+      id:
+        type: string
+      is_insurance_applicable:
+        type: boolean
+      medicine:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine'
+      medicine_id:
+        type: string
+      name:
+        type: string
+      procedure:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure'
+      procedure_id:
+        type: string
+      quantity:
+        type: integer
+      sort_order:
+        type: integer
+      tax_rate:
+        type: number
+      unit_price:
+        type: number
+    type: object
+  github_com_animal-ekarte_backend_internal_model.EstimateStatus:
+    enum:
+    - draft
+    - sent
+    - approved
+    - rejected
+    type: string
+    x-enum-varnames:
+    - EstimateStatusDraft
+    - EstimateStatusSent
+    - EstimateStatusApproved
+    - EstimateStatusRejected
+  github_com_animal-ekarte_backend_internal_model.Exam:
+    properties:
+      created_at:
+        type: string
+      date:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      doctor:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+      doctor_id:
+        type: string
+      exam_type:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExamType'
+      exam_type_id:
+        type: string
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExamItem'
+        type: array
+      machine:
+        type: string
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: string
+      pet:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+      pet_id:
+        type: string
+      result_summary:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExaminationStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.ExamItem:
+    properties:
+      created_at:
+        type: string
+      exam_id:
+        type: string
+      id:
+        type: string
+      inspection_value:
+        type: string
+      name:
+        type: string
+      normal_value:
+        type: string
+      ref:
+        type: string
+      result:
+        type: string
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExaminationResultStatus'
+      unit:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.ExamType:
+    properties:
+      clinic_id:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      items:
+        description: Relations
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExamTypeItem'
+        type: array
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.ExamTypeItem:
+    properties:
+      created_at:
+        type: string
+      exam_type_id:
+        type: string
+      id:
+        type: string
+      inspection_value:
+        type: string
+      name:
+        type: string
+      normal_value:
+        type: string
+      sort_order:
+        type: integer
+    type: object
+  github_com_animal-ekarte_backend_internal_model.ExaminationResultStatus:
+    enum:
+    - normal
+    - high
+    - low
+    type: string
+    x-enum-varnames:
+    - ExaminationResultStatusNormal
+    - ExaminationResultStatusHigh
+    - ExaminationResultStatusLow
+  github_com_animal-ekarte_backend_internal_model.ExaminationStatus:
+    enum:
+    - 依頼中
+    - 検査中
+    - 完了
+    type: string
+    x-enum-varnames:
+    - ExaminationStatusPending
+    - ExaminationStatusInProgress
+    - ExaminationStatusCompleted
+  github_com_animal-ekarte_backend_internal_model.Hospitalization:
+    properties:
+      cage:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Cage'
+      cage_id:
+        type: string
+      care_plan_items:
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CarePlanItem'
+        type: array
+      clinic_id:
+        type: string
+      created_at:
+        type: string
+      daily_records:
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DailyRecord'
+        type: array
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      doctor:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+      doctor_id:
+        type: string
+      end_date:
+        type: string
+      hospitalization_type:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationType'
+      id:
+        type: string
+      memo:
+        type: string
+      owner:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
+        description: Relations
+      owner_id:
+        type: string
+      owner_request:
+        type: string
+      pet:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+      pet_id:
+        type: string
+      staff_notes:
+        type: string
+      start_date:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationStatus'
+      treatment_plans:
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TreatmentPlan'
+        type: array
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.HospitalizationPlan:
+    properties:
+      billing_unit:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.BillingUnit'
+      body_size:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.BodySize'
+      clinic_id:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.HospitalizationStatus:
+    enum:
+    - 入院中
+    - 退院済
+    - 予約
+    type: string
+    x-enum-varnames:
+    - HospitalizationStatusAdmitted
+    - HospitalizationStatusDischarged
+    - HospitalizationStatusReserved
+  github_com_animal-ekarte_backend_internal_model.HospitalizationType:
+    enum:
+    - 入院
+    - ホテル
+    type: string
+    x-enum-varnames:
+    - HospitalizationTypeInpatient
+    - HospitalizationTypeHotel
+  github_com_animal-ekarte_backend_internal_model.Inquiry:
+    properties:
+      allergy_info:
+        type: string
+      appetite:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.AppetiteLevel'
+      chief_complaint:
+        type: string
+      chief_complaint_category:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ChiefComplaintCategory'
+      chief_complaint_category_id:
+        type: string
+      created_at:
+        type: string
+      current_medications:
+        type: string
+      history:
+        type: string
+      id:
+        type: string
+      last_defecation:
+        type: string
+      last_meal:
+        type: string
+      last_urination:
+        type: string
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: string
+      notes:
+        type: string
+      owner_observations:
+        type: string
+      staff:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+      staff_id:
+        type: string
+      updated_at:
+        type: string
+      water_intake:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.WaterIntakeLevel'
+    type: object
+  github_com_animal-ekarte_backend_internal_model.Insurance:
+    properties:
+      clinic_id:
+        type: string
+      code:
+        type: string
+      contact_phone:
+        type: string
+      coverage_rate:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.InventoryCategory:
+    enum:
+    - medicine
+    - consumable
+    - food
+    - other
+    type: string
+    x-enum-varnames:
+    - InventoryCategoryMedicine
+    - InventoryCategoryConsumable
+    - InventoryCategoryFood
+    - InventoryCategoryOther
+  github_com_animal-ekarte_backend_internal_model.InventoryItem:
+    properties:
+      category:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryCategory'
+      clinic_id:
+        type: string
+      created_at:
+        type: string
+      expiry_date:
+        type: string
+      id:
+        type: string
+      last_restocked:
+        type: string
+      location:
+        type: string
+      min_stock_level:
+        type: integer
+      name:
+        type: string
+      quantity:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryStatus'
+      supplier:
+        type: string
+      unit:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.InventoryStatus:
+    enum:
+    - sufficient
+    - low
+    - out_of_stock
+    type: string
+    x-enum-varnames:
+    - InventoryStatusSufficient
+    - InventoryStatusLow
+    - InventoryStatusOutOfStock
+  github_com_animal-ekarte_backend_internal_model.ItemCategory:
+    enum:
+    - examination
+    - test
+    - procedure
+    - surgery
+    - medicine
+    - food
+    - goods
+    - other
+    type: string
+    x-enum-varnames:
+    - ItemCategoryExamination
+    - ItemCategoryTest
+    - ItemCategoryProcedure
+    - ItemCategorySurgery
+    - ItemCategoryMedicine
+    - ItemCategoryFood
+    - ItemCategoryGoods
+    - ItemCategoryOther
+  github_com_animal-ekarte_backend_internal_model.ItemSource:
+    enum:
+    - medical_record
+    - manual
+    - hospitalization
+    type: string
+    x-enum-varnames:
+    - ItemSourceMedicalRecord
+    - ItemSourceManual
+    - ItemSourceHospitalization
+  github_com_animal-ekarte_backend_internal_model.JobTitle:
+    properties:
+      clinic_id:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.MasterStatus:
+    enum:
+    - active
+    - inactive
+    type: string
+    x-enum-varnames:
+    - MasterStatusActive
+    - MasterStatusInactive
+  github_com_animal-ekarte_backend_internal_model.MedicalRecord:
+    properties:
+      billing_review:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.BillingReview'
+      checkups:
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Checkup'
+        type: array
+      clinic_id:
+        type: string
+      clinical_plan:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ClinicalPlan'
+      created_at:
+        type: string
+      date:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      doctor:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+      doctor_id:
+        type: string
+      estimates:
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Estimate'
+        type: array
+      exams:
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Exam'
+        type: array
+      id:
+        type: string
+      inquiry:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Inquiry'
+      owner:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
+        description: Relations
+      owner_id:
+        type: string
+      pet:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+      pet_id:
+        type: string
+      record_no:
+        type: string
+      reservation_appointment_id:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecordStatus'
+      treatments:
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Treatment'
+        type: array
+      updated_at:
+        type: string
+      vaccinations:
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccination'
+        type: array
+      vitals:
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Vital'
+        type: array
+    type: object
+  github_com_animal-ekarte_backend_internal_model.MedicalRecordStatus:
+    enum:
+    - 作成中
+    - 確定済
+    type: string
+    x-enum-varnames:
+    - MedicalRecordStatusDraft
+    - MedicalRecordStatusFinalized
+  github_com_animal-ekarte_backend_internal_model.Medicine:
+    properties:
+      clinic_id:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      default_quantity:
+        type: integer
+      description:
+        type: string
+      dosage_form:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DosageForm'
+      id:
+        type: string
+      inventory:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem'
+        description: Relations
+      inventory_id:
+        type: string
+      medicine_unit:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicineUnit'
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.MedicineUnit:
+    enum:
+    - per_tablet
+    - per_ml
+    - per_dose
+    - per_gram
+    type: string
+    x-enum-varnames:
+    - MedicineUnitPerTablet
+    - MedicineUnitPerML
+    - MedicineUnitPerDose
+    - MedicineUnitPerGram
+  github_com_animal-ekarte_backend_internal_model.MembershipType:
+    enum:
+    - 非会員
+    - 会員
+    - 退亡者
+    - 他診/準
+    type: string
+    x-enum-varnames:
+    - MembershipTypeNonMember
+    - MembershipTypeMember
+    - MembershipTypeDeceased
+    - MembershipTypeOther
+  github_com_animal-ekarte_backend_internal_model.NextScheduleType:
+    enum:
+    - 3weeks
+    - 4weeks
+    - 1year
+    - other
+    type: string
+    x-enum-varnames:
+    - NextScheduleType3Weeks
+    - NextScheduleType4Weeks
+    - NextScheduleType1Year
+    - NextScheduleTypeOther
+  github_com_animal-ekarte_backend_internal_model.Owner:
+    properties:
+      address1:
+        type: string
+      address2:
+        type: string
+      birth_date:
+        type: string
+      clinic_id:
+        type: string
+      company:
+        type: string
+      company_phone:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      discount_rate:
+        type: number
+      email:
+        type: string
+      home_address1:
+        type: string
+      home_address2:
+        type: string
+      home_postal_code:
+        type: string
+      id:
+        type: string
+      is_dangerous:
+        type: boolean
+      membership_type:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MembershipType'
+      owner_name:
+        type: string
+      owner_name_kana:
+        type: string
+      pets:
+        description: Relations
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+        type: array
+      phone:
+        type: string
+      postal_code:
+        type: string
+      remarks:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.Payment:
+    properties:
+      billing_amount:
+        type: number
+      billing_id:
+        type: string
+      change_amount:
+        type: number
+      created_at:
+        type: string
+      discount_amount:
+        type: number
+      id:
+        type: string
+      insurance_amount:
+        type: number
+      insurance_name:
+        type: string
+      insurance_ratio:
+        type: number
+      method:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.PaymentMethod'
+      received_amount:
+        type: number
+      subtotal:
+        type: number
+      tax_total:
+        type: number
+      total_amount:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.PaymentMethod:
+    enum:
+    - cash
+    - credit_card
+    - electronic_money
+    type: string
+    x-enum-varnames:
+    - PaymentMethodCash
+    - PaymentMethodCreditCard
+    - PaymentMethodElectronicMoney
+  github_com_animal-ekarte_backend_internal_model.Pet:
+    properties:
+      acquisition_type:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.AcquisitionType'
+      animal_species:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.AnimalSpecies'
+      animal_species_id:
+        type: string
+      birth_date:
+        type: string
+      breed:
+        type: string
+      clinic_id:
+        type: string
+      color:
+        type: string
+      created_at:
+        type: string
+      danger_level:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DangerLevel'
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      environment:
+        type: string
+      food:
+        type: string
+      gender:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.PetGender'
+      id:
+        type: string
+      insurance:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Insurance'
+      insurance_id:
+        type: string
+      last_visit:
+        type: string
+      name:
+        type: string
+      neutered_date:
+        type: string
+      owner:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
+        description: Relations
+      owner_id:
+        type: string
+      pet_name_kana:
+        type: string
+      pet_number:
+        type: string
+      phone:
+        type: string
+      remarks:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.PetStatus'
+      updated_at:
+        type: string
+      weight:
+        type: number
+    type: object
+  github_com_animal-ekarte_backend_internal_model.PetGender:
+    enum:
+    - 雄
+    - 雌
+    - 不明
+    type: string
+    x-enum-varnames:
+    - PetGenderMale
+    - PetGenderFemale
+    - PetGenderUnknown
+  github_com_animal-ekarte_backend_internal_model.PetStatus:
+    enum:
+    - 生存
+    - 死亡
+    type: string
+    x-enum-varnames:
+    - PetStatusAlive
+    - PetStatusDeceased
+  github_com_animal-ekarte_backend_internal_model.Procedure:
+    properties:
+      anesthesia:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.AnesthesiaType'
+      clinic_id:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      duration:
+        type: integer
+      id:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.ReservationAppointment:
+    properties:
+      clinic_id:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      doctor:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+      doctor_id:
+        type: string
+      end_time:
+        type: string
+      id:
+        type: string
+      is_designated:
+        type: boolean
+      notes:
+        type: string
+      owner:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
+        description: Relations
+      owner_id:
+        type: string
+      pet:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+      pet_id:
+        type: string
+      service_type:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ServiceType'
+      service_type_id:
+        type: string
+      start_time:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ReservationStatus'
+      updated_at:
+        type: string
+      visit_type:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.VisitType'
+    type: object
+  github_com_animal-ekarte_backend_internal_model.ReservationStatus:
+    enum:
+    - confirmed
+    - pending
+    - cancelled
+    - checked_in
+    - in_consultation
+    - accounting
+    - completed
+    type: string
+    x-enum-varnames:
+    - ReservationStatusConfirmed
+    - ReservationStatusPending
+    - ReservationStatusCancelled
+    - ReservationStatusCheckedIn
+    - ReservationStatusInConsultation
+    - ReservationStatusAccounting
+    - ReservationStatusCompleted
+  github_com_animal-ekarte_backend_internal_model.ServiceType:
+    properties:
+      clinic_id:
+        type: string
+      code:
+        type: string
+      color:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.Staff:
+    properties:
+      clinic_id:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      id:
+        type: string
+      job_title:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.JobTitle'
+        description: Relations
+      job_title_id:
+        type: string
+      license_number:
+        type: string
+      name:
+        type: string
+      sort_order:
+        type: integer
+      staff_role:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.StaffRole'
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.StaffNoteRecord:
+    properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      daily_record_id:
+        type: string
+      id:
+        type: string
+      staff:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+        description: Relations
+      staff_id:
+        type: string
+      time:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.StaffRole:
+    enum:
+    - veterinarian
+    - nurse
+    - trimmer
+    - reception
+    - manager
+    type: string
+    x-enum-varnames:
+    - StaffRoleVeterinarian
+    - StaffRoleNurse
+    - StaffRoleTrimmer
+    - StaffRoleReception
+    - StaffRoleManager
+  github_com_animal-ekarte_backend_internal_model.TargetSize:
+    enum:
+    - small
+    - medium
+    - large
+    - cat
+    type: string
+    x-enum-varnames:
+    - TargetSizeSmall
+    - TargetSizeMedium
+    - TargetSizeLarge
+    - TargetSizeCat
+  github_com_animal-ekarte_backend_internal_model.Treatment:
+    properties:
+      consultation:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation'
+      consultation_id:
+        type: string
+      content:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      discount_amount:
+        type: number
+      discount_rate:
+        type: number
+      id:
+        type: string
+      insurance:
+        type: boolean
+      inventory:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem'
+      inventory_id:
+        type: string
+      item_type:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TreatmentItemType'
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: string
+      medicine:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine'
+      medicine_id:
+        type: string
+      memo:
+        type: string
+      procedure:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure'
+      procedure_id:
+        type: string
+      quantity:
+        type: integer
+      selected:
+        type: boolean
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TreatmentStatus'
+      unit_price:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.TreatmentItemType:
+    enum:
+    - consultation
+    - procedure
+    - medicine
+    - other
+    type: string
+    x-enum-varnames:
+    - TreatmentItemTypeConsultation
+    - TreatmentItemTypeProcedure
+    - TreatmentItemTypeMedicine
+    - TreatmentItemTypeOther
+  github_com_animal-ekarte_backend_internal_model.TreatmentPlan:
+    properties:
+      created_at:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      discount_amount:
+        type: number
+      discount_rate:
+        type: number
+      hospitalization:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Hospitalization'
+      hospitalization_id:
+        type: string
+      id:
+        type: string
+      insurance:
+        type: boolean
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: string
+      memo:
+        type: string
+      quantity:
+        type: integer
+      sort_order:
+        type: integer
+      subtotal:
+        type: number
+      treatment_content:
+        type: string
+      unit_price:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.TreatmentStatus:
+    enum:
+    - 未完了
+    - 完了
+    - '-'
+    type: string
+    x-enum-varnames:
+    - TreatmentStatusIncomplete
+    - TreatmentStatusComplete
+    - TreatmentStatusNA
+  github_com_animal-ekarte_backend_internal_model.TrimmingCourse:
+    properties:
+      clinic_id:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      duration:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
+      target_size:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TargetSize'
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.TrimmingOption:
+    properties:
+      clinic_id:
+        type: string
+      code:
+        type: string
+      combinable:
+        type: boolean
+      created_at:
+        type: string
+      description:
+        type: string
+      duration:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.TrimmingRecord:
+    properties:
+      bt:
+        type: string
+      bw:
+        type: string
+      bw_unit:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.BodyWeightUnit'
+      clinic_id:
+        type: string
+      completed_image:
+        type: string
+      course:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingCourse'
+      course_id:
+        type: string
+      created_at:
+        type: string
+      date:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      id:
+        type: string
+      options:
+        items:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingOption'
+        type: array
+      pet:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+        description: Relations
+      pet_id:
+        type: string
+      remarks:
+        type: string
+      staff:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+      staff_id:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingStatus'
+      style_image:
+        type: string
+      style_request:
+        type: string
+      updated_at:
+        type: string
+      used_ribbon:
+        type: string
+      used_shampoo:
+        type: string
+      weight:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.TrimmingStatus:
+    enum:
+    - 完了
+    - 予約
+    - 進行中
+    type: string
+    x-enum-varnames:
+    - TrimmingStatusCompleted
+    - TrimmingStatusReserved
+    - TrimmingStatusInProgress
+  github_com_animal-ekarte_backend_internal_model.Vaccination:
+    properties:
+      created_at:
+        type: string
+      date:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      doctor:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+      doctor_id:
+        type: string
+      id:
+        type: string
+      lot1:
+        type: string
+      lot2:
+        type: string
+      lot3:
+        type: string
+      lot4:
+        type: string
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: string
+      next_date:
+        type: string
+      next_schedule_type:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.NextScheduleType'
+      pet:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+      pet_id:
+        type: string
+      remarks:
+        type: string
+      supplemental:
+        type: string
+      updated_at:
+        type: string
+      vaccine:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccine'
+      vaccine_id:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.Vaccine:
+    properties:
+      clinic_id:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      interval:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      species:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.VaccineSpecies'
+      status:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_animal-ekarte_backend_internal_model.VaccineSpecies:
+    enum:
+    - dog
+    - cat
+    - both
+    type: string
+    x-enum-varnames:
+    - VaccineSpeciesDog
+    - VaccineSpeciesCat
+    - VaccineSpeciesBoth
+  github_com_animal-ekarte_backend_internal_model.VisitType:
+    enum:
+    - first
+    - revisit
+    type: string
+    x-enum-varnames:
+    - VisitTypeFirst
+    - VisitTypeRevisit
+  github_com_animal-ekarte_backend_internal_model.Vital:
+    properties:
+      created_at:
+        type: string
+      heart_rate:
+        type: integer
+      id:
+        type: string
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: string
+      notes:
+        type: string
+      recorded_at:
+        type: string
+      respiration_rate:
+        type: integer
+      staff:
+        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+      staff_id:
+        type: string
+      temperature:
+        type: number
+      weight:
+        type: number
+    type: object
+  github_com_animal-ekarte_backend_internal_model.VitalRecord:
+    properties:
+      created_at:
+        type: string
+      daily_record_id:
+        type: string
+      heart_rate:
+        type: integer
+      id:
+        type: string
+      notes:
+        type: string
+      respiration_rate:
+        type: integer
+      staff:
+        allOf:
+        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+        description: Relations
+      staff_id:
+        type: string
+      temperature:
+        type: number
+      time:
+        type: string
+      weight:
+        type: number
+    type: object
+  github_com_animal-ekarte_backend_internal_model.WaterIntakeLevel:
+    enum:
+    - normal
+    - increased
+    - decreased
+    - none
+    type: string
+    x-enum-varnames:
+    - WaterIntakeLevelNormal
+    - WaterIntakeLevelIncreased
+    - WaterIntakeLevelDecreased
+    - WaterIntakeLevelNone
+  gorm.DeletedAt:
+    properties:
+      time:
+        type: string
+      valid:
+        description: Valid is true if Time is not NULL
+        type: boolean
+    type: object
+  internal_handler.LoginInput:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 8
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  internal_handler.LoginResponse:
+    properties:
+      expires_at:
+        type: integer
+      token:
+        type: string
+      user_type:
+        type: string
+    type: object
+  internal_handler.MeClinicMembership:
+    properties:
+      branch_name:
+        type: string
+      clinic_id:
+        type: string
+      clinic_name:
+        type: string
+      is_main:
+        type: boolean
+    type: object
+  internal_handler.MeResponse:
+    properties:
+      avatar_url:
+        type: string
+      clinics:
+        items:
+          $ref: '#/definitions/internal_handler.MeClinicMembership'
+        type: array
+      display_name:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      job_title:
+        type: string
+      main_clinic_id:
+        type: string
+      permissions:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        type: object
+      user_type:
+        type: string
+    type: object
+  internal_handler.PaginatedResponse:
+    properties:
+      data: {}
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
 host: localhost:8080
 info:
   contact: {}
   description: 動物病院 電子カルテシステム API（45テーブル・専用マスタテーブル版）
   title: Animal Ekarte API
   version: "2.0"
-paths: {}
+paths:
+  /accountings:
+    get:
+      consumes:
+      - application/json
+      description: 会計（請求）の一覧をページネーション付きで取得する
+      parameters:
+      - description: 'ページ番号 (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: '件数 (1-100, default: 20)'
+        in: query
+        name: limit
+        type: integer
+      - description: ステータスフィルター
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.PaginatedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 会計一覧取得
+      tags:
+      - Accountings
+    post:
+      consumes:
+      - application/json
+      description: 新しい会計（請求）を作成する
+      parameters:
+      - description: 会計情報
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Billing'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Billing'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 会計作成
+      tags:
+      - Accountings
+  /accountings/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 指定IDの会計（請求）を取得する
+      parameters:
+      - description: 会計ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Billing'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 会計詳細取得
+      tags:
+      - Accountings
+    put:
+      consumes:
+      - application/json
+      description: 指定IDの会計（請求）を更新する
+      parameters:
+      - description: 会計ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新する会計情報
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Billing'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Billing'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 会計更新
+      tags:
+      - Accountings
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: メール/パスワードで認証してJWTトークンを返す
+      parameters:
+      - description: ログイン情報
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.LoginInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ログイン
+      tags:
+      - Auth
+  /clinics:
+    get:
+      consumes:
+      - application/json
+      description: 全クリニック（院）の一覧を取得する
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Clinic'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: クリニック一覧取得
+      tags:
+      - Clinics
+  /clinics/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 指定IDのクリニック（院）を取得する
+      parameters:
+      - description: クリニックID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Clinic'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: クリニック詳細取得
+      tags:
+      - Clinics
+  /company:
+    get:
+      consumes:
+      - application/json
+      description: 動物病院グループの企業情報を取得する
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Company'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 企業情報取得
+      tags:
+      - Company
+    put:
+      consumes:
+      - application/json
+      description: 動物病院グループの企業情報を更新する
+      parameters:
+      - description: 更新する企業情報
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Company'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Company'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 企業情報更新
+      tags:
+      - Company
+  /hospitalizations:
+    get:
+      consumes:
+      - application/json
+      description: クリニックの入院一覧をページネーション付きで取得する
+      parameters:
+      - description: 'ページ番号 (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: '件数 (1-100, default: 20)'
+        in: query
+        name: limit
+        type: integer
+      - description: ステータスフィルター
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.PaginatedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 入院一覧取得
+      tags:
+      - Hospitalizations
+    post:
+      consumes:
+      - application/json
+      description: 新しい入院情報を作成する
+      parameters:
+      - description: 入院情報
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Hospitalization'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Hospitalization'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 入院作成
+      tags:
+      - Hospitalizations
+  /hospitalizations/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定IDの入院情報を削除する
+      parameters:
+      - description: 入院UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 入院削除
+      tags:
+      - Hospitalizations
+    get:
+      consumes:
+      - application/json
+      description: 指定IDの入院情報を取得する
+      parameters:
+      - description: 入院UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Hospitalization'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 入院取得
+      tags:
+      - Hospitalizations
+    put:
+      consumes:
+      - application/json
+      description: 指定IDの入院情報を更新する
+      parameters:
+      - description: 入院UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 入院情報
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Hospitalization'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Hospitalization'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 入院更新
+      tags:
+      - Hospitalizations
+  /inventory:
+    get:
+      consumes:
+      - application/json
+      description: 在庫アイテムの一覧をページネーション付きで取得する
+      parameters:
+      - description: 'ページ番号 (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: '件数 (1-100, default: 20)'
+        in: query
+        name: limit
+        type: integer
+      - description: カテゴリフィルター
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.PaginatedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 在庫一覧取得
+      tags:
+      - Inventory
+    post:
+      consumes:
+      - application/json
+      description: 新しい在庫アイテムを作成する
+      parameters:
+      - description: 在庫情報
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 在庫作成
+      tags:
+      - Inventory
+  /inventory/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 指定IDの在庫アイテムを取得する
+      parameters:
+      - description: 在庫ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 在庫詳細取得
+      tags:
+      - Inventory
+    put:
+      consumes:
+      - application/json
+      description: 指定IDの在庫アイテムを更新する
+      parameters:
+      - description: 在庫ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新する在庫情報
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 在庫更新
+      tags:
+      - Inventory
+  /masters/cages:
+    get:
+      description: クリニックに登録されているケージの一覧を返す。cage_typeクエリで種別絞り込み可能。
+      parameters:
+      - description: 'ケージ種別でフィルタリング（例: icu, dog, cat, general）'
+        in: query
+        name: cage_type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Cage'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ケージ一覧取得
+      tags:
+      - CageMasters
+    post:
+      consumes:
+      - application/json
+      description: 新規ケージを登録する。
+      parameters:
+      - description: ケージ情報
+        in: body
+        name: cage
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Cage'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Cage'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ケージ作成
+      tags:
+      - CageMasters
+  /masters/cages/{id}:
+    delete:
+      description: 指定IDのケージを削除する。
+      parameters:
+      - description: ケージID（UUID）
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ケージ削除
+      tags:
+      - CageMasters
+    put:
+      consumes:
+      - application/json
+      description: 指定IDのケージ情報を更新する。
+      parameters:
+      - description: ケージID（UUID）
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新するケージ情報
+        in: body
+        name: cage
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Cage'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Cage'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ケージ更新
+      tags:
+      - CageMasters
+  /masters/checkup-types:
+    get:
+      consumes:
+      - application/json
+      description: 登録されている健診種別の一覧を返す
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CheckupType'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 健診種別一覧取得
+      tags:
+      - Masters
+    post:
+      consumes:
+      - application/json
+      description: 新しい健診種別を作成する
+      parameters:
+      - description: 健診種別情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CheckupType'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CheckupType'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 健診種別作成
+      tags:
+      - Masters
+  /masters/checkup-types/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定IDの健診種別を削除する
+      parameters:
+      - description: 健診種別UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 健診種別削除
+      tags:
+      - Masters
+    put:
+      consumes:
+      - application/json
+      description: 指定IDの健診種別を更新する
+      parameters:
+      - description: 健診種別UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 健診種別情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CheckupType'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CheckupType'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 健診種別更新
+      tags:
+      - Masters
+  /masters/consultations:
+    get:
+      consumes:
+      - application/json
+      description: 登録されている診察項目の一覧を返す
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 診察項目一覧取得
+      tags:
+      - Masters
+    post:
+      consumes:
+      - application/json
+      description: 新しい診察項目を作成する
+      parameters:
+      - description: 診察項目情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 診察項目作成
+      tags:
+      - Masters
+  /masters/consultations/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定IDの診察項目を削除する
+      parameters:
+      - description: 診察項目UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 診察項目削除
+      tags:
+      - Masters
+    put:
+      consumes:
+      - application/json
+      description: 指定IDの診察項目を更新する
+      parameters:
+      - description: 診察項目UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 診察項目情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 診察項目更新
+      tags:
+      - Masters
+  /masters/diagnosis-categories:
+    get:
+      consumes:
+      - application/json
+      description: 登録されている診断カテゴリの一覧を返す
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 診断カテゴリ一覧取得
+      tags:
+      - Masters
+    post:
+      consumes:
+      - application/json
+      description: 新しい診断カテゴリを作成する
+      parameters:
+      - description: 診断カテゴリ情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 診断カテゴリ作成
+      tags:
+      - Masters
+  /masters/diagnosis-categories/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定IDの診断カテゴリを削除する
+      parameters:
+      - description: 診断カテゴリUUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 診断カテゴリ削除
+      tags:
+      - Masters
+    put:
+      consumes:
+      - application/json
+      description: 指定IDの診断カテゴリを更新する
+      parameters:
+      - description: 診断カテゴリUUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 診断カテゴリ情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 診断カテゴリ更新
+      tags:
+      - Masters
+  /masters/diagnosis-names:
+    get:
+      consumes:
+      - application/json
+      description: 登録されている診断名の一覧を返す。category_idクエリパラメータでカテゴリ絞り込み可能
+      parameters:
+      - description: 診断カテゴリUUID（省略時は全件返す）
+        in: query
+        name: category_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 診断名一覧取得
+      tags:
+      - Masters
+    post:
+      consumes:
+      - application/json
+      description: 新しい診断名を作成する
+      parameters:
+      - description: 診断名情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 診断名作成
+      tags:
+      - Masters
+  /masters/diagnosis-names/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定IDの診断名を削除する
+      parameters:
+      - description: 診断名UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 診断名削除
+      tags:
+      - Masters
+    put:
+      consumes:
+      - application/json
+      description: 指定IDの診断名を更新する
+      parameters:
+      - description: 診断名UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 診断名情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 診断名更新
+      tags:
+      - Masters
+  /masters/examination-types:
+    get:
+      consumes:
+      - application/json
+      description: 登録されている検査種別の一覧を返す
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExamType'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 検査種別一覧取得
+      tags:
+      - Masters
+    post:
+      consumes:
+      - application/json
+      description: 新しい検査種別を作成する
+      parameters:
+      - description: 検査種別情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExamType'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExamType'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 検査種別作成
+      tags:
+      - Masters
+  /masters/examination-types/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定IDの検査種別を削除する
+      parameters:
+      - description: 検査種別UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 検査種別削除
+      tags:
+      - Masters
+    put:
+      consumes:
+      - application/json
+      description: 指定IDの検査種別を更新する
+      parameters:
+      - description: 検査種別UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 検査種別情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExamType'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExamType'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 検査種別更新
+      tags:
+      - Masters
+  /masters/hospitalization-plans:
+    get:
+      consumes:
+      - application/json
+      description: 登録されている入院プランの一覧を返す
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationPlan'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 入院プラン一覧取得
+      tags:
+      - Masters
+    post:
+      consumes:
+      - application/json
+      description: 新しい入院プランを作成する
+      parameters:
+      - description: 入院プラン情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationPlan'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationPlan'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 入院プラン作成
+      tags:
+      - Masters
+  /masters/hospitalization-plans/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定IDの入院プランを削除する
+      parameters:
+      - description: 入院プランUUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 入院プラン削除
+      tags:
+      - Masters
+    put:
+      consumes:
+      - application/json
+      description: 指定IDの入院プランを更新する
+      parameters:
+      - description: 入院プランUUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 入院プラン情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationPlan'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationPlan'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 入院プラン更新
+      tags:
+      - Masters
+  /masters/insurances:
+    get:
+      description: クリニックに登録されている保険の一覧を返す。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Insurance'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 保険一覧取得
+      tags:
+      - InsuranceMasters
+    post:
+      consumes:
+      - application/json
+      description: 新規保険を登録する。
+      parameters:
+      - description: 保険情報
+        in: body
+        name: insurance
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Insurance'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Insurance'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 保険作成
+      tags:
+      - InsuranceMasters
+  /masters/insurances/{id}:
+    delete:
+      description: 指定IDの保険を削除する。
+      parameters:
+      - description: 保険ID（UUID）
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 保険削除
+      tags:
+      - InsuranceMasters
+    put:
+      consumes:
+      - application/json
+      description: 指定IDの保険情報を更新する。
+      parameters:
+      - description: 保険ID（UUID）
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新する保険情報
+        in: body
+        name: insurance
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Insurance'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Insurance'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 保険更新
+      tags:
+      - InsuranceMasters
+  /masters/medicines:
+    get:
+      description: クリニックに登録されている薬剤の一覧を返す。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 薬剤一覧取得
+      tags:
+      - MedicineMasters
+    post:
+      consumes:
+      - application/json
+      description: 新規薬剤を登録する。
+      parameters:
+      - description: 薬剤情報
+        in: body
+        name: medicine
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 薬剤作成
+      tags:
+      - MedicineMasters
+  /masters/medicines/{id}:
+    delete:
+      description: 指定IDの薬剤を削除する。
+      parameters:
+      - description: 薬剤ID（UUID）
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 薬剤削除
+      tags:
+      - MedicineMasters
+    put:
+      consumes:
+      - application/json
+      description: 指定IDの薬剤情報を更新する。
+      parameters:
+      - description: 薬剤ID（UUID）
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新する薬剤情報
+        in: body
+        name: medicine
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 薬剤更新
+      tags:
+      - MedicineMasters
+  /masters/procedures:
+    get:
+      consumes:
+      - application/json
+      description: 登録されている処置項目の一覧を返す
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 処置項目一覧取得
+      tags:
+      - Masters
+    post:
+      consumes:
+      - application/json
+      description: 新しい処置項目を作成する
+      parameters:
+      - description: 処置項目情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 処置項目作成
+      tags:
+      - Masters
+  /masters/procedures/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定IDの処置項目を削除する
+      parameters:
+      - description: 処置項目UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 処置項目削除
+      tags:
+      - Masters
+    put:
+      consumes:
+      - application/json
+      description: 指定IDの処置項目を更新する
+      parameters:
+      - description: 処置項目UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 処置項目情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 処置項目更新
+      tags:
+      - Masters
+  /masters/service-types:
+    get:
+      consumes:
+      - application/json
+      description: 登録されているサービス種別の一覧を返す
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ServiceType'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: サービス種別一覧取得
+      tags:
+      - Masters
+    post:
+      consumes:
+      - application/json
+      description: 新しいサービス種別を作成する
+      parameters:
+      - description: サービス種別情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ServiceType'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ServiceType'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: サービス種別作成
+      tags:
+      - Masters
+  /masters/service-types/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定IDのサービス種別を削除する
+      parameters:
+      - description: サービス種別UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: サービス種別削除
+      tags:
+      - Masters
+    put:
+      consumes:
+      - application/json
+      description: 指定IDのサービス種別を更新する
+      parameters:
+      - description: サービス種別UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: サービス種別情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ServiceType'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ServiceType'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: サービス種別更新
+      tags:
+      - Masters
+  /masters/staffs:
+    get:
+      description: クリニックに登録されているスタッフの一覧を返す。roleクエリで職種絞り込み可能。
+      parameters:
+      - description: 'スタッフ職種でフィルタリング（例: veterinarian, nurse, trimmer, reception, manager）'
+        in: query
+        name: role
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: スタッフ一覧取得
+      tags:
+      - StaffMasters
+    post:
+      consumes:
+      - application/json
+      description: 新規スタッフを登録する。
+      parameters:
+      - description: スタッフ情報
+        in: body
+        name: staff
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: スタッフ作成
+      tags:
+      - StaffMasters
+  /masters/staffs/{id}:
+    delete:
+      description: 指定IDのスタッフを論理削除する。
+      parameters:
+      - description: スタッフID（UUID）
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: スタッフ削除
+      tags:
+      - StaffMasters
+    put:
+      consumes:
+      - application/json
+      description: 指定IDのスタッフ情報を更新する。
+      parameters:
+      - description: スタッフID（UUID）
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新するスタッフ情報
+        in: body
+        name: staff
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: スタッフ更新
+      tags:
+      - StaffMasters
+  /masters/trimming-courses:
+    get:
+      consumes:
+      - application/json
+      description: 登録されているトリミングコースの一覧を返す
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingCourse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: トリミングコース一覧取得
+      tags:
+      - Masters
+    post:
+      consumes:
+      - application/json
+      description: 新しいトリミングコースを作成する
+      parameters:
+      - description: トリミングコース情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingCourse'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingCourse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: トリミングコース作成
+      tags:
+      - Masters
+  /masters/trimming-courses/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定IDのトリミングコースを削除する
+      parameters:
+      - description: トリミングコースUUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: トリミングコース削除
+      tags:
+      - Masters
+    put:
+      consumes:
+      - application/json
+      description: 指定IDのトリミングコースを更新する
+      parameters:
+      - description: トリミングコースUUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: トリミングコース情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingCourse'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingCourse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: トリミングコース更新
+      tags:
+      - Masters
+  /masters/trimming-options:
+    get:
+      consumes:
+      - application/json
+      description: 登録されているトリミングオプションの一覧を返す
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingOption'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: トリミングオプション一覧取得
+      tags:
+      - Masters
+    post:
+      consumes:
+      - application/json
+      description: 新しいトリミングオプションを作成する
+      parameters:
+      - description: トリミングオプション情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingOption'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingOption'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: トリミングオプション作成
+      tags:
+      - Masters
+  /masters/trimming-options/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定IDのトリミングオプションを削除する
+      parameters:
+      - description: トリミングオプションUUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: トリミングオプション削除
+      tags:
+      - Masters
+    put:
+      consumes:
+      - application/json
+      description: 指定IDのトリミングオプションを更新する
+      parameters:
+      - description: トリミングオプションUUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: トリミングオプション情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingOption'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingOption'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: トリミングオプション更新
+      tags:
+      - Masters
+  /masters/vaccines:
+    get:
+      description: クリニックに登録されているワクチンの一覧を返す。speciesクエリで対象種絞り込み可能。
+      parameters:
+      - description: '対象種でフィルタリング（例: dog, cat, both）'
+        in: query
+        name: species
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccine'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ワクチン一覧取得
+      tags:
+      - VaccineMasters
+    post:
+      consumes:
+      - application/json
+      description: 新規ワクチンを登録する。
+      parameters:
+      - description: ワクチン情報
+        in: body
+        name: vaccine
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccine'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccine'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ワクチン作成
+      tags:
+      - VaccineMasters
+  /masters/vaccines/{id}:
+    delete:
+      description: 指定IDのワクチンを削除する。
+      parameters:
+      - description: ワクチンID（UUID）
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ワクチン削除
+      tags:
+      - VaccineMasters
+    put:
+      consumes:
+      - application/json
+      description: 指定IDのワクチン情報を更新する。
+      parameters:
+      - description: ワクチンID（UUID）
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新するワクチン情報
+        in: body
+        name: vaccine
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccine'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccine'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ワクチン更新
+      tags:
+      - VaccineMasters
+  /me:
+    get:
+      description: JWTクレームからログインユーザーの詳細情報を返す
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.MeResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ログインユーザー情報取得
+      tags:
+      - Auth
+  /medical-records:
+    get:
+      consumes:
+      - application/json
+      description: クリニックの診療記録一覧をページネーション付きで取得する
+      parameters:
+      - description: 'ページ番号 (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: '件数 (1-100, default: 20)'
+        in: query
+        name: limit
+        type: integer
+      - description: ペットUUID
+        in: query
+        name: pet_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.PaginatedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 診療記録一覧取得
+      tags:
+      - MedicalRecords
+    post:
+      consumes:
+      - application/json
+      description: 新しい診療記録を作成する
+      parameters:
+      - description: 診療記録情報
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 診療記録作成
+      tags:
+      - MedicalRecords
+  /medical-records/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定IDの診療記録を削除する
+      parameters:
+      - description: 診療記録UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 診療記録削除
+      tags:
+      - MedicalRecords
+    get:
+      consumes:
+      - application/json
+      description: 指定IDの診療記録を取得する
+      parameters:
+      - description: 診療記録UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 診療記録取得
+      tags:
+      - MedicalRecords
+    put:
+      consumes:
+      - application/json
+      description: 指定IDの診療記録を更新する
+      parameters:
+      - description: 診療記録UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 診療記録情報
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 診療記録更新
+      tags:
+      - MedicalRecords
+  /owners:
+    get:
+      description: クリニックに所属する飼主の一覧をページネーションで返す
+      parameters:
+      - description: 'ページ番号 (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: '件数 (1-100, default: 20)'
+        in: query
+        name: limit
+        type: integer
+      - description: 検索キーワード
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.PaginatedResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 飼主一覧取得
+      tags:
+      - Owners
+    post:
+      consumes:
+      - application/json
+      description: 新規飼主を作成する
+      parameters:
+      - description: 飼主情報
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 飼主作成
+      tags:
+      - Owners
+  /owners/{id}:
+    delete:
+      description: 指定IDの飼主を削除する
+      parameters:
+      - description: 飼主UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 飼主削除
+      tags:
+      - Owners
+    get:
+      description: 指定IDの飼主を返す
+      parameters:
+      - description: 飼主UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 飼主取得
+      tags:
+      - Owners
+    put:
+      consumes:
+      - application/json
+      description: 指定IDの飼主情報を更新する
+      parameters:
+      - description: 飼主UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 飼主情報
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 飼主更新
+      tags:
+      - Owners
+  /pets:
+    get:
+      description: クリニックに所属するペットの一覧をページネーションで返す
+      parameters:
+      - description: 'ページ番号 (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: '件数 (1-100, default: 20)'
+        in: query
+        name: limit
+        type: integer
+      - description: 検索キーワード
+        in: query
+        name: search
+        type: string
+      - description: 飼主UUID
+        in: query
+        name: owner_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.PaginatedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ペット一覧取得
+      tags:
+      - Pets
+    post:
+      consumes:
+      - application/json
+      description: 新規ペットを作成する
+      parameters:
+      - description: ペット情報
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ペット作成
+      tags:
+      - Pets
+  /pets/{id}:
+    delete:
+      description: 指定IDのペットを削除する
+      parameters:
+      - description: ペットUUID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ペット削除
+      tags:
+      - Pets
+    get:
+      description: 指定IDのペットを返す
+      parameters:
+      - description: ペットUUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ペット取得
+      tags:
+      - Pets
+    put:
+      consumes:
+      - application/json
+      description: 指定IDのペット情報を更新する
+      parameters:
+      - description: ペットUUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: ペット情報
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ペット更新
+      tags:
+      - Pets
+  /reservations:
+    get:
+      consumes:
+      - application/json
+      description: クリニックの予約一覧をページネーション付きで取得する
+      parameters:
+      - description: 'ページ番号 (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: '件数 (1-100, default: 20)'
+        in: query
+        name: limit
+        type: integer
+      - description: 日付フィルター (YYYY-MM-DD)
+        in: query
+        name: date
+        type: string
+      - description: ステータスフィルター
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.PaginatedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 予約一覧取得
+      tags:
+      - Reservations
+    post:
+      consumes:
+      - application/json
+      description: 新しい予約を作成する
+      parameters:
+      - description: 予約情報
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ReservationAppointment'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ReservationAppointment'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 予約作成
+      tags:
+      - Reservations
+  /reservations/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定IDの予約を削除する
+      parameters:
+      - description: 予約UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 予約削除
+      tags:
+      - Reservations
+    get:
+      consumes:
+      - application/json
+      description: 指定IDの予約を取得する
+      parameters:
+      - description: 予約UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ReservationAppointment'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 予約取得
+      tags:
+      - Reservations
+    put:
+      consumes:
+      - application/json
+      description: 指定IDの予約を更新する
+      parameters:
+      - description: 予約UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 予約情報
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ReservationAppointment'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ReservationAppointment'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 予約更新
+      tags:
+      - Reservations
+  /trimmings:
+    get:
+      consumes:
+      - application/json
+      description: トリミング記録の一覧をページネーション付きで取得する
+      parameters:
+      - description: 'ページ番号 (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: '件数 (1-100, default: 20)'
+        in: query
+        name: limit
+        type: integer
+      - description: ペットIDフィルター
+        in: query
+        name: pet_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.PaginatedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: トリミング一覧取得
+      tags:
+      - Trimmings
+    post:
+      consumes:
+      - application/json
+      description: 新しいトリミング記録を作成する
+      parameters:
+      - description: トリミング情報
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingRecord'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingRecord'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: トリミング作成
+      tags:
+      - Trimmings
+  /trimmings/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 指定IDのトリミング記録を取得する
+      parameters:
+      - description: トリミングID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingRecord'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: トリミング詳細取得
+      tags:
+      - Trimmings
+    put:
+      consumes:
+      - application/json
+      description: 指定IDのトリミング記録を更新する
+      parameters:
+      - description: トリミングID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新するトリミング情報
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingRecord'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingRecord'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: トリミング更新
+      tags:
+      - Trimmings
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

@@ -26,8 +26,8 @@ export function FormHeader({ title, description, icon, onBack, action }: FormHea
         <div className="flex items-center gap-2">
           {icon && <div className="shrink-0">{icon}</div>}
           <div className="flex flex-col">
-            <h1 className="text-sm font-bold text-[#37352F] leading-tight">{title}</h1>
-            {description && <p className="text-sm text-[#37352F]/60 mt-0.5">{description}</p>}
+            <h1 className="text-base font-semibold text-[#37352F] leading-tight tracking-[var(--tracking-notion)]">{title}</h1>
+            {description && <p className="text-sm text-[rgba(55,53,47,0.5)] mt-0.5 tracking-[var(--tracking-notion-sm)]">{description}</p>}
           </div>
         </div>
       </div>

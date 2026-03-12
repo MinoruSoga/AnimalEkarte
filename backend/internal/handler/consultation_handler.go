@@ -12,6 +12,16 @@ import (
 
 // ---- Consultation ----
 
+// ListConsultations godoc
+// @Summary 診察項目一覧取得
+// @Description 登録されている診察項目の一覧を返す
+// @Tags Masters
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} model.Consultation
+// @Failure 500 {object} map[string]string
+// @Router /masters/consultations [get]
 func (h *Handler) ListConsultations(c *gin.Context) {
 	consultations, err := h.svc.Consultation.List(c.Request.Context())
 	if err != nil {
@@ -21,6 +31,18 @@ func (h *Handler) ListConsultations(c *gin.Context) {
 	c.JSON(http.StatusOK, consultations)
 }
 
+// CreateConsultation godoc
+// @Summary 診察項目作成
+// @Description 新しい診察項目を作成する
+// @Tags Masters
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body model.Consultation true "診察項目情報"
+// @Success 201 {object} model.Consultation
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /masters/consultations [post]
 func (h *Handler) CreateConsultation(c *gin.Context) {
 	var input model.Consultation
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -35,6 +57,19 @@ func (h *Handler) CreateConsultation(c *gin.Context) {
 	c.JSON(http.StatusCreated, input)
 }
 
+// UpdateConsultation godoc
+// @Summary 診察項目更新
+// @Description 指定IDの診察項目を更新する
+// @Tags Masters
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "診察項目UUID"
+// @Param request body model.Consultation true "診察項目情報"
+// @Success 200 {object} model.Consultation
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /masters/consultations/{id} [put]
 func (h *Handler) UpdateConsultation(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -54,6 +89,18 @@ func (h *Handler) UpdateConsultation(c *gin.Context) {
 	c.JSON(http.StatusOK, input)
 }
 
+// DeleteConsultation godoc
+// @Summary 診察項目削除
+// @Description 指定IDの診察項目を削除する
+// @Tags Masters
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "診察項目UUID"
+// @Success 204
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /masters/consultations/{id} [delete]
 func (h *Handler) DeleteConsultation(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {

@@ -9,6 +9,20 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// ListTrimmings godoc
+// @Summary トリミング一覧取得
+// @Description トリミング記録の一覧をページネーション付きで取得する
+// @Tags Trimmings
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "ページ番号 (default: 1)"
+// @Param limit query int false "件数 (1-100, default: 20)"
+// @Param pet_id query string false "ペットIDフィルター"
+// @Success 200 {object} PaginatedResponse
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /trimmings [get]
 func (h *Handler) ListTrimmings(c *gin.Context) {
 	page, limit, err := parsePagination(c)
 	if err != nil {
@@ -34,6 +48,19 @@ func (h *Handler) ListTrimmings(c *gin.Context) {
 	c.JSON(http.StatusOK, PaginatedResponse{Data: trimmings, Total: total, Page: page, Limit: limit})
 }
 
+// GetTrimming godoc
+// @Summary トリミング詳細取得
+// @Description 指定IDのトリミング記録を取得する
+// @Tags Trimmings
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "トリミングID"
+// @Success 200 {object} model.TrimmingRecord
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /trimmings/{id} [get]
 func (h *Handler) GetTrimming(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -48,6 +75,18 @@ func (h *Handler) GetTrimming(c *gin.Context) {
 	c.JSON(http.StatusOK, trimming)
 }
 
+// CreateTrimming godoc
+// @Summary トリミング作成
+// @Description 新しいトリミング記録を作成する
+// @Tags Trimmings
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param input body model.TrimmingRecord true "トリミング情報"
+// @Success 201 {object} model.TrimmingRecord
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /trimmings [post]
 func (h *Handler) CreateTrimming(c *gin.Context) {
 	var input model.TrimmingRecord
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -62,6 +101,20 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 	c.JSON(http.StatusCreated, input)
 }
 
+// UpdateTrimming godoc
+// @Summary トリミング更新
+// @Description 指定IDのトリミング記録を更新する
+// @Tags Trimmings
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "トリミングID"
+// @Param input body model.TrimmingRecord true "更新するトリミング情報"
+// @Success 200 {object} model.TrimmingRecord
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /trimmings/{id} [put]
 func (h *Handler) UpdateTrimming(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {

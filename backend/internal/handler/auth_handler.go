@@ -47,6 +47,18 @@ type LoginResponse struct {
 	UserType  string `json:"user_type"`
 }
 
+// Login godoc
+// @Summary ログイン
+// @Description メール/パスワードで認証してJWTトークンを返す
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param body body LoginInput true "ログイン情報"
+// @Success 200 {object} LoginResponse
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /auth/login [post]
 // Login はメール/パスワードで認証してJWTトークンを返す。
 // user_accounts.password_hash を bcrypt で検証する。
 func (h *Handler) Login(c *gin.Context) {
@@ -126,6 +138,16 @@ func (h *Handler) Login(c *gin.Context) {
 	})
 }
 
+// GetMe godoc
+// @Summary ログインユーザー情報取得
+// @Description JWTクレームからログインユーザーの詳細情報を返す
+// @Tags Auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} MeResponse
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /me [get]
 // GetMe はJWTクレームからログインユーザー情報を返す。
 func (h *Handler) GetMe(c *gin.Context) {
 	ctx := c.Request.Context()
