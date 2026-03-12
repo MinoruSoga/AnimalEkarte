@@ -1,5 +1,5 @@
 // React/Framework
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 // External
 import { Check, Filter, Search, SearchX, RotateCcw } from "lucide-react";
@@ -36,6 +36,8 @@ const FIELDS = [
   { key: "species", label: "種別", placeholder: "例: 犬" },
 ] as const;
 
+const MAX_RESULTS = 20;
+
 export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelectionTableProps) {
   const [searchParams, setSearchParams] = useState({
     ownerId: "",
@@ -47,27 +49,31 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
     species: "",
   });
   const [hasSearched, setHasSearched] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
 
   const { pets: allPets, isLoading } = usePetSearch();
 
-  const hasSearchConditions = Object.values(searchParams).some(value => value.trim() !== "");
+  const hasSearchConditions = useMemo(
+    () => Object.values(searchParams).some((value) => value.trim() !== ""),
+    [searchParams]
+  );
 
-  const filteredPets = hasSearched
-    ? allPets.filter((pet) => {
-        if (searchParams.ownerId && !pet.ownerId.includes(searchParams.ownerId)) return false;
-        if (searchParams.ownerName && !pet.ownerName.includes(searchParams.ownerName)) return false;
-        if (searchParams.phone && (!pet.phone || !pet.phone.includes(searchParams.phone))) return false;
-        if (searchParams.petName && !pet.name.includes(searchParams.petName)) return false;
-        if (searchParams.species && !pet.species.includes(searchParams.species)) return false;
-        return true;
-      }).slice(0, 20)
-    : [];
+  const filteredPets = useMemo(() => {
+    if (!hasSearched) return [];
+    const result: typeof allPets = [];
+    for (const pet of allPets) {
+      if (result.length >= MAX_RESULTS) break;
+      if (searchParams.ownerId && !pet.ownerId.includes(searchParams.ownerId)) continue;
+      if (searchParams.ownerName && !pet.ownerName.includes(searchParams.ownerName)) continue;
+      if (searchParams.phone && (!pet.phone || !pet.phone.includes(searchParams.phone))) continue;
+      if (searchParams.petName && !pet.name.includes(searchParams.petName)) continue;
+      if (searchParams.species && !pet.species.includes(searchParams.species)) continue;
+      result.push(pet);
+    }
+    return result;
+  }, [hasSearched, allPets, searchParams]);
 
   const handleSearch = () => {
-    setIsSearching(true);
     setHasSearched(true);
-    setTimeout(() => setIsSearching(false), 300);
   };
 
   const handleClear = () => {
@@ -83,7 +89,11 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
     setHasSearched(false);
   };
 
-  const isSelected = (pet: Pet) => selectedPets.some((p) => p.id === pet.id);
+  const selectedPetIds = useMemo(
+    () => new Set(selectedPets.map((p) => p.id)),
+    [selectedPets]
+  );
+  const isSelected = (pet: Pet) => selectedPetIds.has(pet.id);
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -99,12 +109,10 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
                 id={field.key}
                 placeholder={field.placeholder}
                 value={searchParams[field.key as keyof typeof searchParams]}
-                onChange={(e) =>
-                  setSearchParams({
-                    ...searchParams,
-                    [field.key]: e.target.value,
-                  })
-                }
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSearchParams((prev) => ({ ...prev, [field.key]: value }));
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     handleSearch();
@@ -146,7 +154,7 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
               <Search className="size-8 text-[#37352F]/20" />
               <div className="text-sm text-[#37352F]/40">検索条件を入力して検索してください</div>
             </div>
-          ) : isSearching || isLoading ? (
+          ) : isLoading ? (
             <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
               <div className="animate-spin">
                 <Search className="size-8 text-[#37352F]/20" />

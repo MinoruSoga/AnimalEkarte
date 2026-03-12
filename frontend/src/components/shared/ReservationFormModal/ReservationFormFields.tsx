@@ -1,5 +1,6 @@
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import {
   Select,
   SelectContent,
@@ -54,13 +55,19 @@ function FieldLabel({ children, trailing }: FieldLabelProps) {
 interface ReservationFormFieldsProps {
   formData: Partial<ReservationAppointment>;
   onChange: (data: Partial<ReservationAppointment>) => void;
+  validationErrors?: Record<string, string>;
+  onClearError?: (field: string) => void;
 }
 
 export const ReservationFormFields = ({
   formData,
   onChange,
+  validationErrors,
+  onClearError: _onClearError,
 }: ReservationFormFieldsProps) => {
   const { data: serviceTypes } = useMasterItems("serviceType");
+  const { data: staffItems } = useMasterItems("staff");
+  const activeStaff = staffItems.filter((s) => s.status === "active");
 
   return (
     <div className="space-y-4">
@@ -109,6 +116,9 @@ export const ReservationFormFields = ({
               />
             </PopoverContent>
           </Popover>
+          {validationErrors?.date && (
+            <FormFieldError id="res-date-error" message={validationErrors.date} />
+          )}
         </div>
 
         <div className="space-y-1.5">
@@ -192,6 +202,9 @@ export const ReservationFormFields = ({
               ))}
             </SelectContent>
           </Select>
+          {validationErrors?.type && (
+            <FormFieldError id="res-type-error" message={validationErrors.type} />
+          )}
         </div>
         <div className="space-y-1.5">
           <FieldLabel>初診/再診</FieldLabel>
@@ -256,9 +269,19 @@ export const ReservationFormFields = ({
             <SelectValue placeholder="選択してください" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="医師A">医師A</SelectItem>
-            <SelectItem value="医師B">医師B</SelectItem>
-            <SelectItem value="スタッフA">スタッフA</SelectItem>
+            {activeStaff.length > 0 ? (
+              activeStaff.map((s) => (
+                <SelectItem key={s.id} value={s.name}>
+                  {s.name}
+                </SelectItem>
+              ))
+            ) : (
+              <>
+                <SelectItem value="医師A">医師A</SelectItem>
+                <SelectItem value="医師B">医師B</SelectItem>
+                <SelectItem value="スタッフA">スタッフA</SelectItem>
+              </>
+            )}
           </SelectContent>
         </Select>
       </div>

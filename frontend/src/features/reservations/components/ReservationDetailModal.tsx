@@ -23,6 +23,7 @@ import type { ReservationAppointment, ReservationStatus } from "../types";
 import { RESERVATION_STATUS_VALUES } from "../types";
 import { getReservationTypeName, getReservationStatusLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
+import { useServiceTypeColorMap } from "@/features/master/hooks/useServiceTypeColorMap";
 
 interface ReservationDetailModalProps {
   isOpen: boolean;
@@ -54,18 +55,18 @@ const STATUS_OPTIONS: StatusOption[] = [
 
 interface ActionConfig {
   label: string;
-  icon: ReactNode;
+  Icon: React.ComponentType<{ className?: string }>;
 }
 
 const ACTION_CONFIG_MAP: Record<string, ActionConfig> = {
-  "トリミング": { label: "トリミング記録作成", icon: <Scissors className="size-4" /> },
-  "入院": { label: "入院・ホテル登録", icon: <Building2 className="size-4" /> },
-  "ホテル": { label: "入院・ホテル登録", icon: <Building2 className="size-4" /> },
+  "トリミング": { label: "トリミング記録作成", Icon: Scissors },
+  "入院": { label: "入院・ホテル登録", Icon: Building2 },
+  "ホテル": { label: "入院・ホテル登録", Icon: Building2 },
 };
 
 const DEFAULT_ACTION_CONFIG: ActionConfig = {
   label: "カルテ作成",
-  icon: <FilePlus2 className="size-4" />,
+  Icon: FilePlus2,
 };
 
 function getVisitTypeAccent(visitType: string): { border: string; bg: string; text: string; dot: string } {
@@ -93,6 +94,8 @@ export function ReservationDetailModal({
   onStatusChange,
   appointment,
 }: ReservationDetailModalProps) {
+  const { getColor } = useServiceTypeColorMap();
+
   if (!appointment) return null;
 
   const actionConfig = ACTION_CONFIG_MAP[appointment.type] ?? DEFAULT_ACTION_CONFIG;
@@ -210,6 +213,7 @@ export function ReservationDetailModal({
               </InfoRow>
               <InfoRow label="予約区分">
                 <div className="flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${appointment ? getColor(appointment.type).dot : ""}`} />
                   <Tag className="size-3 text-[#37352F]/40" />
                   {getReservationTypeName(appointment.type)}
                 </div>
@@ -258,7 +262,7 @@ export function ReservationDetailModal({
                 className="bg-[#37352F] text-white hover:bg-[#37352F]/90 h-9 text-sm gap-1.5 shadow-sm"
                 onClick={() => onCreateRecord(appointment)}
               >
-                {actionConfig.icon}
+                <actionConfig.Icon className="size-4" />
                 {actionConfig.label}
               </Button>
             )}

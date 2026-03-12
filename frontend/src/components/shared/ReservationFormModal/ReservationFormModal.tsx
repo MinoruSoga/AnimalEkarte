@@ -1,8 +1,9 @@
 // React/Framework
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 // External
-import { User, Calendar, CalendarCheck, PawPrint, X, Search } from "lucide-react";
+import { Calendar, CalendarCheck, PawPrint, X, Search } from "lucide-react";
+import { toast } from "sonner";
 
 // Internal
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { usePetInfo } from "@/hooks/use-pet";
 import { usePetSelection } from "@/hooks/use-pet-selection";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 
 // Relative
 import { PatientSelectionTable } from "./PatientSelectionTable";
@@ -34,23 +36,6 @@ interface ReservationFormModalProps {
   initialData: Partial<ReservationAppointment> | null;
 }
 
-function PetLoader({
-  petId,
-  onPetLoaded,
-}: {
-  petId: string;
-  onPetLoaded: (pet: Pet) => void;
-}) {
-  const { pet } = usePetInfo(petId);
-
-  useEffect(() => {
-    if (pet) {
-      onPetLoaded(pet);
-    }
-  }, [pet, onPetLoaded]);
-
-  return null;
-}
 
 function StepIndicator({ step, label, active }: { step: number; label: string; active: boolean }) {
   return (
@@ -97,6 +82,7 @@ export const ReservationFormModal = ({
   const [formData, setFormData] = useState<Partial<ReservationAppointment>>({});
   const [pendingPetId, setPendingPetId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<"search" | "form">("search");
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   const {
     selectedPets,
@@ -104,62 +90,74 @@ export const ReservationFormModal = ({
     togglePetSelection,
   } = usePetSelection([], "multiple-same-owner");
 
-  const [prevIsOpen, setPrevIsOpen] = useState(false);
+  const { pet: loadedPet } = usePetInfo(pendingPetId ?? "");
 
-  if (isOpen !== prevIsOpen) {
-    setPrevIsOpen(isOpen);
-    if (isOpen) {
-      if (initialData) {
-        setFormData({ ...initialData });
-        if (initialData.petId) {
-          setPendingPetId(initialData.petId);
-        } else {
-          setSelectedPets([]);
-          setPendingPetId(null);
-        }
+  useEffect(() => {
+    if (loadedPet && pendingPetId) {
+      setSelectedPets([loadedPet]);
+      setPendingPetId(null);
+    }
+  }, [loadedPet, pendingPetId, setSelectedPets]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setValidationErrors({});
+    setMobilePanel("search");
+    if (initialData) {
+      setFormData({ ...initialData });
+      if (initialData.petId) {
+        setPendingPetId(initialData.petId);
       } else {
-        const defaultStart = new Date();
-        defaultStart.setHours(10, 0, 0, 0);
-        const defaultEnd = new Date(defaultStart);
-        defaultEnd.setHours(11, 0, 0, 0);
-
-        setFormData({
-          start: defaultStart,
-          end: defaultEnd,
-          visitType: "first",
-          type: "診療",
-          doctor: "医師A",
-          isDesignated: false,
-          status: "confirmed",
-        });
         setSelectedPets([]);
         setPendingPetId(null);
       }
+    } else {
+      const defaultStart = new Date();
+      defaultStart.setHours(10, 0, 0, 0);
+      const defaultEnd = new Date(defaultStart);
+      defaultEnd.setHours(11, 0, 0, 0);
+      setFormData({
+        start: defaultStart,
+        end: defaultEnd,
+        visitType: "first",
+        type: "診療",
+        doctor: "医師A",
+        isDesignated: false,
+        status: "confirmed",
+      });
+      setSelectedPets([]);
+      setPendingPetId(null);
     }
-  }
+  }, [isOpen, initialData]);
 
-  const handlePetLoaded = (pet: Pet) => {
-    setSelectedPets([pet]);
-    setPendingPetId(null);
-  };
+  const handleSave = useCallback(() => {
+    const errors: Record<string, string> = {};
+    if (selectedPets.length === 0) {
+      errors.patient = "患者を選択してください";
+    }
+    if (!formData.start) {
+      errors.date = "日付を選択してください";
+    }
+    if (!formData.type) {
+      errors.type = "予約区分を選択してください";
+    }
 
-  const handleSave = () => {
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      toast.error("入力内容を確認してください", {
+        description: Object.values(errors).join("、"),
+      });
+      return;
+    }
+
+    setValidationErrors({});
     onSave(formData, selectedPets);
-  };
-
-  const handlePetSelect = (pet: Pet) => {
-    togglePetSelection(pet);
-  };
+  }, [formData, selectedPets, onSave]);
 
   const isEditMode = initialData && initialData.id;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      {/* Load pet data from API when petId is provided */}
-      {pendingPetId && (
-        <PetLoader petId={pendingPetId} onPetLoaded={handlePetLoaded} />
-      )}
-
       <DialogContent className="w-[98%] sm:max-w-[1200px] h-[90vh] flex flex-col p-0 gap-0 bg-white overflow-hidden rounded-xl">
         <DialogHeader className="p-4 border-b shrink-0 h-auto flex flex-col gap-3 space-y-0">
           <div className="flex items-center justify-between">
@@ -216,7 +214,7 @@ export const ReservationFormModal = ({
             </div>
             <div className="flex-1 overflow-hidden flex flex-col min-h-0">
               <PatientSelectionTable
-                onSelect={handlePetSelect}
+                onSelect={togglePetSelection}
                 selectedPets={selectedPets}
               />
             </div>
@@ -243,7 +241,7 @@ export const ReservationFormModal = ({
                         key={pet.id}
                         pet={pet}
                         onRemove={() => {
-                          setSelectedPets(selectedPets.filter(p => p.id !== pet.id));
+                          setSelectedPets(prev => prev.filter(p => p.id !== pet.id));
                         }}
                       />
                     ))}
@@ -256,12 +254,34 @@ export const ReservationFormModal = ({
                     </div>
                   </div>
                 )}
+                {selectedPets.length === 0 && (
+                  <FormFieldError message={validationErrors.patient} />
+                )}
               </div>
 
               {/* Form Fields */}
               <div className="space-y-4">
                 <Label className="text-sm font-bold text-[#37352F]">予約詳細</Label>
-                <ReservationFormFields formData={formData} onChange={setFormData} />
+                <ReservationFormFields
+                  formData={formData}
+                  onChange={(data) => {
+                    setFormData(data);
+                    setValidationErrors((prev) => {
+                      const next = { ...prev };
+                      if (data.start) delete next.date;
+                      if (data.type) delete next.type;
+                      return next;
+                    });
+                  }}
+                  validationErrors={validationErrors}
+                  onClearError={(field) =>
+                    setValidationErrors((prev) => {
+                      const next = { ...prev };
+                      delete next[field];
+                      return next;
+                    })
+                  }
+                />
               </div>
             </div>
           </div>
@@ -280,7 +300,6 @@ export const ReservationFormModal = ({
             </Button>
             <Button
               onClick={handleSave}
-              disabled={selectedPets.length === 0}
               className="bg-[#37352F] text-white hover:bg-[#37352F]/90 h-10 text-sm min-w-[100px]"
             >
               {isEditMode ? "更新する" : "予約を確定"}

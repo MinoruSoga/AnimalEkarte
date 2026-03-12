@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback, Suspense, lazy } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
@@ -14,15 +14,23 @@ import {
 import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Stethoscope } from "lucide-react";
 import { FormHeader, PrimaryButton } from "@/components/shared/Form";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { getCalendarViewLabel, getReservationTypeColor } from "@/utils/status-helpers";
+import { getCalendarViewLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
 import type { CalendarView } from "../types";
-import { CALENDAR_VIEW_VALUES, RESERVATION_TYPE_VALUES } from "../types";
-import { MonthView } from "../components/MonthView";
-import { WeekView } from "../components/WeekView";
+import { CALENDAR_VIEW_VALUES } from "../types";
 import { ReservationFormModal } from "@/components/shared/ReservationFormModal";
-import { ReservationDetailModal } from "../components/ReservationDetailModal";
 import { useReservationManagement } from "../hooks/useReservationManagement";
+import { useServiceTypeColorMap } from "@/features/master/hooks/useServiceTypeColorMap";
+
+const MonthView = lazy(() =>
+  import("../components/MonthView").then((m) => ({ default: m.MonthView }))
+);
+const WeekView = lazy(() =>
+  import("../components/WeekView").then((m) => ({ default: m.WeekView }))
+);
+const ReservationDetailModal = lazy(() =>
+  import("../components/ReservationDetailModal").then((m) => ({ default: m.ReservationDetailModal }))
+);
 
 /** Navigation step per calendar view */
 const VIEW_NAV_PREV: Record<CalendarView, (d: Date) => Date> = {
@@ -34,14 +42,22 @@ const VIEW_NAV_NEXT: Record<CalendarView, (d: Date) => Date> = {
   week: (d) => addWeeks(d, 1),
 };
 
-export const ReservationManagement = () => {
+export function ReservationManagement() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<CalendarView>("week");
   const [doctorFilter, setDoctorFilter] = useState("all");
 
+  const { activeEntries } = useServiceTypeColorMap();
+
+  const dynamicColorMap = useMemo(
+    () => new Map(
+      activeEntries.map((e) => [e.name, `${e.color.bg} ${e.color.text} ${e.color.border}`])
+    ),
+    [activeEntries]
+  );
+
   const {
     appointments,
-    isLoading,
     isFormOpen,
     editingAppointment,
     handleOpenForm,
@@ -65,31 +81,25 @@ export const ReservationManagement = () => {
     handlePetSelectConfirm,
   } = useReservationManagement();
 
-  /** Unique doctor names derived from current appointments */
-  const doctorNames = Array.from(
-    new Set(appointments.map((a) => a.doctor).filter(Boolean))
-  ).sort();
+  const doctorNames = useMemo(
+    () => Array.from(new Set(appointments.map((a) => a.doctor).filter(Boolean))).sort(),
+    [appointments]
+  );
 
-  /** Filtered appointments */
-  const filteredAppointments =
-    doctorFilter === "all"
-      ? appointments
-      : appointments.filter((a) => a.doctor === doctorFilter);
+  const filteredAppointments = useMemo(
+    () => doctorFilter === "all" ? appointments : appointments.filter((a) => a.doctor === doctorFilter),
+    [appointments, doctorFilter]
+  );
 
-  const navigateToday = () => setCurrentDate(new Date());
-  const navigatePrevious = () => setCurrentDate(VIEW_NAV_PREV[view](currentDate));
-  const navigateNext = () => setCurrentDate(VIEW_NAV_NEXT[view](currentDate));
-
-  if (isLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-[#F7F6F3]">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
-          <p className="mt-2 text-[#37352F]/60">読み込み中...</p>
-        </div>
-      </div>
-    );
-  }
+  const navigateToday = useCallback(() => setCurrentDate(new Date()), []);
+  const navigatePrevious = useCallback(
+    () => setCurrentDate((prev) => VIEW_NAV_PREV[view](prev)),
+    [view]
+  );
+  const navigateNext = useCallback(
+    () => setCurrentDate((prev) => VIEW_NAV_NEXT[view](prev)),
+    [view]
+  );
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#F7F6F3] min-w-0 w-full">
@@ -109,7 +119,7 @@ export const ReservationManagement = () => {
 
       <div className="flex-1 flex flex-col p-4 overflow-hidden w-full min-w-0">
         {/* Toolbar */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-4">
             <div className="flex items-center bg-white rounded-md border border-[rgba(55,53,47,0.16)] p-1 shadow-sm">
               <Button variant="ghost" size="icon" className="h-10 w-10" onClick={navigatePrevious}>
@@ -127,11 +137,11 @@ export const ReservationManagement = () => {
             </h2>
 
             {/* Reservation Type Legend */}
-            <div className="flex items-center gap-3 ml-4">
-              {RESERVATION_TYPE_VALUES.map((type) => (
-                <div key={type} className="flex items-center gap-1.5">
-                  <span className={`w-2.5 h-2.5 rounded-sm ${getReservationTypeColor(type).split(" ")[0]}`} />
-                  <span className="text-xs text-[#37352F]/60">{type}</span>
+            <div className="hidden xl:flex items-center gap-3 ml-4">
+              {activeEntries.map((entry) => (
+                <div key={entry.name} className="flex items-center gap-1.5">
+                  <span className={`w-2.5 h-2.5 rounded-full ${entry.color.dot}`} />
+                  <span className="text-xs text-[#37352F]/60">{entry.name}</span>
                 </div>
               ))}
             </div>
@@ -169,23 +179,44 @@ export const ReservationManagement = () => {
           </div>
         </div>
 
+        {/* Legend row for narrow screens (< xl) */}
+        <div className="flex xl:hidden items-center gap-3 mb-3 flex-wrap">
+          {activeEntries.map((entry) => (
+            <div key={entry.name} className="flex items-center gap-1.5">
+              <span className={`w-2.5 h-2.5 rounded-full ${entry.color.dot}`} />
+              <span className="text-xs text-[#37352F]/60">{entry.name}</span>
+            </div>
+          ))}
+        </div>
+
         {/* Calendar View */}
         <div className="flex-1 overflow-hidden flex flex-col">
-          {view === "month" ? (
-            <MonthView
-              currentDate={currentDate}
-              appointments={filteredAppointments}
-              onAppointmentClick={handleOpenDetail}
-            />
-          ) : (
-            <WeekView
-              currentDate={currentDate}
-              appointments={filteredAppointments}
-              onAppointmentClick={handleOpenDetail}
-              onTimeSlotClick={handleTimeSlotClick}
-              onAppointmentUpdate={handleAppointmentUpdate}
-            />
-          )}
+          <Suspense fallback={
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
+                <p className="mt-2 text-[#37352F]/60 text-sm">読み込み中...</p>
+              </div>
+            </div>
+          }>
+            {view === "month" ? (
+              <MonthView
+                currentDate={currentDate}
+                appointments={filteredAppointments}
+                onAppointmentClick={handleOpenDetail}
+                dynamicColorMap={dynamicColorMap}
+              />
+            ) : (
+              <WeekView
+                currentDate={currentDate}
+                appointments={filteredAppointments}
+                onAppointmentClick={handleOpenDetail}
+                onTimeSlotClick={handleTimeSlotClick}
+                onAppointmentUpdate={handleAppointmentUpdate}
+                dynamicColorMap={dynamicColorMap}
+              />
+            )}
+          </Suspense>
         </div>
       </div>
 
@@ -234,4 +265,4 @@ export const ReservationManagement = () => {
       />
     </div>
   );
-};
+}

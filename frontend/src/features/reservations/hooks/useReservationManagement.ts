@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { addHours } from "date-fns";
 import { toast } from "sonner";
@@ -19,6 +19,8 @@ import {
   transformToCreateRequest,
 } from "../api";
 
+const EMPTY_APPOINTMENTS: ReservationAppointment[] = [];
+
 /** Maps reservation type → record creation path */
 const RECORD_PATH: Record<string, string> = {
   "トリミング": "/trimming/new",
@@ -36,10 +38,10 @@ const SELECT_PATH: Record<string, string> = {
 export function useReservationManagement() {
   const navigate = useNavigate();
   const location = useLocation();
-  const locationState = (location.state ?? {}) as NavigationState;
+  const locationFrom = (location.state as NavigationState | null)?.from ?? null;
 
   // API mutations
-  const { data: appointments = [], isLoading } = useGetReservations();
+  const { data: appointments = EMPTY_APPOINTMENTS, isLoading } = useGetReservations();
   const createMutation = useCreateReservation();
   const updateMutation = useUpdateReservation();
   const deleteMutation = useDeleteReservation();
@@ -77,12 +79,22 @@ export function useReservationManagement() {
     setIsDetailOpen(false);
   }, []);
 
+  const isFormOpenRef = useRef(false);
+  useEffect(() => {
+    isFormOpenRef.current = isFormOpen;
+  }, [isFormOpen]);
+
+  const editingAppointmentRef = useRef<ReservationFormData | null>(null);
+  useEffect(() => {
+    editingAppointmentRef.current = editingAppointment;
+  }, [editingAppointment]);
+
   // Auto-open form when petId is in URL query
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const petId = searchParams.get("petId");
 
-    if (petId && !isFormOpen) {
+    if (petId && !isFormOpenRef.current) {
       const now = new Date();
       now.setMinutes(0, 0, 0);
       const start = addHours(now, 1);
@@ -99,8 +111,7 @@ export function useReservationManagement() {
       };
       handleOpenForm(stub);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search]);
+  }, [location.search, handleOpenForm]);
 
   // Open Detail Modal
   const handleOpenDetail = useCallback((appointment: ReservationAppointment) => {
@@ -135,11 +146,12 @@ export function useReservationManagement() {
   }, []);
 
   const handleSave = useCallback(
-    (data: ReservationFormData, selectedPets: Pet[]) => {
+    async (data: ReservationFormData, selectedPets: Pet[]) => {
       if (!data.start || !data.end || selectedPets.length === 0) return;
 
-      const targetDoctor = data.doctor || editingAppointment?.doctor || "医師A";
-      const hasOverlap = checkOverlap(data.start, data.end, targetDoctor, editingAppointment?.id);
+      const currentEditing = editingAppointmentRef.current;
+      const targetDoctor = data.doctor || currentEditing?.doctor || "医師A";
+      const hasOverlap = checkOverlap(data.start, data.end, targetDoctor, currentEditing?.id);
 
       if (hasOverlap) {
         toast.error("指定された時間帯には既に予約が入っています", {
@@ -148,11 +160,10 @@ export function useReservationManagement() {
         return;
       }
 
-      if (editingAppointment?.id) {
-        // Edit mode - single update
-        const primaryPet = selectedPets[0];
+      if (currentEditing?.id) {
+        // Edit mode
         const updatePayload = {
-          id: editingAppointment.id,
+          id: currentEditing.id,
           req: {
             start_time: data.start.toISOString(),
             end_time: data.end.toISOString(),
@@ -168,29 +179,36 @@ export function useReservationManagement() {
           onSuccess: () => {
             toast.success("予約を更新しました", { description: `担当医: ${targetDoctor}` });
             handleCloseForm();
-            if (locationState.from) {
-              setTimeout(() => navigate(locationState.from!), 500);
+            if (locationFrom) {
+              navigate(locationFrom);
             }
           },
         });
       } else {
-        // Create mode - create for each pet
-        selectedPets.forEach((pet) => {
-          const createPayload = transformToCreateRequest(data, pet.id, pet.ownerId);
-          createMutation.mutate(createPayload);
-        });
-
-        toast.success("予約を作成しました", {
-          description: `担当医: ${targetDoctor} / ${selectedPets.length}件`,
-        });
-        handleCloseForm();
-
-        if (locationState.from) {
-          setTimeout(() => navigate(locationState.from!), 500);
+        // Create mode
+        try {
+          await Promise.all(
+            selectedPets.map((pet) => {
+              const createPayload = transformToCreateRequest(data, pet.id, pet.ownerId);
+              return createMutation.mutateAsync(createPayload);
+            })
+          );
+          toast.success("予約を作成しました", {
+            description: `担当医: ${targetDoctor} / ${selectedPets.length}件`,
+          });
+          handleCloseForm();
+          if (locationFrom) {
+            navigate(locationFrom);
+          }
+        } catch {
+          toast.error("予約の作成に失敗しました", {
+            description: "時間をおいて再試行してください。",
+          });
         }
       }
     },
-    [editingAppointment, checkOverlap, handleCloseForm, locationState.from, navigate, updateMutation, createMutation]
+    [checkOverlap, handleCloseForm, locationFrom, navigate, updateMutation, createMutation]
+    // editingAppointment をオブジェクト参照ではなくrefで参照するため依存から除外
   );
 
   const handleAppointmentUpdate = useCallback(
@@ -266,18 +284,22 @@ export function useReservationManagement() {
   }, []);
 
   const executeDelete = useCallback(() => {
-    if (deleteTarget) {
-      deleteMutation.mutate(deleteTarget.id, {
-        onSuccess: () => {
-          handleCloseDetail();
-          toast.success("予約を削除しました", {
-            description: `${deleteTarget.petName} (${deleteTarget.ownerName}様)`,
-          });
-        },
-      });
-    }
-    setDeleteConfirmOpen(false);
-    setDeleteTarget(null);
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.id, {
+      onSuccess: () => {
+        setDeleteConfirmOpen(false);
+        setDeleteTarget(null);
+        handleCloseDetail();
+        toast.success("予約を削除しました", {
+          description: `${deleteTarget.petName} (${deleteTarget.ownerName}様)`,
+        });
+      },
+      onError: () => {
+        toast.error("削除に失敗しました", {
+          description: "時間をおいて再試行してください。",
+        });
+      },
+    });
   }, [deleteTarget, deleteMutation, handleCloseDetail]);
 
   // Create Record Handler
