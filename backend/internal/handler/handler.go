@@ -1,19 +1,24 @@
 package handler
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 
+	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // Handler はHTTPハンドラーのルートコンテナ
 type Handler struct {
+	cfg *config.Config
 	svc *service.Services
 }
 
 // New はHandlerを初期化して返す
-func New(svc *service.Services) *Handler {
-	return &Handler{svc: svc}
+func New(cfg *config.Config, svc *service.Services) *Handler {
+	return &Handler{cfg: cfg, svc: svc}
 }
 
 // PaginatedResponse はページネーション付きレスポンスの共通構造
@@ -24,12 +29,30 @@ type PaginatedResponse struct {
 	Limit int         `json:"limit"`
 }
 
+// Health はサーバーの稼働状態を返す
+func (h *Handler) Health(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
 // RegisterRoutes はすべてのルートを登録する
 func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	api := r.Group("/api/v1")
+
+	// ヘルスチェック（認証不要）
+	api.GET("/health", h.Health)
+
+	// 認証不要
+	api.POST("/auth/login", h.Login)
+
+	// 認証必須グループ
+	protected := api.Group("")
+	protected.Use(middleware.Auth(h.cfg.JWTSecret))
 	{
+		// 認証ユーザー情報
+		protected.GET("/me", h.GetMe)
+
 		// 飼主
-		owners := api.Group("/owners")
+		owners := protected.Group("/owners")
 		owners.GET("", h.ListOwners)
 		owners.POST("", h.CreateOwner)
 		owners.GET("/:id", h.GetOwner)
@@ -37,7 +60,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		owners.DELETE("/:id", h.DeleteOwner)
 
 		// ペット
-		pets := api.Group("/pets")
+		pets := protected.Group("/pets")
 		pets.GET("", h.ListPets)
 		pets.POST("", h.CreatePet)
 		pets.GET("/:id", h.GetPet)
@@ -45,7 +68,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		pets.DELETE("/:id", h.DeletePet)
 
 		// 予約
-		reservations := api.Group("/reservations")
+		reservations := protected.Group("/reservations")
 		reservations.GET("", h.ListReservations)
 		reservations.POST("", h.CreateReservation)
 		reservations.GET("/:id", h.GetReservation)
@@ -53,7 +76,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		reservations.DELETE("/:id", h.DeleteReservation)
 
 		// カルテ
-		records := api.Group("/medical-records")
+		records := protected.Group("/medical-records")
 		records.GET("", h.ListMedicalRecords)
 		records.POST("", h.CreateMedicalRecord)
 		records.GET("/:id", h.GetMedicalRecord)
@@ -61,7 +84,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		records.DELETE("/:id", h.DeleteMedicalRecord)
 
 		// 入院
-		hospitalizations := api.Group("/hospitalizations")
+		hospitalizations := protected.Group("/hospitalizations")
 		hospitalizations.GET("", h.ListHospitalizations)
 		hospitalizations.POST("", h.CreateHospitalization)
 		hospitalizations.GET("/:id", h.GetHospitalization)
@@ -69,28 +92,28 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		hospitalizations.DELETE("/:id", h.DeleteHospitalization)
 
 		// 会計
-		accountings := api.Group("/accountings")
+		accountings := protected.Group("/accountings")
 		accountings.GET("", h.ListAccountings)
 		accountings.POST("", h.CreateAccounting)
 		accountings.GET("/:id", h.GetAccounting)
 		accountings.PUT("/:id", h.UpdateAccounting)
 
 		// トリミング
-		trimmings := api.Group("/trimmings")
+		trimmings := protected.Group("/trimmings")
 		trimmings.GET("", h.ListTrimmings)
 		trimmings.POST("", h.CreateTrimming)
 		trimmings.GET("/:id", h.GetTrimming)
 		trimmings.PUT("/:id", h.UpdateTrimming)
 
 		// 在庫
-		inventory := api.Group("/inventory")
+		inventory := protected.Group("/inventory")
 		inventory.GET("", h.ListInventory)
 		inventory.POST("", h.CreateInventory)
 		inventory.GET("/:id", h.GetInventory)
 		inventory.PUT("/:id", h.UpdateInventory)
 
 		// マスタ
-		masters := api.Group("/masters")
+		masters := protected.Group("/masters")
 		masters.GET("/staffs", h.ListStaffs)
 		masters.POST("/staffs", h.CreateStaff)
 		masters.PUT("/staffs/:id", h.UpdateStaff)
@@ -166,9 +189,9 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		masters.PUT("/checkup-types/:id", h.UpdateCheckupType)
 		masters.DELETE("/checkup-types/:id", h.DeleteCheckupType)
 
-		// クリニック設定
-		api.GET("/clinic", h.GetClinicInfo)
-		api.PUT("/clinic", h.UpdateClinicInfo)
-		api.GET("/clinics", h.ListClinics)
+		// 法人・クリニック設定
+		protected.GET("/company", h.GetCompany)
+		protected.PUT("/company", h.UpdateCompany)
+		protected.GET("/clinics", h.ListClinics)
 	}
 }

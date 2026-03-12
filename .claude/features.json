@@ -110,11 +110,11 @@
       "id": "AUTH-001",
       "name": "認証・認可",
       "description": "ユーザー認証、ロール管理（獣医師/看護師/受付）",
-      "status": "pending",
+      "status": "completed",
       "priority": "high",
       "dependencies": ["DB-001"],
       "commit": null,
-      "completedAt": null
+      "completedAt": "2026-03-12"
     },
     {
       "id": "UI-001",
