@@ -174,7 +174,8 @@ export function useTrimmingForm(id?: string) {
     }
   };
 
-  const handleSave = (): boolean => {
+  // ✅ onSuccess コールバックを受け取る（markClean を保存完了後に呼ぶため）
+  const handleSave = (onSuccess?: () => void): boolean => {
     const redirectPath: string =
       typeof location.state?.from === "string"
         ? location.state.from
@@ -190,6 +191,7 @@ export function useTrimmingForm(id?: string) {
         {
           onSuccess: () => {
             toast.success("トリミング情報を更新しました");
+            onSuccess?.();
             navigate(redirectPath);
           },
         }
@@ -209,6 +211,7 @@ export function useTrimmingForm(id?: string) {
       createMutation.mutate(req, {
         onSuccess: () => {
           toast.success("トリミング情報を登録しました");
+          onSuccess?.();
           navigate(redirectPath);
         },
       });

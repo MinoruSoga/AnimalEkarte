@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
@@ -34,7 +34,8 @@ import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { useTrimmingForm, type TrimmingFormData } from "../hooks/useTrimmingForm";
 import { useGetTrimmingsByPetId } from "../api";
 
-export const TrimmingForm = () => {
+// ✅ React 19: function宣言を使用 (CLAUDE.md準拠)
+export function TrimmingForm() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
@@ -81,29 +82,25 @@ export const TrimmingForm = () => {
   // History data
   const { data: petTrimmings = [] } = useGetTrimmingsByPetId(selectedPet?.id ?? "");
 
-  // Filter history
-  const filteredHistory = petTrimmings.filter((t) => {
-    if (historySearchTerm && !t.styleRequest.toLowerCase().includes(historySearchTerm.toLowerCase())) {
-      return false;
-    }
-    const recordDate = t.date.slice(0, 10);
-    if (historyDateRange.from && recordDate < historyDateRange.from) return false;
-    if (historyDateRange.to && recordDate > historyDateRange.to) return false;
-    return true;
-  });
+  // ✅ useMemo でメモ化 — filter + sort を毎レンダリングで再実行しない (rerender-memo)
+  const sortedHistory = useMemo(() => {
+    const filtered = petTrimmings.filter((t) => {
+      if (historySearchTerm && !t.styleRequest.toLowerCase().includes(historySearchTerm.toLowerCase())) {
+        return false;
+      }
+      const recordDate = t.date.slice(0, 10);
+      if (historyDateRange.from && recordDate < historyDateRange.from) return false;
+      if (historyDateRange.to && recordDate > historyDateRange.to) return false;
+      return true;
+    });
+    return filtered.toSorted((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return historySortOrder === "desc" ? dateB - dateA : dateA - dateB;
+    });
+  }, [petTrimmings, historySearchTerm, historyDateRange, historySortOrder]);
 
-  // Sort history
-  const sortedHistory = [...filteredHistory].sort((a, b) => {
-    const dateA = new Date(a.date).getTime();
-    const dateB = new Date(b.date).getTime();
-    return historySortOrder === "desc" ? dateB - dateA : dateA - dateB;
-  });
-
-  useEffect(() => {
-    if (!selectedPet && mode === "new" && !petId) {
-      navigate("/trimming/select-pet");
-    }
-  }, [selectedPet, mode, navigate, petId]);
+  // ✅ useTrimmingForm 内の useEffect と重複するため削除 (重複ガード除去)
 
   if (!selectedPet && mode === "new" && petId) return null;
   if (!selectedPet && mode === "new") return null;
@@ -121,11 +118,9 @@ export const TrimmingForm = () => {
     setFormData(updates);
   };
 
+  // ✅ markClean は保存成功後のコールバックで呼ぶ（失敗時にdirtyフラグが消えないよう）
   const handleSaveClick = () => {
-    const ok = handleSave();
-    if (ok) {
-      markClean();
-    }
+    handleSave(markClean);
   };
 
   const handleDeleteClick = () => {

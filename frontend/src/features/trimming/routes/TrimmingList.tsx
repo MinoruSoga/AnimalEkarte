@@ -26,7 +26,21 @@ import type { TrimmingRecord } from "@/types";
 // Relative
 import { useTrimmingRecords } from "../hooks/useTrimmingRecords";
 
-export const TrimmingList = () => {
+// ─── 静的データはモジュールレベルに配置 (rendering-hoist-jsx) ───────────────
+const COLUMNS = [
+  { header: "診療日", className: "w-[120px]" },
+  { header: "飼主名" },
+  { header: "ペット名" },
+  { header: "種", className: "w-[80px]" },
+  { header: "体重", className: "w-[80px]" },
+  { header: "スタイル希望" },
+  { header: "担当", className: "w-[100px]" },
+  { header: "ステータス", className: "w-[100px]" },
+  { header: "操作", className: "w-[100px]", align: "right" as const },
+];
+
+// ✅ React 19: function宣言を使用 (CLAUDE.md準拠)
+export function TrimmingList() {
   const navigate = useNavigate();
   const [searchDate, setSearchDate] = useState({ from: "", to: "" });
   const [searchKeyword, setSearchKeyword] = useState("");
@@ -36,7 +50,6 @@ export const TrimmingList = () => {
   // Pagination
   const {
     currentPage,
-    pageSize,
     paginatedData,
     totalPages,
     startIndex,
@@ -76,18 +89,6 @@ export const TrimmingList = () => {
   const handleNew = () => {
     navigate("/trimming/select-pet");
   };
-
-  const columns = [
-    { header: "診療日", className: "w-[120px]" },
-    { header: "飼主名" },
-    { header: "ペット名" },
-    { header: "種", className: "w-[80px]" },
-    { header: "体重", className: "w-[80px]" },
-    { header: "スタイル希望" },
-    { header: "担当", className: "w-[100px]" },
-    { header: "ステータス", className: "w-[100px]" },
-    { header: "操作", className: "w-[100px]", align: "right" as const },
-  ];
 
   return (
     <PageLayout
@@ -137,7 +138,7 @@ export const TrimmingList = () => {
 
         {/* Table */}
         <DataTable
-          columns={columns}
+          columns={COLUMNS}
           data={paginatedData}
           renderRow={(record) => (
             <DataTableRow
@@ -218,4 +219,4 @@ export const TrimmingList = () => {
       />
     </PageLayout>
   );
-};
+}
