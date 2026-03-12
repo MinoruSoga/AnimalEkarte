@@ -1,6 +1,6 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v9.0（診察/治療タブ専用テーブル追加・51テーブル）
+バージョン: v10.0（clinic_idマルチテナント対応・51テーブル）
 更新日: 2026-03-12
 状態: Production Ready
 
@@ -8,6 +8,15 @@
 PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 
 ---
+
+## 変更概要（v9.0 → v10.0）
+
+| 変更内容 | 詳細 |
+|---------|------|
+| マルチテナント対応 | 24テーブルに `clinic_id FK → clinics(id)` を追加 |
+| カルテ直接所有エンティティ | medical_records, owners, pets, reservation_appointments, hospitalizations, trimming_records, shift_entries, billings |
+| マスタデータ | staffs, inventory_items, cages, service_types, consultations, procedures, medicines, hospitalization_plans, trimming_courses, trimming_options, exam_types, vaccines, insurances, diagnosis_categories, diagnosis_names, checkup_types |
+| 設計方針 | medical_records/hospitalizations の子テーブルは親経由でclinicを特定するため除外 |
 
 ## 変更概要（v8.0 → v9.0）
 
@@ -60,9 +69,13 @@ PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 
 ### clinic_id 戦略
 
-現在は `user_clinic_memberships` と `user_permissions` のみ `clinic_id` を保持。
-`003_add_clinic_id.sql` にてマスタ系テーブルへの `clinic_id` 追加を予定。
-追加後はマスタ情報（staffs, cages, medicines等）を医院ごとに独立管理できる。
+v10.0 にて24テーブルへの `clinic_id` 追加完了（003_add_clinic_id.sql 実施済み）。
+マスタ情報（staffs, cages, medicines等）および診療・業務データを医院ごとに独立管理できる。
+
+**追加方針:**
+- 「医院が直接所有するデータ」= clinic_id 追加
+- medical_records の子テーブル（inquiries, clinical_plans, treatments 等）は medical_records 経由でクリニックが特定できるため追加しない
+- hospitalizations の子テーブルも同様に追加しない
 
 ### カルテタブ ↔ テーブル対応表
 
@@ -188,6 +201,7 @@ erDiagram
     %% ===== コア =====
     owners {
         uuid id PK
+        uuid clinic_id FK
         text owner_name
         text phone
         text email
@@ -196,6 +210,7 @@ erDiagram
 
     pets {
         uuid id PK
+        uuid clinic_id FK
         uuid owner_id FK
         text name
         pet_species species
@@ -207,6 +222,7 @@ erDiagram
     %% ===== マスタ =====
     staffs {
         uuid id PK
+        uuid clinic_id FK
         text code
         text name
         master_status status
@@ -215,6 +231,7 @@ erDiagram
 
     inventory_items {
         uuid id PK
+        uuid clinic_id FK
         text name
         inventory_category category
         integer quantity
@@ -223,6 +240,7 @@ erDiagram
 
     exam_types {
         uuid id PK
+        uuid clinic_id FK
         text code
         text name
         master_status status
@@ -237,6 +255,7 @@ erDiagram
 
     vaccines {
         uuid id PK
+        uuid clinic_id FK
         text code
         text name
         master_status status
@@ -245,6 +264,7 @@ erDiagram
 
     medicines {
         uuid id PK
+        uuid clinic_id FK
         text code
         text name
         master_status status
@@ -254,6 +274,7 @@ erDiagram
 
     insurances {
         uuid id PK
+        uuid clinic_id FK
         text code
         text name
         master_status status
@@ -262,6 +283,7 @@ erDiagram
 
     cages {
         uuid id PK
+        uuid clinic_id FK
         text code
         text name
         master_status status
@@ -271,6 +293,7 @@ erDiagram
 
     service_types {
         uuid id PK
+        uuid clinic_id FK
         text code
         text name
         master_status status
@@ -279,6 +302,7 @@ erDiagram
 
     consultations {
         uuid id PK
+        uuid clinic_id FK
         text code
         text name
         master_status status
@@ -286,6 +310,7 @@ erDiagram
 
     procedures {
         uuid id PK
+        uuid clinic_id FK
         text code
         text name
         master_status status
@@ -294,6 +319,7 @@ erDiagram
 
     hospitalization_plans {
         uuid id PK
+        uuid clinic_id FK
         text code
         text name
         master_status status
@@ -303,6 +329,7 @@ erDiagram
 
     trimming_courses {
         uuid id PK
+        uuid clinic_id FK
         text code
         text name
         master_status status
@@ -311,6 +338,7 @@ erDiagram
 
     trimming_options {
         uuid id PK
+        uuid clinic_id FK
         text code
         text name
         master_status status
@@ -319,6 +347,7 @@ erDiagram
 
     diagnosis_categories {
         uuid id PK
+        uuid clinic_id FK
         text code
         text name
         master_status status
@@ -326,6 +355,7 @@ erDiagram
 
     diagnosis_names {
         uuid id PK
+        uuid clinic_id FK
         text code
         text name
         master_status status
@@ -334,6 +364,7 @@ erDiagram
 
     checkup_types {
         uuid id PK
+        uuid clinic_id FK
         text code
         text name
         master_status status
@@ -343,6 +374,7 @@ erDiagram
     %% ===== 診療 =====
     medical_records {
         uuid id PK
+        uuid clinic_id FK
         text record_no
         date date
         uuid owner_id FK
@@ -521,6 +553,7 @@ erDiagram
     %% ===== 予約 =====
     reservation_appointments {
         uuid id PK
+        uuid clinic_id FK
         timestamptz start_time
         timestamptz end_time
         uuid pet_id FK
@@ -532,6 +565,7 @@ erDiagram
     %% ===== 入院 =====
     hospitalizations {
         uuid id PK
+        uuid clinic_id FK
         uuid owner_id FK
         uuid pet_id FK
         hospitalization_type hospitalization_type
@@ -592,6 +626,7 @@ erDiagram
     %% ===== トリミング =====
     trimming_records {
         uuid id PK
+        uuid clinic_id FK
         date date
         uuid pet_id FK
         uuid staff_id FK
@@ -608,6 +643,7 @@ erDiagram
     %% ===== 会計 =====
     billings {
         uuid id PK
+        uuid clinic_id FK
         uuid medical_record_id FK
         uuid hospitalization_id FK
         uuid owner_id FK
@@ -636,6 +672,7 @@ erDiagram
     %% ===== シフト =====
     shift_entries {
         uuid id PK
+        uuid clinic_id FK
         uuid staff_id FK
         date date
         shift_type shift_type
@@ -755,6 +792,32 @@ erDiagram
 
     %% シフト
     staffs ||--o{ shift_entries : "staff_id"
+
+    %% clinic_id マルチテナント（v10.0）
+    clinics ||--o{ medical_records : "clinic_id"
+    clinics ||--o{ owners : "clinic_id"
+    clinics ||--o{ pets : "clinic_id"
+    clinics ||--o{ reservation_appointments : "clinic_id"
+    clinics ||--o{ hospitalizations : "clinic_id"
+    clinics ||--o{ trimming_records : "clinic_id"
+    clinics ||--o{ shift_entries : "clinic_id"
+    clinics ||--o{ billings : "clinic_id"
+    clinics ||--o{ staffs : "clinic_id"
+    clinics ||--o{ inventory_items : "clinic_id"
+    clinics ||--o{ cages : "clinic_id"
+    clinics ||--o{ service_types : "clinic_id"
+    clinics ||--o{ consultations : "clinic_id"
+    clinics ||--o{ procedures : "clinic_id"
+    clinics ||--o{ medicines : "clinic_id"
+    clinics ||--o{ hospitalization_plans : "clinic_id"
+    clinics ||--o{ trimming_courses : "clinic_id"
+    clinics ||--o{ trimming_options : "clinic_id"
+    clinics ||--o{ exam_types : "clinic_id"
+    clinics ||--o{ vaccines : "clinic_id"
+    clinics ||--o{ insurances : "clinic_id"
+    clinics ||--o{ diagnosis_categories : "clinic_id"
+    clinics ||--o{ diagnosis_names : "clinic_id"
+    clinics ||--o{ checkup_types : "clinic_id"
 ```
 
 ---
@@ -950,6 +1013,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | owner_name | text | NO | | 飼い主名 |
 | owner_name_kana | text | YES | '' | 飼い主名カナ |
 | company | text | YES | '' | 会社名 |
@@ -969,6 +1033,11 @@ erDiagram
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
+**FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
+
 ---
 
 #### `pets`
@@ -978,6 +1047,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | owner_id | uuid | NO | | owners.id FK |
 | pet_number | text | YES | '' | ペット番号 |
 | name | text | NO | | ペット名 |
@@ -1004,8 +1074,11 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
 - `owner_id` → `owners.id` (CASCADE)
 - `insurance_id` → `insurances.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
 
 ---
 
@@ -1020,6 +1093,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | code | text | YES | '' | スタッフコード |
 | name | text | NO | | スタッフ名 |
 | status | master_status | YES | 'active' | 状態 |
@@ -1028,6 +1102,11 @@ erDiagram
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
 
 ---
 
@@ -1038,6 +1117,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | name | text | NO | | 品目名 |
 | category | inventory_category | NO | | カテゴリ |
 | quantity | integer | YES | 0 | 在庫数量 |
@@ -1051,6 +1131,11 @@ erDiagram
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
+**FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
+
 ---
 
 #### `exam_types`
@@ -1060,6 +1145,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | 検査種別名 |
 | price | numeric | YES | | 価格 |
@@ -1068,6 +1154,11 @@ erDiagram
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
 
 ---
 
@@ -1096,6 +1187,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | ワクチン名 |
 | price | numeric | YES | | 価格 |
@@ -1107,6 +1199,11 @@ erDiagram
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
+**FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
+
 ---
 
 #### `medicines`
@@ -1116,6 +1213,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | 薬剤名 |
 | price | numeric | YES | | 価格 |
@@ -1129,7 +1227,11 @@ erDiagram
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
-**FK:** `inventory_id` → `inventory_items.id` (SET NULL)
+**FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
+- `inventory_id` → `inventory_items.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
 
 ---
 
@@ -1140,6 +1242,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | 保険名 |
 | status | master_status | YES | 'active' | 状態 |
@@ -1150,6 +1253,11 @@ erDiagram
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
+**FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
+
 ---
 
 #### `cages`
@@ -1159,6 +1267,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | ケージ名 |
 | price | numeric | YES | | 価格 |
@@ -1170,6 +1279,11 @@ erDiagram
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
+**FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
+
 ---
 
 #### `service_types`
@@ -1179,6 +1293,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | サービス種別名 |
 | status | master_status | YES | 'active' | 状態 |
@@ -1187,6 +1302,11 @@ erDiagram
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
 
 ---
 
@@ -1197,6 +1317,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | 診察項目名 |
 | price | numeric | YES | | 価格 |
@@ -1208,6 +1329,11 @@ erDiagram
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
+**FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
+
 ---
 
 #### `procedures`
@@ -1217,6 +1343,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | 処置項目名 |
 | price | numeric | YES | | 価格 |
@@ -1228,6 +1355,11 @@ erDiagram
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
+**FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
+
 ---
 
 #### `hospitalization_plans`
@@ -1237,6 +1369,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | プラン名 |
 | price | numeric | YES | | 価格 |
@@ -1248,6 +1381,11 @@ erDiagram
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
+**FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
+
 ---
 
 #### `trimming_courses`
@@ -1257,6 +1395,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | コース名 |
 | price | numeric | YES | | 価格 |
@@ -1268,6 +1407,11 @@ erDiagram
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
+**FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
+
 ---
 
 #### `trimming_options`
@@ -1277,6 +1421,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | オプション名 |
 | price | numeric | YES | | 価格 |
@@ -1288,6 +1433,11 @@ erDiagram
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
+**FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
+
 ---
 
 #### `diagnosis_categories`
@@ -1297,6 +1447,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | カテゴリ名 |
 | status | master_status | YES | 'active' | 状態 |
@@ -1304,6 +1455,11 @@ erDiagram
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
 
 ---
 
@@ -1314,6 +1470,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | 診断名 |
 | status | master_status | YES | 'active' | 状態 |
@@ -1323,7 +1480,11 @@ erDiagram
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
-**FK:** `diagnosis_category_id` → `diagnosis_categories.id` (CASCADE)
+**FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
+- `diagnosis_category_id` → `diagnosis_categories.id` (CASCADE)
+
+**インデックス:** `(clinic_id)`
 
 ---
 
@@ -1334,6 +1495,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | 健診種別名 |
 | price | numeric | YES | | 価格 |
@@ -1344,6 +1506,11 @@ erDiagram
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
 
 ---
 
@@ -1361,6 +1528,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | record_no | text | NO | | カルテ番号（UNIQUE） |
 | date | date | NO | | 診療日 |
 | owner_id | uuid | YES | | FK → owners(id) SET NULL |
@@ -1374,9 +1542,12 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
 - `owner_id` → `owners.id` (SET NULL)
 - `pet_id` → `pets.id` (SET NULL)
 - `doctor_id` → `staffs.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
 
 ---
 
@@ -1731,6 +1902,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | start_time | timestamptz | NO | | 開始日時 |
 | end_time | timestamptz | NO | | 終了日時 |
 | owner_name | text | NO | '' | 飼い主名スナップショット |
@@ -1746,9 +1918,12 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
 - `pet_id` → `pets.id` (SET NULL)
 - `service_type_id` → `service_types.id` (SET NULL)
 - `doctor_id` → `staffs.id` (RESTRICT)
+
+**インデックス:** `(clinic_id)`
 
 ---
 
@@ -1763,6 +1938,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | owner_id | uuid | YES | | owners.id FK |
 | owner_name | text | NO | '' | 飼い主名スナップショット |
 | pet_id | uuid | YES | | pets.id FK |
@@ -1781,10 +1957,13 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
 - `owner_id` → `owners.id` (SET NULL)
 - `pet_id` → `pets.id` (SET NULL)
 - `cage_id` → `cages.id` (SET NULL)
 - `doctor_id` → `staffs.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
 
 ---
 
@@ -1938,6 +2117,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | date | date | NO | | トリミング日 |
 | pet_id | uuid | NO | | pets.id FK |
 | pet_number | text | NO | '' | ペット番号スナップショット |
@@ -1961,9 +2141,12 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
 - `pet_id` → `pets.id` (CASCADE)
 - `staff_id` → `staffs.id` (RESTRICT)
 - `course_id` → `trimming_courses.id` (SET NULL)
+
+**インデックス:** `(clinic_id)`
 
 ---
 
@@ -1997,6 +2180,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | medical_record_id | uuid | YES | | medical_records.id FK（UNIQUE） |
 | hospitalization_id | uuid | YES | | hospitalizations.id FK |
 | owner_id | uuid | NO | | owners.id FK |
@@ -2012,10 +2196,13 @@ erDiagram
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
 - `medical_record_id` → `medical_records.id` (SET NULL)
 - `hospitalization_id` → `hospitalizations.id` (SET NULL)
 - `owner_id` → `owners.id` (CASCADE)
 - `pet_id` → `pets.id` (CASCADE)
+
+**インデックス:** `(clinic_id)`
 
 ---
 
@@ -2079,6 +2266,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| clinic_id | uuid | YES | - | FK → clinics(id) SET NULL（所属医院） |
 | staff_id | uuid | NO | | staffs.id FK |
 | date | date | NO | | 日付 |
 | shift_type | shift_type | NO | | シフト種別 |
@@ -2088,9 +2276,13 @@ erDiagram
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
-**FK:** `staff_id` → `staffs.id` (CASCADE)
+**FK:**
+- `clinic_id` → `clinics.id` (SET NULL)
+- `staff_id` → `staffs.id` (CASCADE)
 
-**インデックス:** `(staff_id, date)` UNIQUE
+**インデックス:**
+- `(staff_id, date)` UNIQUE
+- `(clinic_id)`
 
 ---
 
@@ -2100,6 +2292,7 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
 | medical_record_id | medical_records.id | SET NULL |
 | hospitalization_id | hospitalizations.id | SET NULL |
 | owner_id | owners.id | CASCADE |
@@ -2186,6 +2379,7 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
 | diagnosis_category_id | diagnosis_categories.id | CASCADE |
 
 ### exam_items
@@ -2213,6 +2407,7 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
 | cage_id | cages.id | SET NULL |
 | doctor_id | staffs.id | SET NULL |
 | owner_id | owners.id | SET NULL |
@@ -2222,6 +2417,7 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
 | doctor_id | staffs.id | SET NULL |
 | owner_id | owners.id | SET NULL |
 | pet_id | pets.id | SET NULL |
@@ -2240,6 +2436,7 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
 | inventory_id | inventory_items.id | SET NULL |
 
 ### payments
@@ -2252,6 +2449,7 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
 | insurance_id | insurances.id | SET NULL |
 | owner_id | owners.id | CASCADE |
 
@@ -2259,6 +2457,7 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
 | doctor_id | staffs.id | RESTRICT |
 | pet_id | pets.id | SET NULL |
 | service_type_id | service_types.id | SET NULL |
@@ -2267,6 +2466,7 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
 | staff_id | staffs.id | CASCADE |
 
 ### staff_note_records
@@ -2303,9 +2503,100 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
 | course_id | trimming_courses.id | SET NULL |
 | pet_id | pets.id | CASCADE |
 | staff_id | staffs.id | RESTRICT |
+
+### cages
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
+
+### checkup_types
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
+
+### consultations
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
+
+### diagnosis_categories
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
+
+### exam_types
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
+
+### hospitalization_plans
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
+
+### insurances
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
+
+### inventory_items
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
+
+### owners
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
+
+### procedures
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
+
+### service_types
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
+
+### staffs
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
+
+### trimming_courses
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
+
+### trimming_options
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
+
+### vaccines
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| clinic_id | clinics.id | SET NULL |
 
 ### user_accounts
 
@@ -2416,13 +2707,20 @@ erDiagram
 
 ## 未対応事項・今後の予定
 
-### clinic_id 追加（003_add_clinic_id.sql 予定）
+### clinic_id 追加（003_add_clinic_id.sql 実施済み・v10.0）
 
-以下テーブルへの `clinic_id` 追加が予定されている。追加後は医院ごとにマスタを独立管理できる。
+v10.0 にて24テーブルへの `clinic_id` 追加完了。医院ごとにデータを独立管理できる。
 
-| テーブル | 追加後の用途 |
-|---------|------------|
+| テーブル | 用途 |
+|---------|------|
 | owners | 医院別の飼い主管理 |
+| pets | 医院別のペット管理 |
+| medical_records | 医院別のカルテ管理 |
+| reservation_appointments | 医院別の予約管理 |
+| hospitalizations | 医院別の入院管理 |
+| trimming_records | 医院別のトリミング記録 |
+| shift_entries | 医院別のシフト管理 |
+| billings | 医院別の会計管理 |
 | staffs | 医院別のスタッフ管理 |
 | inventory_items | 医院別の在庫管理 |
 | cages | 医院別のケージ管理 |
@@ -2437,9 +2735,10 @@ erDiagram
 | medicines | 医院別の薬剤 |
 | insurances | 医院別の保険 |
 | diagnosis_categories | 医院別の診断カテゴリ |
+| diagnosis_names | 医院別の診断名 |
 | checkup_types | 医院別の健診種別 |
 
-**現時点で clinic_id を保持するテーブル:** `user_clinic_memberships`, `user_permissions` のみ。
+**clinic_id を保持するテーブル（全体）:** `user_clinic_memberships`, `user_permissions` + 上記24テーブル（計26テーブル）。
 
 ### chief_complaint 移行（004_migrate_chief_complaint.sql 予定）
 
