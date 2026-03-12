@@ -825,7 +825,7 @@ erDiagram
 ## ENUM型定義
 
 | ENUM名 | 値 |
-|-------|----|
+| ------- | ---- |
 | `account_status` | active, inactive, locked |
 | `appetite_level` | normal, increased, decreased, none |
 | `billing_review_status` | pending, confirmed, returned |
@@ -2291,7 +2291,7 @@ erDiagram
 ### billings
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 | medical_record_id | medical_records.id | SET NULL |
 | hospitalization_id | hospitalizations.id | SET NULL |
@@ -2301,7 +2301,7 @@ erDiagram
 ### billing_reviews
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | medical_record_id | medical_records.id | CASCADE |
 | confirmed_by | staffs.id | SET NULL |
 | returned_by | staffs.id | SET NULL |
@@ -2309,7 +2309,7 @@ erDiagram
 ### estimate_items
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | estimate_id | estimates.id | CASCADE |
 | consultation_id | consultations.id | SET NULL |
 | procedure_id | procedures.id | SET NULL |
@@ -2318,7 +2318,7 @@ erDiagram
 ### estimates
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | medical_record_id | medical_records.id | CASCADE |
 | owner_id | owners.id | SET NULL |
 | created_by | staffs.id | SET NULL |
@@ -2326,7 +2326,7 @@ erDiagram
 ### record_images
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | medical_record_id | medical_records.id | CASCADE |
 | exam_id | exams.id | SET NULL |
 | staff_id | staffs.id | SET NULL |
@@ -2334,27 +2334,27 @@ erDiagram
 ### inquiries
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | medical_record_id | medical_records.id | CASCADE |
 | staff_id | staffs.id | SET NULL |
 
 ### billing_items
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | billing_id | billings.id | CASCADE |
 
 ### care_log_records
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | daily_record_id | daily_records.id | CASCADE |
 | staff_id | staffs.id | SET NULL |
 
 ### care_plan_items
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | hospitalization_id | hospitalizations.id | CASCADE |
 | hospitalization_plan_id | hospitalization_plans.id | SET NULL |
 | medicine_id | medicines.id | SET NULL |
@@ -2363,7 +2363,7 @@ erDiagram
 ### checkups
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | checkup_type_id | checkup_types.id | RESTRICT |
 | doctor_id | staffs.id | SET NULL |
 | medical_record_id | medical_records.id | CASCADE |
@@ -2372,26 +2372,26 @@ erDiagram
 ### daily_records
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | hospitalization_id | hospitalizations.id | CASCADE |
 
 ### diagnosis_names
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 | diagnosis_category_id | diagnosis_categories.id | CASCADE |
 
 ### exam_items
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | exam_id | exams.id | CASCADE |
 
 ### exams
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | doctor_id | staffs.id | SET NULL |
 | exam_type_id | exam_types.id | RESTRICT |
 | medical_record_id | medical_records.id | CASCADE |
@@ -2400,13 +2400,13 @@ erDiagram
 ### exam_type_items
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | exam_type_id | exam_types.id | CASCADE |
 
 ### hospitalizations
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 | cage_id | cages.id | SET NULL |
 | doctor_id | staffs.id | SET NULL |
@@ -2416,7 +2416,7 @@ erDiagram
 ### medical_records
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 | doctor_id | staffs.id | SET NULL |
 | owner_id | owners.id | SET NULL |
@@ -2425,7 +2425,7 @@ erDiagram
 ### clinical_plans
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | medical_record_id | medical_records.id | CASCADE |
 | diagnosis1_category_id | diagnosis_categories.id | SET NULL |
 | diagnosis1_name_id | diagnosis_names.id | SET NULL |
@@ -2435,20 +2435,20 @@ erDiagram
 ### medicines
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 | inventory_id | inventory_items.id | SET NULL |
 
 ### payments
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | billing_id | billings.id | CASCADE |
 
 ### pets
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 | insurance_id | insurances.id | SET NULL |
 | owner_id | owners.id | CASCADE |
@@ -2456,7 +2456,7 @@ erDiagram
 ### reservation_appointments
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 | doctor_id | staffs.id | RESTRICT |
 | pet_id | pets.id | SET NULL |
@@ -2465,21 +2465,21 @@ erDiagram
 ### shift_entries
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 | staff_id | staffs.id | CASCADE |
 
 ### staff_note_records
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | daily_record_id | daily_records.id | CASCADE |
 | staff_id | staffs.id | SET NULL |
 
 ### treatments
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | consultation_id | consultations.id | SET NULL |
 | inventory_id | inventory_items.id | SET NULL |
 | medical_record_id | medical_records.id | CASCADE |
@@ -2489,20 +2489,20 @@ erDiagram
 ### treatment_plans
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | hospitalization_id | hospitalizations.id | CASCADE |
 
 ### trimming_record_options
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | option_id | trimming_options.id | CASCADE |
 | trimming_record_id | trimming_records.id | CASCADE |
 
 ### trimming_records
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 | course_id | trimming_courses.id | SET NULL |
 | pet_id | pets.id | CASCADE |
@@ -2511,110 +2511,110 @@ erDiagram
 ### cages
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 
 ### checkup_types
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 
 ### consultations
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 
 ### diagnosis_categories
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 
 ### exam_types
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 
 ### hospitalization_plans
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 
 ### insurances
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 
 ### inventory_items
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 
 ### owners
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 
 ### procedures
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 
 ### service_types
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 
 ### staffs
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 
 ### trimming_courses
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 
 ### trimming_options
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 
 ### vaccines
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | SET NULL |
 
 ### user_accounts
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | staff_id | staffs.id | SET NULL |
 
 ### user_clinic_memberships
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | CASCADE |
 | user_id | user_accounts.id | CASCADE |
 
 ### user_permissions
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | clinic_id | clinics.id | CASCADE |
 | granted_by | user_accounts.id | SET NULL |
 | user_id | user_accounts.id | CASCADE |
@@ -2622,7 +2622,7 @@ erDiagram
 ### vaccinations
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | doctor_id | staffs.id | SET NULL |
 | medical_record_id | medical_records.id | CASCADE |
 | pet_id | pets.id | CASCADE |
@@ -2631,14 +2631,14 @@ erDiagram
 ### vitals
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | medical_record_id | medical_records.id | CASCADE |
 | staff_id | staffs.id | SET NULL |
 
 ### vital_records
 
 | FK元カラム | 参照先 | 削除時 |
-|-----------|-------|--------|
+| ----------- | ------- | -------- |
 | daily_record_id | daily_records.id | CASCADE |
 | staff_id | staffs.id | SET NULL |
 
