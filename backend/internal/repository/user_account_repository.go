@@ -22,7 +22,6 @@ type UserAccountWithMemberships struct {
 	model.UserAccount
 	Memberships []model.UserClinicMembership
 	Permissions []model.UserPermission
-	JobTitle    *model.JobTitle
 }
 
 type userAccountRepository struct {
@@ -51,7 +50,7 @@ func (r *userAccountRepository) FindByEmail(ctx context.Context, email string) (
 func (r *userAccountRepository) FindByIDWithMemberships(ctx context.Context, id uuid.UUID) (*UserAccountWithMemberships, error) {
 	var account model.UserAccount
 	if err := r.db.WithContext(ctx).
-		Preload("JobTitle").
+		Preload("Staff").
 		First(&account, "id = ? AND deleted_at IS NULL", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperrors.WrapNotFound("user_account", id.String())
@@ -77,6 +76,5 @@ func (r *userAccountRepository) FindByIDWithMemberships(ctx context.Context, id 
 		UserAccount: account,
 		Memberships: memberships,
 		Permissions: permissions,
-		JobTitle:    account.JobTitle,
 	}, nil
 }

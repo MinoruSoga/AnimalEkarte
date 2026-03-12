@@ -195,8 +195,8 @@ func (h *Handler) GetMe(c *gin.Context) {
 	}
 
 	var jobTitle *string
-	if data.JobTitle != nil {
-		jt := data.JobTitle.Name
+	if data.UserAccount.Staff != nil && data.UserAccount.Staff.StaffRole != "" {
+		jt := string(data.UserAccount.Staff.StaffRole)
 		jobTitle = &jt
 	}
 	var avatarURL *string
