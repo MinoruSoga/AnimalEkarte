@@ -588,7 +588,7 @@ erDiagram
         uuid hospitalization_id FK
         uuid owner_id FK
         uuid pet_id FK
-        accounting_status status
+        billing_status status
         date scheduled_date
     }
 
@@ -741,7 +741,7 @@ erDiagram
 | `account_status` | active, inactive, locked |
 | `appetite_level` | normal, increased, decreased, none |
 | `billing_confirmation_status` | pending, confirmed, returned |
-| `accounting_status` | waiting, completed, cancelled, pending |
+| `billing_status` | waiting, completed, cancelled, pending |
 | `acquisition_type` | 購入, 譲渡, 保護, その他 |
 | `anesthesia_type` | none, local, general |
 | `billing_unit` | per_day, per_night |
@@ -1960,7 +1960,7 @@ erDiagram
 | pet_id | uuid | NO | | pets.id FK |
 | pet_name | text | NO | '' | ペット名スナップショット |
 | pet_species | pet_species | YES | | 動物種別スナップショット |
-| status | accounting_status | YES | 'waiting' | 会計状態 |
+| status | billing_status | YES | 'waiting' | 会計状態 |
 | scheduled_date | date | NO | | 会計予定日 |
 | completed_at | timestamptz | YES | | 会計完了日時 |
 | memo | text | YES | '' | メモ |
