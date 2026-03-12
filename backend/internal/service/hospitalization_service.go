@@ -10,11 +10,11 @@ import (
 )
 
 type HospitalizationService interface {
-	List(ctx context.Context, status *string, page, limit int) ([]model.Hospitalization, int64, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*model.Hospitalization, error)
+	List(ctx context.Context, clinicID uuid.UUID, status *string, page, limit int) ([]model.Hospitalization, int64, error)
+	GetByID(ctx context.Context, clinicID, id uuid.UUID) (*model.Hospitalization, error)
 	Create(ctx context.Context, hospitalization *model.Hospitalization) error
 	Update(ctx context.Context, hospitalization *model.Hospitalization) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, clinicID, id uuid.UUID) error
 }
 
 type hospitalizationService struct {
@@ -25,12 +25,12 @@ func NewHospitalizationService(repo repository.HospitalizationRepository) Hospit
 	return &hospitalizationService{repo: repo}
 }
 
-func (s *hospitalizationService) List(ctx context.Context, status *string, page, limit int) ([]model.Hospitalization, int64, error) {
-	return s.repo.FindAll(ctx, status, page, limit)
+func (s *hospitalizationService) List(ctx context.Context, clinicID uuid.UUID, status *string, page, limit int) ([]model.Hospitalization, int64, error) {
+	return s.repo.FindAll(ctx, clinicID, status, page, limit)
 }
 
-func (s *hospitalizationService) GetByID(ctx context.Context, id uuid.UUID) (*model.Hospitalization, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uuid.UUID) (*model.Hospitalization, error) {
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 
 func (s *hospitalizationService) Create(ctx context.Context, hospitalization *model.Hospitalization) error {
@@ -41,6 +41,6 @@ func (s *hospitalizationService) Update(ctx context.Context, hospitalization *mo
 	return s.repo.Update(ctx, hospitalization)
 }
 
-func (s *hospitalizationService) Delete(ctx context.Context, id uuid.UUID) error {
-	return s.repo.Delete(ctx, id)
+func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uuid.UUID) error {
+	return s.repo.Delete(ctx, clinicID, id)
 }

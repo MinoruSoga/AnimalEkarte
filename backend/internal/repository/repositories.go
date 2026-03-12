@@ -25,7 +25,7 @@ type Repositories struct {
 	HospitalizationPlan HospitalizationPlanRepository
 	TrimmingCourse      TrimmingCourseRepository
 	TrimmingOption      TrimmingOptionRepository
-	ExaminationType     ExaminationTypeRepository
+	ExaminationType     ExamTypeRepository
 	DiagnosisCategory   DiagnosisCategoryRepository
 	DiagnosisName       DiagnosisNameRepository
 	CheckupType         CheckupTypeRepository
@@ -54,7 +54,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		HospitalizationPlan: NewHospitalizationPlanRepository(db),
 		TrimmingCourse:      NewTrimmingCourseRepository(db),
 		TrimmingOption:      NewTrimmingOptionRepository(db),
-		ExaminationType:     NewExaminationTypeRepository(db),
+		ExaminationType:     NewExamTypeRepository(db),
 		DiagnosisCategory:   NewDiagnosisCategoryRepository(db),
 		DiagnosisName:       NewDiagnosisNameRepository(db),
 		CheckupType:         NewCheckupTypeRepository(db),

@@ -12,12 +12,12 @@ import (
 )
 
 type MedicalRecordRepository interface {
-	FindAll(ctx context.Context, petID *uuid.UUID, page, limit int) ([]model.MedicalRecord, int64, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.MedicalRecord, error)
-	FindByRecordNo(ctx context.Context, recordNo string) (*model.MedicalRecord, error)
+	FindAll(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, page, limit int) ([]model.MedicalRecord, int64, error)
+	FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.MedicalRecord, error)
+	FindByRecordNo(ctx context.Context, clinicID uuid.UUID, recordNo string) (*model.MedicalRecord, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
 	Update(ctx context.Context, record *model.MedicalRecord) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, clinicID, id uuid.UUID) error
 }
 
 type medicalRecordRepository struct {
@@ -28,36 +28,32 @@ func NewMedicalRecordRepository(db *gorm.DB) MedicalRecordRepository {
 	return &medicalRecordRepository{db: db}
 }
 
-func (r *medicalRecordRepository) FindAll(ctx context.Context, petID *uuid.UUID, page, limit int) ([]model.MedicalRecord, int64, error) {
+func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, page, limit int) ([]model.MedicalRecord, int64, error) {
 	var records []model.MedicalRecord
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.MedicalRecord{})
+	q := r.db.WithContext(ctx).Model(&model.MedicalRecord{}).Where("clinic_id = ?", clinicID)
 	if petID != nil {
 		q = q.Where("pet_id = ?", petID)
 	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count medical records")
 	}
-	if err := q.Offset((page-1)*limit).Limit(limit).Order("date DESC, created_at DESC").Find(&records).Error; err != nil {
+	if err := q.Offset((page - 1) * limit).Limit(limit).Order("date DESC, created_at DESC").Find(&records).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find medical records")
 	}
 	return records, total, nil
 }
 
-func (r *medicalRecordRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.MedicalRecord, error) {
+func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.MedicalRecord, error) {
 	var record model.MedicalRecord
 	if err := r.db.WithContext(ctx).
-		Preload("TreatmentItems").
-		Preload("VitalEntries").
+		Preload("Treatments").
+		Preload("Vitals").
 		Preload("Doctor").
 		Preload("Owner").
 		Preload("Pet").
-		Preload("Diagnosis1Category").
-		Preload("Diagnosis1Name").
-		Preload("Diagnosis2Category").
-		Preload("Diagnosis2Name").
-		First(&record, "id = ?", id).Error; err != nil {
+		First(&record, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperrors.WrapNotFound("medical_record", id.String())
 		}
@@ -66,13 +62,13 @@ func (r *medicalRecordRepository) FindByID(ctx context.Context, id uuid.UUID) (*
 	return &record, nil
 }
 
-func (r *medicalRecordRepository) FindByRecordNo(ctx context.Context, recordNo string) (*model.MedicalRecord, error) {
+func (r *medicalRecordRepository) FindByRecordNo(ctx context.Context, clinicID uuid.UUID, recordNo string) (*model.MedicalRecord, error) {
 	var record model.MedicalRecord
 	if err := r.db.WithContext(ctx).
-		Preload("TreatmentItems").
-		Preload("VitalEntries").
+		Preload("Treatments").
+		Preload("Vitals").
 		Preload("Doctor").
-		First(&record, "record_no = ?", recordNo).Error; err != nil {
+		First(&record, "record_no = ? AND clinic_id = ?", recordNo, clinicID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperrors.WrapNotFound("medical_record", recordNo)
 		}
@@ -82,8 +78,16 @@ func (r *medicalRecordRepository) FindByRecordNo(ctx context.Context, recordNo s
 }
 
 func (r *medicalRecordRepository) Create(ctx context.Context, record *model.MedicalRecord) error {
-	if err := r.db.WithContext(ctx).Create(record).Error; err != nil {
-		return apperrors.Wrap(err, "create medical record")
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(record).Error; err != nil {
+			if isUniqueConstraintErr(err) {
+				return apperrors.WrapAlreadyExists("medical_record", record.RecordNo)
+			}
+			return apperrors.Wrap(err, "create medical record")
+		}
+		return nil
+	}); err != nil {
+		return apperrors.Wrap(err, "create medical record transaction")
 	}
 	return nil
 }
@@ -95,9 +99,13 @@ func (r *medicalRecordRepository) Update(ctx context.Context, record *model.Medi
 	return nil
 }
 
-func (r *medicalRecordRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	if err := r.db.WithContext(ctx).Delete(&model.MedicalRecord{}, "id = ?", id).Error; err != nil {
-		return apperrors.Wrap(err, "delete medical record")
+func (r *medicalRecordRepository) Delete(ctx context.Context, clinicID, id uuid.UUID) error {
+	result := r.db.WithContext(ctx).Delete(&model.MedicalRecord{}, "id = ? AND clinic_id = ?", id, clinicID)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "delete medical record")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("medical_record", id.String())
 	}
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
+	"gorm.io/gorm"
 )
 
 type HospitalizationType string
@@ -24,11 +25,9 @@ const (
 
 type Hospitalization struct {
 	ID                  uuid.UUID             `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	OwnerID             *uuid.UUID            `gorm:"type:uuid"                                      json:"owner_id,omitempty"`
-	OwnerName           string                `gorm:"not null;default:''"                            json:"owner_name"`
-	PetID               *uuid.UUID            `gorm:"type:uuid"                                      json:"pet_id,omitempty"`
-	PetName             string                `gorm:"not null;default:''"                            json:"pet_name"`
-	Species             PetSpecies            `gorm:"type:pet_species;not null"                      json:"species"`
+	ClinicID            uuid.UUID             `gorm:"type:uuid;not null"                             json:"clinic_id"`
+	OwnerID             uuid.UUID             `gorm:"type:uuid;not null"                             json:"owner_id"`
+	PetID               uuid.UUID             `gorm:"type:uuid;not null"                             json:"pet_id"`
 	HospitalizationType HospitalizationType   `gorm:"type:hospitalization_type;not null"             json:"hospitalization_type"`
 	StartDate           time.Time             `gorm:"type:date;not null"                             json:"start_date"`
 	EndDate             time.Time             `gorm:"type:date;not null"                             json:"end_date"`
@@ -40,12 +39,13 @@ type Hospitalization struct {
 	StaffNotes          string                `gorm:"default:''"                                     json:"staff_notes"`
 	CreatedAt           time.Time             `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt           time.Time             `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	DeletedAt           gorm.DeletedAt        `                                                      json:"deleted_at"`
 
 	// Relations
-	Owner          *Owner          `gorm:"foreignKey:OwnerID"          json:"owner,omitempty"`
-	Pet            *Pet            `gorm:"foreignKey:PetID"            json:"pet,omitempty"`
-	Cage           *Cage           `gorm:"foreignKey:CageID"           json:"cage,omitempty"`
-	Doctor         *Staff          `gorm:"foreignKey:DoctorID"         json:"doctor,omitempty"`
+	Owner          *Owner          `gorm:"foreignKey:OwnerID"           json:"owner,omitempty"`
+	Pet            *Pet            `gorm:"foreignKey:PetID"             json:"pet,omitempty"`
+	Cage           *Cage           `gorm:"foreignKey:CageID"            json:"cage,omitempty"`
+	Doctor         *Staff          `gorm:"foreignKey:DoctorID"          json:"doctor,omitempty"`
 	CarePlanItems  []CarePlanItem  `gorm:"foreignKey:HospitalizationID" json:"care_plan_items,omitempty"`
 	DailyRecords   []DailyRecord   `gorm:"foreignKey:HospitalizationID" json:"daily_records,omitempty"`
 	TreatmentPlans []TreatmentPlan `gorm:"foreignKey:HospitalizationID" json:"treatment_plans,omitempty"`
@@ -106,19 +106,25 @@ type CarePlanItem struct {
 func (CarePlanItem) TableName() string { return "care_plan_items" }
 
 type TreatmentPlan struct {
-	ID                uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	HospitalizationID uuid.UUID `gorm:"type:uuid;not null"                             json:"hospitalization_id"`
-	TreatmentContent  string    `gorm:"not null;default:''"                            json:"treatment_content"`
-	Memo              string    `gorm:"default:''"                                     json:"memo"`
-	Insurance         bool      `gorm:"default:false"                                  json:"insurance"`
-	UnitPrice         float64   `gorm:"type:numeric(10,2);default:0"                   json:"unit_price"`
-	Quantity          int       `gorm:"default:1"                                      json:"quantity"`
-	DiscountRate      float64   `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
-	DiscountAmount    float64   `gorm:"type:numeric(10,2);default:0"                   json:"discount_amount"`
-	Subtotal          float64   `gorm:"type:numeric(10,2);default:0"                   json:"subtotal"`
-	SortOrder         int       `gorm:"default:0"                                      json:"sort_order"`
-	CreatedAt         time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt         time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	ID                uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	MedicalRecordID   *uuid.UUID     `gorm:"type:uuid"                                      json:"medical_record_id,omitempty"`
+	HospitalizationID *uuid.UUID     `gorm:"type:uuid"                                      json:"hospitalization_id,omitempty"`
+	TreatmentContent  string         `gorm:"not null;default:''"                            json:"treatment_content"`
+	Memo              string         `gorm:"default:''"                                     json:"memo"`
+	Insurance         bool           `gorm:"default:false"                                  json:"insurance"`
+	UnitPrice         float64        `gorm:"type:numeric(10,2);default:0"                   json:"unit_price"`
+	Quantity          int            `gorm:"default:1"                                      json:"quantity"`
+	DiscountRate      float64        `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
+	DiscountAmount    float64        `gorm:"type:numeric(10,2);default:0"                   json:"discount_amount"`
+	Subtotal          float64        `gorm:"type:numeric(10,2);default:0"                   json:"subtotal"`
+	SortOrder         int            `gorm:"default:0"                                      json:"sort_order"`
+	DeletedAt         gorm.DeletedAt `                                                      json:"deleted_at"`
+	CreatedAt         time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt         time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+
+	// Relations
+	MedicalRecord   *MedicalRecord   `gorm:"foreignKey:MedicalRecordID"   json:"medical_record,omitempty"`
+	Hospitalization *Hospitalization `gorm:"foreignKey:HospitalizationID" json:"hospitalization,omitempty"`
 }
 
 func (TreatmentPlan) TableName() string { return "treatment_plans" }

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type MembershipType string
@@ -17,8 +18,10 @@ const (
 
 type Owner struct {
 	ID             uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	ClinicID       uuid.UUID      `gorm:"type:uuid;not null"                              json:"clinic_id"`
 	OwnerName      string         `gorm:"not null"                                        json:"owner_name"`
 	OwnerNameKana  string         `gorm:"default:''"                                      json:"owner_name_kana"`
+	BirthDate      *time.Time     `gorm:"type:date"                                       json:"birth_date,omitempty"`
 	Company        string         `gorm:"default:''"                                      json:"company"`
 	PostalCode     string         `gorm:"default:''"                                      json:"postal_code"`
 	Address1       string         `gorm:"default:''"                                      json:"address1"`
@@ -35,6 +38,7 @@ type Owner struct {
 	MembershipType MembershipType `gorm:"type:membership_type;default:'非会員'"              json:"membership_type"`
 	CreatedAt      time.Time      `gorm:"autoCreateTime"                                  json:"created_at"`
 	UpdatedAt      time.Time      `gorm:"autoUpdateTime"                                  json:"updated_at"`
+	DeletedAt      gorm.DeletedAt `                                                       json:"deleted_at"`
 
 	// Relations
 	Pets []Pet `gorm:"foreignKey:OwnerID" json:"pets,omitempty"`

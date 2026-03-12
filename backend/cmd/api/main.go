@@ -61,12 +61,14 @@ func main() {
 	svcs := service.NewServices(repos)
 
 	// ハンドラー初期化
-	h := handler.New(svcs)
+	h := handler.New(cfg, svcs)
 
 	// ルーター設定
 	r := gin.New()
 	r.Use(gin.Recovery())
+	r.Use(middleware.RequestID())
 	r.Use(middleware.CORS())
+	r.Use(middleware.RequestLoggingMiddleware())
 	h.RegisterRoutes(r)
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 

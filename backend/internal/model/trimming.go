@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type TrimmingStatus string
@@ -23,17 +24,14 @@ const (
 
 type TrimmingRecord struct {
 	ID             uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	ClinicID       uuid.UUID      `gorm:"type:uuid;not null"                             json:"clinic_id"`
 	Date           time.Time      `gorm:"type:date;not null"                             json:"date"`
-	PetID          uuid.UUID      `gorm:"type:uuid;not null"                             json:"pet_id"`
-	PetNumber      string         `gorm:"not null;default:''"                            json:"pet_number"`
-	PetName        string         `gorm:"not null;default:''"                            json:"pet_name"`
-	OwnerName      string         `gorm:"not null;default:''"                            json:"owner_name"`
-	Species        PetSpecies     `gorm:"type:pet_species;not null"                      json:"species"`
-	Weight         string         `gorm:"default:''"                                     json:"weight"`
-	StyleRequest   string         `gorm:"default:''"                                     json:"style_request"`
+	PetID          *uuid.UUID     `gorm:"type:uuid"                                      json:"pet_id,omitempty"`
 	StaffID        uuid.UUID      `gorm:"type:uuid;not null"                             json:"staff_id"`
+	CourseID       uuid.UUID      `gorm:"type:uuid;not null"                             json:"course_id"`
+	Weight         string         `gorm:"default:''"                                     json:"weight"`
 	Status         TrimmingStatus `gorm:"type:trimming_status;default:'予約'"              json:"status"`
-	CourseID       *uuid.UUID     `gorm:"type:uuid"                                      json:"course_id,omitempty"`
+	StyleRequest   string         `gorm:"default:''"                                     json:"style_request"`
 	BW             string         `gorm:"default:''"                                     json:"bw"`
 	BWUnit         BodyWeightUnit `gorm:"type:body_weight_unit;default:'Kg'"             json:"bw_unit"`
 	BT             string         `gorm:"default:''"                                     json:"bt"`
@@ -44,10 +42,11 @@ type TrimmingRecord struct {
 	CompletedImage string         `gorm:"default:''"                                     json:"completed_image"`
 	CreatedAt      time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt      time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	DeletedAt      gorm.DeletedAt `                                                      json:"deleted_at"`
 
 	// Relations
-	Pet     Pet              `gorm:"foreignKey:PetID"    json:"pet,omitempty"`
-	Staff   Staff            `gorm:"foreignKey:StaffID"  json:"staff,omitempty"`
+	Pet     *Pet             `gorm:"foreignKey:PetID"    json:"pet,omitempty"`
+	Staff   *Staff           `gorm:"foreignKey:StaffID"  json:"staff,omitempty"`
 	Course  *TrimmingCourse  `gorm:"foreignKey:CourseID" json:"course,omitempty"`
 	Options []TrimmingOption `gorm:"many2many:trimming_record_options;joinForeignKey:TrimmingRecordID;joinReferences:OptionID" json:"options,omitempty"`
 }

@@ -10,12 +10,12 @@ import (
 )
 
 type MedicalRecordService interface {
-	List(ctx context.Context, petID *uuid.UUID, page, limit int) ([]model.MedicalRecord, int64, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*model.MedicalRecord, error)
-	GetByRecordNo(ctx context.Context, recordNo string) (*model.MedicalRecord, error)
+	List(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, page, limit int) ([]model.MedicalRecord, int64, error)
+	GetByID(ctx context.Context, clinicID, id uuid.UUID) (*model.MedicalRecord, error)
+	GetByRecordNo(ctx context.Context, clinicID uuid.UUID, recordNo string) (*model.MedicalRecord, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
 	Update(ctx context.Context, record *model.MedicalRecord) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, clinicID, id uuid.UUID) error
 }
 
 type medicalRecordService struct {
@@ -26,16 +26,16 @@ func NewMedicalRecordService(repo repository.MedicalRecordRepository) MedicalRec
 	return &medicalRecordService{repo: repo}
 }
 
-func (s *medicalRecordService) List(ctx context.Context, petID *uuid.UUID, page, limit int) ([]model.MedicalRecord, int64, error) {
-	return s.repo.FindAll(ctx, petID, page, limit)
+func (s *medicalRecordService) List(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, page, limit int) ([]model.MedicalRecord, int64, error) {
+	return s.repo.FindAll(ctx, clinicID, petID, page, limit)
 }
 
-func (s *medicalRecordService) GetByID(ctx context.Context, id uuid.UUID) (*model.MedicalRecord, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *medicalRecordService) GetByID(ctx context.Context, clinicID, id uuid.UUID) (*model.MedicalRecord, error) {
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 
-func (s *medicalRecordService) GetByRecordNo(ctx context.Context, recordNo string) (*model.MedicalRecord, error) {
-	return s.repo.FindByRecordNo(ctx, recordNo)
+func (s *medicalRecordService) GetByRecordNo(ctx context.Context, clinicID uuid.UUID, recordNo string) (*model.MedicalRecord, error) {
+	return s.repo.FindByRecordNo(ctx, clinicID, recordNo)
 }
 
 func (s *medicalRecordService) Create(ctx context.Context, record *model.MedicalRecord) error {
@@ -46,6 +46,6 @@ func (s *medicalRecordService) Update(ctx context.Context, record *model.Medical
 	return s.repo.Update(ctx, record)
 }
 
-func (s *medicalRecordService) Delete(ctx context.Context, id uuid.UUID) error {
-	return s.repo.Delete(ctx, id)
+func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uuid.UUID) error {
+	return s.repo.Delete(ctx, clinicID, id)
 }

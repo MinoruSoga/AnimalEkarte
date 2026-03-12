@@ -1,12 +1,11 @@
 package middleware
 
 import (
-	"bytes"
-	"io"
 	"log/slog"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // RequestLoggingMiddleware リクエストロギングミドルウェア
@@ -15,15 +14,6 @@ func RequestLoggingMiddleware() gin.HandlerFunc {
 		start := time.Now()
 		path := c.Request.URL.Path
 		raw := c.Request.URL.RawQuery
-
-		// リクエストボディを読み取り（POST/PUTリクエストの場合）
-		var requestBody []byte
-		if c.Request.Method == "POST" || c.Request.Method == "PUT" {
-			if c.Request.Body != nil {
-				requestBody, _ = io.ReadAll(c.Request.Body)
-				c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
-			}
-		}
 
 		// 処理
 		c.Next()
@@ -50,19 +40,16 @@ func RequestLoggingMiddleware() gin.HandlerFunc {
 			path = path + "?" + raw
 		}
 
-		// 構造化ログ出力
+		// 構造化ログ出力（method, path, status, latency, request_id, client_ip のみ）
+		requestIDVal, _ := c.Get("request_id")
+		requestID, _ := requestIDVal.(string)
 		logAttrs := []slog.Attr{
 			slog.String("method", c.Request.Method),
 			slog.String("path", path),
-			slog.Int("status_code", statusCode),
+			slog.Int("status", statusCode),
 			slog.Duration("latency", latency),
+			slog.String("request_id", requestID),
 			slog.String("client_ip", clientIP),
-			slog.String("user_agent", c.Request.UserAgent()),
-		}
-
-		// リクエストボディをログに追加（サイズ制限付き）
-		if len(requestBody) > 0 && len(requestBody) < 1024 {
-			logAttrs = append(logAttrs, slog.String("request_body", string(requestBody)))
 		}
 
 		// エラーがある場合は追加
@@ -77,7 +64,7 @@ func RequestLoggingMiddleware() gin.HandlerFunc {
 			message = "client error"
 		}
 
-		// slog.Logに渡すために変換
+		// slog.Log に渡すために変換
 		args := make([]any, len(logAttrs)*2)
 		for i, attr := range logAttrs {
 			args[i*2] = attr.Key
@@ -88,33 +75,17 @@ func RequestLoggingMiddleware() gin.HandlerFunc {
 	}
 }
 
-// RequestID adds a unique request ID to each request
+// RequestID はリクエストごとに一意のIDを付与するミドルウェア
 func RequestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		requestID := c.GetHeader("X-Request-ID")
 		if requestID == "" {
-			requestID = generateRequestID()
+			requestID = uuid.New().String()[:8]
 		}
 
 		c.Set("request_id", requestID)
-		c.Header("X-Request-ID", requestID)
+		c.Writer.Header().Set("X-Request-ID", requestID)
 
 		c.Next()
 	}
-}
-
-// generateRequestID generates a simple request ID
-func generateRequestID() string {
-	// Simple implementation - in production, consider using UUID
-	return time.Now().Format("20060102150405") + "-" + randomString(8)
-}
-
-// randomString generates a random string of given length
-func randomString(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[time.Now().UnixNano()%int64(len(charset))]
-	}
-	return string(b)
 }

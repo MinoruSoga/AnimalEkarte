@@ -11,11 +11,11 @@ import (
 )
 
 type ReservationService interface {
-	List(ctx context.Context, page, limit int, date *time.Time, status *string) ([]model.ReservationAppointment, int64, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*model.ReservationAppointment, error)
+	List(ctx context.Context, clinicID uuid.UUID, page, limit int, date *time.Time, status *string) ([]model.ReservationAppointment, int64, error)
+	GetByID(ctx context.Context, clinicID, id uuid.UUID) (*model.ReservationAppointment, error)
 	Create(ctx context.Context, reservation *model.ReservationAppointment) error
 	Update(ctx context.Context, reservation *model.ReservationAppointment) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, clinicID, id uuid.UUID) error
 }
 
 type reservationService struct {
@@ -26,12 +26,12 @@ func NewReservationService(repo repository.ReservationRepository) ReservationSer
 	return &reservationService{repo: repo}
 }
 
-func (s *reservationService) List(ctx context.Context, page, limit int, date *time.Time, status *string) ([]model.ReservationAppointment, int64, error) {
-	return s.repo.FindAll(ctx, page, limit, date, status)
+func (s *reservationService) List(ctx context.Context, clinicID uuid.UUID, page, limit int, date *time.Time, status *string) ([]model.ReservationAppointment, int64, error) {
+	return s.repo.FindAll(ctx, clinicID, page, limit, date, status)
 }
 
-func (s *reservationService) GetByID(ctx context.Context, id uuid.UUID) (*model.ReservationAppointment, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *reservationService) GetByID(ctx context.Context, clinicID, id uuid.UUID) (*model.ReservationAppointment, error) {
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 
 func (s *reservationService) Create(ctx context.Context, reservation *model.ReservationAppointment) error {
@@ -42,6 +42,6 @@ func (s *reservationService) Update(ctx context.Context, reservation *model.Rese
 	return s.repo.Update(ctx, reservation)
 }
 
-func (s *reservationService) Delete(ctx context.Context, id uuid.UUID) error {
-	return s.repo.Delete(ctx, id)
+func (s *reservationService) Delete(ctx context.Context, clinicID, id uuid.UUID) error {
+	return s.repo.Delete(ctx, clinicID, id)
 }

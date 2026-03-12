@@ -25,7 +25,7 @@ type Services struct {
 	HospitalizationPlan HospitalizationPlanService
 	TrimmingCourse      TrimmingCourseService
 	TrimmingOption      TrimmingOptionService
-	ExaminationType     ExaminationTypeService
+	ExaminationType     ExamTypeService
 	DiagnosisCategory   DiagnosisCategoryService
 	DiagnosisName       DiagnosisNameService
 	CheckupType         CheckupTypeService
@@ -54,7 +54,7 @@ func NewServices(repos *repository.Repositories) *Services {
 		HospitalizationPlan: NewHospitalizationPlanService(repos.HospitalizationPlan),
 		TrimmingCourse:      NewTrimmingCourseService(repos.TrimmingCourse),
 		TrimmingOption:      NewTrimmingOptionService(repos.TrimmingOption),
-		ExaminationType:     NewExaminationTypeService(repos.ExaminationType),
+		ExaminationType:     NewExamTypeService(repos.ExaminationType),
 		DiagnosisCategory:   NewDiagnosisCategoryService(repos.DiagnosisCategory),
 		DiagnosisName:       NewDiagnosisNameService(repos.DiagnosisName),
 		CheckupType:         NewCheckupTypeService(repos.CheckupType),

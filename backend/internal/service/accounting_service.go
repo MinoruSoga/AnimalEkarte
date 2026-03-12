@@ -10,10 +10,10 @@ import (
 )
 
 type AccountingService interface {
-	List(ctx context.Context, status *string, page, limit int) ([]model.Accounting, int64, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*model.Accounting, error)
-	Create(ctx context.Context, accounting *model.Accounting) error
-	Update(ctx context.Context, accounting *model.Accounting) error
+	List(ctx context.Context, status *string, page, limit int) ([]model.Billing, int64, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*model.Billing, error)
+	Create(ctx context.Context, accounting *model.Billing) error
+	Update(ctx context.Context, accounting *model.Billing) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
@@ -25,19 +25,19 @@ func NewAccountingService(repo repository.AccountingRepository) AccountingServic
 	return &accountingService{repo: repo}
 }
 
-func (s *accountingService) List(ctx context.Context, status *string, page, limit int) ([]model.Accounting, int64, error) {
+func (s *accountingService) List(ctx context.Context, status *string, page, limit int) ([]model.Billing, int64, error) {
 	return s.repo.FindAll(ctx, status, page, limit)
 }
 
-func (s *accountingService) GetByID(ctx context.Context, id uuid.UUID) (*model.Accounting, error) {
+func (s *accountingService) GetByID(ctx context.Context, id uuid.UUID) (*model.Billing, error) {
 	return s.repo.FindByID(ctx, id)
 }
 
-func (s *accountingService) Create(ctx context.Context, accounting *model.Accounting) error {
+func (s *accountingService) Create(ctx context.Context, accounting *model.Billing) error {
 	return s.repo.Create(ctx, accounting)
 }
 
-func (s *accountingService) Update(ctx context.Context, accounting *model.Accounting) error {
+func (s *accountingService) Update(ctx context.Context, accounting *model.Billing) error {
 	return s.repo.Update(ctx, accounting)
 }
 

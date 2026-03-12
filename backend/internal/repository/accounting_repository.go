@@ -12,10 +12,10 @@ import (
 )
 
 type AccountingRepository interface {
-	FindAll(ctx context.Context, status *string, page, limit int) ([]model.Accounting, int64, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.Accounting, error)
-	Create(ctx context.Context, accounting *model.Accounting) error
-	Update(ctx context.Context, accounting *model.Accounting) error
+	FindAll(ctx context.Context, status *string, page, limit int) ([]model.Billing, int64, error)
+	FindByID(ctx context.Context, id uuid.UUID) (*model.Billing, error)
+	Create(ctx context.Context, accounting *model.Billing) error
+	Update(ctx context.Context, accounting *model.Billing) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
@@ -27,56 +27,63 @@ func NewAccountingRepository(db *gorm.DB) AccountingRepository {
 	return &accountingRepository{db: db}
 }
 
-func (r *accountingRepository) FindAll(ctx context.Context, status *string, page, limit int) ([]model.Accounting, int64, error) {
-	var accountings []model.Accounting
+func (r *accountingRepository) FindAll(ctx context.Context, status *string, page, limit int) ([]model.Billing, int64, error) {
+	var billings []model.Billing
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.Accounting{})
+	q := r.db.WithContext(ctx).Model(&model.Billing{})
 	if status != nil {
 		q = q.Where("status = ?", *status)
 	}
 	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "count accountings")
+		return nil, 0, apperrors.Wrap(err, "count billings")
 	}
-	if err := q.Offset((page-1)*limit).Limit(limit).Order("scheduled_date DESC, created_at DESC").Find(&accountings).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "find accountings")
+	if err := q.Offset((page - 1) * limit).Limit(limit).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
+		return nil, 0, apperrors.Wrap(err, "find billings")
 	}
-	return accountings, total, nil
+	return billings, total, nil
 }
 
-func (r *accountingRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Accounting, error) {
-	var accounting model.Accounting
+func (r *accountingRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Billing, error) {
+	var billing model.Billing
 	if err := r.db.WithContext(ctx).
 		Preload("Items").
-		Preload("PaymentInfo").
+		Preload("Payments").
 		Preload("Owner").
 		Preload("Pet").
-		First(&accounting, "id = ?", id).Error; err != nil {
+		First(&billing, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("accounting", id.String())
+			return nil, apperrors.WrapNotFound("billing", id.String())
 		}
-		return nil, apperrors.Wrap(err, "find accounting by id")
+		return nil, apperrors.Wrap(err, "find billing by id")
 	}
-	return &accounting, nil
+	return &billing, nil
 }
 
-func (r *accountingRepository) Create(ctx context.Context, accounting *model.Accounting) error {
+func (r *accountingRepository) Create(ctx context.Context, accounting *model.Billing) error {
 	if err := r.db.WithContext(ctx).Create(accounting).Error; err != nil {
-		return apperrors.Wrap(err, "create accounting")
+		if isUniqueConstraintErr(err) {
+			return apperrors.WrapAlreadyExists("billing", accounting.ScheduledDate.String())
+		}
+		return apperrors.Wrap(err, "create billing")
 	}
 	return nil
 }
 
-func (r *accountingRepository) Update(ctx context.Context, accounting *model.Accounting) error {
+func (r *accountingRepository) Update(ctx context.Context, accounting *model.Billing) error {
 	if err := r.db.WithContext(ctx).Save(accounting).Error; err != nil {
-		return apperrors.Wrap(err, "update accounting")
+		return apperrors.Wrap(err, "update billing")
 	}
 	return nil
 }
 
 func (r *accountingRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	if err := r.db.WithContext(ctx).Delete(&model.Accounting{}, "id = ?", id).Error; err != nil {
-		return apperrors.Wrap(err, "delete accounting")
+	result := r.db.WithContext(ctx).Delete(&model.Billing{}, "id = ?", id)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "delete billing")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("billing", id.String())
 	}
 	return nil
 }

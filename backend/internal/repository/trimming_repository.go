@@ -38,7 +38,7 @@ func (r *trimmingRepository) FindAll(ctx context.Context, petID *uuid.UUID, page
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count trimming records")
 	}
-	if err := q.Offset((page-1)*limit).Limit(limit).Order("date DESC, created_at DESC").Find(&trimmings).Error; err != nil {
+	if err := q.Offset((page - 1) * limit).Limit(limit).Order("date DESC, created_at DESC").Find(&trimmings).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find trimming records")
 	}
 	return trimmings, total, nil
@@ -62,6 +62,9 @@ func (r *trimmingRepository) FindByID(ctx context.Context, id uuid.UUID) (*model
 
 func (r *trimmingRepository) Create(ctx context.Context, trimming *model.TrimmingRecord) error {
 	if err := r.db.WithContext(ctx).Create(trimming).Error; err != nil {
+		if isUniqueConstraintErr(err) {
+			return apperrors.WrapAlreadyExists("trimming_record", trimming.Date.String())
+		}
 		return apperrors.Wrap(err, "create trimming record")
 	}
 	return nil
@@ -75,8 +78,12 @@ func (r *trimmingRepository) Update(ctx context.Context, trimming *model.Trimmin
 }
 
 func (r *trimmingRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	if err := r.db.WithContext(ctx).Delete(&model.TrimmingRecord{}, "id = ?", id).Error; err != nil {
-		return apperrors.Wrap(err, "delete trimming record")
+	result := r.db.WithContext(ctx).Delete(&model.TrimmingRecord{}, "id = ?", id)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "delete trimming record")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("trimming_record", id.String())
 	}
 	return nil
 }

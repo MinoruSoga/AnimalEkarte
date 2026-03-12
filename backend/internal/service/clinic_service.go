@@ -12,8 +12,8 @@ import (
 type ClinicService interface {
 	ListClinics(ctx context.Context) ([]model.Clinic, error)
 	GetClinicByID(ctx context.Context, id uuid.UUID) (*model.Clinic, error)
-	GetClinicInfo(ctx context.Context) (*model.ClinicInfo, error)
-	UpdateClinicInfo(ctx context.Context, info *model.ClinicInfo) error
+	GetCompany(ctx context.Context) (*model.Company, error)
+	UpdateCompany(ctx context.Context, company *model.Company) error
 }
 
 type clinicService struct {
@@ -32,10 +32,10 @@ func (s *clinicService) GetClinicByID(ctx context.Context, id uuid.UUID) (*model
 	return s.repo.FindByID(ctx, id)
 }
 
-func (s *clinicService) GetClinicInfo(ctx context.Context) (*model.ClinicInfo, error) {
-	return s.repo.GetClinicInfo(ctx)
+func (s *clinicService) GetCompany(ctx context.Context) (*model.Company, error) {
+	return s.repo.GetCompany(ctx)
 }
 
-func (s *clinicService) UpdateClinicInfo(ctx context.Context, info *model.ClinicInfo) error {
-	return s.repo.UpdateClinicInfo(ctx, info)
+func (s *clinicService) UpdateCompany(ctx context.Context, company *model.Company) error {
+	return s.repo.UpdateCompany(ctx, company)
 }

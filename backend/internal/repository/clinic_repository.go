@@ -14,8 +14,8 @@ import (
 type ClinicRepository interface {
 	FindAll(ctx context.Context) ([]model.Clinic, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*model.Clinic, error)
-	GetClinicInfo(ctx context.Context) (*model.ClinicInfo, error)
-	UpdateClinicInfo(ctx context.Context, info *model.ClinicInfo) error
+	GetCompany(ctx context.Context) (*model.Company, error)
+	UpdateCompany(ctx context.Context, company *model.Company) error
 	Create(ctx context.Context, clinic *model.Clinic) error
 	Update(ctx context.Context, clinic *model.Clinic) error
 }
@@ -47,42 +47,45 @@ func (r *clinicRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.C
 	return &clinic, nil
 }
 
-func (r *clinicRepository) GetClinicInfo(ctx context.Context) (*model.ClinicInfo, error) {
-	var info model.ClinicInfo
-	if err := r.db.WithContext(ctx).First(&info).Error; err != nil {
+func (r *clinicRepository) GetCompany(ctx context.Context) (*model.Company, error) {
+	var company model.Company
+	if err := r.db.WithContext(ctx).First(&company).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("clinic_info", "singleton")
+			return nil, apperrors.WrapNotFound("company", "singleton")
 		}
-		return nil, apperrors.Wrap(err, "get clinic info")
+		return nil, apperrors.Wrap(err, "get company")
 	}
-	return &info, nil
+	return &company, nil
 }
 
-func (r *clinicRepository) UpdateClinicInfo(ctx context.Context, info *model.ClinicInfo) error {
-	var existing model.ClinicInfo
+func (r *clinicRepository) UpdateCompany(ctx context.Context, company *model.Company) error {
+	var existing model.Company
 	err := r.db.WithContext(ctx).First(&existing).Error
 	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		// レコードが存在しない場合は新規作成
-		if info.ID == (uuid.UUID{}) {
-			info.ID = uuid.New()
+		if company.ID == (uuid.UUID{}) {
+			company.ID = uuid.New()
 		}
-		if err := r.db.WithContext(ctx).Create(info).Error; err != nil {
-			return apperrors.Wrap(err, "create clinic info")
+		if err := r.db.WithContext(ctx).Create(company).Error; err != nil {
+			return apperrors.Wrap(err, "create company")
 		}
 		return nil
 	}
 	if err != nil {
-		return apperrors.Wrap(err, "get clinic info for update")
+		return apperrors.Wrap(err, "get company for update")
 	}
-	info.ID = existing.ID
-	if err := r.db.WithContext(ctx).Save(info).Error; err != nil {
-		return apperrors.Wrap(err, "update clinic info")
+	company.ID = existing.ID
+	if err := r.db.WithContext(ctx).Save(company).Error; err != nil {
+		return apperrors.Wrap(err, "update company")
 	}
 	return nil
 }
 
 func (r *clinicRepository) Create(ctx context.Context, clinic *model.Clinic) error {
 	if err := r.db.WithContext(ctx).Create(clinic).Error; err != nil {
+		if isUniqueConstraintErr(err) {
+			return apperrors.WrapAlreadyExists("clinic", clinic.Name)
+		}
 		return apperrors.Wrap(err, "create clinic")
 	}
 	return nil

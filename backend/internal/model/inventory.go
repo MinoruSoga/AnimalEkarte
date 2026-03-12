@@ -25,6 +25,7 @@ const (
 
 type InventoryItem struct {
 	ID            uuid.UUID         `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	ClinicID      uuid.UUID         `gorm:"type:uuid;not null"                             json:"clinic_id"`
 	Name          string            `gorm:"not null"                                        json:"name"`
 	Category      InventoryCategory `gorm:"type:inventory_category;not null"                json:"category"`
 	Quantity      int               `gorm:"default:0"                                       json:"quantity"`

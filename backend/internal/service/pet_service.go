@@ -10,11 +10,11 @@ import (
 )
 
 type PetService interface {
-	List(ctx context.Context, ownerID *uuid.UUID, page, limit int, search string) ([]model.Pet, int64, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*model.Pet, error)
+	List(ctx context.Context, clinicID uuid.UUID, ownerID *uuid.UUID, page, limit int, search string) ([]model.Pet, int64, error)
+	GetByID(ctx context.Context, clinicID, id uuid.UUID) (*model.Pet, error)
 	Create(ctx context.Context, pet *model.Pet) error
 	Update(ctx context.Context, pet *model.Pet) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, clinicID, id uuid.UUID) error
 }
 
 type petService struct {
@@ -25,12 +25,12 @@ func NewPetService(repo repository.PetRepository) PetService {
 	return &petService{repo: repo}
 }
 
-func (s *petService) List(ctx context.Context, ownerID *uuid.UUID, page, limit int, search string) ([]model.Pet, int64, error) {
-	return s.repo.FindAll(ctx, ownerID, page, limit, search)
+func (s *petService) List(ctx context.Context, clinicID uuid.UUID, ownerID *uuid.UUID, page, limit int, search string) ([]model.Pet, int64, error) {
+	return s.repo.FindAll(ctx, clinicID, ownerID, page, limit, search)
 }
 
-func (s *petService) GetByID(ctx context.Context, id uuid.UUID) (*model.Pet, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *petService) GetByID(ctx context.Context, clinicID, id uuid.UUID) (*model.Pet, error) {
+	return s.repo.FindByID(ctx, clinicID, id)
 }
 
 func (s *petService) Create(ctx context.Context, pet *model.Pet) error {
@@ -41,6 +41,6 @@ func (s *petService) Update(ctx context.Context, pet *model.Pet) error {
 	return s.repo.Update(ctx, pet)
 }
 
-func (s *petService) Delete(ctx context.Context, id uuid.UUID) error {
-	return s.repo.Delete(ctx, id)
+func (s *petService) Delete(ctx context.Context, clinicID, id uuid.UUID) error {
+	return s.repo.Delete(ctx, clinicID, id)
 }

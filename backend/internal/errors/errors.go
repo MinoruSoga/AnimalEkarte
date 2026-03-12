@@ -81,3 +81,17 @@ func IsNotFound(err error) bool {
 func IsInvalidInput(err error) bool {
 	return errors.Is(err, ErrInvalidInput)
 }
+
+// WrapAlreadyExists は重複リソースエラーを生成する
+func WrapAlreadyExists(resource, identifier string) error {
+	return &AppError{
+		Code:    "ALREADY_EXISTS",
+		Message: fmt.Sprintf("%s '%s' already exists", resource, identifier),
+		Err:     ErrAlreadyExists,
+	}
+}
+
+// IsAlreadyExists はErrAlreadyExistsかどうかを判定する
+func IsAlreadyExists(err error) bool {
+	return errors.Is(err, ErrAlreadyExists)
+}

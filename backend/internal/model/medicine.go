@@ -27,6 +27,7 @@ const (
 
 type Medicine struct {
 	ID              uuid.UUID     `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	ClinicID        uuid.UUID     `gorm:"type:uuid;not null"                             json:"clinic_id"`
 	Code            string        `gorm:"default:''"                                     json:"code"`
 	Name            string        `gorm:"not null"                                       json:"name"`
 	Price           *float64      `gorm:"type:numeric(10,2)"                             json:"price,omitempty"`

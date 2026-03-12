@@ -1,0 +1,60 @@
+package model
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+// TreatmentItemType は治療項目種別
+type TreatmentItemType string
+
+const (
+	TreatmentItemTypeConsultation TreatmentItemType = "consultation"
+	TreatmentItemTypeProcedure    TreatmentItemType = "procedure"
+	TreatmentItemTypeMedicine     TreatmentItemType = "medicine"
+	TreatmentItemTypeOther        TreatmentItemType = "other"
+)
+
+// TreatmentStatus は治療ステータス
+type TreatmentStatus string
+
+const (
+	TreatmentStatusIncomplete TreatmentStatus = "未完了"
+	TreatmentStatusComplete   TreatmentStatus = "完了"
+	TreatmentStatusNA         TreatmentStatus = "-"
+)
+
+// Treatment は治療項目（外来診療）
+type Treatment struct {
+	ID              uuid.UUID         `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	MedicalRecordID uuid.UUID         `gorm:"type:uuid;not null"                             json:"medical_record_id"`
+	ItemType        TreatmentItemType `gorm:"type:treatment_item_type;not null;default:'other'" json:"item_type"`
+	ConsultationID  *uuid.UUID        `gorm:"type:uuid"                                      json:"consultation_id,omitempty"`
+	ProcedureID     *uuid.UUID        `gorm:"type:uuid"                                      json:"procedure_id,omitempty"`
+	MedicineID      *uuid.UUID        `gorm:"type:uuid"                                      json:"medicine_id,omitempty"`
+	InventoryID     *uuid.UUID        `gorm:"type:uuid"                                      json:"inventory_id,omitempty"`
+	UnitPrice       float64           `gorm:"type:numeric(10,2);default:0"                   json:"unit_price"`
+	Quantity        int               `gorm:"default:1"                                      json:"quantity"`
+	Selected        bool              `gorm:"default:false"                                  json:"selected"`
+	Status          TreatmentStatus   `gorm:"type:treatment_status;default:'未完了'"            json:"status"`
+	Content         string            `gorm:"not null;default:''"                            json:"content"`
+	Memo            string            `gorm:"default:''"                                     json:"memo"`
+	Insurance       bool              `gorm:"default:false"                                  json:"insurance"`
+	DiscountRate    float64           `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
+	DiscountAmount  float64           `gorm:"type:numeric(10,2);default:0"                   json:"discount_amount"`
+	SortOrder       int               `gorm:"default:0"                                      json:"sort_order"`
+	DeletedAt       gorm.DeletedAt    `                                                      json:"deleted_at"`
+	CreatedAt       time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt       time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
+
+	// Relations
+	MedicalRecord *MedicalRecord `gorm:"foreignKey:MedicalRecordID" json:"medical_record,omitempty"`
+	Consultation  *Consultation  `gorm:"foreignKey:ConsultationID"  json:"consultation,omitempty"`
+	Procedure     *Procedure     `gorm:"foreignKey:ProcedureID"     json:"procedure,omitempty"`
+	Medicine      *Medicine      `gorm:"foreignKey:MedicineID"      json:"medicine,omitempty"`
+	Inventory     *InventoryItem `gorm:"foreignKey:InventoryID"     json:"inventory,omitempty"`
+}
+
+func (Treatment) TableName() string { return "treatments" }

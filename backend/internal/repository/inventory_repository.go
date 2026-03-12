@@ -38,7 +38,7 @@ func (r *inventoryRepository) FindAll(ctx context.Context, category *string, pag
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count inventory items")
 	}
-	if err := q.Offset((page-1)*limit).Limit(limit).Order("name ASC").Find(&items).Error; err != nil {
+	if err := q.Offset((page - 1) * limit).Limit(limit).Order("name ASC").Find(&items).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find inventory items")
 	}
 	return items, total, nil
@@ -57,6 +57,9 @@ func (r *inventoryRepository) FindByID(ctx context.Context, id uuid.UUID) (*mode
 
 func (r *inventoryRepository) Create(ctx context.Context, item *model.InventoryItem) error {
 	if err := r.db.WithContext(ctx).Create(item).Error; err != nil {
+		if isUniqueConstraintErr(err) {
+			return apperrors.WrapAlreadyExists("inventory_item", item.Name)
+		}
 		return apperrors.Wrap(err, "create inventory item")
 	}
 	return nil
@@ -70,8 +73,12 @@ func (r *inventoryRepository) Update(ctx context.Context, item *model.InventoryI
 }
 
 func (r *inventoryRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	if err := r.db.WithContext(ctx).Delete(&model.InventoryItem{}, "id = ?", id).Error; err != nil {
-		return apperrors.Wrap(err, "delete inventory item")
+	result := r.db.WithContext(ctx).Delete(&model.InventoryItem{}, "id = ?", id)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "delete inventory item")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("inventory_item", id.String())
 	}
 	return nil
 }

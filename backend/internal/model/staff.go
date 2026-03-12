@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type StaffRole string
@@ -24,15 +25,21 @@ const (
 )
 
 type Staff struct {
-	ID            uuid.UUID    `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	Code          string       `gorm:"default:''"                                     json:"code"`
-	Name          string       `gorm:"not null"                                       json:"name"`
-	Status        MasterStatus `gorm:"type:master_status;default:'active'"            json:"status"`
-	StaffRole     StaffRole    `gorm:"type:staff_role;not null"                       json:"staff_role"`
-	LicenseNumber string       `gorm:"default:''"                                     json:"license_number"`
-	SortOrder     int          `gorm:"default:0"                                      json:"sort_order"`
-	CreatedAt     time.Time    `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt     time.Time    `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	ID            uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	ClinicID      uuid.UUID      `gorm:"type:uuid;not null"                             json:"clinic_id"`
+	Code          string         `gorm:"default:''"                                     json:"code"`
+	Name          string         `gorm:"not null"                                       json:"name"`
+	Status        MasterStatus   `gorm:"type:master_status;default:'active'"            json:"status"`
+	StaffRole     StaffRole      `gorm:"type:staff_role;not null"                       json:"staff_role"`
+	JobTitleID    *uuid.UUID     `gorm:"type:uuid"                                      json:"job_title_id,omitempty"`
+	LicenseNumber string         `gorm:"default:''"                                     json:"license_number"`
+	SortOrder     int            `gorm:"default:0"                                      json:"sort_order"`
+	DeletedAt     gorm.DeletedAt `                                                      json:"deleted_at"`
+	CreatedAt     time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt     time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+
+	// Relations
+	JobTitle *JobTitle `gorm:"foreignKey:JobTitleID" json:"job_title,omitempty"`
 }
 
 func (Staff) TableName() string { return "staffs" }
@@ -49,6 +56,7 @@ const (
 
 type ShiftEntry struct {
 	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	ClinicID  uuid.UUID `gorm:"type:uuid;not null"                             json:"clinic_id"`
 	StaffID   uuid.UUID `gorm:"type:uuid;not null"                             json:"staff_id"`
 	Date      time.Time `gorm:"type:date;not null"                             json:"date"`
 	ShiftType ShiftType `gorm:"type:shift_type;not null"                       json:"shift_type"`

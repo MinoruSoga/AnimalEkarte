@@ -8,6 +8,7 @@ import (
 
 type DiagnosisCategory struct {
 	ID          uuid.UUID    `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	ClinicID    uuid.UUID    `gorm:"type:uuid;not null"                             json:"clinic_id"`
 	Code        string       `gorm:"default:''"                                     json:"code"`
 	Name        string       `gorm:"not null"                                       json:"name"`
 	Status      MasterStatus `gorm:"type:master_status;default:'active'"            json:"status"`
@@ -24,6 +25,7 @@ func (DiagnosisCategory) TableName() string { return "diagnosis_categories" }
 
 type DiagnosisName struct {
 	ID                  uuid.UUID    `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	ClinicID            uuid.UUID    `gorm:"type:uuid;not null"                             json:"clinic_id"`
 	Code                string       `gorm:"default:''"                                     json:"code"`
 	Name                string       `gorm:"not null"                                       json:"name"`
 	Status              MasterStatus `gorm:"type:master_status;default:'active'"            json:"status"`
@@ -34,7 +36,7 @@ type DiagnosisName struct {
 	UpdatedAt           time.Time    `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
-	Category DiagnosisCategory `gorm:"foreignKey:DiagnosisCategoryID" json:"category,omitempty"`
+	Category *DiagnosisCategory `gorm:"foreignKey:DiagnosisCategoryID" json:"category,omitempty"`
 }
 
 func (DiagnosisName) TableName() string { return "diagnosis_names" }

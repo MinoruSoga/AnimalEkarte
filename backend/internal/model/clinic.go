@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type UserType string
@@ -22,16 +23,6 @@ const (
 	AccountStatusLocked   AccountStatus = "locked"
 )
 
-type JobTitle string
-
-const (
-	JobTitleVeterinarian JobTitle = "veterinarian"
-	JobTitleNurse        JobTitle = "nurse"
-	JobTitleTrimmer      JobTitle = "trimmer"
-	JobTitleReception    JobTitle = "reception"
-	JobTitleGeneralStaff JobTitle = "general_staff"
-)
-
 type PermissionType string
 
 const (
@@ -46,25 +37,6 @@ const (
 	PermissionShiftAdmin      PermissionType = "shift_admin"
 	PermissionInventory       PermissionType = "inventory"
 )
-
-type ClinicInfo struct {
-	ID                 uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	Name               string    `gorm:"not null"                                        json:"name"`
-	BranchName         string    `gorm:"default:''"                                      json:"branch_name"`
-	PostalCode         string    `gorm:"default:''"                                      json:"postal_code"`
-	Address            string    `gorm:"default:''"                                      json:"address"`
-	PhoneNumber        string    `gorm:"default:''"                                      json:"phone_number"`
-	FaxNumber          string    `gorm:"default:''"                                      json:"fax_number"`
-	RegistrationNumber string    `gorm:"default:''"                                      json:"registration_number"`
-	DirectorName       string    `gorm:"default:''"                                      json:"director_name"`
-	Email              string    `gorm:"default:''"                                      json:"email"`
-	Website            string    `gorm:"default:''"                                      json:"website"`
-	LogoURL            string    `gorm:"default:''"                                      json:"logo_url"`
-	CreatedAt          time.Time `gorm:"autoCreateTime"                                  json:"created_at"`
-	UpdatedAt          time.Time `gorm:"autoUpdateTime"                                  json:"updated_at"`
-}
-
-func (ClinicInfo) TableName() string { return "clinic_info" }
 
 type Clinic struct {
 	ID                 uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
@@ -87,20 +59,22 @@ type Clinic struct {
 func (Clinic) TableName() string { return "clinics" }
 
 type UserAccount struct {
-	ID              uuid.UUID     `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	Email           string        `gorm:"not null;uniqueIndex"                           json:"email"`
-	DisplayName     string        `gorm:"not null"                                       json:"display_name"`
-	DisplayNameKana string        `gorm:"default:''"                                     json:"display_name_kana"`
-	UserType        UserType      `gorm:"type:user_type;not null;default:'staff'"        json:"user_type"`
-	JobTitle        *JobTitle     `gorm:"type:job_title"                                 json:"job_title,omitempty"`
-	Status          AccountStatus `gorm:"type:account_status;default:'active'"           json:"status"`
-	AvatarURL       string        `gorm:"default:''"                                     json:"avatar_url"`
-	StaffID         *uuid.UUID    `gorm:"type:uuid"                                      json:"staff_id,omitempty"`
-	CreatedAt       time.Time     `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt       time.Time     `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	ID              uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Email           string         `gorm:"not null;uniqueIndex"                           json:"email"`
+	DisplayName     string         `gorm:"not null"                                       json:"display_name"`
+	DisplayNameKana string         `gorm:"default:''"                                     json:"display_name_kana"`
+	UserType        UserType       `gorm:"type:user_type;not null;default:'staff'"        json:"user_type"`
+	JobTitleID      *uuid.UUID     `gorm:"type:uuid"                                      json:"job_title_id,omitempty"`
+	Status          AccountStatus  `gorm:"type:account_status;default:'active'"           json:"status"`
+	AvatarURL       string         `gorm:"default:''"                                     json:"avatar_url"`
+	StaffID         *uuid.UUID     `gorm:"type:uuid"                                      json:"staff_id,omitempty"`
+	CreatedAt       time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt       time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `                                                      json:"deleted_at"`
 
 	// Relations
-	Staff *Staff `gorm:"foreignKey:StaffID" json:"staff,omitempty"`
+	Staff    *Staff    `gorm:"foreignKey:StaffID"    json:"staff,omitempty"`
+	JobTitle *JobTitle `gorm:"foreignKey:JobTitleID" json:"job_title,omitempty"`
 }
 
 func (UserAccount) TableName() string { return "user_accounts" }

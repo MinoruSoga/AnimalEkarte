@@ -14,6 +14,10 @@ type Config struct {
 	DBName    string
 	DBSSLMode string
 	GinMode   string
+
+	JWTSecret        string
+	DevAdminEmail    string // dev-only; empty string means disabled
+	DevAdminPassword string // dev-only; empty string means disabled
 }
 
 func Load() *Config {
@@ -26,6 +30,10 @@ func Load() *Config {
 		DBName:    getEnv("DB_NAME", "ekarte_db"),
 		DBSSLMode: getEnv("DB_SSL_MODE", "disable"),
 		GinMode:   getEnv("GIN_MODE", "debug"),
+
+		JWTSecret:        getEnv("JWT_SECRET", "dev-secret-change-me"),
+		DevAdminEmail:    os.Getenv("DEV_ADMIN_EMAIL"),    //nolint:gocritic // leave empty to disable dev bypass
+		DevAdminPassword: os.Getenv("DEV_ADMIN_PASSWORD"), //nolint:gocritic // leave empty to disable dev bypass
 	}
 }
 

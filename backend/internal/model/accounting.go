@@ -4,15 +4,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
-type AccountingStatus string
+type BillingStatus string
 
 const (
-	AccountingStatusWaiting   AccountingStatus = "waiting"
-	AccountingStatusCompleted AccountingStatus = "completed"
-	AccountingStatusCancelled AccountingStatus = "cancelled"
-	AccountingStatusPending   AccountingStatus = "pending"
+	BillingStatusWaiting   BillingStatus = "waiting"
+	BillingStatusCompleted BillingStatus = "completed"
+	BillingStatusCancelled BillingStatus = "cancelled"
+	BillingStatusPending   BillingStatus = "pending"
 )
 
 type PaymentMethod string
@@ -44,38 +45,41 @@ const (
 	ItemSourceHospitalization ItemSource = "hospitalization"
 )
 
-type Accounting struct {
-	ID                uuid.UUID        `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	MedicalRecordID   *uuid.UUID       `gorm:"type:uuid;uniqueIndex"                          json:"medical_record_id,omitempty"`
-	HospitalizationID *uuid.UUID       `gorm:"type:uuid"                                      json:"hospitalization_id,omitempty"`
-	OwnerID           uuid.UUID        `gorm:"type:uuid;not null"                             json:"owner_id"`
-	OwnerName         string           `gorm:"not null;default:''"                            json:"owner_name"`
-	PetID             uuid.UUID        `gorm:"type:uuid;not null"                             json:"pet_id"`
-	PetName           string           `gorm:"not null;default:''"                            json:"pet_name"`
-	PetSpecies        *PetSpecies      `gorm:"type:pet_species"                               json:"pet_species,omitempty"`
-	Status            AccountingStatus `gorm:"type:accounting_status;default:'waiting'"       json:"status"`
-	ScheduledDate     time.Time        `gorm:"type:date;not null"                             json:"scheduled_date"`
-	CompletedAt       *time.Time       `gorm:"column:completed_at"                            json:"completed_at,omitempty"`
-	Memo              string           `gorm:"default:''"                                     json:"memo"`
-	CreatedAt         time.Time        `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt         time.Time        `gorm:"autoUpdateTime"                                 json:"updated_at"`
+type Billing struct {
+	ID                uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	ClinicID          uuid.UUID      `gorm:"type:uuid;not null"                             json:"clinic_id"`
+	MedicalRecordID   *uuid.UUID     `gorm:"type:uuid"                                      json:"medical_record_id,omitempty"`
+	HospitalizationID *uuid.UUID     `gorm:"type:uuid"                                      json:"hospitalization_id,omitempty"`
+	OwnerID           *uuid.UUID     `gorm:"type:uuid"                                      json:"owner_id,omitempty"`
+	PetID             *uuid.UUID     `gorm:"type:uuid"                                      json:"pet_id,omitempty"`
+	Subtotal          int            `gorm:"default:0"                                      json:"subtotal"`
+	TaxTotal          int            `gorm:"default:0"                                      json:"tax_total"`
+	TotalAmount       int            `gorm:"default:0"                                      json:"total_amount"`
+	HasInsurance      bool           `gorm:"default:false"                                  json:"has_insurance"`
+	Status            BillingStatus  `gorm:"type:billing_status;default:'waiting'"          json:"status"`
+	ScheduledDate     time.Time      `gorm:"type:date;not null"                             json:"scheduled_date"`
+	CompletedAt       *time.Time     `                                                      json:"completed_at,omitempty"`
+	Memo              string         `gorm:"default:''"                                     json:"memo"`
+	DeletedAt         gorm.DeletedAt `                                                      json:"deleted_at"`
+	CreatedAt         time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt         time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
-	Owner         Owner            `gorm:"foreignKey:OwnerID"         json:"owner,omitempty"`
-	Pet           Pet              `gorm:"foreignKey:PetID"           json:"pet,omitempty"`
-	MedicalRecord *MedicalRecord   `gorm:"foreignKey:MedicalRecordID" json:"medical_record,omitempty"`
-	Items         []AccountingItem `gorm:"foreignKey:AccountingID"    json:"items,omitempty"`
-	PaymentInfo   *PaymentInfo     `gorm:"foreignKey:AccountingID"    json:"payment_info,omitempty"`
+	Owner         *Owner         `gorm:"foreignKey:OwnerID"          json:"owner,omitempty"`
+	Pet           *Pet           `gorm:"foreignKey:PetID"            json:"pet,omitempty"`
+	MedicalRecord *MedicalRecord `gorm:"foreignKey:MedicalRecordID"  json:"medical_record,omitempty"`
+	Items         []BillingItem  `gorm:"foreignKey:BillingID"        json:"items,omitempty"`
+	Payments      []Payment      `gorm:"foreignKey:BillingID"        json:"payments,omitempty"`
 }
 
-func (Accounting) TableName() string { return "accountings" }
+func (Billing) TableName() string { return "billings" }
 
-type AccountingItem struct {
+type BillingItem struct {
 	ID                    uuid.UUID    `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	AccountingID          uuid.UUID    `gorm:"type:uuid;not null"                             json:"accounting_id"`
-	Code                  string       `gorm:"default:''"                                     json:"code"`
+	BillingID             uuid.UUID    `gorm:"type:uuid;not null"                             json:"billing_id"`
 	Category              ItemCategory `gorm:"type:item_category;not null"                    json:"category"`
 	Name                  string       `gorm:"not null;default:''"                            json:"name"`
+	Code                  string       `gorm:"default:''"                                     json:"code"`
 	UnitPrice             float64      `gorm:"type:numeric(10,2);not null;default:0"          json:"unit_price"`
 	Quantity              int          `gorm:"not null;default:1"                             json:"quantity"`
 	TaxRate               float64      `gorm:"type:numeric(3,2);default:0.10"                 json:"tax_rate"`
@@ -85,24 +89,24 @@ type AccountingItem struct {
 	CreatedAt             time.Time    `gorm:"autoCreateTime"                                 json:"created_at"`
 }
 
-func (AccountingItem) TableName() string { return "accounting_items" }
+func (BillingItem) TableName() string { return "billing_items" }
 
-type PaymentInfo struct {
-	ID              uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	AccountingID    uuid.UUID      `gorm:"type:uuid;not null;uniqueIndex"                 json:"accounting_id"`
-	Subtotal        float64        `gorm:"type:numeric(10,2);not null;default:0"          json:"subtotal"`
-	TaxTotal        float64        `gorm:"type:numeric(10,2);not null;default:0"          json:"tax_total"`
-	TotalAmount     float64        `gorm:"type:numeric(10,2);not null;default:0"          json:"total_amount"`
-	InsuranceName   string         `gorm:"default:''"                                     json:"insurance_name"`
-	InsuranceRatio  float64        `gorm:"type:numeric(3,2);default:0"                    json:"insurance_ratio"`
-	InsuranceAmount float64        `gorm:"type:numeric(10,2);default:0"                   json:"insurance_amount"`
-	DiscountAmount  float64        `gorm:"type:numeric(10,2);default:0"                   json:"discount_amount"`
-	BillingAmount   float64        `gorm:"type:numeric(10,2);not null;default:0"          json:"billing_amount"`
-	ReceivedAmount  float64        `gorm:"type:numeric(10,2);default:0"                   json:"received_amount"`
-	ChangeAmount    float64        `gorm:"type:numeric(10,2);default:0"                   json:"change_amount"`
-	Method          *PaymentMethod `gorm:"type:payment_method"                            json:"method,omitempty"`
-	CreatedAt       time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt       time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+type Payment struct {
+	ID              uuid.UUID     `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	BillingID       uuid.UUID     `gorm:"type:uuid;not null;uniqueIndex"                 json:"billing_id"`
+	Subtotal        float64       `gorm:"type:numeric(10,2);not null;default:0"          json:"subtotal"`
+	TaxTotal        float64       `gorm:"type:numeric(10,2);not null;default:0"          json:"tax_total"`
+	TotalAmount     float64       `gorm:"type:numeric(10,2);not null;default:0"          json:"total_amount"`
+	InsuranceName   string        `gorm:"default:''"                                     json:"insurance_name"`
+	InsuranceRatio  float64       `gorm:"type:numeric(3,2);default:0"                    json:"insurance_ratio"`
+	InsuranceAmount float64       `gorm:"type:numeric(10,2);default:0"                   json:"insurance_amount"`
+	DiscountAmount  float64       `gorm:"type:numeric(10,2);default:0"                   json:"discount_amount"`
+	BillingAmount   float64       `gorm:"type:numeric(10,2);not null;default:0"          json:"billing_amount"`
+	ReceivedAmount  float64       `gorm:"type:numeric(10,2);default:0"                   json:"received_amount"`
+	ChangeAmount    float64       `gorm:"type:numeric(10,2);default:0"                   json:"change_amount"`
+	Method          PaymentMethod `gorm:"type:payment_method;default:'cash'"             json:"method"`
+	CreatedAt       time.Time     `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt       time.Time     `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }
 
-func (PaymentInfo) TableName() string { return "payment_infos" }
+func (Payment) TableName() string { return "payments" }

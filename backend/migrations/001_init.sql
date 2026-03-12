@@ -1,24 +1,49 @@
 -- =============================================================================
--- Animal Ekarte - 初期スキーマ定義
+-- Animal Ekarte - 初期スキーマ定義 v19.0
 -- PostgreSQL 18
+-- テーブル数: 55
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
 -- 1. 拡張機能
 -- -----------------------------------------------------------------------------
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- -----------------------------------------------------------------------------
--- 2. ENUM型定義
+-- 2. ENUM型定義（全55テーブル対応）
 -- -----------------------------------------------------------------------------
+
+-- 認証関連
+CREATE TYPE user_type AS ENUM ('system_admin', 'clinic_admin', 'staff');
+CREATE TYPE account_status AS ENUM ('active', 'inactive', 'locked');
+CREATE TYPE permission_type AS ENUM (
+    'account_admin', 'medical', 'medical_read', 'trimming',
+    'billing', 'reception', 'hospitalization', 'master_admin',
+    'shift_admin', 'inventory'
+);
 
 -- ペット関連
-CREATE TYPE pet_species AS ENUM ('犬', '猫', '鳥', 'その他');
 CREATE TYPE pet_status AS ENUM ('生存', '死亡');
 CREATE TYPE pet_gender AS ENUM ('雄', '雌', '不明');
 CREATE TYPE acquisition_type AS ENUM ('購入', '譲渡', '保護', 'その他');
 CREATE TYPE danger_level AS ENUM ('低', '中', '高');
 CREATE TYPE membership_type AS ENUM ('非会員', '会員', '退亡者', '他診/準');
+
+-- マスタ共通
+CREATE TYPE master_status AS ENUM ('active', 'inactive');
+CREATE TYPE staff_role AS ENUM ('veterinarian', 'nurse', 'trimmer', 'reception', 'manager');
+CREATE TYPE inventory_category AS ENUM ('medicine', 'consumable', 'food', 'other');
+CREATE TYPE inventory_status AS ENUM ('sufficient', 'low', 'out_of_stock');
+CREATE TYPE dosage_form AS ENUM ('tablet', 'liquid', 'injection', 'topical', 'powder');
+CREATE TYPE medicine_unit AS ENUM ('per_tablet', 'per_ml', 'per_dose', 'per_gram');
+CREATE TYPE cage_type AS ENUM ('icu', 'dog', 'cat', 'general');
+CREATE TYPE cage_size AS ENUM ('small', 'medium', 'large');
+CREATE TYPE body_size AS ENUM ('small', 'medium', 'large');
+CREATE TYPE billing_unit AS ENUM ('per_day', 'per_night');
+CREATE TYPE target_size AS ENUM ('small', 'medium', 'large', 'cat');
+CREATE TYPE anesthesia_type AS ENUM ('none', 'local', 'general');
+CREATE TYPE vaccine_species AS ENUM ('dog', 'cat', 'both');
 
 -- 電子カルテ関連
 CREATE TYPE medical_record_status AS ENUM ('作成中', '確定済');
@@ -27,8 +52,21 @@ CREATE TYPE treatment_status AS ENUM ('未完了', '完了', '-');
 CREATE TYPE examination_status AS ENUM ('依頼中', '検査中', '完了');
 CREATE TYPE examination_result_status AS ENUM ('normal', 'high', 'low');
 CREATE TYPE next_schedule_type AS ENUM ('3weeks', '4weeks', '1year', 'other');
+CREATE TYPE appetite_level AS ENUM ('normal', 'increased', 'decreased', 'none');
+CREATE TYPE water_intake_level AS ENUM ('normal', 'increased', 'decreased', 'none');
+CREATE TYPE medical_image_type AS ENUM ('xray', 'echo', 'photo', 'endoscope', 'ct', 'mri', 'microscope', 'other');
+CREATE TYPE estimate_status AS ENUM ('draft', 'sent', 'approved', 'rejected');
+CREATE TYPE billing_review_status AS ENUM ('pending', 'confirmed', 'returned');
+CREATE TYPE item_category AS ENUM ('examination', 'test', 'procedure', 'surgery', 'medicine', 'food', 'goods', 'other');
+CREATE TYPE item_source AS ENUM ('medical_record', 'manual', 'hospitalization');
 
--- 入院関連
+-- 予約・会計・入院関連
+CREATE TYPE visit_type AS ENUM ('first', 'revisit');
+CREATE TYPE reservation_status AS ENUM (
+    'confirmed', 'pending', 'cancelled', 'checked_in',
+    'in_consultation', 'accounting', 'completed'
+);
+CREATE TYPE billing_status AS ENUM ('waiting', 'completed', 'cancelled', 'pending');
 CREATE TYPE hospitalization_type AS ENUM ('入院', 'ホテル');
 CREATE TYPE hospitalization_status AS ENUM ('入院中', '退院済', '予約');
 CREATE TYPE care_plan_type AS ENUM ('food', 'medicine', 'treatment', 'instruction', 'item');
@@ -36,1047 +74,1343 @@ CREATE TYPE care_plan_status AS ENUM ('active', 'completed', 'discontinued');
 CREATE TYPE care_log_type AS ENUM ('food', 'excretion', 'medicine', 'treatment', 'other');
 CREATE TYPE care_log_status AS ENUM ('completed', 'partial', 'skipped');
 CREATE TYPE plan_timing AS ENUM ('morning', 'noon', 'night');
-
--- 予約・トリミング関連
-CREATE TYPE reservation_status AS ENUM (
-    'confirmed', 'pending', 'cancelled', 'checked_in',
-    'in_consultation', 'accounting', 'completed'
-);
-CREATE TYPE visit_type AS ENUM ('first', 'revisit');
-CREATE TYPE trimming_status AS ENUM ('完了', '予約', '進行中');
 CREATE TYPE body_weight_unit AS ENUM ('Kg', 'g');
 
--- 会計関連
-CREATE TYPE accounting_status AS ENUM ('waiting', 'completed', 'cancelled', 'pending');
+-- トリミング・シフト関連
+CREATE TYPE trimming_status AS ENUM ('完了', '予約', '進行中');
 CREATE TYPE payment_method AS ENUM ('cash', 'credit_card', 'electronic_money');
-CREATE TYPE item_category AS ENUM (
-    'examination', 'test', 'procedure', 'surgery',
-    'medicine', 'food', 'goods', 'other'
-);
-CREATE TYPE item_source AS ENUM ('medical_record', 'manual', 'hospitalization');
-
--- マスタ共通
-CREATE TYPE master_status AS ENUM ('active', 'inactive');
-
--- マスタ固有
-CREATE TYPE vaccine_species AS ENUM ('dog', 'cat', 'both');
-CREATE TYPE dosage_form AS ENUM ('tablet', 'liquid', 'injection', 'topical', 'powder');
-CREATE TYPE medicine_unit AS ENUM ('per_tablet', 'per_ml', 'per_dose', 'per_gram');
-CREATE TYPE staff_role AS ENUM ('veterinarian', 'nurse', 'trimmer', 'reception', 'manager');
-CREATE TYPE cage_type AS ENUM ('icu', 'dog', 'cat', 'general');
-CREATE TYPE cage_size AS ENUM ('small', 'medium', 'large');
-CREATE TYPE coverage_rate AS ENUM ('50', '70', '80', '100');
-CREATE TYPE target_size AS ENUM ('small', 'medium', 'large', 'cat');
-CREATE TYPE combinable AS ENUM ('yes', 'no');
-CREATE TYPE body_size AS ENUM ('small', 'medium', 'large');
-CREATE TYPE billing_unit AS ENUM ('per_day', 'per_night');
-CREATE TYPE anesthesia_type AS ENUM ('none', 'local', 'general');
-
--- 在庫関連
-CREATE TYPE inventory_category AS ENUM ('medicine', 'consumable', 'food', 'other');
-CREATE TYPE inventory_status AS ENUM ('sufficient', 'low', 'out_of_stock');
-
--- シフト関連
 CREATE TYPE shift_type AS ENUM ('full', 'morning', 'afternoon', 'off', 'paid_leave');
 
--- 認証関連
-CREATE TYPE user_type AS ENUM ('system_admin', 'clinic_admin', 'staff');
-CREATE TYPE job_title AS ENUM ('veterinarian', 'nurse', 'trimmer', 'reception', 'general_staff');
-CREATE TYPE permission_type AS ENUM (
-    'account_admin', 'medical', 'medical_read', 'trimming', 'billing',
-    'reception', 'hospitalization', 'master_admin', 'shift_admin', 'inventory'
-);
-CREATE TYPE account_status AS ENUM ('active', 'inactive', 'locked');
-
 -- -----------------------------------------------------------------------------
--- 3. テーブル作成
+-- 3. テーブル定義（依存関係順）
 -- -----------------------------------------------------------------------------
 
--- ============================================================
--- 3-1. 独立テーブル（FK参照なし）
--- ============================================================
+-- ==========================================================================
+-- レイヤー1: 依存なし
+-- ==========================================================================
 
--- 在庫アイテム
-CREATE TABLE IF NOT EXISTS inventory_items (
-    id                UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name              TEXT        NOT NULL,
-    category          inventory_category NOT NULL,
-    quantity          INTEGER     DEFAULT 0,
-    unit              TEXT        NOT NULL DEFAULT '',
-    min_stock_level   INTEGER     DEFAULT 0,
-    location          TEXT        DEFAULT '',
-    expiry_date       DATE,
-    supplier          TEXT        DEFAULT '',
-    last_restocked    DATE,
-    status            inventory_status DEFAULT 'sufficient',
-    created_at        TIMESTAMPTZ DEFAULT now(),
-    updated_at        TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 1. company（シングルトン: 本部情報）
+-- ------------------------------------
+CREATE TABLE company (
+    id                  uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    name                text        NOT NULL,
+    branch_name         text        NOT NULL DEFAULT '',
+    postal_code         text        NOT NULL DEFAULT '',
+    address             text        NOT NULL DEFAULT '',
+    phone_number        text        NOT NULL DEFAULT '',
+    fax_number          text        NOT NULL DEFAULT '',
+    registration_number text        NOT NULL DEFAULT '',
+    director_name       text        NOT NULL DEFAULT '',
+    email               text        NOT NULL DEFAULT '',
+    website             text        NOT NULL DEFAULT '',
+    logo_url            text        NOT NULL DEFAULT '',
+    created_at          timestamptz NOT NULL DEFAULT now(),
+    updated_at          timestamptz NOT NULL DEFAULT now()
 );
 
--- クリニック基本情報（シングルトン）
-CREATE TABLE IF NOT EXISTS clinic_info (
-    id                  UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name                TEXT    NOT NULL,
-    branch_name         TEXT    DEFAULT '',
-    postal_code         TEXT    DEFAULT '',
-    address             TEXT    DEFAULT '',
-    phone_number        TEXT    DEFAULT '',
-    fax_number          TEXT    DEFAULT '',
-    registration_number TEXT    DEFAULT '',
-    director_name       TEXT    DEFAULT '',
-    email               TEXT    DEFAULT '',
-    website             TEXT    DEFAULT '',
-    logo_url            TEXT    DEFAULT '',
-    created_at          TIMESTAMPTZ DEFAULT now(),
-    updated_at          TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 2. clinics（クリニック情報）
+-- ------------------------------------
+CREATE TABLE clinics (
+    id                  uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    name                text        NOT NULL,
+    branch_name         text        NOT NULL DEFAULT '',
+    postal_code         text        NOT NULL DEFAULT '',
+    address             text        NOT NULL DEFAULT '',
+    phone_number        text        NOT NULL DEFAULT '',
+    fax_number          text        NOT NULL DEFAULT '',
+    registration_number text        NOT NULL DEFAULT '',
+    director_name       text        NOT NULL DEFAULT '',
+    email               text        NOT NULL DEFAULT '',
+    website             text        NOT NULL DEFAULT '',
+    logo_url            text        NOT NULL DEFAULT '',
+    is_active           boolean              DEFAULT true,
+    created_at          timestamptz NOT NULL DEFAULT now(),
+    updated_at          timestamptz NOT NULL DEFAULT now()
 );
 
--- クリニック一覧
-CREATE TABLE IF NOT EXISTS clinics (
-    id                  UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name                TEXT    NOT NULL,
-    branch_name         TEXT    DEFAULT '',
-    postal_code         TEXT    DEFAULT '',
-    address             TEXT    DEFAULT '',
-    phone_number        TEXT    DEFAULT '',
-    fax_number          TEXT    DEFAULT '',
-    registration_number TEXT    DEFAULT '',
-    director_name       TEXT    DEFAULT '',
-    email               TEXT    DEFAULT '',
-    website             TEXT    DEFAULT '',
-    logo_url            TEXT    DEFAULT '',
-    is_active           BOOLEAN DEFAULT true,
-    created_at          TIMESTAMPTZ DEFAULT now(),
-    updated_at          TIMESTAMPTZ DEFAULT now()
+-- ==========================================================================
+-- レイヤー2: clinics依存
+-- ==========================================================================
+
+-- ------------------------------------
+-- 3. animal_species（ペット種類マスタ: システム共通）
+-- ------------------------------------
+CREATE TABLE animal_species (
+    id         uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    code       text          NOT NULL DEFAULT '',
+    name       text          NOT NULL,
+    status     master_status          DEFAULT 'active',
+    sort_order integer                DEFAULT 0,
+    created_at timestamptz   NOT NULL DEFAULT now(),
+    updated_at timestamptz   NOT NULL DEFAULT now()
 );
 
--- オーナー（飼い主）
-CREATE TABLE IF NOT EXISTS owners (
-    id               UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    owner_name       TEXT    NOT NULL,
-    owner_name_kana  TEXT    DEFAULT '',
-    company          TEXT    DEFAULT '',
-    postal_code      TEXT    DEFAULT '',
-    address1         TEXT    DEFAULT '',
-    address2         TEXT    DEFAULT '',
-    home_postal_code TEXT    DEFAULT '',
-    home_address1    TEXT    DEFAULT '',
-    home_address2    TEXT    DEFAULT '',
-    phone            TEXT    DEFAULT '',
-    company_phone    TEXT    DEFAULT '',
-    email            TEXT    DEFAULT '',
-    remarks          TEXT    DEFAULT '',
-    is_dangerous     BOOLEAN DEFAULT false,
-    discount_rate    NUMERIC(5,2) DEFAULT 0,
-    membership_type  membership_type DEFAULT '非会員',
-    created_at       TIMESTAMPTZ DEFAULT now(),
-    updated_at       TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 4. job_titles（職種マスタ）
+-- ------------------------------------
+CREATE TABLE job_titles (
+    id         uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id  uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name       text          NOT NULL DEFAULT '',
+    code       text          NOT NULL DEFAULT '',
+    sort_order integer       NOT NULL DEFAULT 0,
+    status     master_status NOT NULL DEFAULT 'active',
+    created_at timestamptz   NOT NULL DEFAULT now(),
+    updated_at timestamptz   NOT NULL DEFAULT now()
 );
 
--- ============================================================
--- 3-2. マスタテーブル（FKなし）
--- ============================================================
-
--- 検査種別マスタ
-CREATE TABLE IF NOT EXISTS examination_types (
-    id          UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code        TEXT    DEFAULT '',
-    name        TEXT    NOT NULL,
-    price       NUMERIC(10,2),
-    status      master_status DEFAULT 'active',
-    description TEXT    DEFAULT '',
-    sort_order  INTEGER DEFAULT 0,
-    created_at  TIMESTAMPTZ DEFAULT now(),
-    updated_at  TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 5. staffs（スタッフマスタ）
+-- ------------------------------------
+CREATE TABLE staffs (
+    id             uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id      uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code           text          NOT NULL DEFAULT '',
+    name           text          NOT NULL,
+    status         master_status          DEFAULT 'active',
+    staff_role     staff_role    NOT NULL,
+    license_number text          NOT NULL DEFAULT '',
+    job_title_id   uuid                   REFERENCES job_titles(id) ON DELETE SET NULL,
+    sort_order     integer                DEFAULT 0,
+    created_at     timestamptz   NOT NULL DEFAULT now(),
+    updated_at     timestamptz   NOT NULL DEFAULT now(),
+    deleted_at     timestamptz
 );
 
--- ワクチンマスタ
-CREATE TABLE IF NOT EXISTS vaccines (
-    id          UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code        TEXT    DEFAULT '',
-    name        TEXT    NOT NULL,
-    price       NUMERIC(10,2),
-    status      master_status DEFAULT 'active',
-    description TEXT    DEFAULT '',
+-- ------------------------------------
+-- 6. user_accounts（ユーザーアカウント）
+-- ------------------------------------
+CREATE TABLE user_accounts (
+    id                uuid           NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    email             text           NOT NULL UNIQUE,
+    display_name      text           NOT NULL,
+    display_name_kana text           NOT NULL DEFAULT '',
+    user_type         user_type      NOT NULL DEFAULT 'staff',
+    job_title_id      uuid                    REFERENCES job_titles(id) ON DELETE SET NULL,
+    status            account_status          DEFAULT 'active',
+    avatar_url        text           NOT NULL DEFAULT '',
+    staff_id          uuid                    REFERENCES staffs(id) ON DELETE SET NULL,
+    created_at        timestamptz    NOT NULL DEFAULT now(),
+    updated_at        timestamptz    NOT NULL DEFAULT now(),
+    deleted_at        timestamptz
+);
+
+-- ------------------------------------
+-- 7. owners（飼主情報）
+-- ------------------------------------
+CREATE TABLE owners (
+    id               uuid            NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id        uuid            NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_name       text            NOT NULL,
+    owner_name_kana  text            NOT NULL DEFAULT '',
+    birth_date       date,
+    company          text            NOT NULL DEFAULT '',
+    postal_code      text            NOT NULL DEFAULT '',
+    address1         text            NOT NULL DEFAULT '',
+    address2         text            NOT NULL DEFAULT '',
+    home_postal_code text            NOT NULL DEFAULT '',
+    home_address1    text            NOT NULL DEFAULT '',
+    home_address2    text            NOT NULL DEFAULT '',
+    phone            text            NOT NULL DEFAULT '',
+    company_phone    text            NOT NULL DEFAULT '',
+    email            text            NOT NULL DEFAULT '',
+    remarks          text            NOT NULL DEFAULT '',
+    is_dangerous     boolean                  DEFAULT false,
+    discount_rate    numeric                  DEFAULT 0,
+    membership_type  membership_type          DEFAULT '非会員',
+    created_at       timestamptz     NOT NULL DEFAULT now(),
+    updated_at       timestamptz     NOT NULL DEFAULT now(),
+    deleted_at       timestamptz
+);
+
+-- ------------------------------------
+-- 8. inventory_items（在庫管理）
+-- ------------------------------------
+CREATE TABLE inventory_items (
+    id              uuid               NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id       uuid               NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name            text               NOT NULL,
+    category        inventory_category NOT NULL,
+    quantity        integer                     DEFAULT 0,
+    unit            text               NOT NULL DEFAULT '',
+    min_stock_level integer                     DEFAULT 0,
+    location        text               NOT NULL DEFAULT '',
+    expiry_date     date,
+    supplier        text               NOT NULL DEFAULT '',
+    last_restocked  date,
+    status          inventory_status            DEFAULT 'sufficient',
+    created_at      timestamptz        NOT NULL DEFAULT now(),
+    updated_at      timestamptz        NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 9. exam_types（検査種別マスタ）
+-- ------------------------------------
+CREATE TABLE exam_types (
+    id          uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id   uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code        text          NOT NULL DEFAULT '',
+    name        text          NOT NULL,
+    price       numeric,
+    status      master_status          DEFAULT 'active',
+    description text          NOT NULL DEFAULT '',
+    sort_order  integer                DEFAULT 0,
+    created_at  timestamptz   NOT NULL DEFAULT now(),
+    updated_at  timestamptz   NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 10. exam_type_items（検査項目定義）
+-- ------------------------------------
+CREATE TABLE exam_type_items (
+    id               uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    exam_type_id     uuid        NOT NULL REFERENCES exam_types(id) ON DELETE CASCADE,
+    name             text        NOT NULL,
+    inspection_value text        NOT NULL DEFAULT '',
+    normal_value     text        NOT NULL DEFAULT '',
+    sort_order       integer              DEFAULT 0,
+    created_at       timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 11. vaccines（ワクチンマスタ）
+-- ------------------------------------
+CREATE TABLE vaccines (
+    id          uuid            NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id   uuid            NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code        text            NOT NULL DEFAULT '',
+    name        text            NOT NULL,
+    price       numeric,
+    status      master_status            DEFAULT 'active',
+    description text            NOT NULL DEFAULT '',
     species     vaccine_species,
-    interval    TEXT    DEFAULT '',
-    sort_order  INTEGER DEFAULT 0,
-    created_at  TIMESTAMPTZ DEFAULT now(),
-    updated_at  TIMESTAMPTZ DEFAULT now()
+    interval    text            NOT NULL DEFAULT '',
+    sort_order  integer                  DEFAULT 0,
+    created_at  timestamptz     NOT NULL DEFAULT now(),
+    updated_at  timestamptz     NOT NULL DEFAULT now()
 );
 
--- 薬剤マスタ
-CREATE TABLE IF NOT EXISTS medicines (
-    id               UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code             TEXT    DEFAULT '',
-    name             TEXT    NOT NULL,
-    price            NUMERIC(10,2),
-    status           master_status DEFAULT 'active',
-    description      TEXT    DEFAULT '',
+-- ------------------------------------
+-- 12. medicines（薬剤マスタ）
+-- ------------------------------------
+CREATE TABLE medicines (
+    id               uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id        uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code             text          NOT NULL DEFAULT '',
+    name             text          NOT NULL,
+    price            numeric,
+    status           master_status          DEFAULT 'active',
+    description      text          NOT NULL DEFAULT '',
     dosage_form      dosage_form,
     medicine_unit    medicine_unit,
-    inventory_id     UUID    REFERENCES inventory_items(id) ON DELETE SET NULL,
-    default_quantity INTEGER DEFAULT 1,
-    sort_order       INTEGER DEFAULT 0,
-    created_at       TIMESTAMPTZ DEFAULT now(),
-    updated_at       TIMESTAMPTZ DEFAULT now()
+    inventory_id     uuid                   REFERENCES inventory_items(id) ON DELETE SET NULL,
+    default_quantity integer                DEFAULT 1,
+    sort_order       integer                DEFAULT 0,
+    created_at       timestamptz   NOT NULL DEFAULT now(),
+    updated_at       timestamptz   NOT NULL DEFAULT now()
 );
 
--- スタッフマスタ
-CREATE TABLE IF NOT EXISTS staffs (
-    id             UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code           TEXT    DEFAULT '',
-    name           TEXT    NOT NULL,
-    status         master_status DEFAULT 'active',
-    staff_role     staff_role NOT NULL,
-    license_number TEXT    DEFAULT '',
-    sort_order     INTEGER DEFAULT 0,
-    created_at     TIMESTAMPTZ DEFAULT now(),
-    updated_at     TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 13. insurances（保険マスタ）
+-- ------------------------------------
+CREATE TABLE insurances (
+    id            uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id     uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code          text          NOT NULL DEFAULT '',
+    name          text          NOT NULL,
+    status        master_status          DEFAULT 'active',
+    description   text          NOT NULL DEFAULT '',
+    coverage_rate integer       NOT NULL CHECK (coverage_rate >= 0 AND coverage_rate <= 100),
+    contact_phone text          NOT NULL DEFAULT '',
+    sort_order    integer                DEFAULT 0,
+    created_at    timestamptz   NOT NULL DEFAULT now(),
+    updated_at    timestamptz   NOT NULL DEFAULT now()
 );
 
--- 保険マスタ
-CREATE TABLE IF NOT EXISTS insurances (
-    id            UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code          TEXT    DEFAULT '',
-    name          TEXT    NOT NULL,
-    status        master_status DEFAULT 'active',
-    description   TEXT    DEFAULT '',
-    coverage_rate coverage_rate,
-    contact_phone TEXT    DEFAULT '',
-    sort_order    INTEGER DEFAULT 0,
-    created_at    TIMESTAMPTZ DEFAULT now(),
-    updated_at    TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 14. cages（ケージマスタ）
+-- ------------------------------------
+CREATE TABLE cages (
+    id          uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id   uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code        text          NOT NULL DEFAULT '',
+    name        text          NOT NULL,
+    price       numeric,
+    status      master_status          DEFAULT 'active',
+    description text          NOT NULL DEFAULT '',
+    cage_type   cage_type     NOT NULL,
+    cage_size   cage_size     NOT NULL,
+    sort_order  integer                DEFAULT 0,
+    created_at  timestamptz   NOT NULL DEFAULT now(),
+    updated_at  timestamptz   NOT NULL DEFAULT now()
 );
 
--- ケージマスタ
-CREATE TABLE IF NOT EXISTS cages (
-    id          UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code        TEXT    DEFAULT '',
-    name        TEXT    NOT NULL,
-    price       NUMERIC(10,2),
-    status      master_status DEFAULT 'active',
-    description TEXT    DEFAULT '',
-    cage_type   cage_type NOT NULL,
-    cage_size   cage_size NOT NULL,
-    sort_order  INTEGER DEFAULT 0,
-    created_at  TIMESTAMPTZ DEFAULT now(),
-    updated_at  TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 15. service_types（サービス種別マスタ）
+-- ------------------------------------
+CREATE TABLE service_types (
+    id          uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id   uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code        text          NOT NULL DEFAULT '',
+    name        text          NOT NULL,
+    status      master_status          DEFAULT 'active',
+    description text          NOT NULL DEFAULT '',
+    color       text          NOT NULL DEFAULT '#3B82F6',
+    sort_order  integer                DEFAULT 0,
+    created_at  timestamptz   NOT NULL DEFAULT now(),
+    updated_at  timestamptz   NOT NULL DEFAULT now()
 );
 
--- サービス種別マスタ
-CREATE TABLE IF NOT EXISTS service_types (
-    id          UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code        TEXT    DEFAULT '',
-    name        TEXT    NOT NULL,
-    status      master_status DEFAULT 'active',
-    description TEXT    DEFAULT '',
-    color       TEXT    DEFAULT '#3B82F6',
-    sort_order  INTEGER DEFAULT 0,
-    created_at  TIMESTAMPTZ DEFAULT now(),
-    updated_at  TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 16. consultations（診察項目マスタ）
+-- ------------------------------------
+CREATE TABLE consultations (
+    id             uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id      uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code           text          NOT NULL DEFAULT '',
+    name           text          NOT NULL,
+    price          numeric,
+    status         master_status          DEFAULT 'active',
+    description    text          NOT NULL DEFAULT '',
+    time_condition text          NOT NULL DEFAULT '',
+    duration       integer,
+    sort_order     integer                DEFAULT 0,
+    created_at     timestamptz   NOT NULL DEFAULT now(),
+    updated_at     timestamptz   NOT NULL DEFAULT now()
 );
 
--- 診察項目マスタ
-CREATE TABLE IF NOT EXISTS consultations (
-    id             UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code           TEXT    DEFAULT '',
-    name           TEXT    NOT NULL,
-    price          NUMERIC(10,2),
-    status         master_status DEFAULT 'active',
-    description    TEXT    DEFAULT '',
-    time_condition TEXT    DEFAULT '',
-    duration       TEXT    DEFAULT '',
-    sort_order     INTEGER DEFAULT 0,
-    created_at     TIMESTAMPTZ DEFAULT now(),
-    updated_at     TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 17. procedures（処置項目マスタ）
+-- ------------------------------------
+CREATE TABLE procedures (
+    id          uuid            NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id   uuid            NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code        text            NOT NULL DEFAULT '',
+    name        text            NOT NULL,
+    price       numeric,
+    status      master_status            DEFAULT 'active',
+    description text            NOT NULL DEFAULT '',
+    duration    integer,
+    anesthesia  anesthesia_type          DEFAULT 'none',
+    sort_order  integer                  DEFAULT 0,
+    created_at  timestamptz     NOT NULL DEFAULT now(),
+    updated_at  timestamptz     NOT NULL DEFAULT now()
 );
 
--- 処置項目マスタ
-CREATE TABLE IF NOT EXISTS procedures (
-    id          UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code        TEXT    DEFAULT '',
-    name        TEXT    NOT NULL,
-    price       NUMERIC(10,2),
-    status      master_status DEFAULT 'active',
-    description TEXT    DEFAULT '',
-    duration    TEXT    DEFAULT '',
-    anesthesia  anesthesia_type DEFAULT 'none',
-    sort_order  INTEGER DEFAULT 0,
-    created_at  TIMESTAMPTZ DEFAULT now(),
-    updated_at  TIMESTAMPTZ DEFAULT now()
-);
-
--- 入院プランマスタ
-CREATE TABLE IF NOT EXISTS hospitalization_plans (
-    id           UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code         TEXT    DEFAULT '',
-    name         TEXT    NOT NULL,
-    price        NUMERIC(10,2),
-    status       master_status DEFAULT 'active',
-    description  TEXT    DEFAULT '',
+-- ------------------------------------
+-- 18. hospitalization_plans（入院プランマスタ）
+-- ------------------------------------
+CREATE TABLE hospitalization_plans (
+    id           uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id    uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code         text          NOT NULL DEFAULT '',
+    name         text          NOT NULL,
+    price        numeric,
+    status       master_status          DEFAULT 'active',
+    description  text          NOT NULL DEFAULT '',
     body_size    body_size,
-    billing_unit billing_unit DEFAULT 'per_day',
-    sort_order   INTEGER DEFAULT 0,
-    created_at   TIMESTAMPTZ DEFAULT now(),
-    updated_at   TIMESTAMPTZ DEFAULT now()
+    billing_unit billing_unit           DEFAULT 'per_day',
+    sort_order   integer                DEFAULT 0,
+    created_at   timestamptz   NOT NULL DEFAULT now(),
+    updated_at   timestamptz   NOT NULL DEFAULT now()
 );
 
--- トリミングコースマスタ
-CREATE TABLE IF NOT EXISTS trimming_courses (
-    id          UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code        TEXT    DEFAULT '',
-    name        TEXT    NOT NULL,
-    price       NUMERIC(10,2),
-    status      master_status DEFAULT 'active',
-    description TEXT    DEFAULT '',
+-- ------------------------------------
+-- 19. trimming_courses（トリミングコースマスタ）
+-- ------------------------------------
+CREATE TABLE trimming_courses (
+    id          uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id   uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code        text          NOT NULL DEFAULT '',
+    name        text          NOT NULL,
+    price       numeric,
+    status      master_status          DEFAULT 'active',
+    description text          NOT NULL DEFAULT '',
     target_size target_size,
-    duration    TEXT    DEFAULT '',
-    sort_order  INTEGER DEFAULT 0,
-    created_at  TIMESTAMPTZ DEFAULT now(),
-    updated_at  TIMESTAMPTZ DEFAULT now()
+    duration    integer,
+    sort_order  integer                DEFAULT 0,
+    created_at  timestamptz   NOT NULL DEFAULT now(),
+    updated_at  timestamptz   NOT NULL DEFAULT now()
 );
 
--- トリミングオプションマスタ
-CREATE TABLE IF NOT EXISTS trimming_options (
-    id          UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code        TEXT    DEFAULT '',
-    name        TEXT    NOT NULL,
-    price       NUMERIC(10,2),
-    status      master_status DEFAULT 'active',
-    description TEXT    DEFAULT '',
-    duration    TEXT    DEFAULT '',
-    combinable  combinable DEFAULT 'yes',
-    sort_order  INTEGER DEFAULT 0,
-    created_at  TIMESTAMPTZ DEFAULT now(),
-    updated_at  TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 20. trimming_options（トリミングオプションマスタ）
+-- ------------------------------------
+CREATE TABLE trimming_options (
+    id          uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id   uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code        text          NOT NULL DEFAULT '',
+    name        text          NOT NULL,
+    price       numeric,
+    status      master_status          DEFAULT 'active',
+    description text          NOT NULL DEFAULT '',
+    duration    text          NOT NULL DEFAULT '',
+    combinable  boolean       NOT NULL DEFAULT true,
+    sort_order  integer                DEFAULT 0,
+    created_at  timestamptz   NOT NULL DEFAULT now(),
+    updated_at  timestamptz   NOT NULL DEFAULT now()
 );
 
--- 診断カテゴリマスタ
-CREATE TABLE IF NOT EXISTS diagnosis_categories (
-    id          UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code        TEXT    DEFAULT '',
-    name        TEXT    NOT NULL,
-    status      master_status DEFAULT 'active',
-    description TEXT    DEFAULT '',
-    sort_order  INTEGER DEFAULT 0,
-    created_at  TIMESTAMPTZ DEFAULT now(),
-    updated_at  TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 21. diagnosis_categories（診断カテゴリマスタ）
+-- ------------------------------------
+CREATE TABLE diagnosis_categories (
+    id          uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id   uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code        text          NOT NULL DEFAULT '',
+    name        text          NOT NULL,
+    status      master_status          DEFAULT 'active',
+    description text          NOT NULL DEFAULT '',
+    sort_order  integer                DEFAULT 0,
+    created_at  timestamptz   NOT NULL DEFAULT now(),
+    updated_at  timestamptz   NOT NULL DEFAULT now()
 );
 
--- 健診種別マスタ
-CREATE TABLE IF NOT EXISTS checkup_types (
-    id          UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code        TEXT    DEFAULT '',
-    name        TEXT    NOT NULL,
-    price       NUMERIC(10,2),
-    status      master_status DEFAULT 'active',
-    description TEXT    DEFAULT '',
-    interval    TEXT    DEFAULT '',
-    target_age  TEXT    DEFAULT '',
-    sort_order  INTEGER DEFAULT 0,
-    created_at  TIMESTAMPTZ DEFAULT now(),
-    updated_at  TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 22. diagnosis_names（診断病名マスタ）
+-- ------------------------------------
+CREATE TABLE diagnosis_names (
+    id                    uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id             uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code                  text          NOT NULL DEFAULT '',
+    name                  text          NOT NULL,
+    status                master_status          DEFAULT 'active',
+    description           text          NOT NULL DEFAULT '',
+    diagnosis_category_id uuid          NOT NULL REFERENCES diagnosis_categories(id) ON DELETE CASCADE,
+    sort_order            integer                DEFAULT 0,
+    created_at            timestamptz   NOT NULL DEFAULT now(),
+    updated_at            timestamptz   NOT NULL DEFAULT now()
 );
 
--- ============================================================
--- 3-3. diagnosis_categoriesに依存するテーブル
--- ============================================================
-
--- 診断名マスタ
-CREATE TABLE IF NOT EXISTS diagnosis_names (
-    id                    UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code                  TEXT    DEFAULT '',
-    name                  TEXT    NOT NULL,
-    status                master_status DEFAULT 'active',
-    description           TEXT    DEFAULT '',
-    diagnosis_category_id UUID    NOT NULL REFERENCES diagnosis_categories(id) ON DELETE CASCADE,
-    sort_order            INTEGER DEFAULT 0,
-    created_at            TIMESTAMPTZ DEFAULT now(),
-    updated_at            TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 23. checkup_types（健診種別マスタ）
+-- ------------------------------------
+CREATE TABLE checkup_types (
+    id          uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id   uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code        text          NOT NULL DEFAULT '',
+    name        text          NOT NULL,
+    price       numeric,
+    status      master_status          DEFAULT 'active',
+    description text          NOT NULL DEFAULT '',
+    interval    text          NOT NULL DEFAULT '',
+    target_age  text          NOT NULL DEFAULT '',
+    sort_order  integer                DEFAULT 0,
+    created_at  timestamptz   NOT NULL DEFAULT now(),
+    updated_at  timestamptz   NOT NULL DEFAULT now()
 );
 
--- ============================================================
--- 3-4. examination_typesに依存するテーブル
--- ============================================================
-
--- 検査項目定義
-CREATE TABLE IF NOT EXISTS examination_type_items (
-    id                  UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    examination_type_id UUID    NOT NULL REFERENCES examination_types(id) ON DELETE CASCADE,
-    name                TEXT    NOT NULL,
-    inspection_value    TEXT    DEFAULT '',
-    normal_value        TEXT    DEFAULT '',
-    sort_order          INTEGER DEFAULT 0,
-    created_at          TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 24. chief_complaint_categories（主訴区分マスタ）
+-- ------------------------------------
+CREATE TABLE chief_complaint_categories (
+    id         uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id  uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code       text          NOT NULL DEFAULT '',
+    name       text          NOT NULL,
+    status     master_status          DEFAULT 'active',
+    sort_order integer                DEFAULT 0,
+    created_at timestamptz   NOT NULL DEFAULT now(),
+    updated_at timestamptz   NOT NULL DEFAULT now()
 );
 
--- ============================================================
--- 3-5. staffsに依存するテーブル
--- ============================================================
-
--- ユーザーアカウント
-CREATE TABLE IF NOT EXISTS user_accounts (
-    id                UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    email             TEXT    NOT NULL UNIQUE,
-    display_name      TEXT    NOT NULL,
-    display_name_kana TEXT    DEFAULT '',
-    user_type         user_type NOT NULL DEFAULT 'staff',
-    job_title         job_title,
-    status            account_status DEFAULT 'active',
-    avatar_url        TEXT    DEFAULT '',
-    staff_id          UUID    REFERENCES staffs(id) ON DELETE SET NULL,
-    created_at        TIMESTAMPTZ DEFAULT now(),
-    updated_at        TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 25. inquiry_templates（問診定型文マスタ）
+-- ------------------------------------
+CREATE TABLE inquiry_templates (
+    id         uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id  uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    category   text          NOT NULL DEFAULT '',
+    title      text          NOT NULL,
+    content    text          NOT NULL DEFAULT '',
+    status     master_status          DEFAULT 'active',
+    sort_order integer                DEFAULT 0,
+    created_at timestamptz   NOT NULL DEFAULT now(),
+    updated_at timestamptz   NOT NULL DEFAULT now()
 );
 
--- シフトエントリ
-CREATE TABLE IF NOT EXISTS shift_entries (
-    id         UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    staff_id   UUID    NOT NULL REFERENCES staffs(id) ON DELETE CASCADE,
-    date       DATE    NOT NULL,
-    shift_type shift_type NOT NULL,
-    start_time TEXT    DEFAULT '',
-    end_time   TEXT    DEFAULT '',
-    note       TEXT    DEFAULT '',
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now(),
-    UNIQUE (staff_id, date)
+-- ==========================================================================
+-- レイヤー3: owners/staffs/animal_species等依存
+-- ==========================================================================
+
+-- ------------------------------------
+-- 26. pets（ペット情報）
+-- ------------------------------------
+CREATE TABLE pets (
+    id                uuid            NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id         uuid            NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_id          uuid            NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,
+    pet_number        text            NOT NULL DEFAULT '',
+    name              text            NOT NULL,
+    pet_name_kana     text            NOT NULL DEFAULT '',
+    animal_species_id uuid            NOT NULL REFERENCES animal_species(id) ON DELETE RESTRICT,
+    gender            pet_gender               DEFAULT '不明',
+    status            pet_status               DEFAULT '生存',
+    birth_date        date,
+    breed             text            NOT NULL DEFAULT '',
+    color             text            NOT NULL DEFAULT '',
+    weight            numeric,
+    neutered_date     date,
+    acquisition_type  acquisition_type,
+    danger_level      danger_level             DEFAULT '低',
+    food              text            NOT NULL DEFAULT '',
+    environment       text            NOT NULL DEFAULT '',
+    phone             text            NOT NULL DEFAULT '',
+    last_visit        date,
+    insurance_id      uuid                     REFERENCES insurances(id) ON DELETE SET NULL,
+    remarks           text            NOT NULL DEFAULT '',
+    created_at        timestamptz     NOT NULL DEFAULT now(),
+    updated_at        timestamptz     NOT NULL DEFAULT now(),
+    deleted_at        timestamptz
 );
 
--- ============================================================
--- 3-6. clinicsとuser_accountsに依存するテーブル
--- ============================================================
-
--- ユーザークリニック所属
-CREATE TABLE IF NOT EXISTS user_clinic_memberships (
-    id         UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id    UUID    NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
-    clinic_id  UUID    NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
-    is_main    BOOLEAN DEFAULT false,
-    joined_at  TIMESTAMPTZ DEFAULT now(),
-    UNIQUE (user_id, clinic_id)
+-- ------------------------------------
+-- 27. user_clinic_memberships（ユーザー所属クリニック）
+-- ------------------------------------
+CREATE TABLE user_clinic_memberships (
+    id        uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id   uuid        NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
+    clinic_id uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    is_main   boolean              DEFAULT false,
+    joined_at timestamptz          DEFAULT now()
 );
 
--- ユーザー権限
-CREATE TABLE IF NOT EXISTS user_permissions (
-    id         UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id    UUID    NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
-    clinic_id  UUID    NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+-- ------------------------------------
+-- 28. user_permissions（ユーザー権限）
+-- ------------------------------------
+CREATE TABLE user_permissions (
+    id         uuid            NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id    uuid            NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
+    clinic_id  uuid            NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     permission permission_type NOT NULL,
-    granted_by UUID    REFERENCES user_accounts(id) ON DELETE SET NULL,
-    granted_at TIMESTAMPTZ DEFAULT now()
+    granted_by uuid                     REFERENCES user_accounts(id) ON DELETE SET NULL,
+    granted_at timestamptz              DEFAULT now()
 );
 
--- ============================================================
--- 3-7. ownersに依存するテーブル
--- ============================================================
+-- ==========================================================================
+-- レイヤー4: pets依存
+-- ==========================================================================
 
--- ペット
-CREATE TABLE IF NOT EXISTS pets (
-    id               UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    owner_id         UUID    NOT NULL REFERENCES owners(id) ON DELETE CASCADE,
-    pet_number       TEXT    DEFAULT '',
-    name             TEXT    NOT NULL,
-    pet_name_kana    TEXT    DEFAULT '',
-    species          pet_species NOT NULL,
-    gender           pet_gender DEFAULT '不明',
-    status           pet_status DEFAULT '生存',
-    birth_date       DATE,
-    breed            TEXT    DEFAULT '',
-    color            TEXT    DEFAULT '',
-    weight           TEXT    DEFAULT '',
-    neutered_date    DATE,
-    acquisition_type acquisition_type,
-    danger_level     danger_level DEFAULT '低',
-    food             TEXT    DEFAULT '',
-    environment      TEXT    DEFAULT '',
-    phone            TEXT    DEFAULT '',
-    last_visit       DATE,
-    insurance_id     UUID    REFERENCES insurances(id) ON DELETE SET NULL,
-    insurance_name   TEXT    DEFAULT '',
-    insurance_details TEXT   DEFAULT '',
-    remarks          TEXT    DEFAULT '',
-    created_at       TIMESTAMPTZ DEFAULT now(),
-    updated_at       TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 29. reservation_appointments（予約）
+-- ------------------------------------
+CREATE TABLE reservation_appointments (
+    id              uuid               NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id       uuid               NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    start_time      timestamptz        NOT NULL,
+    end_time        timestamptz        NOT NULL,
+    owner_id        uuid                        REFERENCES owners(id) ON DELETE SET NULL,
+    pet_id          uuid                        REFERENCES pets(id) ON DELETE SET NULL,
+    visit_type      visit_type         NOT NULL DEFAULT 'revisit',
+    service_type_id uuid               NOT NULL REFERENCES service_types(id) ON DELETE RESTRICT,
+    doctor_id       uuid                        REFERENCES staffs(id) ON DELETE SET NULL,
+    is_designated   boolean                     DEFAULT false,
+    status          reservation_status          DEFAULT 'pending',
+    notes           text               NOT NULL DEFAULT '',
+    created_at      timestamptz        NOT NULL DEFAULT now(),
+    updated_at      timestamptz        NOT NULL DEFAULT now(),
+    deleted_at      timestamptz
 );
 
--- ============================================================
--- 3-8. petsとdiagnosis_categories/diagnosis_namesとstaffsに依存するテーブル
--- ============================================================
-
--- 電子カルテ
-CREATE TABLE IF NOT EXISTS medical_records (
-    id                        UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    record_no                 TEXT    NOT NULL UNIQUE,
-    date                      DATE    NOT NULL,
-    owner_id                  UUID    REFERENCES owners(id) ON DELETE SET NULL,
-    owner_name                TEXT    NOT NULL DEFAULT '',
-    pet_id                    UUID    REFERENCES pets(id) ON DELETE SET NULL,
-    pet_name                  TEXT    NOT NULL DEFAULT '',
-    species                   pet_species NOT NULL,
-    chief_complaint           TEXT    DEFAULT '',
-    treatment_policy          TEXT    DEFAULT '',
-    physical_exam             TEXT    DEFAULT '',
-    diagnosis_details         TEXT    DEFAULT '',
-    diagnosis1_category_id    UUID    REFERENCES diagnosis_categories(id) ON DELETE SET NULL,
-    diagnosis1_name_id        UUID    REFERENCES diagnosis_names(id) ON DELETE SET NULL,
-    diagnosis2_category_id    UUID    REFERENCES diagnosis_categories(id) ON DELETE SET NULL,
-    diagnosis2_name_id        UUID    REFERENCES diagnosis_names(id) ON DELETE SET NULL,
-    doctor_id                 UUID    REFERENCES staffs(id) ON DELETE SET NULL,
-    status                    medical_record_status DEFAULT '作成中',
-    created_at                TIMESTAMPTZ DEFAULT now(),
-    updated_at                TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 30. hospitalizations（入院/ホテル管理）
+-- ------------------------------------
+CREATE TABLE hospitalizations (
+    id                   uuid                   NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id            uuid                   NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_id             uuid                   NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,
+    pet_id               uuid                   NOT NULL REFERENCES pets(id) ON DELETE RESTRICT,
+    hospitalization_type hospitalization_type   NOT NULL,
+    start_date           date                   NOT NULL,
+    end_date             date                   NOT NULL,
+    status               hospitalization_status          DEFAULT '予約',
+    cage_id              uuid                            REFERENCES cages(id) ON DELETE SET NULL,
+    doctor_id            uuid                            REFERENCES staffs(id) ON DELETE SET NULL,
+    memo                 text                   NOT NULL DEFAULT '',
+    owner_request        text                   NOT NULL DEFAULT '',
+    staff_notes          text                   NOT NULL DEFAULT '',
+    created_at           timestamptz            NOT NULL DEFAULT now(),
+    updated_at           timestamptz            NOT NULL DEFAULT now(),
+    deleted_at           timestamptz
 );
 
--- ============================================================
--- 3-9. medical_recordsとinventory_items/consultations/procedures/medicinesに依存するテーブル
--- ============================================================
+-- ------------------------------------
+-- 31. trimming_records（トリミング記録）
+-- ------------------------------------
+CREATE TABLE trimming_records (
+    id              uuid             NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id       uuid             NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    date            date             NOT NULL,
+    pet_id          uuid                      REFERENCES pets(id) ON DELETE SET NULL,
+    weight          text             NOT NULL DEFAULT '',
+    style_request   text             NOT NULL DEFAULT '',
+    staff_id        uuid             NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+    status          trimming_status           DEFAULT '予約',
+    course_id       uuid             NOT NULL REFERENCES trimming_courses(id) ON DELETE RESTRICT,
+    bw              text             NOT NULL DEFAULT '',
+    bw_unit         body_weight_unit          DEFAULT 'Kg',
+    bt              text             NOT NULL DEFAULT '',
+    used_shampoo    text             NOT NULL DEFAULT '',
+    used_ribbon     text             NOT NULL DEFAULT '',
+    remarks         text             NOT NULL DEFAULT '',
+    style_image     text             NOT NULL DEFAULT '',
+    completed_image text             NOT NULL DEFAULT '',
+    created_at      timestamptz      NOT NULL DEFAULT now(),
+    updated_at      timestamptz      NOT NULL DEFAULT now(),
+    deleted_at      timestamptz
+);
 
--- 治療項目
-CREATE TABLE IF NOT EXISTS treatment_items (
-    id                UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    medical_record_id UUID    NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
+-- ------------------------------------
+-- 32. medical_records（電子カルテ）
+-- ------------------------------------
+CREATE TABLE medical_records (
+    id                         uuid                  NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id                  uuid                  NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    record_no                  text                  NOT NULL,
+    date                       date                  NOT NULL,
+    owner_id                   uuid                           REFERENCES owners(id) ON DELETE RESTRICT,
+    pet_id                     uuid                           REFERENCES pets(id) ON DELETE RESTRICT,
+    doctor_id                  uuid                           REFERENCES staffs(id) ON DELETE SET NULL,
+    reservation_appointment_id uuid                           REFERENCES reservation_appointments(id) ON DELETE SET NULL,
+    status                     medical_record_status          DEFAULT '作成中',
+    created_at                 timestamptz           NOT NULL DEFAULT now(),
+    updated_at                 timestamptz           NOT NULL DEFAULT now(),
+    deleted_at                 timestamptz
+);
+
+-- ------------------------------------
+-- 33. vaccinations（予防接種記録）
+-- ------------------------------------
+CREATE TABLE vaccinations (
+    id                 uuid               NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    medical_record_id  uuid               NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
+    pet_id             uuid                        REFERENCES pets(id) ON DELETE SET NULL,
+    vaccine_id         uuid               NOT NULL REFERENCES vaccines(id) ON DELETE RESTRICT,
+    date               date               NOT NULL,
+    next_date          date,
+    next_schedule_type next_schedule_type,
+    doctor_id          uuid                        REFERENCES staffs(id) ON DELETE SET NULL,
+    supplemental       text               NOT NULL DEFAULT '',
+    lot1               text               NOT NULL DEFAULT '',
+    lot2               text               NOT NULL DEFAULT '',
+    lot3               text               NOT NULL DEFAULT '',
+    lot4               text               NOT NULL DEFAULT '',
+    remarks            text               NOT NULL DEFAULT '',
+    created_at         timestamptz        NOT NULL DEFAULT now(),
+    updated_at         timestamptz        NOT NULL DEFAULT now(),
+    deleted_at         timestamptz
+);
+
+-- ------------------------------------
+-- 34. checkups（定期健診記録）
+-- ------------------------------------
+CREATE TABLE checkups (
+    id                uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    medical_record_id uuid          NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
+    pet_id            uuid                   REFERENCES pets(id) ON DELETE SET NULL,
+    checkup_type_id   uuid          NOT NULL REFERENCES checkup_types(id) ON DELETE RESTRICT,
+    date              date          NOT NULL,
+    next_date         date,
+    doctor_id         uuid                   REFERENCES staffs(id) ON DELETE SET NULL,
+    result            text          NOT NULL DEFAULT '',
+    created_at        timestamptz   NOT NULL DEFAULT now(),
+    updated_at        timestamptz   NOT NULL DEFAULT now(),
+    deleted_at        timestamptz
+);
+
+-- ------------------------------------
+-- 35. exams（検査記録）
+-- ------------------------------------
+CREATE TABLE exams (
+    id                uuid               NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    medical_record_id uuid               NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
+    pet_id            uuid                        REFERENCES pets(id) ON DELETE SET NULL,
+    date              date               NOT NULL,
+    exam_type_id      uuid               NOT NULL REFERENCES exam_types(id) ON DELETE RESTRICT,
+    doctor_id         uuid                        REFERENCES staffs(id) ON DELETE SET NULL,
+    status            examination_status          DEFAULT '依頼中',
+    result_summary    text               NOT NULL DEFAULT '',
+    machine           text               NOT NULL DEFAULT '',
+    created_at        timestamptz        NOT NULL DEFAULT now(),
+    updated_at        timestamptz        NOT NULL DEFAULT now(),
+    deleted_at        timestamptz
+);
+
+-- ==========================================================================
+-- レイヤー5: medical_records/hospitalizations依存
+-- ==========================================================================
+
+-- ------------------------------------
+-- 36. inquiries（問診タブ: medical_recordsと1:1）
+-- ------------------------------------
+CREATE TABLE inquiries (
+    id                          uuid               NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    medical_record_id           uuid               NOT NULL UNIQUE REFERENCES medical_records(id) ON DELETE CASCADE,
+    chief_complaint_category_id uuid                        REFERENCES chief_complaint_categories(id) ON DELETE SET NULL,
+    chief_complaint             text               NOT NULL DEFAULT '',
+    history                     text               NOT NULL DEFAULT '',
+    current_medications         text               NOT NULL DEFAULT '',
+    allergy_info                text               NOT NULL DEFAULT '',
+    last_meal                   text               NOT NULL DEFAULT '',
+    last_defecation             text               NOT NULL DEFAULT '',
+    last_urination              text               NOT NULL DEFAULT '',
+    appetite                    appetite_level,
+    water_intake                water_intake_level,
+    owner_observations          text               NOT NULL DEFAULT '',
+    notes                       text               NOT NULL DEFAULT '',
+    staff_id                    uuid                        REFERENCES staffs(id) ON DELETE SET NULL,
+    created_at                  timestamptz        NOT NULL DEFAULT now(),
+    updated_at                  timestamptz        NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 37. clinical_plans（診察/治療タブ: medical_recordsと1:1）
+-- ------------------------------------
+CREATE TABLE clinical_plans (
+    id                    uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    medical_record_id     uuid        NOT NULL UNIQUE REFERENCES medical_records(id) ON DELETE CASCADE,
+    physical_exam         text        NOT NULL DEFAULT '',
+    diagnosis_category_id uuid                 REFERENCES diagnosis_categories(id) ON DELETE SET NULL,
+    diagnosis_name_id     uuid                 REFERENCES diagnosis_names(id) ON DELETE SET NULL,
+    diagnosis_details     text        NOT NULL DEFAULT '',
+    treatment_policy      text        NOT NULL DEFAULT '',
+    created_at            timestamptz NOT NULL DEFAULT now(),
+    updated_at            timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 38. vitals（バイタル記録: 外来）
+-- ------------------------------------
+CREATE TABLE vitals (
+    id                uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    medical_record_id uuid        NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
+    recorded_at       timestamptz NOT NULL DEFAULT now(),
+    staff_id          uuid                 REFERENCES staffs(id) ON DELETE SET NULL,
+    temperature       numeric,
+    heart_rate        integer,
+    respiration_rate  integer,
+    weight            numeric,
+    notes             text        NOT NULL DEFAULT '',
+    created_at        timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 39. treatments（治療明細）
+-- ------------------------------------
+CREATE TABLE treatments (
+    id                uuid                NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    medical_record_id uuid                NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
     item_type         treatment_item_type NOT NULL DEFAULT 'other',
-    consultation_id   UUID    REFERENCES consultations(id) ON DELETE SET NULL,
-    procedure_id      UUID    REFERENCES procedures(id) ON DELETE SET NULL,
-    medicine_id       UUID    REFERENCES medicines(id) ON DELETE SET NULL,
-    selected          BOOLEAN DEFAULT false,
-    status            treatment_status DEFAULT '未完了',
-    content           TEXT    NOT NULL DEFAULT '',
-    memo              TEXT    DEFAULT '',
-    insurance         BOOLEAN DEFAULT false,
-    unit_price        NUMERIC(10,2) DEFAULT 0,
-    quantity          INTEGER DEFAULT 1,
-    discount_rate     NUMERIC(5,2) DEFAULT 0,
-    discount_amount   NUMERIC(10,2) DEFAULT 0,
-    inventory_id      UUID    REFERENCES inventory_items(id) ON DELETE SET NULL,
-    sort_order        INTEGER DEFAULT 0,
-    created_at        TIMESTAMPTZ DEFAULT now(),
-    updated_at        TIMESTAMPTZ DEFAULT now()
+    consultation_id   uuid                         REFERENCES consultations(id) ON DELETE SET NULL,
+    procedure_id      uuid                         REFERENCES procedures(id) ON DELETE SET NULL,
+    medicine_id       uuid                         REFERENCES medicines(id) ON DELETE SET NULL,
+    selected          boolean                      DEFAULT false,
+    status            treatment_status             DEFAULT '未完了',
+    content           text                NOT NULL DEFAULT '',
+    memo              text                NOT NULL DEFAULT '',
+    insurance         boolean                      DEFAULT false,
+    unit_price        numeric                      DEFAULT 0,
+    quantity          integer                      DEFAULT 1,
+    discount_rate     numeric                      DEFAULT 0,
+    discount_amount   numeric                      DEFAULT 0,
+    inventory_id      uuid                         REFERENCES inventory_items(id) ON DELETE SET NULL,
+    sort_order        integer                      DEFAULT 0,
+    created_at        timestamptz         NOT NULL DEFAULT now(),
+    updated_at        timestamptz         NOT NULL DEFAULT now(),
+    deleted_at        timestamptz,
+    CONSTRAINT chk_treatment_item_ref CHECK (
+        (item_type = 'consultation' AND consultation_id IS NOT NULL AND procedure_id IS NULL AND medicine_id IS NULL) OR
+        (item_type = 'procedure'    AND procedure_id IS NOT NULL AND consultation_id IS NULL AND medicine_id IS NULL) OR
+        (item_type = 'medicine'     AND medicine_id IS NOT NULL AND consultation_id IS NULL AND procedure_id IS NULL) OR
+        (item_type = 'other'        AND consultation_id IS NULL AND procedure_id IS NULL AND medicine_id IS NULL)
+    )
 );
 
--- ============================================================
--- 3-10. medical_recordsとstaffsに依存するテーブル
--- ============================================================
-
--- バイタルエントリ（外来）
-CREATE TABLE IF NOT EXISTS vital_entries (
-    id                UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    medical_record_id UUID    NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
-    recorded_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-    staff_id          UUID    REFERENCES staffs(id) ON DELETE SET NULL,
-    temperature       NUMERIC(4,1),
-    heart_rate        INTEGER,
-    respiration_rate  INTEGER,
-    weight            NUMERIC(6,2),
-    notes             TEXT    DEFAULT '',
-    created_at        TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 40. treatment_plans（治療プラン: 外来・入院共用）
+-- ------------------------------------
+CREATE TABLE treatment_plans (
+    id                 uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    medical_record_id  uuid                 REFERENCES medical_records(id) ON DELETE CASCADE,
+    hospitalization_id uuid                 REFERENCES hospitalizations(id) ON DELETE CASCADE,
+    treatment_content  text        NOT NULL DEFAULT '',
+    memo               text        NOT NULL DEFAULT '',
+    insurance          boolean              DEFAULT false,
+    unit_price         numeric              DEFAULT 0,
+    quantity           integer              DEFAULT 1,
+    discount_rate      numeric              DEFAULT 0,
+    discount_amount    numeric              DEFAULT 0,
+    subtotal           numeric              DEFAULT 0,
+    sort_order         integer              DEFAULT 0,
+    created_at         timestamptz NOT NULL DEFAULT now(),
+    updated_at         timestamptz NOT NULL DEFAULT now(),
+    deleted_at         timestamptz,
+    CONSTRAINT chk_treatment_plans_ref CHECK (
+        (medical_record_id IS NOT NULL AND hospitalization_id IS NULL) OR
+        (medical_record_id IS NULL AND hospitalization_id IS NOT NULL)
+    )
 );
 
--- 検査記録
-CREATE TABLE IF NOT EXISTS examination_records (
-    id                  UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    medical_record_id   UUID    REFERENCES medical_records(id) ON DELETE CASCADE,
-    pet_id              UUID    REFERENCES pets(id) ON DELETE CASCADE,
-    date                DATE    NOT NULL,
-    owner_name          TEXT    NOT NULL DEFAULT '',
-    pet_name            TEXT    NOT NULL DEFAULT '',
-    examination_type_id UUID    NOT NULL REFERENCES examination_types(id) ON DELETE RESTRICT,
-    doctor_id           UUID    REFERENCES staffs(id) ON DELETE SET NULL,
-    status              examination_status DEFAULT '依頼中',
-    result_summary      TEXT    DEFAULT '',
-    machine             TEXT    DEFAULT '',
-    created_at          TIMESTAMPTZ DEFAULT now(),
-    updated_at          TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 41. record_images（画像タブ）
+-- ------------------------------------
+CREATE TABLE record_images (
+    id                uuid               NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    medical_record_id uuid               NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
+    image_url         text               NOT NULL DEFAULT '',
+    thumbnail_url     text               NOT NULL DEFAULT '',
+    file_name         text               NOT NULL DEFAULT '',
+    file_size         bigint                      DEFAULT 0,
+    mime_type         text               NOT NULL DEFAULT '',
+    image_type        medical_image_type NOT NULL DEFAULT 'other',
+    description       text               NOT NULL DEFAULT '',
+    taken_at          timestamptz,
+    exam_id           uuid                        REFERENCES exams(id) ON DELETE SET NULL,
+    staff_id          uuid                        REFERENCES staffs(id) ON DELETE SET NULL,
+    sort_order        integer                     DEFAULT 0,
+    created_at        timestamptz        NOT NULL DEFAULT now(),
+    updated_at        timestamptz        NOT NULL DEFAULT now()
 );
 
--- 検査記録項目
-CREATE TABLE IF NOT EXISTS examination_record_items (
-    id                    UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    examination_record_id UUID    NOT NULL REFERENCES examination_records(id) ON DELETE CASCADE,
-    name                  TEXT    NOT NULL DEFAULT '',
-    inspection_value      TEXT    DEFAULT '',
-    normal_value          TEXT    DEFAULT '',
-    result                TEXT    DEFAULT '',
-    unit                  TEXT    DEFAULT '',
-    ref                   TEXT    DEFAULT '',
-    status                examination_result_status DEFAULT 'normal',
-    sort_order            INTEGER DEFAULT 0,
-    created_at            TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 42. billing_reviews（会計医師確認タブ: medical_recordsと1:1）
+-- ------------------------------------
+CREATE TABLE billing_reviews (
+    id                uuid                  NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    medical_record_id uuid                  NOT NULL UNIQUE REFERENCES medical_records(id) ON DELETE CASCADE,
+    status            billing_review_status          DEFAULT 'pending',
+    confirmed_by      uuid                           REFERENCES staffs(id) ON DELETE SET NULL,
+    confirmed_at      timestamptz,
+    returned_by       uuid                           REFERENCES staffs(id) ON DELETE SET NULL,
+    returned_at       timestamptz,
+    return_reason     text                  NOT NULL DEFAULT '',
+    memo              text                  NOT NULL DEFAULT '',
+    created_at        timestamptz           NOT NULL DEFAULT now(),
+    updated_at        timestamptz           NOT NULL DEFAULT now()
 );
 
--- ワクチン接種記録
-CREATE TABLE IF NOT EXISTS vaccination_records (
-    id                     UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    medical_record_id      UUID    REFERENCES medical_records(id) ON DELETE CASCADE,
-    pet_id                 UUID    REFERENCES pets(id) ON DELETE CASCADE,
-    owner_name             TEXT    NOT NULL DEFAULT '',
-    pet_name               TEXT    NOT NULL DEFAULT '',
-    vaccine_id             UUID    NOT NULL REFERENCES vaccines(id) ON DELETE RESTRICT,
-    vaccine_name_snapshot  TEXT    NOT NULL DEFAULT '',
-    date                   DATE    NOT NULL,
-    next_date              DATE,
-    next_schedule_type     next_schedule_type,
-    doctor_id              UUID    REFERENCES staffs(id) ON DELETE SET NULL,
-    supplemental           TEXT    DEFAULT '',
-    lot1                   TEXT    DEFAULT '',
-    lot2                   TEXT    DEFAULT '',
-    lot3                   TEXT    DEFAULT '',
-    lot4                   TEXT    DEFAULT '',
-    remarks                TEXT    DEFAULT '',
-    created_at             TIMESTAMPTZ DEFAULT now(),
-    updated_at             TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 43. estimates（見積書）
+-- ------------------------------------
+CREATE TABLE estimates (
+    id                uuid            NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id         uuid            NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    estimate_no       text            NOT NULL,
+    medical_record_id uuid                     REFERENCES medical_records(id) ON DELETE RESTRICT,
+    title             text            NOT NULL DEFAULT '',
+    owner_id          uuid                     REFERENCES owners(id) ON DELETE SET NULL,
+    status            estimate_status          DEFAULT 'draft',
+    subtotal          numeric         NOT NULL DEFAULT 0,
+    tax_total         numeric         NOT NULL DEFAULT 0,
+    total_amount      numeric         NOT NULL DEFAULT 0,
+    insurance_amount  numeric                  DEFAULT 0,
+    discount_amount   numeric                  DEFAULT 0,
+    valid_until       date,
+    comment           text            NOT NULL DEFAULT '',
+    notes             text            NOT NULL DEFAULT '',
+    created_by        uuid                     REFERENCES staffs(id) ON DELETE SET NULL,
+    created_at        timestamptz     NOT NULL DEFAULT now(),
+    updated_at        timestamptz     NOT NULL DEFAULT now(),
+    deleted_at        timestamptz
 );
 
--- 健診記録
-CREATE TABLE IF NOT EXISTS checkup_records (
-    id                UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    medical_record_id UUID    REFERENCES medical_records(id) ON DELETE CASCADE,
-    pet_id            UUID    REFERENCES pets(id) ON DELETE CASCADE,
-    owner_name        TEXT    NOT NULL DEFAULT '',
-    pet_name          TEXT    NOT NULL DEFAULT '',
-    checkup_type_id   UUID    NOT NULL REFERENCES checkup_types(id) ON DELETE RESTRICT,
-    date              DATE    NOT NULL,
-    next_date         DATE,
-    doctor_id         UUID    REFERENCES staffs(id) ON DELETE SET NULL,
-    result            TEXT    DEFAULT '',
-    created_at        TIMESTAMPTZ DEFAULT now(),
-    updated_at        TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 44. exam_items（検査結果明細）
+-- ------------------------------------
+CREATE TABLE exam_items (
+    id               uuid                       NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    exam_id          uuid                       NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+    name             text                       NOT NULL DEFAULT '',
+    inspection_value text                       NOT NULL DEFAULT '',
+    normal_value     text                       NOT NULL DEFAULT '',
+    result           text                       NOT NULL DEFAULT '',
+    unit             text                       NOT NULL DEFAULT '',
+    ref              text                       NOT NULL DEFAULT '',
+    status           examination_result_status           DEFAULT 'normal',
+    sort_order       integer                             DEFAULT 0,
+    created_at       timestamptz                NOT NULL DEFAULT now()
 );
 
--- ============================================================
--- 3-11. petsとcagesとstaffsに依存するテーブル
--- ============================================================
-
--- 入院記録
-CREATE TABLE IF NOT EXISTS hospitalizations (
-    id                   UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    owner_id             UUID    REFERENCES owners(id) ON DELETE SET NULL,
-    owner_name           TEXT    NOT NULL DEFAULT '',
-    pet_id               UUID    REFERENCES pets(id) ON DELETE SET NULL,
-    pet_name             TEXT    NOT NULL DEFAULT '',
-    species              pet_species NOT NULL,
-    hospitalization_type hospitalization_type NOT NULL,
-    start_date           DATE    NOT NULL,
-    end_date             DATE    NOT NULL,
-    status               hospitalization_status DEFAULT '予約',
-    cage_id              UUID    REFERENCES cages(id) ON DELETE SET NULL,
-    doctor_id            UUID    REFERENCES staffs(id) ON DELETE SET NULL,
-    memo                 TEXT    DEFAULT '',
-    owner_request        TEXT    DEFAULT '',
-    staff_notes          TEXT    DEFAULT '',
-    created_at           TIMESTAMPTZ DEFAULT now(),
-    updated_at           TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 45. daily_records（入院日次記録）
+-- ------------------------------------
+CREATE TABLE daily_records (
+    id                 uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    hospitalization_id uuid        NOT NULL REFERENCES hospitalizations(id) ON DELETE CASCADE,
+    date               date        NOT NULL,
+    created_at         timestamptz NOT NULL DEFAULT now(),
+    updated_at         timestamptz NOT NULL DEFAULT now()
 );
 
--- ============================================================
--- 3-12. hospitalizationsとmedicines/procedures/hospitalization_plansに依存するテーブル
--- ============================================================
-
--- ケアプラン項目
-CREATE TABLE IF NOT EXISTS care_plan_items (
-    id                    UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    hospitalization_id    UUID    NOT NULL REFERENCES hospitalizations(id) ON DELETE CASCADE,
-    type                  care_plan_type NOT NULL,
-    name                  TEXT    NOT NULL DEFAULT '',
-    description           TEXT    DEFAULT '',
-    timing                plan_timing[] DEFAULT '{}',
-    status                care_plan_status DEFAULT 'active',
-    notes                 TEXT    DEFAULT '',
-    medicine_id           UUID    REFERENCES medicines(id) ON DELETE SET NULL,
-    procedure_id          UUID    REFERENCES procedures(id) ON DELETE SET NULL,
-    hospitalization_plan_id UUID  REFERENCES hospitalization_plans(id) ON DELETE SET NULL,
-    unit_price            NUMERIC(10,2) DEFAULT 0,
-    category              TEXT    DEFAULT '',
-    sort_order            INTEGER DEFAULT 0,
-    created_at            TIMESTAMPTZ DEFAULT now(),
-    updated_at            TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 46. care_plan_items（ケアプラン項目）
+-- ------------------------------------
+CREATE TABLE care_plan_items (
+    id                      uuid             NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    hospitalization_id      uuid             NOT NULL REFERENCES hospitalizations(id) ON DELETE CASCADE,
+    type                    care_plan_type   NOT NULL,
+    name                    text             NOT NULL DEFAULT '',
+    description             text             NOT NULL DEFAULT '',
+    timing                  plan_timing[]             DEFAULT '{}',
+    status                  care_plan_status          DEFAULT 'active',
+    notes                   text             NOT NULL DEFAULT '',
+    medicine_id             uuid                      REFERENCES medicines(id) ON DELETE SET NULL,
+    procedure_id            uuid                      REFERENCES procedures(id) ON DELETE SET NULL,
+    hospitalization_plan_id uuid                      REFERENCES hospitalization_plans(id) ON DELETE SET NULL,
+    unit_price              numeric                   DEFAULT 0,
+    category                text             NOT NULL DEFAULT '',
+    sort_order              integer                   DEFAULT 0,
+    created_at              timestamptz      NOT NULL DEFAULT now(),
+    updated_at              timestamptz      NOT NULL DEFAULT now(),
+    CONSTRAINT chk_care_plan_item_ref CHECK (
+        (type = 'medicine'    AND medicine_id IS NOT NULL) OR
+        (type = 'treatment'   AND procedure_id IS NOT NULL) OR
+        (type = 'item'        AND hospitalization_plan_id IS NOT NULL) OR
+        (type IN ('food', 'instruction'))
+    )
 );
 
--- 治療プラン（入院）
-CREATE TABLE IF NOT EXISTS treatment_plans (
-    id                 UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    hospitalization_id UUID    NOT NULL REFERENCES hospitalizations(id) ON DELETE CASCADE,
-    treatment_content  TEXT    NOT NULL DEFAULT '',
-    memo               TEXT    DEFAULT '',
-    insurance          BOOLEAN DEFAULT false,
-    unit_price         NUMERIC(10,2) DEFAULT 0,
-    quantity           INTEGER DEFAULT 1,
-    discount_rate      NUMERIC(5,2) DEFAULT 0,
-    discount_amount    NUMERIC(10,2) DEFAULT 0,
-    subtotal           NUMERIC(10,2) DEFAULT 0,
-    sort_order         INTEGER DEFAULT 0,
-    created_at         TIMESTAMPTZ DEFAULT now(),
-    updated_at         TIMESTAMPTZ DEFAULT now()
+-- ==========================================================================
+-- レイヤー6: estimates/treatments等依存
+-- ==========================================================================
+
+-- ------------------------------------
+-- 47. estimate_items（見積明細）
+-- ------------------------------------
+CREATE TABLE estimate_items (
+    id                      uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    estimate_id             uuid          NOT NULL REFERENCES estimates(id) ON DELETE CASCADE,
+    name                    text          NOT NULL DEFAULT '',
+    category                item_category NOT NULL,
+    unit_price              numeric       NOT NULL DEFAULT 0,
+    quantity                integer       NOT NULL DEFAULT 1,
+    tax_rate                numeric                DEFAULT 0.10,
+    discount_rate           numeric                DEFAULT 0,
+    discount_amount         numeric                DEFAULT 0,
+    is_insurance_applicable boolean                DEFAULT false,
+    consultation_id         uuid                   REFERENCES consultations(id) ON DELETE SET NULL,
+    procedure_id            uuid                   REFERENCES procedures(id) ON DELETE SET NULL,
+    medicine_id             uuid                   REFERENCES medicines(id) ON DELETE SET NULL,
+    sort_order              integer                DEFAULT 0,
+    created_at              timestamptz   NOT NULL DEFAULT now()
 );
 
--- 日次記録
-CREATE TABLE IF NOT EXISTS daily_records (
-    id                 UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    hospitalization_id UUID    NOT NULL REFERENCES hospitalizations(id) ON DELETE CASCADE,
-    date               DATE    NOT NULL,
-    created_at         TIMESTAMPTZ DEFAULT now(),
-    updated_at         TIMESTAMPTZ DEFAULT now(),
-    UNIQUE (hospitalization_id, date)
-);
-
--- ============================================================
--- 3-13. daily_recordsとstaffsに依存するテーブル
--- ============================================================
-
--- バイタル記録（入院）
-CREATE TABLE IF NOT EXISTS vital_records (
-    id               UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    daily_record_id  UUID    NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
-    time             TEXT    NOT NULL DEFAULT '',
-    temperature      NUMERIC(4,1),
-    heart_rate       INTEGER,
-    respiration_rate INTEGER,
-    weight           NUMERIC(6,2),
-    notes            TEXT    DEFAULT '',
-    staff_id         UUID    REFERENCES staffs(id) ON DELETE SET NULL,
-    created_at       TIMESTAMPTZ DEFAULT now()
-);
-
--- ケアログ記録
-CREATE TABLE IF NOT EXISTS care_log_records (
-    id              UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    daily_record_id UUID    NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
-    time            TEXT    NOT NULL DEFAULT '',
-    type            care_log_type NOT NULL,
+-- ------------------------------------
+-- 48. care_log_records（ケアログ）
+-- ------------------------------------
+CREATE TABLE care_log_records (
+    id              uuid            NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    daily_record_id uuid            NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
+    time            time            NOT NULL,
+    type            care_log_type   NOT NULL,
     status          care_log_status NOT NULL DEFAULT 'completed',
-    value           TEXT    DEFAULT '',
-    staff_id        UUID    REFERENCES staffs(id) ON DELETE SET NULL,
-    notes           TEXT    DEFAULT '',
-    created_at      TIMESTAMPTZ DEFAULT now()
+    value           text            NOT NULL DEFAULT '',
+    staff_id        uuid                     REFERENCES staffs(id) ON DELETE SET NULL,
+    notes           text            NOT NULL DEFAULT '',
+    created_at      timestamptz     NOT NULL DEFAULT now()
 );
 
--- スタッフノート記録
-CREATE TABLE IF NOT EXISTS staff_note_records (
-    id              UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    daily_record_id UUID    NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
-    time            TEXT    NOT NULL DEFAULT '',
-    content         TEXT    NOT NULL DEFAULT '',
-    staff_id        UUID    REFERENCES staffs(id) ON DELETE SET NULL,
-    created_at      TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 49. vital_records（バイタル記録: 入院）
+-- ------------------------------------
+CREATE TABLE vital_records (
+    id               uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    daily_record_id  uuid        NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
+    time             time        NOT NULL,
+    temperature      numeric,
+    heart_rate       integer,
+    respiration_rate integer,
+    weight           numeric,
+    notes            text        NOT NULL DEFAULT '',
+    staff_id         uuid                 REFERENCES staffs(id) ON DELETE SET NULL,
+    created_at       timestamptz NOT NULL DEFAULT now()
 );
 
--- ============================================================
--- 3-14. petsとservice_typesとstaffsに依存するテーブル
--- ============================================================
-
--- 予約アポイントメント
-CREATE TABLE IF NOT EXISTS reservation_appointments (
-    id             UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    start_time     TIMESTAMPTZ NOT NULL,
-    end_time       TIMESTAMPTZ NOT NULL,
-    owner_name     TEXT    NOT NULL DEFAULT '',
-    pet_name       TEXT    NOT NULL DEFAULT '',
-    pet_id         UUID    REFERENCES pets(id) ON DELETE SET NULL,
-    visit_type     visit_type NOT NULL DEFAULT 'revisit',
-    service_type_id UUID   REFERENCES service_types(id) ON DELETE SET NULL,
-    doctor_id      UUID    NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
-    is_designated  BOOLEAN DEFAULT false,
-    status         reservation_status DEFAULT 'pending',
-    notes          TEXT    DEFAULT '',
-    created_at     TIMESTAMPTZ DEFAULT now(),
-    updated_at     TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 50. staff_note_records（スタッフノート）
+-- ------------------------------------
+CREATE TABLE staff_note_records (
+    id              uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    daily_record_id uuid        NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
+    time            text        NOT NULL DEFAULT '',
+    content         text        NOT NULL DEFAULT '',
+    staff_id        uuid                 REFERENCES staffs(id) ON DELETE SET NULL,
+    created_at      timestamptz NOT NULL DEFAULT now()
 );
 
--- ============================================================
--- 3-15. petsとtrimming_courses/staffsに依存するテーブル
--- ============================================================
-
--- トリミング記録
-CREATE TABLE IF NOT EXISTS trimming_records (
-    id             UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    date           DATE    NOT NULL,
-    pet_id         UUID    NOT NULL REFERENCES pets(id) ON DELETE CASCADE,
-    pet_number     TEXT    NOT NULL DEFAULT '',
-    pet_name       TEXT    NOT NULL DEFAULT '',
-    owner_name     TEXT    NOT NULL DEFAULT '',
-    species        pet_species NOT NULL,
-    weight         TEXT    DEFAULT '',
-    style_request  TEXT    DEFAULT '',
-    staff_id       UUID    NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
-    status         trimming_status DEFAULT '予約',
-    course_id      UUID    REFERENCES trimming_courses(id) ON DELETE SET NULL,
-    bw             TEXT    DEFAULT '',
-    bw_unit        body_weight_unit DEFAULT 'Kg',
-    bt             TEXT    DEFAULT '',
-    used_shampoo   TEXT    DEFAULT '',
-    used_ribbon    TEXT    DEFAULT '',
-    remarks        TEXT    DEFAULT '',
-    style_image    TEXT    DEFAULT '',
-    completed_image TEXT   DEFAULT '',
-    created_at     TIMESTAMPTZ DEFAULT now(),
-    updated_at     TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 51. trimming_record_options（トリミングオプション適用）
+-- ------------------------------------
+CREATE TABLE trimming_record_options (
+    id                 uuid    NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    trimming_record_id uuid    NOT NULL REFERENCES trimming_records(id) ON DELETE CASCADE,
+    option_id          uuid    NOT NULL REFERENCES trimming_options(id) ON DELETE RESTRICT,
+    sort_order         integer          DEFAULT 0
 );
 
--- ============================================================
--- 3-16. trimming_recordsとtrimming_optionsに依存するテーブル
--- ============================================================
+-- ==========================================================================
+-- レイヤー7: billings
+-- ==========================================================================
 
--- トリミング記録オプション（中間テーブル）
-CREATE TABLE IF NOT EXISTS trimming_record_options (
-    id                 UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    trimming_record_id UUID    NOT NULL REFERENCES trimming_records(id) ON DELETE CASCADE,
-    option_id          UUID    NOT NULL REFERENCES trimming_options(id) ON DELETE CASCADE,
-    sort_order         INTEGER DEFAULT 0,
-    UNIQUE (trimming_record_id, option_id)
+-- ------------------------------------
+-- 52. billings（会計）
+-- ------------------------------------
+CREATE TABLE billings (
+    id                 uuid           NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id          uuid           NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    medical_record_id  uuid                    REFERENCES medical_records(id) ON DELETE SET NULL,
+    hospitalization_id uuid                    REFERENCES hospitalizations(id) ON DELETE SET NULL,
+    owner_id           uuid                    REFERENCES owners(id) ON DELETE SET NULL,
+    pet_id             uuid                    REFERENCES pets(id) ON DELETE SET NULL,
+    subtotal           integer        NOT NULL DEFAULT 0,
+    tax_total          integer        NOT NULL DEFAULT 0,
+    total_amount       integer        NOT NULL DEFAULT 0,
+    has_insurance      boolean        NOT NULL DEFAULT false,
+    status             billing_status          DEFAULT 'waiting',
+    scheduled_date     date           NOT NULL,
+    completed_at       timestamptz,
+    memo               text           NOT NULL DEFAULT '',
+    created_at         timestamptz    NOT NULL DEFAULT now(),
+    updated_at         timestamptz    NOT NULL DEFAULT now(),
+    deleted_at         timestamptz
 );
 
--- ============================================================
--- 3-17. ownersとpetsに依存するテーブル
--- ============================================================
-
--- 会計
-CREATE TABLE IF NOT EXISTS accountings (
-    id                 UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    medical_record_id  UUID    UNIQUE REFERENCES medical_records(id) ON DELETE SET NULL,
-    hospitalization_id UUID    REFERENCES hospitalizations(id) ON DELETE SET NULL,
-    owner_id           UUID    NOT NULL REFERENCES owners(id) ON DELETE CASCADE,
-    owner_name         TEXT    NOT NULL DEFAULT '',
-    pet_id             UUID    NOT NULL REFERENCES pets(id) ON DELETE CASCADE,
-    pet_name           TEXT    NOT NULL DEFAULT '',
-    pet_species        pet_species,
-    status             accounting_status DEFAULT 'waiting',
-    scheduled_date     DATE    NOT NULL,
-    completed_at       TIMESTAMPTZ,
-    memo               TEXT    DEFAULT '',
-    created_at         TIMESTAMPTZ DEFAULT now(),
-    updated_at         TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 53. billing_items（会計明細）
+-- ------------------------------------
+CREATE TABLE billing_items (
+    id                      uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    billing_id              uuid          NOT NULL REFERENCES billings(id) ON DELETE CASCADE,
+    code                    text          NOT NULL DEFAULT '',
+    category                item_category NOT NULL,
+    name                    text          NOT NULL DEFAULT '',
+    unit_price              numeric       NOT NULL DEFAULT 0,
+    quantity                integer       NOT NULL DEFAULT 1,
+    tax_rate                numeric                DEFAULT 0.10,
+    is_insurance_applicable boolean                DEFAULT false,
+    source                  item_source            DEFAULT 'manual',
+    sort_order              integer                DEFAULT 0,
+    created_at              timestamptz   NOT NULL DEFAULT now()
 );
 
--- 会計項目
-CREATE TABLE IF NOT EXISTS accounting_items (
-    id                    UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    accounting_id         UUID    NOT NULL REFERENCES accountings(id) ON DELETE CASCADE,
-    code                  TEXT    DEFAULT '',
-    category              item_category NOT NULL,
-    name                  TEXT    NOT NULL DEFAULT '',
-    unit_price            NUMERIC(10,2) NOT NULL DEFAULT 0,
-    quantity              INTEGER NOT NULL DEFAULT 1,
-    tax_rate              NUMERIC(3,2) DEFAULT 0.10,
-    is_insurance_applicable BOOLEAN DEFAULT false,
-    source                item_source DEFAULT 'manual',
-    sort_order            INTEGER DEFAULT 0,
-    created_at            TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 54. payments（支払い: billingsと1:1）
+-- ------------------------------------
+CREATE TABLE payments (
+    id               uuid           NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    billing_id       uuid           NOT NULL UNIQUE REFERENCES billings(id) ON DELETE CASCADE,
+    subtotal         numeric        NOT NULL DEFAULT 0,
+    tax_total        numeric        NOT NULL DEFAULT 0,
+    total_amount     numeric        NOT NULL DEFAULT 0,
+    insurance_name   text           NOT NULL DEFAULT '',
+    insurance_ratio  numeric                 DEFAULT 0,
+    insurance_amount numeric                 DEFAULT 0,
+    discount_amount  numeric                 DEFAULT 0,
+    billing_amount   numeric        NOT NULL DEFAULT 0,
+    received_amount  numeric                 DEFAULT 0,
+    change_amount    numeric                 DEFAULT 0,
+    method           payment_method          DEFAULT 'cash',
+    created_at       timestamptz    NOT NULL DEFAULT now(),
+    updated_at       timestamptz    NOT NULL DEFAULT now()
 );
 
--- 支払情報
-CREATE TABLE IF NOT EXISTS payment_infos (
-    id               UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
-    accounting_id    UUID    NOT NULL UNIQUE REFERENCES accountings(id) ON DELETE CASCADE,
-    subtotal         NUMERIC(10,2) NOT NULL DEFAULT 0,
-    tax_total        NUMERIC(10,2) NOT NULL DEFAULT 0,
-    total_amount     NUMERIC(10,2) NOT NULL DEFAULT 0,
-    insurance_name   TEXT    DEFAULT '',
-    insurance_ratio  NUMERIC(3,2) DEFAULT 0,
-    insurance_amount NUMERIC(10,2) DEFAULT 0,
-    discount_amount  NUMERIC(10,2) DEFAULT 0,
-    billing_amount   NUMERIC(10,2) NOT NULL DEFAULT 0,
-    received_amount  NUMERIC(10,2) DEFAULT 0,
-    change_amount    NUMERIC(10,2) DEFAULT 0,
-    method           payment_method DEFAULT 'cash',
-    created_at       TIMESTAMPTZ DEFAULT now(),
-    updated_at       TIMESTAMPTZ DEFAULT now()
+-- ------------------------------------
+-- 55. shift_entries（シフト管理）
+-- ------------------------------------
+CREATE TABLE shift_entries (
+    id         uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id  uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    staff_id   uuid        NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+    date       date        NOT NULL,
+    shift_type shift_type  NOT NULL,
+    start_time time,
+    end_time   time,
+    note       text        NOT NULL DEFAULT '',
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- =============================================================================
+-- 4. インデックス定義
+-- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- 4. インデックス
+-- 4.1 UNIQUE制約・インデックス
 -- -----------------------------------------------------------------------------
 
--- コア
-CREATE INDEX IF NOT EXISTS idx_pets_owner_id       ON pets (owner_id);
-CREATE INDEX IF NOT EXISTS idx_pets_species        ON pets (species);
-CREATE INDEX IF NOT EXISTS idx_pets_name           ON pets (name);
-CREATE INDEX IF NOT EXISTS idx_pets_status         ON pets (status);
-CREATE INDEX IF NOT EXISTS idx_owners_membership   ON owners (membership_type);
-CREATE INDEX IF NOT EXISTS idx_owners_name         ON owners (owner_name);
+-- カルテ番号の一意性（医院スコープ）
+CREATE UNIQUE INDEX idx_medical_records_clinic_record_no ON medical_records(clinic_id, record_no);
 
--- 電子カルテ
-CREATE INDEX IF NOT EXISTS idx_medical_records_pet_id    ON medical_records (pet_id);
-CREATE INDEX IF NOT EXISTS idx_medical_records_owner_id  ON medical_records (owner_id);
-CREATE INDEX IF NOT EXISTS idx_medical_records_date      ON medical_records (date DESC);
-CREATE INDEX IF NOT EXISTS idx_medical_records_status    ON medical_records (status);
-CREATE INDEX IF NOT EXISTS idx_medical_records_doctor_id ON medical_records (doctor_id);
+-- 見積書番号の一意性（医院スコープ）
+CREATE UNIQUE INDEX idx_estimates_clinic_estimate_no ON estimates(clinic_id, estimate_no);
 
-CREATE INDEX IF NOT EXISTS idx_treatment_items_medical_record_id ON treatment_items (medical_record_id);
-CREATE INDEX IF NOT EXISTS idx_treatment_items_item_type         ON treatment_items (item_type);
-CREATE INDEX IF NOT EXISTS idx_treatment_items_medicine_id       ON treatment_items (medicine_id);
-CREATE INDEX IF NOT EXISTS idx_treatment_items_consultation_id   ON treatment_items (consultation_id);
-CREATE INDEX IF NOT EXISTS idx_treatment_items_procedure_id      ON treatment_items (procedure_id);
+-- 入院日次記録: 同一入院の同一日付は1件のみ
+CREATE UNIQUE INDEX idx_daily_records_hosp_date ON daily_records(hospitalization_id, date);
 
-CREATE INDEX IF NOT EXISTS idx_vital_entries_medical_record_id ON vital_entries (medical_record_id);
-CREATE INDEX IF NOT EXISTS idx_vital_entries_recorded_at       ON vital_entries (recorded_at);
+-- シフト: 1スタッフ1日1シフト
+CREATE UNIQUE INDEX idx_shift_entries_staff_date ON shift_entries(staff_id, date);
 
-CREATE INDEX IF NOT EXISTS idx_examination_records_medical_record_id   ON examination_records (medical_record_id);
-CREATE INDEX IF NOT EXISTS idx_examination_records_pet_id              ON examination_records (pet_id);
-CREATE INDEX IF NOT EXISTS idx_examination_records_examination_type_id ON examination_records (examination_type_id);
-CREATE INDEX IF NOT EXISTS idx_examination_records_status              ON examination_records (status);
+-- ユーザー所属: 重複所属防止
+CREATE UNIQUE INDEX idx_user_clinic_memberships_user_clinic ON user_clinic_memberships(user_id, clinic_id);
 
-CREATE INDEX IF NOT EXISTS idx_examination_record_items_record_id ON examination_record_items (examination_record_id);
+-- ユーザー所属: 主所属医院は1件のみ（部分インデックス）
+CREATE UNIQUE INDEX idx_user_clinic_memberships_main ON user_clinic_memberships(user_id) WHERE is_main = true;
 
-CREATE INDEX IF NOT EXISTS idx_vaccination_records_medical_record_id ON vaccination_records (medical_record_id);
-CREATE INDEX IF NOT EXISTS idx_vaccination_records_pet_id            ON vaccination_records (pet_id);
-CREATE INDEX IF NOT EXISTS idx_vaccination_records_vaccine_id        ON vaccination_records (vaccine_id);
+-- トリミングオプション: 重複防止
+CREATE UNIQUE INDEX idx_trimming_record_options_unique ON trimming_record_options(trimming_record_id, option_id);
 
-CREATE INDEX IF NOT EXISTS idx_checkup_records_medical_record_id ON checkup_records (medical_record_id);
-CREATE INDEX IF NOT EXISTS idx_checkup_records_pet_id            ON checkup_records (pet_id);
-CREATE INDEX IF NOT EXISTS idx_checkup_records_checkup_type_id   ON checkup_records (checkup_type_id);
-
--- 入院
-CREATE INDEX IF NOT EXISTS idx_hospitalizations_pet_id     ON hospitalizations (pet_id);
-CREATE INDEX IF NOT EXISTS idx_hospitalizations_status     ON hospitalizations (status);
-CREATE INDEX IF NOT EXISTS idx_hospitalizations_start_date ON hospitalizations (start_date DESC);
-CREATE INDEX IF NOT EXISTS idx_hospitalizations_cage_id    ON hospitalizations (cage_id);
-
-CREATE INDEX IF NOT EXISTS idx_care_plan_items_hospitalization_id ON care_plan_items (hospitalization_id);
-CREATE INDEX IF NOT EXISTS idx_care_plan_items_type               ON care_plan_items (type);
-CREATE INDEX IF NOT EXISTS idx_care_plan_items_status             ON care_plan_items (status);
-
-CREATE INDEX IF NOT EXISTS idx_daily_records_hospitalization_id ON daily_records (hospitalization_id);
-CREATE INDEX IF NOT EXISTS idx_daily_records_date               ON daily_records (date);
-
-CREATE INDEX IF NOT EXISTS idx_vital_records_daily_record_id ON vital_records (daily_record_id);
-
-CREATE INDEX IF NOT EXISTS idx_care_log_records_daily_record_id ON care_log_records (daily_record_id);
-CREATE INDEX IF NOT EXISTS idx_care_log_records_type            ON care_log_records (type);
-
-CREATE INDEX IF NOT EXISTS idx_staff_note_records_daily_record_id ON staff_note_records (daily_record_id);
-
-CREATE INDEX IF NOT EXISTS idx_treatment_plans_hospitalization_id ON treatment_plans (hospitalization_id);
-
--- 予約・トリミング
-CREATE INDEX IF NOT EXISTS idx_reservation_appointments_start_time    ON reservation_appointments (start_time);
-CREATE INDEX IF NOT EXISTS idx_reservation_appointments_status        ON reservation_appointments (status);
-CREATE INDEX IF NOT EXISTS idx_reservation_appointments_pet_id        ON reservation_appointments (pet_id);
-CREATE INDEX IF NOT EXISTS idx_reservation_appointments_doctor_id     ON reservation_appointments (doctor_id);
-CREATE INDEX IF NOT EXISTS idx_reservation_appointments_service_type  ON reservation_appointments (service_type_id);
-
-CREATE INDEX IF NOT EXISTS idx_trimming_records_pet_id   ON trimming_records (pet_id);
-CREATE INDEX IF NOT EXISTS idx_trimming_records_date     ON trimming_records (date DESC);
-CREATE INDEX IF NOT EXISTS idx_trimming_records_status   ON trimming_records (status);
-CREATE INDEX IF NOT EXISTS idx_trimming_records_staff_id ON trimming_records (staff_id);
-
--- 会計
-CREATE INDEX IF NOT EXISTS idx_accountings_owner_id       ON accountings (owner_id);
-CREATE INDEX IF NOT EXISTS idx_accountings_pet_id         ON accountings (pet_id);
-CREATE INDEX IF NOT EXISTS idx_accountings_status         ON accountings (status);
-CREATE INDEX IF NOT EXISTS idx_accountings_scheduled_date ON accountings (scheduled_date DESC);
-
-CREATE INDEX IF NOT EXISTS idx_accounting_items_accounting_id ON accounting_items (accounting_id);
-CREATE INDEX IF NOT EXISTS idx_accounting_items_category      ON accounting_items (category);
-
--- マスタ
-CREATE INDEX IF NOT EXISTS idx_examination_types_status     ON examination_types (status);
-CREATE INDEX IF NOT EXISTS idx_examination_types_sort_order ON examination_types (sort_order);
-
-CREATE INDEX IF NOT EXISTS idx_examination_type_items_type_id ON examination_type_items (examination_type_id);
-
-CREATE INDEX IF NOT EXISTS idx_vaccines_status  ON vaccines (status);
-CREATE INDEX IF NOT EXISTS idx_vaccines_species ON vaccines (species);
-
-CREATE INDEX IF NOT EXISTS idx_medicines_status      ON medicines (status);
-CREATE INDEX IF NOT EXISTS idx_medicines_dosage_form ON medicines (dosage_form);
-CREATE INDEX IF NOT EXISTS idx_medicines_inventory_id ON medicines (inventory_id);
-
-CREATE INDEX IF NOT EXISTS idx_staffs_status     ON staffs (status);
-CREATE INDEX IF NOT EXISTS idx_staffs_staff_role ON staffs (staff_role);
-
-CREATE INDEX IF NOT EXISTS idx_insurances_status ON insurances (status);
-
-CREATE INDEX IF NOT EXISTS idx_cages_status    ON cages (status);
-CREATE INDEX IF NOT EXISTS idx_cages_cage_type ON cages (cage_type);
-
-CREATE INDEX IF NOT EXISTS idx_service_types_status     ON service_types (status);
-CREATE INDEX IF NOT EXISTS idx_service_types_sort_order ON service_types (sort_order);
-
-CREATE INDEX IF NOT EXISTS idx_consultations_status     ON consultations (status);
-CREATE INDEX IF NOT EXISTS idx_consultations_sort_order ON consultations (sort_order);
-
-CREATE INDEX IF NOT EXISTS idx_procedures_status     ON procedures (status);
-CREATE INDEX IF NOT EXISTS idx_procedures_sort_order ON procedures (sort_order);
-
-CREATE INDEX IF NOT EXISTS idx_hospitalization_plans_status ON hospitalization_plans (status);
-
-CREATE INDEX IF NOT EXISTS idx_trimming_courses_status      ON trimming_courses (status);
-CREATE INDEX IF NOT EXISTS idx_trimming_courses_target_size ON trimming_courses (target_size);
-
-CREATE INDEX IF NOT EXISTS idx_trimming_options_status ON trimming_options (status);
-
-CREATE INDEX IF NOT EXISTS idx_diagnosis_categories_status     ON diagnosis_categories (status);
-CREATE INDEX IF NOT EXISTS idx_diagnosis_categories_sort_order ON diagnosis_categories (sort_order);
-
-CREATE INDEX IF NOT EXISTS idx_diagnosis_names_status              ON diagnosis_names (status);
-CREATE INDEX IF NOT EXISTS idx_diagnosis_names_category_id         ON diagnosis_names (diagnosis_category_id);
-
-CREATE INDEX IF NOT EXISTS idx_checkup_types_status ON checkup_types (status);
-
--- シフト・認証
-CREATE INDEX IF NOT EXISTS idx_shift_entries_date     ON shift_entries (date);
-CREATE INDEX IF NOT EXISTS idx_shift_entries_staff_id ON shift_entries (staff_id);
-
-CREATE INDEX IF NOT EXISTS idx_user_accounts_email    ON user_accounts (email);
-CREATE INDEX IF NOT EXISTS idx_user_accounts_type     ON user_accounts (user_type);
-CREATE INDEX IF NOT EXISTS idx_user_accounts_status   ON user_accounts (status);
-CREATE INDEX IF NOT EXISTS idx_user_accounts_staff_id ON user_accounts (staff_id);
-
-CREATE INDEX IF NOT EXISTS idx_user_clinic_memberships_clinic_id ON user_clinic_memberships (clinic_id);
-
-CREATE INDEX IF NOT EXISTS idx_user_permissions_clinic_id ON user_permissions (clinic_id);
-CREATE INDEX IF NOT EXISTS idx_user_permissions_user_id   ON user_permissions (user_id);
+-- billings: medical_record_idがある場合は1対1
+CREATE UNIQUE INDEX idx_billings_medical_record_id_unique ON billings(medical_record_id) WHERE medical_record_id IS NOT NULL;
 
 -- -----------------------------------------------------------------------------
--- 5. CHECK制約
+-- 4.2 animal_species code 部分UNIQUEインデックス（clinic_id なし）
 -- -----------------------------------------------------------------------------
-
--- treatment_items: item_typeとFK列の整合性
-ALTER TABLE treatment_items ADD CONSTRAINT chk_treatment_item_ref CHECK (
-    CASE item_type
-        WHEN 'consultation' THEN consultation_id IS NOT NULL
-        WHEN 'procedure'    THEN procedure_id IS NOT NULL
-        WHEN 'medicine'     THEN medicine_id IS NOT NULL
-        ELSE TRUE
-    END
-);
-
--- care_plan_items: typeとFK列の整合性
-ALTER TABLE care_plan_items ADD CONSTRAINT chk_care_plan_item_ref CHECK (
-    CASE type
-        WHEN 'medicine'  THEN medicine_id IS NOT NULL
-        WHEN 'treatment' THEN procedure_id IS NOT NULL
-        ELSE TRUE
-    END
-);
+CREATE UNIQUE INDEX idx_animal_species_code ON animal_species(code) WHERE code != '';
 
 -- -----------------------------------------------------------------------------
--- 6. 部分一意インデックス
+-- 4.3 マスタテーブル code 部分UNIQUEインデックス（clinic_id + code）
+-- -----------------------------------------------------------------------------
+CREATE UNIQUE INDEX idx_staffs_clinic_code ON staffs(clinic_id, code) WHERE code != '';
+CREATE UNIQUE INDEX idx_exam_types_clinic_code ON exam_types(clinic_id, code) WHERE code != '';
+CREATE UNIQUE INDEX idx_vaccines_clinic_code ON vaccines(clinic_id, code) WHERE code != '';
+CREATE UNIQUE INDEX idx_medicines_clinic_code ON medicines(clinic_id, code) WHERE code != '';
+CREATE UNIQUE INDEX idx_insurances_clinic_code ON insurances(clinic_id, code) WHERE code != '';
+CREATE UNIQUE INDEX idx_cages_clinic_code ON cages(clinic_id, code) WHERE code != '';
+CREATE UNIQUE INDEX idx_service_types_clinic_code ON service_types(clinic_id, code) WHERE code != '';
+CREATE UNIQUE INDEX idx_consultations_clinic_code ON consultations(clinic_id, code) WHERE code != '';
+CREATE UNIQUE INDEX idx_procedures_clinic_code ON procedures(clinic_id, code) WHERE code != '';
+CREATE UNIQUE INDEX idx_hospitalization_plans_clinic_code ON hospitalization_plans(clinic_id, code) WHERE code != '';
+CREATE UNIQUE INDEX idx_trimming_courses_clinic_code ON trimming_courses(clinic_id, code) WHERE code != '';
+CREATE UNIQUE INDEX idx_trimming_options_clinic_code ON trimming_options(clinic_id, code) WHERE code != '';
+CREATE UNIQUE INDEX idx_diagnosis_categories_clinic_code ON diagnosis_categories(clinic_id, code) WHERE code != '';
+CREATE UNIQUE INDEX idx_diagnosis_names_clinic_code ON diagnosis_names(clinic_id, code) WHERE code != '';
+CREATE UNIQUE INDEX idx_checkup_types_clinic_code ON checkup_types(clinic_id, code) WHERE code != '';
+CREATE UNIQUE INDEX idx_job_titles_clinic_code ON job_titles(clinic_id, code) WHERE code != '';
+
+-- -----------------------------------------------------------------------------
+-- 4.4 基本FKインデックス
 -- -----------------------------------------------------------------------------
 
--- is_main=trueは1ユーザーにつき1件のみ
-CREATE UNIQUE INDEX IF NOT EXISTS idx_user_clinic_memberships_main
-    ON user_clinic_memberships (user_id)
-    WHERE is_main = true;
+-- マスタテーブル clinic_id
+CREATE INDEX idx_staffs_clinic_id ON staffs(clinic_id);
+CREATE INDEX idx_job_titles_clinic_id ON job_titles(clinic_id);
+CREATE INDEX idx_inventory_items_clinic_id ON inventory_items(clinic_id);
+CREATE INDEX idx_exam_types_clinic_id ON exam_types(clinic_id);
+CREATE INDEX idx_vaccines_clinic_id ON vaccines(clinic_id);
+CREATE INDEX idx_medicines_clinic_id ON medicines(clinic_id);
+CREATE INDEX idx_insurances_clinic_id ON insurances(clinic_id);
+CREATE INDEX idx_cages_clinic_id ON cages(clinic_id);
+CREATE INDEX idx_service_types_clinic_id ON service_types(clinic_id);
+CREATE INDEX idx_consultations_clinic_id ON consultations(clinic_id);
+CREATE INDEX idx_procedures_clinic_id ON procedures(clinic_id);
+CREATE INDEX idx_hospitalization_plans_clinic_id ON hospitalization_plans(clinic_id);
+CREATE INDEX idx_trimming_courses_clinic_id ON trimming_courses(clinic_id);
+CREATE INDEX idx_trimming_options_clinic_id ON trimming_options(clinic_id);
+CREATE INDEX idx_diagnosis_categories_clinic_id ON diagnosis_categories(clinic_id);
+CREATE INDEX idx_diagnosis_names_clinic_id ON diagnosis_names(clinic_id);
+CREATE INDEX idx_checkup_types_clinic_id ON checkup_types(clinic_id);
+CREATE INDEX idx_chief_complaint_categories_clinic_id ON chief_complaint_categories(clinic_id);
+CREATE INDEX idx_inquiry_templates_clinic_id ON inquiry_templates(clinic_id);
+CREATE INDEX idx_inquiry_templates_clinic_category ON inquiry_templates(clinic_id, category);
+
+-- コアテーブル clinic_id
+CREATE INDEX idx_owners_clinic_id ON owners(clinic_id);
+CREATE INDEX idx_pets_clinic_id ON pets(clinic_id);
+
+-- 診療テーブル clinic_id
+CREATE INDEX idx_medical_records_clinic_id ON medical_records(clinic_id);
+CREATE INDEX idx_reservation_appointments_clinic_id ON reservation_appointments(clinic_id);
+CREATE INDEX idx_hospitalizations_clinic_id ON hospitalizations(clinic_id);
+CREATE INDEX idx_trimming_records_clinic_id ON trimming_records(clinic_id);
+CREATE INDEX idx_billings_clinic_id ON billings(clinic_id);
+CREATE INDEX idx_shift_entries_clinic_id ON shift_entries(clinic_id);
+CREATE INDEX idx_estimates_clinic_id ON estimates(clinic_id);
+
+-- 予約 FK インデックス
+CREATE INDEX idx_reservation_appointments_owner_id ON reservation_appointments(owner_id);
+CREATE INDEX idx_reservation_appointments_pet_id ON reservation_appointments(pet_id);
+CREATE INDEX idx_reservation_appointments_service_type_id ON reservation_appointments(service_type_id);
+CREATE INDEX idx_reservation_appointments_doctor_id ON reservation_appointments(doctor_id);
+
+-- medical_records 子テーブル FK インデックス
+CREATE INDEX idx_treatments_medical_record_id ON treatments(medical_record_id);
+CREATE INDEX idx_vitals_medical_record_id ON vitals(medical_record_id);
+CREATE INDEX idx_exams_medical_record_id ON exams(medical_record_id);
+CREATE INDEX idx_exams_pet_id ON exams(pet_id);
+CREATE INDEX idx_vaccinations_medical_record_id ON vaccinations(medical_record_id);
+CREATE INDEX idx_vaccinations_pet_id ON vaccinations(pet_id);
+CREATE INDEX idx_checkups_medical_record_id ON checkups(medical_record_id);
+CREATE INDEX idx_checkups_pet_id ON checkups(pet_id);
+CREATE INDEX idx_clinical_plans_medical_record_id ON clinical_plans(medical_record_id);
+CREATE INDEX idx_inquiries_medical_record_id ON inquiries(medical_record_id);
+CREATE INDEX idx_record_images_medical_record_id ON record_images(medical_record_id);
+CREATE INDEX idx_treatment_plans_medical_record_id ON treatment_plans(medical_record_id);
+CREATE INDEX idx_treatment_plans_hospitalization_id ON treatment_plans(hospitalization_id);
+
+-- hospitalization 子テーブル FK インデックス
+CREATE INDEX idx_hospitalizations_pet_id ON hospitalizations(pet_id);
+CREATE INDEX idx_hospitalizations_owner_id ON hospitalizations(owner_id);
+CREATE INDEX idx_hospitalizations_cage_id ON hospitalizations(cage_id);
+CREATE INDEX idx_care_plan_items_hospitalization_id ON care_plan_items(hospitalization_id);
+CREATE INDEX idx_daily_records_hospitalization_id ON daily_records(hospitalization_id);
+
+-- billing 子テーブル FK インデックス
+CREATE INDEX idx_billing_items_billing_id ON billing_items(billing_id);
+CREATE INDEX idx_billings_pet_id ON billings(pet_id);
+CREATE INDEX idx_billings_owner_id ON billings(owner_id);
+CREATE INDEX idx_billings_medical_record_id ON billings(medical_record_id);
+
+-- 担当医 FK インデックス（staffs）
+CREATE INDEX idx_vitals_staff_id ON vitals(staff_id);
+CREATE INDEX idx_trimming_records_staff_id ON trimming_records(staff_id);
+
+-- record_images インデックス
+CREATE INDEX idx_record_images_image_type ON record_images(image_type);
+CREATE INDEX idx_record_images_taken_at ON record_images(taken_at DESC);
+CREATE INDEX idx_record_images_exam_id ON record_images(exam_id) WHERE exam_id IS NOT NULL;
+
+-- estimates インデックス
+CREATE INDEX idx_estimates_medical_record_id ON estimates(medical_record_id);
+CREATE INDEX idx_estimates_status ON estimates(status);
+CREATE INDEX idx_estimates_owner_id ON estimates(owner_id);
+
+-- estimate_items インデックス
+CREATE INDEX idx_estimate_items_estimate_id ON estimate_items(estimate_id);
+
+-- billing_reviews インデックス
+CREATE INDEX idx_billing_reviews_status ON billing_reviews(status);
 
 -- -----------------------------------------------------------------------------
--- 7. マスタテーブル codeカラム 部分一意インデックス
---    code='' の空文字は除外（デフォルト値として複数レコードが持てる）
+-- 4.5 全文検索インデックス（pg_trgm GIN）
 -- -----------------------------------------------------------------------------
-CREATE UNIQUE INDEX IF NOT EXISTS idx_staffs_code               ON staffs               (code) WHERE code != '';
-CREATE UNIQUE INDEX IF NOT EXISTS idx_vaccines_code             ON vaccines             (code) WHERE code != '';
-CREATE UNIQUE INDEX IF NOT EXISTS idx_medicines_code            ON medicines            (code) WHERE code != '';
-CREATE UNIQUE INDEX IF NOT EXISTS idx_insurances_code           ON insurances           (code) WHERE code != '';
-CREATE UNIQUE INDEX IF NOT EXISTS idx_cages_code                ON cages                (code) WHERE code != '';
-CREATE UNIQUE INDEX IF NOT EXISTS idx_service_types_code        ON service_types        (code) WHERE code != '';
-CREATE UNIQUE INDEX IF NOT EXISTS idx_consultations_code        ON consultations        (code) WHERE code != '';
-CREATE UNIQUE INDEX IF NOT EXISTS idx_procedures_code           ON procedures           (code) WHERE code != '';
-CREATE UNIQUE INDEX IF NOT EXISTS idx_hospitalization_plans_code ON hospitalization_plans (code) WHERE code != '';
-CREATE UNIQUE INDEX IF NOT EXISTS idx_trimming_courses_code     ON trimming_courses     (code) WHERE code != '';
-CREATE UNIQUE INDEX IF NOT EXISTS idx_trimming_options_code     ON trimming_options     (code) WHERE code != '';
-CREATE UNIQUE INDEX IF NOT EXISTS idx_examination_types_code    ON examination_types    (code) WHERE code != '';
-CREATE UNIQUE INDEX IF NOT EXISTS idx_diagnosis_categories_code ON diagnosis_categories (code) WHERE code != '';
-CREATE UNIQUE INDEX IF NOT EXISTS idx_diagnosis_names_code      ON diagnosis_names      (code) WHERE code != '';
-CREATE UNIQUE INDEX IF NOT EXISTS idx_checkup_types_code        ON checkup_types        (code) WHERE code != '';
+CREATE INDEX idx_owners_name_trgm ON owners USING gin (owner_name gin_trgm_ops) WHERE deleted_at IS NULL;
+CREATE INDEX idx_owners_name_kana_trgm ON owners USING gin (owner_name_kana gin_trgm_ops) WHERE deleted_at IS NULL;
+CREATE INDEX idx_pets_name_trgm ON pets USING gin (name gin_trgm_ops) WHERE deleted_at IS NULL;
+
+-- -----------------------------------------------------------------------------
+-- 4.6 パフォーマンス最適化インデックス（論理削除考慮）
+-- -----------------------------------------------------------------------------
+
+-- ダッシュボード・カレンダー（最高頻度）
+CREATE INDEX idx_reservation_appointments_clinic_date
+  ON reservation_appointments(clinic_id, start_time)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_reservation_appointments_clinic_status
+  ON reservation_appointments(clinic_id, status)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_reservation_appointments_pet_date
+  ON reservation_appointments(pet_id, start_time)
+  WHERE deleted_at IS NULL;
+
+-- カルテ一覧・検索
+CREATE INDEX idx_medical_records_clinic_date
+  ON medical_records(clinic_id, date DESC)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_medical_records_clinic_pet
+  ON medical_records(clinic_id, pet_id)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_medical_records_clinic_owner
+  ON medical_records(clinic_id, owner_id)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_medical_records_clinic_status
+  ON medical_records(clinic_id, status)
+  WHERE deleted_at IS NULL;
+
+-- ペット一覧（飼主別）
+CREATE INDEX idx_pets_owner_id
+  ON pets(owner_id)
+  WHERE deleted_at IS NULL;
+
+-- 会計一覧
+CREATE INDEX idx_billings_clinic_date
+  ON billings(clinic_id, scheduled_date)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_billings_clinic_status
+  ON billings(clinic_id, status)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_billings_has_insurance
+  ON billings(clinic_id, has_insurance)
+  WHERE deleted_at IS NULL;
+
+-- 入院管理
+CREATE INDEX idx_hospitalizations_clinic_status
+  ON hospitalizations(clinic_id, status)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_hospitalizations_clinic_doctor
+  ON hospitalizations(clinic_id, doctor_id)
+  WHERE deleted_at IS NULL;
+
+-- トリミング一覧
+CREATE INDEX idx_trimming_records_clinic_date
+  ON trimming_records(clinic_id, date DESC)
+  WHERE deleted_at IS NULL;
+
+-- =============================================================================
+-- 5. テーブルコメント
+-- =============================================================================
+
+COMMENT ON TABLE company IS '法人情報（シングルトン）';
+COMMENT ON TABLE clinics IS '医院情報';
+COMMENT ON TABLE animal_species IS 'ペット種類マスタ（システム共通）';
+COMMENT ON TABLE job_titles IS '職種マスタ';
+COMMENT ON TABLE staffs IS 'スタッフマスタ';
+COMMENT ON TABLE user_accounts IS 'ユーザーアカウント';
+COMMENT ON TABLE owners IS '飼主情報';
+COMMENT ON TABLE inventory_items IS '在庫アイテム';
+COMMENT ON TABLE exam_types IS '検査種別マスタ';
+COMMENT ON TABLE exam_type_items IS '検査項目定義マスタ';
+COMMENT ON TABLE vaccines IS 'ワクチンマスタ';
+COMMENT ON TABLE medicines IS '薬剤マスタ';
+COMMENT ON TABLE insurances IS '保険マスタ';
+COMMENT ON TABLE cages IS 'ケージマスタ';
+COMMENT ON TABLE service_types IS 'サービス種別マスタ';
+COMMENT ON TABLE consultations IS '診察項目マスタ';
+COMMENT ON TABLE procedures IS '処置項目マスタ';
+COMMENT ON TABLE hospitalization_plans IS '入院プランマスタ';
+COMMENT ON TABLE trimming_courses IS 'トリミングコースマスタ';
+COMMENT ON TABLE trimming_options IS 'トリミングオプションマスタ';
+COMMENT ON TABLE diagnosis_categories IS '診断カテゴリマスタ';
+COMMENT ON TABLE diagnosis_names IS '診断病名マスタ';
+COMMENT ON TABLE checkup_types IS '健診種別マスタ';
+COMMENT ON TABLE chief_complaint_categories IS '主訴区分マスタ';
+COMMENT ON TABLE inquiry_templates IS '問診定型文マスタ';
+COMMENT ON TABLE pets IS 'ペット情報';
+COMMENT ON TABLE user_clinic_memberships IS 'ユーザー医院所属';
+COMMENT ON TABLE user_permissions IS 'ユーザー権限';
+COMMENT ON TABLE reservation_appointments IS '予約';
+COMMENT ON TABLE hospitalizations IS '入院・ホテル管理';
+COMMENT ON TABLE trimming_records IS 'トリミング記録';
+COMMENT ON TABLE medical_records IS '電子カルテ（診療記録）';
+COMMENT ON TABLE vaccinations IS 'ワクチン接種記録';
+COMMENT ON TABLE checkups IS '定期健診記録';
+COMMENT ON TABLE exams IS '検査記録';
+COMMENT ON TABLE inquiries IS '問診情報';
+COMMENT ON TABLE clinical_plans IS '診察所見・診断・治療方針';
+COMMENT ON TABLE vitals IS 'バイタル記録（外来）';
+COMMENT ON TABLE treatments IS '治療明細（処置・診察・薬剤）';
+COMMENT ON TABLE treatment_plans IS '治療プラン（外来・入院共用）';
+COMMENT ON TABLE record_images IS '診療画像';
+COMMENT ON TABLE billing_reviews IS '会計医師確認';
+COMMENT ON TABLE estimates IS '見積書';
+COMMENT ON TABLE exam_items IS '検査結果項目';
+COMMENT ON TABLE daily_records IS '入院日次記録';
+COMMENT ON TABLE care_plan_items IS 'ケアプラン項目';
+COMMENT ON TABLE estimate_items IS '見積書明細';
+COMMENT ON TABLE care_log_records IS 'ケアログ';
+COMMENT ON TABLE vital_records IS 'バイタル記録（入院）';
+COMMENT ON TABLE staff_note_records IS 'スタッフノート';
+COMMENT ON TABLE trimming_record_options IS 'トリミングオプション適用';
+COMMENT ON TABLE billings IS '会計';
+COMMENT ON TABLE billing_items IS '会計明細';
+COMMENT ON TABLE payments IS '支払い情報';
+COMMENT ON TABLE shift_entries IS 'スタッフシフト';

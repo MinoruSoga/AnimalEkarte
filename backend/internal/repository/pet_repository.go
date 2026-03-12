@@ -12,11 +12,11 @@ import (
 )
 
 type PetRepository interface {
-	FindAll(ctx context.Context, ownerID *uuid.UUID, page, limit int, search string) ([]model.Pet, int64, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.Pet, error)
+	FindAll(ctx context.Context, clinicID uuid.UUID, ownerID *uuid.UUID, page, limit int, search string) ([]model.Pet, int64, error)
+	FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.Pet, error)
 	Create(ctx context.Context, pet *model.Pet) error
 	Update(ctx context.Context, pet *model.Pet) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, clinicID, id uuid.UUID) error
 }
 
 type petRepository struct {
@@ -27,11 +27,11 @@ func NewPetRepository(db *gorm.DB) PetRepository {
 	return &petRepository{db: db}
 }
 
-func (r *petRepository) FindAll(ctx context.Context, ownerID *uuid.UUID, page, limit int, search string) ([]model.Pet, int64, error) {
+func (r *petRepository) FindAll(ctx context.Context, clinicID uuid.UUID, ownerID *uuid.UUID, page, limit int, search string) ([]model.Pet, int64, error) {
 	var pets []model.Pet
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.Pet{})
+	q := r.db.WithContext(ctx).Model(&model.Pet{}).Where("clinic_id = ?", clinicID)
 	if ownerID != nil {
 		q = q.Where("owner_id = ?", ownerID)
 	}
@@ -41,18 +41,18 @@ func (r *petRepository) FindAll(ctx context.Context, ownerID *uuid.UUID, page, l
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count pets")
 	}
-	if err := q.Offset((page-1)*limit).Limit(limit).Order("created_at DESC").Find(&pets).Error; err != nil {
+	if err := q.Offset((page - 1) * limit).Limit(limit).Order("created_at DESC").Find(&pets).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find pets")
 	}
 	return pets, total, nil
 }
 
-func (r *petRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Pet, error) {
+func (r *petRepository) FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.Pet, error) {
 	var pet model.Pet
 	if err := r.db.WithContext(ctx).
 		Preload("Owner").
 		Preload("Insurance").
-		First(&pet, "id = ?", id).Error; err != nil {
+		First(&pet, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperrors.WrapNotFound("pet", id.String())
 		}
@@ -63,6 +63,9 @@ func (r *petRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Pet,
 
 func (r *petRepository) Create(ctx context.Context, pet *model.Pet) error {
 	if err := r.db.WithContext(ctx).Create(pet).Error; err != nil {
+		if isUniqueConstraintErr(err) {
+			return apperrors.WrapAlreadyExists("pet", pet.Name)
+		}
 		return apperrors.Wrap(err, "create pet")
 	}
 	return nil
@@ -75,9 +78,13 @@ func (r *petRepository) Update(ctx context.Context, pet *model.Pet) error {
 	return nil
 }
 
-func (r *petRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	if err := r.db.WithContext(ctx).Delete(&model.Pet{}, "id = ?", id).Error; err != nil {
-		return apperrors.Wrap(err, "delete pet")
+func (r *petRepository) Delete(ctx context.Context, clinicID, id uuid.UUID) error {
+	result := r.db.WithContext(ctx).Delete(&model.Pet{}, "id = ? AND clinic_id = ?", id, clinicID)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "delete pet")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("pet", id.String())
 	}
 	return nil
 }
