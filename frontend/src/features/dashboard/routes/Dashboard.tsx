@@ -330,10 +330,10 @@ export function Dashboard() {
                 </div>
             )}
 
-            <div className="flex-1 overflow-hidden p-[20px] pt-4">
+            <div className="flex-1 overflow-hidden p-5 pt-4">
                 <DndContext sensors={sensors} collisionDetection={closestCorners} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
                     {/* タブレット: 2-3列グリッド、デスクトップ: 5列flex */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:flex gap-2 h-full w-full overflow-y-auto lg:overflow-x-auto lg:overflow-y-hidden pb-2 bg-transparent">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:flex gap-4 h-full w-full overflow-y-auto lg:overflow-x-auto lg:overflow-y-hidden pb-2 bg-transparent">
                         {filteredColumns.map((column) => (
                             <KanbanColumn
                                 key={column.title}

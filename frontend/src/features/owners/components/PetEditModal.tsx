@@ -453,14 +453,14 @@ export function PetEditModal({
         <div className={`flex justify-end gap-2 mt-4 pt-4 border-t ${C.borderDivider}`}>
           <Button
             variant="outline"
-            className={`h-10 text-sm ${C.borderMedium}`}
+            className={`h-11 text-sm ${C.borderMedium}`}
             onClick={() => onOpenChange(false)}
           >
             キャンセル
           </Button>
           <Button
             onClick={handleSave}
-            className={`${STYLE.confirmPrimary} h-10 text-sm px-4`}
+            className={`${STYLE.confirmPrimary} text-sm px-4`}
           >
             {isEdit ? "更新" : "登録"}
           </Button>

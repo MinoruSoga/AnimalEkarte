@@ -184,8 +184,8 @@ export function OwnerForm() {
                   size="sm"
                   className={
                     ownerData.membershipType === type
-                      ? `${STYLE.confirmPrimary} h-10 text-sm px-3`
-                      : `h-10 text-sm ${C.text} ${C.hoverBgMedium} ${C.borderMedium} px-3`
+                      ? `${STYLE.confirmPrimary} text-sm px-3`
+                      : `h-11 text-sm ${C.text} ${C.hoverBgMedium} ${C.borderMedium} px-3`
                   }
                   onClick={() => {
                     handleInputChange("membershipType", type);
@@ -403,7 +403,7 @@ export function OwnerForm() {
           <Button
             size="sm"
             onClick={handleAddPet}
-            className={`${STYLE.confirmPrimary} h-10 gap-1.5 text-sm px-4`}
+            className={`${STYLE.confirmPrimary} gap-1.5 text-sm px-4`}
           >
             <Plus className="size-4" />
             ペット追加
