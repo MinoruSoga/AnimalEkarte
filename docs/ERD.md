@@ -1676,7 +1676,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| medical_record_id | uuid | YES | | medical_records.id FK |
+| medical_record_id | uuid | NO  | | medical_records.id FK |
 | pet_id | uuid | YES | | pets.id FK |
 | date | date | NO | | 検査日 |
 | owner_name | text | NO | '' | 飼い主名スナップショット |
@@ -1726,7 +1726,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| medical_record_id | uuid | YES | | medical_records.id FK |
+| medical_record_id | uuid | NO  | | medical_records.id FK |
 | pet_id | uuid | YES | | pets.id FK |
 | owner_name | text | NO | '' | 飼い主名スナップショット |
 | pet_name | text | NO | '' | ペット名スナップショット |
@@ -1760,7 +1760,7 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| medical_record_id | uuid | YES | | medical_records.id FK |
+| medical_record_id | uuid | NO  | | medical_records.id FK |
 | pet_id | uuid | YES | | pets.id FK |
 | owner_name | text | NO | '' | 飼い主名スナップショット |
 | pet_name | text | NO | '' | ペット名スナップショット |
