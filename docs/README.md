@@ -31,7 +31,7 @@ Animal Ekarte（動物病院電子カルテシステム）の技術ドキュメ�
 |-------------|------|--------|
 | **[MIGRATION.md](./MIGRATION.md)** | 🔧 マイグレーション（DB作成・管理） | バックエンド開発者 |
 | **[API-ROADMAP.md](./API-ROADMAP.md)** | 🛣️ API設計ロードマップ（未実装エンドポイント） | バックエンド開発者 |
-| **[deploy/](./deploy/)** | 🚀 デプロイメント（CI/CD、環境設定） | DevOps / 本番管理者 |
+| **[infra/deploy/](./infra/deploy/)** | 🚀 デプロイメント（CI/CD、環境設定） | DevOps / 本番管理者 |
 | **[infra/](./infra/)** | ☁️ インフラストラクチャ（AWS、Terraform） | インフラエンジニア |
 
 ---
@@ -171,8 +171,8 @@ AnimalEkarte/
 │   ├── IMPROVEMENTS.md      # コード改善ログ
 │   ├── MIGRATION.md         # マイグレーション
 │   ├── API-ROADMAP.md       # API設計
-│   ├── deploy/              # デプロイメント
-│   ├── infra/               # インフラ
+│   └── infra/               # インフラ・デプロイ
+│       └── deploy/          # CI/CD・デプロイ手順
 │   └── README.md            # このファイル
 ├── CLAUDE.md                # プロジェクト指示
 ├── CODING_RULES.md          # 全体ルール

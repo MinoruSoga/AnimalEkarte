@@ -1,6 +1,6 @@
 # 画面仕様書 バリデーション・データ型補完ドキュメント
 
-**更新日**: 2026-03-11
+**更新日**: 2026-03-11  
 **バージョン**: 2.0（完全版）
 
 本ドキュメントは、SCREENS.mdとSCREENS_MASTER.mdで記載されている画面仕様に対して、バリデーションルール、エラーメッセージ、データ型定義を補完します。
@@ -44,7 +44,7 @@ interface Appointment {
   ownerId: string; // 飼主ID
   ownerName: string; // 飼主名
   petName: string; // ペット名
-  petType: PetSpecies; // ペット種
+  animalSpeciesName: string; // ペット種（animal_speciesマスタから取得した表示名）
   time: string; // 予約時刻 (HH:MM)
   serviceType: string; // 診療区分（マスタID）
   serviceTypeName: string; // 診療区分名
@@ -59,7 +59,7 @@ interface Appointment {
   updatedAt: string; // 更新日時 (ISO 8601)
 }
 
-type AppointmentStatus =
+type AppointmentStatus = 
   | 'scheduled' // 受付予約
   | 'checked_in' // 受付済
   | 'in_consultation' // 診療中
@@ -179,7 +179,7 @@ interface ReservationAppointment {
   ownerId: string; // 飼主ID
   ownerName: string; // 飼主名
   petName: string; // ペット名
-  petType: PetSpecies; // ペット種
+  animalSpeciesName: string; // ペット種（animal_speciesマスタから取得した表示名）
   date: string; // 予約日 (YYYY-MM-DD)
   startTime: string; // 開始時刻 (HH:MM)
   endTime: string; // 終了時刻 (HH:MM)
@@ -195,7 +195,7 @@ interface ReservationAppointment {
   updatedAt: string; // 更新日時 (ISO 8601)
 }
 
-type ReservationStatus =
+type ReservationStatus = 
   | 'confirmed' // 予約確定
   | 'checked_in' // 受付済
   | 'in_consultation' // 診療中
@@ -322,7 +322,7 @@ interface Pet {
   ownerId: string; // 飼主ID
   name: string; // ペット名（必須）
   nameKana?: string; // ペット名カナ
-  species: PetSpecies; // 種（必須）
+  animalSpeciesId: string; // 種（必須、animal_species.id FK参照）
   gender: PetGender; // 性別（必須）
   birthDate: string; // 生年月日（必須、YYYY-MM-DD）
   breed?: string; // 品種
@@ -331,28 +331,22 @@ interface Pet {
   acquisitionType?: AcquisitionType; // 入手種別
   dangerLevel?: DangerLevel; // 危険度
   food?: string; // フード
-  insuranceCompany?: InsuranceCompany; // 保険名
-  insuranceRatio?: PetInsuranceRatio; // 保険詳細（負担割合）
+  insuranceId?: string; // 保険ID（insurances.id FK参照）
+  insuranceCoverageRate?: number; // 保険補償割合（%）
   notes?: string; // 備考・特記事項
   status: PetStatus; // ステータス
   createdAt: string; // 作成日時 (ISO 8601)
   updatedAt: string; // 更新日時 (ISO 8601)
 }
 
-type PetSpecies = 'dog' | 'cat' | 'other';
+// animal_species マスタから動的取得（pets.animal_species_id FK参照）
+type AnimalSpeciesId = string; // animal_species.id (uuid)
 type PetGender = 'male' | 'female' | 'unknown';
 type AcquisitionType = 'purchase' | 'adoption' | 'rescue' | 'other';
 type DangerLevel = 'low' | 'medium' | 'high';
-type InsuranceCompany =
-  | 'anicom'
-  | 'ipet'
-  | 'pet_and_family'
-  | 'rakuten'
-  | 'axa'
-  | 'sbi'
-  | 'fpc'
-  | 'other';
-type PetInsuranceRatio = '50' | '70' | '90' | '100' | 'other';
+// insurances マスタから動的取得（pets.insurance_id FK参照）
+type InsuranceId = string; // insurances.id (uuid)
+type InsuranceCoverageRate = number; // insurances.coverage_rate (%)
 type PetStatus = 'active' | 'deceased';
 ```
 
@@ -473,41 +467,41 @@ interface MedicalRecord {
   serviceTypeId: string; // 診療区分ID
   doctorId: string; // 担当医ID
   visitType: 'first' | 'revisit'; // 初診/再診
-
+  
   // バイタルサイン
   weight?: number; // 体重 (kg)
   temperature?: number; // 体温 (℃)
   heartRate?: number; // 心拍数 (/min)
   respiratoryRate?: number; // 呼吸数 (/min)
-
+  
   // 主訴・診察
   chiefComplaint?: string; // 主訴 (Markdown)
   examinationNotes?: string; // 診察所見 (Markdown)
   consultationItems: ConsultationItem[]; // 診察項目
-
+  
   // 診断
   diagnosisCategoryId?: string; // 診断カテゴリID
   diagnosisNames: string[]; // 診断名ID配列
   diagnosisDetails?: string; // 診断詳細 (Markdown)
-
+  
   // 検査
   examinations: Examination[]; // 検査記録
-
+  
   // 処置
   procedures: Procedure[]; // 処置記録
-
+  
   // 処方
   prescriptions: Prescription[]; // 処方薬
-
+  
   // 予防接種
   vaccinations: Vaccination[]; // 予防接種記録
-
+  
   // 定期健診
   checkups: Checkup[]; // 定期健診記録
-
+  
   // 会計連携
   accountingItems: AccountingItem[]; // 会計明細
-
+  
   status: 'draft' | 'completed'; // ステータス
   createdAt: string; // 作成日時 (ISO 8601)
   updatedAt: string; // 更新日時 (ISO 8601)
@@ -803,17 +797,17 @@ interface PaymentInfo {
 }
 
 type AccountingStatus = 'waiting' | 'completed' | 'cancelled' | 'pending';
-type ItemCategory =
-  | 'consultation'
-  | 'examination'
-  | 'procedure'
-  | 'medicine'
-  | 'vaccination'
-  | 'checkup'
-  | 'hospitalization'
-  | 'trimming'
-  | 'food'
-  | 'product'
+type ItemCategory = 
+  | 'consultation' 
+  | 'examination' 
+  | 'procedure' 
+  | 'medicine' 
+  | 'vaccination' 
+  | 'checkup' 
+  | 'hospitalization' 
+  | 'trimming' 
+  | 'food' 
+  | 'product' 
   | 'other';
 type ItemSource = 'medical_record' | 'hospitalization' | 'manual';
 type PaymentMethod = 'cash' | 'card' | 'emoney';
@@ -997,7 +991,7 @@ const hasOverlap = (
   endTime: string,
   existingShifts: Shift[]
 ): boolean => {
-  return existingShifts.some(shift =>
+  return existingShifts.some(shift => 
     shift.staffId === staffId &&
     shift.date === date &&
     !(endTime <= shift.startTime || startTime >= shift.endTime)

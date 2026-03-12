@@ -1,6 +1,6 @@
 # 動物病院管理システム 画面仕様書（マスタ管理編）
 
-**更新日**: 2026-03-11
+**更新日**: 2026-03-11  
 **バージョン**: 3.0
 
 本ドキュメントは、設定・マスタ管理機能の詳細仕様を定義します。
@@ -404,7 +404,7 @@ interface ClinicInfo {
 | フィールド | 入力部品 | バリデーション | 必須 | デフォルト | 選択肢 |
 |---|---|---|---|---|---|
 | 所要時間(目安) | `Input` | 50文字以内 | - | - | placeholder: 例: 30分 |
-| 麻酔要否 | `Select` | - | ✅ | none | 不要/局所麻酔/鎮静/全身麻酔 |
+| 麻酔要否 | `Select` | - | ✅ | none | 不要/局所麻酔/全身麻酔 |
 
 ### checkup（定期健診マスタ）
 
@@ -434,6 +434,34 @@ interface ClinicInfo {
 
 **固有セクションなし**
 共通フィールド（コード、名称、カテゴリ、[単価(税込)]）のみ
+
+### inquiry_template（問診定型文マスタ）
+
+| フィールド | 入力部品 | バリデーション | 必須 | デフォルト | 選択肢 |
+|---|---|---|---|---|---|
+| 区分 | `Select` | - | ✅ | chief_complaint | 主訴/既往歴/現在の投薬/アレルギー情報/備考 |
+| タイトル | `Input` | 100文字以内 | ✅ | - | - |
+| 内容 | `Textarea` | 1000文字以内 | ✅ | - | - |
+| 並び順 | `Input` (number) | 0以上の整数 | - | 0 | - |
+| ステータス | `Select` | - | ✅ | active | 有効/無効 |
+
+**バリデーション詳細:**
+- タイトル: 必須、1〜100文字
+- 内容: 必須、1〜1000文字
+- 区分（category）: `chief_complaint` / `history` / `current_medications` / `allergy_info` / `notes`
+
+### chief_complaint（主訴区分マスタ）
+
+| フィールド | 入力部品 | バリデーション | 必須 | デフォルト | 選択肢 |
+|---|---|---|---|---|---|
+| 区分名 | `Input` | 100文字以内 | ✅ | - | - |
+| コード | `Input` | 半角英数字・ハイフン・アンダーバー、50文字以内 | - | - | - |
+| 並び順 | `Input` (number) | 0以上の整数 | - | 0 | - |
+| ステータス | `Select` | - | ✅ | active | 有効/無効 |
+
+**バリデーション詳細:**
+- 区分名: 必須、1〜100文字
+- コード: 任意、半角英数字・ハイフン・アンダーバーのみ（正規表現: `/^[a-zA-Z0-9_-]*$/`）、50文字以内
 
 ---
 
@@ -506,7 +534,7 @@ interface MasterItem {
 
 // カテゴリ別固有型
 type ConsultationTime = "anytime" | "first_visit" | "revisit" | "after_hours" | "emergency";
-type Anesthesia = "none" | "local" | "sedation" | "general";
+type Anesthesia = "none" | "local" | "general";
 type CheckupTargetAge = "all" | "puppy" | "adult" | "senior";
 type VaccineSpecies = "dog" | "cat" | "both";
 type DosageForm = "tablet" | "liquid" | "injection" | "external" | "powder";

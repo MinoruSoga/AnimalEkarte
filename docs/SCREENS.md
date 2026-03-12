@@ -63,7 +63,7 @@
 | ステータス | アクションボタン |
 |---|---|
 | 受付予約 | 取消、編集、飼主詳細、「受付済にする」 |
-| 受付済 | 飼主詳細、「カルテ作成」（診療時、同時に診療中へ移動）/ 「診察を開始する」（非診療時） |
+| 受付済 | 飼主詳細、���カルテ作成」（診療時、同時に診療中へ移動）/ 「診察を開始する」（非診療時） |
 | 診療中 | 飼主詳細、「診察を終了する」、「カルテ入力」、「検査」（診療時）/ 「施術記録」（トリミング時） |
 | 会計待ち | 飼主詳細、「会計へ進む」（精算未確認時はdisabled） |
 | 会計済 | 飼主詳細、「完了/リストから削除」 |
@@ -122,7 +122,7 @@
 | ペット名 | `petName` |
 | 飼い主名 / 担当医 | `ownerName` + ` / ` + `doctor`（2行目、低opacity） |
 | 背景色 | 予約種別に対応したカラー（`getReservationTypeColor`） |
-| 件数制限 | 1日最大4件表示、超過分は「他 N 件」表示 |
+| 件数制限 | 1日最大4件表示��超過分は「他 N 件」表示 |
 
 **WeekView カード表示項目:**
 | 項目 | 表示内容 |
@@ -135,7 +135,7 @@
 | 予約種別名 | `getReservationTypeName(type)`（高さ68px超で表示） |
 | ステータスドット | checked_in=blue / in_consultation=purple / accounting=orange / completed=gray / cancelled=red（右上に丸ドット表示） |
 | 背景色 | 予約種別に対応したカラー |
-| ドラッグ&ドロップ | Y軸ドラッグで時間変更（15分単位スナップ、`motion/react` 使用） |
+| ドラ���グ&ドロップ | Y軸ドラッグで時間変更（15分単位スナップ、`motion/react` 使用） |
 | 重複処理 | 同時間帯の予約は横並び分割表示（カラム計算アルゴリズム） |
 | 現在時刻線 | 当日列に赤い水平線で現在時刻を表示 |
 
@@ -198,7 +198,7 @@
 - 日付ナビゲーション（前月/翌月、前週/翌週）
 - カレンダーセルクリックで新規予約作成
 - 既存予約クリックで詳細表示
-- 詳細モーダルから編集・キャンセル・関連レコード作成への遷移
+- 詳細モー��ルから編集・キャンセル・関連レコード作成への遷移
 - 予約フォームでペット検索・紐付け
 
 ---
@@ -365,6 +365,8 @@
 | **コンポーネント** | `[R] MedicalRecordForm` |
 | **目的** | 診療記録の全項目を9タブ構成で入力・編集する |
 
+> **詳細仕様**: タブごとの詳細仕様は `/SCREENS_DETAILED_TABS.md` を参照してください。
+
 **画面構成:**
 - スティッキーヘッダー:
   - 患者情報カード（`[S] PatientInfoCard`）: ペット名、種、飼主名、担当医、診療区分、バイタル入力ボタン
@@ -404,8 +406,9 @@
   - `DiagnosisHeaderDiagnosis`: 診断登録フォーム
     - `diagnosisDetails`: 診断詳細（Markdown）
     - `diagnosis1Category` / `diagnosis1Name`: 診断1（カテゴリ Select + 診断名 Select）
-    - `diagnosis2Category` / `diagnosis2Name`: 診断2（同上）
 - **治療プラン**: `TreatmentTable`（マスタ検索ダイアログ連携）
+  - TreatmentTable 列: 種別、治療内容、メモ、保険、単価(税込)、数量、割引(%)、値引(￥)、小計、操作
+  - **種別**: マスタから選択時に自動設定される読み取り専用フィールド（診察/処置/薬剤/検査/予防接種/定期健診）
 - **集計**: `TreatmentDetailedSummary`（小計、税、合計、割引率、値引額）
 
 **Tab 3: 治療（`MedicalRecordTreatment`）**
@@ -413,7 +416,8 @@
 - **治療済みテーブル**: `TreatmentTable`（`onRevertToPlan` 戻すボタンあり。確認ダイアログ→治療プランへ差し戻し）
 - **移動確認ダイアログ**: `TreatmentMoveConfirmDialog`（`AlertDialog`ベース、`pendingMove`ステート制御）
 - **集計**: `TreatmentDetailedSummary`
-- TreatmentTable 列: [済チェックボックス]、治療内容、メモ、保険、単価(税込)、数量、割引(%)、値引(￥)、小計、操作
+- TreatmentTable 列: [済チェックボックス]、種別、治療内容、メモ、保険、単価(税込)、数量、割引(%)、値引(￥)、小計、操作
+  - **種別**: マスタから選択時に自動設定される読み取り専用フィールド（診察/処置/薬剤/検査/予防接種/定期健診）
 
 **Tab 4: 予防接種（`MedicalRecordVaccination`）**
 - 2カラムレイアウト（lg:6+6）
@@ -453,16 +457,18 @@
 **Tab 7: 見積書（`MedicalRecordEstimate`）**
 - **件名**: `EstimateForm`（件名 Input）
 - **明細テーブル**: `TreatmentTable`（チェックボックス列なし・戻すボタンなし）
+  - TreatmentTable 列: 種別、治療内容、メモ、保険、単価(税込)、数量、割引(%)、値引(￥)、小計、操作
 - **集計**: `TreatmentDetailedSummary`
 - **コメント / 備考**: 2カラム `Textarea`
 - **アクション**: 「PDF出力」ボタン
 
 **Tab 8: 会計(医師確認)（`MedicalRecordBillCheck`）**
 - **明細テーブル**: `TreatmentTable`（治療タブの completedItems を自動同期）
+  - TreatmentTable 列: 種別、治療内容、メモ、保険、単価(税込)、数量、割引(%)、値引(￥)、小計、操作
 - **集計**: `TreatmentDetailedSummary`
-- **固定フローティングアクション**:
+- **固定フローティングアクション**: 
   - 「チェック完了」ボタン: クリックでトグル動作。チェック完了状態では「未チェックに戻す」に変わり、再クリックで「チェック完了」に戻る。トースト通知でステータス変更を表示
-  - 「会計へ進む」ボタン / 「会計を確認」ボタン:
+  - 「会計へ進む」ボタン / 「会計を確認」ボタン: 
     - 新規カルテ（linkedAccountingId なし）: 「会計へ進む」（Receipt アイコン付き、items 空時は disabled）
     - 既存カルテ（linkedAccountingId あり）: 「会計を確認」（緑背景、既存会計詳細へ遷移）
 - **会計遷移**: カルテの明細を `AccountingItem[]` に自動変換し、カテゴリを自動推定（検査/処方/手術/処置/フード等のキーワードマッチ）して会計画面へ state 経由で渡す
@@ -522,6 +528,179 @@
 - 担当医エラー: `PatientInfoCard.staffAriaDescribedBy` → `FormFieldError`（`role="alert"`）と `aria-describedby` 接続
 - 保存バリデーション: 担当医未選択時にトースト警告＋スタッフボタンにエラー状態表示
 
+#### 4.3.1 TreatmentTable 詳細仕様
+
+**概要:**
+治療項目を管理するテーブルコンポーネント。各タブ（診察/治療プラン、治療、見積書、会計）で使用され、表示カラムや操作ボタンがコンテキストに応じて変化する。
+
+**TreatmentItem型定義:**
+| フィールド | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `id` | `string` | ○ | 一意識別子（`String(Date.now())`で生成） |
+| `selected` | `boolean` | - | チェックボックス選択状態（見積書タブで使用） |
+| `status` | `TreatmentStatus` | - | 治療ステータス（"未完了" / "完了" / "-"）。治療タブのみ使用 |
+| `type` | `TreatmentType` | - | **種別**（"診察" / "処置" / "薬剤" / "検査" / "予防接種" / "定期健診"）。マスタから自動設定 |
+| `content` | `string` | ○ | 治療内容（項目名） |
+| `memo` | `string` | ○ | メモ・備考 |
+| `insurance` | `boolean` | ○ | 保険適用フラグ |
+| `unitPrice` | `number` | ○ | 単価（税込、円） |
+| `quantity` | `number` | ○ | 数量 |
+| `discountRate` | `number` | ○ | 割引率（%、0-100） |
+| `discountAmount` | `number` | ○ | 値引額（円） |
+| `inventoryId` | `string` | - | 在庫連携ID（将来拡張用） |
+
+**TreatmentType値:**
+```typescript
+const TREATMENT_TYPE_VALUES = ["診察", "処置", "薬剤", "検査", "予防接種", "定期健診"] as const;
+```
+
+**カテゴリ→種別変換マッピング（`getCategoryTreatmentType`）:**
+| マスタカテゴリ（英語キー） | 種別（日本語ラベル） |
+|---|---|
+| `consultation` | 診察 |
+| `procedure` | 処置 |
+| `medicine` | 薬剤 |
+| `examination` | 検査 |
+| `vaccine` | 予防接種 |
+| `checkup` | 定期健診 |
+| `hospitalization` | （種別なし：入院は治療項目外） |
+
+**表示カラム構成（タブ別）:**
+
+| カラム | 診察/治療プラン | 治療（プラン） | 治療（済） | 見積書 | 会計 |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **済チェック** | - | ○ | - | - | - |
+| **選択チェック** | - | - | - | ○ | - |
+| **種別** | ○ | ○ | ○ | ○ | ○ |
+| **治療内容** | ○ | ○ | ○ | ○ | ○ |
+| **メモ** | ○ | ○ | ○ | ○ | ○ |
+| **保険** | ○ | ○ | ○ | ○ | ○ |
+| **単価(税込)** | ○ | ○ | ○ | ○ | ○ |
+| **数量** | ○ | ○ | ○ | ○ | ○ |
+| **割引(%)** | ○ | ○ | ○ | ○ | ○ |
+| **値引(￥)** | ○ | ○ | ○ | ○ | ○ |
+| **小計** | ○ | ○ | ○ | ○ | ○ |
+| **操作** | ○ | ○ | ○ | ○ | ○ |
+
+**カラム詳細:**
+
+1. **種別カラム**
+   - 幅: `w-20`（80px）
+   - 表示: 読み取り専用テキスト（`text-xs`、`C.textSecondary`）
+   - データ: `item.type`（TreatmentType）
+   - 未設定時: 空欄表示
+   - 編集: 不可（マスタ選択時に自動設定）
+
+2. **治療内容カラム**
+   - 幅: `min-w-[160px]`
+   - 編集: `Input`（テキスト入力）
+   - プレースホルダー: "治療内容を入力"
+
+3. **メモカラム**
+   - 幅: `min-w-[120px]`
+   - 編集: `Input`（テキスト入力）
+   - プレースホルダー: "メモ"
+
+4. **保険カラム**
+   - 幅: `w-16`（64px）
+   - 編集: `NotionCheckbox`（クリックでトグル）
+   - 表示: チェックマーク（`#2383E2` ブルー）
+
+5. **単価(税込)カラム**
+   - 幅: `w-24`（96px）
+   - 編集: `Input` + `useNumericInput`（数値検証）
+   - フォーマット: `formatCurrency`（カンマ区切り）
+   - 右揃え（`text-right`）
+
+6. **数量カラム**
+   - 幅: `w-16`（64px）
+   - 編集: `Input` + `useNumericInput`（整数のみ）
+   - 右揃え
+
+7. **割引(%)カラム**
+   - 幅: `w-20`（80px）
+   - 編集: `Input` + `useNumericInput`（0-100範囲）
+   - 右揃え
+
+8. **値引(￥)カラム**
+   - 幅: `w-24`（96px）
+   - 編集: `Input` + `useNumericInput`
+   - フォーマット: `formatCurrency`
+   - 右揃え
+
+9. **小計カラム**
+   - 幅: `w-28`（112px）
+   - 表示: 読み取り専用（`calcLineTotal`で自動計算）
+   - フォーマット: `formatCurrency`
+   - 右揃え、太字（`font-semibold`）
+
+10. **操作カラム**
+    - 幅: `w-12`（48px）
+    - ボタン: 削除（`Trash2` アイコン、`size-4`、`text-destructive`）
+    - ホバー時のみ表示（`opacity-0 group-hover:opacity-100`）
+
+**マスタ検索連携:**
+- **検索ボタン**: テーブル下部に「+ 治療項目を追加」ボタン（`TreatmentSearchDialog`トリガー）
+- **検索ダイアログ**: `TreatmentSearchCommand`（`Command`コンポーネント）でマスタ項目を検索
+- **フィルタ条件**: 
+  - `status === "active"`（有効項目のみ）
+  - `category in TREATMENT_CATEGORIES`（consultation, examination, procedure, vaccine, checkup, hospitalization, medicine）
+  - `price != null && price > 0`（価格設定済み）
+- **選択時動作**:
+  1. `TreatmentMasterItem`（code, name, unitPrice, category）を受け取る
+  2. `getCategoryTreatmentType(item.category)`で種別を自動設定
+  3. 新規`TreatmentItem`を作成（id: `String(Date.now())`、type: 自動設定、content: `item.name`、unitPrice: `item.unitPrice`、memo: ""、insurance: true、quantity: 1、割引0）
+  4. テーブル末尾に追加
+
+**集計機能（`TreatmentDetailedSummary`）:**
+| 項目 | 計算式 |
+|---|---|
+| 小計 | Σ `calcLineTotal(unitPrice, quantity, discountRate, discountAmount)` |
+| 全体割引 | 割引率（%）入力 / 値引額（円）入力 |
+| 税込合計 | `calcGrandTotal(小計, 全体割引率, 全体値引額)` |
+| 消費税（内税） | `total * (TAX_RATE / (100 + TAX_RATE))` |
+
+**計算式詳細（`/lib/format.ts`）:**
+```typescript
+// 行小計 = (単価 × 数量) × (1 - 割引率/100) - 値引額
+calcLineTotal(unitPrice, quantity, discountRate, discountAmount): number
+
+// 合計 = 小計 × (1 - 全体割引率/100) - 全体値引額
+calcGrandTotal(subtotal, globalDiscountRate, globalDiscountAmount): { tax, total }
+```
+
+**行追加・削除:**
+- **手動追加**: 「+ 行を追加」ボタン（空行挿入）
+- **マスタ追加**: 「+ 治療項目を追加」ボタン→検索ダイアログ→マスタ選択
+- **削除**: 各行の削除ボタン（確認なし即削除）
+
+**アニメーション:**
+- 行追加時: `motion.div`で`initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}`
+- `useReducedMotion`フックで`prefers-reduced-motion: reduce`を検知し、アニメーション無効化
+
+**治療タブ専用機能（`MedicalRecordTreatment`）:**
+- **治療プラン→治療済み移動**:
+  1. 「済」チェックボックスをオン
+  2. `TreatmentMoveConfirmDialog`で確認（「[項目名] を治療済みに移動しますか？」）
+  3. 確認後、`planItems`から削除→`completedItems`に追加
+  4. スクリーンリーダー通知（`useAnnounce`）: "治療済みに移動しました"
+  5. 治療済みテーブルの見出しにフォーカス移動（`completedHeadingRef`）
+- **治療済み→治療プラン戻し**:
+  1. 「プランに戻す」ボタンクリック
+  2. `TreatmentMoveConfirmDialog`で確認
+  3. 確認後、`completedItems`から削除→`planItems`に追加
+  4. 治療プランテーブルの見出しにフォーカス移動
+
+**見積書タブ専用機能（`MedicalRecordEstimate`）:**
+- チェックボックス列なし
+- 戻すボタンなし
+- 全項目選択可能（将来拡張用）
+
+**会計タブ専用機能（`MedicalRecordBillCheck`）:**
+- 治療タブの`completedItems`を自動同期（読み取り専用）
+- チェックボックス列なし
+- 操作カラムなし
+
 ---
 
 ## 5. 入院管理
@@ -548,7 +727,7 @@
 **ユーザー操作:**
 - ステータスフィルタ切替
 - ボード/リスト表示切替
-- カード/行クリックで詳細画面へ
+- ��ード/行クリックで詳細画面へ
 - ボードビューでケージ間のペット移動
 
 ### 5.2 入院用ペット選択
@@ -677,7 +856,7 @@
 
 | フィールド | 入力部品 | 備考 |
 |---|---|---|
-| 記録時刻 | `Input`（type=time） | 現在時刻で初期化 |
+| 記録���刻 | `Input`（type=time） | 現在時刻で初期化 |
 | 内容・量 | `Input` | 種別依存のプレースホルダー |
 | 詳細メモ | `Textarea` | |
 
@@ -797,7 +976,7 @@
 **左カラム フォーム項目:**
 | フィールド | 入力部品 | 備考 |
 |---|---|---|
-| コース選択 | `MasterSelectTrigger` → `MasterSelectModal`（trimming_course マスタ連動） | `MasterLink` 付き、選択時に `charge` 自動反映 |
+| コース選択 | `MasterSelectTrigger` → `MasterSelectModal`���trimming_course ��スタ連動） | `MasterLink` 付き、選択時に `charge` 自動反映 |
 | スタイルの希望 | `Textarea` | min-h-[80px] |
 | メモ | `Textarea` | min-h-[80px] |
 | オプション | `Checkbox` グリッド（2cols） | trimming_option マスタ連動、`MasterLink` 付き、複数選択可、各項目に `+¥{price}` 表示 |
@@ -821,7 +1000,7 @@
 - 空状態: 「該当するトリミング履歴がありません」
 
 **担当スタッフ選択（PatientInfoCard 経由）:**
-- `MasterSelectModal`（staff マスタ連動、active のみ）
+- `MasterSelectModal`（staff マスタ連動、active のみ���
 - タイトル: 「担当スタッフを選択」
 
 **バリデーション:**
@@ -946,7 +1125,7 @@
 | ステータス | `w-[100px]` | `StatusBadge`（`getAccountingStatusColor` / `getAccountingStatusLabel`） |
 | 操作 | `w-[100px]`, align:right | `RowActionDropdown`（編集 / 削除） |
 
-**保険フィルター:**
+**保��フィルター:**
 - `INSURANCE_FILTER_VALUES` 型の `ToggleGroup`（全て / 保険あり / 保険なし）
 - テーブル上部のフィルタバー右端に配置
 
@@ -1007,7 +1186,7 @@
 **左カラム: 明細テーブル（`[C] AccountingItemTable`）**
 
 明細追加ダイアログ フォーム項目:
-| フィールド | 入力部品 | 備考 |
+| フィ��ルド | 入力部品 | 備考 |
 |---|---|---|
 | 区分 | `Select`（`MANUAL_ITEM_CATEGORY_VALUES`: 療法食・フード / 物販・ケア用品 / その他） | |
 | 品目名 | `Input` | placeholder: 例: ロイヤルカナン 3kg |
@@ -1033,7 +1212,7 @@
 |---|---|---|
 | 保険ON/OFF | `Switch` | CardHeader 内トグル |
 | 負担割合 | `Select`（`INSURANCE_RATIO_VALUES`: 50%/70%/90%/100%） | 保険ON時のみ表示 |
-| 保険負担額 | 読み取り専用 | 緑背景カード、マイナス表示 |
+| 保険負担額 | 読���取り専用 | 緑背景カード、マイナス表示 |
 
 決済情報カード:
 | フィールド | 入力部品 | 備考 |
@@ -1197,25 +1376,393 @@
 
 ## 11. 設定・マスタ管理
 
-> 詳細仕様は `docs/SCREENS_MASTER.md` を参照。
+### 11.1 マスタ設定トップ
 
-### 11.1 マスタ設定トップ（`/settings`）
-- `[R] MasterSettingsIndex`: 15カテゴリをカードグリッドで一覧表示（5セクション）
+| 項目 | 内容 |
+|------|------|
+| **ルート** | `/settings` |
+| **コンポーネント** | `[R] MasterSettingsIndex` |
+| **目的** | マスタカテゴリ一覧をカード形式で表示 |
 
-### 11.2 病院情報設定（`/settings/clinic`）
-- `[R] ClinicSettings`: 病院名・電話・住所等の基本情報管理
+**画面構成:**
+- ヘッダー: タイトル「マスタ設定」（Settings アイコン）
+- セクション分類（5セクション）
+- カードグリッド（`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3`）
+- 最終セクションに `pb-16` 付き
 
-### 11.3 診療項目マスタ（`/settings/treatment-items`）
-- `[R] TreatmentItemsSettings`: 診察・検査・処置・予防接種・定期健診の5カテゴリをタブで統合管理
+**セクション構成:**
+| # | セクション名 | カテゴリキー |
+|---|---|---|
+| 1 | 基本設定 | `clinic` |
+| 2 | 診療関連マスタ | `serviceType`, `consultation`, `examination`, `procedure`, `vaccine`, `medicine`, `diagnosis_category`, `diagnosis_name` |
+| 3 | 入院・ケージ管理 | `hospitalization`, `cage` |
+| 4 | トリミング関連 | `trimming_course`, `trimming_option` |
+| 5 | スタッフ・保険 | `staff`, `insurance` |
 
-### 11.4 診断マスタ（`/settings/diagnosis`）
-- `[R] DiagnosisSettings`: 診断カテゴリ・診断名の2カテゴリをタブで統合管理
+**カテゴリカード（`CategoryCard`）表示項目:**
+| 項目 | 表示内容 |
+|---|---|
+| アイコン | `CATEGORY_CONFIG[key].IconComponent`（p-2 rounded-lg bg-[#F7F6F3]、ホバー時 bg-[#37352F] text-white） |
+| カテゴリ名 | `cfg.label`（truncate） |
+| 説明 | `cfg.description`（line-clamp-2） |
+| 件数 | `{count}件登録済`（マスタカテゴリのみ、clinic は undefined） |
+| 矢印 | ChevronRight（ホバー時 opacity 変化） |
 
-### 11.5 トリミングマスタ（`/settings/trimming`）
-- `[R] TrimmingSettings`: トリミングコース・オプションの2カテゴリをタブで統合管理
+**特記:**
+- `CATEGORY_CONFIG` から全カードを自動導出
+- コンパイル時に全カテゴリの網羅性を型チェック（`ExhaustiveKeyMap`）
+- `useMasterItems()` で全マスタアイテムを取得し、カテゴリ別にカウント
 
-### 11.6 マスタカテゴリ設定（`/settings/{category-slug}`）
-- `[R] Settings` → `[C] SettingsContent`: 各マスタカテゴリのCRUD（6パターン: service-type, medicine, hospitalization, cage, staff, insurance）
+**使用コンポーネント:**
+| コンポーネント | 種別 | 説明 |
+|---|---|---|
+| `MasterSettingsIndex` | `[R]` | メインページ |
+| `PageLayout` | `[S]` | ページレイアウト |
+| `CategoryCard` | ローカル | カテゴリカード |
+| `useMasterItems` | `[H]` | マスタデータ取得 |
+
+**データ型:** `MasterCategory`, `MasterCardKey`, `MasterCategoryCard`, `MasterSection`, `CategoryConfig`
+
+### 11.2 病院情報設定
+
+| 項目 | 内容 |
+|------|------|
+| **ルート** | `/settings/clinic` |
+| **コンポーネント** | `[R] ClinicSettings` |
+| **目的** | 病院の基本情報を管理する |
+
+**画面構成:**
+- ヘッダー: タイトル「病院情報設定」（Building2 アイコン）、戻るボタン → `/settings`
+- フォーム（`react-hook-form@7.55.0`）
+- ローディング時: スケルトン表示（6行の `animate-pulse`）
+- カードコンテナ: `bg-white p-6 rounded-lg shadow-sm border`
+
+**フォーム項目:**
+| フィールド | 入力部品 | グリッド | 備考 |
+|---|---|---|---|
+| 病院名 | `Input`（register: `name`） | 2cols-左 | 必須（`*`マーク）、placeholder: 例: わんにゃん動物病院 |
+| 支店名 | `Input`（register: `branchName`） | 2cols-右 | placeholder: 例: 八王子院 |
+| 郵便番号 | `Input`（register: `postalCode`） | 3cols-左 | placeholder: 例: 100-0001 |
+| 住所 | `Input`（register: `address`） | 3cols-中右（col-span-2） | placeholder: 例: 東京都千代田区千代田1-1 |
+| 電話番号 | `Input`（register: `phoneNumber`） | 2cols-左 | placeholder: 例: 03-1234-5678 |
+| FAX番号 | `Input`（register: `faxNumber`） | 2cols-右 | placeholder: 例: 03-1234-5679 |
+| 登録番号 | `Input`（register: `registrationNumber`） | full | placeholder: 例: 東京都獣医師会 第12345号、ヘルプテキスト付き |
+| 院長名 | `Input`（register: `directorName`） | full | placeholder: 例: 山田 太郎 |
+| メールアドレス | `Input`（type=email, register: `email`） | 2cols-左 | placeholder: info@example.com |
+| WebサイトURL | `Input`（register: `website`） | 2cols-右 | placeholder: https://example.com |
+
+**アクション（`pt-4 border-t`）:**
+| ボタン | 動作 | 備考 |
+|---|---|---|
+| キャンセル | `/settings` へ遷移 | outline |
+| 設定を保存 | `handleSubmit(onSubmit)` → `updateClinicInfo` + `reset` | Save アイコン、`isDirty` false 時 disabled |
+
+**使用コンポーネント:**
+| コンポーネント | 種別 | 説明 |
+|---|---|---|
+| `ClinicSettings` | `[R]` | メインページ |
+| `PageLayout` | `[S]` | ページレイアウト |
+| `NotionPropertyRow` | `[S]` | Notion風プロパティ行（label/required/align） |
+| `NotionSectionLabel` | `[S]` | Notion風セクションラベル |
+| `NotionSectionDivider` | `[S]` | Notion風薄罫線ディバイダー |
+| `useClinicInfo` | `[H]` | 病院情報CRUD |
+
+**データ型:** `ClinicInfo`（name, branchName, postalCode, address, phoneNumber, faxNumber?, registrationNumber?, directorName?, email?, website?, logoUrl?）
+
+### 11.3 診療項目マスタ（統合ページ）
+
+| 項目 | 内容 |
+|------|------|
+| **ルート** | `/settings/treatment-items` |
+| **コンポーネント** | `[R] TreatmentItemsSettings` |
+| **目的** | 診察・検査・処置・予防接種・定期健診の5カテゴリを1ページで管理 |
+
+**タブ構成:**
+| タブラベル | カテゴリキー | showPrice | showCode | showCategory | showParentItem |
+|---|---|---|---|---|---|
+| 診察 | `consultation` | true | false | false | true |
+| 検査 | `examination` | true | false | false | true |
+| 処置 | `procedure` | true | false | false | true |
+| 予防接種 | `vaccine` | true | false | false | true |
+| 定期健診 | `checkup` | true | false | false | true |
+
+- ヘッダー: 「診療項目マスタ」（Stethoscope アイコン）+ 戻るボタン → `/settings`
+- タブ切替: `Tabs` / `TabsList` / `TabsTrigger` / `TabsContent`（Notion風スタイル）
+- 各タブ内は `[C] SettingsContent`（`embedded` モード）で一覧/編集を描画（ツリー表示対応）
+- 編集モード時は `PageLayout` 付きの独立フォームに遷移
+
+### 11.4 診断マスタ（統合ページ）
+
+| 項目 | 内容 |
+|------|------|
+| **ルート** | `/settings/diagnosis` |
+| **コンポーネント** | `[R] DiagnosisSettings` |
+| **目的** | 診断カテゴリと診断名の2カテゴリを1ページで管理 |
+
+**タブ構成:**
+| タブラベル | カテゴリキー | showPrice | showCode | showCategory |
+|---|---|---|---|---|
+| カテゴリ | `diagnosis_category` | false | false | true |
+| 診断名 | `diagnosis_name` | false | false | true |
+
+- ヘッダー: 「診断マスタ」（FolderTree アイコン）+ 戻るボタン → `/settings`
+- タブ切替: `Tabs` / `TabsList` / `TabsTrigger` / `TabsContent`（Notion風スタイル）
+- 各タブ内は `[C] SettingsContent`（`embedded` モード）で一覧/編集を描画
+
+### 11.5 トリミングマスタ（統合ページ）
+
+| 項目 | 内容 |
+|------|------|
+| **ルート** | `/settings/trimming` |
+| **コンポーネント** | `[R] TrimmingSettings` |
+| **目的** | トリミングコースとオプションの2カテゴリを1ページで管理 |
+
+**タ��構成:**
+| タブラベル | カテゴリキー | showPrice | showCode | showCategory | showParentItem |
+|---|---|---|---|---|---|
+| コース | `trimming_course` | true | false | false | true |
+| オプション | `trimming_option` | true | false | false | true |
+
+- ヘッダー: 「トリミングマスタ」（Scissors アイコン）+ 戻るボタン → `/settings`
+- タブ切替: `Tabs` / `TabsList` / `TabsTrigger` / `TabsContent`（Notion風スタイル）
+- 各タブ内は `[C] SettingsContent`（`embedded` モード）で一覧/編集を描画（ツリー表示対応）
+
+### 11.6 マスタカテゴリ設定（個別ページ）
+
+| 項目 | 内容 |
+|------|------|
+| **ルート** | `/settings/{category-slug}`（6パターン） |
+| **コンポーネント** | `[R] Settings` → `[C] SettingsContent` |
+| **目的** | 各マスタカテゴリのアイテムCRUD |
+
+**ルートマッピング（6カテゴリ）:**
+| スラグ | カテゴリキー | ラベル | アイコン | showPrice | showCode | showCategory | showParentItem |
+|---|---|---|---|---|---|---|---|
+| `service-type` | `serviceType` | 予約区分マスタ | Activity | false | false | false | false |
+| `medicine` | `medicine` | 薬剤マスタ | Pill | true | false | false | true |
+| `hospitalization` | `hospitalization` | 入院マスタ | Bed | true | false | false | true |
+| `cage` | `cage` | ケージマスタ | Building2 | false | true | true | false |
+| `staff` | `staff` | スタッフマスタ | Users | false | true | true | false |
+| `insurance` | `insurance` | 保険マスタ | ShieldCheck | false | false | true | false |
+
+**画面構成（リストモード）:**
+- ヘッダー: カテゴリ名（`config.IconComponent` 付き）+ 戻るボタン → `/settings` + 新規登録ボタン
+- 検索バー（`[S] SearchFilterBar`）: `showCode` 時は `{config.labels.code}、{config.labels.name}で検索...`、それ以外は `{config.labels.name}で検索...`
+- データテーブル（`[S] DataTable`）
+
+**ツリー表示（`showParentItem: true` のカテゴリ）:**
+- ドラッグ中にテーブル上部に「トップレベルに移動」ドロップゾーンが出現
+- 各行にドラッグハンドル（`GripVertical` アイコン）付き
+- トップレベル項目＝「カテゴリ」として機能、Chevronで展開/折りたたみ
+- 子項目数をカウントバッジで表示
+- 最下層のみ金額表示、親は金額欄を空欄表示
+- 操作列: 「+」ボタン（子項目インライン追加）+ 編集ボタン
+- D&D操作: ドラッグで項目を別の親にドロップして所属カテゴリ変更（自己参照・子孫へのドロップは防止）
+- D&D並び順変更: 行の上端25%にドロップで「前に挿入」、下端25%で「後に挿入」、中央50%で「子項目化」。`sortOrder`フィールドで永続化、`bulkUpdate`で兄弟全体のsortOrderを一括更新
+- カスタムドラッグプレビュー: `setDragImage`でNotionライクなピル型ゴースト（GripVerticalアイコン＋項目名）を表示
+- ホバー自動展開: 折りたたまれた親ノードの中央ゾーンに600msホバーで自動展開
+- キーボードアクセシビリティ: ドラッグハンドルに `role="button"` / `tabIndex={0}` / `aria-roledescription` / `aria-label` を付与。`aria-grabbed` / `aria-dropeffect="move"` で状態通知。`Alt+ArrowUp/Down` でキーボードのみの並び替え、`Alt+ArrowLeft` で親の階層に昇格、`Alt+ArrowRight` で直前の兄弟の子に降格（循環参照防止付き）。移動後はハンドルにフォーカス自動復帰。`useAnnounce` で全D&D操作結果を `aria-live="polite"` リージョンにリアルタイム通知
+- インライン追加行: `Enter` で追加（連打で複数登録可）、`Esc` で閉じる
+
+リストモード テーブル列:
+| 列 | className / align | 表示内容 | 条件 |
+|---|---|---|---|
+| コード | `w-[120px]` | `item.code`（等幅フォント） | `showCode` 時のみ |
+| 名称 | - | `item.name`（太字）、ドラッグハンドル付き。ツリー時はインデント+Chevron追加。フラット時も`GripVertical`+D&D並び替え対応 | 常時 |
+| 所属カテゴリ | `w-[130px]` | `diagnosisCategories` からの名前解決 | `diagnosis_name` のみ |
+| 分類 | `w-[100px]` | `item.category` | `showCategory` 時のみ（`showParentItem: true` のカテゴリでは非表示） |
+| 単価(税込) | `w-[100px]`, align:right | `¥{price}` or 「-」（等幅フォント） | `showPrice` 時のみ |
+| ステータス | `w-[100px]`, align:center | `StatusBadge`（`getMasterStatusColor` / `getMasterStatusLabel`） | 常時 |
+| 操作 | `w-[80px]`, align:right | 編集ボタン（行クリックでも編集モードへ遷移） | 常時 |
+
+**画面構成（編集モード）:**
+- ヘッダー: 「{カテゴリ名} 編集/新規登録」、戻るボタン → リストモードへ
+- カードコンテナ: `bg-white p-6 rounded-lg border shadow-sm space-y-4`
+
+共通フォーム項目（全カテゴリ共通）:
+| フィールド | 入力部品 | グリッド | 備考 |
+|---|---|---|---|
+| カテゴリ | `Select`（カテゴリ候補リスト） | full | `showParentItem` 時のみ表示、循環参照防止済み。「なし（トップレベル）」選択可 |
+| コード | `Input` | 2cols-左 | `showCode` 時のみ表示、必須（`*`マーク）、placeholder: `config.codePlaceholder` |
+| 名称 | `Input` | 2cols-右 | 必須（`*`マーク）、placeholder: `config.namePlaceholder` |
+| 分類 | `Input` | 2cols-左 | `showCategory` 時のみ表示、placeholder: `config.categoryPlaceholder` |
+| 単価(税込) | `Input`（type=number）/ 「子項目で金額を設定」表示 | 2cols-右 | `showPrice` 時のみ表示。子を持つ親は入力不可 |
+| [カテゴリ固有セクション] | `MasterItemFormSections` | - | 下記参照 |
+| 備考 / 詳細 | `Input` | full | placeholder: 補足情報など |
+| ステータス | `RadioGroup`（有効 / 無効） | full | radio ボタン2つ |
+
+**カテゴリ固有セクション（`[C] MasterItemFormSections` → `sections/`）:**
+
+**examination（検査マスタ）:**
+| フィールド | 入力部品 | 備考 |
+|---|---|---|
+| 検査項目リスト | 動的リスト（追加/削除） | 3カラムグリッド per 行 |
+| └ 項目名 | `Input` | placeholder: RBC |
+| └ ��位 | `Input` | placeholder: 例: mg/dL |
+| └ 正常値 | `Input` | placeholder: 550-850 |
+| └ 削除 | Trash2 ボタン | 赤色 ghost |
+| 項目追加 | `Button`（Plus アイコン） | ヘッダー右上に配置 |
+
+**vaccine（予防接種マスタ）:**
+| フィールド | 入力部品 | 備考 |
+|---|---|---|
+| 対象種別 | `Select`（`VACCINE_SPECIES_VALUES`: 犬/猫/共通） | デフォルト: dog |
+| 標準接種間隔 | `Input` | placeholder: 例: 1年 |
+
+**medicine（薬剤マスタ）:**
+| フィールド | 入力部品 | 備考 |
+|---|---|---|
+| 剤形 | `Select`（`DOSAGE_FORM_VALUES`: 錠剤/液剤/注射/外用薬/粉末） | デフォルト: tablet |
+| 単位 | `Select`（`MEDICINE_UNIT_VALUES`: 1錠あたり/1mLあたり/1回分/1gあたり） | デフォルト: per_tablet |
+
+**staff（スタッフマスタ）:**
+| フィールド | 入力部品 | 備考 |
+|---|---|---|
+| 職種 | `Combobox`（job_title マスタ連動、active のみ） | `MasterLink` 付き |
+| 資格番号 | `Input` | placeholder: 例: 獣医第12345号 |
+| 所属医院 | `DropdownMenu`（`DropdownMenuCheckboxItem`） | 複数選択可、MOCK_CLINICS 連動 |
+| メールアドレス | `Input`（type=email） | placeholder: 例: user@example.com |
+| パスワード | `Input`（type=password） | 未入力で変更なし（新規登録時は必須） |
+| ユーザー種別 | `Combobox`（`USER_TYPE_VALUES`: システム管理者/医院管理者/スタッフ） | デフォルト: staff |
+
+**スタッフマスタ 一覧表示列:**
+| 列 | 表示内容 |
+|---|---|
+| 名称 | `item.name`（ドラッグハンドル付き） |
+| 職種 | job_title マスタから解決した名称 |
+| 所属医院 | clinics配列から解決した医院名（カンマ区切り） |
+| メールアドレス | `item.email` |
+| 最終ログイン | `item.lastLoginAt`（yyyy/MM/dd HH:mm 形式） |
+| ステータス | StatusBadge（有効/無効） |
+| 操作 | RowActionDropdown（編集） |
+
+**特記事項:**
+- スタッフマスタでは社員番号フィールドは存在せず、コード列も非表示
+- 職種は job_title マスタから動的に取得（単一選択、Combobox形式）
+- 所属医院は複数選択可能（チェックボックス形式のドロップダウンメニュー）
+- ユーザー種別により権限管理を実施（システム管理者/医院管理者/スタッフ）
+- セクション構成: スタッフ詳細（職種・資格番号） / 所属情報（所属医院） / アカウント発行・権限設定（メールアドレス・パスワード・ユーザー種別）
+
+**cage（ケージマスタ）:**
+| フィールド | 入力部品 | 備考 |
+|---|---|---|
+| ケージタイプ | `Select`（`CAGE_TYPE_VALUES`: ICU（酸素室）/犬舎/猫舎/共用） | デフォルト: general |
+| サイズ | `Select`（`CAGE_SIZE_VALUES`: 小型/中型/大型） | デフォルト: medium |
+
+**insurance（保険マスタ）:**
+| フィールド | 入力部品 | 備考 |
+|---|---|---|
+| 補償割合 (%) | `Select`（`COVERAGE_RATE_VALUES`: 50%/70%/80%/100%） | デフォルト: 70 |
+| 請求先電話番号 | `Input` | placeholder: 例: 0120-XXX-XXX |
+
+**trimming_course（トリミングコースマスタ）:**
+| フィールド | 入力部品 | 備考 |
+|---|---|---|
+| 対象サイズ | `Select`（`TARGET_SIZE_VALUES`: 小型犬/中型犬/大型犬/猫） | デフォルト: small |
+| 所要時間 (分) | `Input`（type=number, Clock アイコン付き） | placeholder: 例: 60 |
+
+**trimming_option（トリミング���プションマスタ）:**
+| フィールド | 入力部品 | 備考 |
+|---|---|---|
+| 追加所要時間 (分) | `Input`（type=number, Clock アイコン付き） | placeholder: 例: 15 |
+| 併用可否 | `Select`（`COMBINABLE_VALUES`: 併用可/単独のみ） | デフォルト: yes |
+
+**hospitalization（入院マスタ）:**
+| フィールド | 入力部品 | 備考 |
+|---|---|---|
+| 対象体格 | `Select`（`BODY_SIZE_VALUES`: 小型/中型/大型） | デフォルト: small |
+| 料金単位 | `Select`（`BILLING_UNIT_VALUES`: 1日あたり/1泊あたり） | デフォルト: per_day |
+
+**consultation（診察マスタ）:**
+| フィールド | 入力部品 | 備考 |
+|---|---|---|
+| 適用区分 | `Select`（`CONSULTATION_TIME_VALUES`: 常時/初診/再診/時間外/緊急） | デフォルト: anytime |
+| 標準診察時間 | `Input` | placeholder: 例: 15分 |
+
+**procedure（処置マスタ）:**
+| フィールド | 入力部品 | 備考 |
+|---|---|---|
+| 所要時間(目安) | `Input` | placeholder: 例: 30分 |
+| 麻酔要否 | `Select`（`ANESTHESIA_VALUES`: 不要/局所麻酔/鎮静/全身麻酔） | デフォルト: none |
+
+**checkup（定期健診マスタ）:**
+| フィールド | 入力部品 | 備考 |
+|---|---|---|
+| 推奨受診間隔 | `Input` | placeholder: 例: 1年 |
+| 対象年齢 | `Select`（`CHECKUP_TARGET_AGE_VALUES`: 全年齢/幼齢(〜1歳)/成年(1〜7歳)/シニア(7歳〜)） | デフォルト: all |
+
+**serviceType（予約区分マスタ）:**
+| フィールド | 入力部品 | 備考 |
+|---|---|---|
+| 表示カラー | カラーピッカー（`SERVICE_TYPE_COLOR_VALUES` 丸ボタン群、選択時チェック+ring） | デフォルト: default |
+| プレビュー | 読み取り専用バッジ | 選択色+名称のプレビュー表示 |
+
+**diagnosis_name（診断名マスタ）:**
+| フィールド | 入力部品 | 備考 |
+|---|---|---|
+| 診断カテゴリ | `Select`（diagnosis_category マスタ連動、active のみ） | 必須（`*`マーク）、`MasterLink` 付き、未登録時は警告メッセージ |
+
+**diagnosis_category（固有セクションなし）:**
+- 共通フィールド（コード、名称、カテゴリ、[単価(税込)]）のみ
+
+**編集モード アクション（`pt-4 border-t`）:**
+| ボタン | 位置 | 動作 | 備考 |
+|---|---|---|---|
+| 削除 | 左（編集時のみ） | `handleDelete` → staff 時は `StaffImpactDialog` / 他は `ConfirmDialog` | Trash2 アイコン、赤文字 |
+| キャンセル | 右 | `handleCloseEdit` → リストモードへ | outline |
+| 保存 | 右 | `handleSave` | Save アイコン、`[S] PrimaryButton` |
+
+**スタッフ固有ダイアログ（`[S] StaffImpactDialog`）:**
+- ステータス変更・名称変更・削除時に影響範囲を確認
+- `staffName`, `action`（rename / deactivate / delete）, `usage`（使用箇所数）を表示
+
+**使用コンポーネント:**
+| コンポーネント | 種別 | 説明 |
+|---|---|---|
+| `Settings` | `[R]` | メインページ（リスト/編集切替） |
+| `MasterItemFormSections` | `[C]` | カテゴリ固有フォームセクション（ディスパッチャー） |
+| `ExaminationSection` | `[C]` | 検査マスタ固有: 検査項目リスト |
+| `VaccineSection` | `[C]` | 予防接種マスタ固有: 対象種別・接種間隔 |
+| `MedicineSection` | `[C]` | 薬剤マスタ固有: 剤形・単位 |
+| `StaffSection` | `[C]` | スタッフマスタ固有: 役職・資格番号 |
+| `CageSection` | `[C]` | ケージマスタ固有: タイプ・サイズ |
+| `InsuranceSection` | `[C]` | 保険マスタ固有: 補償割合・電話 |
+| `TrimmingCourseSection` | `[C]` | コースマスタ固有: 対象サイズ・所要時間 |
+| `TrimmingOptionSection` | `[C]` | オプションマスタ固有: 追加時間・併用可否 |
+| `HospitalizationSection` | `[C]` | 入院マスタ固有: 体格・料金単位 |
+| `DiagnosisNameSection` | `[C]` | 診断名マスタ固有: 親カテゴリ選択 |
+| `ConsultationSection` | `[C]` | 診察マスタ固有: 適用区分・標準診察時間 |
+| `ProcedureSection` | `[C]` | 処置マスタ固有: 所要時間・麻酔要否 |
+| `CheckupSection` | `[C]` | 定期健診マスタ固有: 推奨受診間隔・対象年齢 |
+| `ServiceTypeSection` | `[C]` | 予約区分マスタ固有: 表示カラーピッカー・プレビュー |
+| `SectionWrapper` | `[C]` | セクション共通ラッパー（`SectionPropertyRow` = `NotionPropertyRow` re-export） |
+| `NotionPropertyRow` | `[S]` | Notion風プロパティ行（MasterItemEditForm・全セクション共通） |
+| `PageLayout` | `[S]` | ページレイアウト |
+| `SearchFilterBar` | `[S]` | 検索フィルタバー |
+| `DataTable` / `DataTableRow` | `[S]` | データテーブル |
+| `PrimaryButton` | `[S]` | 新規登録・保存ボタン |
+| `StatusBadge` | `[S]` | ステータスバッジ |
+| (行クリック) | — | 行クリックで編集モードへ遷移 |
+| `StaffImpactDialog` | `[S][M]` | スタッフ変更影響確認ダイアログ |
+| `ConfirmDialog` | `[S][M]` | 削除確認 |
+| `MasterLink` | `[S]` | マスタ設定リンク |
+| `useMasterItemEditor` | `[H]` | CRUD操作フック |
+| `useMasterItems` | `[H]` | マスタデータ取得 |
+
+**データ型:** `MasterItem`, `MasterFormData`, `MasterCategory`, `MasterSectionProps`, `CreateMasterItemDTO`, `UpdateMasterItemDTO`, `CategoryConfig` + 各カテゴリ固有型（`ConsultationTime`, `Anesthesia`, `CheckupTargetAge`, `VaccineSpecies`, `DosageForm`, `MedicineUnit`, `StaffRole`, `CageType`, `CageSize`, `CoverageRate`, `TargetSize`, `Combinable`, `BodySize`, `BillingUnit`）
+
+**ユーザー操作:**
+- リストモード: 検索、行クリックで編集モードへ、新規登録ボタン
+- 編集モード: 共通フィールド + カテゴリ固有フィールド入力
+- ステータス切替（有効/無効ラジオ）
+- 保存 / キャンセル / 削除
+- staff カテゴリ: 名称変更・ステータス変更・削除時に影響確認ダイアログ
+- diagnosis_name カテゴリ: 親カテゴリ（diagnosis_category マスタ）からの選択
+
+**アクセシビリティ:**
+- 名称フィールド: `aria-invalid` + `aria-describedby` → `FormFieldError`（`role="alert"`）接続
+- D&D操作: `useAnnounce` でキーボード・マウス全操作結果をスクリーンリーダーに通知
+- `MasterSelectModal` 内アイテムリスト: `<button>` 要素でキーボード操作対応
 
 ---
 
@@ -1230,7 +1777,7 @@
 | **目的** | 在庫品目の一覧表示・検索・フィルタリング |
 
 **画面構成:**
-- ヘッダー: タイトル「在庫管理」（Package アイコン）+ 更新ボタン（RefreshCw アイコン、outline）+ 在庫登録ボタン（`[S] PrimaryButton`）
+- ヘッダー: タイトル「在庫管理」（Package アイコン）+ 更新ボタン（RefreshCw アイコン、outline���+ 在庫登録ボタン（`[S] PrimaryButton`）
 - 検索バー（`[S] SearchFilterBar`）: 「品名、保管場所、仕入先で検索...」
 - カテゴリフィルタ（`Select`）: 全カテゴリー / 医薬品 / 消耗品 / フード / その他
 - 状態フィルタ（`Select`）: 全ての状態 / 在庫あり / 残りわずか / 在庫切れ
@@ -1259,7 +1806,7 @@
 | 編集 | Edit | `/inventory/{id}` へ遷移 |
 | 削除 | Trash2 | `ConfirmDialog` → 削除、構造化トースト |
 
-**使用コンポーネント:**
+**使用コンポーネ���ト:**
 | コンポーネント | 種別 | 説明 |
 |---|---|---|
 | `InventoryList` | `[R]` | メインページ |
@@ -1401,7 +1948,7 @@
 - ビュー切替（週表示 ↔ 月表示）
 - ロールフィルタでスタッフを絞り込み
 - 前/次の期間へナビゲーション、今日ボタンで現在週/月へ復帰
-- セルクリック → Popover でシフトタイプ・時間・メモを編集 → 保存でトースト通知
+- セルクリック → Popover でシフトタイプ・時間・メモを編集 ��� 保存でトースト通知
 - セルクリック → Popover で「削除」ボタン → シフト削除
 
 **アクセシビリティ:**
@@ -1504,7 +2051,7 @@ Login
 
 ---
 
-## 全ルート一覧（42ルート + Fallback）
+## 全ルート一覧��42ルート + Fallback）
 
 | # | ルート | 画面名 | ページコンポーネント |
 |---|--------|--------|---------------------|
@@ -1551,3 +2098,5 @@ Login
 | 41 | `/dev/tests` | フォーマットテスト (開発用) | `FormatTestRunner` |
 | 42 | `/login` | ログイン | `Login` |
 | — | `*` | 404ページ | インライン |
+
+> **注**: マスタ設定ルートは3統合ページ（`TreatmentItemsSettings`/`DiagnosisSettings`/`TrimmingSettings`）+ 6個別ページ（`Settings` コンポーネント, category prop切替）= 9ルートで15カテゴリをカバー。`/login` は認証実装（AUTH.md Phase 1〜3 完了済み）に伴い追加された公開ルート。`/dev/tests` は開発用フォーマットテストランナー。

@@ -192,6 +192,7 @@ CREATE TABLE user_accounts (
     status            account_status          DEFAULT 'active',
     avatar_url        text           NOT NULL DEFAULT '',
     staff_id          uuid                    REFERENCES staffs(id) ON DELETE SET NULL,
+    password_hash     text           NOT NULL DEFAULT '',
     created_at        timestamptz    NOT NULL DEFAULT now(),
     updated_at        timestamptz    NOT NULL DEFAULT now(),
     deleted_at        timestamptz

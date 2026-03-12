@@ -1,6 +1,6 @@
 # 画面仕様書 完全版ガイド
 
-**更新日**: 2026-03-11
+**更新日**: 2026-03-11  
 **バージョン**: 3.0
 
 動物病院管理システムの画面仕様書は、以下の3つのドキュメントで構成されています。
@@ -15,6 +15,7 @@
 **内容:**
 - セクション 1-10: ダッシュボード〜定期健診管理
 - セクション 12-15: 在庫管理〜認証
+- セクション 4.3.1: TreatmentTable詳細仕様（治療項目テーブル）
 
 **記載内容:**
 - ✅ 画面構成・レイアウト詳細
@@ -53,12 +54,12 @@
 - ✅ 11.4 診断マスタ（統合ページ）
 - ✅ 11.5 トリミングマスタ（統合ページ）
 - ✅ 11.6 マスタカテゴリ設定（個別ページ）
-  - 全14カテゴリの完全仕様
+  - 全19カテゴリの完全仕様
   - 各カテゴリ固有フォームセクション詳細
   - ツリー表示・D&D操作の完全仕様
   - キーボードアクセシビリティ詳細
 
-**全14カテゴリ:**
+**全19カテゴリ:**
 1. examination（検査マスタ）
 2. vaccine（予防接種マスタ）
 3. medicine（薬剤マスタ）
@@ -74,6 +75,10 @@
 13. serviceType（予約区分マスタ）
 14. diagnosis_name（診断名マスタ）
 15. diagnosis_category（診断カテゴリマスタ）
+16. animal_species（ペット種類マスタ）
+17. job_title（職種マスタ）
+18. inquiry_template（問診定型文マスタ）
+19. chief_complaint（主訴区分マスタ）
 
 **各カテゴリに含まれる情報:**
 - ✅ フィールド一覧
@@ -87,7 +92,29 @@
 
 ---
 
-### 3. **SCREENS_VALIDATION.md**（バリデーション・データ型補完）
+### 3. **SCREENS_DETAILED_TABS.md**（カルテタブ詳細編）
+
+**内容:**
+- 電子カルテの各タブの詳細仕様（Tab 2, 3, 7, 8）
+- TreatmentTable仕様の実装詳細
+- マスタ連携フロー
+- デモデータ修正履歴
+
+**記載内容:**
+- ✅ Tab 2: 診察/治療プラン（診断ヘッダー、治療プラン、マスタ検索連携）
+- ✅ Tab 3: 治療（治療プラン・治療済みテーブル、移動確認ダイアログ）
+- ✅ Tab 7: 見積書（明細テーブル、コメント・備考、PDF出力）
+- ✅ Tab 8: 会計(医師確認)（読み取り専用明細、チェック完了、会計連携）
+- ✅ 種別カラムの実装詳細（TreatmentType値、getCategoryTreatmentType関数）
+- ✅ デモデータ修正内容（category→type変更、マスタカテゴリ英語キー統一）
+- ✅ 影響範囲・今後の拡張可能性
+
+**対象画面:**
+- 電子カルテ（MedicalRecordForm）の4つのタブに特化
+
+---
+
+### 4. **SCREENS_VALIDATION.md**（バリデーション・データ型補完）
 
 **内容:**
 - 全画面のバリデーションルール
@@ -153,6 +180,9 @@
 ### 画面構成を知りたい場合
 → **SCREENS.md**を参照
 
+### 電子カルテのタブ詳細を知りたい場合
+→ **SCREENS_DETAILED_TABS.md**を参照
+
 ### バリデーションルール・エラーメッセージを知りたい場合
 → **SCREENS_VALIDATION.md**を参照
 
@@ -164,8 +194,9 @@
 
 ### 実装する場合
 1. **SCREENS.md**で画面構成・コンポーネント構成を確認
-2. **SCREENS_VALIDATION.md**でバリデーション・データ型を確認
-3. **SCREENS_MASTER.md**でマスタ管理の詳細を確認（該当する場合）
+2. **SCREENS_DETAILED_TABS.md**で電子カルテタブの詳細を確認（カルテ実装時）
+3. **SCREENS_VALIDATION.md**でバリデーション・データ型を確認
+4. **SCREENS_MASTER.md**でマスタ管理の詳細を確認（該当する場合）
 
 ---
 
@@ -173,24 +204,26 @@
 
 | 技術 | 用途 |
 |------|------|
-| **React 19** | UIフレームワーク |
-| **TypeScript 5.7** | 型安全性 |
+| **React** | UIフレームワーク |
+| **TypeScript** | 型安全性 |
 | **Tailwind CSS v4** | スタイリング |
 | **shadcn/ui** | UIコンポーネント |
 | **react-hook-form@7.55.0** | フォーム管理 |
 | **react-dnd** | ドラッグ&ドロップ |
 | **motion/react** | アニメーション |
-| **LocalStorage** | データ永続化（一部機能） |
+| **LocalStorage** | データ永続化 |
 
 ---
 
 ## 🔗 関連ドキュメント
 
-- **[FORMS_SPECIFICATION.md](./FORMS_SPECIFICATION.md)**: フォーム項目の詳細仕様
-- **[DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)**: デザインシステム・Notionトークン
-- **[AUTH.md](./AUTH.md)**: 認証・RBAC設計
-- **[ERD.md](./ERD.md)**: データベース設計（45テーブル）
-- **[DB_DEFINITION.md](./DB_DEFINITION.md)**: DB定義書（PostgreSQL DDL）
+- **[SCREENS_DETAILED_TABS.md](./SCREENS_DETAILED_TABS.md)**: 電子カルテタブ詳細仕様
+- **[FORMS_SPECIFICATION.md](./docs/FORMS_SPECIFICATION.md)**: フォーム項目の詳細仕様
+- **[SPECIFICATION.md](./SPECIFICATION.md)**: システム全体仕様書
+- **[Guidelines](./guidelines/)**: コーディングガイドライン
+  - NAMING_CONVENTIONS.md
+  - CODE_REVIEW_CHECKLIST.md
+  - UX_GUIDELINES.md
 
 ---
 
@@ -198,7 +231,8 @@
 
 | 日付 | バージョン | 変更内容 |
 |------|-----------|---------|
-| 2026-03-12 | 3.0 | docs/配下に同期・技術スタック更新（React 19, TypeScript 5.7）|
+| 2026-03-12 | 3.2 | ERD v15.0差分解消：diagnosis2削除、PetSpecies/InsuranceCompanyをマスタFK方式に変更、sedation廃止、inquiry_template/chief_complaintマスタ追加、カテゴリ15→19に更新 |
+| 2026-03-12 | 3.1 | SCREENS_DETAILED_TABS.md追加：電子カルテタブの詳細仕様、種別カラム実装詳細を追加 |
 | 2026-03-11 | 3.0 | 完全版作成：3ファイル体制に分割、全項目を抜け漏れなく記載 |
 | 2026-03-10 | 2.0 | SCREENS.md、SCREENS_MASTER.mdの詳細化 |
 | 2026-03-09 | 1.0 | 初版作成 |
