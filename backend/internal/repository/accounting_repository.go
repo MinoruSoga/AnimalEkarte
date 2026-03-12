@@ -12,11 +12,11 @@ import (
 )
 
 type AccountingRepository interface {
-	FindAll(ctx context.Context, status *string, page, limit int) ([]model.Billing, int64, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.Billing, error)
-	Create(ctx context.Context, accounting *model.Billing) error
-	Update(ctx context.Context, accounting *model.Billing) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	FindAll(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, ownerID *uuid.UUID, status *string, page, limit int) ([]model.Billing, int64, error)
+	FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.Billing, error)
+	Create(ctx context.Context, clinicID uuid.UUID, accounting *model.Billing) error
+	Update(ctx context.Context, clinicID uuid.UUID, accounting *model.Billing) error
+	Delete(ctx context.Context, clinicID, id uuid.UUID) error
 }
 
 type accountingRepository struct {
@@ -27,11 +27,17 @@ func NewAccountingRepository(db *gorm.DB) AccountingRepository {
 	return &accountingRepository{db: db}
 }
 
-func (r *accountingRepository) FindAll(ctx context.Context, status *string, page, limit int) ([]model.Billing, int64, error) {
+func (r *accountingRepository) FindAll(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, ownerID *uuid.UUID, status *string, page, limit int) ([]model.Billing, int64, error) {
 	var billings []model.Billing
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.Billing{})
+	q := r.db.WithContext(ctx).Model(&model.Billing{}).Where("clinic_id = ?", clinicID)
+	if petID != nil {
+		q = q.Where("pet_id = ?", *petID)
+	}
+	if ownerID != nil {
+		q = q.Where("owner_id = ?", *ownerID)
+	}
 	if status != nil {
 		q = q.Where("status = ?", *status)
 	}
@@ -44,14 +50,14 @@ func (r *accountingRepository) FindAll(ctx context.Context, status *string, page
 	return billings, total, nil
 }
 
-func (r *accountingRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Billing, error) {
+func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.Billing, error) {
 	var billing model.Billing
 	if err := r.db.WithContext(ctx).
 		Preload("Items").
 		Preload("Payments").
 		Preload("Owner").
 		Preload("Pet").
-		First(&billing, "id = ?", id).Error; err != nil {
+		First(&billing, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperrors.WrapNotFound("billing", id.String())
 		}
@@ -60,7 +66,8 @@ func (r *accountingRepository) FindByID(ctx context.Context, id uuid.UUID) (*mod
 	return &billing, nil
 }
 
-func (r *accountingRepository) Create(ctx context.Context, accounting *model.Billing) error {
+func (r *accountingRepository) Create(ctx context.Context, clinicID uuid.UUID, accounting *model.Billing) error {
+	accounting.ClinicID = clinicID
 	if err := r.db.WithContext(ctx).Create(accounting).Error; err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("billing", accounting.ScheduledDate.String())
@@ -70,15 +77,20 @@ func (r *accountingRepository) Create(ctx context.Context, accounting *model.Bil
 	return nil
 }
 
-func (r *accountingRepository) Update(ctx context.Context, accounting *model.Billing) error {
-	if err := r.db.WithContext(ctx).Save(accounting).Error; err != nil {
-		return apperrors.Wrap(err, "update billing")
+func (r *accountingRepository) Update(ctx context.Context, clinicID uuid.UUID, accounting *model.Billing) error {
+	accounting.ClinicID = clinicID
+	result := r.db.WithContext(ctx).Where("id = ? AND clinic_id = ?", accounting.ID, clinicID).Save(accounting)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update billing")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("billing", accounting.ID.String())
 	}
 	return nil
 }
 
-func (r *accountingRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	result := r.db.WithContext(ctx).Delete(&model.Billing{}, "id = ?", id)
+func (r *accountingRepository) Delete(ctx context.Context, clinicID, id uuid.UUID) error {
+	result := r.db.WithContext(ctx).Delete(&model.Billing{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete billing")
 	}

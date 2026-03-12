@@ -2,20 +2,32 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import type { BackendInventoryItem, CreateInventoryItemRequest, UpdateInventoryItemRequest } from "./types";
 
-export const getInventoryItems = async (): Promise<BackendInventoryItem[]> => {
-  const { data } = await axios.get<BackendInventoryItem[]>("/v1/inventory-items");
-  return data;
+interface GetInventoryItemsParams {
+  category?: string;
+  status?: string;
+}
+
+interface InventoryListResponse {
+  data: BackendInventoryItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export const getInventoryItems = async (params?: GetInventoryItemsParams): Promise<BackendInventoryItem[]> => {
+  const { data } = await axios.get<InventoryListResponse>("/v1/inventory", { params });
+  return data.data;
 };
 
-export const useGetInventoryItems = () => {
+export const useGetInventoryItems = (params?: GetInventoryItemsParams) => {
   return useQuery({
-    queryKey: ["inventoryItems"],
-    queryFn: getInventoryItems,
+    queryKey: ["inventoryItems", params],
+    queryFn: () => getInventoryItems(params),
   });
 };
 
 export const getInventoryItem = async (id: string): Promise<BackendInventoryItem> => {
-  const { data } = await axios.get<BackendInventoryItem>(`/v1/inventory-items/${id}`);
+  const { data } = await axios.get<BackendInventoryItem>(`/v1/inventory/${id}`);
   return data;
 };
 
@@ -27,34 +39,8 @@ export const useGetInventoryItem = (id: string) => {
   });
 };
 
-export const getInventoryItemsByCategory = async (category: string): Promise<BackendInventoryItem[]> => {
-  const { data } = await axios.get<BackendInventoryItem[]>(`/v1/inventory-items/category/${category}`);
-  return data;
-};
-
-export const useGetInventoryItemsByCategory = (category: string) => {
-  return useQuery({
-    queryKey: ["inventoryItems", "category", category],
-    queryFn: () => getInventoryItemsByCategory(category),
-    enabled: !!category,
-  });
-};
-
-export const getInventoryItemsByStatus = async (status: string): Promise<BackendInventoryItem[]> => {
-  const { data } = await axios.get<BackendInventoryItem[]>(`/v1/inventory-items/status/${status}`);
-  return data;
-};
-
-export const useGetInventoryItemsByStatus = (status: string) => {
-  return useQuery({
-    queryKey: ["inventoryItems", "status", status],
-    queryFn: () => getInventoryItemsByStatus(status),
-    enabled: !!status,
-  });
-};
-
 export const createInventoryItem = async (req: CreateInventoryItemRequest): Promise<BackendInventoryItem> => {
-  const { data } = await axios.post<BackendInventoryItem>("/v1/inventory-items", req);
+  const { data } = await axios.post<BackendInventoryItem>("/v1/inventory", req);
   return data;
 };
 
@@ -69,7 +55,7 @@ export const useCreateInventoryItem = () => {
 };
 
 export const updateInventoryItem = async (id: string, req: UpdateInventoryItemRequest): Promise<BackendInventoryItem> => {
-  const { data } = await axios.put<BackendInventoryItem>(`/v1/inventory-items/${id}`, req);
+  const { data } = await axios.patch<BackendInventoryItem>(`/v1/inventory/${id}`, req);
   return data;
 };
 
@@ -84,7 +70,7 @@ export const useUpdateInventoryItem = () => {
 };
 
 export const deleteInventoryItem = async (id: string): Promise<void> => {
-  await axios.delete(`/v1/inventory-items/${id}`);
+  await axios.delete(`/v1/inventory/${id}`);
 };
 
 export const useDeleteInventoryItem = () => {

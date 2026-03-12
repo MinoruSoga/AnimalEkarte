@@ -4,6 +4,13 @@ import type { ExaminationRecord } from "@/types";
 import { transformExamination } from "./transforms";
 import type { BackendExamination } from "./types";
 
+interface ExaminationListResponse {
+  data: BackendExamination[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export const getExamination = async (id: string): Promise<ExaminationRecord> => {
   const { data } = await axios.get<BackendExamination>(`/v1/examinations/${id}`);
   return transformExamination(data);
@@ -21,10 +28,10 @@ export const useGetExamination = (id: string) => {
 export const getExaminationsByPetId = async (
   petId: string
 ): Promise<ExaminationRecord[]> => {
-  const { data } = await axios.get<BackendExamination[]>(
-    `/v1/pets/${petId}/examinations`
-  );
-  return data.map(transformExamination);
+  const { data } = await axios.get<ExaminationListResponse>("/v1/examinations", {
+    params: { pet_id: petId },
+  });
+  return data.data.map(transformExamination);
 };
 
 export const useGetExaminationsByPetId = (petId: string) => {
@@ -39,10 +46,10 @@ export const useGetExaminationsByPetId = (petId: string) => {
 export const getExaminationsByOwnerId = async (
   ownerId: string
 ): Promise<ExaminationRecord[]> => {
-  const { data } = await axios.get<BackendExamination[]>(
-    `/v1/owners/${ownerId}/examinations`
-  );
-  return data.map(transformExamination);
+  const { data } = await axios.get<ExaminationListResponse>("/v1/examinations", {
+    params: { owner_id: ownerId },
+  });
+  return data.data.map(transformExamination);
 };
 
 export const useGetExaminationsByOwnerId = (ownerId: string) => {
@@ -57,10 +64,10 @@ export const useGetExaminationsByOwnerId = (ownerId: string) => {
 export const getExaminationsByStatus = async (
   status: string
 ): Promise<ExaminationRecord[]> => {
-  const { data } = await axios.get<BackendExamination[]>(
-    `/v1/examinations/status/${status}`
-  );
-  return data.map(transformExamination);
+  const { data } = await axios.get<ExaminationListResponse>("/v1/examinations", {
+    params: { status },
+  });
+  return data.data.map(transformExamination);
 };
 
 export const useGetExaminationsByStatus = (status: string) => {

@@ -24,6 +24,11 @@ import (
 // @Failure 500 {object} map[string]string
 // @Router /trimmings [get]
 func (h *Handler) ListTrimmings(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	page, limit, err := parsePagination(c)
 	if err != nil {
 		RespondError(c, err)
@@ -40,7 +45,17 @@ func (h *Handler) ListTrimmings(c *gin.Context) {
 		petID = &id
 	}
 
-	trimmings, total, err := h.svc.Trimming.List(c.Request.Context(), petID, page, limit)
+	var ownerID *uuid.UUID
+	if s := c.Query("owner_id"); s != "" {
+		id, err := uuid.Parse(s)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id"})
+			return
+		}
+		ownerID = &id
+	}
+
+	trimmings, total, err := h.svc.Trimming.List(c.Request.Context(), clinicID, petID, ownerID, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -62,12 +77,17 @@ func (h *Handler) ListTrimmings(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /trimmings/{id} [get]
 func (h *Handler) GetTrimming(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	trimming, err := h.svc.Trimming.GetByID(c.Request.Context(), id)
+	trimming, err := h.svc.Trimming.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -88,13 +108,18 @@ func (h *Handler) GetTrimming(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /trimmings [post]
 func (h *Handler) CreateTrimming(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	var input model.TrimmingRecord
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	input.ID = uuid.New()
-	if err := h.svc.Trimming.Create(c.Request.Context(), &input); err != nil {
+	if err := h.svc.Trimming.Create(c.Request.Context(), clinicID, &input); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -116,6 +141,11 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /trimmings/{id} [put]
 func (h *Handler) UpdateTrimming(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
@@ -127,9 +157,26 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 		return
 	}
 	input.ID = id
-	if err := h.svc.Trimming.Update(c.Request.Context(), &input); err != nil {
+	if err := h.svc.Trimming.Update(c.Request.Context(), clinicID, &input); err != nil {
 		RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, input)
+}
+
+func (h *Handler) DeleteTrimming(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	if err := h.svc.Trimming.Delete(c.Request.Context(), clinicID, id); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }

@@ -5,6 +5,13 @@ import type { Accounting } from "../types";
 import { transformAccounting, transformToAccounting } from "./transforms";
 import type { BackendAccounting } from "./types";
 
+interface AccountingListResponse {
+  data: BackendAccounting[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export const getAccounting = async (id: string): Promise<AccountingRecord> => {
   const { data } = await axios.get<BackendAccounting>(`/v1/accountings/${id}`);
   return transformAccounting(data);
@@ -36,10 +43,10 @@ export const useGetAccountingDetail = (id: string | undefined) => {
 export const getAccountingsByPetId = async (
   petId: string
 ): Promise<AccountingRecord[]> => {
-  const { data } = await axios.get<BackendAccounting[]>(
-    `/v1/pets/${petId}/accountings`
-  );
-  return data.map(transformAccounting);
+  const { data } = await axios.get<AccountingListResponse>("/v1/accountings", {
+    params: { pet_id: petId },
+  });
+  return data.data.map(transformAccounting);
 };
 
 export const useGetAccountingsByPetId = (petId: string) => {
@@ -54,10 +61,10 @@ export const useGetAccountingsByPetId = (petId: string) => {
 export const getAccountingsByOwnerId = async (
   ownerId: string
 ): Promise<AccountingRecord[]> => {
-  const { data } = await axios.get<BackendAccounting[]>(
-    `/v1/owners/${ownerId}/accountings`
-  );
-  return data.map(transformAccounting);
+  const { data } = await axios.get<AccountingListResponse>("/v1/accountings", {
+    params: { owner_id: ownerId },
+  });
+  return data.data.map(transformAccounting);
 };
 
 export const useGetAccountingsByOwnerId = (ownerId: string) => {
@@ -72,10 +79,10 @@ export const useGetAccountingsByOwnerId = (ownerId: string) => {
 export const getAccountingsByStatus = async (
   status: string
 ): Promise<AccountingRecord[]> => {
-  const { data } = await axios.get<BackendAccounting[]>(
+  const { data } = await axios.get<AccountingListResponse>(
     `/v1/accountings/status/${status}`
   );
-  return data.map(transformAccounting);
+  return data.data.map(transformAccounting);
 };
 
 export const useGetAccountingsByStatus = (status: string) => {

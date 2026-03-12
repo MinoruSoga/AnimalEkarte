@@ -1,44 +1,52 @@
 export interface BackendVaccination {
   id: string;
-  pet_id: string;
-  owner_id: string;
+  medical_record_id: string;
+  pet_id?: string | null;
+  vaccine_id: string;
+  date: string;
   doctor_id?: string | null;
-  vaccine_master_id?: string | null;
-  vaccine_name: string;
-  vaccination_date: string;
   next_date?: string | null;
-  lot_number?: string;
-  notes?: string;
+  next_schedule_type?: "3weeks" | "4weeks" | "1year" | "other" | null;
+  supplemental: string;
+  lot1: string;
+  lot2: string;
+  lot3: string;
+  lot4: string;
+  remarks: string;
   created_at: string;
   updated_at: string;
-  // Preloaded relations
+  // Relations
+  vaccine?: {
+    id: string;
+    name: string;
+    code?: string;
+  } | null;
   pet?: {
     id: string;
     name: string;
     species?: string;
+    owner_id?: string;
   } | null;
-  owner?: {
+  doctor?: {
     id: string;
     name: string;
   } | null;
 }
 
 export interface CreateVaccinationRequest {
-  pet_id: string;
-  owner_id: string;
+  medical_record_id: string;
+  pet_id?: string | null;
+  vaccine_id: string;
+  date: string;
   doctor_id?: string | null;
-  vaccine_master_id?: string | null;
-  vaccine_name: string;
-  vaccination_date: string;
   next_date?: string | null;
-  lot_number?: string;
-  notes?: string;
+  lot1?: string;
+  remarks?: string;
 }
 
 export interface UpdateVaccinationRequest {
-  vaccine_name?: string;
-  vaccination_date?: string;
+  date?: string;
   next_date?: string | null;
-  lot_number?: string;
-  notes?: string;
+  lot1?: string;
+  remarks?: string;
 }

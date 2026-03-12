@@ -8,7 +8,7 @@ export const updateVaccination = async (
   id: string,
   req: UpdateVaccinationRequest
 ): Promise<VaccinationRecord> => {
-  const { data } = await axios.put<BackendVaccination>(
+  const { data } = await axios.patch<BackendVaccination>(
     `/v1/vaccinations/${id}`,
     req
   );

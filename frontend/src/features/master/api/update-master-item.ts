@@ -1,33 +1,37 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import type { MasterItem } from "@/types";
-import { transformMasterItem } from "./transforms";
-import type { BackendMasterItem, UpdateMasterItemRequest } from "./types";
+import { MASTER_CATEGORY_ENDPOINT, transformGenericMasterItem, type GenericMasterBackendItem } from "./get-master-items";
+import type { UpdateMasterItemRequest } from "./types";
 
 export const updateMasterItem = async (
+  category: string,
   id: string,
   req: UpdateMasterItemRequest
 ): Promise<MasterItem> => {
-  const { data } = await axios.put<BackendMasterItem>(
-    `/v1/master-items/${id}`,
-    req
-  );
-  return transformMasterItem(data);
+  const endpoint = MASTER_CATEGORY_ENDPOINT[category];
+  if (!endpoint) throw new Error(`No endpoint for category: ${category}`);
+  const payload: Record<string, unknown> = {};
+  if (req.name !== undefined) payload.name = req.name;
+  if (req.code !== undefined) payload.code = req.code;
+  if (req.price !== undefined) payload.price = req.price;
+  if (req.description !== undefined) payload.description = req.description;
+  if (req.status !== undefined) payload.is_active = req.status !== "inactive";
+  const { data } = await axios.patch<GenericMasterBackendItem>(`${endpoint}/${id}`, payload);
+  return transformGenericMasterItem(data);
 };
 
-export const useUpdateMasterItem = () => {
-  const queryClient = useQueryClient();
+interface UseUpdateMasterItemParams {
+  category: string;
+}
 
+export const useUpdateMasterItem = ({ category }: UseUpdateMasterItemParams) => {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      id,
-      req,
-    }: {
-      id: string;
-      req: UpdateMasterItemRequest;
-    }) => updateMasterItem(id, req),
+    mutationFn: ({ id, req }: { id: string; req: UpdateMasterItemRequest }) =>
+      updateMasterItem(category, id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masterItems"] });
+      queryClient.invalidateQueries({ queryKey: ["masterItems", category] });
     },
   });
 };

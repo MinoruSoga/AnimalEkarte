@@ -11,7 +11,7 @@ import (
 )
 
 type ReservationService interface {
-	List(ctx context.Context, clinicID uuid.UUID, page, limit int, date *time.Time, status *string) ([]model.ReservationAppointment, int64, error)
+	List(ctx context.Context, clinicID uuid.UUID, page, limit int, date *time.Time, status *string, petID *uuid.UUID, ownerID *uuid.UUID) ([]model.ReservationAppointment, int64, error)
 	GetByID(ctx context.Context, clinicID, id uuid.UUID) (*model.ReservationAppointment, error)
 	Create(ctx context.Context, reservation *model.ReservationAppointment) error
 	Update(ctx context.Context, reservation *model.ReservationAppointment) error
@@ -26,8 +26,8 @@ func NewReservationService(repo repository.ReservationRepository) ReservationSer
 	return &reservationService{repo: repo}
 }
 
-func (s *reservationService) List(ctx context.Context, clinicID uuid.UUID, page, limit int, date *time.Time, status *string) ([]model.ReservationAppointment, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, page, limit, date, status)
+func (s *reservationService) List(ctx context.Context, clinicID uuid.UUID, page, limit int, date *time.Time, status *string, petID *uuid.UUID, ownerID *uuid.UUID) ([]model.ReservationAppointment, int64, error) {
+	return s.repo.FindAll(ctx, clinicID, page, limit, date, status, petID, ownerID)
 }
 
 func (s *reservationService) GetByID(ctx context.Context, clinicID, id uuid.UUID) (*model.ReservationAppointment, error) {

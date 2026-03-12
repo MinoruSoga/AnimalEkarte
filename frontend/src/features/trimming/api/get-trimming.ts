@@ -4,6 +4,13 @@ import type { TrimmingRecord } from "@/types";
 import { transformTrimming } from "./transforms";
 import type { BackendTrimming } from "./types";
 
+interface TrimmingListResponse {
+  data: BackendTrimming[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export const getTrimming = async (id: string): Promise<TrimmingRecord> => {
   const { data } = await axios.get<BackendTrimming>(`/v1/trimmings/${id}`);
   return transformTrimming(data);
@@ -21,10 +28,10 @@ export const useGetTrimming = (id: string) => {
 export const getTrimmingsByPetId = async (
   petId: string
 ): Promise<TrimmingRecord[]> => {
-  const { data } = await axios.get<BackendTrimming[]>(
-    `/v1/pets/${petId}/trimmings`
-  );
-  return data.map(transformTrimming);
+  const { data } = await axios.get<TrimmingListResponse>("/v1/trimmings", {
+    params: { pet_id: petId },
+  });
+  return data.data.map(transformTrimming);
 };
 
 export const useGetTrimmingsByPetId = (petId: string) => {
@@ -39,10 +46,10 @@ export const useGetTrimmingsByPetId = (petId: string) => {
 export const getTrimmingsByOwnerId = async (
   ownerId: string
 ): Promise<TrimmingRecord[]> => {
-  const { data } = await axios.get<BackendTrimming[]>(
-    `/v1/owners/${ownerId}/trimmings`
-  );
-  return data.map(transformTrimming);
+  const { data } = await axios.get<TrimmingListResponse>("/v1/trimmings", {
+    params: { owner_id: ownerId },
+  });
+  return data.data.map(transformTrimming);
 };
 
 export const useGetTrimmingsByOwnerId = (ownerId: string) => {
@@ -57,10 +64,10 @@ export const useGetTrimmingsByOwnerId = (ownerId: string) => {
 export const getTrimmingsByStatus = async (
   status: string
 ): Promise<TrimmingRecord[]> => {
-  const { data } = await axios.get<BackendTrimming[]>(
+  const { data } = await axios.get<TrimmingListResponse>(
     `/v1/trimmings/status/${status}`
   );
-  return data.map(transformTrimming);
+  return data.data.map(transformTrimming);
 };
 
 export const useGetTrimmingsByStatus = (status: string) => {

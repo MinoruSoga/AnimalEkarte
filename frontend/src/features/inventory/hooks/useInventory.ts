@@ -33,7 +33,11 @@ export function useInventory({
   category = "all",
   statusFilter = "all",
 }: UseInventoryParams) {
-  const { data: backendItems = [], isLoading } = useGetInventoryItems();
+  const serverParams = {
+    category: category !== "all" ? category : undefined,
+    status: statusFilter !== "all" ? statusFilter : undefined,
+  };
+  const { data: backendItems = [], isLoading } = useGetInventoryItems(serverParams);
 
   const items = useMemo(
     () => backendItems.map(transformInventoryItem),
@@ -41,28 +45,15 @@ export function useInventory({
   );
 
   const filteredItems = useMemo(() => {
-    let result = items;
-
-    if (category !== "all") {
-      result = result.filter((item) => item.category === category);
-    }
-
-    if (statusFilter !== "all") {
-      result = result.filter((item) => item.status === statusFilter);
-    }
-
-    if (searchTerm) {
-      const lowerTerm = searchTerm.toLowerCase();
-      result = result.filter(
-        (item) =>
-          item.name.toLowerCase().includes(lowerTerm) ||
-          (item.location?.toLowerCase().includes(lowerTerm) ?? false) ||
-          (item.supplier?.toLowerCase().includes(lowerTerm) ?? false)
-      );
-    }
-
-    return result;
-  }, [items, searchTerm, category, statusFilter]);
+    if (!searchTerm) return items;
+    const lowerTerm = searchTerm.toLowerCase();
+    return items.filter(
+      (item) =>
+        item.name.toLowerCase().includes(lowerTerm) ||
+        (item.location?.toLowerCase().includes(lowerTerm) ?? false) ||
+        (item.supplier?.toLowerCase().includes(lowerTerm) ?? false)
+    );
+  }, [items, searchTerm]);
 
   const summary = useMemo(() => {
     const total = items.length;

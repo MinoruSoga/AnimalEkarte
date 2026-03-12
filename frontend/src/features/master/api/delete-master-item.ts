@@ -1,17 +1,23 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { MASTER_CATEGORY_ENDPOINT } from "./get-master-items";
 
-export const deleteMasterItem = async (id: string): Promise<void> => {
-  await axios.delete(`/v1/master-items/${id}`);
+export const deleteMasterItem = async (category: string, id: string): Promise<void> => {
+  const endpoint = MASTER_CATEGORY_ENDPOINT[category];
+  if (!endpoint) throw new Error(`No endpoint for category: ${category}`);
+  await axios.delete(`${endpoint}/${id}`);
 };
 
-export const useDeleteMasterItem = () => {
-  const queryClient = useQueryClient();
+interface UseDeleteMasterItemParams {
+  category: string;
+}
 
+export const useDeleteMasterItem = ({ category }: UseDeleteMasterItemParams) => {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: deleteMasterItem,
+    mutationFn: (id: string) => deleteMasterItem(category, id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masterItems"] });
+      queryClient.invalidateQueries({ queryKey: ["masterItems", category] });
     },
   });
 };

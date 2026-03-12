@@ -12,7 +12,7 @@ import (
 )
 
 type MedicalRecordRepository interface {
-	FindAll(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, page, limit int) ([]model.MedicalRecord, int64, error)
+	FindAll(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, ownerID *uuid.UUID, page, limit int) ([]model.MedicalRecord, int64, error)
 	FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.MedicalRecord, error)
 	FindByRecordNo(ctx context.Context, clinicID uuid.UUID, recordNo string) (*model.MedicalRecord, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
@@ -28,13 +28,16 @@ func NewMedicalRecordRepository(db *gorm.DB) MedicalRecordRepository {
 	return &medicalRecordRepository{db: db}
 }
 
-func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, page, limit int) ([]model.MedicalRecord, int64, error) {
+func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, ownerID *uuid.UUID, page, limit int) ([]model.MedicalRecord, int64, error) {
 	var records []model.MedicalRecord
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&model.MedicalRecord{}).Where("clinic_id = ?", clinicID)
 	if petID != nil {
 		q = q.Where("pet_id = ?", petID)
+	}
+	if ownerID != nil {
+		q = q.Where("owner_id = ?", *ownerID)
 	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count medical records")

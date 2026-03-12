@@ -4,6 +4,13 @@ import type { MedicalRecord } from "@/types";
 import { transformMedicalRecord } from "./transforms";
 import type { BackendMedicalRecord } from "./types";
 
+interface MedicalRecordListResponse {
+  data: BackendMedicalRecord[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export const getMedicalRecord = async (id: string): Promise<MedicalRecord> => {
   const { data } = await axios.get<BackendMedicalRecord>(
     `/v1/medical-records/${id}`
@@ -23,10 +30,11 @@ export const useGetMedicalRecord = (id: string) => {
 export const getMedicalRecordsByPetId = async (
   petId: string
 ): Promise<MedicalRecord[]> => {
-  const { data } = await axios.get<BackendMedicalRecord[]>(
-    `/v1/pets/${petId}/medical-records`
+  const { data } = await axios.get<MedicalRecordListResponse>(
+    "/v1/medical-records",
+    { params: { pet_id: petId } }
   );
-  return data.map(transformMedicalRecord);
+  return data.data.map(transformMedicalRecord);
 };
 
 export const useGetMedicalRecordsByPetId = (petId: string) => {
@@ -41,10 +49,11 @@ export const useGetMedicalRecordsByPetId = (petId: string) => {
 export const getMedicalRecordsByOwnerId = async (
   ownerId: string
 ): Promise<MedicalRecord[]> => {
-  const { data } = await axios.get<BackendMedicalRecord[]>(
-    `/v1/owners/${ownerId}/medical-records`
+  const { data } = await axios.get<MedicalRecordListResponse>(
+    "/v1/medical-records",
+    { params: { owner_id: ownerId } }
   );
-  return data.map(transformMedicalRecord);
+  return data.data.map(transformMedicalRecord);
 };
 
 export const useGetMedicalRecordsByOwnerId = (ownerId: string) => {

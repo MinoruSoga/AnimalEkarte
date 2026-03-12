@@ -31,6 +31,8 @@ type Services struct {
 	CheckupType         CheckupTypeService
 	Clinic              ClinicService
 	UserAccount         UserAccountService
+	Examination         ExaminationService
+	Vaccination         VaccinationService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す
@@ -61,5 +63,7 @@ func NewServices(repos *repository.Repositories) *Services {
 		CheckupType:         NewCheckupTypeService(repos.CheckupType),
 		Clinic:              NewClinicService(repos.Clinic),
 		UserAccount:         NewUserAccountService(repos.UserAccount),
+		Examination:         NewExaminationService(repos.Examination),
+		Vaccination:         NewVaccinationService(repos.Vaccination),
 	}
 }

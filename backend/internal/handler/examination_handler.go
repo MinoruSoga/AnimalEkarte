@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -10,46 +9,33 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// ListReservations godoc
-// @Summary 予約一覧取得
-// @Description クリニックの予約一覧をページネーション付きで取得する
-// @Tags Reservations
+// ListExaminations godoc
+// @Summary 検査一覧取得
+// @Description 検査記録の一覧をページネーション付きで取得する
+// @Tags Examinations
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param page query int false "ページ番号 (default: 1)"
 // @Param limit query int false "件数 (1-100, default: 20)"
-// @Param date query string false "日付フィルター (YYYY-MM-DD)"
+// @Param pet_id query string false "ペットIDフィルター"
+// @Param owner_id query string false "飼主IDフィルター"
 // @Param status query string false "ステータスフィルター"
-// @Success 200 {object} handler.PaginatedResponse
+// @Success 200 {object} PaginatedResponse
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router /reservations [get]
-func (h *Handler) ListReservations(c *gin.Context) {
+// @Router /examinations [get]
+func (h *Handler) ListExaminations(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
+
 	page, limit, err := parsePagination(c)
 	if err != nil {
 		RespondError(c, err)
 		return
-	}
-
-	var date *time.Time
-	if dateStr := c.Query("date"); dateStr != "" {
-		t, err := time.Parse("2006-01-02", dateStr)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid date format, use YYYY-MM-DD"})
-			return
-		}
-		date = &t
-	}
-
-	var status *string
-	if s := c.Query("status"); s != "" {
-		status = &s
 	}
 
 	var petID *uuid.UUID
@@ -61,6 +47,7 @@ func (h *Handler) ListReservations(c *gin.Context) {
 		}
 		petID = &id
 	}
+
 	var ownerID *uuid.UUID
 	if s := c.Query("owner_id"); s != "" {
 		id, err := uuid.Parse(s)
@@ -71,142 +58,129 @@ func (h *Handler) ListReservations(c *gin.Context) {
 		ownerID = &id
 	}
 
-	reservations, total, err := h.svc.Reservation.List(c.Request.Context(), clinicID, page, limit, date, status, petID, ownerID)
+	var status *string
+	if s := c.Query("status"); s != "" {
+		status = &s
+	}
+
+	exams, total, err := h.svc.Examination.List(c.Request.Context(), clinicID, petID, ownerID, status, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, PaginatedResponse{Data: reservations, Total: total, Page: page, Limit: limit})
+	c.JSON(http.StatusOK, PaginatedResponse{Data: exams, Total: total, Page: page, Limit: limit})
 }
 
-// GetReservation godoc
-// @Summary 予約取得
-// @Description 指定IDの予約を取得する
-// @Tags Reservations
+// GetExamination godoc
+// @Summary 検査詳細取得
+// @Description 指定IDの検査記録を取得する
+// @Tags Examinations
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "予約UUID"
-// @Success 200 {object} model.ReservationAppointment
+// @Param id path string true "検査ID"
+// @Success 200 {object} model.Exam
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router /reservations/{id} [get]
-func (h *Handler) GetReservation(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
+// @Router /examinations/{id} [get]
+func (h *Handler) GetExamination(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	reservation, err := h.svc.Reservation.GetByID(c.Request.Context(), clinicID, id)
+	exam, err := h.svc.Examination.GetByID(c.Request.Context(), id)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, reservation)
+	c.JSON(http.StatusOK, exam)
 }
 
-// CreateReservation godoc
-// @Summary 予約作成
-// @Description 新しい予約を作成する
-// @Tags Reservations
+// CreateExamination godoc
+// @Summary 検査作成
+// @Description 新しい検査記録を作成する
+// @Tags Examinations
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param body body model.ReservationAppointment true "予約情報"
-// @Success 201 {object} model.ReservationAppointment
+// @Param input body model.Exam true "検査情報"
+// @Success 201 {object} model.Exam
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router /reservations [post]
-func (h *Handler) CreateReservation(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	var input model.ReservationAppointment
+// @Router /examinations [post]
+func (h *Handler) CreateExamination(c *gin.Context) {
+	var input model.Exam
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	input.ID = uuid.New()
-	input.ClinicID = clinicID
-	if err := h.svc.Reservation.Create(c.Request.Context(), &input); err != nil {
+	if err := h.svc.Examination.Create(c.Request.Context(), &input); err != nil {
 		RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, input)
 }
 
-// UpdateReservation godoc
-// @Summary 予約更新
-// @Description 指定IDの予約を更新する
-// @Tags Reservations
+// UpdateExamination godoc
+// @Summary 検査更新
+// @Description 指定IDの検査記録を更新する
+// @Tags Examinations
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "予約UUID"
-// @Param body body model.ReservationAppointment true "予約情報"
-// @Success 200 {object} model.ReservationAppointment
+// @Param id path string true "検査ID"
+// @Param input body model.Exam true "更新する検査情報"
+// @Success 200 {object} model.Exam
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router /reservations/{id} [put]
-func (h *Handler) UpdateReservation(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
+// @Router /examinations/{id} [patch]
+func (h *Handler) UpdateExamination(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input model.ReservationAppointment
+	var input model.Exam
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	input.ID = id
-	input.ClinicID = clinicID
-	if err := h.svc.Reservation.Update(c.Request.Context(), &input); err != nil {
+	if err := h.svc.Examination.Update(c.Request.Context(), &input); err != nil {
 		RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, input)
 }
 
-// DeleteReservation godoc
-// @Summary 予約削除
-// @Description 指定IDの予約を削除する
-// @Tags Reservations
+// DeleteExamination godoc
+// @Summary 検査削除
+// @Description 指定IDの検査記録を削除する
+// @Tags Examinations
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "予約UUID"
+// @Param id path string true "検査ID"
 // @Success 204 "No Content"
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router /reservations/{id} [delete]
-func (h *Handler) DeleteReservation(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
+// @Router /examinations/{id} [delete]
+func (h *Handler) DeleteExamination(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	if err := h.svc.Reservation.Delete(c.Request.Context(), clinicID, id); err != nil {
+	if err := h.svc.Examination.Delete(c.Request.Context(), id); err != nil {
 		RespondError(c, err)
 		return
 	}

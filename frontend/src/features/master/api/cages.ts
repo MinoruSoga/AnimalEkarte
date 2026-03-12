@@ -60,7 +60,7 @@ function transformCage(data: BackendCage): Cage {
 }
 
 export const getAllCages = async (): Promise<Cage[]> => {
-  const { data } = await axios.get<BackendCage[]>("/v1/cages");
+  const { data } = await axios.get<BackendCage[]>("/v1/masters/cages");
   return data.map(transformCage);
 };
 
@@ -72,7 +72,7 @@ export const useGetAllCages = () => {
 };
 
 export const getCageById = async (id: string): Promise<Cage> => {
-  const { data } = await axios.get<BackendCage>(`/v1/cages/${id}`);
+  const { data } = await axios.get<BackendCage>(`/v1/masters/cages/${id}`);
   return transformCage(data);
 };
 
@@ -85,7 +85,7 @@ export const useGetCageById = (id: string) => {
 };
 
 export const createCage = async (req: CreateCageRequest): Promise<Cage> => {
-  const { data } = await axios.post<BackendCage>("/v1/cages", req);
+  const { data } = await axios.post<BackendCage>("/v1/masters/cages", req);
   return transformCage(data);
 };
 
@@ -100,7 +100,7 @@ export const useCreateCage = () => {
 };
 
 export const updateCage = async (id: string, req: UpdateCageRequest): Promise<Cage> => {
-  const { data } = await axios.put<BackendCage>(`/v1/cages/${id}`, req);
+  const { data } = await axios.patch<BackendCage>(`/v1/masters/cages/${id}`, req);
   return transformCage(data);
 };
 
@@ -116,7 +116,7 @@ export const useUpdateCage = () => {
 };
 
 export const deleteCage = async (id: string): Promise<void> => {
-  await axios.delete(`/v1/cages/${id}`);
+  await axios.delete(`/v1/masters/cages/${id}`);
 };
 
 export const useDeleteCage = () => {

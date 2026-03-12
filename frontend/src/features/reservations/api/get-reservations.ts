@@ -4,9 +4,16 @@ import type { ReservationAppointment } from "@/types";
 import { transformReservation } from "./transforms";
 import type { BackendReservation } from "./types";
 
+interface ReservationsListResponse {
+  data: BackendReservation[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export const getReservations = async (): Promise<ReservationAppointment[]> => {
-  const { data } = await axios.get<BackendReservation[]>("/v1/reservations");
-  return data.map(transformReservation);
+  const { data } = await axios.get<ReservationsListResponse>("/v1/reservations");
+  return data.data.map(transformReservation);
 };
 
 export const useGetReservations = () => {

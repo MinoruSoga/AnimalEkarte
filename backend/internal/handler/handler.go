@@ -23,7 +23,7 @@ func New(cfg *config.Config, svc *service.Services) *Handler {
 
 // PaginatedResponse はページネーション付きレスポンスの共通構造
 type PaginatedResponse struct {
-	Data  interface{} `json:"data"`
+	Data  any `json:"data"`
 	Total int64       `json:"total"`
 	Page  int         `json:"page"`
 	Limit int         `json:"limit"`
@@ -42,7 +42,8 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	api.GET("/health", h.Health)
 
 	// 認証不要
-	api.POST("/auth/login", h.Login)
+	api.POST("/login", h.Login)
+	api.POST("/logout", h.Logout)
 
 	// 認証必須グループ
 	protected := api.Group("")
@@ -56,7 +57,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		owners.GET("", h.ListOwners)
 		owners.POST("", h.CreateOwner)
 		owners.GET("/:id", h.GetOwner)
-		owners.PUT("/:id", h.UpdateOwner)
+		owners.PATCH("/:id", h.UpdateOwner)
 		owners.DELETE("/:id", h.DeleteOwner)
 
 		// ペット
@@ -64,7 +65,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		pets.GET("", h.ListPets)
 		pets.POST("", h.CreatePet)
 		pets.GET("/:id", h.GetPet)
-		pets.PUT("/:id", h.UpdatePet)
+		pets.PATCH("/:id", h.UpdatePet)
 		pets.DELETE("/:id", h.DeletePet)
 
 		// 予約
@@ -72,7 +73,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		reservations.GET("", h.ListReservations)
 		reservations.POST("", h.CreateReservation)
 		reservations.GET("/:id", h.GetReservation)
-		reservations.PUT("/:id", h.UpdateReservation)
+		reservations.PATCH("/:id", h.UpdateReservation)
 		reservations.DELETE("/:id", h.DeleteReservation)
 
 		// カルテ
@@ -80,7 +81,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		records.GET("", h.ListMedicalRecords)
 		records.POST("", h.CreateMedicalRecord)
 		records.GET("/:id", h.GetMedicalRecord)
-		records.PUT("/:id", h.UpdateMedicalRecord)
+		records.PATCH("/:id", h.UpdateMedicalRecord)
 		records.DELETE("/:id", h.DeleteMedicalRecord)
 
 		// 入院
@@ -88,7 +89,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		hospitalizations.GET("", h.ListHospitalizations)
 		hospitalizations.POST("", h.CreateHospitalization)
 		hospitalizations.GET("/:id", h.GetHospitalization)
-		hospitalizations.PUT("/:id", h.UpdateHospitalization)
+		hospitalizations.PATCH("/:id", h.UpdateHospitalization)
 		hospitalizations.DELETE("/:id", h.DeleteHospitalization)
 
 		// 会計
@@ -96,102 +97,123 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		accountings.GET("", h.ListAccountings)
 		accountings.POST("", h.CreateAccounting)
 		accountings.GET("/:id", h.GetAccounting)
-		accountings.PUT("/:id", h.UpdateAccounting)
+		accountings.PATCH("/:id", h.UpdateAccounting)
+		accountings.DELETE("/:id", h.DeleteAccounting)
 
 		// トリミング
 		trimmings := protected.Group("/trimmings")
 		trimmings.GET("", h.ListTrimmings)
 		trimmings.POST("", h.CreateTrimming)
 		trimmings.GET("/:id", h.GetTrimming)
-		trimmings.PUT("/:id", h.UpdateTrimming)
+		trimmings.PATCH("/:id", h.UpdateTrimming)
+		trimmings.DELETE("/:id", h.DeleteTrimming)
+
+		// 検査
+		examinations := protected.Group("/examinations")
+		examinations.GET("", h.ListExaminations)
+		examinations.POST("", h.CreateExamination)
+		examinations.GET("/:id", h.GetExamination)
+		examinations.PATCH("/:id", h.UpdateExamination)
+		examinations.DELETE("/:id", h.DeleteExamination)
+
+		// 予防接種
+		vaccinations := protected.Group("/vaccinations")
+		vaccinations.GET("", h.ListVaccinations)
+		vaccinations.POST("", h.CreateVaccination)
+		vaccinations.GET("/:id", h.GetVaccination)
+		vaccinations.PATCH("/:id", h.UpdateVaccination)
+		vaccinations.DELETE("/:id", h.DeleteVaccination)
 
 		// 在庫
 		inventory := protected.Group("/inventory")
 		inventory.GET("", h.ListInventory)
 		inventory.POST("", h.CreateInventory)
 		inventory.GET("/:id", h.GetInventory)
-		inventory.PUT("/:id", h.UpdateInventory)
+		inventory.PATCH("/:id", h.UpdateInventory)
+		inventory.DELETE("/:id", h.DeleteInventory)
 
 		// マスタ
 		masters := protected.Group("/masters")
 		masters.GET("/staffs", h.ListStaffs)
 		masters.POST("/staffs", h.CreateStaff)
-		masters.PUT("/staffs/:id", h.UpdateStaff)
+		masters.PATCH("/staffs/:id", h.UpdateStaff)
 		masters.DELETE("/staffs/:id", h.DeleteStaff)
 
 		masters.GET("/cages", h.ListCages)
 		masters.POST("/cages", h.CreateCage)
-		masters.PUT("/cages/:id", h.UpdateCage)
+		masters.PATCH("/cages/:id", h.UpdateCage)
 		masters.DELETE("/cages/:id", h.DeleteCage)
 
 		masters.GET("/medicines", h.ListMedicines)
 		masters.POST("/medicines", h.CreateMedicine)
-		masters.PUT("/medicines/:id", h.UpdateMedicine)
+		masters.PATCH("/medicines/:id", h.UpdateMedicine)
 		masters.DELETE("/medicines/:id", h.DeleteMedicine)
 
 		masters.GET("/vaccines", h.ListVaccines)
 		masters.POST("/vaccines", h.CreateVaccine)
-		masters.PUT("/vaccines/:id", h.UpdateVaccine)
+		masters.PATCH("/vaccines/:id", h.UpdateVaccine)
 		masters.DELETE("/vaccines/:id", h.DeleteVaccine)
 
 		masters.GET("/insurances", h.ListInsurances)
 		masters.POST("/insurances", h.CreateInsurance)
-		masters.PUT("/insurances/:id", h.UpdateInsurance)
+		masters.PATCH("/insurances/:id", h.UpdateInsurance)
 		masters.DELETE("/insurances/:id", h.DeleteInsurance)
 
 		masters.GET("/service-types", h.ListServiceTypes)
 		masters.POST("/service-types", h.CreateServiceType)
-		masters.PUT("/service-types/:id", h.UpdateServiceType)
+		masters.PATCH("/service-types/:id", h.UpdateServiceType)
 		masters.DELETE("/service-types/:id", h.DeleteServiceType)
 
 		masters.GET("/consultations", h.ListConsultations)
 		masters.POST("/consultations", h.CreateConsultation)
-		masters.PUT("/consultations/:id", h.UpdateConsultation)
+		masters.PATCH("/consultations/:id", h.UpdateConsultation)
 		masters.DELETE("/consultations/:id", h.DeleteConsultation)
 
 		masters.GET("/procedures", h.ListProcedures)
 		masters.POST("/procedures", h.CreateProcedure)
-		masters.PUT("/procedures/:id", h.UpdateProcedure)
+		masters.PATCH("/procedures/:id", h.UpdateProcedure)
 		masters.DELETE("/procedures/:id", h.DeleteProcedure)
 
 		masters.GET("/hospitalization-plans", h.ListHospitalizationPlans)
 		masters.POST("/hospitalization-plans", h.CreateHospitalizationPlan)
-		masters.PUT("/hospitalization-plans/:id", h.UpdateHospitalizationPlan)
+		masters.PATCH("/hospitalization-plans/:id", h.UpdateHospitalizationPlan)
 		masters.DELETE("/hospitalization-plans/:id", h.DeleteHospitalizationPlan)
 
 		masters.GET("/trimming-courses", h.ListTrimmingCourses)
 		masters.POST("/trimming-courses", h.CreateTrimmingCourse)
-		masters.PUT("/trimming-courses/:id", h.UpdateTrimmingCourse)
+		masters.PATCH("/trimming-courses/:id", h.UpdateTrimmingCourse)
 		masters.DELETE("/trimming-courses/:id", h.DeleteTrimmingCourse)
 
 		masters.GET("/trimming-options", h.ListTrimmingOptions)
 		masters.POST("/trimming-options", h.CreateTrimmingOption)
-		masters.PUT("/trimming-options/:id", h.UpdateTrimmingOption)
+		masters.PATCH("/trimming-options/:id", h.UpdateTrimmingOption)
 		masters.DELETE("/trimming-options/:id", h.DeleteTrimmingOption)
 
 		masters.GET("/examination-types", h.ListExaminationTypes)
 		masters.POST("/examination-types", h.CreateExaminationType)
-		masters.PUT("/examination-types/:id", h.UpdateExaminationType)
+		masters.PATCH("/examination-types/:id", h.UpdateExaminationType)
 		masters.DELETE("/examination-types/:id", h.DeleteExaminationType)
 
 		masters.GET("/diagnosis-categories", h.ListDiagnosisCategories)
 		masters.POST("/diagnosis-categories", h.CreateDiagnosisCategory)
-		masters.PUT("/diagnosis-categories/:id", h.UpdateDiagnosisCategory)
+		masters.PATCH("/diagnosis-categories/:id", h.UpdateDiagnosisCategory)
 		masters.DELETE("/diagnosis-categories/:id", h.DeleteDiagnosisCategory)
 
 		masters.GET("/diagnosis-names", h.ListDiagnosisNames)
 		masters.POST("/diagnosis-names", h.CreateDiagnosisName)
-		masters.PUT("/diagnosis-names/:id", h.UpdateDiagnosisName)
+		masters.PATCH("/diagnosis-names/:id", h.UpdateDiagnosisName)
 		masters.DELETE("/diagnosis-names/:id", h.DeleteDiagnosisName)
 
 		masters.GET("/checkup-types", h.ListCheckupTypes)
 		masters.POST("/checkup-types", h.CreateCheckupType)
-		masters.PUT("/checkup-types/:id", h.UpdateCheckupType)
+		masters.PATCH("/checkup-types/:id", h.UpdateCheckupType)
 		masters.DELETE("/checkup-types/:id", h.DeleteCheckupType)
 
 		// 法人・クリニック設定
 		protected.GET("/company", h.GetCompany)
-		protected.PUT("/company", h.UpdateCompany)
+		protected.PATCH("/company", h.UpdateCompany)
 		protected.GET("/clinics", h.ListClinics)
+		protected.GET("/clinics/:id", h.GetClinic)
+		protected.PATCH("/clinics/:id", h.UpdateClinic)
 	}
 }

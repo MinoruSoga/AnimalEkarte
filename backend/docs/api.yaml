@@ -5,7 +5,7 @@ info:
     動物病院電子カルテシステム API
 
     ## 認証
-    全エンドポイント（`/auth/login` を除く）は `Authorization: Bearer <JWT>` ヘッダーが必要。
+    全エンドポイント（`/login`、`/logout` を除く）は `Authorization: Bearer <JWT>` ヘッダーが必要。
 
     ## ページネーション
     一覧エンドポイントは `page` / `limit` クエリパラメータでページネーション。
@@ -116,7 +116,7 @@ components:
           format: double
         membership_type:
           type: string
-          enum: ["非会員", "会員", "退亡者", "他診/準"]
+          enum: [non_member, member, deceased, transferred]
         created_at:
           type: string
           format: date-time
@@ -153,10 +153,10 @@ components:
           type: string
         gender:
           type: string
-          enum: ["雄", "雌", "不明"]
+          enum: [male, female, unknown]
         status:
           type: string
-          enum: ["生存", "死亡"]
+          enum: [alive, deceased]
         birth_date:
           type: string
           format: date
@@ -175,11 +175,11 @@ components:
           nullable: true
         acquisition_type:
           type: string
-          enum: ["購入", "譲渡", "保護", "その他"]
+          enum: [purchased, transferred, rescued, other]
           nullable: true
         danger_level:
           type: string
-          enum: ["低", "中", "高"]
+          enum: [low, medium, high]
         food:
           type: string
         environment:
@@ -295,7 +295,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: ["作成中", "確定済"]
+          enum: [draft, finalized]
         created_at:
           type: string
           format: date-time
@@ -324,7 +324,7 @@ components:
           format: uuid
         hospitalization_type:
           type: string
-          enum: ["入院", "ホテル"]
+          enum: [hospitalization, hotel]
         start_date:
           type: string
           format: date
@@ -333,7 +333,7 @@ components:
           format: date
         status:
           type: string
-          enum: ["入院中", "退院済", "予約"]
+          enum: [admitted, discharged, reserved]
         cage_id:
           type: string
           format: uuid
@@ -441,7 +441,7 @@ components:
           type: string
         status:
           type: string
-          enum: ["完了", "予約", "進行中"]
+          enum: [completed, reserved, in_progress]
         style_request:
           type: string
         bw:
@@ -1142,6 +1142,177 @@ components:
           type: string
           format: date-time
           readOnly: true
+    ExaminationItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        exam_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        inspection_value:
+          type: string
+          nullable: true
+        normal_value:
+          type: string
+          nullable: true
+        result:
+          type: string
+          nullable: true
+        unit:
+          type: string
+          nullable: true
+        ref:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [normal, high, low]
+          nullable: true
+        sort_order:
+          type: integer
+          default: 0
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    Examination:
+      type: object
+      required: [medical_record_id, exam_type_id, date]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        medical_record_id:
+          type: string
+          format: uuid
+        pet_id:
+          type: string
+          format: uuid
+        exam_type_id:
+          type: string
+          format: uuid
+        doctor_id:
+          type: string
+          format: uuid
+          nullable: true
+        date:
+          type: string
+          format: date
+        result_summary:
+          type: string
+          nullable: true
+        machine:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [依頼中, 検査中, 完了]
+          default: 依頼中
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExaminationItem'
+          readOnly: true
+        exam_type:
+          $ref: '#/components/schemas/ExaminationType'
+          readOnly: true
+          nullable: true
+        pet:
+          $ref: '#/components/schemas/Pet'
+          readOnly: true
+          nullable: true
+        doctor:
+          $ref: '#/components/schemas/Staff'
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    Vaccination:
+      type: object
+      required: [medical_record_id, vaccine_id, date]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        medical_record_id:
+          type: string
+          format: uuid
+        pet_id:
+          type: string
+          format: uuid
+        vaccine_id:
+          type: string
+          format: uuid
+        doctor_id:
+          type: string
+          format: uuid
+          nullable: true
+        date:
+          type: string
+          format: date
+        next_date:
+          type: string
+          format: date
+          nullable: true
+        next_schedule_type:
+          type: string
+          enum: [3weeks, 4weeks, 1year, other]
+          nullable: true
+        supplemental:
+          type: boolean
+          default: false
+        lot1:
+          type: string
+          nullable: true
+        lot2:
+          type: string
+          nullable: true
+        lot3:
+          type: string
+          nullable: true
+        lot4:
+          type: string
+          nullable: true
+        remarks:
+          type: string
+          nullable: true
+        vaccine:
+          $ref: '#/components/schemas/Vaccine'
+          readOnly: true
+          nullable: true
+        pet:
+          $ref: '#/components/schemas/Pet'
+          readOnly: true
+          nullable: true
+        doctor:
+          $ref: '#/components/schemas/Staff'
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     Clinic:
       type: object
       properties:
@@ -1194,15 +1365,21 @@ components:
           minLength: 8
     LoginResponse:
       type: object
+      description: |
+        ログイン成功レスポンス。JWTトークンは httpOnly Cookie (`auth_token`) でセットされるためボディには含まれない。
       properties:
-        token:
-          type: string
-          description: JWT トークン
         expires_at:
           type: integer
-          description: Unix timestamp
+          format: int64
+          description: トークン有効期限（Unix timestamp）
+          example: 1741996800
         user_type:
           type: string
+          description: ユーザー種別
+          enum: [clinic_admin, staff, system_admin]
+          example: clinic_admin
+        user:
+          $ref: '#/components/schemas/MeResponse'
     MeResponse:
       type: object
       properties:
@@ -1217,6 +1394,10 @@ components:
           type: string
         job_title:
           type: string
+          nullable: true
+        avatar_url:
+          type: string
+          format: uri
           nullable: true
         main_clinic_id:
           type: string
@@ -1281,7 +1462,7 @@ components:
 security:
   - BearerAuth: []
 paths:
-  /auth/login:
+  /login:
     post:
       operationId: login
       summary: ログイン
@@ -1305,6 +1486,26 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /logout:
+    post:
+      operationId: logout
+      summary: ログアウト
+      description: httpOnly Cookie (`auth_token`) を無効化してログアウトする。Cookie は HttpOnly のため JS から直接削除できないためサーバー側で MaxAge=-1 でクリアする。
+      tags: [Auth]
+      security: []
+      responses:
+        '200':
+          description: ログアウト成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: logged out
         '500':
           $ref: '#/components/responses/InternalError'
   /me:
@@ -1675,6 +1876,18 @@ paths:
           in: query
           schema:
             type: string
+        - name: pet_id
+          in: query
+          description: ペットIDで絞り込み
+          schema:
+            type: string
+            format: uuid
+        - name: owner_id
+          in: query
+          description: 飼主IDで絞り込み
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: 予約一覧
@@ -1831,6 +2044,12 @@ paths:
         - name: pet_id
           in: query
           description: ペットIDで絞り込み
+          schema:
+            type: string
+            format: uuid
+        - name: owner_id
+          in: query
+          description: 飼主IDで絞り込み
           schema:
             type: string
             format: uuid
@@ -1991,6 +2210,18 @@ paths:
           in: query
           schema:
             type: string
+        - name: pet_id
+          in: query
+          description: ペットIDで絞り込み
+          schema:
+            type: string
+            format: uuid
+        - name: owner_id
+          in: query
+          description: 飼主IDで絞り込み
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: 入院一覧
@@ -2149,6 +2380,18 @@ paths:
           schema:
             type: string
             enum: [pending, paid, cancelled]
+        - name: pet_id
+          in: query
+          description: ペットIDで絞り込み
+          schema:
+            type: string
+            format: uuid
+        - name: owner_id
+          in: query
+          description: 飼主IDで絞り込み
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: 会計一覧
@@ -2264,6 +2507,28 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteAccounting
+      summary: 会計削除
+      tags: [Accountings]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /trimmings:
     get:
       operationId: listTrimmings
@@ -2280,6 +2545,18 @@ paths:
           schema:
             type: integer
             default: 20
+        - name: pet_id
+          in: query
+          description: ペットIDで絞り込み
+          schema:
+            type: string
+            format: uuid
+        - name: owner_id
+          in: query
+          description: 飼主IDで絞り込み
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: トリミング一覧
@@ -2391,6 +2668,298 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteTrimming
+      summary: トリミング削除
+      tags: [Trimmings]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /examinations:
+    get:
+      operationId: listExaminations
+      summary: 検査記録一覧
+      tags: [Examinations]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: pet_id
+          in: query
+          description: ペットIDで絞り込み
+          schema: { type: string, format: uuid }
+        - name: owner_id
+          in: query
+          description: 飼主IDで絞り込み
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          description: ステータスで絞り込み
+          schema:
+            type: string
+            enum: [依頼中, 検査中, 完了]
+      responses:
+        '200':
+          description: 検査記録一覧
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Examination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createExamination
+      summary: 検査記録作成
+      tags: [Examinations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Examination'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Examination'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /examinations/{id}:
+    get:
+      operationId: getExamination
+      summary: 検査記録取得
+      tags: [Examinations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: 検査記録
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Examination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: updateExamination
+      summary: 検査記録更新
+      tags: [Examinations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Examination'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Examination'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteExamination
+      summary: 検査記録削除
+      tags: [Examinations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /vaccinations:
+    get:
+      operationId: listVaccinations
+      summary: 予防接種記録一覧
+      tags: [Vaccinations]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: pet_id
+          in: query
+          description: ペットIDで絞り込み
+          schema: { type: string, format: uuid }
+        - name: owner_id
+          in: query
+          description: 飼主IDで絞り込み
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: 予防接種記録一覧
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Vaccination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createVaccination
+      summary: 予防接種記録作成
+      tags: [Vaccinations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Vaccination'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vaccination'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /vaccinations/{id}:
+    get:
+      operationId: getVaccination
+      summary: 予防接種記録取得
+      tags: [Vaccinations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: 予防接種記録
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vaccination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: updateVaccination
+      summary: 予防接種記録更新
+      tags: [Vaccinations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Vaccination'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vaccination'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteVaccination
+      summary: 予防接種記録削除
+      tags: [Vaccinations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -2530,6 +3099,28 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteInventoryItem
+      summary: 在庫削除
+      tags: [Inventory]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /clinics:
     get:
       operationId: listClinics
@@ -2550,33 +3141,114 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
-  /company:
+  /clinics/{id}:
     get:
-      operationId: getCompany
-      summary: 法人情報取得
-      tags: [Company]
+      operationId: getClinic
+      summary: クリニック取得
+      tags: [Clinics]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
-          description: 法人情報
+          description: クリニック情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Clinic'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
     patch:
-      operationId: updateCompany
-      summary: 法人情報更新
-      tags: [Company]
+      operationId: updateClinic
+      summary: クリニック更新
+      tags: [Clinics]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Clinic'
       responses:
         '200':
           description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Clinic'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /company:
+    get:
+      operationId: getCompany
+      summary: 法人情報取得
+      description: ログインユーザーが所属するメインクリニックの法人情報を返す
+      tags: [Company]
+      responses:
+        '200':
+          description: 法人情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Clinic'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: updateCompany
+      summary: 法人情報更新
+      description: ログインユーザーのメインクリニック情報を部分更新する
+      tags: [Company]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Clinic'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Clinic'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/staffs:

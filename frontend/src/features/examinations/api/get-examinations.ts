@@ -4,9 +4,16 @@ import type { ExaminationRecord } from "@/types";
 import { transformExamination } from "./transforms";
 import type { BackendExamination } from "./types";
 
+interface ExaminationsListResponse {
+  data: BackendExamination[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export const getExaminations = async (): Promise<ExaminationRecord[]> => {
-  const { data } = await axios.get<BackendExamination[]>("/v1/examinations");
-  return data.map(transformExamination);
+  const { data } = await axios.get<ExaminationsListResponse>("/v1/examinations");
+  return data.data.map(transformExamination);
 };
 
 export const useGetExaminations = () => {

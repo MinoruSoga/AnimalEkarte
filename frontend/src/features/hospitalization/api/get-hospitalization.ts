@@ -4,6 +4,13 @@ import type { Hospitalization } from "@/types";
 import { transformHospitalization } from "./transforms";
 import type { BackendHospitalization } from "./types";
 
+interface HospitalizationListResponse {
+  data: BackendHospitalization[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export const getHospitalization = async (
   id: string
 ): Promise<Hospitalization> => {
@@ -25,10 +32,11 @@ export const useGetHospitalization = (id: string) => {
 export const getHospitalizationsByPetId = async (
   petId: string
 ): Promise<Hospitalization[]> => {
-  const { data } = await axios.get<BackendHospitalization[]>(
-    `/v1/pets/${petId}/hospitalizations`
+  const { data } = await axios.get<HospitalizationListResponse>(
+    "/v1/hospitalizations",
+    { params: { pet_id: petId } }
   );
-  return data.map(transformHospitalization);
+  return data.data.map(transformHospitalization);
 };
 
 export const useGetHospitalizationsByPetId = (petId: string) => {
@@ -43,10 +51,11 @@ export const useGetHospitalizationsByPetId = (petId: string) => {
 export const getHospitalizationsByOwnerId = async (
   ownerId: string
 ): Promise<Hospitalization[]> => {
-  const { data } = await axios.get<BackendHospitalization[]>(
-    `/v1/owners/${ownerId}/hospitalizations`
+  const { data } = await axios.get<HospitalizationListResponse>(
+    "/v1/hospitalizations",
+    { params: { owner_id: ownerId } }
   );
-  return data.map(transformHospitalization);
+  return data.data.map(transformHospitalization);
 };
 
 export const useGetHospitalizationsByOwnerId = (ownerId: string) => {
@@ -61,10 +70,10 @@ export const useGetHospitalizationsByOwnerId = (ownerId: string) => {
 export const getHospitalizationsByStatus = async (
   status: string
 ): Promise<Hospitalization[]> => {
-  const { data } = await axios.get<BackendHospitalization[]>(
+  const { data } = await axios.get<HospitalizationListResponse>(
     `/v1/hospitalizations/status/${status}`
   );
-  return data.map(transformHospitalization);
+  return data.data.map(transformHospitalization);
 };
 
 export const useGetHospitalizationsByStatus = (status: string) => {

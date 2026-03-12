@@ -4,6 +4,13 @@ import type { ReservationAppointment } from "@/types";
 import { transformReservation } from "./transforms";
 import type { BackendReservation } from "./types";
 
+interface ReservationListResponse {
+  data: BackendReservation[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export const getReservation = async (
   id: string
 ): Promise<ReservationAppointment> => {
@@ -25,10 +32,10 @@ export const useGetReservation = (id: string) => {
 export const getReservationsByPetId = async (
   petId: string
 ): Promise<ReservationAppointment[]> => {
-  const { data } = await axios.get<BackendReservation[]>(
-    `/v1/pets/${petId}/reservations`
-  );
-  return data.map(transformReservation);
+  const { data } = await axios.get<ReservationListResponse>("/v1/reservations", {
+    params: { pet_id: petId },
+  });
+  return data.data.map(transformReservation);
 };
 
 export const useGetReservationsByPetId = (petId: string) => {
@@ -43,10 +50,10 @@ export const useGetReservationsByPetId = (petId: string) => {
 export const getReservationsByOwnerId = async (
   ownerId: string
 ): Promise<ReservationAppointment[]> => {
-  const { data } = await axios.get<BackendReservation[]>(
-    `/v1/owners/${ownerId}/reservations`
-  );
-  return data.map(transformReservation);
+  const { data } = await axios.get<ReservationListResponse>("/v1/reservations", {
+    params: { owner_id: ownerId },
+  });
+  return data.data.map(transformReservation);
 };
 
 export const useGetReservationsByOwnerId = (ownerId: string) => {

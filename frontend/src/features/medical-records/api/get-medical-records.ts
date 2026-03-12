@@ -4,9 +4,16 @@ import type { MedicalRecord } from "@/types";
 import { transformMedicalRecord } from "./transforms";
 import type { BackendMedicalRecord } from "./types";
 
+interface MedicalRecordsListResponse {
+  data: BackendMedicalRecord[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export const getMedicalRecords = async (): Promise<MedicalRecord[]> => {
-  const { data } = await axios.get<BackendMedicalRecord[]>("/v1/medical-records");
-  return data.map(transformMedicalRecord);
+  const { data } = await axios.get<MedicalRecordsListResponse>("/v1/medical-records");
+  return data.data.map(transformMedicalRecord);
 };
 
 export const useGetMedicalRecords = () => {

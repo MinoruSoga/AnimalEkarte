@@ -24,10 +24,34 @@ import (
 // @Failure 500 {object} map[string]string
 // @Router /accountings [get]
 func (h *Handler) ListAccountings(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	page, limit, err := parsePagination(c)
 	if err != nil {
 		RespondError(c, err)
 		return
+	}
+
+	var petID *uuid.UUID
+	if s := c.Query("pet_id"); s != "" {
+		id, err := uuid.Parse(s)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pet_id"})
+			return
+		}
+		petID = &id
+	}
+	var ownerID *uuid.UUID
+	if s := c.Query("owner_id"); s != "" {
+		id, err := uuid.Parse(s)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id"})
+			return
+		}
+		ownerID = &id
 	}
 
 	var status *string
@@ -35,7 +59,7 @@ func (h *Handler) ListAccountings(c *gin.Context) {
 		status = &s
 	}
 
-	accountings, total, err := h.svc.Accounting.List(c.Request.Context(), status, page, limit)
+	accountings, total, err := h.svc.Accounting.List(c.Request.Context(), clinicID, petID, ownerID, status, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -57,12 +81,17 @@ func (h *Handler) ListAccountings(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /accountings/{id} [get]
 func (h *Handler) GetAccounting(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	accounting, err := h.svc.Accounting.GetByID(c.Request.Context(), id)
+	accounting, err := h.svc.Accounting.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -83,13 +112,18 @@ func (h *Handler) GetAccounting(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /accountings [post]
 func (h *Handler) CreateAccounting(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	var input model.Billing
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	input.ID = uuid.New()
-	if err := h.svc.Accounting.Create(c.Request.Context(), &input); err != nil {
+	if err := h.svc.Accounting.Create(c.Request.Context(), clinicID, &input); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -111,6 +145,11 @@ func (h *Handler) CreateAccounting(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /accountings/{id} [put]
 func (h *Handler) UpdateAccounting(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
@@ -122,9 +161,26 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 		return
 	}
 	input.ID = id
-	if err := h.svc.Accounting.Update(c.Request.Context(), &input); err != nil {
+	if err := h.svc.Accounting.Update(c.Request.Context(), clinicID, &input); err != nil {
 		RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, input)
+}
+
+func (h *Handler) DeleteAccounting(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	if err := h.svc.Accounting.Delete(c.Request.Context(), clinicID, id); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }

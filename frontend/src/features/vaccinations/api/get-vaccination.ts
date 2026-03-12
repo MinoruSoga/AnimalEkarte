@@ -21,9 +21,9 @@ export const useGetVaccination = (id: string) => {
 export const getVaccinationsByPetId = async (
   petId: string
 ): Promise<VaccinationRecord[]> => {
-  const { data } = await axios.get<BackendVaccination[]>(
-    `/v1/pets/${petId}/vaccinations`
-  );
+  const { data } = await axios.get<BackendVaccination[]>("/v1/vaccinations", {
+    params: { pet_id: petId },
+  });
   return data.map(transformVaccination);
 };
 
@@ -39,9 +39,9 @@ export const useGetVaccinationsByPetId = (petId: string) => {
 export const getVaccinationsByOwnerId = async (
   ownerId: string
 ): Promise<VaccinationRecord[]> => {
-  const { data } = await axios.get<BackendVaccination[]>(
-    `/v1/owners/${ownerId}/vaccinations`
-  );
+  const { data } = await axios.get<BackendVaccination[]>("/v1/vaccinations", {
+    params: { owner_id: ownerId },
+  });
   return data.map(transformVaccination);
 };
 

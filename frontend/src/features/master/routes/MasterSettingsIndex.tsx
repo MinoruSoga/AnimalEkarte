@@ -1,6 +1,5 @@
 // React/Framework
 import type { ReactNode } from "react";
-import { useMemo } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -17,7 +16,6 @@ import type { MasterSettingsCategory } from "@/features/master/constants/categor
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout";
-import { useMasterItems } from "@/hooks/use-master-items";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 
 // ─────────────────────────────────────────────────
@@ -92,26 +90,6 @@ const MASTER_SECTIONS: SectionDef[] = [
   { title: "スタッフ・保険", keys: ["staff", "job_title", "insurance"] },
 ];
 
-// Backend category label map (for item counting)
-const CATEGORY_LABEL_MAP: Record<MasterSettingsCategory, string> = {
-  serviceType: "診療内容",
-  medicine: "薬剤",
-  hospitalization: "入院",
-  cage: "ケージ",
-  staff: "スタッフ",
-  job_title: "職種",
-  insurance: "保険",
-  consultation: "診察",
-  examination: "検査",
-  procedure: "処置",
-  vaccine: "予防",
-  checkup: "定期健診",
-  diagnosis_category: "診断カテゴリ",
-  diagnosis_name: "診断名",
-  trimming_course: "トリミングコース",
-  trimming_option: "トリミングオプション",
-};
-
 // ─────────────────────────────────────────────────
 // CardRow
 // ─────────────────────────────────────────────────
@@ -146,32 +124,6 @@ function CardRow({ label, description, icon, count, onClick }: CardRowProps) {
 // ─────────────────────────────────────────────────
 export function MasterSettingsIndex() {
   const navigate = useNavigate();
-  const { data: allItems } = useMasterItems();
-
-  // Build count map: backend category label → count (memoized to avoid O(n) on every render)
-  const countByLabel = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const item of allItems) {
-      if (item.category) {
-        map[item.category] = (map[item.category] ?? 0) + 1;
-      }
-    }
-    return map;
-  }, [allItems]);
-
-  function getIndividualCount(cat: MasterSettingsCategory): number {
-    const label = CATEGORY_LABEL_MAP[cat];
-    return countByLabel[label] ?? 0;
-  }
-
-  function getGroupCount(groupKey: GroupKey): number | undefined {
-    const cfg = GROUP_CARD_CONFIG[groupKey];
-    if (cfg.countCategories.length === 0) {
-      // clinic: 件数非表示
-      return undefined;
-    }
-    return cfg.countCategories.reduce((sum, cat) => sum + getIndividualCount(cat), 0);
-  }
 
   function renderCard(key: MasterCardKey) {
     // Check if it is a group key
@@ -185,7 +137,7 @@ export function MasterSettingsIndex() {
           label={cfg.label}
           description={cfg.description}
           icon={<Icon className="size-[16px]" />}
-          count={getGroupCount(groupKey)}
+          count={undefined}
           onClick={() => navigate(cfg.path)}
         />
       );
@@ -201,7 +153,7 @@ export function MasterSettingsIndex() {
         label={cfg.label}
         description={cfg.description}
         icon={<Icon className="size-[16px]" />}
-        count={getIndividualCount(cat)}
+        count={undefined}
         onClick={() => navigate(cfg.settingsPath)}
       />
     );

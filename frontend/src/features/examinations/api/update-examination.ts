@@ -8,7 +8,7 @@ export const updateExamination = async (
   id: string,
   req: UpdateExaminationRequest
 ): Promise<ExaminationRecord> => {
-  const { data } = await axios.put<BackendExamination>(
+  const { data } = await axios.patch<BackendExamination>(
     `/v1/examinations/${id}`,
     req
   );

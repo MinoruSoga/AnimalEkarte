@@ -64,7 +64,7 @@ function transformMedicine(data: BackendMedicine): Medicine {
 }
 
 export const getAllMedicines = async (): Promise<Medicine[]> => {
-  const { data } = await axios.get<BackendMedicine[]>("/v1/medicines");
+  const { data } = await axios.get<BackendMedicine[]>("/v1/masters/medicines");
   return data.map(transformMedicine);
 };
 
@@ -76,7 +76,7 @@ export const useGetAllMedicines = () => {
 };
 
 export const getMedicineById = async (id: string): Promise<Medicine> => {
-  const { data } = await axios.get<BackendMedicine>(`/v1/medicines/${id}`);
+  const { data } = await axios.get<BackendMedicine>(`/v1/masters/medicines/${id}`);
   return transformMedicine(data);
 };
 
@@ -89,7 +89,7 @@ export const useGetMedicineById = (id: string) => {
 };
 
 export const createMedicine = async (req: CreateMedicineRequest): Promise<Medicine> => {
-  const { data } = await axios.post<BackendMedicine>("/v1/medicines", req);
+  const { data } = await axios.post<BackendMedicine>("/v1/masters/medicines", req);
   return transformMedicine(data);
 };
 
@@ -104,7 +104,7 @@ export const useCreateMedicine = () => {
 };
 
 export const updateMedicine = async (id: string, req: UpdateMedicineRequest): Promise<Medicine> => {
-  const { data } = await axios.put<BackendMedicine>(`/v1/medicines/${id}`, req);
+  const { data } = await axios.patch<BackendMedicine>(`/v1/masters/medicines/${id}`, req);
   return transformMedicine(data);
 };
 
@@ -120,7 +120,7 @@ export const useUpdateMedicine = () => {
 };
 
 export const deleteMedicine = async (id: string): Promise<void> => {
-  await axios.delete(`/v1/medicines/${id}`);
+  await axios.delete(`/v1/masters/medicines/${id}`);
 };
 
 export const useDeleteMedicine = () => {

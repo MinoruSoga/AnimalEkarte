@@ -19,11 +19,17 @@ import (
 // @Param page query int false "ページ番号 (default: 1)"
 // @Param limit query int false "件数 (1-100, default: 20)"
 // @Param category query string false "カテゴリフィルター"
+// @Param status query string false "ステータスフィルター (sufficient, low, out_of_stock)"
 // @Success 200 {object} PaginatedResponse
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /inventory [get]
 func (h *Handler) ListInventory(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	page, limit, err := parsePagination(c)
 	if err != nil {
 		RespondError(c, err)
@@ -35,7 +41,12 @@ func (h *Handler) ListInventory(c *gin.Context) {
 		category = &cat
 	}
 
-	items, total, err := h.svc.Inventory.List(c.Request.Context(), category, page, limit)
+	var status *string
+	if s := c.Query("status"); s != "" {
+		status = &s
+	}
+
+	items, total, err := h.svc.Inventory.List(c.Request.Context(), clinicID, category, status, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -57,12 +68,17 @@ func (h *Handler) ListInventory(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /inventory/{id} [get]
 func (h *Handler) GetInventory(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	item, err := h.svc.Inventory.GetByID(c.Request.Context(), id)
+	item, err := h.svc.Inventory.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -83,13 +99,18 @@ func (h *Handler) GetInventory(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /inventory [post]
 func (h *Handler) CreateInventory(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	var input model.InventoryItem
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	input.ID = uuid.New()
-	if err := h.svc.Inventory.Create(c.Request.Context(), &input); err != nil {
+	if err := h.svc.Inventory.Create(c.Request.Context(), clinicID, &input); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -111,6 +132,11 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /inventory/{id} [put]
 func (h *Handler) UpdateInventory(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
@@ -122,9 +148,26 @@ func (h *Handler) UpdateInventory(c *gin.Context) {
 		return
 	}
 	input.ID = id
-	if err := h.svc.Inventory.Update(c.Request.Context(), &input); err != nil {
+	if err := h.svc.Inventory.Update(c.Request.Context(), clinicID, &input); err != nil {
 		RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, input)
+}
+
+func (h *Handler) DeleteInventory(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	if err := h.svc.Inventory.Delete(c.Request.Context(), clinicID, id); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }

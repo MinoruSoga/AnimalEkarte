@@ -13,7 +13,7 @@ import (
 )
 
 type ReservationRepository interface {
-	FindAll(ctx context.Context, clinicID uuid.UUID, page, limit int, date *time.Time, status *string) ([]model.ReservationAppointment, int64, error)
+	FindAll(ctx context.Context, clinicID uuid.UUID, page, limit int, date *time.Time, status *string, petID *uuid.UUID, ownerID *uuid.UUID) ([]model.ReservationAppointment, int64, error)
 	FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.ReservationAppointment, error)
 	Create(ctx context.Context, reservation *model.ReservationAppointment) error
 	Update(ctx context.Context, reservation *model.ReservationAppointment) error
@@ -28,7 +28,7 @@ func NewReservationRepository(db *gorm.DB) ReservationRepository {
 	return &reservationRepository{db: db}
 }
 
-func (r *reservationRepository) FindAll(ctx context.Context, clinicID uuid.UUID, page, limit int, date *time.Time, status *string) ([]model.ReservationAppointment, int64, error) {
+func (r *reservationRepository) FindAll(ctx context.Context, clinicID uuid.UUID, page, limit int, date *time.Time, status *string, petID *uuid.UUID, ownerID *uuid.UUID) ([]model.ReservationAppointment, int64, error) {
 	var reservations []model.ReservationAppointment
 	var total int64
 
@@ -40,6 +40,12 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uuid.UUID,
 	}
 	if status != nil {
 		q = q.Where("status = ?", *status)
+	}
+	if petID != nil {
+		q = q.Where("pet_id = ?", *petID)
+	}
+	if ownerID != nil {
+		q = q.Where("owner_id = ?", *ownerID)
 	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count reservations")

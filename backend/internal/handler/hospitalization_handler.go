@@ -35,12 +35,31 @@ func (h *Handler) ListHospitalizations(c *gin.Context) {
 		return
 	}
 
+	var petID *uuid.UUID
+	if s := c.Query("pet_id"); s != "" {
+		id, err := uuid.Parse(s)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pet_id"})
+			return
+		}
+		petID = &id
+	}
+	var ownerID *uuid.UUID
+	if s := c.Query("owner_id"); s != "" {
+		id, err := uuid.Parse(s)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id"})
+			return
+		}
+		ownerID = &id
+	}
+
 	var status *string
 	if s := c.Query("status"); s != "" {
 		status = &s
 	}
 
-	hospitalizations, total, err := h.svc.Hospitalization.List(c.Request.Context(), clinicID, status, page, limit)
+	hospitalizations, total, err := h.svc.Hospitalization.List(c.Request.Context(), clinicID, petID, ownerID, status, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return
