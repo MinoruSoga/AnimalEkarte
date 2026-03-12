@@ -1,8 +1,5 @@
 # 動物病院管理システム デザインシステム
 
-> **バージョン**: v3.0（2026-03-12更新）
-> **参照元**: `ui-sample/src/DESIGN_SYSTEM.md`
-
 このドキュメントは、動物病院管理システムのUIデザインにおけるトーン&マナー（トンマナ）規約を定義します。本システムは、**Notionライトモード**のデザインシステムをベースに、クリーンでミニマル、かつ機能的なインターフェースを実現しています。
 
 ## デザイン思想
@@ -75,6 +72,8 @@ iPad縦向き（1024×1366）/横向き（1366×1024）を想定し、Tailwind v
 
 #### テキストカラー
 
+Tailwindの任意値構文（`text-[#37352F]/60`など）を使用して透明度を制御します。
+
 | 用途 | カラーコード | Tailwind Class | 説明 |
 |------|------------|----------------|------|
 | **プライマリテキスト** | `#37352F` | `text-[#37352F]` | 深みのあるチャコールグレー |
@@ -121,20 +120,33 @@ iPad縦向き（1024×1366）/横向き（1366×1024）を想定し、Tailwind v
 
 **デザイン方針**: Figmaデザインから抽出した明るく柔らかいパステルカラーを採用。暗い色は極力使用せず、目に優しく美しいトーンで統一。
 
-| 診療種別 | 背景色 | テキスト色 | ボーダー色 | 説明 |
-|---|---|---|---|---|
-| **診療** | `#dbeafe` | `#5b8def` | `#93c5fd` | 明るい青（Figma pale blue） |
-| **検診** | `#dcfce7` | `#16a34a` | `#86efac` | 明るい緑（Figma pale green） |
-| **手術** | `#ffe2e2` | `#f87171` | `#fca5a5` | 明るいコーラルレッド（Figma pale red） |
-| **ワクチン** | `#f3e8ff` | `#a855f7` | `#c084fc` | 明るいラベンダー紫（Figma pale purple） |
-| **入院** | `#cefafe` | `#0891b2` | `#67e8f9` | 明るいターコイズ（Figma pale cyan） |
-| **トリミング** | `#ffedd4` | `#f97316` | `#fdba74` | 明るいピーチオレンジ（Figma pale orange） |
+| 診療種別 | 背景色 | テキスト色 | ボーダー色 | ドット色（凡例） | 説明 |
+|---|---|---|---|---|---|
+| **診療** | `#dbeafe` | `#5b8def` | `#93c5fd` | `#5b8def` | 明るい青（Figma pale blue） |
+| **検診** | `#dcfce7` | `#16a34a` | `#86efac` | `#16a34a` | 明るい緑（Figma pale green） |
+| **手術** | `#ffe2e2` | `#f87171` | `#fca5a5` | `#f87171` | 明るいコーラルレッド（Figma pale red） |
+| **ワクチン** | `#f3e8ff` | `#a855f7` | `#c084fc` | `#a855f7` | 明るいラベンダー紫（Figma pale purple） |
+| **入院** | `#cefafe` | `#0891b2` | `#67e8f9` | `#0891b2` | 明るいターコイズ（Figma pale cyan） |
+| **トリミング** | `#ffedd4` | `#f97316` | `#fdba74` | `#f97316` | 明るいピーチオレンジ（Figma pale orange） |
 
 **実装場所**:
-- `/lib/design-tokens.ts`: `bgFigmaBlue` / `textFigmaBlue` / `borderFigmaBlue` などのTailwindクラス
+- `/lib/design-tokens.ts`: `bgFigmaBlue` / `textFigmaBlue` / `borderFigmaBlue` / `dotFigmaBlue` などのTailwindクラス
 - `/features/master/constants/service-type-colors.ts`: `SERVICE_TYPE_COLOR_MAP` でマスタ連動
 - 予約カレンダー（`/features/reservations/routes/ReservationManagement.tsx`）で`useServiceTypeColorMap`フックにより動的適用
 - カラーは`ServiceTypeMaster.color`フィールドで管理され、マスタ設定から変更可能
+
+**使用例**:
+```tsx
+// 診療種別マスタの色設定
+const serviceType = {
+  name: "診療",
+  color: "blue", // → bgFigmaBlue + textFigmaBlue + borderFigmaBlue
+};
+
+// カレンダーレジェンド
+<span className={`w-2.5 h-2.5 rounded-full ${C.dotFigmaBlue}`} />
+<span className={`text-xs ${C.text60}`}>診療</span>
+```
 
 ---
 
@@ -142,14 +154,20 @@ iPad縦向き（1024×1366）/横向き（1366×1024）を想定し、Tailwind v
 
 ### フォントサイズ階層
 
+Tailwindのデフォルトタイポグラフィを使用しますが、特定のコンテキストでは以下のサイズを遵守してください。
+
 | 要素 | サイズ | Tailwind Class | 用途 |
 |------|-------|----------------|------|
 | **カード内タイトル** | 20px | `text-xl` | ペット名、飼主名などの主要情報 |
 | **本文** | 14px | `text-sm` | 一般的なテキスト、フォーム入力値、テーブルセル |
 | **補足・ラベル** | 12px | `text-xs` | フィールドラベル、日付、メタデータ |
 
-**注意事項:**
-- Tailwind の `text-*` / `font-*` / `leading-*` クラスは、ユーザーから明示的な変更指示がない限り追加しない
+### 行間
+
+- **主要情報**: `leading-tight` を使用して引き締まった印象を与えます。
+
+### 注意事項
+- Tailwind の `text-*` (フォントサイズ), `font-*` (フォントウェイト), `leading-*` (行間) クラスは、ユーザーから明示的な変更指示がない限り追加しない
 - `/styles/globals.css` の `@layer base` でデフォルトのタイポグラフィが定義済み
 
 ---
@@ -199,7 +217,7 @@ iPad縦向き（1024×1366）/横向き（1366×1024）を想定し、Tailwind v
 |---|---|---|
 | **`shadow-lg`** | floating overlay（最前面の浮動要素）| コンテキストメニュー・ポップオーバー（`QuickActionMenu`・`CarePlanPreviewPopover`・`ShiftEditPopover`）|
 | **`shadow-md`** | absolute 配置の浮動ボタン | 画像削除ボタン（`TrimmingForm` スタイル/完成画像オーバーレイ）|
-| **`shadow-sm`** | micro decoration のみ | 今日日付バッジ（`MonthView`）・ステータスドット（`WeekView`）|
+| **`shadow-sm`** | micro decoration のみ | 今日日付バッジ（`MonthView`）・ステータスドット（`WeekView`）・選択中状態ボタン（`PatientSelectionTable`）|
 
 **禁止パターン（DESIGN_SYSTEM 違反）:**
 - カード・フォームパネル・テーブルコンテナへの `shadow-sm` 適用 → `border ${C.borderMedium}` のみで深度表現
@@ -236,7 +254,7 @@ iPad縦向き（1024×1366）/横向き（1366×1024）を想定し、Tailwind v
 
 ### 検索可能なセレクトボックス (Combobox)
 
-全セレクトボックス（プルダウン）は、`Popover` と `Command` を組み合わせた **コンボボックス化（Combobox）** を標準とします。標準の `Select` コンポーネントは原則使用しません。
+全セレクトボックス（プルダウン）は、選択肢が多い場合や一貫したUXを提供するため、`Popover` と `Command` を組み合わせた **コンボボックス化（Combobox）** を標準とします。標準の `Select` コンポーネントは原則使用しません。
 
 ### 入力フィールド
 
@@ -468,9 +486,15 @@ scrollbar-width: thin;
 | **ホバー時** | `hover:text-[#37352F]/50` | 操作可能であることを示唆 |
 | **カーソル** | `cursor-grab` / `active:cursor-grabbing` | ドラッグ可能状態を明示 |
 
-### カスタムドラッグプレビュー（`setDragImage`）
+### カスタムドラッグレビュー（`setDragImage`）
 
 Notionライクなピル型ゴーストを`document.createElement`で動的生成し、`setDragImage`で適用します。
+
+```
+┌─────────────────────────┐
+│  ⁞  項目名テキスト       │
+└─────────────────────────┘
+```
 
 | プロパティ | 値 | 説明 |
 |-----------|-----|------|
@@ -479,15 +503,21 @@ Notionライクなピル型ゴーストを`document.createElement`で動的生�
 | **角丸** | `6px` | ピル型 |
 | **影** | `0 4px 12px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)` | 浮遊感のあるシャドウ |
 | **フォント** | `13px`, `font-weight: 500` | Notionのテキストスタイル |
+| **グリップアイコン** | Unicode `⁝` (`\u2807`), `color: rgba(55,53,47,0.3)` | ドラッグ中であることを視覚化 |
+| **配置** | `position: fixed; top: -1000px` | 画外に配置（DragImage用） |
 | **クリーンアップ** | `dragEnd` 時に `remove()` | DOM汚染防止 |
 
 ### ドロップ位置インジケータ（`box-shadow`方式）
+
+ドロップ可能位置を行の`box-shadow`で示します。背景色変更ではなく`box-shadow`を使うことで、既存のホバースタイルと干渉しません。
 
 | 位置 | box-shadow | 用途 |
 |------|-----------|------|
 | **前に挿入** | `inset 0 2px 0 0 #2383E2` | 行の上端に青いライン |
 | **後に挿入** | `inset 0 -2px 0 0 #2383E2` | 行の下端に青いライン |
 | **子項目化（ツリーのみ）** | `inset 0 0 0 2px #2383E2` | 行全体を青い枠で囲む |
+
+インジケータカラー `#2383E2` はNotionのリンク/選択色に準拠しています。
 
 ### ドロップ位置判定（マウスY座標比率）
 
@@ -506,6 +536,12 @@ Notionライクなピル型ゴーストを`document.createElement`で動的生�
 ### ホバー自動展開（ツリーテーブルのみ）
 
 折りたたまれた親ノードの中央ゾーン（"on" 位置）に **600ms** ホバーし続けると、自動的に展開されます。
+
+| パラメータ | 値 | 説明 |
+|-----------|-----|------|
+| **遅延時間** | `600ms` | 意図しない展開を防止するディレイ |
+| **トリガー条件** | `pos === "on"` かつ `hasChildren` かつ `!isExpanded` | 折りたたまれた子持ちノードのみ |
+| **キャンセル** | マウスが離れる or ゾーンが"on"以外に変化 | `clearTimeout`で即キャンセル |
 
 ### 安全制約
 
@@ -528,13 +564,13 @@ Notionライクなピル型ゴーストを`document.createElement`で動的生�
   - テーブル行: `h-12`（48px）
   - 閉じるボタン: `size-8` + `after:absolute after:-inset-2`
 - **フォーカストラップ**: `useFocusTrap` フックでモーダル/Popover内のTab循環・Escape閉じ・フォーカス復帰を一元管理。`ShiftEditPopover`、マスタ選択モーダル等で使用
-- **D&Dアクセシビリティ**: ドラッグハンドルに `role="button"`, `tabIndex={0}`, `aria-roledescription`, `aria-label` を付与。`aria-grabbed` / `aria-dropeffect="move"` で状態をスクリーンリーダーに通知。`Alt+ArrowUp/Down` でキーボードのみの並び替え、`Alt+ArrowLeft/Right` でツリー階層変更（昇格/降格、循環参照防止付き）。フォーカスリングは `focus-visible:ring-[1.5px] focus-visible:ring-[#2383E2]`。`useAnnounce` で全D&D操作結果を `aria-live="polite"` リージョンにリアルタイム通知
+- **D&Dアクセシビリティ**: ドラッグハンドルに `role="button"`, `tabIndex={0}`, `aria-roledescription`, `aria-label` を付与。`aria-grabbed` / `aria-dropeffect="move"` で状態をスクリーンリーダーに通知。`Alt+ArrowUp/Down` でキーボードのみの並び替え、`Alt+ArrowLeft/Right` でツリー階層変更（昇格/降格、循環参照防止付き）に対応。フォーカスリングは `focus-visible:ring-[1.5px] focus-visible:ring-[#2383E2]`。`useAnnounce` で全D&D操作結果を `aria-live="polite"` リージョンにリアルタイム通知
 - **フォームバリデーション**: `FormFieldError` に `role="alert"` + `aria-live="assertive"` + 一意の `id` を付与。関連する入力要素にエラー時のみ `aria-describedby` を条件適用。`PatientInfoCard.staffAriaDescribedBy` / `MasterSelectTrigger.ariaDescribedBy` prop で分離コンポーネント間のエラー接続をサポート
 - **インタラクティブ要素**: `MasterSelectTrigger`（選択済み/未選択）・`MasterSelectModal` アイテムリストはすべて `<button>` 要素を使用し、キーボードのみでの操作を保証
 - **ライブリージョン**: `LiveAnnouncerProvider` + `useAnnounce` フックによるスクリーンリーダー向けリアルタイム通知基盤（D&D操作・フォーム送信結果等）
 - **トグルボタン**: `aria-pressed` でオン/オフ状態を通知。ボタングループには `role="group"` + `aria-label` を付与
 - **モーション制御 (`useReducedMotion`)**: `prefers-reduced-motion: reduce` を検知する共有フック。Motionアニメーションを使用する全コンポーネントで必ず適用し、ユーザー設定に応じてアニメーションを抑制する（WCAG 2.3.3準拠）
-  - **ポリシー**: Motionの `duration`・`scale`・`opacity`・`shadow` 等の視覚効果を `reduced ? { duration: 0 } : normalTransition` パターンで切り替え。
+  - **ポリシー**: Motionの `duration`・`scale`・`opacity`・`shadow` 等の視覚効果を `reduced ? { duration: 0 } : normalTransition` パターンで切り替え。レイアウトシフト（要素の追加/削除に伴う高さ変化）は reduced 時も維持可
   - **適用箇所**: `TreatmentTable`（行フェードイン/ハイライトフラッシュ/エグジット）、`MasterSidePeek`（サイドパネル開閉duration→0）、`WeekView.AppointmentCard`（ドラッグ時scale/opacity/shadow効果抑制）
   - **新規Motion追加時**: `useReducedMotion()` の呼び出しと分岐を必須とし、`SPECIFICATION.md` の共有フック一覧に適用箇所を追記すること
 
@@ -555,7 +591,10 @@ shadcn/ui のデフォルト `Checkbox` ではなく、Notion の実際のチェ
 | **フォーカス** | `ring-2 ring-[#2383E2]/40 ring-offset-1` | アクセントブルーのフォーカスリング |
 | **無効** | `opacity-40 cursor-not-allowed` | 操作不可状態 |
 
-- デフォルトサイズ: `size-[18px]`（Notionと同等）
+### サイズ
+
+- デフォルト: `size-[18px]`（Notionと同等）
+- `className` prop でサイズカスタマイズ可
 
 ### アクセシビリティ
 
@@ -589,6 +628,16 @@ shadcn/ui のデフォルト `Checkbox` ではなく、Notion の実際のチェ
 
 ---
 
+## まとめ
+
+このデザインシステムは、**Notionライトモード**の美学を忠実に再現することを目的としています。特に以下の3点に注意を払い、一貫性のある実装を行ってください。
+
+1. **ボーダーの色**: `rgba(55,53,47,0.16)` (標準) / `rgba(55,53,47,0.09)` (薄い) の使い分け
+2. **テキストの透明度**: `#37352F` の不透明度バリエーションで階層を表現
+3. **余白の統一**: 本ドキュメントの余白パターン表に準拠
+
+---
+
 ## デザイントークンアーキテクチャ (`/lib/design-tokens.ts`)
 
 全カラー値・レイアウト定数・コンポジットTailwindクラスプリセットは `/lib/design-tokens.ts` に一元管理されています。コンポーネントはこのファイルからインポートし、ハードコーディングされたhex値やpxサイズの直接記述を避けます。
@@ -608,22 +657,33 @@ shadcn/ui のデフォルト `Checkbox` ではなく、Notion の実際のチェ
 | `white` | `#ffffff` | 白 |
 | `borderLight` | `rgba(55,53,47,0.09)` | ボーダー（薄い） |
 | `borderMedium` | `rgba(55,53,47,0.16)` | ボーダー（中間） |
+| `hoverLight` | `rgba(55,53,47,0.04)` | ホバーオーバーレイ（薄い） |
+| `hoverMedium` | `rgba(55,53,47,0.08)` | ホバーオーバーレイ（中間） |
+| `hoverStrong` | `rgba(55,53,47,0.35)` | スクロールバーホバー |
 | `accent` | `#2383E2` | Notionブルーアクセント |
 | `accentHover` | `#1B6EC2` | アクセントホバー |
+| `accentLight` | `#D3E5EF` | アクセント薄い背景（ステータスピル） |
+| `accentDark` | `#183B56` | アクセント濃いテキスト |
 | `danger` | `#EB5757` | 破壊的/危険（CSS変数 `--destructive`） |
 | `notionRed` | `#E03E3E` | 必須マーカー、バリデーション |
+| `redIcon` | `#EA3323` | アラートサークルアイコン |
+| `muted` | `#787774` | ミュートテキスト |
+| `mutedBg` | `#F1F0EE` | ミュート背景 |
 | `statusGreenText` | `#0F7B6C` | ステータス意味色（グリーンテキスト） |
 | `statusGreenBg` | `#DDEDEA` | ステータス意味色（グリーン背景） |
-| `grayMedium` | `#9B9A97` | グレー中間色 |
-| `costBlueBg` / `costBlueText` | `#E3F2FD` / `#1565C0` | コスト集計ブルー |
-| `costGreenBg` / `costGreenText` | `#E8F5E9` / `#2E7D32` | コスト集計グリーン |
-| `successGreen` | `#10B981` | 成功/会計リンク |
+| `grayMedium` | `#9B9A97` | グレー中間色（statusGrayText/dotGray の正規名） |
+| `statusGrayBg` | `#EBECED` | ステータス意味色（グレー背景） |
+| `grayLight` | `#E3E2E0` | グレー薄色（bgInactive/grayTagBg の正規名） |
+| `costBlueBg` / `costBlueText` | `#E3F2FD` / `#1565C0` | コスト集計ブルー（Material palette） |
+| `costGreenBg` / `costGreenText` | `#E8F5E9` / `#2E7D32` | コスト集計グリーン（Material palette） |
+| `successGreen` / `successGreenHover` | `#10B981` / `#059669` | 成功/会計リンク（Emerald green） |
 | `noticeBg` / `noticeBorder` / `noticeText` | `#FDECC8` / `#F2DBA7` / `#C29243` | Notion Yellow（注意・アラート） |
-| `notionOrange` | `#D9730D` | Notion Orange（値引き・財務） |
+| `notionOrange` / `notionOrangeLight` | `#D9730D` / `#FAEBDD` | Notion Orange（値引き・財務） |
 | `statusPurpleText` / `statusPurpleBg` | `#6940A5` / `#EEE0F7` | Notion Purple（診療中ステータス） |
-| `brownBg` / `brownText` | `#EEE0DA` / `#64473A` | Notion Brown（入院予約カード） |
-| `pinkBg` / `pinkText` | `#F5E0E9` / `#AD1A72` | Notion Pink（ホテル予約カード） |
+| `brownBg` / `brownText` / `brownBorder` | `#EEE0DA` / `#64473A` / `#DFD0C8` | Notion Brown（入院予約カード） |
+| `pinkBg` / `pinkText` / `pinkBorder` | `#F5E0E9` / `#AD1A72` / `#ECCBDA` | Notion Pink（ホテル予約カード） |
 | `warningBg` / `warningIcon` / `warningText` | `#FFF3CD` / `#B58105` / `#856404` | 警告（イエロー） |
+| `dot*` (10色) | `#529CCA` 等 | 診療内容凡例ドットカラー |
 
 > 全エントリは `/lib/design-tokens.ts` の `PALETTE` オブジェクトを参照。
 
@@ -639,20 +699,28 @@ import { C } from "../lib/design-tokens";
 | カテゴリ | 例 | 説明 |
 |---|---|---|
 | **テキスト** | `C.text`, `C.text80`, `C.text70`, `C.text60`, `C.text50`, `C.text40`, `C.text35`, `C.text30`, `C.text25`, `C.text20`, `C.text15` | プライマリ〜極薄テキスト（11段階） |
-| **背景** | `C.bgPage`, `C.bgWhite`, `C.bgSubtle`, `C.bgActive`, `C.bgHover`, `C.bgHoverMd`, `C.bgPrimary`, `C.bgPrimary10`, `C.bgPrimary5` | ページ、カード、ホバー、プライマリ背景 |
-| **ボーダー** | `C.borderLight`, `C.borderMediumLight`, `C.borderMedium`, `C.borderDivider`, `C.borderPrimary` | 4段階のボーダー + プライマリ系 |
-| **アクセント** | `C.accent`, `C.bgAccent`, `C.bgAccentHover`, `C.bgAccentLight`, `C.focusRingAccent` | フォーカス、選択、リンク |
+| **テキスト（特殊）** | `C.textPlaceholder`, `C.textPlaceholderFaint` | プレースホルダー（30%, 15%） |
+| **背景** | `C.bgPage`, `C.bgPageHalf`, `C.bgPage30`, `C.bgWhite`, `C.bgSubtle`, `C.bgActive`, `C.bgHover`, `C.bgHoverMd`, `C.bgPrimary`, `C.bgPrimary10`, `C.bgPrimary5` | ページ、カード、ホバー、プライマリ背景 |
+| **ボーダー** | `C.borderLight`, `C.borderMediumLight`, `C.borderMedium`, `C.borderDivider`, `C.borderPrimary`, `C.borderPrimary20`, `C.borderPrimary10`, `C.borderLPrimary` | 4段階のボーダー + プライマリ系 |
+| **ディバイダー** | `C.divideDivider`, `C.divideDividerFaint` | テーブル/リスト行間のdivide色 |
+| **アクセント** | `C.accent`, `C.bgAccent`, `C.bgAccentHover`, `C.bgAccentLight`, `C.bgAccent5`, `C.bgAccent8`, `C.textAccentDark`, `C.borderAccent`, `C.ringAccent`, `C.ringAccent40`, `C.hoverBgAccent5`, `C.focusRingAccent` | フォーカス、選択、リンク |
 | **破壊的** | `C.danger`, `C.bgDanger`, `C.hoverTextDanger`, `C.hoverBgDanger5` | 削除、エラー |
 | **Notionレッド** | `C.textRequired`, `C.textRedIcon` | 必須マーカー、アラートアイコン |
-| **ステータス** | `C.textStatusGreen`, `C.bgStatusGreen`, `C.textStatusGray`, `C.bgStatusGray`, `C.bgInactive` | 意味的ステータス色 |
+| **ステータス** | `C.textStatusGreen`, `C.bgStatusGreen`, `C.borderStatusGreen`, `C.hoverBgStatusGreen`, `C.textStatusGray`, `C.bgStatusGray`, `C.borderStatusGray`, `C.hoverBgStatusGray`, `C.bgInactive` | 意味的ステータス色（グリーン/グレー/無効） |
 | **コスト** | `C.bgCostBlue`, `C.textCostBlue`, `C.bgCostGreen`, `C.textCostGreen` | コスト集計カラー |
 | **警告** | `C.bgWarning50`, `C.textWarningIcon`, `C.textWarning` | 警告カラー（イエロー系） |
-| **成功** | `C.textSuccess`, `C.bgSuccess`, `C.bgSuccessHover` | 会計リンク等（Emerald green） |
-| **注意** | `C.textNotice`, `C.bgNotice`, `C.borderNotice` | Notion Yellow（アラート・依頼中） |
-| **Notionパープル** | `C.textStatusPurple`, `C.bgStatusPurple` | 診療中ステータス |
-| **Brown/Pink** | `C.bgBrown`, `C.textBrown`, `C.bgPink`, `C.textPink` | 予約カード（入院/ホテル） |
-| **ダッシュボードカンバン** | `C.bgAccentLight50`, `C.textAccentDark60` 等（16トークン） | カンバンカラムの透明度バリエーション |
+| **成功** | `C.textSuccess`, `C.bgSuccess`, `C.bgSuccessHover`, `C.borderSuccess30`, `C.hoverBgSuccess10` | 会計リンク等（Emerald green） |
+| **注意** | `C.textNotice`, `C.bgNotice`, `C.borderNotice`, `C.borderNotice50`, `C.bgNotice40` | Notion Yellow（アラート・依頼中） |
+| **Notionレッド（バッジ）** | `C.textNotionRed`, `C.bgRedLight`, `C.borderRed30`, `C.bgNotionRed`, `C.borderRedBadge` | 赤系バッジ・ステータス |
+| **Notionオレンジ** | `C.bgDiscount`, `C.bgDiscountHover`, `C.textDiscount`, `C.bgDiscountLight`, `C.borderDiscount20` | 値引き・財務オレンジ |
+| **Notionパープル** | `C.textStatusPurple`, `C.bgStatusPurple`, `C.bgStatusPurpleDot`, `C.borderStatusPurple`, `C.hoverBgStatusPurple`, `C.hoverBgStatusPurpleDark` | 診療中ステータス |
+| **Brown/Pink** | `C.bgBrown`, `C.textBrown`, `C.borderBrown`, `C.bgPink`, `C.textPink`, `C.borderPink` | 予約カード（入院/ホテル） |
+| **ミュート（バッジ）** | `C.bgMutedBadge`, `C.textMuted`, `C.borderMuted` | デフォルトバッジ |
+| **ダッシュボードカンバン** | `C.bgAccentLight50`, `C.textAccentDark60`, `C.hoverBgAccentBadge40` 等（16トークン） | カンバンカラムの透明度バリエーション |
 | **ドットカラー** | `C.dotBlue`, `C.dotGreen`, `C.dotRed`, `C.dotOrange`, `C.dotYellow`, `C.dotPurple`, `C.dotPink`, `C.dotBrown`, `C.dotGray`, `C.dotDefault` | 診療内容凡例ドット |
+| **ホバー** | `C.hoverBgPage`, `C.hoverBgPageHalf`, `C.hoverBgLight`, `C.hoverBgMedium`, `C.hoverBgPrimary10`, `C.hoverText`, `C.hoverText60`, `C.hoverBorderPrimary30`, `C.hoverBorderPrimary40`, `C.hoverBorderMedium`, `C.hoverBgSubtle` | ホバー状態 |
+| **フォーカス** | `C.focusBgLight`, `C.focusRingAccent`, `C.focusRingMedium` | フォーカス状態 |
+| **リング** | `C.ringPrimary50`, `C.ringPrimary40`, `C.ringPrimary20` | リング色 |
 
 > 合計約190トークン。全エントリは `/lib/design-tokens.ts` の `C` オブジェクトを参照。
 
@@ -683,6 +751,8 @@ import { BADGE } from "../lib/design-tokens";
 
 #### 3. `LAYOUT` — レイアウト定数
 
+アニメーションターゲット、style props、幅/高さ制約のTailwindクラス文字列を提供します。
+
 | キー | 値 | 用途 |
 |------|-----|------|
 | `sidebar.expanded/collapsed` | `w-[220px]` / `w-[56px]` | サイドバー幅 |
@@ -692,15 +762,19 @@ import { BADGE } from "../lib/design-tokens";
 | `propertyRow.labelW` | `w-[140px]` | ラベル列幅 |
 | `header.h` | `h-12` | フォームヘッダー高さ |
 | `touch.md` | `h-10` | タッチターゲット（プライマリ） |
+| `touch.sm` | `h-10` | タッチターゲット（セカンダリ） |
 | `touch.row` | `h-12` | テーブル行高さ |
 | `touch.tableHead` | `h-10` | テーブルヘッダー高さ |
 | `touch.iconBtn` | `size-9` | ツールバーアイコンボタン |
 | `touch.badge` | `h-8` | ステータスバッジ高さ |
+| `pageTitle.fontSize/fontWeight` | `30px` / `700` | ページタイトルスタイル |
+| `pageIcon.size` | `size-[38px]` | Notionページアイコンコンテナ |
+| `pageIcon.innerIcon` | `size-[20px]` | ページアイコン内部サイズ |
 | `modal.sm` / `md` / `lg` / `xl` / `full` | `sm:max-w-[480px]` 〜 `w-[98%]` | モーダルサイズ（5段階） |
 
 #### 4. `STYLE` — コンポジットスタイルプリセット
 
-再利用可能なclassNameストリングで、頻出するUIパターンを集約します（合計約53プリセット）。
+再利用可能なclassNameストリングで、頻出するUIパターンを集約します。
 
 | プリセット | 用途 |
 |---|---|
@@ -712,14 +786,19 @@ import { BADGE } from "../lib/design-tokens";
 | `STYLE.paginationBtn` / `STYLE.paginationBtnActive` / `STYLE.paginationInfo` | ページネーション |
 | `STYLE.sidebarContainer` / `STYLE.sidebarHeader` / `STYLE.sidebarItemActive` / `STYLE.sidebarItemIdle` / `STYLE.sidebarToggle` | サイドバー |
 | `STYLE.propertyRow` / `STYLE.propertyLabel` / `STYLE.propertyInput` | Notionプロパティ行 |
-| `STYLE.sidePeekPanel` / `STYLE.sidePeekToolbar` / `STYLE.sidePeekBody` / `STYLE.sidePeekFooter` | サイドピーク（マスタ編集） |
+| `STYLE.sidePeekPanel` / `STYLE.sidePeekToolbar` / `STYLE.sidePeekToolbarBtn` / `STYLE.sidePeekBody` / `STYLE.sidePeekFooter` / `STYLE.sidePeekCancelBtn` / `STYLE.sidePeekSaveBtn` | サイドピーク（マスタ編集） |
+| `STYLE.pageIcon` | Notionページアイコン |
+| `STYLE.selectCompact` | サイドピーク用コンパクトSelect |
+| `STYLE.sectionLabel` | セクション見出し（uppercase） |
 | `STYLE.formLabel` / `STYLE.formInput` / `STYLE.formCard` | フォームコントロール |
 | `STYLE.badge` | ステータスバッジ |
+| `STYLE.dropdownShadow` | Notionスタイルドロップダウンシャドウ |
+| `STYLE.confirmPrimary` | 確認ダイアログプライマリボタン |
 | `STYLE.settingsRow` / `STYLE.settingsRowIcon` | マスタ設定インデックス行 |
 | `STYLE.inlineAddBtn` | インライン追加行 |
 | `STYLE.formInputLight` | フォームInput（薄いボーダー + ホバー） |
 
-> 全エントリは `/lib/design-tokens.ts` の `STYLE` オブジェクトを参照。
+> 合計約53プリセット。全エントリは `/lib/design-tokens.ts` の `STYLE` オブジェクトを参照。
 
 ### Notion風プロパティ行パターン
 
@@ -748,6 +827,7 @@ import { NotionPropertyRow } from "../components/shared/NotionPropertyRow";
 - 行: `STYLE.propertyRow` — `flex gap-2 py-2 px-2 -mx-2 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] min-h-[40px]`
 - ラベル: `STYLE.propertyLabel` — `w-[140px] shrink-0 text-sm text-[rgba(55,53,47,0.65)]`
 - 入力: `STYLE.propertyInput` — 透過背景・ホバー/フォーカスで薄いハイライト
+- セレクト: `STYLE.selectCompact` — ボーダーなし・コンパクトHeight
 
 #### NotionSectionLabel
 
@@ -768,7 +848,7 @@ import { NotionPropertyRow } from "../components/shared/NotionPropertyRow";
 
 #### SectionPropertyRow（マスタセクション用 re-export）
 
-`/features/master/components/sections/SectionWrapper.tsx` から export される `SectionPropertyRow` は `NotionPropertyRow` の re-export エイリアスです。
+`/features/master/components/sections/SectionWrapper.tsx` から export される `SectionPropertyRow` は `NotionPropertyRow` の re-export エイリアスです。マスタの10個のセクションコンポーネントは既存の import パスを維持しつつ、内部では共通コンポーネントを使用しています。
 
 #### 適用範囲
 
@@ -831,6 +911,8 @@ export const TABLE_STYLES = {
 
 入院管理ボード（`HospitalizationBoard`）でケージ間のペット移動を行う際に、`react-dnd` の `useDragLayer` を使用してカスタムドラッグプレビューオーバーレイを描画します。
 
+### ビジュアル仕様
+
 | 属性 | 値 | 説明 |
 |------|-----|------|
 | **位置** | `position: fixed` | ビューポート固定でカーソルに追従 |
@@ -840,11 +922,13 @@ export const TABLE_STYLES = {
 | **z-index** | `z-50` | 全要素の最前面に表示 |
 | **ポインターイベント** | `pointer-events: none` | ドラッグ中のホバー判定に干渉しない |
 
+### `useReducedMotion` 連携
+
 `prefers-reduced-motion: reduce` が有効な場合、`rotate` および `scale` 効果を無効化し、不透明度変更のみに簡略化します。
 
 ---
 
-## ログインページデザイン仕様 (`/login`)
+## ログインページ (`/login`)
 
 サイドバー・レイアウトの外側にレンダリングされるフルスクリーンログインページ。認証済みの場合はダッシュボード (`/`) にリダイレクトします。
 
@@ -887,6 +971,19 @@ export const TABLE_STYLES = {
 ### デモアカウントパネル
 
 ログインフォームの下に表示される開発用アカウント一覧。
+
+| 要素 | スタイル | 説明 |
+|------|---------|------|
+| **区切り線** | `h-px` + `C.bgPrimary10` | 左右に伸びる薄い罫線 |
+| **ラベル** | `text-xs` + `C.text40` | 「デモアカウント（パスワード: password）」 |
+| **アカウント行** | `C.hoverBgLight` + `rounded-md` + `px-3 py-2` | ホバーで薄いハイライト |
+| **表示名** | `text-sm` + `C.text` | ユーザー名 |
+| **ロール** | `text-xs` + `C.text50` | `USER_TYPE_LABELS` / `JOB_TITLE_LABELS` から取得 |
+| **メール** | `text-xs` + `C.text30` | ホバーで `C.text50` に変化 |
+
+クリックでメールアドレスとパスワード（`"password"`）を自動入力します。
+
+### モックアカウント一覧
 
 | メール | 表示名 | ユーザー種別 | 職種 | 所属クリニック |
 |--------|--------|------------|------|--------------|
@@ -950,6 +1047,7 @@ export const TABLE_STYLES = {
 本システムはすべての汎用色を `/lib/design-tokens.ts` の `C.*` / `PALETTE.*` トークンに統一していますが、下記の2コンポーネントは**医療・時間帯という意味的文脈**に基づき、Tailwind標準色クラスをそのまま使用します。これらは不統一ではなく、仕様書明示の意図的保持対象です。
 
 > **レビュー指針**: `C.*` への置換提案が発生した場合は「意図的保持」として却下してください。
+> 今後同様の医療慣習色・時間帯テーマ色を追加する場合は、このセクションに明記してください。
 
 ### VitalInputDialog（バイタルサイン医療慣習色）
 
@@ -957,12 +1055,19 @@ export const TABLE_STYLES = {
 
 医療現場では体温=オレンジ・心拍=レッド・呼吸=ブルー・体重=グリーンという配色慣習が国際的に定着しており、スタッフの視覚的識別を支援するために保持します。
 
-| バイタルサイン | 入力ラベルアイコン | 備考 |
-|---|---|---|
-| **体温 (℃)** | `text-orange-500` | 発熱リスクを温色で表現 |
-| **心拍数 (bpm)** | `text-red-500` | 循環系を赤系で表現 |
-| **呼吸数 (回/分)** | `text-blue-500` | 呼吸・冷却トレンドを青系で表現 |
-| **体重 (kg)** | `text-green-500` | 安定した変数を緑系で表現 |
+| バイタルサイン | 入力ラベルアイコン | 前回値テキスト | 履歴バッジ |
+|---|---|---|---|
+| **体温 (℃)** | `text-orange-500` | `text-orange-600/70` | `bg-orange-50 text-orange-700 border-orange-200` |
+| **心拍数 (bpm)** | `text-red-500` | `text-red-600/70` | `bg-red-50 text-red-700 border-red-200` |
+| **呼吸数 (回/分)** | `text-blue-500` | `text-blue-600/70` | `bg-blue-50 text-blue-700 border-blue-200` |
+| **体重 (kg)** | `text-green-500` | `text-green-600/70` | `bg-green-50 text-green-700 border-green-200` |
+
+**TrendIcon（値の増減トレンド表示）**:
+
+| 方向 | クラス | 説明 |
+|------|--------|------|
+| **増加** | `text-red-400` | 体温・心拍数の上昇は生理的危険方向 |
+| **減少** | `text-blue-400` | 冷却・低下トレンドを寒色で視覚化 |
 
 > **設計根拠**: 体温上昇→発熱リスクのため赤系、呼吸数・心拍数減少→ショックリスクのため青系という医療慣習に準拠。Notionトークンのグリーン/グレーで代替すると意味が破壊される。
 
@@ -978,25 +1083,6 @@ export const TABLE_STYLES = {
 | **昼 (noon)** | `Coffee` | `text-yellow-600` | 昼の光・明るさを表す黄色 |
 | **夜 (night)** | `Moon` | `text-indigo-600` | 夜空・月明かりを表すインディゴ |
 
-> **設計根拠**: 時間帯に対応する自然な色であり、Notionのインディゴ/オレンジ/イエロートークンは存在しないため、Tailwindの意味的色名クラスで対応。
+> **設計根拠**: 時間帯に対応する自然な色であり、Notionのインディゴ/オレンジ/イエロートークンは存在しないため、Tailwindの意味的色名クラスで対応。入院スタッフが1日3サイクルの投薬・食事・ケアを素早く識別するための重要な視覚補助。
 
 ---
-
-## まとめ
-
-このデザインシステムは、**Notionライトモード**の美学を忠実に再現することを目的としています。特に以下の3点に注意を払い、一貫性のある実装を行ってください。
-
-1. **ボーダーの色**: `rgba(55,53,47,0.16)` (標準) / `rgba(55,53,47,0.09)` (薄い) の使い分け
-2. **テキストの透明度**: `#37352F` の不透明度バリエーションで階層を表現
-3. **余白の統一**: 本ドキュメントの余白パターン表に準拠
-
----
-
-## 関連ドキュメント
-
-| ドキュメント | 説明 |
-|---|---|
-| [SCREENS.md](./SCREENS.md) | 全画面仕様 |
-| [SPECIFICATION.md](./SPECIFICATION.md) | システム仕様・アーキテクチャ |
-| [ERD.md](./ERD.md) | データベース設計 |
-| [DB_DEFINITION.md](./DB_DEFINITION.md) | DB定義書・DDL |

@@ -12,12 +12,17 @@ Animal Ekarte（動物病院電子カルテシステム）の技術ドキュメ�
 
 | ドキュメント | 説明 | 対象者 |
 |-------------|------|--------|
-| **[SPECIFICATION.md](./SPECIFICATION.md)** | 🎯 技術仕様書（技術スタック、アーキテクチャ、機能一覧） | エンジニア全員 |
-| **[DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)** | 🎨 デザインシステム（Notion準拠トークン、コンポーネント仕様） | フロントエンド開発者 |
-| **[SCREENS.md](./SCREENS.md)** | 📱 画面仕様書（全42ルートのコンポーネント・UX仕様） | フロントエンド開発者 |
+| **[SPECIFICATION.md](./SPECIFICATION.md)** | 🎯 技術仕様書（技術スタック、アーキテクチャ、Feature一覧、ルーティング） | エンジニア全員 |
+| **[DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)** | 🎨 デザインシステム v3.0（Notionトークン、D&D、アクセシビリティ） | フロントエンド開発者 |
+| **[SCREENS.md](./SCREENS.md)** | 📱 画面仕様書 v3.0（全42ルート・メイン機能編） | フロントエンド開発者 |
 | **[AUTH.md](./AUTH.md)** | 🔐 認証・認可設計（RBAC、マルチクリニック、権限マトリクス） | エンジニア全員 |
-| **[ERD.md](./ERD.md)** | 🗄️ ER図（データベース設計、エンティティ定義） | バックエンド開発者 |
+| **[ERD.md](./ERD.md)** | 🗄️ ER図 v5.0（全45テーブル・専用マスタテーブル版） | バックエンド開発者 |
 | **[DB_DEFINITION.md](./DB_DEFINITION.md)** | 📊 DB定義書（全31テーブル、RLSポリシー、インデックス） | バックエンド開発者 |
+| **[SCREENS_MASTER.md](./SCREENS_MASTER.md)** | 📱 マスタ管理画面仕様 v3.0（全16カテゴリ詳細） | フロントエンド開発者 |
+| **[SCREENS_VALIDATION.md](./SCREENS_VALIDATION.md)** | ✅ バリデーション・データ型仕様 v2.0（全画面） | フロントエンド開発者 |
+| **[SCREENS_README.md](./SCREENS_README.md)** | 📖 画面仕様書ガイド（3ドキュメント構成の説明） | フロントエンド開発者 |
+| **[FORMS_SPECIFICATION.md](./FORMS_SPECIFICATION.md)** | 📝 フォーム仕様書（全画面フィールド詳細） | フロントエンド開発者 |
+| **[IMPROVEMENTS.md](./IMPROVEMENTS.md)** | 🔧 コード改善ログ（ガイドライン・ユーティリティ追加） | エンジニア全員 |
 | **[ATTRIBUTIONS.md](./ATTRIBUTIONS.md)** | 📄 ライセンス・帰属情報 | プロジェクト管理者 |
 
 ### 実装ガイド
@@ -84,8 +89,8 @@ docker compose exec backend swag init -g cmd/api/main.go
 
 - **ER図**: [ERD.md](./ERD.md)
 - **DB定義書**: [DB_DEFINITION.md](./DB_DEFINITION.md)
-- **テーブル数**: 31（コア 27 + 認証 4）
-- **マスタカテゴリ**: 15種類
+- **テーブル数**: 45（コア 29 + マスタ 16）
+- **マスタカテゴリ**: 16種類
 
 ### テーブル構成
 
@@ -102,6 +107,7 @@ docker compose exec backend swag init -g cmd/api/main.go
 | **シフト** | 1 | `shift_entries` |
 | **クリニック** | 1 | `clinic_info` |
 | **認証（Phase 4）** | 4 | `clinics`, `user_accounts`, `user_clinic_memberships`, `user_permissions` |
+| **マスタ（16テーブル）** | 16 | `examination_types`, `vaccines`, `medicines`, `staffs`, `insurances`, `cages`, `service_types`, `consultations`, `procedures`, `hospitalization_plans`, `trimming_courses`, `trimming_options`, `diagnosis_categories`, `diagnosis_names`, `checkup_types`, `examination_type_items` |
 
 詳細は [DB_DEFINITION.md](./DB_DEFINITION.md) および [ERD.md](./ERD.md) を参照。
 
@@ -158,6 +164,11 @@ AnimalEkarte/
 │   ├── AUTH.md              # 認証・認可設計（RBAC）
 │   ├── ERD.md               # データベース ER 図
 │   ├── DB_DEFINITION.md     # DB 定義書（全31テーブル）
+│   ├── SCREENS_MASTER.md    # マスタ管理画面仕様
+│   ├── SCREENS_VALIDATION.md # バリデーション・データ型仕様
+│   ├── SCREENS_README.md    # 画面仕様書ガイド
+│   ├── FORMS_SPECIFICATION.md # フォーム仕様書
+│   ├── IMPROVEMENTS.md      # コード改善ログ
 │   ├── MIGRATION.md         # マイグレーション
 │   ├── API-ROADMAP.md       # API設計
 │   ├── deploy/              # デプロイメント
@@ -237,6 +248,17 @@ make db
 ---
 
 ## 📅 更新履歴
+
+- **2026-03-12**: ドキュメントクリーンアップ & v3.0全面更新
+  - ERD-FINAL.md 削除（旧設計）、infra/スケルトン5本削除、deploy/古いレポート削除
+  - SCREENS_MASTER.md 新規作成（16カテゴリマスタ管理仕様）
+  - SCREENS_VALIDATION.md 新規作成（全画面バリデーション・データ型）
+  - SCREENS_README.md 新規作成（画面仕様書ガイド）
+  - FORMS_SPECIFICATION.md 新規作成（全画面フォーム仕様）
+  - IMPROVEMENTS.md 新規作成（ガイドライン・ユーティリティ改善ログ）
+  - SPECIFICATION.md v3.0更新（ui-sample/src同期）
+  - DESIGN_SYSTEM.md v3.0更新（ui-sample/src同期）
+  - SCREENS.md v3.0更新（全1922行、ui-sample/src同期）
 
 - **2026-03-12**: ui-sample/src から v3.0 ドキュメントへ全面更新
   - SCREENS.md（v3.0 — 全42ルート、15セクション）
