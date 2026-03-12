@@ -1,6 +1,6 @@
 // React/Framework
 import { useState, useMemo, useCallback, useTransition } from "react";
-import { useNavigate, useLoaderData } from "react-router";
+import { useNavigate, useLoaderData, useRevalidator } from "react-router";
 
 // External
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -32,6 +32,7 @@ type SortKey = "ownerNumber" | "ownerName" | "name" | "species" | "birthDate" | 
 
 export function OwnersList() {
   const navigate = useNavigate();
+  const revalidator = useRevalidator();
   const { pets } = useLoaderData<OwnersLoaderData>();
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDeleteOwner, setPendingDeleteOwner] = useState<{
@@ -90,11 +91,12 @@ export function OwnersList() {
         await deleteOwner(pendingDeleteOwner.id);
         toast.success("飼主を削除しました");
         setPendingDeleteOwner(null);
+        revalidator.revalidate();
       } catch {
         toast.error("削除に失敗しました");
       }
     });
-  }, [pendingDeleteOwner]);
+  }, [pendingDeleteOwner, revalidator]);
 
   const columns = useMemo(() => [
     {

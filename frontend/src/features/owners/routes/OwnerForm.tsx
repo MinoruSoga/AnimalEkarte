@@ -1,6 +1,6 @@
 // React/Framework
 import { useState, lazy, Suspense } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLoaderData } from "react-router";
 
 // External
 import {
@@ -54,6 +54,7 @@ const PetEditModal = lazy(() =>
   import("../components/PetEditModal").then(m => ({ default: m.PetEditModal }))
 );
 import { MEMBERSHIP_TYPE_VALUES } from "../types";
+import type { OwnerLoaderData } from "../loaders";
 
 const INPUT_CLS = STYLE.formInput;
 
@@ -65,6 +66,9 @@ export function OwnerForm() {
     id: string;
     name: string;
   } | null>(null);
+
+  const loaderData = useLoaderData() as OwnerLoaderData | undefined;
+  const initialOwner = loaderData?.owner;
 
   const {
     isEdit,
@@ -82,7 +86,7 @@ export function OwnerForm() {
     handleSave,
     fieldErrors,
     clearFieldError,
-  } = useOwnerForm(ownerId);
+  } = useOwnerForm(ownerId, initialOwner);
 
   const handleBack = () => {
     navigate("/owners");
@@ -93,14 +97,11 @@ export function OwnerForm() {
     markDirty();
   };
 
-  const handleSubmit = async () => {
-    const isSaved = await handleSave();
-    if (isSaved) {
+  const handleSubmit = () => {
+    handleSave(() => {
       markClean();
-      setTimeout(() => {
-        navigate("/owners");
-      }, 800);
-    }
+      navigate("/owners");
+    });
   };
 
   const handleConfirmDeletePet = () => {
