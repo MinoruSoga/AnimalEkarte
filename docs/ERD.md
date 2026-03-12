@@ -1,13 +1,21 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v8.0（命名規則統一・50テーブル）
+バージョン: v9.0（診察/治療タブ専用テーブル追加・51テーブル）
 更新日: 2026-03-12
 状態: Production Ready
 
-本ドキュメントは、Animal Ekarteの全50テーブルとそのリレーションを定義します。
+本ドキュメントは、Animal Ekarteの全51テーブルとそのリレーションを定義します。
 PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 
 ---
+
+## 変更概要（v8.0 → v9.0）
+
+| 変更内容 | 詳細 |
+|---------|------|
+| `soap_notes` テーブル追加 | 診察/治療タブ専用。`medical_records` から診察・診断フィールドを移動。1:1 |
+| `medical_records` スリム化 | `physical_exam`, `treatment_policy`, `diagnosis_details`, `diagnosis1/2` FK を `soap_notes` に移動 |
+| テーブル総数 | 50 → 51 |
 
 ## 変更概要（v5.0 → v6.0）
 
@@ -61,8 +69,8 @@ PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 | タブ | テーブル | 状態 |
 |------|---------|------|
 | 問診 | `inquiries` | v7.0追加 |
-| 診察/治療 | `medical_records`（SOAP） + `treatments` | 既存 |
-| 治療 | `treatments`（フィルタビュー） | 既存 |
+| 診察/治療 | `soap_notes` | v9.0追加 |
+| 治療 | `treatments` | 既存 |
 | 予防接種 | `vaccinations` | 既存 |
 | 定期健診 | `checkups` | 既存 |
 | 検査 | `exams` + `exam_items` | 既存 |
@@ -75,7 +83,7 @@ PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 
 ---
 
-## テーブル一覧（50テーブル）
+## テーブル一覧（51テーブル）
 
 | # | テーブル名 | 区分 | 説明 |
 |---|-----------|------|------|
@@ -104,31 +112,32 @@ PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 | 23 | `diagnosis_names` | マスタ | 診断名 |
 | 24 | `checkup_types` | マスタ | 健診種別 |
 | 25 | `medical_records` | 診療 | カルテ（診療記録） |
-| 26 | `inquiries` | 診療 | 問診情報（カルテ問診タブ） |
-| 27 | `treatments` | 診療 | 処置・診察・薬剤明細 |
-| 28 | `vitals` | 診療 | バイタル記録（外来） |
-| 29 | `exams` | 診療 | 検査記録 |
-| 30 | `exam_items` | 診療 | 検査記録の検査結果項目 |
-| 31 | `vaccinations` | 診療 | ワクチン接種記録 |
-| 32 | `checkups` | 診療 | 健診記録 |
-| 33 | `record_images` | 診療 | 診療画像（レントゲン・エコー等） |
-| 34 | `estimates` | 診療 | 見積書 |
-| 35 | `estimate_items` | 診療 | 見積書明細 |
-| 36 | `billing_reviews` | 診療 | 会計医師確認 |
-| 37 | `reservation_appointments` | 予約 | 予約 |
-| 38 | `hospitalizations` | 入院 | 入院・ホテル |
-| 39 | `daily_records` | 入院 | 入院日次記録 |
-| 40 | `care_plan_items` | 入院 | ケアプラン項目 |
-| 41 | `care_log_records` | 入院 | ケアログ |
-| 42 | `vital_records` | 入院 | バイタル記録（入院） |
-| 43 | `staff_note_records` | 入院 | スタッフノート |
-| 44 | `treatment_plans` | 入院 | 入院治療プラン |
-| 45 | `trimming_records` | トリミング | トリミング記録 |
-| 46 | `trimming_record_options` | トリミング | トリミング記録のオプション選択 |
-| 47 | `billings` | 会計 | 会計 |
-| 48 | `billing_items` | 会計 | 会計明細 |
-| 49 | `payments` | 会計 | 支払い情報 |
-| 50 | `shift_entries` | シフト | スタッフシフト |
+| 26 | `soap_notes` | 診療 | 診察所見・診断・治療方針（診察/治療タブ） |
+| 27 | `inquiries` | 診療 | 問診情報（カルテ問診タブ） |
+| 28 | `treatments` | 診療 | 処置・診察・薬剤明細 |
+| 29 | `vitals` | 診療 | バイタル記録（外来） |
+| 30 | `exams` | 診療 | 検査記録 |
+| 31 | `exam_items` | 診療 | 検査記録の検査結果項目 |
+| 32 | `vaccinations` | 診療 | ワクチン接種記録 |
+| 33 | `checkups` | 診療 | 健診記録 |
+| 34 | `record_images` | 診療 | 診療画像（レントゲン・エコー等） |
+| 35 | `estimates` | 診療 | 見積書 |
+| 36 | `estimate_items` | 診療 | 見積書明細 |
+| 37 | `billing_reviews` | 診療 | 会計医師確認 |
+| 38 | `reservation_appointments` | 予約 | 予約 |
+| 39 | `hospitalizations` | 入院 | 入院・ホテル |
+| 40 | `daily_records` | 入院 | 入院日次記録 |
+| 41 | `care_plan_items` | 入院 | ケアプラン項目 |
+| 42 | `care_log_records` | 入院 | ケアログ |
+| 43 | `vital_records` | 入院 | バイタル記録（入院） |
+| 44 | `staff_note_records` | 入院 | スタッフノート |
+| 45 | `treatment_plans` | 入院 | 入院治療プラン |
+| 46 | `trimming_records` | トリミング | トリミング記録 |
+| 47 | `trimming_record_options` | トリミング | トリミング記録のオプション選択 |
+| 48 | `billings` | 会計 | 会計 |
+| 49 | `billing_items` | 会計 | 会計明細 |
+| 50 | `payments` | 会計 | 支払い情報 |
+| 51 | `shift_entries` | シフト | スタッフシフト |
 
 ---
 
@@ -337,13 +346,28 @@ erDiagram
         text record_no
         date date
         uuid owner_id FK
+        text owner_name
         uuid pet_id FK
+        text pet_name
+        pet_species species
         uuid doctor_id FK
         medical_record_status status
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    soap_notes {
+        uuid id PK
+        uuid medical_record_id FK
+        text physical_exam
         uuid diagnosis1_category_id FK
         uuid diagnosis1_name_id FK
         uuid diagnosis2_category_id FK
         uuid diagnosis2_name_id FK
+        text diagnosis_details
+        text treatment_policy
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     treatments {
@@ -640,10 +664,11 @@ erDiagram
     owners ||--o{ medical_records : "owner_id"
     pets ||--o{ medical_records : "pet_id"
     staffs ||--o{ medical_records : "doctor_id"
-    diagnosis_categories ||--o{ medical_records : "diagnosis1_category_id"
-    diagnosis_categories ||--o{ medical_records : "diagnosis2_category_id"
-    diagnosis_names ||--o{ medical_records : "diagnosis1_name_id"
-    diagnosis_names ||--o{ medical_records : "diagnosis2_name_id"
+    medical_records ||--o| soap_notes : "medical_record_id"
+    soap_notes }o--|| diagnosis_categories : "diagnosis1_category_id"
+    soap_notes }o--|| diagnosis_categories : "diagnosis2_category_id"
+    soap_notes }o--|| diagnosis_names : "diagnosis1_name_id"
+    soap_notes }o--|| diagnosis_names : "diagnosis2_name_id"
 
     medical_records ||--o{ treatments : "medical_record_id"
     consultations ||--o{ treatments : "consultation_id"
@@ -1330,26 +1355,20 @@ erDiagram
 
 用途: カルテ（診療記録）。1回の来院に対し1件作成。record_noはUNIQUE。
 
-> ⚠️ `chief_complaint`（主訴）は v7.0 で `inquiries.chief_complaint` に移動。
+> ⚠️ v7.0: `chief_complaint` は `inquiries.chief_complaint` に移動。
+> ⚠️ v9.0: `physical_exam`, `treatment_policy`, `diagnosis_details`, `diagnosis1/2` FK は `soap_notes` に移動。
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | record_no | text | NO | | カルテ番号（UNIQUE） |
 | date | date | NO | | 診療日 |
-| owner_id | uuid | YES | | owners.id FK |
+| owner_id | uuid | YES | | FK → owners(id) SET NULL |
 | owner_name | text | NO | '' | 飼い主名スナップショット |
-| pet_id | uuid | YES | | pets.id FK |
+| pet_id | uuid | YES | | FK → pets(id) SET NULL |
 | pet_name | text | NO | '' | ペット名スナップショット |
 | species | pet_species | NO | | 動物種別スナップショット |
-| treatment_policy | text | YES | '' | 治療方針 |
-| physical_exam | text | YES | '' | 身体検査所見 |
-| diagnosis_details | text | YES | '' | 診断詳細 |
-| diagnosis1_category_id | uuid | YES | | diagnosis_categories.id FK（第1診断カテゴリ） |
-| diagnosis1_name_id | uuid | YES | | diagnosis_names.id FK（第1診断名） |
-| diagnosis2_category_id | uuid | YES | | diagnosis_categories.id FK（第2診断カテゴリ） |
-| diagnosis2_name_id | uuid | YES | | diagnosis_names.id FK（第2診断名） |
-| doctor_id | uuid | YES | | staffs.id FK |
+| doctor_id | uuid | YES | | FK → staffs(id) SET NULL（担当医師） |
 | status | medical_record_status | YES | '作成中' | カルテ状態 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
@@ -1358,10 +1377,35 @@ erDiagram
 - `owner_id` → `owners.id` (SET NULL)
 - `pet_id` → `pets.id` (SET NULL)
 - `doctor_id` → `staffs.id` (SET NULL)
+
+---
+
+#### `soap_notes`
+
+**用途**: 診察/治療タブ。医師による身体検査所見・診断・治療方針を記録。1カルテに1件（1:1）。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | uuid | NO | uuid_generate_v4() | PK |
+| medical_record_id | uuid | NO | | FK → medical_records(id) CASCADE（UNIQUE） |
+| physical_exam | text | YES | '' | 身体検査所見（O: Objective） |
+| diagnosis1_category_id | uuid | YES | | FK → diagnosis_categories(id) SET NULL（第1診断カテゴリ） |
+| diagnosis1_name_id | uuid | YES | | FK → diagnosis_names(id) SET NULL（第1診断名） |
+| diagnosis2_category_id | uuid | YES | | FK → diagnosis_categories(id) SET NULL（第2診断カテゴリ） |
+| diagnosis2_name_id | uuid | YES | | FK → diagnosis_names(id) SET NULL（第2診断名） |
+| diagnosis_details | text | YES | '' | 診断詳細（A: Assessment） |
+| treatment_policy | text | YES | '' | 治療方針（P: Plan） |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:**
+- `medical_record_id` → `medical_records.id` (CASCADE) UNIQUE
 - `diagnosis1_category_id` → `diagnosis_categories.id` (SET NULL)
 - `diagnosis1_name_id` → `diagnosis_names.id` (SET NULL)
 - `diagnosis2_category_id` → `diagnosis_categories.id` (SET NULL)
 - `diagnosis2_name_id` → `diagnosis_names.id` (SET NULL)
+
+**インデックス:** `medical_record_id` UNIQUE（1:1保証）
 
 ---
 
@@ -2178,13 +2222,19 @@ erDiagram
 
 | FK元カラム | 参照先 | 削除時 |
 |-----------|-------|--------|
+| doctor_id | staffs.id | SET NULL |
+| owner_id | owners.id | SET NULL |
+| pet_id | pets.id | SET NULL |
+
+### soap_notes
+
+| FK元カラム | 参照先 | 削除時 |
+|-----------|-------|--------|
+| medical_record_id | medical_records.id | CASCADE |
 | diagnosis1_category_id | diagnosis_categories.id | SET NULL |
 | diagnosis1_name_id | diagnosis_names.id | SET NULL |
 | diagnosis2_category_id | diagnosis_categories.id | SET NULL |
 | diagnosis2_name_id | diagnosis_names.id | SET NULL |
-| doctor_id | staffs.id | SET NULL |
-| owner_id | owners.id | SET NULL |
-| pet_id | pets.id | SET NULL |
 
 ### medicines
 
@@ -2310,6 +2360,7 @@ erDiagram
 | テーブル | カラム | 備考 |
 |---------|-------|------|
 | medical_records | record_no | カルテ番号の一意性 |
+| soap_notes | medical_record_id | 1カルテ1診察記録（1:1保証） |
 | inquiries | medical_record_id | 1カルテ1問診（1:1保証） |
 | billing_reviews | medical_record_id | 1カルテ1医師確認（1:1保証） |
 | estimates | estimate_no | 見積書番号の一意性 |
