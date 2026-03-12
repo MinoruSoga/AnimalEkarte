@@ -31,7 +31,6 @@ CREATE TYPE danger_level AS ENUM ('低', '中', '高');
 CREATE TYPE membership_type AS ENUM ('非会員', '会員', '退亡者', '他診/準');
 
 -- マスタ共通
-CREATE TYPE master_status AS ENUM ('active', 'inactive');
 CREATE TYPE staff_role AS ENUM ('veterinarian', 'nurse', 'trimmer', 'reception', 'manager');
 CREATE TYPE inventory_category AS ENUM ('medicine', 'consumable', 'food', 'other');
 CREATE TYPE inventory_status AS ENUM ('sufficient', 'low', 'out_of_stock');
@@ -141,7 +140,7 @@ CREATE TABLE animal_species (
     id         uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     code       text          NOT NULL DEFAULT '',
     name       text          NOT NULL,
-    status     master_status          DEFAULT 'active',
+    is_active  boolean       NOT NULL DEFAULT true,
     sort_order integer                DEFAULT 0,
     created_at timestamptz   NOT NULL DEFAULT now(),
     updated_at timestamptz   NOT NULL DEFAULT now()
@@ -151,31 +150,31 @@ CREATE TABLE animal_species (
 -- 4. job_titles（職種マスタ）
 -- ------------------------------------
 CREATE TABLE job_titles (
-    id         uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id  uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    name       text          NOT NULL DEFAULT '',
-    code       text          NOT NULL DEFAULT '',
-    sort_order integer       NOT NULL DEFAULT 0,
-    status     master_status NOT NULL DEFAULT 'active',
-    created_at timestamptz   NOT NULL DEFAULT now(),
-    updated_at timestamptz   NOT NULL DEFAULT now()
+    id         uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id  uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name       text        NOT NULL DEFAULT '',
+    code       text        NOT NULL DEFAULT '',
+    sort_order integer     NOT NULL DEFAULT 0,
+    is_active  boolean     NOT NULL DEFAULT true,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
 -- 5. staffs（スタッフマスタ）
 -- ------------------------------------
 CREATE TABLE staffs (
-    id             uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id      uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code           text          NOT NULL DEFAULT '',
-    name           text          NOT NULL,
-    status         master_status          DEFAULT 'active',
-    staff_role     staff_role    NOT NULL,
-    license_number text          NOT NULL DEFAULT '',
-    job_title_id   uuid                   REFERENCES job_titles(id) ON DELETE SET NULL,
-    sort_order     integer                DEFAULT 0,
-    created_at     timestamptz   NOT NULL DEFAULT now(),
-    updated_at     timestamptz   NOT NULL DEFAULT now(),
+    id             uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id      uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code           text        NOT NULL DEFAULT '',
+    name           text        NOT NULL,
+    is_active      boolean     NOT NULL DEFAULT true,
+    staff_role     staff_role  NOT NULL,
+    license_number text        NOT NULL DEFAULT '',
+    job_title_id   uuid                 REFERENCES job_titles(id) ON DELETE SET NULL,
+    sort_order     integer              DEFAULT 0,
+    created_at     timestamptz NOT NULL DEFAULT now(),
+    updated_at     timestamptz NOT NULL DEFAULT now(),
     deleted_at     timestamptz
 );
 
@@ -250,16 +249,16 @@ CREATE TABLE inventory_items (
 -- 9. exam_types（検査種別マスタ）
 -- ------------------------------------
 CREATE TABLE exam_types (
-    id          uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id   uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code        text          NOT NULL DEFAULT '',
-    name        text          NOT NULL,
+    id          uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id   uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code        text        NOT NULL DEFAULT '',
+    name        text        NOT NULL,
     price       numeric,
-    status      master_status          DEFAULT 'active',
-    description text          NOT NULL DEFAULT '',
-    sort_order  integer                DEFAULT 0,
-    created_at  timestamptz   NOT NULL DEFAULT now(),
-    updated_at  timestamptz   NOT NULL DEFAULT now()
+    is_active   boolean     NOT NULL DEFAULT true,
+    description text        NOT NULL DEFAULT '',
+    sort_order  integer              DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
@@ -284,7 +283,7 @@ CREATE TABLE vaccines (
     code        text            NOT NULL DEFAULT '',
     name        text            NOT NULL,
     price       numeric,
-    status      master_status            DEFAULT 'active',
+    is_active   boolean         NOT NULL DEFAULT true,
     description text            NOT NULL DEFAULT '',
     species     vaccine_species,
     interval    text            NOT NULL DEFAULT '',
@@ -302,7 +301,7 @@ CREATE TABLE medicines (
     code             text          NOT NULL DEFAULT '',
     name             text          NOT NULL,
     price            numeric,
-    status           master_status          DEFAULT 'active',
+    is_active        boolean       NOT NULL DEFAULT true,
     description      text          NOT NULL DEFAULT '',
     dosage_form      dosage_form,
     medicine_unit    medicine_unit,
@@ -317,69 +316,69 @@ CREATE TABLE medicines (
 -- 13. insurances（保険マスタ）
 -- ------------------------------------
 CREATE TABLE insurances (
-    id            uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id     uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code          text          NOT NULL DEFAULT '',
-    name          text          NOT NULL,
-    status        master_status          DEFAULT 'active',
-    description   text          NOT NULL DEFAULT '',
-    coverage_rate integer       NOT NULL CHECK (coverage_rate >= 0 AND coverage_rate <= 100),
-    contact_phone text          NOT NULL DEFAULT '',
-    sort_order    integer                DEFAULT 0,
-    created_at    timestamptz   NOT NULL DEFAULT now(),
-    updated_at    timestamptz   NOT NULL DEFAULT now()
+    id            uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id     uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code          text        NOT NULL DEFAULT '',
+    name          text        NOT NULL,
+    is_active     boolean     NOT NULL DEFAULT true,
+    description   text        NOT NULL DEFAULT '',
+    coverage_rate integer     NOT NULL CHECK (coverage_rate >= 0 AND coverage_rate <= 100),
+    contact_phone text        NOT NULL DEFAULT '',
+    sort_order    integer              DEFAULT 0,
+    created_at    timestamptz NOT NULL DEFAULT now(),
+    updated_at    timestamptz NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
 -- 14. cages（ケージマスタ）
 -- ------------------------------------
 CREATE TABLE cages (
-    id          uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id   uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code        text          NOT NULL DEFAULT '',
-    name        text          NOT NULL,
+    id          uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id   uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code        text        NOT NULL DEFAULT '',
+    name        text        NOT NULL,
     price       numeric,
-    status      master_status          DEFAULT 'active',
-    description text          NOT NULL DEFAULT '',
-    cage_type   cage_type     NOT NULL,
-    cage_size   cage_size     NOT NULL,
-    sort_order  integer                DEFAULT 0,
-    created_at  timestamptz   NOT NULL DEFAULT now(),
-    updated_at  timestamptz   NOT NULL DEFAULT now()
+    is_active   boolean     NOT NULL DEFAULT true,
+    description text        NOT NULL DEFAULT '',
+    cage_type   cage_type   NOT NULL,
+    cage_size   cage_size   NOT NULL,
+    sort_order  integer              DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
 -- 15. service_types（サービス種別マスタ）
 -- ------------------------------------
 CREATE TABLE service_types (
-    id          uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id   uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code        text          NOT NULL DEFAULT '',
-    name        text          NOT NULL,
-    status      master_status          DEFAULT 'active',
-    description text          NOT NULL DEFAULT '',
-    color       text          NOT NULL DEFAULT '#3B82F6',
-    sort_order  integer                DEFAULT 0,
-    created_at  timestamptz   NOT NULL DEFAULT now(),
-    updated_at  timestamptz   NOT NULL DEFAULT now()
+    id          uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id   uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code        text        NOT NULL DEFAULT '',
+    name        text        NOT NULL,
+    is_active   boolean     NOT NULL DEFAULT true,
+    description text        NOT NULL DEFAULT '',
+    color       text        NOT NULL DEFAULT '#3B82F6',
+    sort_order  integer              DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
 -- 16. consultations（診察項目マスタ）
 -- ------------------------------------
 CREATE TABLE consultations (
-    id             uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id      uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code           text          NOT NULL DEFAULT '',
-    name           text          NOT NULL,
+    id             uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id      uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code           text        NOT NULL DEFAULT '',
+    name           text        NOT NULL,
     price          numeric,
-    status         master_status          DEFAULT 'active',
-    description    text          NOT NULL DEFAULT '',
-    time_condition text          NOT NULL DEFAULT '',
+    is_active      boolean     NOT NULL DEFAULT true,
+    description    text        NOT NULL DEFAULT '',
+    time_condition text        NOT NULL DEFAULT '',
     duration       integer,
-    sort_order     integer                DEFAULT 0,
-    created_at     timestamptz   NOT NULL DEFAULT now(),
-    updated_at     timestamptz   NOT NULL DEFAULT now()
+    sort_order     integer              DEFAULT 0,
+    created_at     timestamptz NOT NULL DEFAULT now(),
+    updated_at     timestamptz NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
@@ -391,7 +390,7 @@ CREATE TABLE procedures (
     code        text            NOT NULL DEFAULT '',
     name        text            NOT NULL,
     price       numeric,
-    status      master_status            DEFAULT 'active',
+    is_active   boolean         NOT NULL DEFAULT true,
     description text            NOT NULL DEFAULT '',
     duration    integer,
     anesthesia  anesthesia_type          DEFAULT 'none',
@@ -404,132 +403,132 @@ CREATE TABLE procedures (
 -- 18. hospitalization_plans（入院プランマスタ）
 -- ------------------------------------
 CREATE TABLE hospitalization_plans (
-    id           uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id    uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code         text          NOT NULL DEFAULT '',
-    name         text          NOT NULL,
+    id           uuid         NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id    uuid         NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code         text         NOT NULL DEFAULT '',
+    name         text         NOT NULL,
     price        numeric,
-    status       master_status          DEFAULT 'active',
-    description  text          NOT NULL DEFAULT '',
+    is_active    boolean      NOT NULL DEFAULT true,
+    description  text         NOT NULL DEFAULT '',
     body_size    body_size,
-    billing_unit billing_unit           DEFAULT 'per_day',
-    sort_order   integer                DEFAULT 0,
-    created_at   timestamptz   NOT NULL DEFAULT now(),
-    updated_at   timestamptz   NOT NULL DEFAULT now()
+    billing_unit billing_unit          DEFAULT 'per_day',
+    sort_order   integer               DEFAULT 0,
+    created_at   timestamptz  NOT NULL DEFAULT now(),
+    updated_at   timestamptz  NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
 -- 19. trimming_courses（トリミングコースマスタ）
 -- ------------------------------------
 CREATE TABLE trimming_courses (
-    id          uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id   uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code        text          NOT NULL DEFAULT '',
-    name        text          NOT NULL,
+    id          uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id   uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code        text        NOT NULL DEFAULT '',
+    name        text        NOT NULL,
     price       numeric,
-    status      master_status          DEFAULT 'active',
-    description text          NOT NULL DEFAULT '',
+    is_active   boolean     NOT NULL DEFAULT true,
+    description text        NOT NULL DEFAULT '',
     target_size target_size,
     duration    integer,
-    sort_order  integer                DEFAULT 0,
-    created_at  timestamptz   NOT NULL DEFAULT now(),
-    updated_at  timestamptz   NOT NULL DEFAULT now()
+    sort_order  integer              DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
 -- 20. trimming_options（トリミングオプションマスタ）
 -- ------------------------------------
 CREATE TABLE trimming_options (
-    id          uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id   uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code        text          NOT NULL DEFAULT '',
-    name        text          NOT NULL,
+    id          uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id   uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code        text        NOT NULL DEFAULT '',
+    name        text        NOT NULL,
     price       numeric,
-    status      master_status          DEFAULT 'active',
-    description text          NOT NULL DEFAULT '',
-    duration    text          NOT NULL DEFAULT '',
-    combinable  boolean       NOT NULL DEFAULT true,
-    sort_order  integer                DEFAULT 0,
-    created_at  timestamptz   NOT NULL DEFAULT now(),
-    updated_at  timestamptz   NOT NULL DEFAULT now()
+    is_active   boolean     NOT NULL DEFAULT true,
+    description text        NOT NULL DEFAULT '',
+    duration    text        NOT NULL DEFAULT '',
+    combinable  boolean     NOT NULL DEFAULT true,
+    sort_order  integer              DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
 -- 21. diagnosis_categories（診断カテゴリマスタ）
 -- ------------------------------------
 CREATE TABLE diagnosis_categories (
-    id          uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id   uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code        text          NOT NULL DEFAULT '',
-    name        text          NOT NULL,
-    status      master_status          DEFAULT 'active',
-    description text          NOT NULL DEFAULT '',
-    sort_order  integer                DEFAULT 0,
-    created_at  timestamptz   NOT NULL DEFAULT now(),
-    updated_at  timestamptz   NOT NULL DEFAULT now()
+    id          uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id   uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code        text        NOT NULL DEFAULT '',
+    name        text        NOT NULL,
+    is_active   boolean     NOT NULL DEFAULT true,
+    description text        NOT NULL DEFAULT '',
+    sort_order  integer              DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
 -- 22. diagnosis_names（診断病名マスタ）
 -- ------------------------------------
 CREATE TABLE diagnosis_names (
-    id                    uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id             uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code                  text          NOT NULL DEFAULT '',
-    name                  text          NOT NULL,
-    status                master_status          DEFAULT 'active',
-    description           text          NOT NULL DEFAULT '',
-    diagnosis_category_id uuid          NOT NULL REFERENCES diagnosis_categories(id) ON DELETE CASCADE,
-    sort_order            integer                DEFAULT 0,
-    created_at            timestamptz   NOT NULL DEFAULT now(),
-    updated_at            timestamptz   NOT NULL DEFAULT now()
+    id                    uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id             uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code                  text        NOT NULL DEFAULT '',
+    name                  text        NOT NULL,
+    is_active             boolean     NOT NULL DEFAULT true,
+    description           text        NOT NULL DEFAULT '',
+    diagnosis_category_id uuid        NOT NULL REFERENCES diagnosis_categories(id) ON DELETE CASCADE,
+    sort_order            integer              DEFAULT 0,
+    created_at            timestamptz NOT NULL DEFAULT now(),
+    updated_at            timestamptz NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
 -- 23. checkup_types（健診種別マスタ）
 -- ------------------------------------
 CREATE TABLE checkup_types (
-    id          uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id   uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code        text          NOT NULL DEFAULT '',
-    name        text          NOT NULL,
+    id          uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id   uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code        text        NOT NULL DEFAULT '',
+    name        text        NOT NULL,
     price       numeric,
-    status      master_status          DEFAULT 'active',
-    description text          NOT NULL DEFAULT '',
-    interval    text          NOT NULL DEFAULT '',
-    target_age  text          NOT NULL DEFAULT '',
-    sort_order  integer                DEFAULT 0,
-    created_at  timestamptz   NOT NULL DEFAULT now(),
-    updated_at  timestamptz   NOT NULL DEFAULT now()
+    is_active   boolean     NOT NULL DEFAULT true,
+    description text        NOT NULL DEFAULT '',
+    interval    text        NOT NULL DEFAULT '',
+    target_age  text        NOT NULL DEFAULT '',
+    sort_order  integer              DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
 -- 24. chief_complaint_categories（主訴区分マスタ）
 -- ------------------------------------
 CREATE TABLE chief_complaint_categories (
-    id         uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id  uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code       text          NOT NULL DEFAULT '',
-    name       text          NOT NULL,
-    status     master_status          DEFAULT 'active',
-    sort_order integer                DEFAULT 0,
-    created_at timestamptz   NOT NULL DEFAULT now(),
-    updated_at timestamptz   NOT NULL DEFAULT now()
+    id         uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id  uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    code       text        NOT NULL DEFAULT '',
+    name       text        NOT NULL,
+    is_active  boolean     NOT NULL DEFAULT true,
+    sort_order integer              DEFAULT 0,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
 -- 25. inquiry_templates（問診定型文マスタ）
 -- ------------------------------------
 CREATE TABLE inquiry_templates (
-    id         uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id  uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    category   text          NOT NULL DEFAULT '',
-    title      text          NOT NULL,
-    content    text          NOT NULL DEFAULT '',
-    status     master_status          DEFAULT 'active',
-    sort_order integer                DEFAULT 0,
-    created_at timestamptz   NOT NULL DEFAULT now(),
-    updated_at timestamptz   NOT NULL DEFAULT now()
+    id         uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    clinic_id  uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    category   text        NOT NULL DEFAULT '',
+    title      text        NOT NULL,
+    content    text        NOT NULL DEFAULT '',
+    is_active  boolean     NOT NULL DEFAULT true,
+    sort_order integer              DEFAULT 0,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 -- ==========================================================================

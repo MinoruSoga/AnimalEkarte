@@ -30,12 +30,12 @@ definitions:
         type: string
       id:
         type: string
+      is_active:
+        type: boolean
       name:
         type: string
       sort_order:
         type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
       updated_at:
         type: string
     type: object
@@ -228,14 +228,14 @@ definitions:
         type: string
       id:
         type: string
+      is_active:
+        type: boolean
       name:
         type: string
       price:
         type: number
       sort_order:
         type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
       updated_at:
         type: string
     type: object
@@ -428,14 +428,14 @@ definitions:
         type: string
       interval:
         type: string
+      is_active:
+        type: boolean
       name:
         type: string
       price:
         type: number
       sort_order:
         type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
       target_age:
         type: string
       updated_at:
@@ -451,12 +451,12 @@ definitions:
         type: string
       id:
         type: string
+      is_active:
+        type: boolean
       name:
         type: string
       sort_order:
         type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
       updated_at:
         type: string
     type: object
@@ -567,14 +567,14 @@ definitions:
         type: integer
       id:
         type: string
+      is_active:
+        type: boolean
       name:
         type: string
       price:
         type: number
       sort_order:
         type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
       time_condition:
         type: string
       updated_at:
@@ -628,6 +628,8 @@ definitions:
         type: string
       id:
         type: string
+      is_active:
+        type: boolean
       name:
         type: string
       names:
@@ -637,8 +639,6 @@ definitions:
         type: array
       sort_order:
         type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
       updated_at:
         type: string
     type: object
@@ -660,12 +660,12 @@ definitions:
         type: string
       id:
         type: string
+      is_active:
+        type: boolean
       name:
         type: string
       sort_order:
         type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
       updated_at:
         type: string
     type: object
@@ -867,6 +867,8 @@ definitions:
         type: string
       id:
         type: string
+      is_active:
+        type: boolean
       items:
         description: Relations
         items:
@@ -878,8 +880,6 @@ definitions:
         type: number
       sort_order:
         type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
       updated_at:
         type: string
     type: object
@@ -993,14 +993,14 @@ definitions:
         type: string
       id:
         type: string
+      is_active:
+        type: boolean
       name:
         type: string
       price:
         type: number
       sort_order:
         type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
       updated_at:
         type: string
     type: object
@@ -1083,12 +1083,12 @@ definitions:
         type: string
       id:
         type: string
+      is_active:
+        type: boolean
       name:
         type: string
       sort_order:
         type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
       updated_at:
         type: string
     type: object
@@ -1185,23 +1185,15 @@ definitions:
         type: string
       id:
         type: string
+      is_active:
+        type: boolean
       name:
         type: string
       sort_order:
         type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
       updated_at:
         type: string
     type: object
-  github_com_animal-ekarte_backend_internal_model.MasterStatus:
-    enum:
-    - active
-    - inactive
-    type: string
-    x-enum-varnames:
-    - MasterStatusActive
-    - MasterStatusInactive
   github_com_animal-ekarte_backend_internal_model.MedicalRecord:
     properties:
       billing_review:
@@ -1297,6 +1289,8 @@ definitions:
         description: Relations
       inventory_id:
         type: string
+      is_active:
+        type: boolean
       medicine_unit:
         $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicineUnit'
       name:
@@ -1305,8 +1299,6 @@ definitions:
         type: number
       sort_order:
         type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
       updated_at:
         type: string
     type: object
@@ -1536,14 +1528,14 @@ definitions:
         type: integer
       id:
         type: string
+      is_active:
+        type: boolean
       name:
         type: string
       price:
         type: number
       sort_order:
         type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
       updated_at:
         type: string
     type: object
@@ -1622,12 +1614,12 @@ definitions:
         type: string
       id:
         type: string
+      is_active:
+        type: boolean
       name:
         type: string
       sort_order:
         type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
       updated_at:
         type: string
     type: object
@@ -1643,6 +1635,8 @@ definitions:
         $ref: '#/definitions/gorm.DeletedAt'
       id:
         type: string
+      is_active:
+        type: boolean
       job_title:
         allOf:
         - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.JobTitle'
@@ -1657,8 +1651,6 @@ definitions:
         type: integer
       staff_role:
         $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.StaffRole'
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
       updated_at:
         type: string
     type: object
@@ -1837,14 +1829,14 @@ definitions:
         type: string
       id:
         type: string
+      is_active:
+        type: boolean
       name:
         type: string
       price:
         type: number
       sort_order:
         type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
       target_size:
         $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TargetSize'
       updated_at:
@@ -1866,14 +1858,14 @@ definitions:
         type: string
       id:
         type: string
+      is_active:
+        type: boolean
       name:
         type: string
       price:
         type: number
       sort_order:
         type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
       updated_at:
         type: string
     type: object
@@ -2003,6 +1995,8 @@ definitions:
         type: string
       interval:
         type: string
+      is_active:
+        type: boolean
       name:
         type: string
       price:
@@ -2011,8 +2005,6 @@ definitions:
         type: integer
       species:
         $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.VaccineSpecies'
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus'
       updated_at:
         type: string
     type: object

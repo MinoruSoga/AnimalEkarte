@@ -6137,14 +6137,14 @@
                 "id": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
                 "sort_order": {
                     "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus"
                 },
                 "updated_at": {
                     "type": "string"
@@ -6428,6 +6428,9 @@
                 "id": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -6436,9 +6439,6 @@
                 },
                 "sort_order": {
                     "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus"
                 },
                 "updated_at": {
                     "type": "string"
@@ -6719,6 +6719,9 @@
                 "interval": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -6727,9 +6730,6 @@
                 },
                 "sort_order": {
                     "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus"
                 },
                 "target_age": {
                     "type": "string"
@@ -6754,14 +6754,14 @@
                 "id": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
                 "sort_order": {
                     "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus"
                 },
                 "updated_at": {
                     "type": "string"
@@ -6932,6 +6932,9 @@
                 "id": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -6940,9 +6943,6 @@
                 },
                 "sort_order": {
                     "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus"
                 },
                 "time_condition": {
                     "type": "string"
@@ -7022,6 +7022,9 @@
                 "id": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -7034,9 +7037,6 @@
                 },
                 "sort_order": {
                     "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus"
                 },
                 "updated_at": {
                     "type": "string"
@@ -7072,14 +7072,14 @@
                 "id": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
                 "sort_order": {
                     "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus"
                 },
                 "updated_at": {
                     "type": "string"
@@ -7384,6 +7384,9 @@
                 "id": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "items": {
                     "description": "Relations",
                     "type": "array",
@@ -7399,9 +7402,6 @@
                 },
                 "sort_order": {
                     "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus"
                 },
                 "updated_at": {
                     "type": "string"
@@ -7572,6 +7572,9 @@
                 "id": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -7580,9 +7583,6 @@
                 },
                 "sort_order": {
                     "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus"
                 },
                 "updated_at": {
                     "type": "string"
@@ -7707,14 +7707,14 @@
                 "id": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
                 "sort_order": {
                     "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus"
                 },
                 "updated_at": {
                     "type": "string"
@@ -7847,30 +7847,19 @@
                 "id": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
                 "sort_order": {
                     "type": "integer"
                 },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus"
-                },
                 "updated_at": {
                     "type": "string"
                 }
             }
-        },
-        "github_com_animal-ekarte_backend_internal_model.MasterStatus": {
-            "type": "string",
-            "enum": [
-                "active",
-                "inactive"
-            ],
-            "x-enum-varnames": [
-                "MasterStatusActive",
-                "MasterStatusInactive"
-            ]
         },
         "github_com_animal-ekarte_backend_internal_model.MedicalRecord": {
             "type": "object",
@@ -8018,6 +8007,9 @@
                 "inventory_id": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "medicine_unit": {
                     "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicineUnit"
                 },
@@ -8029,9 +8021,6 @@
                 },
                 "sort_order": {
                     "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus"
                 },
                 "updated_at": {
                     "type": "string"
@@ -8366,6 +8355,9 @@
                 "id": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -8374,9 +8366,6 @@
                 },
                 "sort_order": {
                     "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus"
                 },
                 "updated_at": {
                     "type": "string"
@@ -8492,14 +8481,14 @@
                 "id": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
                 "sort_order": {
                     "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus"
                 },
                 "updated_at": {
                     "type": "string"
@@ -8524,6 +8513,9 @@
                 "id": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "job_title": {
                     "description": "Relations",
                     "allOf": [
@@ -8546,9 +8538,6 @@
                 },
                 "staff_role": {
                     "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.StaffRole"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus"
                 },
                 "updated_at": {
                     "type": "string"
@@ -8813,6 +8802,9 @@
                 "id": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -8821,9 +8813,6 @@
                 },
                 "sort_order": {
                     "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus"
                 },
                 "target_size": {
                     "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TargetSize"
@@ -8857,6 +8846,9 @@
                 "id": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -8865,9 +8857,6 @@
                 },
                 "sort_order": {
                     "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus"
                 },
                 "updated_at": {
                     "type": "string"
@@ -9066,6 +9055,9 @@
                 "interval": {
                     "type": "string"
                 },
+                "is_active": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -9077,9 +9069,6 @@
                 },
                 "species": {
                     "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.VaccineSpecies"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MasterStatus"
                 },
                 "updated_at": {
                     "type": "string"

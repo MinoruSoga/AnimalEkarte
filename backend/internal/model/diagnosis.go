@@ -11,7 +11,7 @@ type DiagnosisCategory struct {
 	ClinicID    uuid.UUID    `gorm:"type:uuid;not null"                             json:"clinic_id"`
 	Code        string       `gorm:"default:''"                                     json:"code"`
 	Name        string       `gorm:"not null"                                       json:"name"`
-	Status      MasterStatus `gorm:"type:master_status;default:'active'"            json:"status"`
+	IsActive    bool         `gorm:"default:true"                                   json:"is_active"`
 	Description string       `gorm:"default:''"                                     json:"description"`
 	SortOrder   int          `gorm:"default:0"                                      json:"sort_order"`
 	CreatedAt   time.Time    `gorm:"autoCreateTime"                                 json:"created_at"`
@@ -28,7 +28,7 @@ type DiagnosisName struct {
 	ClinicID            uuid.UUID    `gorm:"type:uuid;not null"                             json:"clinic_id"`
 	Code                string       `gorm:"default:''"                                     json:"code"`
 	Name                string       `gorm:"not null"                                       json:"name"`
-	Status              MasterStatus `gorm:"type:master_status;default:'active'"            json:"status"`
+	IsActive            bool         `gorm:"default:true"                                   json:"is_active"`
 	Description         string       `gorm:"default:''"                                     json:"description"`
 	DiagnosisCategoryID uuid.UUID    `gorm:"type:uuid;not null"                             json:"diagnosis_category_id"`
 	SortOrder           int          `gorm:"default:0"                                      json:"sort_order"`

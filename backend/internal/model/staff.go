@@ -17,19 +17,12 @@ const (
 	StaffRoleManager      StaffRole = "manager"
 )
 
-type MasterStatus string
-
-const (
-	MasterStatusActive   MasterStatus = "active"
-	MasterStatusInactive MasterStatus = "inactive"
-)
-
 type Staff struct {
 	ID            uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	ClinicID      uuid.UUID      `gorm:"type:uuid;not null"                             json:"clinic_id"`
 	Code          string         `gorm:"default:''"                                     json:"code"`
 	Name          string         `gorm:"not null"                                       json:"name"`
-	Status        MasterStatus   `gorm:"type:master_status;default:'active'"            json:"status"`
+	IsActive      bool           `gorm:"default:true"                                   json:"is_active"`
 	StaffRole     StaffRole      `gorm:"type:staff_role;not null"                       json:"staff_role"`
 	JobTitleID    *uuid.UUID     `gorm:"type:uuid"                                      json:"job_title_id,omitempty"`
 	LicenseNumber string         `gorm:"default:''"                                     json:"license_number"`

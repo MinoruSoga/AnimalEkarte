@@ -296,7 +296,7 @@ erDiagram
         uuid id PK
         text code
         text name
-        master_status status
+        boolean is_active
         integer sort_order
     }
 
@@ -305,7 +305,7 @@ erDiagram
         uuid clinic_id FK
         text code
         text name
-        master_status status
+        boolean is_active
         staff_role staff_role
         uuid job_title_id FK
         timestamptz deleted_at
@@ -317,7 +317,7 @@ erDiagram
         text name
         text code
         int sort_order
-        master_status status
+        boolean is_active
         timestamptz created_at
         timestamptz updated_at
     }
@@ -336,7 +336,7 @@ erDiagram
         uuid clinic_id FK
         text code
         text name
-        master_status status
+        boolean is_active
     }
 
     exam_type_items {
@@ -351,7 +351,7 @@ erDiagram
         uuid clinic_id FK
         text code
         text name
-        master_status status
+        boolean is_active
         vaccine_species species
     }
 
@@ -360,7 +360,7 @@ erDiagram
         uuid clinic_id FK
         text code
         text name
-        master_status status
+        boolean is_active
         dosage_form dosage_form
         uuid inventory_id FK
     }
@@ -370,7 +370,7 @@ erDiagram
         uuid clinic_id FK
         text code
         text name
-        master_status status
+        boolean is_active
         integer coverage_rate
     }
 
@@ -379,7 +379,7 @@ erDiagram
         uuid clinic_id FK
         text code
         text name
-        master_status status
+        boolean is_active
         cage_type cage_type
         cage_size cage_size
     }
@@ -389,7 +389,7 @@ erDiagram
         uuid clinic_id FK
         text code
         text name
-        master_status status
+        boolean is_active
         text color
     }
 
@@ -398,7 +398,7 @@ erDiagram
         uuid clinic_id FK
         text code
         text name
-        master_status status
+        boolean is_active
     }
 
     procedures {
@@ -406,7 +406,7 @@ erDiagram
         uuid clinic_id FK
         text code
         text name
-        master_status status
+        boolean is_active
         anesthesia_type anesthesia
     }
 
@@ -415,7 +415,7 @@ erDiagram
         uuid clinic_id FK
         text code
         text name
-        master_status status
+        boolean is_active
         body_size body_size
         billing_unit billing_unit
     }
@@ -425,7 +425,7 @@ erDiagram
         uuid clinic_id FK
         text code
         text name
-        master_status status
+        boolean is_active
         target_size target_size
     }
 
@@ -434,7 +434,7 @@ erDiagram
         uuid clinic_id FK
         text code
         text name
-        master_status status
+        boolean is_active
         boolean combinable
     }
 
@@ -443,7 +443,7 @@ erDiagram
         uuid clinic_id FK
         text code
         text name
-        master_status status
+        boolean is_active
     }
 
     diagnosis_names {
@@ -451,7 +451,7 @@ erDiagram
         uuid clinic_id FK
         text code
         text name
-        master_status status
+        boolean is_active
         uuid diagnosis_category_id FK
     }
 
@@ -460,7 +460,7 @@ erDiagram
         uuid clinic_id FK
         text code
         text name
-        master_status status
+        boolean is_active
         text interval
     }
 
@@ -469,7 +469,7 @@ erDiagram
         uuid clinic_id FK
         text code
         text name
-        master_status status
+        boolean is_active
         integer sort_order
     }
 
@@ -479,7 +479,7 @@ erDiagram
         text category
         text title
         text content
-        master_status status
+        boolean is_active
         integer sort_order
     }
 
@@ -988,7 +988,6 @@ erDiagram
 | `inventory_status` | sufficient, low, out_of_stock |
 | `item_category` | examination, test, procedure, surgery, medicine, food, goods, other |
 | `item_source` | medical_record, manual, hospitalization |
-| `master_status` | active, inactive |
 | `medical_image_type` | xray, echo, photo, endoscope, ct, mri, microscope, other |
 | `medical_record_status` | 作成中, 確定済 |
 | `medicine_unit` | per_tablet, per_ml, per_dose, per_gram |
@@ -1232,7 +1231,7 @@ erDiagram
 | id | uuid | NO | uuid_generate_v4() | PK |
 | code | text | YES | '' | コード |
 | name | text | NO | | 種類名（犬・猫・鳥・その他 等） |
-| status | master_status | YES | 'active' | 状態 |
+| is_active | boolean | YES | true | 状態 |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
@@ -1253,7 +1252,7 @@ erDiagram
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | スタッフコード |
 | name | text | NO | | スタッフ名 |
-| status | master_status | YES | 'active' | 状態 |
+| is_active | boolean | YES | true | 状態 |
 | staff_role | staff_role | NO | | 役割 |
 | license_number | text | YES | '' | 免許番号 |
 | job_title_id | uuid | YES | - | job_titles.id FK（職種） |
@@ -1281,7 +1280,7 @@ erDiagram
 | name | text | NO | '' | 職種名（例: 獣医師, 看護師） |
 | code | text | YES | '' | 識別コード |
 | sort_order | int | NO | 0 | 表示順 |
-| status | master_status | NO | 'active' | active / inactive |
+| is_active | boolean | NO | true | 有効フラグ |
 | created_at | timestamptz | NO | now() | 作成日時 |
 | updated_at | timestamptz | NO | now() | 更新日時 |
 
@@ -1330,7 +1329,7 @@ erDiagram
 | code | text | YES | '' | コード |
 | name | text | NO | | 検査種別名 |
 | price | numeric | YES | | 価格 |
-| status | master_status | YES | 'active' | 状態 |
+| is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
@@ -1372,7 +1371,7 @@ erDiagram
 | code | text | YES | '' | コード |
 | name | text | NO | | ワクチン名 |
 | price | numeric | YES | | 価格 |
-| status | master_status | YES | 'active' | 状態 |
+| is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | species | vaccine_species | YES | | 対象動物種 |
 | interval | text | YES | '' | 接種間隔 |
@@ -1398,7 +1397,7 @@ erDiagram
 | code | text | YES | '' | コード |
 | name | text | NO | | 薬剤名 |
 | price | numeric | YES | | 価格 |
-| status | master_status | YES | 'active' | 状態 |
+| is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | dosage_form | dosage_form | YES | | 剤形 |
 | medicine_unit | medicine_unit | YES | | 単位 |
@@ -1426,7 +1425,7 @@ erDiagram
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | 保険名 |
-| status | master_status | YES | 'active' | 状態 |
+| is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | coverage_rate | integer | NO | - | 補償率(%) CHECK (0 <= coverage_rate AND coverage_rate <= 100) |
 | contact_phone | text | YES | '' | 問い合わせ電話番号 |
@@ -1452,7 +1451,7 @@ erDiagram
 | code | text | YES | '' | コード |
 | name | text | NO | | ケージ名 |
 | price | numeric | YES | | 価格 |
-| status | master_status | YES | 'active' | 状態 |
+| is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | cage_type | cage_type | NO | | ケージ種別 |
 | cage_size | cage_size | NO | | ケージサイズ |
@@ -1477,7 +1476,7 @@ erDiagram
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | サービス種別名 |
-| status | master_status | YES | 'active' | 状態 |
+| is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | color | text | YES | '#3B82F6' | 表示色（HEX） |
 | sort_order | integer | YES | 0 | 並び順 |
@@ -1502,7 +1501,7 @@ erDiagram
 | code | text | YES | '' | コード |
 | name | text | NO | | 診察項目名 |
 | price | numeric | YES | | 価格 |
-| status | master_status | YES | 'active' | 状態 |
+| is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | time_condition | text | YES | '' | 時間条件 |
 | duration | integer | YES | | 標準診察時間(分) |
@@ -1528,7 +1527,7 @@ erDiagram
 | code | text | YES | '' | コード |
 | name | text | NO | | 処置項目名 |
 | price | numeric | YES | | 価格 |
-| status | master_status | YES | 'active' | 状態 |
+| is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | duration | integer | YES | | 所要時間目安(分) |
 | anesthesia | anesthesia_type | YES | 'none' | 麻酔種別 |
@@ -1554,7 +1553,7 @@ erDiagram
 | code | text | YES | '' | コード |
 | name | text | NO | | プラン名 |
 | price | numeric | YES | | 価格 |
-| status | master_status | YES | 'active' | 状態 |
+| is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | body_size | body_size | YES | | 体格区分 |
 | billing_unit | billing_unit | YES | 'per_day' | 課金単位 |
@@ -1580,7 +1579,7 @@ erDiagram
 | code | text | YES | '' | コード |
 | name | text | NO | | コース名 |
 | price | numeric | YES | | 価格 |
-| status | master_status | YES | 'active' | 状態 |
+| is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | target_size | target_size | YES | | 対象サイズ |
 | duration | integer | YES | | 所要時間(分) |
@@ -1606,7 +1605,7 @@ erDiagram
 | code | text | YES | '' | コード |
 | name | text | NO | | オプション名 |
 | price | numeric | YES | | 価格 |
-| status | master_status | YES | 'active' | 状態 |
+| is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | duration | text | YES | '' | 追加所要時間 |
 | combinable | boolean | NO | true | 他オプションと組み合わせ可能か |
@@ -1631,7 +1630,7 @@ erDiagram
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | カテゴリ名 |
-| status | master_status | YES | 'active' | 状態 |
+| is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
@@ -1654,7 +1653,7 @@ erDiagram
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | 診断名 |
-| status | master_status | YES | 'active' | 状態 |
+| is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | diagnosis_category_id | uuid | NO | | diagnosis_categories.id FK |
 | sort_order | integer | YES | 0 | 並び順 |
@@ -1680,7 +1679,7 @@ erDiagram
 | code | text | YES | '' | コード |
 | name | text | NO | | 健診種別名 |
 | price | numeric | YES | | 価格 |
-| status | master_status | YES | 'active' | 状態 |
+| is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | interval | text | YES | '' | 推奨間隔 |
 | target_age | text | YES | '' | 対象年齢 |
@@ -1705,7 +1704,7 @@ erDiagram
 | clinic_id | uuid | NO | - | FK → clinics(id) RESTRICT（所属医院） |
 | code | text | YES | '' | コード |
 | name | text | NO | | 区分名 |
-| status | master_status | YES | 'active' | 状態 |
+| is_active | boolean | YES | true | 状態 |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
@@ -1728,7 +1727,7 @@ erDiagram
 | category | text | NO | '' | 使用フィールド区分（chief_complaint / history / current_medications / allergy_info / notes 等） |
 | title | text | NO | | 定型文タイトル |
 | content | text | NO | '' | 定型文本文 |
-| status | master_status | YES | 'active' | 状態 |
+| is_active | boolean | YES | true | 状態 |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |

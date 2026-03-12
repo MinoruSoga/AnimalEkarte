@@ -499,9 +499,9 @@ components:
           type: string
         name:
           type: string
-        status:
-          type: string
-          enum: [active, inactive]
+        is_active:
+          type: boolean
+          default: true
         staff_role:
           type: string
           enum: [veterinarian, nurse, trimmer, reception, manager]
@@ -540,9 +540,9 @@ components:
           type: number
           format: double
           nullable: true
-        status:
-          type: string
-          enum: [active, inactive]
+        is_active:
+          type: boolean
+          default: true
         description:
           type: string
         cage_type:
@@ -582,9 +582,9 @@ components:
           type: number
           format: double
           nullable: true
-        status:
-          type: string
-          enum: [active, inactive]
+        is_active:
+          type: boolean
+          default: true
         description:
           type: string
         dosage_form:
@@ -630,9 +630,9 @@ components:
           type: number
           format: double
           nullable: true
-        status:
-          type: string
-          enum: [active, inactive]
+        is_active:
+          type: boolean
+          default: true
         description:
           type: string
         species:
@@ -666,9 +666,9 @@ components:
           type: string
         name:
           type: string
-        status:
-          type: string
-          enum: [active, inactive]
+        is_active:
+          type: boolean
+          default: true
         description:
           type: string
         coverage_rate:
@@ -702,9 +702,9 @@ components:
           type: string
         name:
           type: string
-        status:
-          type: string
-          enum: [active, inactive]
+        is_active:
+          type: boolean
+          default: true
         description:
           type: string
         color:
@@ -738,9 +738,9 @@ components:
           type: number
           format: double
           nullable: true
-        status:
-          type: string
-          enum: [active, inactive]
+        is_active:
+          type: boolean
+          default: true
         description:
           type: string
         time_condition:
@@ -778,9 +778,9 @@ components:
           type: number
           format: double
           nullable: true
-        status:
-          type: string
-          enum: [active, inactive]
+        is_active:
+          type: boolean
+          default: true
         description:
           type: string
         duration:
@@ -819,9 +819,9 @@ components:
           type: number
           format: double
           nullable: true
-        status:
-          type: string
-          enum: [active, inactive]
+        is_active:
+          type: boolean
+          default: true
         description:
           type: string
         body_size:
@@ -859,9 +859,9 @@ components:
           type: number
           format: double
           nullable: true
-        status:
-          type: string
-          enum: [active, inactive]
+        is_active:
+          type: boolean
+          default: true
         description:
           type: string
         target_size:
@@ -899,9 +899,9 @@ components:
           type: number
           format: double
           nullable: true
-        status:
-          type: string
-          enum: [active, inactive]
+        is_active:
+          type: boolean
+          default: true
         description:
           type: string
         duration:
@@ -938,9 +938,9 @@ components:
           type: number
           format: double
           nullable: true
-        status:
-          type: string
-          enum: [active, inactive]
+        is_active:
+          type: boolean
+          default: true
         description:
           type: string
         sort_order:
@@ -968,9 +968,9 @@ components:
           type: string
         name:
           type: string
-        status:
-          type: string
-          enum: [active, inactive]
+        is_active:
+          type: boolean
+          default: true
         description:
           type: string
         sort_order:
@@ -998,9 +998,9 @@ components:
           type: string
         name:
           type: string
-        status:
-          type: string
-          enum: [active, inactive]
+        is_active:
+          type: boolean
+          default: true
         description:
           type: string
         diagnosis_category_id:
@@ -1035,9 +1035,9 @@ components:
           type: number
           format: double
           nullable: true
-        status:
-          type: string
-          enum: [active, inactive]
+        is_active:
+          type: boolean
+          default: true
         description:
           type: string
         interval:

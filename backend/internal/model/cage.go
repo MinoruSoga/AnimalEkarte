@@ -29,7 +29,7 @@ type Cage struct {
 	Code        string       `gorm:"default:''"                                     json:"code"`
 	Name        string       `gorm:"not null"                                       json:"name"`
 	Price       *float64     `gorm:"type:numeric(10,2)"                             json:"price,omitempty"`
-	Status      MasterStatus `gorm:"type:master_status;default:'active'"            json:"status"`
+	IsActive    bool         `gorm:"default:true"                                   json:"is_active"`
 	Description string       `gorm:"default:''"                                     json:"description"`
 	CageType    CageType     `gorm:"type:cage_type;not null"                        json:"cage_type"`
 	CageSize    CageSize     `gorm:"type:cage_size;not null"                        json:"cage_size"`

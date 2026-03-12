@@ -12,7 +12,7 @@ type CheckupType struct {
 	Code        string       `gorm:"default:''"                                     json:"code"`
 	Name        string       `gorm:"not null"                                       json:"name"`
 	Price       *float64     `gorm:"type:numeric(10,2)"                             json:"price,omitempty"`
-	Status      MasterStatus `gorm:"type:master_status;default:'active'"            json:"status"`
+	IsActive    bool         `gorm:"default:true"                                   json:"is_active"`
 	Description string       `gorm:"default:''"                                     json:"description"`
 	Interval    string       `gorm:"default:''"                                     json:"interval"`
 	TargetAge   string       `gorm:"default:''"                                     json:"target_age"`

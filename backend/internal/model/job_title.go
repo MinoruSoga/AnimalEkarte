@@ -13,7 +13,7 @@ type JobTitle struct {
 	Name      string       `gorm:"not null"                                       json:"name"`
 	Code      string       `gorm:"default:''"                                     json:"code"`
 	SortOrder int          `gorm:"default:0"                                      json:"sort_order"`
-	Status    MasterStatus `gorm:"type:master_status;default:'active'"            json:"status"`
+	IsActive  bool         `gorm:"default:true"                                   json:"is_active"`
 	CreatedAt time.Time    `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt time.Time    `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }

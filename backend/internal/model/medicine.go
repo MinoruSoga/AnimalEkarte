@@ -31,7 +31,7 @@ type Medicine struct {
 	Code            string        `gorm:"default:''"                                     json:"code"`
 	Name            string        `gorm:"not null"                                       json:"name"`
 	Price           *float64      `gorm:"type:numeric(10,2)"                             json:"price,omitempty"`
-	Status          MasterStatus  `gorm:"type:master_status;default:'active'"            json:"status"`
+	IsActive        bool          `gorm:"default:true"                                   json:"is_active"`
 	Description     string        `gorm:"default:''"                                     json:"description"`
 	DosageForm      *DosageForm   `gorm:"type:dosage_form"                               json:"dosage_form,omitempty"`
 	MedicineUnit    *MedicineUnit `gorm:"type:medicine_unit"                             json:"medicine_unit,omitempty"`

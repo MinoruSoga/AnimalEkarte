@@ -11,7 +11,7 @@ type Insurance struct {
 	ClinicID     uuid.UUID    `gorm:"type:uuid;not null"                             json:"clinic_id"`
 	Code         string       `gorm:"default:''"                                     json:"code"`
 	Name         string       `gorm:"not null"                                       json:"name"`
-	Status       MasterStatus `gorm:"type:master_status;default:'active'"            json:"status"`
+	IsActive     bool         `gorm:"default:true"                                   json:"is_active"`
 	Description  string       `gorm:"default:''"                                     json:"description"`
 	CoverageRate *int         `gorm:"column:coverage_rate"                           json:"coverage_rate,omitempty"`
 	ContactPhone string       `gorm:"default:''"                                     json:"contact_phone"`

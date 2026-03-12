@@ -21,7 +21,7 @@ type TrimmingCourse struct {
 	Code        string       `gorm:"default:''"                                     json:"code"`
 	Name        string       `gorm:"not null"                                       json:"name"`
 	Price       *float64     `gorm:"type:numeric(10,2)"                             json:"price,omitempty"`
-	Status      MasterStatus `gorm:"type:master_status;default:'active'"            json:"status"`
+	IsActive    bool         `gorm:"default:true"                                   json:"is_active"`
 	Description string       `gorm:"default:''"                                     json:"description"`
 	TargetSize  *TargetSize  `gorm:"type:target_size"                               json:"target_size,omitempty"`
 	Duration    string       `gorm:"default:''"                                     json:"duration"`
@@ -38,7 +38,7 @@ type TrimmingOption struct {
 	Code        string       `gorm:"default:''"                                     json:"code"`
 	Name        string       `gorm:"not null"                                       json:"name"`
 	Price       *float64     `gorm:"type:numeric(10,2)"                             json:"price,omitempty"`
-	Status      MasterStatus `gorm:"type:master_status;default:'active'"            json:"status"`
+	IsActive    bool         `gorm:"default:true"                                   json:"is_active"`
 	Description string       `gorm:"default:''"                                     json:"description"`
 	Duration    string       `gorm:"default:''"                                     json:"duration"`
 	Combinable  bool         `gorm:"default:true"                                   json:"combinable"`
