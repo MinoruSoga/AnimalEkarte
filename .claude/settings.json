@@ -30,7 +30,6 @@
   "permissions": {
     "deny": [
       "Bash(npm:*)",
-      "Bash(npx:*)",
       "Bash(pnpm:*)",
       "Bash(yarn:*)",
       "Bash(node:*)",
