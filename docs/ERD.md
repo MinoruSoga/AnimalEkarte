@@ -507,7 +507,7 @@ erDiagram
     billing_reviews {
         uuid id PK
         uuid medical_record_id FK
-        billing_confirmation_status status
+        billing_review_status status
         uuid confirmed_by FK
         timestamptz confirmed_at
         uuid returned_by FK
@@ -765,7 +765,7 @@ erDiagram
 |-------|----|
 | `account_status` | active, inactive, locked |
 | `appetite_level` | normal, increased, decreased, none |
-| `billing_confirmation_status` | pending, confirmed, returned |
+| `billing_review_status` | pending, confirmed, returned |
 | `billing_status` | waiting, completed, cancelled, pending |
 | `acquisition_type` | 購入, 譲渡, 保護, その他 |
 | `anesthesia_type` | none, local, general |
@@ -1704,7 +1704,7 @@ erDiagram
 |--------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | medical_record_id | uuid | NO | - | FK → medical_records(id) CASCADE, UNIQUE |
-| status | billing_confirmation_status | YES | 'pending' | pending/confirmed/returned |
+| status | billing_review_status | YES | 'pending' | pending/confirmed/returned |
 | confirmed_by | uuid | YES | - | FK → staffs(id) SET NULL（確認医師） |
 | confirmed_at | timestamptz | YES | - | 確認日時 |
 | returned_by | uuid | YES | - | FK → staffs(id) SET NULL（差戻し者） |
