@@ -23,24 +23,47 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
-    Error:
+    ErrorResponse:
       type: object
+      required: [code, message]
       properties:
-        error:
+        code:
           type: string
-          example: "resource not found"
+          description: 機械可読なエラーコード
+          enum: [VALIDATION_ERROR, NOT_FOUND, CONFLICT, UNAUTHORIZED, FORBIDDEN, INTERNAL_ERROR]
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          description: 人間可読なエラーメッセージ
+          example: "リクエストのバリデーションに失敗しました"
+        details:
+          type: array
+          description: フィールドレベルのバリデーションエラー詳細
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: email
+              message:
+                type: string
+                example: "有効なメールアドレスを入力してください"
     PaginatedResponse:
       type: object
+      required: [data, total, page, limit]
       properties:
         data:
           type: array
           items: {}
         total:
           type: integer
+          example: 100
         page:
           type: integer
+          example: 1
         limit:
           type: integer
+          example: 20
     Owner:
       type: object
       required: [owner_name]
@@ -52,6 +75,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         owner_name:
           type: string
           description: 飼主名（必須）
@@ -103,7 +127,7 @@ components:
           readOnly: true
     Pet:
       type: object
-      required: [owner_id, name]
+      required: [owner_id, name, animal_species_id]
       properties:
         id:
           type: string
@@ -112,6 +136,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         owner_id:
           type: string
           format: uuid
@@ -190,6 +215,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         start_time:
           type: string
           format: date-time
@@ -243,6 +269,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         record_no:
           type: string
           description: カルテ番号（自動採番）
@@ -288,6 +315,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         owner_id:
           type: string
           format: uuid
@@ -339,6 +367,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         medical_record_id:
           type: string
           format: uuid
@@ -394,6 +423,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         date:
           type: string
           format: date
@@ -450,6 +480,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         name:
           type: string
         category:
@@ -495,6 +526,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         code:
           type: string
         name:
@@ -521,6 +553,48 @@ components:
           type: string
           format: date-time
           readOnly: true
+    StaffRegistrationRequest:
+      type: object
+      description: スタッフ登録リクエスト。スタッフ情報とシステムアカウントをアトミックに作成する。clinic_id はJWTトークンから取得するためリクエストには含めない。
+      required: [name, staff_role, email, password]
+      properties:
+        name:
+          type: string
+          description: スタッフ氏名
+          example: 山田太郎
+        staff_role:
+          type: string
+          enum: [veterinarian, nurse, trimmer, reception, manager]
+          description: 職種
+          example: veterinarian
+        email:
+          type: string
+          format: email
+          description: ログイン用メールアドレス（user_accounts に登録）
+          example: yamada@clinic.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: 初期パスワード（8文字以上）
+          example: secure_pass_123
+        code:
+          type: string
+          description: スタッフコード
+          example: DR001
+        license_number:
+          type: string
+          description: 獣医師免許番号等
+          example: 獣医第12345号
+        job_title_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: 役職ID
+        sort_order:
+          type: integer
+          description: 表示順
+          default: 0
     Cage:
       type: object
       required: [name]
@@ -532,6 +606,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         code:
           type: string
         name:
@@ -548,11 +623,9 @@ components:
         cage_type:
           type: string
           enum: [icu, dog, cat, general]
-          nullable: true
         cage_size:
           type: string
-          enum: [small, medium, large, xl]
-          nullable: true
+          enum: [small, medium, large]
         sort_order:
           type: integer
         created_at:
@@ -574,6 +647,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         code:
           type: string
         name:
@@ -622,6 +696,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         code:
           type: string
         name:
@@ -662,6 +737,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         code:
           type: string
         name:
@@ -672,8 +748,7 @@ components:
         description:
           type: string
         coverage_rate:
-          type: number
-          format: double
+          type: integer
           nullable: true
         contact_phone:
           type: string
@@ -698,6 +773,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         code:
           type: string
         name:
@@ -730,6 +806,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         code:
           type: string
         name:
@@ -770,6 +847,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         code:
           type: string
         name:
@@ -789,7 +867,6 @@ components:
         anesthesia:
           type: string
           enum: [none, local, general]
-          nullable: true
         sort_order:
           type: integer
         created_at:
@@ -811,6 +888,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         code:
           type: string
         name:
@@ -826,9 +904,11 @@ components:
           type: string
         body_size:
           type: string
+          enum: [small, medium, large]
           nullable: true
         billing_unit:
           type: string
+          enum: [per_day, per_night]
           nullable: true
         sort_order:
           type: integer
@@ -851,6 +931,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         code:
           type: string
         name:
@@ -868,8 +949,7 @@ components:
           type: string
           nullable: true
         duration:
-          type: integer
-          nullable: true
+          type: string
         sort_order:
           type: integer
         created_at:
@@ -891,6 +971,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         code:
           type: string
         name:
@@ -905,8 +986,7 @@ components:
         description:
           type: string
         duration:
-          type: integer
-          nullable: true
+          type: string
         combinable:
           type: boolean
         sort_order:
@@ -930,6 +1010,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         code:
           type: string
         name:
@@ -964,6 +1045,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         code:
           type: string
         name:
@@ -994,6 +1076,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         code:
           type: string
         name:
@@ -1027,6 +1110,7 @@ components:
         clinic_id:
           type: string
           format: uuid
+          readOnly: true
         code:
           type: string
         name:
@@ -1157,11 +1241,49 @@ components:
             type: array
             items:
               type: string
+  responses:
+    BadRequest:
+      description: バリデーションエラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: 認証エラー（JWTトークンが無効または期限切れ）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: 権限エラー（操作が許可されていない）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: リソースが見つからない
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: リソースが既に存在する
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: サーバー内部エラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
 security:
   - BearerAuth: []
 paths:
   /auth/login:
     post:
+      operationId: login
       summary: ログイン
       description: メールアドレスとパスワードで認証してJWTトークンを返す
       tags: [Auth]
@@ -1180,19 +1302,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/LoginResponse'
         '400':
-          description: バリデーションエラー
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: 認証失敗
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /me:
     get:
+      operationId: getMe
       summary: ログインユーザー情報取得
       description: JWTクレームからログインユーザーの詳細情報（所属クリニック・権限含む）を返す
       tags: [Auth]
@@ -1204,9 +1321,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/MeResponse'
         '401':
-          description: 未認証
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /owners:
     get:
+      operationId: listOwners
       summary: 飼主一覧
       description: クリニックの飼主一覧をページネーション付きで取得
       tags: [Owners]
@@ -1241,7 +1363,14 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/Owner'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createOwner
       summary: 飼主登録
       tags: [Owners]
       requestBody:
@@ -1253,14 +1382,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /owners/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Owner'
         '400':
-          description: バリデーションエラー
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /owners/{id}:
     get:
+      operationId: getOwner
       summary: 飼主取得
       tags: [Owners]
       parameters:
@@ -1277,9 +1422,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Owner'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: 見つからない
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     put:
+      operationId: updateOwner
       summary: 飼主更新
       tags: [Owners]
       parameters:
@@ -1302,7 +1454,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Owner'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteOwner
       summary: 飼主削除
       tags: [Owners]
       parameters:
@@ -1315,8 +1478,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /pets:
     get:
+      operationId: listPets
       summary: ペット一覧
       tags: [Pets]
       parameters:
@@ -1354,7 +1526,14 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/Pet'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createPet
       summary: ペット登録
       tags: [Pets]
       requestBody:
@@ -1366,12 +1545,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /pets/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Pet'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /pets/{id}:
     get:
+      operationId: getPet
       summary: ペット取得
       tags: [Pets]
       parameters:
@@ -1388,9 +1585,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Pet'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: 見つからない
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     put:
+      operationId: updatePet
       summary: ペット更新
       tags: [Pets]
       parameters:
@@ -1413,7 +1617,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Pet'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deletePet
       summary: ペット削除
       tags: [Pets]
       parameters:
@@ -1426,8 +1641,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /reservations:
     get:
+      operationId: listReservations
       summary: 予約一覧
       tags: [Reservations]
       parameters:
@@ -1465,7 +1689,14 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/ReservationAppointment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createReservation
       summary: 予約作成
       tags: [Reservations]
       requestBody:
@@ -1477,12 +1708,30 @@ paths:
       responses:
         '201':
           description: 作成成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /reservations/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReservationAppointment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /reservations/{id}:
     get:
+      operationId: getReservation
       summary: 予約取得
       tags: [Reservations]
       parameters:
@@ -1499,7 +1748,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReservationAppointment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     put:
+      operationId: updateReservation
       summary: 予約更新
       tags: [Reservations]
       parameters:
@@ -1522,7 +1780,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReservationAppointment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteReservation
       summary: 予約削除
       tags: [Reservations]
       parameters:
@@ -1535,8 +1804,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /medical-records:
     get:
+      operationId: listMedicalRecords
       summary: カルテ一覧
       tags: [MedicalRecords]
       parameters:
@@ -1570,7 +1848,14 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/MedicalRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createMedicalRecord
       summary: カルテ作成
       tags: [MedicalRecords]
       requestBody:
@@ -1582,12 +1867,30 @@ paths:
       responses:
         '201':
           description: 作成成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /medical-records/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/MedicalRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /medical-records/{id}:
     get:
+      operationId: getMedicalRecord
       summary: カルテ取得
       tags: [MedicalRecords]
       parameters:
@@ -1604,7 +1907,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MedicalRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     put:
+      operationId: updateMedicalRecord
       summary: カルテ更新
       tags: [MedicalRecords]
       parameters:
@@ -1627,7 +1939,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MedicalRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteMedicalRecord
       summary: カルテ削除
       tags: [MedicalRecords]
       parameters:
@@ -1640,8 +1963,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /hospitalizations:
     get:
+      operationId: listHospitalizations
       summary: 入院一覧
       tags: [Hospitalizations]
       parameters:
@@ -1673,7 +2005,14 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/Hospitalization'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createHospitalization
       summary: 入院登録
       tags: [Hospitalizations]
       requestBody:
@@ -1685,12 +2024,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /hospitalizations/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Hospitalization'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /hospitalizations/{id}:
     get:
+      operationId: getHospitalization
       summary: 入院情報取得
       tags: [Hospitalizations]
       parameters:
@@ -1707,7 +2064,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Hospitalization'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     put:
+      operationId: updateHospitalization
       summary: 入院情報更新
       tags: [Hospitalizations]
       parameters:
@@ -1730,7 +2096,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Hospitalization'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteHospitalization
       summary: 入院削除
       tags: [Hospitalizations]
       parameters:
@@ -1743,8 +2120,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /accountings:
     get:
+      operationId: listAccountings
       summary: 会計一覧
       tags: [Accountings]
       parameters:
@@ -1777,7 +2163,14 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/Billing'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createAccounting
       summary: 会計作成
       tags: [Accountings]
       requestBody:
@@ -1789,12 +2182,30 @@ paths:
       responses:
         '201':
           description: 作成成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /accountings/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Billing'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /accountings/{id}:
     get:
+      operationId: getAccounting
       summary: 会計取得
       tags: [Accountings]
       parameters:
@@ -1811,7 +2222,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Billing'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     put:
+      operationId: updateAccounting
       summary: 会計更新
       tags: [Accountings]
       parameters:
@@ -1834,8 +2254,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Billing'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /trimmings:
     get:
+      operationId: listTrimmings
       summary: トリミング一覧
       tags: [Trimmings]
       parameters:
@@ -1863,7 +2294,14 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/TrimmingRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createTrimming
       summary: トリミング登録
       tags: [Trimmings]
       requestBody:
@@ -1875,12 +2313,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /trimmings/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/TrimmingRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /trimmings/{id}:
     get:
+      operationId: getTrimming
       summary: トリミング取得
       tags: [Trimmings]
       parameters:
@@ -1897,7 +2353,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TrimmingRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     put:
+      operationId: updateTrimming
       summary: トリミング更新
       tags: [Trimmings]
       parameters:
@@ -1920,8 +2385,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TrimmingRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /inventory:
     get:
+      operationId: listInventory
       summary: 在庫一覧
       tags: [Inventory]
       parameters:
@@ -1953,7 +2429,14 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/InventoryItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createInventoryItem
       summary: 在庫登録
       tags: [Inventory]
       requestBody:
@@ -1965,12 +2448,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /inventory/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/InventoryItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /inventory/{id}:
     get:
+      operationId: getInventoryItem
       summary: 在庫取得
       tags: [Inventory]
       parameters:
@@ -1987,7 +2488,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InventoryItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     put:
+      operationId: updateInventoryItem
       summary: 在庫更新
       tags: [Inventory]
       parameters:
@@ -2010,8 +2520,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InventoryItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /clinics:
     get:
+      operationId: listClinics
       summary: クリニック一覧
       tags: [Clinics]
       responses:
@@ -2023,39 +2544,44 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Clinic'
-  /clinics/{id}:
-    get:
-      summary: クリニック取得
-      tags: [Clinics]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: クリニック情報
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Clinic'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /company:
     get:
+      operationId: getCompany
       summary: 法人情報取得
       tags: [Company]
       responses:
         '200':
           description: 法人情報
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     put:
+      operationId: updateCompany
       summary: 法人情報更新
       tags: [Company]
       responses:
         '200':
           description: 更新成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/staffs:
     get:
+      operationId: listStaffs
       summary: スタッフ一覧
       tags: [Masters]
       parameters:
@@ -2072,24 +2598,60 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Staff'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createStaff
       summary: スタッフ登録
+      description: |
+        新規スタッフを登録する。staffs テーブルと user_accounts テーブルをトランザクションで同時に作成する。
+        clinic_id はリクエストボディには含めず、JWTトークンのクレームから取得する。
       tags: [Masters]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Staff'
+              $ref: '#/components/schemas/StaffRegistrationRequest'
+            example:
+              name: 山田太郎
+              staff_role: veterinarian
+              email: yamada@clinic.com
+              password: secure_pass_123
+              license_number: 獣医第12345号
+              code: DR001
+              sort_order: 1
       responses:
         '201':
-          description: 登録成功
+          description: 登録成功。作成されたスタッフ情報を返す。
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/staffs/550e8400-e29b-41d4-a716-446655440000
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Staff'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/staffs/{id}:
     put:
+      operationId: updateStaff
       summary: スタッフ更新
       tags: [Masters]
       parameters:
@@ -2108,7 +2670,22 @@ paths:
       responses:
         '200':
           description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Staff'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteStaff
       summary: スタッフ削除
       tags: [Masters]
       parameters:
@@ -2121,8 +2698,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/cages:
     get:
+      operationId: listCages
       summary: ケージ一覧
       tags: [Masters]
       responses:
@@ -2134,7 +2720,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Cage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createCage
       summary: ケージ登録
       tags: [Masters]
       requestBody:
@@ -2146,8 +2739,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/cages/550e8400-e29b-41d4-a716-446655440000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/cages/{id}:
     put:
+      operationId: updateCage
       summary: ケージ更新
       tags: [Masters]
       parameters:
@@ -2166,7 +2781,22 @@ paths:
       responses:
         '200':
           description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteCage
       summary: ケージ削除
       tags: [Masters]
       parameters:
@@ -2179,8 +2809,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/medicines:
     get:
+      operationId: listMedicines
       summary: 薬剤一覧
       tags: [Masters]
       responses:
@@ -2192,7 +2831,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Medicine'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createMedicine
       summary: 薬剤登録
       tags: [Masters]
       requestBody:
@@ -2204,8 +2850,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/medicines/550e8400-e29b-41d4-a716-446655440000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Medicine'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/medicines/{id}:
     put:
+      operationId: updateMedicine
       summary: 薬剤更新
       tags: [Masters]
       parameters:
@@ -2224,7 +2892,22 @@ paths:
       responses:
         '200':
           description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Medicine'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteMedicine
       summary: 薬剤削除
       tags: [Masters]
       parameters:
@@ -2237,8 +2920,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/vaccines:
     get:
+      operationId: listVaccines
       summary: ワクチン一覧
       tags: [Masters]
       responses:
@@ -2250,7 +2942,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Vaccine'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createVaccine
       summary: ワクチン登録
       tags: [Masters]
       requestBody:
@@ -2262,8 +2961,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/vaccines/550e8400-e29b-41d4-a716-446655440000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vaccine'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/vaccines/{id}:
     put:
+      operationId: updateVaccine
       summary: ワクチン更新
       tags: [Masters]
       parameters:
@@ -2282,7 +3003,22 @@ paths:
       responses:
         '200':
           description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vaccine'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteVaccine
       summary: ワクチン削除
       tags: [Masters]
       parameters:
@@ -2295,8 +3031,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/insurances:
     get:
+      operationId: listInsurances
       summary: 保険一覧
       tags: [Masters]
       responses:
@@ -2308,7 +3053,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Insurance'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createInsurance
       summary: 保険登録
       tags: [Masters]
       requestBody:
@@ -2320,8 +3072,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/insurances/550e8400-e29b-41d4-a716-446655440000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Insurance'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/insurances/{id}:
     put:
+      operationId: updateInsurance
       summary: 保険更新
       tags: [Masters]
       parameters:
@@ -2340,7 +3114,22 @@ paths:
       responses:
         '200':
           description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Insurance'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteInsurance
       summary: 保険削除
       tags: [Masters]
       parameters:
@@ -2353,8 +3142,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/service-types:
     get:
+      operationId: listServiceTypes
       summary: サービス種別一覧
       tags: [Masters]
       responses:
@@ -2366,7 +3164,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ServiceType'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createServiceType
       summary: サービス種別登録
       tags: [Masters]
       requestBody:
@@ -2378,8 +3183,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/service-types/550e8400-e29b-41d4-a716-446655440000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceType'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/service-types/{id}:
     put:
+      operationId: updateServiceType
       summary: サービス種別更新
       tags: [Masters]
       parameters:
@@ -2389,10 +3216,31 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceType'
       responses:
         '200':
           description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceType'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteServiceType
       summary: サービス種別削除
       tags: [Masters]
       parameters:
@@ -2405,8 +3253,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/consultations:
     get:
+      operationId: listConsultations
       summary: 診察項目一覧
       tags: [Masters]
       responses:
@@ -2418,7 +3275,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Consultation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createConsultation
       summary: 診察項目登録
       tags: [Masters]
       requestBody:
@@ -2430,8 +3294,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/consultations/550e8400-e29b-41d4-a716-446655440000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Consultation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/consultations/{id}:
     put:
+      operationId: updateConsultation
       summary: 診察項目更新
       tags: [Masters]
       parameters:
@@ -2441,10 +3327,31 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Consultation'
       responses:
         '200':
           description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Consultation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteConsultation
       summary: 診察項目削除
       tags: [Masters]
       parameters:
@@ -2457,8 +3364,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/procedures:
     get:
+      operationId: listProcedures
       summary: 処置項目一覧
       tags: [Masters]
       responses:
@@ -2470,7 +3386,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Procedure'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createProcedure
       summary: 処置項目登録
       tags: [Masters]
       requestBody:
@@ -2482,8 +3405,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/procedures/550e8400-e29b-41d4-a716-446655440000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Procedure'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/procedures/{id}:
     put:
+      operationId: updateProcedure
       summary: 処置項目更新
       tags: [Masters]
       parameters:
@@ -2493,10 +3438,31 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Procedure'
       responses:
         '200':
           description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Procedure'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteProcedure
       summary: 処置項目削除
       tags: [Masters]
       parameters:
@@ -2509,8 +3475,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/hospitalization-plans:
     get:
+      operationId: listHospitalizationPlans
       summary: 入院プラン一覧
       tags: [Masters]
       responses:
@@ -2522,7 +3497,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/HospitalizationPlan'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createHospitalizationPlan
       summary: 入院プラン登録
       tags: [Masters]
       requestBody:
@@ -2534,8 +3516,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/hospitalization-plans/550e8400-e29b-41d4-a716-446655440000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HospitalizationPlan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/hospitalization-plans/{id}:
     put:
+      operationId: updateHospitalizationPlan
       summary: 入院プラン更新
       tags: [Masters]
       parameters:
@@ -2545,10 +3549,31 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HospitalizationPlan'
       responses:
         '200':
           description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HospitalizationPlan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteHospitalizationPlan
       summary: 入院プラン削除
       tags: [Masters]
       parameters:
@@ -2561,8 +3586,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/trimming-courses:
     get:
+      operationId: listTrimmingCourses
       summary: トリミングコース一覧
       tags: [Masters]
       responses:
@@ -2574,7 +3608,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/TrimmingCourse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createTrimmingCourse
       summary: トリミングコース登録
       tags: [Masters]
       requestBody:
@@ -2586,8 +3627,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/trimming-courses/550e8400-e29b-41d4-a716-446655440000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrimmingCourse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/trimming-courses/{id}:
     put:
+      operationId: updateTrimmingCourse
       summary: トリミングコース更新
       tags: [Masters]
       parameters:
@@ -2597,10 +3660,31 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrimmingCourse'
       responses:
         '200':
           description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrimmingCourse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteTrimmingCourse
       summary: トリミングコース削除
       tags: [Masters]
       parameters:
@@ -2613,8 +3697,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/trimming-options:
     get:
+      operationId: listTrimmingOptions
       summary: トリミングオプション一覧
       tags: [Masters]
       responses:
@@ -2626,7 +3719,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/TrimmingOption'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createTrimmingOption
       summary: トリミングオプション登録
       tags: [Masters]
       requestBody:
@@ -2638,8 +3738,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/trimming-options/550e8400-e29b-41d4-a716-446655440000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrimmingOption'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/trimming-options/{id}:
     put:
+      operationId: updateTrimmingOption
       summary: トリミングオプション更新
       tags: [Masters]
       parameters:
@@ -2649,10 +3771,31 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrimmingOption'
       responses:
         '200':
           description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrimmingOption'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteTrimmingOption
       summary: トリミングオプション削除
       tags: [Masters]
       parameters:
@@ -2665,8 +3808,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/examination-types:
     get:
+      operationId: listExaminationTypes
       summary: 検査種別一覧
       tags: [Masters]
       responses:
@@ -2678,7 +3830,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ExaminationType'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createExaminationType
       summary: 検査種別登録
       tags: [Masters]
       requestBody:
@@ -2690,8 +3849,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/examination-types/550e8400-e29b-41d4-a716-446655440000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExaminationType'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/examination-types/{id}:
     put:
+      operationId: updateExaminationType
       summary: 検査種別更新
       tags: [Masters]
       parameters:
@@ -2701,10 +3882,31 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExaminationType'
       responses:
         '200':
           description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExaminationType'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteExaminationType
       summary: 検査種別削除
       tags: [Masters]
       parameters:
@@ -2717,8 +3919,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/diagnosis-categories:
     get:
+      operationId: listDiagnosisCategories
       summary: 診断カテゴリ一覧
       tags: [Masters]
       responses:
@@ -2730,7 +3941,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/DiagnosisCategory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createDiagnosisCategory
       summary: 診断カテゴリ登録
       tags: [Masters]
       requestBody:
@@ -2742,8 +3960,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/diagnosis-categories/550e8400-e29b-41d4-a716-446655440000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosisCategory'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/diagnosis-categories/{id}:
     put:
+      operationId: updateDiagnosisCategory
       summary: 診断カテゴリ更新
       tags: [Masters]
       parameters:
@@ -2753,10 +3993,31 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiagnosisCategory'
       responses:
         '200':
           description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosisCategory'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteDiagnosisCategory
       summary: 診断カテゴリ削除
       tags: [Masters]
       parameters:
@@ -2769,8 +4030,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/diagnosis-names:
     get:
+      operationId: listDiagnosisNames
       summary: 診断名一覧
       tags: [Masters]
       parameters:
@@ -2788,7 +4058,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/DiagnosisName'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createDiagnosisName
       summary: 診断名登録
       tags: [Masters]
       requestBody:
@@ -2800,8 +4077,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/diagnosis-names/550e8400-e29b-41d4-a716-446655440000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosisName'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/diagnosis-names/{id}:
     put:
+      operationId: updateDiagnosisName
       summary: 診断名更新
       tags: [Masters]
       parameters:
@@ -2811,10 +4110,31 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiagnosisName'
       responses:
         '200':
           description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosisName'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteDiagnosisName
       summary: 診断名削除
       tags: [Masters]
       parameters:
@@ -2827,8 +4147,17 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/checkup-types:
     get:
+      operationId: listCheckupTypes
       summary: 健診種別一覧
       tags: [Masters]
       responses:
@@ -2840,7 +4169,14 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/CheckupType'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      operationId: createCheckupType
       summary: 健診種別登録
       tags: [Masters]
       requestBody:
@@ -2852,8 +4188,30 @@ paths:
       responses:
         '201':
           description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /masters/checkup-types/550e8400-e29b-41d4-a716-446655440000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckupType'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/checkup-types/{id}:
     put:
+      operationId: updateCheckupType
       summary: 健診種別更新
       tags: [Masters]
       parameters:
@@ -2863,10 +4221,31 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckupType'
       responses:
         '200':
           description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckupType'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      operationId: deleteCheckupType
       summary: 健診種別削除
       tags: [Masters]
       parameters:
@@ -2879,3 +4258,11 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
