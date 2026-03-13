@@ -56,8 +56,15 @@ func (r *insuranceRepository) Create(ctx context.Context, insurance *model.Insur
 }
 
 func (r *insuranceRepository) Update(ctx context.Context, insurance *model.Insurance) error {
-	if err := r.db.WithContext(ctx).Save(insurance).Error; err != nil {
-		return apperrors.Wrap(err, "update insurance")
+	result := r.db.WithContext(ctx).
+		Model(&model.Insurance{}).
+		Where("id = ? AND clinic_id = ?", insurance.ID, insurance.ClinicID).
+		Updates(insurance)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update insurance")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.Wrap(apperrors.ErrNotFound, "update insurance")
 	}
 	return nil
 }

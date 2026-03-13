@@ -60,8 +60,15 @@ func (r *cageRepository) Create(ctx context.Context, cage *model.Cage) error {
 }
 
 func (r *cageRepository) Update(ctx context.Context, cage *model.Cage) error {
-	if err := r.db.WithContext(ctx).Save(cage).Error; err != nil {
-		return apperrors.Wrap(err, "update cage")
+	result := r.db.WithContext(ctx).
+		Model(&model.Cage{}).
+		Where("id = ? AND clinic_id = ?", cage.ID, cage.ClinicID).
+		Updates(cage)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update cage")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.Wrap(apperrors.ErrNotFound, "update cage")
 	}
 	return nil
 }

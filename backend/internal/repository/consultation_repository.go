@@ -58,8 +58,15 @@ func (r *consultationRepository) Create(ctx context.Context, consultation *model
 }
 
 func (r *consultationRepository) Update(ctx context.Context, consultation *model.Consultation) error {
-	if err := r.db.WithContext(ctx).Save(consultation).Error; err != nil {
-		return apperrors.Wrap(err, "update consultation")
+	result := r.db.WithContext(ctx).
+		Model(&model.Consultation{}).
+		Where("id = ? AND clinic_id = ?", consultation.ID, consultation.ClinicID).
+		Updates(consultation)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update consultation")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.Wrap(apperrors.ErrNotFound, "update consultation")
 	}
 	return nil
 }

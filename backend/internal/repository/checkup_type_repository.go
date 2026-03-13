@@ -58,8 +58,15 @@ func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.C
 }
 
 func (r *checkupTypeRepository) Update(ctx context.Context, checkupType *model.CheckupType) error {
-	if err := r.db.WithContext(ctx).Save(checkupType).Error; err != nil {
-		return apperrors.Wrap(err, "update checkup type")
+	result := r.db.WithContext(ctx).
+		Model(&model.CheckupType{}).
+		Where("id = ? AND clinic_id = ?", checkupType.ID, checkupType.ClinicID).
+		Updates(checkupType)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update checkup type")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.Wrap(apperrors.ErrNotFound, "update checkup type")
 	}
 	return nil
 }

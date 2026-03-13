@@ -58,8 +58,15 @@ func (r *serviceTypeRepository) Create(ctx context.Context, serviceType *model.S
 }
 
 func (r *serviceTypeRepository) Update(ctx context.Context, serviceType *model.ServiceType) error {
-	if err := r.db.WithContext(ctx).Save(serviceType).Error; err != nil {
-		return apperrors.Wrap(err, "update service type")
+	result := r.db.WithContext(ctx).
+		Model(&model.ServiceType{}).
+		Where("id = ? AND clinic_id = ?", serviceType.ID, serviceType.ClinicID).
+		Updates(serviceType)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update service type")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.Wrap(apperrors.ErrNotFound, "update service type")
 	}
 	return nil
 }

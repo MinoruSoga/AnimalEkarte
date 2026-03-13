@@ -76,7 +76,10 @@ func (r *trimmingRepository) Create(ctx context.Context, clinicID uint64, trimmi
 
 func (r *trimmingRepository) Update(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error {
 	trimming.ClinicID = clinicID
-	result := r.db.WithContext(ctx).Where("id = ? AND clinic_id = ?", trimming.ID, clinicID).Save(trimming)
+	result := r.db.WithContext(ctx).
+		Model(&model.TrimmingRecord{}).
+		Where("id = ? AND clinic_id = ?", trimming.ID, clinicID).
+		Updates(trimming)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "update trimming record")
 	}

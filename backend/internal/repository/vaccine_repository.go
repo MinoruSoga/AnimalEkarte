@@ -60,8 +60,15 @@ func (r *vaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) 
 }
 
 func (r *vaccineRepository) Update(ctx context.Context, vaccine *model.Vaccine) error {
-	if err := r.db.WithContext(ctx).Save(vaccine).Error; err != nil {
-		return apperrors.Wrap(err, "update vaccine")
+	result := r.db.WithContext(ctx).
+		Model(&model.Vaccine{}).
+		Where("id = ? AND clinic_id = ?", vaccine.ID, vaccine.ClinicID).
+		Updates(vaccine)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update vaccine")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.Wrap(apperrors.ErrNotFound, "update vaccine")
 	}
 	return nil
 }

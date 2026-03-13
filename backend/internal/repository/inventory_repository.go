@@ -71,7 +71,10 @@ func (r *inventoryRepository) Create(ctx context.Context, clinicID uint64, item 
 
 func (r *inventoryRepository) Update(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {
 	item.ClinicID = clinicID
-	result := r.db.WithContext(ctx).Where("id = ? AND clinic_id = ?", item.ID, clinicID).Save(item)
+	result := r.db.WithContext(ctx).
+		Model(&model.InventoryItem{}).
+		Where("id = ? AND clinic_id = ?", item.ID, clinicID).
+		Updates(item)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "update inventory item")
 	}

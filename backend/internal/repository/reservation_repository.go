@@ -82,8 +82,15 @@ func (r *reservationRepository) Create(ctx context.Context, reservation *model.R
 }
 
 func (r *reservationRepository) Update(ctx context.Context, reservation *model.ReservationAppointment) error {
-	if err := r.db.WithContext(ctx).Save(reservation).Error; err != nil {
-		return apperrors.Wrap(err, "update reservation")
+	result := r.db.WithContext(ctx).
+		Model(&model.ReservationAppointment{}).
+		Where("id = ? AND clinic_id = ?", reservation.ID, reservation.ClinicID).
+		Updates(reservation)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update reservation")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.Wrap(apperrors.ErrNotFound, "update reservation")
 	}
 	return nil
 }

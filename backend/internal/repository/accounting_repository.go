@@ -79,7 +79,10 @@ func (r *accountingRepository) Create(ctx context.Context, clinicID uint64, acco
 
 func (r *accountingRepository) Update(ctx context.Context, clinicID uint64, accounting *model.Billing) error {
 	accounting.ClinicID = clinicID
-	result := r.db.WithContext(ctx).Where("id = ? AND clinic_id = ?", accounting.ID, clinicID).Save(accounting)
+	result := r.db.WithContext(ctx).
+		Model(&model.Billing{}).
+		Where("id = ? AND clinic_id = ?", accounting.ID, clinicID).
+		Updates(accounting)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "update billing")
 	}

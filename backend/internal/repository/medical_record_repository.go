@@ -96,8 +96,15 @@ func (r *medicalRecordRepository) Create(ctx context.Context, record *model.Medi
 }
 
 func (r *medicalRecordRepository) Update(ctx context.Context, record *model.MedicalRecord) error {
-	if err := r.db.WithContext(ctx).Save(record).Error; err != nil {
-		return apperrors.Wrap(err, "update medical record")
+	result := r.db.WithContext(ctx).
+		Model(&model.MedicalRecord{}).
+		Where("id = ? AND clinic_id = ?", record.ID, record.ClinicID).
+		Updates(record)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update medical record")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.Wrap(apperrors.ErrNotFound, "update medical record")
 	}
 	return nil
 }

@@ -58,8 +58,15 @@ func (r *diagnosisCategoryRepository) Create(ctx context.Context, category *mode
 }
 
 func (r *diagnosisCategoryRepository) Update(ctx context.Context, category *model.DiagnosisCategory) error {
-	if err := r.db.WithContext(ctx).Save(category).Error; err != nil {
-		return apperrors.Wrap(err, "update diagnosis category")
+	result := r.db.WithContext(ctx).
+		Model(&model.DiagnosisCategory{}).
+		Where("id = ? AND clinic_id = ?", category.ID, category.ClinicID).
+		Updates(category)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update diagnosis category")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.Wrap(apperrors.ErrNotFound, "update diagnosis category")
 	}
 	return nil
 }
@@ -133,8 +140,15 @@ func (r *diagnosisNameRepository) Create(ctx context.Context, name *model.Diagno
 }
 
 func (r *diagnosisNameRepository) Update(ctx context.Context, name *model.DiagnosisName) error {
-	if err := r.db.WithContext(ctx).Save(name).Error; err != nil {
-		return apperrors.Wrap(err, "update diagnosis name")
+	result := r.db.WithContext(ctx).
+		Model(&model.DiagnosisName{}).
+		Where("id = ? AND clinic_id = ?", name.ID, name.ClinicID).
+		Updates(name)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update diagnosis name")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.Wrap(apperrors.ErrNotFound, "update diagnosis name")
 	}
 	return nil
 }

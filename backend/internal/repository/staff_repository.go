@@ -80,8 +80,15 @@ func (r *staffRepository) CreateWithAccount(ctx context.Context, staff *model.St
 }
 
 func (r *staffRepository) Update(ctx context.Context, staff *model.Staff) error {
-	if err := r.db.WithContext(ctx).Save(staff).Error; err != nil {
-		return apperrors.Wrap(err, "update staff")
+	result := r.db.WithContext(ctx).
+		Model(&model.Staff{}).
+		Where("id = ? AND clinic_id = ?", staff.ID, staff.ClinicID).
+		Updates(staff)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update staff")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.Wrap(apperrors.ErrNotFound, "update staff")
 	}
 	return nil
 }

@@ -58,8 +58,15 @@ func (r *trimmingCourseRepository) Create(ctx context.Context, course *model.Tri
 }
 
 func (r *trimmingCourseRepository) Update(ctx context.Context, course *model.TrimmingCourse) error {
-	if err := r.db.WithContext(ctx).Save(course).Error; err != nil {
-		return apperrors.Wrap(err, "update trimming course")
+	result := r.db.WithContext(ctx).
+		Model(&model.TrimmingCourse{}).
+		Where("id = ? AND clinic_id = ?", course.ID, course.ClinicID).
+		Updates(course)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update trimming course")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.Wrap(apperrors.ErrNotFound, "update trimming course")
 	}
 	return nil
 }
@@ -121,8 +128,15 @@ func (r *trimmingOptionRepository) Create(ctx context.Context, option *model.Tri
 }
 
 func (r *trimmingOptionRepository) Update(ctx context.Context, option *model.TrimmingOption) error {
-	if err := r.db.WithContext(ctx).Save(option).Error; err != nil {
-		return apperrors.Wrap(err, "update trimming option")
+	result := r.db.WithContext(ctx).
+		Model(&model.TrimmingOption{}).
+		Where("id = ? AND clinic_id = ?", option.ID, option.ClinicID).
+		Updates(option)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update trimming option")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.Wrap(apperrors.ErrNotFound, "update trimming option")
 	}
 	return nil
 }

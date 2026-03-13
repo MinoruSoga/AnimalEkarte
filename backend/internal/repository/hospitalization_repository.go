@@ -80,8 +80,15 @@ func (r *hospitalizationRepository) Create(ctx context.Context, hospitalization 
 }
 
 func (r *hospitalizationRepository) Update(ctx context.Context, hospitalization *model.Hospitalization) error {
-	if err := r.db.WithContext(ctx).Save(hospitalization).Error; err != nil {
-		return apperrors.Wrap(err, "update hospitalization")
+	result := r.db.WithContext(ctx).
+		Model(&model.Hospitalization{}).
+		Where("id = ? AND clinic_id = ?", hospitalization.ID, hospitalization.ClinicID).
+		Updates(hospitalization)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update hospitalization")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.Wrap(apperrors.ErrNotFound, "update hospitalization")
 	}
 	return nil
 }

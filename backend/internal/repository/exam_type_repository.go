@@ -58,8 +58,15 @@ func (r *examTypeRepository) Create(ctx context.Context, exType *model.ExamType)
 }
 
 func (r *examTypeRepository) Update(ctx context.Context, exType *model.ExamType) error {
-	if err := r.db.WithContext(ctx).Save(exType).Error; err != nil {
-		return apperrors.Wrap(err, "update examination type")
+	result := r.db.WithContext(ctx).
+		Model(&model.ExamType{}).
+		Where("id = ? AND clinic_id = ?", exType.ID, exType.ClinicID).
+		Updates(exType)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update examination type")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.Wrap(apperrors.ErrNotFound, "update examination type")
 	}
 	return nil
 }

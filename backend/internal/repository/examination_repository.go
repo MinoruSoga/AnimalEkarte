@@ -76,7 +76,10 @@ func (r *examinationRepository) Create(ctx context.Context, exam *model.Exam) er
 }
 
 func (r *examinationRepository) Update(ctx context.Context, exam *model.Exam) error {
-	result := r.db.WithContext(ctx).Where("id = ?", exam.ID).Save(exam)
+	result := r.db.WithContext(ctx).
+		Model(&model.Exam{}).
+		Where("id = ?", exam.ID).
+		Updates(exam)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "update exam")
 	}
