@@ -15,7 +15,6 @@ export interface CreatePetRequest {
   breed?: string;
   color?: string;
   weight?: number;
-  microchip_id?: string;
   food?: string;
   environment?: string;
   neutered_date?: string;
@@ -40,7 +39,6 @@ export interface UpdatePetRequest {
   breed?: string;
   color?: string;
   weight?: number;
-  microchip_id?: string;
   food?: string;
   environment?: string;
   neutered_date?: string;

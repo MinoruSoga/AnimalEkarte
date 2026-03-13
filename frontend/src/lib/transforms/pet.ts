@@ -100,7 +100,6 @@ export const transformCreatePetRequest = (data: {
   gender?: string;
   birthDate?: string;
   weight?: string;
-  microchipId?: string;
   food?: string;
   environment?: string;
   neuteredDate?: string;
@@ -120,7 +119,6 @@ export const transformCreatePetRequest = (data: {
   gender: data.gender ? (PET_GENDER_REVERSE_MAP[data.gender] ?? data.gender) : undefined,
   birth_date: data.birthDate ? `${data.birthDate}T00:00:00Z` : undefined,
   weight: data.weight ? parseFloat(data.weight) : undefined,
-  microchip_id: data.microchipId,
   food: data.food,
   environment: data.environment,
   neutered_date: data.neuteredDate ? `${data.neuteredDate}T00:00:00Z` : undefined,
@@ -145,7 +143,6 @@ export const transformUpdatePetRequest = (data: {
   gender?: string;
   birthDate?: string;
   weight?: string;
-  microchipId?: string;
   food?: string;
   environment?: string;
   neuteredDate?: string;
@@ -165,7 +162,6 @@ export const transformUpdatePetRequest = (data: {
   gender: data.gender ? (PET_GENDER_REVERSE_MAP[data.gender] ?? data.gender) : undefined,
   birth_date: data.birthDate ? `${data.birthDate}T00:00:00Z` : undefined,
   weight: data.weight ? parseFloat(data.weight) : undefined,
-  microchip_id: data.microchipId,
   food: data.food,
   environment: data.environment,
   neutered_date: data.neuteredDate ? `${data.neuteredDate}T00:00:00Z` : undefined,

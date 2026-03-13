@@ -76,7 +76,6 @@ export function PetEditModal({
     insuranceId: petData?.insuranceId || "",
     insuranceName: petData?.insuranceName,
     insuranceDetails: petData?.insuranceDetails,
-    microchipId: petData?.microchipId || "",
   }));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -105,7 +104,10 @@ export function PetEditModal({
     setFieldErrors({});
     onSave(formData);
     onOpenChange(false);
-    toast.success(petData?.id ? "ペット情報を更新しました" : "ペットを追加しました");
+    // 新規追加時のみ即時 toast（既存ペットの更新は useOwnerForm の onSuccess/onError で出す）
+    if (!petData?.id) {
+      toast.success("ペットを追加しました");
+    }
   };
 
   const isEdit = !!petData?.id;
@@ -293,20 +295,6 @@ export function PetEditModal({
                 value={formData.weight || ""}
                 onChange={(e) =>
                   setFormData(prev => ({ ...prev, weight: e.target.value }))
-                }
-                className={INPUT_CLS}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="microchipId" className={LABEL_CLS}>
-                マイクロチップ番号
-              </Label>
-              <Input
-                id="microchipId"
-                value={formData.microchipId || ""}
-                onChange={(e) =>
-                  setFormData(prev => ({ ...prev, microchipId: e.target.value }))
                 }
                 className={INPUT_CLS}
               />

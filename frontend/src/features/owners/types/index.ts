@@ -56,8 +56,6 @@ export interface PetFormData {
   insuranceId?: string;
   insuranceName?: InsuranceCompany;
   insuranceDetails?: string;
-  /** マイクロチップ番号 */
-  microchipId?: string;
 }
 
 // Owner data
