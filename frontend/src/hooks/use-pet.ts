@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { useGetPets } from "@/features/pets/api/get-pets";
-import { useGetPet } from "@/features/pets/api/get-pet";
+import { useGetPets, useGetPet } from "@/features/pets/api";
 import type { Pet } from "@/types";
 
 export { useGetPet };

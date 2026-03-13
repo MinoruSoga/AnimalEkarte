@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { useGetPets } from "@/features/pets/api/get-pets";
+import { useGetPets } from "@/features/pets/api";
 import type { Pet } from "@/types";
 import type { PetSelectionSearchParams } from "@/components/shared/PetSelection";
 
