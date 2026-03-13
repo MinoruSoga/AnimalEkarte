@@ -37,59 +37,67 @@ const (
 
 // CreatePetForOwnerInput は飼主登録時に同時作成するペットの入力DTO
 type CreatePetForOwnerInput struct {
-	Name            string     `json:"name" binding:"required"`
-	AnimalSpeciesID uint64     `json:"animal_species_id" binding:"required"`
-	PetNumber       string     `json:"pet_number"`
-	PetNameKana     string     `json:"pet_name_kana"`
-	Breed           string     `json:"breed"`
-	Gender          string     `json:"gender"`
-	BirthDate       *time.Time `json:"birth_date"`
-	Remarks         string     `json:"remarks"`
+	Name            string
+	AnimalSpeciesID uint64
+	PetNameKana     string
+	Breed           string
+	Color           string
+	Gender          string
+	Status          string
+	BirthDate       *time.Time
+	Weight          *float64
+	NeuteredDate    *time.Time
+	AcquisitionType string
+	DangerLevel     string
+	Food            string
+	Environment     string
+	InsuranceID     *uint64
+	Remarks         string
 }
 
 // CreateOwnerInput は飼主作成の入力DTO
 // ビジネスルール（DiscountRate 範囲, MembershipType 列挙値）は Service 層で検証する。
 type CreateOwnerInput struct {
-	OwnerName      string                   `json:"owner_name" binding:"required"`
-	OwnerNameKana  string                   `json:"owner_name_kana"`
-	BirthDate      *time.Time               `json:"birth_date"`
-	Company        string                   `json:"company"`
-	PostalCode     string                   `json:"postal_code"`
-	Address1       string                   `json:"address1"`
-	Address2       string                   `json:"address2"`
-	HomePostalCode string                   `json:"home_postal_code"`
-	HomeAddress1   string                   `json:"home_address1"`
-	HomeAddress2   string                   `json:"home_address2"`
-	Phone          string                   `json:"phone"`
-	CompanyPhone   string                   `json:"company_phone"`
-	Email          string                   `json:"email"`
-	Remarks        string                   `json:"remarks"`
-	IsDangerous    bool                     `json:"is_dangerous"`
-	DiscountRate   float64                  `json:"discount_rate"`
-	MembershipType model.MembershipType     `json:"membership_type"`
-	Pets           []CreatePetForOwnerInput `json:"pets"`
+	OwnerName      string
+	OwnerNameKana  string
+	BirthDate      *time.Time
+	Company        string
+	PostalCode     string
+	Address1       string
+	Address2       string
+	HomePostalCode string
+	HomeAddress1   string
+	HomeAddress2   string
+	Phone          string
+	CompanyPhone   string
+	Email          string
+	Remarks        string
+	IsDangerous    bool
+	DiscountRate   float64
+	MembershipType model.MembershipType
+	Pets           []CreatePetForOwnerInput
 }
 
 // UpdateOwnerInput は飼主更新の入力DTO（全フィールドポインタ型: nil = 未指定, 非nil = 更新対象）
 // ビジネスルールは Service 層で検証する。
 type UpdateOwnerInput struct {
-	OwnerName      *string               `json:"owner_name"`
-	OwnerNameKana  *string               `json:"owner_name_kana"`
-	BirthDate      *time.Time            `json:"birth_date"`
-	Company        *string               `json:"company"`
-	PostalCode     *string               `json:"postal_code"`
-	Address1       *string               `json:"address1"`
-	Address2       *string               `json:"address2"`
-	HomePostalCode *string               `json:"home_postal_code"`
-	HomeAddress1   *string               `json:"home_address1"`
-	HomeAddress2   *string               `json:"home_address2"`
-	Phone          *string               `json:"phone"`
-	CompanyPhone   *string               `json:"company_phone"`
-	Email          *string               `json:"email"`
-	Remarks        *string               `json:"remarks"`
-	IsDangerous    *bool                 `json:"is_dangerous"`
-	DiscountRate   *float64              `json:"discount_rate"`
-	MembershipType *model.MembershipType `json:"membership_type"`
+	OwnerName      *string
+	OwnerNameKana  *string
+	BirthDate      *time.Time
+	Company        *string
+	PostalCode     *string
+	Address1       *string
+	Address2       *string
+	HomePostalCode *string
+	HomeAddress1   *string
+	HomeAddress2   *string
+	Phone          *string
+	CompanyPhone   *string
+	Email          *string
+	Remarks        *string
+	IsDangerous    *bool
+	DiscountRate   *float64
+	MembershipType *model.MembershipType
 }
 
 // --- Interface ---
@@ -132,9 +140,23 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 		if err := validatePetGender(p.Gender); err != nil {
 			return nil, fmt.Errorf("pets[%d]: %w", i, err)
 		}
+		if err := validatePetStatus(p.Status); err != nil {
+			return nil, fmt.Errorf("pets[%d]: %w", i, err)
+		}
+		if err := validatePetAcquisitionType(p.AcquisitionType); err != nil {
+			return nil, fmt.Errorf("pets[%d]: %w", i, err)
+		}
+		if err := validatePetDangerLevel(p.DangerLevel); err != nil {
+			return nil, fmt.Errorf("pets[%d]: %w", i, err)
+		}
 	}
 
 	// DTO → Model 変換
+	membershipType := input.MembershipType
+	if membershipType == "" {
+		membershipType = model.MembershipTypeNonMember
+	}
+
 	owner := &model.Owner{
 		ClinicID:       clinicID,
 		OwnerName:      input.OwnerName,
@@ -153,7 +175,7 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 		Remarks:        input.Remarks,
 		IsDangerous:    input.IsDangerous,
 		DiscountRate:   input.DiscountRate,
-		MembershipType: input.MembershipType,
+		MembershipType: membershipType,
 	}
 
 	pets := make([]model.Pet, 0, len(input.Pets))
@@ -161,14 +183,29 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 		pet := model.Pet{
 			Name:            p.Name,
 			AnimalSpeciesID: p.AnimalSpeciesID,
-			PetNumber:       p.PetNumber,
 			PetNameKana:     p.PetNameKana,
 			Breed:           p.Breed,
+			Color:           p.Color,
 			BirthDate:       p.BirthDate,
+			Weight:          p.Weight,
+			NeuteredDate:    p.NeuteredDate,
+			Food:            p.Food,
+			Environment:     p.Environment,
+			InsuranceID:     p.InsuranceID,
 			Remarks:         p.Remarks,
 		}
 		if p.Gender != "" {
 			pet.Gender = model.PetGender(p.Gender)
+		}
+		if p.Status != "" {
+			pet.Status = model.PetStatus(p.Status)
+		}
+		if p.AcquisitionType != "" {
+			at := model.AcquisitionType(p.AcquisitionType)
+			pet.AcquisitionType = &at
+		}
+		if p.DangerLevel != "" {
+			pet.DangerLevel = model.DangerLevel(p.DangerLevel)
 		}
 		pets = append(pets, pet)
 	}

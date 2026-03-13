@@ -23,6 +23,173 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    # ─── Summary schemas (Preload用の軽量オブジェクト) ──────────────
+    OwnerSummary:
+      type: object
+      description: 飼主サマリー（Preload時のみ含まれる）
+      properties:
+        id:
+          type: integer
+          format: int64
+        owner_name:
+          type: string
+        phone:
+          type: string
+    AnimalSpeciesSummary:
+      type: object
+      description: 動物種サマリー
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+    PetSummary:
+      type: object
+      description: ペットサマリー（Preload時のみ含まれる）
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        pet_number:
+          type: string
+        breed:
+          type: string
+        animal_species:
+          $ref: '#/components/schemas/AnimalSpeciesSummary'
+          nullable: true
+        owner:
+          $ref: '#/components/schemas/OwnerSummary'
+          nullable: true
+    StaffSummary:
+      type: object
+      description: スタッフサマリー（Preload時のみ含まれる）
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+    CageSummary:
+      type: object
+      description: ケージサマリー（Preload時のみ含まれる）
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+    ServiceTypeSummary:
+      type: object
+      description: サービス種別サマリー（Preload時のみ含まれる）
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+    VaccineSummary:
+      type: object
+      description: ワクチンサマリー（Preload時のみ含まれる）
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+    ExamTypeSummary:
+      type: object
+      description: 検査種別サマリー（Preload時のみ含まれる）
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+    BillingItem:
+      type: object
+      description: 会計明細項目
+      properties:
+        id:
+          type: integer
+          format: int64
+        billing_id:
+          type: integer
+          format: int64
+        category:
+          type: string
+        name:
+          type: string
+        unit_price:
+          type: number
+          format: double
+        quantity:
+          type: integer
+        tax_rate:
+          type: number
+          format: double
+        is_insurance_applicable:
+          type: boolean
+        source:
+          type: string
+          enum: [medical_record, hospitalization, manual]
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+    Payment:
+      type: object
+      description: 支払情報（会計精算時のみ含まれる）
+      properties:
+        id:
+          type: integer
+          format: int64
+        billing_id:
+          type: integer
+          format: int64
+        subtotal:
+          type: number
+          format: double
+        tax_total:
+          type: number
+          format: double
+        total_amount:
+          type: number
+          format: double
+        insurance_name:
+          type: string
+        insurance_ratio:
+          type: number
+          format: double
+        insurance_amount:
+          type: number
+          format: double
+        discount_amount:
+          type: number
+          format: double
+        billing_amount:
+          type: number
+          format: double
+        received_amount:
+          type: number
+          format: double
+        change_amount:
+          type: number
+          format: double
+        method:
+          type: string
+          enum: [cash, card, electronic_money]
+          description: 支払方法
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    # ─────────────────────────────────────────────────────────────
     ErrorResponse:
       type: object
       required: [error]
@@ -129,7 +296,7 @@ components:
           format: int64
         pet_number:
           type: string
-          description: カルテ番号
+          description: カルテ番号（自動採番・PATCH で手動変更可）
         name:
           type: string
           description: ペット名（必須）
@@ -291,6 +458,123 @@ components:
               type: string
             sort_order:
               type: integer
+    CreatePetRequest:
+      type: object
+      required: [owner_id, animal_species_id, name]
+      properties:
+        owner_id:
+          type: integer
+          format: int64
+        animal_species_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        pet_name_kana:
+          type: string
+        gender:
+          type: string
+          enum: [male, female, unknown]
+        status:
+          type: string
+          enum: [alive, deceased]
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+        breed:
+          type: string
+        color:
+          type: string
+        weight:
+          type: number
+          format: double
+          nullable: true
+        neutered_date:
+          type: string
+          format: date
+          nullable: true
+        acquisition_type:
+          type: string
+          enum: [purchased, transferred, rescued, other]
+          nullable: true
+        danger_level:
+          type: string
+          enum: [low, medium, high]
+        food:
+          type: string
+        environment:
+          type: string
+        phone:
+          type: string
+        insurance_id:
+          type: integer
+          format: int64
+          nullable: true
+        remarks:
+          type: string
+    UpdatePetRequest:
+      type: object
+      description: PATCH用（全フィールド任意）
+      properties:
+        owner_id:
+          type: integer
+          format: int64
+        animal_species_id:
+          type: integer
+          format: int64
+        pet_number:
+          type: string
+          description: カルテ番号（手動変更可）
+        name:
+          type: string
+        pet_name_kana:
+          type: string
+        gender:
+          type: string
+          enum: [male, female, unknown]
+        status:
+          type: string
+          enum: [alive, deceased]
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+        breed:
+          type: string
+        color:
+          type: string
+        weight:
+          type: number
+          format: double
+          nullable: true
+        neutered_date:
+          type: string
+          format: date
+          nullable: true
+        acquisition_type:
+          type: string
+          enum: [purchased, transferred, rescued, other]
+          nullable: true
+        danger_level:
+          type: string
+          enum: [low, medium, high]
+        food:
+          type: string
+        environment:
+          type: string
+        phone:
+          type: string
+        last_visit:
+          type: string
+          format: date
+          nullable: true
+        insurance_id:
+          type: integer
+          format: int64
+          nullable: true
+        remarks:
+          type: string
     ReservationAppointment:
       type: object
       required: [start_time, end_time, service_type_id]
@@ -346,14 +630,17 @@ components:
           format: date-time
           readOnly: true
         pet:
-          $ref: '#/components/schemas/Pet'
-          description: ペット情報（Preload時のみ含まれる）
+          $ref: '#/components/schemas/PetSummary'
+          description: ペット情報（owner含む、Preload時のみ含まれる）
+          nullable: true
         service_type:
-          $ref: '#/components/schemas/ServiceType'
+          $ref: '#/components/schemas/ServiceTypeSummary'
           description: サービス種別情報（Preload時のみ含まれる）
+          nullable: true
         doctor:
-          $ref: '#/components/schemas/Staff'
+          $ref: '#/components/schemas/StaffSummary'
           description: 担当医師情報（Preload時のみ含まれる）
+          nullable: true
     MedicalRecord:
       type: object
       required: [date, record_no]
@@ -400,12 +687,22 @@ components:
           type: string
           format: date-time
           readOnly: true
+        owner:
+          $ref: '#/components/schemas/OwnerSummary'
+          description: 飼主情報（Preload時のみ含まれる）
+          nullable: true
         pet:
-          $ref: '#/components/schemas/Pet'
+          $ref: '#/components/schemas/PetSummary'
           description: ペット情報（Preload時のみ含まれる）
+          nullable: true
+        doctor:
+          $ref: '#/components/schemas/StaffSummary'
+          description: 担当医師情報（Preload時のみ含まれる）
+          nullable: true
         inquiry:
           $ref: '#/components/schemas/Inquiry'
           description: 問診情報（Preload時のみ含まれる）
+          nullable: true
     Hospitalization:
       type: object
       required: [owner_id, pet_id, hospitalization_type, start_date, end_date]
@@ -458,6 +755,22 @@ components:
           type: string
           format: date-time
           readOnly: true
+        owner:
+          $ref: '#/components/schemas/OwnerSummary'
+          description: 飼主情報（Preload時のみ含まれる）
+          nullable: true
+        pet:
+          $ref: '#/components/schemas/PetSummary'
+          description: ペット情報（Preload時のみ含まれる）
+          nullable: true
+        cage:
+          $ref: '#/components/schemas/CageSummary'
+          description: ケージ情報（Preload時のみ含まれる）
+          nullable: true
+        doctor:
+          $ref: '#/components/schemas/StaffSummary'
+          description: 担当医師情報（Preload時のみ含まれる）
+          nullable: true
     Billing:
       type: object
       required: [scheduled_date]
@@ -514,6 +827,26 @@ components:
           type: string
           format: date-time
           readOnly: true
+        owner:
+          $ref: '#/components/schemas/OwnerSummary'
+          description: 飼主情報（Preload時のみ含まれる）
+          nullable: true
+        pet:
+          $ref: '#/components/schemas/PetSummary'
+          description: ペット情報（Preload時のみ含まれる）
+          nullable: true
+        items:
+          type: array
+          description: 会計明細（Preload時のみ含まれる）
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/BillingItem'
+        payments:
+          type: array
+          description: 支払情報（Preload時のみ含まれる）
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/Payment'
     TrimmingRecord:
       type: object
       required: [date, staff_id, course_id]
@@ -571,6 +904,14 @@ components:
           type: string
           format: date-time
           readOnly: true
+        pet:
+          $ref: '#/components/schemas/PetSummary'
+          description: ペット情報（owner含む、Preload時のみ含まれる）
+          nullable: true
+        staff:
+          $ref: '#/components/schemas/StaffSummary'
+          description: 担当スタッフ情報（Preload時のみ含まれる）
+          nullable: true
     InventoryItem:
       type: object
       required: [name, category, unit]
@@ -1368,16 +1709,16 @@ components:
             $ref: '#/components/schemas/ExaminationItem'
           readOnly: true
         exam_type:
-          $ref: '#/components/schemas/ExaminationType'
-          readOnly: true
+          $ref: '#/components/schemas/ExamTypeSummary'
+          description: 検査種別（Preload時のみ含まれる）
           nullable: true
         pet:
-          $ref: '#/components/schemas/Pet'
-          readOnly: true
+          $ref: '#/components/schemas/PetSummary'
+          description: ペット情報（owner含む、Preload時のみ含まれる）
           nullable: true
         doctor:
-          $ref: '#/components/schemas/Staff'
-          readOnly: true
+          $ref: '#/components/schemas/StaffSummary'
+          description: 担当医師情報（Preload時のみ含まれる）
           nullable: true
         created_at:
           type: string
@@ -1438,15 +1779,16 @@ components:
           type: string
           nullable: true
         vaccine:
-          $ref: '#/components/schemas/Vaccine'
-          readOnly: true
+          $ref: '#/components/schemas/VaccineSummary'
+          description: ワクチン情報（Preload時のみ含まれる）
           nullable: true
         pet:
-          $ref: '#/components/schemas/Pet'
-          readOnly: true
+          $ref: '#/components/schemas/PetSummary'
+          description: ペット情報（owner含む、Preload時のみ含まれる）
           nullable: true
         doctor:
-          $ref: '#/components/schemas/Staff'
+          $ref: '#/components/schemas/StaffSummary'
+          description: 担当医師情報（Preload時のみ含まれる）
           readOnly: true
           nullable: true
         created_at:
@@ -1886,7 +2228,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Pet'
+              $ref: '#/components/schemas/CreatePetRequest'
       responses:
         '201':
           description: 登録成功
@@ -1954,7 +2296,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Pet'
+              $ref: '#/components/schemas/UpdatePetRequest'
       responses:
         '200':
           description: 更新成功

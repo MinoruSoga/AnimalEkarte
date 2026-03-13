@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,11 +14,12 @@ import (
 
 // mockPetRepository は PetRepository のテスト用モック実装
 type mockPetRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
-	createFn   func(ctx context.Context, pet *model.Pet) error
-	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
+	findAllFn      func(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
+	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+	countByOwnerFn func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	createFn       func(ctx context.Context, pet *model.Pet) error
+	updateFn       func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockPetRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error) {
@@ -26,6 +28,13 @@ func (m *mockPetRepository) FindAll(ctx context.Context, clinicID uint64, ownerI
 
 func (m *mockPetRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
 	return m.findByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockPetRepository) CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
+	if m.countByOwnerFn != nil {
+		return m.countByOwnerFn(ctx, clinicID, ownerID)
+	}
+	return 0, nil
 }
 
 func (m *mockPetRepository) Create(ctx context.Context, pet *model.Pet) error {
@@ -40,7 +49,29 @@ func (m *mockPetRepository) Delete(ctx context.Context, clinicID, id uint64) err
 	return m.deleteFn(ctx, clinicID, id)
 }
 
+// defaultOwnerRepo は owner を常に見つけるモック（cross-clinic validation パスさせる用）
+func defaultOwnerRepo() *mockOwnerRepository {
+	return &mockOwnerRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+			return &model.Owner{ID: 5}, nil
+		},
+	}
+}
+
+// defaultInsuranceRepo は insurance を常に見つけるモック（cross-clinic validation パスさせる用）
+func defaultInsuranceRepo(clinicID uint64) *mockInsuranceRepository {
+	return &mockInsuranceRepository{
+		findByIDFn: func(_ context.Context, _ uint64) (*model.Insurance, error) {
+			return &model.Insurance{ID: 1, ClinicID: clinicID}, nil
+		},
+	}
+}
+
 func ptrUint64(v uint64) *uint64 { return &v }
+
+func newPetSvc(repo *mockPetRepository, ownerRepo *mockOwnerRepository, insuranceRepo *mockInsuranceRepository) PetService {
+	return NewPetService(repo, ownerRepo, insuranceRepo, slog.Default())
+}
 
 func TestPetService_List(t *testing.T) {
 	tests := []struct {
@@ -145,7 +176,7 @@ func TestPetService_List(t *testing.T) {
 					return tt.repoPets, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewPetService(repo)
+			svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(tt.clinicID))
 
 			pets, total, err := svc.List(context.Background(), tt.clinicID, tt.ownerID, tt.page, tt.limit, tt.search)
 
@@ -207,7 +238,7 @@ func TestPetService_GetByID(t *testing.T) {
 					return tt.repoPet, tt.repoErr
 				},
 			}
-			svc := NewPetService(repo)
+			svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(tt.clinicID))
 
 			pet, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -230,7 +261,7 @@ func TestPetService_GetByID_NotFound(t *testing.T) {
 			return nil, apperrors.WrapNotFound("pet", "999")
 		},
 	}
-	svc := NewPetService(repo)
+	svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(1))
 
 	pet, err := svc.GetByID(context.Background(), 1, 999)
 
@@ -241,12 +272,13 @@ func TestPetService_GetByID_NotFound(t *testing.T) {
 
 func TestPetService_Create(t *testing.T) {
 	tests := []struct {
-		name     string
-		clinicID uint64
-		input    CreatePetInput
-		repoErr  error
-		wantErr  bool
-		wantPet  bool
+		name          string
+		clinicID      uint64
+		input         CreatePetInput
+		repoErr       error
+		ownerRepoErr  error
+		wantErr       bool
+		wantPet       bool
 	}{
 		{
 			name:     "creates pet successfully",
@@ -286,6 +318,17 @@ func TestPetService_Create(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:     "rejects owner not in clinic",
+			clinicID: 1,
+			input: CreatePetInput{
+				OwnerID:         999,
+				AnimalSpeciesID: 1,
+				Name:            "ペット",
+			},
+			ownerRepoErr: apperrors.WrapNotFound("owner", "999"),
+			wantErr:      true,
+		},
+		{
 			name:     "returns already exists error on duplicate",
 			clinicID: 1,
 			input: CreatePetInput{
@@ -316,7 +359,15 @@ func TestPetService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewPetService(repo)
+			ownerRepo := &mockOwnerRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+					if tt.ownerRepoErr != nil {
+						return nil, tt.ownerRepoErr
+					}
+					return &model.Owner{ID: 5}, nil
+				},
+			}
+			svc := newPetSvc(repo, ownerRepo, defaultInsuranceRepo(tt.clinicID))
 
 			pet, err := svc.Create(context.Background(), tt.clinicID, &tt.input)
 
@@ -433,7 +484,7 @@ func TestPetService_Update(t *testing.T) {
 				},
 				findByIDFn: findByIDFn,
 			}
-			svc := NewPetService(repo)
+			svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(tt.clinicID))
 
 			pet, err := svc.Update(context.Background(), tt.clinicID, tt.id, &tt.input)
 
@@ -495,7 +546,7 @@ func TestPetService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewPetService(repo)
+			svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(tt.clinicID))
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 

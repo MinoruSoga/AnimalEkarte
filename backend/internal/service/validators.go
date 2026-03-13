@@ -33,6 +33,33 @@ func validatePetStatus(status string) error {
 	}
 }
 
+// validatePetAcquisitionType は入手経路の値がドメイン上有効かを検証する
+func validatePetAcquisitionType(t string) error {
+	if t == "" {
+		return nil
+	}
+	switch model.AcquisitionType(t) {
+	case model.AcquisitionTypePurchase, model.AcquisitionTypeTransfer,
+		model.AcquisitionTypeProtected, model.AcquisitionTypeOther:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid acquisition_type: %s", t))
+	}
+}
+
+// validatePetDangerLevel は危険度の値がドメイン上有効かを検証する
+func validatePetDangerLevel(level string) error {
+	if level == "" {
+		return nil
+	}
+	switch model.DangerLevel(level) {
+	case model.DangerLevelLow, model.DangerLevelMedium, model.DangerLevelHigh:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid danger_level: %s", level))
+	}
+}
+
 // validateDiscountRate は割引率が 0〜100 の範囲内かを検証する
 func validateDiscountRate(rate float64) error {
 	if rate < 0 || rate > 100 {

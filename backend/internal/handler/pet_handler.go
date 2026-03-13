@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -80,15 +81,20 @@ func (h *Handler) CreatePet(c *gin.Context) {
 	input := service.CreatePetInput{
 		OwnerID:         req.OwnerID,
 		AnimalSpeciesID: req.AnimalSpeciesID,
-		PetNumber:       req.PetNumber,
 		Name:            req.Name,
 		PetNameKana:     req.PetNameKana,
 		Gender:          req.Gender,
-		BirthDate:       req.BirthDate,
-		Breed:           req.Breed,
-		Weight:          req.Weight,
-		Environment:     req.Environment,
 		Status:          req.Status,
+		BirthDate:       jsonDatePtr(req.BirthDate),
+		Breed:           req.Breed,
+		Color:           req.Color,
+		Weight:          req.Weight,
+		NeuteredDate:    jsonDatePtr(req.NeuteredDate),
+		AcquisitionType: req.AcquisitionType,
+		DangerLevel:     req.DangerLevel,
+		Food:            req.Food,
+		Environment:     req.Environment,
+		Phone:           req.Phone,
 		InsuranceID:     req.InsuranceID,
 		Remarks:         req.Remarks,
 	}
@@ -98,6 +104,7 @@ func (h *Handler) CreatePet(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/pets/%d", pet.ID))
 	c.JSON(http.StatusCreated, toPetResponse(pet))
 }
 
@@ -125,11 +132,18 @@ func (h *Handler) UpdatePet(c *gin.Context) {
 		Name:            req.Name,
 		PetNameKana:     req.PetNameKana,
 		Gender:          req.Gender,
-		BirthDate:       req.BirthDate,
-		Breed:           req.Breed,
-		Weight:          req.Weight,
-		Environment:     req.Environment,
 		Status:          req.Status,
+		BirthDate:       jsonDatePtr(req.BirthDate),
+		Breed:           req.Breed,
+		Color:           req.Color,
+		Weight:          req.Weight,
+		NeuteredDate:    jsonDatePtr(req.NeuteredDate),
+		AcquisitionType: req.AcquisitionType,
+		DangerLevel:     req.DangerLevel,
+		Food:            req.Food,
+		Environment:     req.Environment,
+		Phone:           req.Phone,
+		LastVisit:       jsonDatePtr(req.LastVisit),
 		InsuranceID:     req.InsuranceID,
 		Remarks:         req.Remarks,
 	}
