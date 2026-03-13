@@ -3,11 +3,34 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+type createExaminationInput struct {
+	MedicalRecordID uint64    `json:"medical_record_id" binding:"required"`
+	PetID           *uint64   `json:"pet_id"`
+	ExamTypeID      uint64    `json:"exam_type_id"      binding:"required"`
+	DoctorID        *uint64   `json:"doctor_id"`
+	Date            time.Time `json:"date"              binding:"required"`
+	ResultSummary   string    `json:"result_summary"`
+	Machine         string    `json:"machine"`
+	Status          string    `json:"status"`
+}
+
+type updateExaminationInput struct {
+	MedicalRecordID uint64     `json:"medical_record_id"`
+	PetID           *uint64    `json:"pet_id"`
+	ExamTypeID      uint64     `json:"exam_type_id"`
+	DoctorID        *uint64    `json:"doctor_id"`
+	Date            *time.Time `json:"date"`
+	ResultSummary   string     `json:"result_summary"`
+	Machine         string     `json:"machine"`
+	Status          string     `json:"status"`
+}
 
 // ListExaminations godoc
 func (h *Handler) ListExaminations(c *gin.Context) {
@@ -72,16 +95,30 @@ func (h *Handler) GetExamination(c *gin.Context) {
 
 // CreateExamination godoc
 func (h *Handler) CreateExamination(c *gin.Context) {
-	var input model.Exam
+	var input createExaminationInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.svc.Examination.Create(c.Request.Context(), &input); err != nil {
+
+	exam := &model.Exam{
+		MedicalRecordID: input.MedicalRecordID,
+		PetID:           input.PetID,
+		ExamTypeID:      input.ExamTypeID,
+		DoctorID:        input.DoctorID,
+		Date:            input.Date,
+		ResultSummary:   input.ResultSummary,
+		Machine:         input.Machine,
+	}
+	if input.Status != "" {
+		exam.Status = model.ExaminationStatus(input.Status)
+	}
+
+	if err := h.svc.Examination.Create(c.Request.Context(), exam); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, input)
+	c.JSON(http.StatusCreated, exam)
 }
 
 // UpdateExamination godoc
@@ -91,17 +128,33 @@ func (h *Handler) UpdateExamination(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input model.Exam
+	var input updateExaminationInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = id
-	if err := h.svc.Examination.Update(c.Request.Context(), &input); err != nil {
+
+	exam := &model.Exam{
+		ID:              id,
+		MedicalRecordID: input.MedicalRecordID,
+		PetID:           input.PetID,
+		ExamTypeID:      input.ExamTypeID,
+		DoctorID:        input.DoctorID,
+		ResultSummary:   input.ResultSummary,
+		Machine:         input.Machine,
+	}
+	if input.Date != nil {
+		exam.Date = *input.Date
+	}
+	if input.Status != "" {
+		exam.Status = model.ExaminationStatus(input.Status)
+	}
+
+	if err := h.svc.Examination.Update(c.Request.Context(), exam); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, input)
+	c.JSON(http.StatusOK, exam)
 }
 
 // DeleteExamination godoc

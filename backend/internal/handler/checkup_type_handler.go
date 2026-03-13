@@ -10,6 +10,26 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+type createCheckupTypeInput struct {
+	Name        string   `json:"name"        binding:"required"`
+	Price       *float64 `json:"price"`
+	IsActive    bool     `json:"is_active"`
+	Description string   `json:"description"`
+	Interval    string   `json:"interval"`
+	TargetAge   string   `json:"target_age"`
+	SortOrder   int      `json:"sort_order"`
+}
+
+type updateCheckupTypeInput struct {
+	Name        string   `json:"name"`
+	Price       *float64 `json:"price"`
+	IsActive    *bool    `json:"is_active"`
+	Description string   `json:"description"`
+	Interval    string   `json:"interval"`
+	TargetAge   string   `json:"target_age"`
+	SortOrder   int      `json:"sort_order"`
+}
+
 // ---- CheckupType ----
 
 // ListCheckupTypes godoc
@@ -24,16 +44,33 @@ func (h *Handler) ListCheckupTypes(c *gin.Context) {
 
 // CreateCheckupType godoc
 func (h *Handler) CreateCheckupType(c *gin.Context) {
-	var input model.CheckupType
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
+	var input createCheckupTypeInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.svc.CheckupType.Create(c.Request.Context(), &input); err != nil {
+
+	checkupType := &model.CheckupType{
+		ClinicID:    clinicID,
+		Name:        input.Name,
+		Price:       input.Price,
+		IsActive:    input.IsActive,
+		Description: input.Description,
+		Interval:    input.Interval,
+		TargetAge:   input.TargetAge,
+		SortOrder:   input.SortOrder,
+	}
+
+	if err := h.svc.CheckupType.Create(c.Request.Context(), checkupType); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, input)
+	c.JSON(http.StatusCreated, checkupType)
 }
 
 // UpdateCheckupType godoc
@@ -43,17 +80,30 @@ func (h *Handler) UpdateCheckupType(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input model.CheckupType
+	var input updateCheckupTypeInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = id
-	if err := h.svc.CheckupType.Update(c.Request.Context(), &input); err != nil {
+
+	checkupType := &model.CheckupType{
+		ID:          id,
+		Name:        input.Name,
+		Price:       input.Price,
+		Description: input.Description,
+		Interval:    input.Interval,
+		TargetAge:   input.TargetAge,
+		SortOrder:   input.SortOrder,
+	}
+	if input.IsActive != nil {
+		checkupType.IsActive = *input.IsActive
+	}
+
+	if err := h.svc.CheckupType.Update(c.Request.Context(), checkupType); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, input)
+	c.JSON(http.StatusOK, checkupType)
 }
 
 // DeleteCheckupType godoc

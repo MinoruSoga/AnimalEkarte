@@ -69,6 +69,15 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 	c.JSON(http.StatusCreated, staff)
 }
 
+type updateStaffInput struct {
+	Name          string `json:"name"`
+	StaffRole     string `json:"staff_role"`
+	LicenseNumber string `json:"license_number"`
+	JobTitleID    *uint64 `json:"job_title_id"`
+	SortOrder     int    `json:"sort_order"`
+	IsActive      *bool  `json:"is_active"`
+}
+
 // UpdateStaff godoc
 func (h *Handler) UpdateStaff(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -76,17 +85,31 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input model.Staff
+	var input updateStaffInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = id
-	if err := h.svc.Staff.Update(c.Request.Context(), &input); err != nil {
+
+	staff := &model.Staff{
+		ID:            id,
+		Name:          input.Name,
+		LicenseNumber: input.LicenseNumber,
+		JobTitleID:    input.JobTitleID,
+		SortOrder:     input.SortOrder,
+	}
+	if input.StaffRole != "" {
+		staff.StaffRole = model.StaffRole(input.StaffRole)
+	}
+	if input.IsActive != nil {
+		staff.IsActive = *input.IsActive
+	}
+
+	if err := h.svc.Staff.Update(c.Request.Context(), staff); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, input)
+	c.JSON(http.StatusOK, staff)
 }
 
 // DeleteStaff godoc

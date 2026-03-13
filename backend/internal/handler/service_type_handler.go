@@ -10,6 +10,22 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+type createServiceTypeInput struct {
+	Name        string `json:"name"        binding:"required"`
+	IsActive    bool   `json:"is_active"`
+	Description string `json:"description"`
+	Color       string `json:"color"`
+	SortOrder   int    `json:"sort_order"`
+}
+
+type updateServiceTypeInput struct {
+	Name        string `json:"name"`
+	IsActive    *bool  `json:"is_active"`
+	Description string `json:"description"`
+	Color       string `json:"color"`
+	SortOrder   int    `json:"sort_order"`
+}
+
 // ---- ServiceType ----
 
 // ListServiceTypes godoc
@@ -24,16 +40,31 @@ func (h *Handler) ListServiceTypes(c *gin.Context) {
 
 // CreateServiceType godoc
 func (h *Handler) CreateServiceType(c *gin.Context) {
-	var input model.ServiceType
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
+	var input createServiceTypeInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.svc.ServiceType.Create(c.Request.Context(), &input); err != nil {
+
+	serviceType := &model.ServiceType{
+		ClinicID:    clinicID,
+		Name:        input.Name,
+		IsActive:    input.IsActive,
+		Description: input.Description,
+		Color:       input.Color,
+		SortOrder:   input.SortOrder,
+	}
+
+	if err := h.svc.ServiceType.Create(c.Request.Context(), serviceType); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, input)
+	c.JSON(http.StatusCreated, serviceType)
 }
 
 // UpdateServiceType godoc
@@ -43,17 +74,28 @@ func (h *Handler) UpdateServiceType(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input model.ServiceType
+	var input updateServiceTypeInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = id
-	if err := h.svc.ServiceType.Update(c.Request.Context(), &input); err != nil {
+
+	serviceType := &model.ServiceType{
+		ID:          id,
+		Name:        input.Name,
+		Description: input.Description,
+		Color:       input.Color,
+		SortOrder:   input.SortOrder,
+	}
+	if input.IsActive != nil {
+		serviceType.IsActive = *input.IsActive
+	}
+
+	if err := h.svc.ServiceType.Update(c.Request.Context(), serviceType); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, input)
+	c.JSON(http.StatusOK, serviceType)
 }
 
 // DeleteServiceType godoc

@@ -10,6 +10,32 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+type createReservationInput struct {
+	StartTime     time.Time `json:"start_time"      binding:"required"`
+	EndTime       time.Time `json:"end_time"        binding:"required"`
+	OwnerID       *uint64   `json:"owner_id"`
+	PetID         *uint64   `json:"pet_id"`
+	VisitType     string    `json:"visit_type"`
+	ServiceTypeID uint64    `json:"service_type_id" binding:"required"`
+	DoctorID      *uint64   `json:"doctor_id"`
+	IsDesignated  bool      `json:"is_designated"`
+	Status        string    `json:"status"`
+	Notes         string    `json:"notes"`
+}
+
+type updateReservationInput struct {
+	StartTime     *time.Time `json:"start_time"`
+	EndTime       *time.Time `json:"end_time"`
+	OwnerID       *uint64    `json:"owner_id"`
+	PetID         *uint64    `json:"pet_id"`
+	VisitType     string     `json:"visit_type"`
+	ServiceTypeID uint64     `json:"service_type_id"`
+	DoctorID      *uint64    `json:"doctor_id"`
+	IsDesignated  *bool      `json:"is_designated"`
+	Status        string     `json:"status"`
+	Notes         string     `json:"notes"`
+}
+
 // ListReservations godoc
 func (h *Handler) ListReservations(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -89,17 +115,35 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var input model.ReservationAppointment
+	var input createReservationInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ClinicID = clinicID
-	if err := h.svc.Reservation.Create(c.Request.Context(), &input); err != nil {
+
+	reservation := &model.ReservationAppointment{
+		ClinicID:      clinicID,
+		StartTime:     input.StartTime,
+		EndTime:       input.EndTime,
+		OwnerID:       input.OwnerID,
+		PetID:         input.PetID,
+		ServiceTypeID: input.ServiceTypeID,
+		DoctorID:      input.DoctorID,
+		IsDesignated:  input.IsDesignated,
+		Notes:         input.Notes,
+	}
+	if input.VisitType != "" {
+		reservation.VisitType = model.VisitType(input.VisitType)
+	}
+	if input.Status != "" {
+		reservation.Status = model.ReservationStatus(input.Status)
+	}
+
+	if err := h.svc.Reservation.Create(c.Request.Context(), reservation); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, input)
+	c.JSON(http.StatusCreated, reservation)
 }
 
 // UpdateReservation godoc
@@ -113,18 +157,42 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input model.ReservationAppointment
+	var input updateReservationInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = id
-	input.ClinicID = clinicID
-	if err := h.svc.Reservation.Update(c.Request.Context(), &input); err != nil {
+
+	reservation := &model.ReservationAppointment{
+		ID:            id,
+		ClinicID:      clinicID,
+		OwnerID:       input.OwnerID,
+		PetID:         input.PetID,
+		ServiceTypeID: input.ServiceTypeID,
+		DoctorID:      input.DoctorID,
+		Notes:         input.Notes,
+	}
+	if input.StartTime != nil {
+		reservation.StartTime = *input.StartTime
+	}
+	if input.EndTime != nil {
+		reservation.EndTime = *input.EndTime
+	}
+	if input.VisitType != "" {
+		reservation.VisitType = model.VisitType(input.VisitType)
+	}
+	if input.Status != "" {
+		reservation.Status = model.ReservationStatus(input.Status)
+	}
+	if input.IsDesignated != nil {
+		reservation.IsDesignated = *input.IsDesignated
+	}
+
+	if err := h.svc.Reservation.Update(c.Request.Context(), reservation); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, input)
+	c.JSON(http.StatusOK, reservation)
 }
 
 // DeleteReservation godoc

@@ -9,6 +9,33 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+type updateCompanyInput struct {
+	Name               string `json:"name"`
+	PostalCode         string `json:"postal_code"`
+	Address            string `json:"address"`
+	PhoneNumber        string `json:"phone_number"`
+	FaxNumber          string `json:"fax_number"`
+	Email              string `json:"email"`
+	Website            string `json:"website"`
+	DirectorName       string `json:"director_name"`
+	RegistrationNumber string `json:"registration_number"`
+	LogoURL            string `json:"logo_url"`
+}
+
+type updateClinicInput struct {
+	Name               string `json:"name"`
+	PostalCode         string `json:"postal_code"`
+	Address            string `json:"address"`
+	PhoneNumber        string `json:"phone_number"`
+	FaxNumber          string `json:"fax_number"`
+	RegistrationNumber string `json:"registration_number"`
+	DirectorName       string `json:"director_name"`
+	Email              string `json:"email"`
+	Website            string `json:"website"`
+	LogoURL            string `json:"logo_url"`
+	IsActive           *bool  `json:"is_active"`
+}
+
 // GetCompany godoc
 func (h *Handler) GetCompany(c *gin.Context) {
 	company, err := h.svc.Clinic.GetCompany(c.Request.Context())
@@ -21,16 +48,30 @@ func (h *Handler) GetCompany(c *gin.Context) {
 
 // UpdateCompany godoc
 func (h *Handler) UpdateCompany(c *gin.Context) {
-	var input model.Company
+	var input updateCompanyInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.svc.Clinic.UpdateCompany(c.Request.Context(), &input); err != nil {
+
+	company := &model.Company{
+		Name:               input.Name,
+		PostalCode:         input.PostalCode,
+		Address:            input.Address,
+		PhoneNumber:        input.PhoneNumber,
+		FaxNumber:          input.FaxNumber,
+		Email:              input.Email,
+		Website:            input.Website,
+		DirectorName:       input.DirectorName,
+		RegistrationNumber: input.RegistrationNumber,
+		LogoURL:            input.LogoURL,
+	}
+
+	if err := h.svc.Clinic.UpdateCompany(c.Request.Context(), company); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, input)
+	c.JSON(http.StatusOK, company)
 }
 
 // ListClinics godoc
@@ -65,17 +106,34 @@ func (h *Handler) UpdateClinic(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input model.Clinic
+	var input updateClinicInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	clinic, err := h.svc.Clinic.UpdateClinic(c.Request.Context(), id, &input)
+
+	clinic := &model.Clinic{
+		Name:               input.Name,
+		PostalCode:         input.PostalCode,
+		Address:            input.Address,
+		PhoneNumber:        input.PhoneNumber,
+		FaxNumber:          input.FaxNumber,
+		RegistrationNumber: input.RegistrationNumber,
+		DirectorName:       input.DirectorName,
+		Email:              input.Email,
+		Website:            input.Website,
+		LogoURL:            input.LogoURL,
+	}
+	if input.IsActive != nil {
+		clinic.IsActive = *input.IsActive
+	}
+
+	result, err := h.svc.Clinic.UpdateClinic(c.Request.Context(), id, clinic)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, clinic)
+	c.JSON(http.StatusOK, result)
 }
 
 type createClinicRequest struct {

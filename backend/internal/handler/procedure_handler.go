@@ -10,6 +10,26 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+type createProcedureInput struct {
+	Name        string   `json:"name"        binding:"required"`
+	Price       *float64 `json:"price"`
+	IsActive    bool     `json:"is_active"`
+	Description string   `json:"description"`
+	Duration    *int     `json:"duration"`
+	Anesthesia  string   `json:"anesthesia"`
+	SortOrder   int      `json:"sort_order"`
+}
+
+type updateProcedureInput struct {
+	Name        string   `json:"name"`
+	Price       *float64 `json:"price"`
+	IsActive    *bool    `json:"is_active"`
+	Description string   `json:"description"`
+	Duration    *int     `json:"duration"`
+	Anesthesia  string   `json:"anesthesia"`
+	SortOrder   int      `json:"sort_order"`
+}
+
 // ---- Procedure ----
 
 // ListProcedures godoc
@@ -24,16 +44,35 @@ func (h *Handler) ListProcedures(c *gin.Context) {
 
 // CreateProcedure godoc
 func (h *Handler) CreateProcedure(c *gin.Context) {
-	var input model.Procedure
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
+	var input createProcedureInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.svc.Procedure.Create(c.Request.Context(), &input); err != nil {
+
+	procedure := &model.Procedure{
+		ClinicID:    clinicID,
+		Name:        input.Name,
+		Price:       input.Price,
+		IsActive:    input.IsActive,
+		Description: input.Description,
+		Duration:    input.Duration,
+		SortOrder:   input.SortOrder,
+	}
+	if input.Anesthesia != "" {
+		procedure.Anesthesia = model.AnesthesiaType(input.Anesthesia)
+	}
+
+	if err := h.svc.Procedure.Create(c.Request.Context(), procedure); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, input)
+	c.JSON(http.StatusCreated, procedure)
 }
 
 // UpdateProcedure godoc
@@ -43,17 +82,32 @@ func (h *Handler) UpdateProcedure(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input model.Procedure
+	var input updateProcedureInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = id
-	if err := h.svc.Procedure.Update(c.Request.Context(), &input); err != nil {
+
+	procedure := &model.Procedure{
+		ID:          id,
+		Name:        input.Name,
+		Price:       input.Price,
+		Description: input.Description,
+		Duration:    input.Duration,
+		SortOrder:   input.SortOrder,
+	}
+	if input.IsActive != nil {
+		procedure.IsActive = *input.IsActive
+	}
+	if input.Anesthesia != "" {
+		procedure.Anesthesia = model.AnesthesiaType(input.Anesthesia)
+	}
+
+	if err := h.svc.Procedure.Update(c.Request.Context(), procedure); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, input)
+	c.JSON(http.StatusOK, procedure)
 }
 
 // DeleteProcedure godoc

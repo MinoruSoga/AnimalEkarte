@@ -10,6 +10,26 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+type createCageInput struct {
+	Name        string   `json:"name"        binding:"required"`
+	CageType    string   `json:"cage_type"   binding:"required"`
+	CageSize    string   `json:"cage_size"   binding:"required"`
+	Price       *float64 `json:"price"`
+	IsActive    bool     `json:"is_active"`
+	Description string   `json:"description"`
+	SortOrder   int      `json:"sort_order"`
+}
+
+type updateCageInput struct {
+	Name        string   `json:"name"`
+	CageType    string   `json:"cage_type"`
+	CageSize    string   `json:"cage_size"`
+	Price       *float64 `json:"price"`
+	IsActive    *bool    `json:"is_active"`
+	Description string   `json:"description"`
+	SortOrder   int      `json:"sort_order"`
+}
+
 // ---- Cage ----
 
 // ListCages godoc
@@ -28,16 +48,27 @@ func (h *Handler) ListCages(c *gin.Context) {
 
 // CreateCage godoc
 func (h *Handler) CreateCage(c *gin.Context) {
-	var input model.Cage
+	var input createCageInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.svc.Cage.Create(c.Request.Context(), &input); err != nil {
+
+	cage := &model.Cage{
+		Name:        input.Name,
+		CageType:    model.CageType(input.CageType),
+		CageSize:    model.CageSize(input.CageSize),
+		Price:       input.Price,
+		IsActive:    input.IsActive,
+		Description: input.Description,
+		SortOrder:   input.SortOrder,
+	}
+
+	if err := h.svc.Cage.Create(c.Request.Context(), cage); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, input)
+	c.JSON(http.StatusCreated, cage)
 }
 
 // UpdateCage godoc
@@ -47,17 +78,34 @@ func (h *Handler) UpdateCage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input model.Cage
+	var input updateCageInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = id
-	if err := h.svc.Cage.Update(c.Request.Context(), &input); err != nil {
+
+	cage := &model.Cage{
+		ID:          id,
+		Name:        input.Name,
+		Price:       input.Price,
+		Description: input.Description,
+		SortOrder:   input.SortOrder,
+	}
+	if input.CageType != "" {
+		cage.CageType = model.CageType(input.CageType)
+	}
+	if input.CageSize != "" {
+		cage.CageSize = model.CageSize(input.CageSize)
+	}
+	if input.IsActive != nil {
+		cage.IsActive = *input.IsActive
+	}
+
+	if err := h.svc.Cage.Update(c.Request.Context(), cage); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, input)
+	c.JSON(http.StatusOK, cage)
 }
 
 // DeleteCage godoc

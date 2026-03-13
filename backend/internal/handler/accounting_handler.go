@@ -3,11 +3,42 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+type createAccountingInput struct {
+	MedicalRecordID   *uint64              `json:"medical_record_id"`
+	HospitalizationID *uint64              `json:"hospitalization_id"`
+	OwnerID           *uint64              `json:"owner_id"`
+	PetID             *uint64              `json:"pet_id"`
+	Subtotal          int                  `json:"subtotal"`
+	TaxTotal          int                  `json:"tax_total"`
+	TotalAmount       int                  `json:"total_amount"`
+	HasInsurance      bool                 `json:"has_insurance"`
+	Status            string               `json:"status"`
+	ScheduledDate     time.Time            `json:"scheduled_date" binding:"required"`
+	CompletedAt       *time.Time           `json:"completed_at"`
+	Memo              string               `json:"memo"`
+}
+
+type updateAccountingInput struct {
+	MedicalRecordID   *uint64              `json:"medical_record_id"`
+	HospitalizationID *uint64              `json:"hospitalization_id"`
+	OwnerID           *uint64              `json:"owner_id"`
+	PetID             *uint64              `json:"pet_id"`
+	Subtotal          int                  `json:"subtotal"`
+	TaxTotal          int                  `json:"tax_total"`
+	TotalAmount       int                  `json:"total_amount"`
+	HasInsurance      bool                 `json:"has_insurance"`
+	Status            string               `json:"status"`
+	ScheduledDate     *time.Time           `json:"scheduled_date"`
+	CompletedAt       *time.Time           `json:"completed_at"`
+	Memo              string               `json:"memo"`
+}
 
 // ListAccountings godoc
 func (h *Handler) ListAccountings(c *gin.Context) {
@@ -81,16 +112,35 @@ func (h *Handler) CreateAccounting(c *gin.Context) {
 		return
 	}
 
-	var input model.Billing
+	var input createAccountingInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.svc.Accounting.Create(c.Request.Context(), clinicID, &input); err != nil {
+
+	billing := &model.Billing{
+		ClinicID:          clinicID,
+		MedicalRecordID:   input.MedicalRecordID,
+		HospitalizationID: input.HospitalizationID,
+		OwnerID:           input.OwnerID,
+		PetID:             input.PetID,
+		Subtotal:          input.Subtotal,
+		TaxTotal:          input.TaxTotal,
+		TotalAmount:       input.TotalAmount,
+		HasInsurance:      input.HasInsurance,
+		ScheduledDate:     input.ScheduledDate,
+		CompletedAt:       input.CompletedAt,
+		Memo:              input.Memo,
+	}
+	if input.Status != "" {
+		billing.Status = model.BillingStatus(input.Status)
+	}
+
+	if err := h.svc.Accounting.Create(c.Request.Context(), clinicID, billing); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, input)
+	c.JSON(http.StatusCreated, billing)
 }
 
 // UpdateAccounting godoc
@@ -105,17 +155,38 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input model.Billing
+	var input updateAccountingInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = id
-	if err := h.svc.Accounting.Update(c.Request.Context(), clinicID, &input); err != nil {
+
+	billing := &model.Billing{
+		ID:                id,
+		ClinicID:          clinicID,
+		MedicalRecordID:   input.MedicalRecordID,
+		HospitalizationID: input.HospitalizationID,
+		OwnerID:           input.OwnerID,
+		PetID:             input.PetID,
+		Subtotal:          input.Subtotal,
+		TaxTotal:          input.TaxTotal,
+		TotalAmount:       input.TotalAmount,
+		HasInsurance:      input.HasInsurance,
+		CompletedAt:       input.CompletedAt,
+		Memo:              input.Memo,
+	}
+	if input.ScheduledDate != nil {
+		billing.ScheduledDate = *input.ScheduledDate
+	}
+	if input.Status != "" {
+		billing.Status = model.BillingStatus(input.Status)
+	}
+
+	if err := h.svc.Accounting.Update(c.Request.Context(), clinicID, billing); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, input)
+	c.JSON(http.StatusOK, billing)
 }
 
 func (h *Handler) DeleteAccounting(c *gin.Context) {

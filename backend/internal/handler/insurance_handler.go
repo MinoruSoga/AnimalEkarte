@@ -10,6 +10,24 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+type createInsuranceInput struct {
+	Name         string `json:"name"          binding:"required"`
+	IsActive     bool   `json:"is_active"`
+	Description  string `json:"description"`
+	CoverageRate *int   `json:"coverage_rate"`
+	ContactPhone string `json:"contact_phone"`
+	SortOrder    int    `json:"sort_order"`
+}
+
+type updateInsuranceInput struct {
+	Name         string `json:"name"`
+	IsActive     *bool  `json:"is_active"`
+	Description  string `json:"description"`
+	CoverageRate *int   `json:"coverage_rate"`
+	ContactPhone string `json:"contact_phone"`
+	SortOrder    int    `json:"sort_order"`
+}
+
 // ---- Insurance ----
 
 // ListInsurances godoc
@@ -24,16 +42,32 @@ func (h *Handler) ListInsurances(c *gin.Context) {
 
 // CreateInsurance godoc
 func (h *Handler) CreateInsurance(c *gin.Context) {
-	var input model.Insurance
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
+	var input createInsuranceInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.svc.Insurance.Create(c.Request.Context(), &input); err != nil {
+
+	insurance := &model.Insurance{
+		ClinicID:     clinicID,
+		Name:         input.Name,
+		IsActive:     input.IsActive,
+		Description:  input.Description,
+		CoverageRate: input.CoverageRate,
+		ContactPhone: input.ContactPhone,
+		SortOrder:    input.SortOrder,
+	}
+
+	if err := h.svc.Insurance.Create(c.Request.Context(), insurance); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, input)
+	c.JSON(http.StatusCreated, insurance)
 }
 
 // UpdateInsurance godoc
@@ -43,17 +77,29 @@ func (h *Handler) UpdateInsurance(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input model.Insurance
+	var input updateInsuranceInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = id
-	if err := h.svc.Insurance.Update(c.Request.Context(), &input); err != nil {
+
+	insurance := &model.Insurance{
+		ID:           id,
+		Name:         input.Name,
+		Description:  input.Description,
+		CoverageRate: input.CoverageRate,
+		ContactPhone: input.ContactPhone,
+		SortOrder:    input.SortOrder,
+	}
+	if input.IsActive != nil {
+		insurance.IsActive = *input.IsActive
+	}
+
+	if err := h.svc.Insurance.Update(c.Request.Context(), insurance); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, input)
+	c.JSON(http.StatusOK, insurance)
 }
 
 // DeleteInsurance godoc

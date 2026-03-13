@@ -3,11 +3,32 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+type createMedicalRecordInput struct {
+	RecordNo                 string    `json:"record_no"                   binding:"required"`
+	Date                     time.Time `json:"date"                        binding:"required"`
+	OwnerID                  *uint64   `json:"owner_id"`
+	PetID                    *uint64   `json:"pet_id"`
+	DoctorID                 *uint64   `json:"doctor_id"`
+	ReservationAppointmentID *uint64   `json:"reservation_appointment_id"`
+	Status                   string    `json:"status"`
+}
+
+type updateMedicalRecordInput struct {
+	RecordNo                 string     `json:"record_no"`
+	Date                     *time.Time `json:"date"`
+	OwnerID                  *uint64    `json:"owner_id"`
+	PetID                    *uint64    `json:"pet_id"`
+	DoctorID                 *uint64    `json:"doctor_id"`
+	ReservationAppointmentID *uint64    `json:"reservation_appointment_id"`
+	Status                   string     `json:"status"`
+}
 
 // ListMedicalRecords godoc
 func (h *Handler) ListMedicalRecords(c *gin.Context) {
@@ -74,17 +95,30 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var input model.MedicalRecord
+	var input createMedicalRecordInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ClinicID = clinicID
-	if err := h.svc.MedicalRecord.Create(c.Request.Context(), &input); err != nil {
+
+	record := &model.MedicalRecord{
+		ClinicID:                 clinicID,
+		RecordNo:                 input.RecordNo,
+		Date:                     input.Date,
+		OwnerID:                  input.OwnerID,
+		PetID:                    input.PetID,
+		DoctorID:                 input.DoctorID,
+		ReservationAppointmentID: input.ReservationAppointmentID,
+	}
+	if input.Status != "" {
+		record.Status = model.MedicalRecordStatus(input.Status)
+	}
+
+	if err := h.svc.MedicalRecord.Create(c.Request.Context(), record); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, input)
+	c.JSON(http.StatusCreated, record)
 }
 
 // UpdateMedicalRecord godoc
@@ -98,18 +132,33 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input model.MedicalRecord
+	var input updateMedicalRecordInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = id
-	input.ClinicID = clinicID
-	if err := h.svc.MedicalRecord.Update(c.Request.Context(), &input); err != nil {
+
+	record := &model.MedicalRecord{
+		ID:                       id,
+		ClinicID:                 clinicID,
+		RecordNo:                 input.RecordNo,
+		OwnerID:                  input.OwnerID,
+		PetID:                    input.PetID,
+		DoctorID:                 input.DoctorID,
+		ReservationAppointmentID: input.ReservationAppointmentID,
+	}
+	if input.Date != nil {
+		record.Date = *input.Date
+	}
+	if input.Status != "" {
+		record.Status = model.MedicalRecordStatus(input.Status)
+	}
+
+	if err := h.svc.MedicalRecord.Update(c.Request.Context(), record); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, input)
+	c.JSON(http.StatusOK, record)
 }
 
 // DeleteMedicalRecord godoc
