@@ -38,7 +38,12 @@ func (h *Handler) ListPets(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, newPaginatedResponse(pets, total, page, limit))
+
+	petResponses := make([]petListResponse, 0, len(pets))
+	for i := range pets {
+		petResponses = append(petResponses, toPetListResponse(&pets[i]))
+	}
+	c.JSON(http.StatusOK, newPaginatedResponse(petResponses, total, page, limit))
 }
 
 // GetPet godoc
@@ -57,7 +62,7 @@ func (h *Handler) GetPet(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, pet)
+	c.JSON(http.StatusOK, toPetResponse(pet))
 }
 
 // CreatePet godoc
@@ -66,10 +71,26 @@ func (h *Handler) CreatePet(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var input service.CreatePetInput
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req createPetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
+	}
+
+	input := service.CreatePetInput{
+		OwnerID:         req.OwnerID,
+		AnimalSpeciesID: req.AnimalSpeciesID,
+		PetNumber:       req.PetNumber,
+		Name:            req.Name,
+		PetNameKana:     req.PetNameKana,
+		Gender:          req.Gender,
+		BirthDate:       req.BirthDate,
+		Breed:           req.Breed,
+		Weight:          req.Weight,
+		Environment:     req.Environment,
+		Status:          req.Status,
+		InsuranceID:     req.InsuranceID,
+		Remarks:         req.Remarks,
 	}
 
 	pet, err := h.svc.Pet.Create(c.Request.Context(), clinicID, &input)
@@ -77,7 +98,7 @@ func (h *Handler) CreatePet(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, pet)
+	c.JSON(http.StatusCreated, toPetResponse(pet))
 }
 
 // UpdatePet godoc
@@ -91,10 +112,26 @@ func (h *Handler) UpdatePet(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	var input service.UpdatePetInput
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req updatePetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
+	}
+
+	input := service.UpdatePetInput{
+		OwnerID:         req.OwnerID,
+		AnimalSpeciesID: req.AnimalSpeciesID,
+		PetNumber:       req.PetNumber,
+		Name:            req.Name,
+		PetNameKana:     req.PetNameKana,
+		Gender:          req.Gender,
+		BirthDate:       req.BirthDate,
+		Breed:           req.Breed,
+		Weight:          req.Weight,
+		Environment:     req.Environment,
+		Status:          req.Status,
+		InsuranceID:     req.InsuranceID,
+		Remarks:         req.Remarks,
 	}
 
 	pet, err := h.svc.Pet.Update(c.Request.Context(), clinicID, id, &input)
@@ -102,7 +139,7 @@ func (h *Handler) UpdatePet(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, pet)
+	c.JSON(http.StatusOK, toPetResponse(pet))
 }
 
 // DeletePet godoc

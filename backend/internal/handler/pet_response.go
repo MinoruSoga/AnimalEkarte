@@ -55,6 +55,56 @@ type petResponse struct {
 	Insurance       *petInsuranceNested     `json:"insurance,omitempty"`
 }
 
+// petListResponse はリスト表示に必要な最小限フィールドのみ返す（GET /v1/pets 専用）
+type petListResponse struct {
+	ID              uint64                  `json:"id"`
+	OwnerID         uint64                  `json:"owner_id"`
+	AnimalSpeciesID uint64                  `json:"animal_species_id"`
+	PetNumber       string                  `json:"pet_number"`
+	Name            string                  `json:"name"`
+	PetNameKana     string                  `json:"pet_name_kana"`
+	Gender          string                  `json:"gender"`
+	Status          string                  `json:"status"`
+	BirthDate       *time.Time              `json:"birth_date,omitempty"`
+	Weight          *float64                `json:"weight,omitempty"`
+	Environment     string                  `json:"environment"`
+	LastVisit       *time.Time              `json:"last_visit,omitempty"`
+	Owner           *petOwnerNested         `json:"owner,omitempty"`
+	AnimalSpecies   *petAnimalSpeciesNested `json:"animal_species,omitempty"`
+}
+
+func toPetListResponse(p *model.Pet) petListResponse {
+	resp := petListResponse{
+		ID:              p.ID,
+		OwnerID:         p.OwnerID,
+		AnimalSpeciesID: p.AnimalSpeciesID,
+		PetNumber:       p.PetNumber,
+		Name:            p.Name,
+		PetNameKana:     p.PetNameKana,
+		Gender:          string(p.Gender),
+		Status:          string(p.Status),
+		BirthDate:       p.BirthDate,
+		Weight:          p.Weight,
+		Environment:     p.Environment,
+		LastVisit:       p.LastVisit,
+	}
+	if p.Owner != nil {
+		resp.Owner = &petOwnerNested{
+			ID:        p.Owner.ID,
+			OwnerName: p.Owner.OwnerName,
+			Phone:     p.Owner.Phone,
+		}
+	}
+	if p.AnimalSpecies != nil {
+		resp.AnimalSpecies = &petAnimalSpeciesNested{
+			ID:        p.AnimalSpecies.ID,
+			Name:      p.AnimalSpecies.Name,
+			SortOrder: p.AnimalSpecies.SortOrder,
+		}
+	}
+	return resp
+}
+
 func toPetResponse(p *model.Pet) petResponse {
 	var acquisitionType *string
 	if p.AcquisitionType != nil {
