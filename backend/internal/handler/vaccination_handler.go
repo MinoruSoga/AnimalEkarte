@@ -80,7 +80,7 @@ func (h *Handler) ListVaccinations(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, PaginatedResponse{Data: vaccinations, Total: total, Page: page, Limit: limit})
+	c.JSON(http.StatusOK, newPaginatedResponse(vaccinations, total, page, limit))
 }
 
 // GetVaccination godoc

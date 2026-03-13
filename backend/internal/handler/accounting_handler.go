@@ -83,7 +83,7 @@ func (h *Handler) ListAccountings(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, PaginatedResponse{Data: accountings, Total: total, Page: page, Limit: limit})
+	c.JSON(http.StatusOK, newPaginatedResponse(accountings, total, page, limit))
 }
 
 // GetAccounting godoc

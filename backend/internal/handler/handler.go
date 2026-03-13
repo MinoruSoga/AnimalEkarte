@@ -22,11 +22,16 @@ func New(cfg *config.Config, svc *service.Services) *Handler {
 }
 
 // PaginatedResponse はページネーション付きレスポンスの共通構造
-type PaginatedResponse struct {
-	Data  any `json:"data"`
-	Total int64       `json:"total"`
-	Page  int         `json:"page"`
-	Limit int         `json:"limit"`
+type PaginatedResponse[T any] struct {
+	Data  T     `json:"data"`
+	Total int64 `json:"total"`
+	Page  int   `json:"page"`
+	Limit int   `json:"limit"`
+}
+
+// newPaginatedResponse はPaginatedResponseを型推論で生成するヘルパー
+func newPaginatedResponse[T any](data T, total int64, page, limit int) PaginatedResponse[T] {
+	return PaginatedResponse[T]{Data: data, Total: total, Page: page, Limit: limit}
 }
 
 // Health はサーバーの稼働状態を返す

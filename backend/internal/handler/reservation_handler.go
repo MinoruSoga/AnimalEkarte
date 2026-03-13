@@ -88,7 +88,7 @@ func (h *Handler) ListReservations(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, PaginatedResponse{Data: reservations, Total: total, Page: page, Limit: limit})
+	c.JSON(http.StatusOK, newPaginatedResponse(reservations, total, page, limit))
 }
 
 // GetReservation godoc

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 
 	"gorm.io/gorm"
 
@@ -69,7 +68,6 @@ func (r *petRepository) Create(ctx context.Context, pet *model.Pet) error {
 		}
 		return apperrors.Wrap(err, "create pet")
 	}
-	slog.InfoContext(ctx, "pet created", slog.Uint64("pet_id", pet.ID))
 	return nil
 }
 
@@ -84,7 +82,6 @@ func (r *petRepository) Update(ctx context.Context, pet *model.Pet) error {
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("pet", fmt.Sprintf("%d", pet.ID))
 	}
-	slog.InfoContext(ctx, "pet updated", slog.Uint64("pet_id", pet.ID))
 	return nil
 }
 

@@ -214,38 +214,168 @@ func TestOwnerService_GetByID_NotFound(t *testing.T) {
 	assert.True(t, apperrors.IsNotFound(err))
 }
 
-func TestOwnerService_Update(t *testing.T) {
+func TestOwnerService_CreateWithPets(t *testing.T) {
 	tests := []struct {
-		name    string
-		owner   *model.Owner
-		repoErr error
-		wantErr bool
+		name      string
+		clinicID  uint64
+		input     CreateOwnerInput
+		repoErr   error
+		wantErr   bool
+		wantOwner bool // ownerが返されるか
 	}{
 		{
-			name: "updates owner successfully",
-			owner: &model.Owner{
-				ID:        1,
-				ClinicID:  1,
-				OwnerName: "更新後 氏名",
+			name:     "creates owner with pets atomically",
+			clinicID: 1,
+			input: CreateOwnerInput{
+				OwnerName: "林 文昭",
+				Email:     "hayashi@example.com",
+				Pets: []CreatePetForOwnerInput{
+					{Name: "ポチ", AnimalSpeciesID: 1, Gender: "male"},
+					{Name: "タマ", AnimalSpeciesID: 2, Gender: "female"},
+				},
+			},
+			repoErr:   nil,
+			wantErr:   false,
+			wantOwner: true,
+		},
+		{
+			name:     "creates owner without pets",
+			clinicID: 1,
+			input: CreateOwnerInput{
+				OwnerName: "鈴木 次郎",
+				Pets:      []CreatePetForOwnerInput{},
+			},
+			repoErr:   nil,
+			wantErr:   false,
+			wantOwner: true,
+		},
+		{
+			name:     "rejects invalid discount_rate",
+			clinicID: 1,
+			input: CreateOwnerInput{
+				OwnerName:    "バリデーション",
+				DiscountRate: 150,
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name:     "rejects invalid membership_type",
+			clinicID: 1,
+			input: CreateOwnerInput{
+				OwnerName:      "バリデーション",
+				MembershipType: "invalid_type",
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name:     "rejects invalid pet gender",
+			clinicID: 1,
+			input: CreateOwnerInput{
+				OwnerName: "バリデーション",
+				Pets: []CreatePetForOwnerInput{
+					{Name: "ポチ", AnimalSpeciesID: 1, Gender: "invalid"},
+				},
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name:     "propagates repository error",
+			clinicID: 1,
+			input: CreateOwnerInput{
+				OwnerName: "エラー 飼主",
+				Pets:      []CreatePetForOwnerInput{{Name: "ペット", AnimalSpeciesID: 1}},
+			},
+			repoErr: errors.New("transaction failed"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockOwnerRepository{
+				createWithPetsFn: func(_ context.Context, _ *model.Owner, _ []model.Pet) error {
+					return tt.repoErr
+				},
+			}
+			svc := NewOwnerService(repo)
+
+			owner, err := svc.CreateWithPets(context.Background(), tt.clinicID, tt.input)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, owner)
+			} else {
+				assert.NoError(t, err)
+				if tt.wantOwner {
+					assert.NotNil(t, owner)
+					assert.Equal(t, tt.clinicID, owner.ClinicID)
+					assert.Equal(t, tt.input.OwnerName, owner.OwnerName)
+				}
+			}
+		})
+	}
+}
+
+func TestOwnerService_Update(t *testing.T) {
+	tests := []struct {
+		name     string
+		clinicID uint64
+		id       uint64
+		input    UpdateOwnerInput
+		repoErr  error
+		wantErr  bool
+	}{
+		{
+			name:     "updates owner successfully",
+			clinicID: 1,
+			id:       1,
+			input: UpdateOwnerInput{
+				OwnerName:    "更新後 氏名",
+				DiscountRate: 10,
 			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
-			name: "returns not found error when owner does not exist",
-			owner: &model.Owner{
-				ID:        999,
-				ClinicID:  1,
+			name:     "rejects invalid discount_rate",
+			clinicID: 1,
+			id:       1,
+			input: UpdateOwnerInput{
+				OwnerName:    "バリデーション",
+				DiscountRate: -5,
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name:     "rejects invalid membership_type",
+			clinicID: 1,
+			id:       1,
+			input: UpdateOwnerInput{
+				OwnerName:      "バリデーション",
+				MembershipType: "unknown_type",
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name:     "returns not found error when owner does not exist",
+			clinicID: 1,
+			id:       999,
+			input: UpdateOwnerInput{
 				OwnerName: "存在しない 飼主",
 			},
 			repoErr: apperrors.WrapNotFound("owner", "999"),
 			wantErr: true,
 		},
 		{
-			name: "returns error on repository failure",
-			owner: &model.Owner{
-				ID:        1,
-				ClinicID:  1,
+			name:     "returns error on repository failure",
+			clinicID: 1,
+			id:       1,
+			input: UpdateOwnerInput{
 				OwnerName: "エラー ケース",
 			},
 			repoErr: errors.New("db error"),
@@ -262,76 +392,16 @@ func TestOwnerService_Update(t *testing.T) {
 			}
 			svc := NewOwnerService(repo)
 
-			err := svc.Update(context.Background(), tt.owner)
+			owner, err := svc.Update(context.Background(), tt.clinicID, tt.id, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, owner)
 			} else {
 				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestOwnerService_CreateWithPets(t *testing.T) {
-	tests := []struct {
-		name    string
-		owner   *model.Owner
-		pets    []model.Pet
-		repoErr error
-		wantErr bool
-	}{
-		{
-			name: "creates owner with pets atomically",
-			owner: &model.Owner{
-				ClinicID:  1,
-				OwnerName: "林 文昭",
-				Email:     "hayashi@example.com",
-			},
-			pets: []model.Pet{
-				{Name: "ポチ", AnimalSpeciesID: 1, Gender: model.PetGenderMale},
-				{Name: "タマ", AnimalSpeciesID: 2, Gender: model.PetGenderFemale},
-			},
-			repoErr: nil,
-			wantErr: false,
-		},
-		{
-			name: "creates owner without pets (empty slice)",
-			owner: &model.Owner{
-				ClinicID:  1,
-				OwnerName: "鈴木 次郎",
-			},
-			pets:    []model.Pet{},
-			repoErr: nil,
-			wantErr: false,
-		},
-		{
-			name: "propagates repository error",
-			owner: &model.Owner{
-				ClinicID:  1,
-				OwnerName: "エラー 飼主",
-			},
-			pets:    []model.Pet{{Name: "ペット"}},
-			repoErr: errors.New("transaction failed"),
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockOwnerRepository{
-				createWithPetsFn: func(_ context.Context, _ *model.Owner, _ []model.Pet) error {
-					return tt.repoErr
-				},
-			}
-			svc := NewOwnerService(repo)
-
-			err := svc.CreateWithPets(context.Background(), tt.owner, tt.pets)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
+				assert.NotNil(t, owner)
+				assert.Equal(t, tt.id, owner.ID)
+				assert.Equal(t, tt.clinicID, owner.ClinicID)
 			}
 		})
 	}

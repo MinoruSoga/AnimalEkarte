@@ -68,7 +68,7 @@ func (h *Handler) ListMedicalRecords(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, PaginatedResponse{Data: records, Total: total, Page: page, Limit: limit})
+	c.JSON(http.StatusOK, newPaginatedResponse(records, total, page, limit))
 }
 
 // GetMedicalRecord godoc

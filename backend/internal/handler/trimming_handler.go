@@ -84,7 +84,7 @@ func (h *Handler) ListTrimmings(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, PaginatedResponse{Data: trimmings, Total: total, Page: page, Limit: limit})
+	c.JSON(http.StatusOK, newPaginatedResponse(trimmings, total, page, limit))
 }
 
 // GetTrimming godoc

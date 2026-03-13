@@ -155,7 +155,6 @@ func TestPetService_List(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Len(t, pets, tt.wantLen)
 				assert.Equal(t, tt.wantTotal, total)
-				// ownerIDフィルタが正しく伝達されているか検証
 				assert.Equal(t, tt.ownerID, capturedOwnerID)
 			}
 		})
@@ -182,13 +181,13 @@ func TestPetService_GetByID(t *testing.T) {
 			wantErr:  nil,
 		},
 		{
-			name:     "returns not found error when pet does not exist",
+			name:    "returns not found error when pet does not exist",
 			clinicID: 1,
-			id:       999,
-			repoPet:  nil,
-			repoErr:  apperrors.WrapNotFound("pet", "999"),
-			wantPet:  nil,
-			wantErr:  apperrors.ErrNotFound,
+			id:      999,
+			repoPet: nil,
+			repoErr: apperrors.WrapNotFound("pet", "999"),
+			wantPet: nil,
+			wantErr: apperrors.ErrNotFound,
 		},
 		{
 			name:     "returns error on repository failure",
@@ -242,26 +241,54 @@ func TestPetService_GetByID_NotFound(t *testing.T) {
 
 func TestPetService_Create(t *testing.T) {
 	tests := []struct {
-		name    string
-		pet     *model.Pet
-		repoErr error
-		wantErr bool
+		name     string
+		clinicID uint64
+		input    CreatePetInput
+		repoErr  error
+		wantErr  bool
+		wantPet  bool
 	}{
 		{
-			name: "creates pet successfully",
-			pet: &model.Pet{
-				ClinicID:        1,
+			name:     "creates pet successfully",
+			clinicID: 1,
+			input: CreatePetInput{
 				OwnerID:         5,
 				AnimalSpeciesID: 1,
 				Name:            "新しいペット",
+				Gender:          "male",
 			},
 			repoErr: nil,
 			wantErr: false,
+			wantPet: true,
 		},
 		{
-			name: "returns already exists error on duplicate",
-			pet: &model.Pet{
-				ClinicID:        1,
+			name:     "rejects invalid gender",
+			clinicID: 1,
+			input: CreatePetInput{
+				OwnerID:         5,
+				AnimalSpeciesID: 1,
+				Name:            "ペット",
+				Gender:          "invalid",
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name:     "rejects invalid status",
+			clinicID: 1,
+			input: CreatePetInput{
+				OwnerID:         5,
+				AnimalSpeciesID: 1,
+				Name:            "ペット",
+				Status:          "invalid",
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name:     "returns already exists error on duplicate",
+			clinicID: 1,
+			input: CreatePetInput{
 				OwnerID:         5,
 				AnimalSpeciesID: 1,
 				Name:            "既存ペット",
@@ -270,9 +297,9 @@ func TestPetService_Create(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "returns error on repository failure",
-			pet: &model.Pet{
-				ClinicID:        1,
+			name:     "returns error on repository failure",
+			clinicID: 1,
+			input: CreatePetInput{
 				OwnerID:         5,
 				AnimalSpeciesID: 1,
 				Name:            "エラーペット",
@@ -291,12 +318,19 @@ func TestPetService_Create(t *testing.T) {
 			}
 			svc := NewPetService(repo)
 
-			err := svc.Create(context.Background(), tt.pet)
+			pet, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, pet)
 			} else {
 				assert.NoError(t, err)
+				if tt.wantPet {
+					assert.NotNil(t, pet)
+					assert.Equal(t, tt.clinicID, pet.ClinicID)
+					assert.Equal(t, tt.input.Name, pet.Name)
+					assert.Equal(t, tt.input.OwnerID, pet.OwnerID)
+				}
 			}
 		})
 	}
@@ -304,46 +338,65 @@ func TestPetService_Create(t *testing.T) {
 
 func TestPetService_Update(t *testing.T) {
 	tests := []struct {
-		name    string
-		pet     *model.Pet
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name     string
+		clinicID uint64
+		id       uint64
+		input    UpdatePetInput
+		repoErr  error
+		wantErr  bool
+		wantNF   bool
 	}{
 		{
-			name: "updates pet successfully",
-			pet: &model.Pet{
-				ID:              1,
-				ClinicID:        1,
-				OwnerID:         5,
-				AnimalSpeciesID: 1,
-				Name:            "更新後ペット名",
+			name:     "updates pet successfully",
+			clinicID: 1,
+			id:       1,
+			input: UpdatePetInput{
+				Name:   "更新後ペット名",
+				Gender: "female",
 			},
 			repoErr: nil,
 			wantErr: false,
 			wantNF:  false,
 		},
 		{
-			name: "returns not found error when pet does not exist",
-			pet: &model.Pet{
-				ID:              999,
-				ClinicID:        1,
-				OwnerID:         5,
-				AnimalSpeciesID: 1,
-				Name:            "存在しないペット",
+			name:     "rejects invalid gender",
+			clinicID: 1,
+			id:       1,
+			input: UpdatePetInput{
+				Name:   "ペット",
+				Gender: "invalid",
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name:     "rejects invalid status",
+			clinicID: 1,
+			id:       1,
+			input: UpdatePetInput{
+				Name:   "ペット",
+				Status: "invalid",
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name:     "returns not found error when pet does not exist",
+			clinicID: 1,
+			id:       999,
+			input: UpdatePetInput{
+				Name: "存在しないペット",
 			},
 			repoErr: apperrors.WrapNotFound("pet", "999"),
 			wantErr: true,
 			wantNF:  true,
 		},
 		{
-			name: "returns error on repository failure",
-			pet: &model.Pet{
-				ID:              1,
-				ClinicID:        1,
-				OwnerID:         5,
-				AnimalSpeciesID: 1,
-				Name:            "エラーケース",
+			name:     "returns error on repository failure",
+			clinicID: 1,
+			id:       1,
+			input: UpdatePetInput{
+				Name: "エラーケース",
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -360,15 +413,19 @@ func TestPetService_Update(t *testing.T) {
 			}
 			svc := NewPetService(repo)
 
-			err := svc.Update(context.Background(), tt.pet)
+			pet, err := svc.Update(context.Background(), tt.clinicID, tt.id, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, pet)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
 				}
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, pet)
+				assert.Equal(t, tt.id, pet.ID)
+				assert.Equal(t, tt.clinicID, pet.ClinicID)
 			}
 		})
 	}
