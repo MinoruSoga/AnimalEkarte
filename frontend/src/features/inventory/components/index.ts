@@ -1,2 +1,2 @@
-export { InventoryCard, StockAlert } from "./InventoryCard";
-export type { InventoryCardProps } from "./InventoryCard";
+// Inventory components placeholder
+// TODO: Add InventoryCard, StockAlert components as needed

@@ -39,7 +39,7 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count owners")
 	}
-	if err := q.Preload("Pets").Preload("Pets.AnimalSpecies").Offset((page - 1) * limit).Limit(limit).Order("created_at DESC").Find(&owners).Error; err != nil {
+	if err := q.Preload("Pets").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance").Offset((page - 1) * limit).Limit(limit).Order("created_at DESC").Find(&owners).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find owners")
 	}
 	return owners, total, nil
@@ -47,7 +47,7 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 
 func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
 	var owner model.Owner
-	if err := r.db.WithContext(ctx).Preload("Pets").First(&owner, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Pets").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance").First(&owner, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
 		}

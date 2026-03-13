@@ -14,10 +14,7 @@ import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable, DataTableRow } from "@/components/shared/DataTable";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { StatusBadge } from "@/components/shared/StatusBadge";
-import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { getMasterStatusColor } from "@/utils/status-helpers";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
   useListStaffs,
@@ -46,8 +43,7 @@ const COLUMNS = [
   { header: "社員番号", className: "w-[130px]" },
   { header: "氏名" },
   { header: "職種", className: "w-[130px]" },
-  { header: "ステータス", className: "w-[100px]", align: "center" as const },
-  { header: "操作", className: "w-[80px]", align: "right" as const },
+  { header: "ステータス", className: "w-[90px]", align: "right" as const },
 ];
 
 // ─────────────────────────────────────────────────
@@ -285,17 +281,25 @@ export function StaffSettings() {
                     <TableCell className="text-sm text-[#37352F] py-2.5">
                       {STAFF_ROLE_LABELS[item.staffRole]}
                     </TableCell>
-                    <TableCell className="text-center py-2.5">
-                      <StatusBadge colorClass={getMasterStatusColor(item.isActive ? "active" : "inactive")}>
-                        {item.isActive ? "有効" : "無効"}
-                      </StatusBadge>
-                    </TableCell>
                     <TableCell className="text-right py-2.5">
-                      <RowActionButton onClick={() => handleEdit(item)} />
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`} />
+                        <span className={`text-sm ${item.isActive ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}>
+                          {item.isActive ? "有効" : "無効"}
+                        </span>
+                      </span>
                     </TableCell>
                   </DataTableRow>
                 )}
               />
+              <button
+                type="button"
+                onClick={handleCreate}
+                className="flex items-center gap-1.5 w-full px-3 py-2 text-sm text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[rgba(55,53,47,0.04)] transition-colors rounded"
+              >
+                <Plus className="size-3.5" />
+                新しいスタッフを追加...
+              </button>
             </div>
           </PageLayout>
         </div>

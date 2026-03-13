@@ -29,9 +29,6 @@ import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable } from "@/components/shared/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { StatusBadge } from "@/components/shared/StatusBadge";
-import { RowActionButton } from "@/components/shared/RowActionButton";
-import { getMasterStatusColor } from "@/utils/status-helpers";
 import { useMasterItems } from "@/hooks/use-master-items";
 import {
   CATEGORY_CONFIG,
@@ -155,6 +152,17 @@ function PropInput({ value, onChange, placeholder, type = "text" }: PropInputPro
       placeholder={placeholder}
       className={`${STYLE.propertyInput}`}
     />
+  );
+}
+
+function StatusDot({ active }: { active: boolean }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={`size-[7px] rounded-full ${active ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`} />
+      <span className={`text-sm ${active ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}>
+        {active ? "有効" : "無効"}
+      </span>
+    </span>
   );
 }
 
@@ -533,10 +541,7 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
     ? [
         { header: "氏名" },
         { header: "職種", className: "w-[120px]" },
-        { header: "所属医院", className: "w-[140px]" },
-        { header: "メールアドレス", className: "w-[200px]" },
-        { header: "ステータス", className: "w-[100px]", align: "center" as const },
-        { header: "操作", className: "w-[80px]", align: "right" as const },
+        { header: "ステータス", className: "w-[100px]", align: "right" as const },
       ]
     : [
         { header: labels.name },
@@ -552,8 +557,7 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
               },
             ]
           : []),
-        { header: "ステータス", className: "w-[100px]", align: "center" as const },
-        { header: "操作", className: "w-[80px]", align: "right" as const },
+        { header: "ステータス", className: "w-[100px]", align: "right" as const },
       ];
 
   // ── List content (shared between standalone and embedded) ──
@@ -587,15 +591,8 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
               <TableCell className={`text-sm ${C.text} py-2`}>
                 {item.category ?? "-"}
               </TableCell>
-              <TableCell className={`text-sm ${C.text70} py-2`}>-</TableCell>
-              <TableCell className={`text-sm ${C.text70} py-2`}>-</TableCell>
-              <TableCell className="text-center py-2">
-                <StatusBadge colorClass={getMasterStatusColor(item.status)}>
-                  {item.status === "active" ? "有効" : "無効"}
-                </StatusBadge>
-              </TableCell>
               <TableCell className="text-right py-2">
-                <RowActionButton onClick={() => handleEdit(item)} />
+                <StatusDot active={item.status !== "inactive"} />
               </TableCell>
             </DataTableRow>
           ) : (
@@ -613,18 +610,21 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
                   {item.price ? `¥${item.price.toLocaleString()}` : "-"}
                 </TableCell>
               )}
-              <TableCell className="text-center py-2">
-                <StatusBadge colorClass={getMasterStatusColor(item.status)}>
-                  {item.status === "active" ? "有効" : "無効"}
-                </StatusBadge>
-              </TableCell>
               <TableCell className="text-right py-2">
-                <RowActionButton onClick={() => handleEdit(item)} />
+                <StatusDot active={item.status !== "inactive"} />
               </TableCell>
             </DataTableRow>
           )
         }
       />
+      <button
+        type="button"
+        onClick={handleCreate}
+        className={`flex items-center gap-1.5 w-full px-3 py-2 text-sm text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[rgba(55,53,47,0.04)] transition-colors rounded`}
+      >
+        <Plus className="size-3.5" />
+        新しい{labels.name}を追加...
+      </button>
     </div>
   );
 

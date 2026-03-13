@@ -27,7 +27,6 @@ const DashboardDetailModal = lazy(() =>
 const ReservationFormModal = lazy(() =>
   import("@/components/shared/ReservationFormModal").then(m => ({ default: m.ReservationFormModal }))
 );
-import { DashboardSummary } from "../components/DashboardSummary";
 import { KanbanColumn } from "../components/KanbanColumn";
 import { useDashboardKanban } from "../hooks/useDashboardKanban";
 
@@ -40,9 +39,7 @@ const NO_ADD_BUTTON_COLUMNS = new Set(["診療中", "会計待ち", "会計済"]
 export function Dashboard() {
     const navigate = useNavigate();
     const {
-        columns,
         filteredColumns,
-        isLoading,
         staffs,
         moveCard,
         advanceStatus,
@@ -276,8 +273,6 @@ export function Dashboard() {
                     </div>
                 }
             />
-
-            <DashboardSummary columns={columns} isLoading={isLoading} />
 
             {isFilterOpen && (
                 <div className="bg-white border-b border-border px-6 py-4 animate-in slide-in-from-top-1 fade-in duration-200">

@@ -32,6 +32,8 @@ export type MembershipType = (typeof MEMBERSHIP_TYPE_VALUES)[number];
 
 export interface PetFormData {
   id: string;
+  /** true = 新規飼主登録モードでローカルに追加済み（飼主保存時に一括API送信） */
+  isPending?: boolean;
   petNumber: string;
   petName: string;
   petNameKana?: string;
