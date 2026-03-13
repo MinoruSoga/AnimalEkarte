@@ -11,18 +11,15 @@ interface PetsListResponse {
   limit: number;
 }
 
-export const getPets = async (): Promise<Pet[]> => {
-  const { data } = await axios.get<PetsListResponse>("/v1/pets");
+export const getPets = async (ownerId?: string): Promise<Pet[]> => {
+  const params = ownerId ? { owner_id: ownerId } : {};
+  const { data } = await axios.get<PetsListResponse>("/v1/pets", { params });
   return data.data.map(transformBackendPetToFrontend);
 };
 
 export const useGetPets = (ownerId?: string) => {
   return useQuery({
-    queryKey: ["pets"],
-    queryFn: getPets,
-    select: (pets) => {
-      if (!ownerId) return pets;
-      return pets.filter((pet) => pet.ownerId === ownerId);
-    },
+    queryKey: ownerId ? ["pets", { ownerId }] : ["pets"],
+    queryFn: () => getPets(ownerId),
   });
 };

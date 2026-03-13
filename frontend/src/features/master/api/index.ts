@@ -28,7 +28,6 @@ export {
   useDeleteMasterItem,
 } from "./delete-master-item";
 export type {
-  BackendMasterItem,
   CreateMasterItemRequest,
   UpdateMasterItemRequest,
 } from "./types";

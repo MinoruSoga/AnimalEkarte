@@ -1,40 +1,14 @@
-// Backend Reservation を Dashboard で使用するための型定義
 import type { ReservationStatus } from "@/types";
+import type {
+  ReservationAppointment as ApiReservation,
+  Pet as ApiPet,
+  Owner as ApiOwner,
+} from "@/types/generated/models";
 
 /** Backend から返ってくる Reservation の raw 型（snake_case） */
-export interface BackendDashboardReservation {
-  id: string;
-  pet_id: string;
-  owner_id: string;
-  doctor_id?: string;
-  start_time: string;
-  end_time: string;
-  visit_type: string; // "first" | "revisit"
-  service_type: string;
-  is_designated: boolean;
-  status: string; // "pending" | "confirmed" | "checked_in" | "in_consultation" | "accounting" | "completed" | "canceled"
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-
-  // Preload済みのリレーション
-  pet?: BackendPet;
-  owner?: BackendOwner;
-}
-
-export interface BackendPet {
-  id: string;
-  name: string;
-  species: string;
-  breed?: string;
-  gender?: string;
-}
-
-export interface BackendOwner {
-  id: string;
-  name: string;
-  phone?: string;
-}
+export type BackendDashboardReservation = ApiReservation;
+export type BackendPet = ApiPet;
+export type BackendOwner = ApiOwner;
 
 /** Dashboard カンバンカード用の変換後型 */
 export interface DashboardAppointment {

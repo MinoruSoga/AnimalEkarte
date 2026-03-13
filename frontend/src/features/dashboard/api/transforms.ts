@@ -9,7 +9,7 @@ import type {
 /** Backend status 値 → カンバンカラム ID のマッピング */
 const STATUS_TO_COLUMN_ID: Record<string, ReservationStatus> = {
   pending: "pending",
-  confirmed: "pending",    // confirmed は受付予約として扱う
+  confirmed: "pending",
   checked_in: "checked_in",
   in_consultation: "in_consultation",
   accounting: "accounting",
@@ -34,7 +34,7 @@ export const COLUMN_ID_TO_TITLE: Record<ReservationStatus, string> = {
   in_consultation: "診療中",
   accounting: "会計待ち",
   completed: "会計済",
-  cancelled: "会計済", // キャンセルは会計済カラムには表示しない（後述のfilterで除外）
+  cancelled: "会計済",
 };
 
 /** 日本語タイトル → カラム ID マッピング */
@@ -59,23 +59,23 @@ export function transformReservationToDashboardAppointment(
   const time = format(startDate, "HH:mm");
 
   const petName = reservation.pet?.name ?? "";
-  const petType = reservation.pet?.species ?? "犬";
-  const ownerName = reservation.owner?.name ?? "";
+  const petType = reservation.pet?.animal_species?.name ?? "犬";
+  const ownerName = reservation.owner?.owner_name ?? "";
 
   const status = STATUS_TO_COLUMN_ID[reservation.status] ?? "pending";
 
   return {
-    id: reservation.id,
+    id: String(reservation.id ?? 0),
     time,
     ownerName,
     petType,
     petName,
     visitType: visitTypeToJapanese(reservation.visit_type),
-    serviceType: reservation.service_type,
+    serviceType: reservation.service_type?.name ?? "",
     isDesignated: reservation.is_designated,
-    doctor: reservation.doctor_id,
-    petId: reservation.pet_id,
-    ownerId: reservation.owner_id,
+    doctor: reservation.doctor?.name ?? (reservation.doctor_id ? String(reservation.doctor_id) : undefined),
+    petId: String(reservation.pet_id ?? 0),
+    ownerId: String(reservation.owner_id ?? 0),
     status,
   };
 }
@@ -87,14 +87,12 @@ export function transformReservationToDashboardAppointment(
 export function transformReservationsToDashboardColumns(
   reservations: BackendDashboardReservation[]
 ): DashboardColumn[] {
-  // キャンセル除外
   const activeReservations = reservations.filter((r) => r.status !== "cancelled");
   const appointments = activeReservations.map(transformReservationToDashboardAppointment);
 
   return DASHBOARD_COLUMNS.map((col) => ({
     ...col,
     appointments: appointments.filter((a) => {
-      // "confirmed" は "pending" カラムに配置
       if (col.id === "pending") {
         return a.status === "pending" || a.status === "confirmed";
       }
