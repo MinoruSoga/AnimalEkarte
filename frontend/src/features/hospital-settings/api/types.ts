@@ -21,7 +21,7 @@ export interface UpdateClinicRequest {
   logo_url?: string;
 }
 
-export type CreateStaffRequest = components["schemas"]["createStaffRequest"];
+export type CreateStaffRequest = components["schemas"]["StaffRegistrationRequest"];
 
 export interface UpdateStaffRequest {
   code?: string;

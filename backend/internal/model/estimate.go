@@ -7,7 +7,6 @@ import (
 )
 
 // EstimateStatus は見積書ステータス
-// @name EstimateStatus
 type EstimateStatus string
 
 const (
@@ -18,7 +17,6 @@ const (
 )
 
 // Estimate は見積書（v7.0追加）
-// @name Estimate
 type Estimate struct {
 	ID              uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID        uint64         `gorm:"not null"                                       json:"clinic_id"`
@@ -50,7 +48,6 @@ type Estimate struct {
 func (Estimate) TableName() string { return "estimates" }
 
 // EstimateItem は見積書明細
-// @name EstimateItem
 type EstimateItem struct {
 	ID                    uint64       `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	EstimateID            uint64       `gorm:"not null"                                       json:"estimate_id"`

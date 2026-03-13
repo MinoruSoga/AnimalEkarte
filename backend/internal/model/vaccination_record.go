@@ -5,8 +5,6 @@ import (
 
 	"gorm.io/gorm"
 )
-
-// @name NextScheduleType
 type NextScheduleType string
 
 const (
@@ -15,8 +13,6 @@ const (
 	NextScheduleType1Year  NextScheduleType = "1year"
 	NextScheduleTypeOther  NextScheduleType = "other"
 )
-
-// @name Vaccination
 type Vaccination struct {
 	ID               uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	MedicalRecordID  uint64            `gorm:"not null"                                       json:"medical_record_id"`

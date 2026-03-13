@@ -27,6 +27,7 @@ type MeResponse struct {
 	Email        string               `json:"email"`
 	DisplayName  string               `json:"display_name"`
 	UserType     string               `json:"user_type"`
+	StaffRole    *string              `json:"staff_role"`
 	JobTitle     *string              `json:"job_title"`
 	AvatarURL    *string              `json:"avatar_url"`
 	MainClinicID string               `json:"main_clinic_id"`
@@ -48,17 +49,6 @@ type LoginResponse struct {
 }
 
 // Login godoc
-// @Summary ログイン
-// @Description メール/パスワードで認証してJWTトークンを返す
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Param body body LoginInput true "ログイン情報"
-// @Success 200 {object} LoginResponse
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /auth/login [post]
 // Login はメール/パスワードで認証してJWTトークンを返す。
 // user_accounts.password_hash を bcrypt で検証する。
 func (h *Handler) Login(c *gin.Context) {
@@ -172,6 +162,11 @@ func (h *Handler) Login(c *gin.Context) {
 		jt := userData.UserAccount.JobTitle.Name
 		jobTitle = &jt
 	}
+	var staffRole *string
+	if userData.UserAccount.Staff != nil {
+		sr := string(userData.UserAccount.Staff.StaffRole)
+		staffRole = &sr
+	}
 	var avatarURL *string
 	if userData.UserAccount.AvatarURL != "" {
 		av := userData.UserAccount.AvatarURL
@@ -182,6 +177,7 @@ func (h *Handler) Login(c *gin.Context) {
 		Email:        userData.UserAccount.Email,
 		DisplayName:  userData.UserAccount.DisplayName,
 		UserType:     string(userData.UserAccount.UserType),
+		StaffRole:    staffRole,
 		JobTitle:     jobTitle,
 		AvatarURL:    avatarURL,
 		MainClinicID: mainClinicID,
@@ -208,12 +204,6 @@ func (h *Handler) Login(c *gin.Context) {
 }
 
 // Logout godoc
-// @Summary ログアウト
-// @Description httpOnly Cookieを無効化してログアウト
-// @Tags Auth
-// @Produce json
-// @Success 200 {object} map[string]string
-// @Router /auth/logout [post]
 func (h *Handler) Logout(c *gin.Context) {
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "auth_token",
@@ -228,15 +218,6 @@ func (h *Handler) Logout(c *gin.Context) {
 }
 
 // GetMe godoc
-// @Summary ログインユーザー情報取得
-// @Description JWTクレームからログインユーザーの詳細情報を返す
-// @Tags Auth
-// @Produce json
-// @Security BearerAuth
-// @Success 200 {object} MeResponse
-// @Failure 401 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /me [get]
 // GetMe はJWTクレームからログインユーザー情報を返す。
 func (h *Handler) GetMe(c *gin.Context) {
 	ctx := c.Request.Context()
@@ -296,6 +277,11 @@ func (h *Handler) GetMe(c *gin.Context) {
 		jt := data.UserAccount.JobTitle.Name
 		jobTitle = &jt
 	}
+	var staffRole *string
+	if data.UserAccount.Staff != nil {
+		sr := string(data.UserAccount.Staff.StaffRole)
+		staffRole = &sr
+	}
 	var avatarURL *string
 	if data.UserAccount.AvatarURL != "" {
 		av := data.UserAccount.AvatarURL
@@ -307,6 +293,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 		Email:        data.UserAccount.Email,
 		DisplayName:  data.UserAccount.DisplayName,
 		UserType:     string(data.UserAccount.UserType),
+		StaffRole:    staffRole,
 		JobTitle:     jobTitle,
 		AvatarURL:    avatarURL,
 		MainClinicID: mainClinicIDStr,

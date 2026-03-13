@@ -10,20 +10,6 @@ import (
 )
 
 // ListHospitalizations godoc
-// @Summary 入院一覧取得
-// @Description クリニックの入院一覧をページネーション付きで取得する
-// @Tags Hospitalizations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param page query int false "ページ番号 (default: 1)"
-// @Param limit query int false "件数 (1-100, default: 20)"
-// @Param status query string false "ステータスフィルター"
-// @Success 200 {object} handler.HospitalizationListResponse
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /hospitalizations [get]
 func (h *Handler) ListHospitalizations(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -68,19 +54,6 @@ func (h *Handler) ListHospitalizations(c *gin.Context) {
 }
 
 // GetHospitalization godoc
-// @Summary 入院取得
-// @Description 指定IDの入院情報を取得する
-// @Tags Hospitalizations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "入院ID"
-// @Success 200 {object} model.Hospitalization
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /hospitalizations/{id} [get]
 func (h *Handler) GetHospitalization(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -100,18 +73,6 @@ func (h *Handler) GetHospitalization(c *gin.Context) {
 }
 
 // CreateHospitalization godoc
-// @Summary 入院作成
-// @Description 新しい入院情報を作成する
-// @Tags Hospitalizations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param body body model.Hospitalization true "入院情報"
-// @Success 201 {object} model.Hospitalization
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /hospitalizations [post]
 func (h *Handler) CreateHospitalization(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -131,20 +92,6 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 }
 
 // UpdateHospitalization godoc
-// @Summary 入院更新
-// @Description 指定IDの入院情報を更新する
-// @Tags Hospitalizations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "入院ID"
-// @Param body body model.Hospitalization true "入院情報"
-// @Success 200 {object} model.Hospitalization
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /hospitalizations/{id} [put]
 func (h *Handler) UpdateHospitalization(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -170,19 +117,6 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 }
 
 // DeleteHospitalization godoc
-// @Summary 入院削除
-// @Description 指定IDの入院情報を削除する
-// @Tags Hospitalizations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "入院ID"
-// @Success 204 "No Content"
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /hospitalizations/{id} [delete]
 func (h *Handler) DeleteHospitalization(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {

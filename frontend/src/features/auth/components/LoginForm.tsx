@@ -9,7 +9,7 @@ import { C } from "@/lib/design-tokens";
 // login API を直接呼び出し、成功後に navigate("/") で保護ルート側に遷移する。
 import { login as loginApi } from "../api/login";
 import { MOCK_USERS } from "../api/mock-data";
-import { JOB_TITLE_LABELS, USER_TYPE_LABELS } from "../types";
+import { STAFF_ROLE_LABELS, USER_TYPE_LABELS } from "../types";
 import type { AuthUser } from "../types";
 
 /* ---- Demo Account Row ---- */
@@ -27,8 +27,8 @@ const DemoAccount = memo(function DemoAccount({ email, displayName, user, onSele
       ? USER_TYPE_LABELS.system_admin
       : user.userType === "clinic_admin"
         ? USER_TYPE_LABELS.clinic_admin
-        : user.jobTitle
-          ? JOB_TITLE_LABELS[user.jobTitle] || user.jobTitle
+        : user.staffRole
+          ? STAFF_ROLE_LABELS[user.staffRole]
           : "スタッフ";
 
   return (

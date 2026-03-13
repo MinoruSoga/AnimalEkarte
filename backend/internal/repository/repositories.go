@@ -6,6 +6,7 @@ import (
 
 // Repositories はすべてのリポジトリを保持するDIコンテナ
 type Repositories struct {
+	AnimalSpecies       AnimalSpeciesRepository
 	Owner               OwnerRepository
 	Pet                 PetRepository
 	Reservation         ReservationRepository
@@ -38,6 +39,7 @@ type Repositories struct {
 // NewRepositories はすべてのリポジトリを初期化して返す
 func NewRepositories(db *gorm.DB) *Repositories {
 	return &Repositories{
+		AnimalSpecies:       NewAnimalSpeciesRepository(db),
 		Owner:               NewOwnerRepository(db),
 		Pet:                 NewPetRepository(db),
 		Reservation:         NewReservationRepository(db),

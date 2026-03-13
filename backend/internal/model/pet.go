@@ -5,16 +5,12 @@ import (
 
 	"gorm.io/gorm"
 )
-
-// @name PetStatus
 type PetStatus string
 
 const (
 	PetStatusAlive    PetStatus = "alive"
 	PetStatusDeceased PetStatus = "deceased"
 )
-
-// @name PetGender
 type PetGender string
 
 const (
@@ -22,8 +18,6 @@ const (
 	PetGenderFemale  PetGender = "female"
 	PetGenderUnknown PetGender = "unknown"
 )
-
-// @name AcquisitionType
 type AcquisitionType string
 
 const (
@@ -32,8 +26,6 @@ const (
 	AcquisitionTypeProtected AcquisitionType = "rescued"
 	AcquisitionTypeOther     AcquisitionType = "other"
 )
-
-// @name DangerLevel
 type DangerLevel string
 
 const (
@@ -41,8 +33,6 @@ const (
 	DangerLevelMedium DangerLevel = "medium"
 	DangerLevelHigh   DangerLevel = "high"
 )
-
-// @name Pet
 type Pet struct {
 	ID              uint64           `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID        uint64           `gorm:"not null"                                       json:"clinic_id"`

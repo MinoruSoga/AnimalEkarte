@@ -5,16 +5,12 @@ import (
 
 	"gorm.io/gorm"
 )
-
-// @name MedicalRecordStatus
 type MedicalRecordStatus string
 
 const (
 	MedicalRecordStatusDraft     MedicalRecordStatus = "draft"
 	MedicalRecordStatusFinalized MedicalRecordStatus = "finalized"
 )
-
-// @name MedicalRecord
 type MedicalRecord struct {
 	ID                       uint64              `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID                 uint64              `gorm:"not null"                                       json:"clinic_id"`

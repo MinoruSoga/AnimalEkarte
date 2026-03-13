@@ -5,8 +5,8 @@
  */
 import type { components } from "@/types/generated/api";
 
-export type BackendExaminationItem = components["schemas"]["ExamItem"];
-export type BackendExamination = components["schemas"]["Exam"];
+export type BackendExaminationItem = components["schemas"]["ExaminationItem"];
+export type BackendExamination = components["schemas"]["Examination"];
 
 export interface CreateExaminationRequest {
   medical_record_id: string;

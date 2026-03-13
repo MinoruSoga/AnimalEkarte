@@ -5,7 +5,6 @@ import (
 )
 
 // Vital は外来バイタル記録
-// @name Vital
 type Vital struct {
 	ID              uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	MedicalRecordID uint64    `gorm:"not null"                                       json:"medical_record_id"`

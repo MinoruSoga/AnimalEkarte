@@ -10,8 +10,7 @@ import { useCreatePet, useUpdatePet, useDeletePet } from "@/features/pets/api";
 import { transformCreatePetRequest, transformUpdatePetRequest } from "@/features/pets/api/transforms";
 import { CreateOwnerRequest, UpdateOwnerRequest } from "@/types/owner";
 import type { Owner } from "@/types/owner";
-import { OwnerData, PetFormData, MembershipType, INSURANCE_COMPANY_VALUES, PET_INSURANCE_RATIO_VALUES } from "../types";
-import { isOneOf } from "@/lib/type-utils";
+import { OwnerData, PetFormData, MembershipType } from "../types";
 
 const PET_STATUS_TO_API: Record<string, "alive" | "deceased" | undefined> = {
   "生存": "alive",
@@ -62,29 +61,26 @@ function mapOwnerToFormData(owner: Owner): OwnerData {
 
 function mapOwnerPetsToFormData(owner: Owner): PetFormData[] {
   if (!owner.pets) return [];
-  return owner.pets.map((backendPet) => {
-    const petFormData: PetFormData = {
-      id: backendPet.id,
-      petNumber: backendPet.petNumber || "",
-      petName: backendPet.name,
-      petNameKana: "", // Not in Pet interface from backend yet?
-      status: backendPet.status || "生存",
-      species: backendPet.species,
-      gender: backendPet.gender || "",
-      birthDate: backendPet.birthDate || "",
-      color: "", // Not in Pet interface
-      weight: backendPet.weight || "",
-      environment: backendPet.environment || "",
-      remarks: backendPet.remarks || "",
-    };
-    if (backendPet.insuranceName && isOneOf(backendPet.insuranceName, INSURANCE_COMPANY_VALUES)) {
-      petFormData.insuranceName = backendPet.insuranceName;
-    }
-    if (backendPet.insuranceDetails && isOneOf(backendPet.insuranceDetails, PET_INSURANCE_RATIO_VALUES)) {
-      petFormData.insuranceDetails = backendPet.insuranceDetails;
-    }
-    return petFormData;
-  });
+  return owner.pets.map((backendPet): PetFormData => ({
+    id: backendPet.id,
+    petNumber: backendPet.petNumber || "",
+    petName: backendPet.name,
+    petNameKana: "",
+    status: backendPet.status || "生存",
+    species: backendPet.species,
+    animalSpeciesId: backendPet.animalSpeciesId,
+    gender: backendPet.gender || "",
+    birthDate: backendPet.birthDate || "",
+    color: "",
+    weight: backendPet.weight || "",
+    environment: backendPet.environment || "",
+    remarks: backendPet.remarks || "",
+    breed: backendPet.breed,
+    insuranceId: backendPet.insuranceId,
+    insuranceName: undefined,
+    insuranceDetails: backendPet.insuranceDetails,
+    microchipId: backendPet.microchipId,
+  }));
 }
 
 export function useOwnerForm(id?: string, initialOwner?: Owner) {
@@ -136,12 +132,14 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
       const updateRequest = transformUpdatePetRequest({
         petNumber: petData.petNumber,
         name: petData.petName,
+        animalSpeciesId: petData.animalSpeciesId,
         gender: petData.gender,
         birthDate: petData.birthDate,
         breed: petData.breed,
         weight: petData.weight,
         environment: petData.environment,
         status: PET_STATUS_TO_API[petData.status],
+        insuranceId: petData.insuranceId,
         remarks: petData.remarks,
       });
 
@@ -168,10 +166,15 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
         return;
       }
 
+      if (!petData.animalSpeciesId) {
+        toast.error("動物種を選択してください");
+        return;
+      }
+
       const createRequest = transformCreatePetRequest({
         ownerId: id,
         name: petData.petName || "",
-        animalSpeciesId: "", // TODO: form needs animal species ID selector
+        animalSpeciesId: petData.animalSpeciesId,
         petNumber: petData.petNumber,
         breed: petData.breed,
         gender: petData.gender,
@@ -179,27 +182,29 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
         weight: petData.weight,
         environment: petData.environment,
         status: PET_STATUS_TO_API[petData.status],
+        insuranceId: petData.insuranceId,
         remarks: petData.remarks,
       });
 
       createPetMutate(createRequest, {
         onSuccess: (newPetData) => {
-          // Transform backend response to frontend PetFormData
           const newPet: PetFormData = {
             id: newPetData.id,
             petNumber: newPetData.petNumber || "",
             petName: newPetData.name,
             status: newPetData.status || "生存",
             species: newPetData.species,
+            animalSpeciesId: newPetData.animalSpeciesId,
             gender: newPetData.gender || "",
             birthDate: newPetData.birthDate || "",
-            color: "", // Not in backend response
+            color: "",
             weight: newPetData.weight || "",
             environment: newPetData.environment || "",
             remarks: newPetData.remarks || "",
             breed: newPetData.breed,
-            insuranceName: newPetData.insuranceName && isOneOf(newPetData.insuranceName, INSURANCE_COMPANY_VALUES) ? newPetData.insuranceName : undefined,
-            insuranceDetails: newPetData.insuranceDetails && isOneOf(newPetData.insuranceDetails, PET_INSURANCE_RATIO_VALUES) ? newPetData.insuranceDetails : undefined,
+            insuranceId: newPetData.insuranceId,
+            insuranceName: undefined,
+            insuranceDetails: newPetData.insuranceDetails,
           };
           setPets(prev => [...prev, newPet]);
           toast.success("ペットを追加しました");

@@ -5,7 +5,6 @@ import (
 )
 
 // ClinicalPlan は診察所見・診断・治療方針（診察/治療タブ, v9.0追加）
-// @name ClinicalPlan
 type ClinicalPlan struct {
 	ID                  uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	MedicalRecordID     uint64    `gorm:"not null;uniqueIndex"                           json:"medical_record_id"`

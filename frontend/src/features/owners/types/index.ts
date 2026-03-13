@@ -37,6 +37,8 @@ export interface PetFormData {
   petNameKana?: string;
   status: string;
   species: string;
+  /** バックエンドの animal_species.id （UUID文字列）*/
+  animalSpeciesId?: string;
   gender: string;
   birthDate: string;
   breed?: string;
@@ -48,8 +50,12 @@ export interface PetFormData {
   food?: string;
   environment: string;
   remarks: string;
+  /** バックエンドの insurance.id （UUID文字列）*/
+  insuranceId?: string;
   insuranceName?: InsuranceCompany;
   insuranceDetails?: string;
+  /** マイクロチップ番号 */
+  microchipId?: string;
 }
 
 // Owner data

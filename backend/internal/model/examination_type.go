@@ -3,8 +3,6 @@ package model
 import (
 	"time"
 )
-
-// @name ExamType
 type ExamType struct {
 	ID          uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID    uint64    `gorm:"not null"                                       json:"clinic_id"`
@@ -21,8 +19,6 @@ type ExamType struct {
 }
 
 func (ExamType) TableName() string { return "exam_types" }
-
-// @name ExamTypeItem
 type ExamTypeItem struct {
 	ID              uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ExamTypeID      uint64    `gorm:"not null"                                       json:"exam_type_id"`

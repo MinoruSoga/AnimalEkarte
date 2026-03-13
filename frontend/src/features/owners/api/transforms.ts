@@ -18,6 +18,7 @@ export const transformPet = (pet: BackendPet): Pet => ({
   petNumber: pet.pet_number,
   name: pet.name ?? "",
   species: pet.animal_species?.name ?? "",
+  animalSpeciesId: pet.animal_species_id != null ? String(pet.animal_species_id) : undefined,
   breed: pet.breed,
   gender: pet.gender,
   status: pet.status ? PET_STATUS_MAP[pet.status] : undefined,
@@ -25,6 +26,7 @@ export const transformPet = (pet: BackendPet): Pet => ({
   weight: pet.weight?.toString(),
   environment: pet.environment,
   lastVisit: pet.last_visit ?? undefined,
+  insuranceId: pet.insurance_id != null ? String(pet.insurance_id) : undefined,
   insuranceName: pet.insurance?.name,
   insuranceDetails:
     pet.insurance?.coverage_rate != null

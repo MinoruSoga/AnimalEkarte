@@ -3,7 +3,6 @@ package model
 import "time"
 
 // Company は法人情報（ノア動物病院、シングルトン）
-// @name Company
 type Company struct {
 	ID                 uint64    `gorm:"primaryKey;autoIncrement"  json:"id"`
 	Name               string    `gorm:"not null"                  json:"name"`

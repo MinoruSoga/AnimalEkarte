@@ -5,8 +5,6 @@ import (
 
 	"gorm.io/gorm"
 )
-
-// @name ExaminationStatus
 type ExaminationStatus string
 
 const (
@@ -14,8 +12,6 @@ const (
 	ExaminationStatusInProgress ExaminationStatus = "検査中"
 	ExaminationStatusCompleted  ExaminationStatus = "完了"
 )
-
-// @name ExaminationResultStatus
 type ExaminationResultStatus string
 
 const (
@@ -23,8 +19,6 @@ const (
 	ExaminationResultStatusHigh   ExaminationResultStatus = "high"
 	ExaminationResultStatusLow    ExaminationResultStatus = "low"
 )
-
-// @name Exam
 type Exam struct {
 	ID              uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	MedicalRecordID uint64            `gorm:"not null"                                       json:"medical_record_id"`
@@ -48,8 +42,6 @@ type Exam struct {
 }
 
 func (Exam) TableName() string { return "exams" }
-
-// @name ExamItem
 type ExamItem struct {
 	ID              uint64                  `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ExamID          uint64                  `gorm:"not null"                                       json:"exam_id"`

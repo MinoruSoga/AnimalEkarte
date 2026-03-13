@@ -5,7 +5,6 @@ import (
 )
 
 // AppetiteLevel は食欲レベル
-// @name AppetiteLevel
 type AppetiteLevel string
 
 const (
@@ -16,7 +15,6 @@ const (
 )
 
 // WaterIntakeLevel は水分摂取レベル
-// @name WaterIntakeLevel
 type WaterIntakeLevel string
 
 const (
@@ -27,7 +25,6 @@ const (
 )
 
 // Inquiry は問診情報（カルテ問診タブ, v7.0追加）
-// @name Inquiry
 type Inquiry struct {
 	ID                       uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	MedicalRecordID          uint64            `gorm:"not null"                                       json:"medical_record_id"`

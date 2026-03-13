@@ -10,16 +10,6 @@ import (
 )
 
 // GetCompany godoc
-// @Summary 企業情報取得
-// @Description 動物病院グループの企業情報を取得する
-// @Tags Company
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Success 200 {object} model.Company
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /company [get]
 func (h *Handler) GetCompany(c *gin.Context) {
 	company, err := h.svc.Clinic.GetCompany(c.Request.Context())
 	if err != nil {
@@ -30,18 +20,6 @@ func (h *Handler) GetCompany(c *gin.Context) {
 }
 
 // UpdateCompany godoc
-// @Summary 企業情報更新
-// @Description 動物病院グループの企業情報を更新する
-// @Tags Company
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param input body model.Company true "更新する企業情報"
-// @Success 200 {object} model.Company
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /company [put]
 func (h *Handler) UpdateCompany(c *gin.Context) {
 	var input model.Company
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -56,15 +34,6 @@ func (h *Handler) UpdateCompany(c *gin.Context) {
 }
 
 // ListClinics godoc
-// @Summary クリニック一覧取得
-// @Description 全クリニック（院）の一覧を取得する
-// @Tags Clinics
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Success 200 {array} model.Clinic
-// @Failure 500 {object} map[string]string
-// @Router /clinics [get]
 func (h *Handler) ListClinics(c *gin.Context) {
 	clinics, err := h.svc.Clinic.ListClinics(c.Request.Context())
 	if err != nil {
@@ -75,18 +44,6 @@ func (h *Handler) ListClinics(c *gin.Context) {
 }
 
 // GetClinic godoc
-// @Summary クリニック詳細取得
-// @Description 指定IDのクリニック（院）を取得する
-// @Tags Clinics
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "クリニックID"
-// @Success 200 {object} model.Clinic
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /clinics/{id} [get]
 func (h *Handler) GetClinic(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -102,19 +59,6 @@ func (h *Handler) GetClinic(c *gin.Context) {
 }
 
 // UpdateClinic godoc
-// @Summary クリニック情報更新
-// @Description 指定IDのクリニック（院）情報を更新する
-// @Tags Clinics
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "クリニックID"
-// @Param input body model.Clinic true "更新するクリニック情報"
-// @Success 200 {object} model.Clinic
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /clinics/{id} [patch]
 func (h *Handler) UpdateClinic(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -147,18 +91,6 @@ type createClinicRequest struct {
 }
 
 // CreateClinic godoc
-// @Summary クリニック作成
-// @Description 新規クリニックを登録する
-// @Tags Clinics
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param input body createClinicRequest true "クリニック登録情報"
-// @Success 201 {object} model.Clinic
-// @Failure 400 {object} map[string]string
-// @Failure 409 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /clinics [post]
 func (h *Handler) CreateClinic(c *gin.Context) {
 	var req createClinicRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -186,17 +118,6 @@ func (h *Handler) CreateClinic(c *gin.Context) {
 }
 
 // DeleteClinic godoc
-// @Summary クリニック削除
-// @Description 指定IDのクリニックを削除する
-// @Tags Clinics
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "クリニックID"
-// @Success 204
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /clinics/{id} [delete]
 func (h *Handler) DeleteClinic(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {

@@ -34,7 +34,7 @@ export const MOCK_USERS: readonly MockCredential[] = [
       email: "admin@example.com",
       displayName: "田中 太郎",
       userType: "clinic_admin",
-      jobTitle: "veterinarian",
+      staffRole: "veterinarian",
       avatarUrl: null,
       mainClinicId: CLINIC_A_ID,
       clinics: [
@@ -53,7 +53,7 @@ export const MOCK_USERS: readonly MockCredential[] = [
       email: "vet@example.com",
       displayName: "山田 花子",
       userType: "staff",
-      jobTitle: "veterinarian",
+      staffRole: "veterinarian",
       avatarUrl: null,
       mainClinicId: CLINIC_A_ID,
       clinics: [
@@ -70,7 +70,7 @@ export const MOCK_USERS: readonly MockCredential[] = [
       email: "nurse@example.com",
       displayName: "佐藤 美咲",
       userType: "staff",
-      jobTitle: "nurse",
+      staffRole: "nurse",
       avatarUrl: null,
       mainClinicId: CLINIC_A_ID,
       clinics: [
@@ -87,7 +87,7 @@ export const MOCK_USERS: readonly MockCredential[] = [
       email: "reception@example.com",
       displayName: "鈴木 一郎",
       userType: "staff",
-      jobTitle: "reception",
+      staffRole: "reception",
       avatarUrl: null,
       mainClinicId: CLINIC_A_ID,
       clinics: [
@@ -104,7 +104,7 @@ export const MOCK_USERS: readonly MockCredential[] = [
       email: "trimmer@example.com",
       displayName: "高橋 さくら",
       userType: "staff",
-      jobTitle: "trimmer",
+      staffRole: "trimmer",
       avatarUrl: null,
       mainClinicId: CLINIC_A_ID,
       clinics: [
@@ -121,7 +121,7 @@ export const MOCK_USERS: readonly MockCredential[] = [
       email: "system@example.com",
       displayName: "本部 管理者",
       userType: "system_admin",
-      jobTitle: null,
+      staffRole: null,
       avatarUrl: null,
       mainClinicId: CLINIC_A_ID,
       clinics: [

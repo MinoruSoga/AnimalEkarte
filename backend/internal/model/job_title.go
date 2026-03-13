@@ -5,7 +5,6 @@ import (
 )
 
 // JobTitle は職種マスタ（v16.0 job_title ENUM廃止→マスタテーブル化）
-// @name JobTitle
 type JobTitle struct {
 	ID        uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID  uint64    `gorm:"not null"                                       json:"clinic_id"`

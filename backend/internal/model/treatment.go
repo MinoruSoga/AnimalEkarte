@@ -7,7 +7,6 @@ import (
 )
 
 // TreatmentItemType は治療項目種別
-// @name TreatmentItemType
 type TreatmentItemType string
 
 const (
@@ -18,7 +17,6 @@ const (
 )
 
 // TreatmentStatus は治療ステータス
-// @name TreatmentStatus
 type TreatmentStatus string
 
 const (
@@ -28,7 +26,6 @@ const (
 )
 
 // Treatment は治療項目（外来診療）
-// @name Treatment
 type Treatment struct {
 	ID              uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	MedicalRecordID uint64            `gorm:"not null"                                       json:"medical_record_id"`

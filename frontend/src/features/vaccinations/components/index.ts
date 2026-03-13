@@ -1,2 +1,1 @@
-// Vaccinations components placeholder
-// TODO: Add VaccinationCard, VaccinationList components
+export { VaccinationCard } from "./VaccinationCard";

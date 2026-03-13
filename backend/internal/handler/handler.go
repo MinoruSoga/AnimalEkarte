@@ -134,6 +134,8 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 
 		// マスタ
 		masters := protected.Group("/masters")
+		masters.GET("/animal-species", h.ListAnimalSpecies)
+
 		masters.GET("/staffs", h.ListStaffs)
 		masters.POST("/staffs", h.CreateStaff)
 		masters.PATCH("/staffs/:id", h.UpdateStaff)

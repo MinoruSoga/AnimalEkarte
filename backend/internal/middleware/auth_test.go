@@ -62,7 +62,7 @@ func TestAuth(t *testing.T) {
 	t.Run("missing Authorization header returns 401", func(t *testing.T) {
 		w, _ := runAuthMiddleware(t, "")
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
-		assert.Contains(t, w.Body.String(), "authorization header required")
+		assert.Contains(t, w.Body.String(), "authorization required")
 	})
 
 	t.Run("malformed header without Bearer scheme returns 401", func(t *testing.T) {

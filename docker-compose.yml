@@ -57,12 +57,10 @@ services:
     volumes:
       - ./backend/docs:/work/spec:ro
       - ./frontend/src/types/generated:/work/output
-    # swagger.yaml (Swagger 2.0, auto-generated) → openapi3.yaml (OpenAPI 3.0) → TypeScript types
-    # swagger2openapi: Swagger 2.0 → OpenAPI 3.0 変換
-    # openapi-typescript@7: OpenAPI 3.0 → TypeScript型生成
+    # api.yaml (OpenAPI 3.0) → TypeScript types
+    # api.yaml が single source of truth
     command: >
-      sh -c "npx --yes swagger2openapi@7 /work/spec/swagger.yaml -o /tmp/openapi3.yaml &&
-             npx --yes openapi-typescript@^7 /tmp/openapi3.yaml -o /work/output/api.ts"
+      sh -c "npx --yes openapi-typescript@^7 /work/spec/api.yaml -o /work/output/api.ts"
     profiles:
       - tools
 

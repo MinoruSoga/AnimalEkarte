@@ -5,7 +5,6 @@ import (
 )
 
 // InquiryTemplate は問診定型文マスタ（v11.0追加）
-// @name InquiryTemplate
 type InquiryTemplate struct {
 	ID        uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID  uint64    `gorm:"not null"                                       json:"clinic_id"`

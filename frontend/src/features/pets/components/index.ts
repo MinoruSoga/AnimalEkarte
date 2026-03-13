@@ -1,2 +1,1 @@
-// Pets components placeholder
-// TODO: Add PetCard, PetList components
+export { PetCard } from "./PetCard";

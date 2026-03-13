@@ -10,20 +10,6 @@ import (
 )
 
 // ListInventory godoc
-// @Summary 在庫一覧取得
-// @Description 在庫アイテムの一覧をページネーション付きで取得する
-// @Tags Inventory
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param page query int false "ページ番号 (default: 1)"
-// @Param limit query int false "件数 (1-100, default: 20)"
-// @Param category query string false "カテゴリフィルター"
-// @Param status query string false "ステータスフィルター (sufficient, low, out_of_stock)"
-// @Success 200 {object} handler.InventoryListResponse
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /inventory [get]
 func (h *Handler) ListInventory(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -55,18 +41,6 @@ func (h *Handler) ListInventory(c *gin.Context) {
 }
 
 // GetInventory godoc
-// @Summary 在庫詳細取得
-// @Description 指定IDの在庫アイテムを取得する
-// @Tags Inventory
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "在庫ID"
-// @Success 200 {object} model.InventoryItem
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /inventory/{id} [get]
 func (h *Handler) GetInventory(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -87,17 +61,6 @@ func (h *Handler) GetInventory(c *gin.Context) {
 }
 
 // CreateInventory godoc
-// @Summary 在庫作成
-// @Description 新しい在庫アイテムを作成する
-// @Tags Inventory
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param input body model.InventoryItem true "在庫情報"
-// @Success 201 {object} model.InventoryItem
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /inventory [post]
 func (h *Handler) CreateInventory(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -117,19 +80,6 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 }
 
 // UpdateInventory godoc
-// @Summary 在庫更新
-// @Description 指定IDの在庫アイテムを更新する
-// @Tags Inventory
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "在庫ID"
-// @Param input body model.InventoryItem true "更新する在庫情報"
-// @Success 200 {object} model.InventoryItem
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /inventory/{id} [put]
 func (h *Handler) UpdateInventory(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {

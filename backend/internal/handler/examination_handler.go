@@ -10,22 +10,6 @@ import (
 )
 
 // ListExaminations godoc
-// @Summary 検査一覧取得
-// @Description 検査記録の一覧をページネーション付きで取得する
-// @Tags Examinations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param page query int false "ページ番号 (default: 1)"
-// @Param limit query int false "件数 (1-100, default: 20)"
-// @Param pet_id query integer false "ペットIDフィルター"
-// @Param owner_id query integer false "飼主IDフィルター"
-// @Param status query string false "ステータスフィルター"
-// @Success 200 {object} handler.ExamListResponse
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /examinations [get]
 func (h *Handler) ListExaminations(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -72,19 +56,6 @@ func (h *Handler) ListExaminations(c *gin.Context) {
 }
 
 // GetExamination godoc
-// @Summary 検査詳細取得
-// @Description 指定IDの検査記録を取得する
-// @Tags Examinations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "検査ID"
-// @Success 200 {object} model.Exam
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /examinations/{id} [get]
 func (h *Handler) GetExamination(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -100,18 +71,6 @@ func (h *Handler) GetExamination(c *gin.Context) {
 }
 
 // CreateExamination godoc
-// @Summary 検査作成
-// @Description 新しい検査記録を作成する
-// @Tags Examinations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param input body model.Exam true "検査情報"
-// @Success 201 {object} model.Exam
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /examinations [post]
 func (h *Handler) CreateExamination(c *gin.Context) {
 	var input model.Exam
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -126,20 +85,6 @@ func (h *Handler) CreateExamination(c *gin.Context) {
 }
 
 // UpdateExamination godoc
-// @Summary 検査更新
-// @Description 指定IDの検査記録を更新する
-// @Tags Examinations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "検査ID"
-// @Param input body model.Exam true "更新する検査情報"
-// @Success 200 {object} model.Exam
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /examinations/{id} [patch]
 func (h *Handler) UpdateExamination(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -160,19 +105,6 @@ func (h *Handler) UpdateExamination(c *gin.Context) {
 }
 
 // DeleteExamination godoc
-// @Summary 検査削除
-// @Description 指定IDの検査記録を削除する
-// @Tags Examinations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "検査ID"
-// @Success 204 "No Content"
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /examinations/{id} [delete]
 func (h *Handler) DeleteExamination(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {

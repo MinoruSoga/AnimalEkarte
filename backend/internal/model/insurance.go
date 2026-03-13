@@ -3,8 +3,6 @@ package model
 import (
 	"time"
 )
-
-// @name Insurance
 type Insurance struct {
 	ID           uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID     uint64    `gorm:"not null"                                       json:"clinic_id"`

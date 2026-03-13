@@ -5,8 +5,6 @@ import (
 
 	"gorm.io/gorm"
 )
-
-// @name StaffRole
 type StaffRole string
 
 const (
@@ -16,8 +14,6 @@ const (
 	StaffRoleReception    StaffRole = "reception"
 	StaffRoleManager      StaffRole = "manager"
 )
-
-// @name Staff
 type Staff struct {
 	ID            uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID      uint64         `gorm:"not null"                                       json:"clinic_id"`
@@ -36,8 +32,6 @@ type Staff struct {
 }
 
 func (Staff) TableName() string { return "staffs" }
-
-// @name ShiftType
 type ShiftType string
 
 const (
@@ -47,8 +41,6 @@ const (
 	ShiftTypeOff       ShiftType = "off"
 	ShiftTypePaidLeave ShiftType = "paid_leave"
 )
-
-// @name ShiftEntry
 type ShiftEntry struct {
 	ID        uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID  uint64    `gorm:"not null"                                       json:"clinic_id"`

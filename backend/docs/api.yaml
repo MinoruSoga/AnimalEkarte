@@ -27,6 +27,8 @@ components:
       type: object
       required: [code, message]
       properties:
+        code:
+          type: string
           description: 機械可読なエラーコード
           enum: [VALIDATION_ERROR, NOT_FOUND, CONFLICT, UNAUTHORIZED, FORBIDDEN, INTERNAL_ERROR]
           example: VALIDATION_ERROR
@@ -585,6 +587,8 @@ components:
           minLength: 8
           description: 初期パスワード（8文字以上）
           example: secure_pass_123
+        staff_code:
+          type: string
           description: スタッフコード
           example: DR001
         license_number:

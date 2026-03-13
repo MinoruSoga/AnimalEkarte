@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset restart-api restart-front build-prod lint lint-fix test test-cover swagger build-go mod-download mod-tidy help codegen codegen-check
+.PHONY: up down build logs logs-api logs-front ps db clean reset restart-api restart-front build-prod lint lint-fix test test-cover build-go mod-download mod-tidy help codegen codegen-check
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -77,19 +77,13 @@ test:
 test-cover:
 	docker compose exec backend go test -cover ./...
 
-# Swagger ドキュメント生成
-# --parseInternal: internal/ パッケージを解析対象に含める
-# gorm.DeletedAt は各モデルで swaggerignore:"true" タグにより除外済み
-# ポスト処理: swag が付与する model./handler. プレフィックスを除去してクリーンな定義名にする
-swagger:
-	docker compose exec backend swag init -g cmd/api/main.go -o docs --parseInternal
-	python3 $(CURDIR)/scripts/clean-swagger.py $(CURDIR)/backend/docs/swagger.yaml $(CURDIR)/backend/docs/swagger.json
-
-# 型定義生成（swagger.yaml → TypeScript型）
-# 手順: make swagger → make codegen （swagger.yaml が最新であること）
-# api.yaml は手動参照用。codegen には使用しない。
-codegen: swagger
+# 型定義生成（api.yaml → Go型 + TypeScript型）
+# api.yaml (OpenAPI 3.0) が single source of truth
+# docker compose exec backend のワーキングディレクトリは /app（= backend/）
+codegen:
 	mkdir -p frontend/src/types/generated
+	docker compose exec backend go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen \
+		--config oapi-codegen.yaml docs/api.yaml
 	docker compose run --rm codegen
 
 # 型定義の差分チェック（CI用）
@@ -134,8 +128,7 @@ help:
 	@echo "  lint-fix      Goリンター実行（自動修正）"
 	@echo "  test          Goテスト実行"
 	@echo "  test-cover    Goテスト実行（カバレッジ付き）"
-	@echo "  swagger       Swaggerドキュメント生成"
-	@echo "  codegen       TypeScript型定義生成"
+	@echo "  codegen       型定義生成（api.yaml → Go型 + TypeScript型）"
 	@echo "  codegen-check 型定義の差分チェック（CI用）"
 	@echo "  build-go      Goビルド（開発用）"
 	@echo "  mod-download  Goモジュールダウンロード"

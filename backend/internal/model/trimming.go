@@ -5,8 +5,6 @@ import (
 
 	"gorm.io/gorm"
 )
-
-// @name TrimmingStatus
 type TrimmingStatus string
 
 const (
@@ -14,16 +12,12 @@ const (
 	TrimmingStatusReserved   TrimmingStatus = "reserved"
 	TrimmingStatusInProgress TrimmingStatus = "in_progress"
 )
-
-// @name BodyWeightUnit
 type BodyWeightUnit string
 
 const (
 	BodyWeightUnitKg BodyWeightUnit = "Kg"
 	BodyWeightUnitG  BodyWeightUnit = "g"
 )
-
-// @name TrimmingRecord
 type TrimmingRecord struct {
 	ID             uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID       uint64         `gorm:"not null"                                       json:"clinic_id"`
@@ -54,8 +48,6 @@ type TrimmingRecord struct {
 }
 
 func (TrimmingRecord) TableName() string { return "trimming_records" }
-
-// @name TrimmingRecordOption
 type TrimmingRecordOption struct {
 	ID               uint64 `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	TrimmingRecordID uint64 `gorm:"not null"                                       json:"trimming_record_id"`

@@ -17,21 +17,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
-
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
-
-	_ "github.com/animal-ekarte/backend/docs"
 )
-
-// @title Animal Ekarte API
-// @version 2.0
-// @description 動物病院 電子カルテシステム API（45テーブル・専用マスタテーブル版）
-// @host localhost:8080
-// @BasePath /api/v1
-// @securityDefinitions.apikey BearerAuth
-// @in header
-// @name Authorization
 
 func main() {
 	// ロガー初期化
@@ -78,10 +64,6 @@ func main() {
 	r.Use(middleware.CORS())
 	r.Use(middleware.RequestLoggingMiddleware())
 	h.RegisterRoutes(r)
-	// Swagger UI は開発・ステージング環境のみ有効
-	if cfg.GinMode != gin.ReleaseMode {
-		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-	}
 
 	// HTTPサーバー設定
 	server := &http.Server{
@@ -95,7 +77,6 @@ func main() {
 
 	logger.Info("server starting",
 		slog.String("port", cfg.Port),
-		slog.String("swagger_url", "http://localhost:"+cfg.Port+"/swagger/index.html"),
 	)
 
 	// Graceful shutdown

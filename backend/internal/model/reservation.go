@@ -5,8 +5,6 @@ import (
 
 	"gorm.io/gorm"
 )
-
-// @name ReservationStatus
 type ReservationStatus string
 
 const (
@@ -18,16 +16,12 @@ const (
 	ReservationStatusAccounting     ReservationStatus = "accounting"
 	ReservationStatusCompleted      ReservationStatus = "completed"
 )
-
-// @name VisitType
 type VisitType string
 
 const (
 	VisitTypeFirst   VisitType = "first"
 	VisitTypeRevisit VisitType = "revisit"
 )
-
-// @name ReservationAppointment
 type ReservationAppointment struct {
 	ID            uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID      uint64            `gorm:"not null"                                       json:"clinic_id"`

@@ -10,20 +10,6 @@ import (
 )
 
 // ListPets godoc
-// @Summary ペット一覧取得
-// @Description クリニックに所属するペットの一覧をページネーションで返す
-// @Tags Pets
-// @Produce json
-// @Security BearerAuth
-// @Param page query int false "ページ番号 (default: 1)"
-// @Param limit query int false "件数 (1-100, default: 20)"
-// @Param search query string false "検索キーワード"
-// @Param owner_id query integer false "飼主ID"
-// @Success 200 {object} handler.PetListResponse
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /pets [get]
 func (h *Handler) ListPets(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -55,18 +41,6 @@ func (h *Handler) ListPets(c *gin.Context) {
 }
 
 // GetPet godoc
-// @Summary ペット取得
-// @Description 指定IDのペットを返す
-// @Tags Pets
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "ペットID"
-// @Success 200 {object} model.Pet
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /pets/{id} [get]
 func (h *Handler) GetPet(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -86,18 +60,6 @@ func (h *Handler) GetPet(c *gin.Context) {
 }
 
 // CreatePet godoc
-// @Summary ペット作成
-// @Description 新規ペットを作成する
-// @Tags Pets
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param body body model.Pet true "ペット情報"
-// @Success 201 {object} model.Pet
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /pets [post]
 func (h *Handler) CreatePet(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -117,20 +79,6 @@ func (h *Handler) CreatePet(c *gin.Context) {
 }
 
 // UpdatePet godoc
-// @Summary ペット更新
-// @Description 指定IDのペット情報を更新する
-// @Tags Pets
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "ペットID"
-// @Param body body model.Pet true "ペット情報"
-// @Success 200 {object} model.Pet
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /pets/{id} [put]
 func (h *Handler) UpdatePet(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -156,17 +104,6 @@ func (h *Handler) UpdatePet(c *gin.Context) {
 }
 
 // DeletePet godoc
-// @Summary ペット削除
-// @Description 指定IDのペットを削除する
-// @Tags Pets
-// @Security BearerAuth
-// @Param id path integer true "ペットID"
-// @Success 204
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /pets/{id} [delete]
 func (h *Handler) DeletePet(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {

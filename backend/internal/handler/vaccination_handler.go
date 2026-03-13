@@ -10,21 +10,6 @@ import (
 )
 
 // ListVaccinations godoc
-// @Summary 予防接種一覧取得
-// @Description 予防接種記録の一覧をページネーション付きで取得する
-// @Tags Vaccinations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param page query int false "ページ番号 (default: 1)"
-// @Param limit query int false "件数 (1-100, default: 20)"
-// @Param pet_id query integer false "ペットIDフィルター"
-// @Param owner_id query integer false "飼主IDフィルター"
-// @Success 200 {object} handler.VaccinationListResponse
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /vaccinations [get]
 func (h *Handler) ListVaccinations(c *gin.Context) {
 	page, limit, err := parsePagination(c)
 	if err != nil {
@@ -61,19 +46,6 @@ func (h *Handler) ListVaccinations(c *gin.Context) {
 }
 
 // GetVaccination godoc
-// @Summary 予防接種詳細取得
-// @Description 指定IDの予防接種記録を取得する
-// @Tags Vaccinations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "予防接種ID"
-// @Success 200 {object} model.Vaccination
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /vaccinations/{id} [get]
 func (h *Handler) GetVaccination(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -89,18 +61,6 @@ func (h *Handler) GetVaccination(c *gin.Context) {
 }
 
 // CreateVaccination godoc
-// @Summary 予防接種作成
-// @Description 新しい予防接種記録を作成する
-// @Tags Vaccinations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param input body model.Vaccination true "予防接種情報"
-// @Success 201 {object} model.Vaccination
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /vaccinations [post]
 func (h *Handler) CreateVaccination(c *gin.Context) {
 	var input model.Vaccination
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -115,20 +75,6 @@ func (h *Handler) CreateVaccination(c *gin.Context) {
 }
 
 // UpdateVaccination godoc
-// @Summary 予防接種更新
-// @Description 指定IDの予防接種記録を更新する
-// @Tags Vaccinations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "予防接種ID"
-// @Param input body model.Vaccination true "更新する予防接種情報"
-// @Success 200 {object} model.Vaccination
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /vaccinations/{id} [patch]
 func (h *Handler) UpdateVaccination(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -149,19 +95,6 @@ func (h *Handler) UpdateVaccination(c *gin.Context) {
 }
 
 // DeleteVaccination godoc
-// @Summary 予防接種削除
-// @Description 指定IDの予防接種記録を削除する
-// @Tags Vaccinations
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "予防接種ID"
-// @Success 204 "No Content"
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /vaccinations/{id} [delete]
 func (h *Handler) DeleteVaccination(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {

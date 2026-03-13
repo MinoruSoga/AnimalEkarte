@@ -5,7 +5,6 @@ import (
 )
 
 // BillingReviewStatus は会計医師確認ステータス
-// @name BillingReviewStatus
 type BillingReviewStatus string
 
 const (
@@ -15,7 +14,6 @@ const (
 )
 
 // BillingReview は会計医師確認（v7.0追加）
-// @name BillingReview
 type BillingReview struct {
 	ID              uint64              `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	MedicalRecordID uint64              `gorm:"not null;uniqueIndex"                           json:"medical_record_id"`

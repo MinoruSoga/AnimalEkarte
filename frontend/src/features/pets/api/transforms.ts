@@ -17,6 +17,7 @@ export const transformBackendPetToFrontend = (p: BackendPet): Pet => ({
   petNumber: p.pet_number,
   name: p.name ?? "",
   species: p.animal_species?.name ?? "",
+  animalSpeciesId: p.animal_species_id != null ? String(p.animal_species_id) : undefined,
   breed: p.breed,
   gender: p.gender,
   status: p.status ? PET_STATUS_MAP[p.status] : undefined,
@@ -24,6 +25,7 @@ export const transformBackendPetToFrontend = (p: BackendPet): Pet => ({
   weight: p.weight?.toString(),
   environment: p.environment,
   lastVisit: p.last_visit ?? undefined,
+  insuranceId: p.insurance_id != null ? String(p.insurance_id) : undefined,
   insuranceName: p.insurance?.name,
   insuranceDetails:
     p.insurance?.coverage_rate != null

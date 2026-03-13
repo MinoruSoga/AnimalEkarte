@@ -5,7 +5,6 @@ import (
 )
 
 // ChiefComplaintCategory は主訴区分マスタ（v11.0追加）
-// @name ChiefComplaintCategory
 type ChiefComplaintCategory struct {
 	ID        uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID  uint64    `gorm:"not null"                                       json:"clinic_id"`

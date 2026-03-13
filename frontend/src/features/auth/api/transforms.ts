@@ -3,8 +3,8 @@
  * バックエンドは snake_case、フロントエンドは camelCase
  */
 import { z } from "zod";
-import type { AuthUser, JobTitle } from "../types";
-import { USER_TYPE_VALUES, JOB_TITLE_VALUES, PERMISSION_VALUES } from "../types";
+import type { AuthUser, StaffRole } from "../types";
+import { USER_TYPE_VALUES, STAFF_ROLE_VALUES, PERMISSION_VALUES } from "../types";
 
 const clinicMembershipSchema = z.object({
   clinic_id: z.string(),
@@ -13,16 +13,19 @@ const clinicMembershipSchema = z.object({
 });
 
 // z.enum は mutable tuple を要求するため、readonly const 配列を型キャストして渡す
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const toEnumTuple = <T extends string>(v: readonly T[]): [T, ...T[]] => v as any;
+// [T, ...T[]] 形式のタプル型へのキャストで any を回避する
+const toEnumTuple = <T extends string>(v: readonly T[]): [T, ...T[]] =>
+  v as unknown as [T, ...T[]];
 
 export const backendMeResponseSchema = z.object({
   id: z.string(),
   email: z.string(),
   display_name: z.string(),
   user_type: z.enum(toEnumTuple(USER_TYPE_VALUES)),
-  // job_title はマスタテーブルの Name（自由文字列）。フロントの JobTitle enum とは別物
-  job_title: z.string().nullable(),
+  // staff_role はバックエンドの staff_role ENUM（スタッフ紐づけがない場合は null）
+  staff_role: z.string().nullable(),
+  // job_title は後方互換のため残存（現在は staff_role を優先使用）
+  job_title: z.string().nullable().optional(),
   avatar_url: z.string().nullable(),
   main_clinic_id: z.string(),
   clinics: z.array(clinicMembershipSchema),
@@ -38,10 +41,9 @@ export function mapMeToAuthUser(raw: unknown): AuthUser {
     email: me.email,
     displayName: me.display_name,
     userType: me.user_type,
-    // TODO: バックエンドの job_title は master テーブルの自由文字列。
-    //       JOB_TITLE_VALUES に含まれない値（日本語等）は null 扱いにする。
-    jobTitle: (JOB_TITLE_VALUES as readonly string[]).includes(me.job_title ?? "")
-      ? (me.job_title as JobTitle)
+    // staff_role が STAFF_ROLE_VALUES に含まれる値のみ受け入れ、それ以外は null
+    staffRole: (STAFF_ROLE_VALUES as readonly string[]).includes(me.staff_role ?? "")
+      ? (me.staff_role as StaffRole)
       : null,
     avatarUrl: me.avatar_url,
     mainClinicId: me.main_clinic_id,

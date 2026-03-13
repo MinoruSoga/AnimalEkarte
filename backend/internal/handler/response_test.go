@@ -12,6 +12,96 @@ import (
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
+func TestExtractClinicID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name           string
+		setupContext   func(c *gin.Context)
+		wantClinicID   uint64
+		wantOK         bool
+		wantStatus     int
+		wantBodyContain string
+	}{
+		{
+			name: "extracts valid numeric clinic_id from context",
+			setupContext: func(c *gin.Context) {
+				c.Set("clinic_id", "42")
+			},
+			wantClinicID: 42,
+			wantOK:       true,
+		},
+		{
+			name:            "returns false when clinic_id key is missing",
+			setupContext:    func(_ *gin.Context) {},
+			wantClinicID:    0,
+			wantOK:          false,
+			wantStatus:      http.StatusUnauthorized,
+			wantBodyContain: "missing clinic context",
+		},
+		{
+			name: "returns false when clinic_id is not a string",
+			setupContext: func(c *gin.Context) {
+				c.Set("clinic_id", 42) // int instead of string
+			},
+			wantClinicID:    0,
+			wantOK:          false,
+			wantStatus:      http.StatusInternalServerError,
+			wantBodyContain: "invalid clinic context",
+		},
+		{
+			name: "returns false when clinic_id is non-numeric string",
+			setupContext: func(c *gin.Context) {
+				c.Set("clinic_id", "not-a-number")
+			},
+			wantClinicID:    0,
+			wantOK:          false,
+			wantStatus:      http.StatusInternalServerError,
+			wantBodyContain: "invalid clinic context",
+		},
+		{
+			name: "returns false for negative numeric string",
+			setupContext: func(c *gin.Context) {
+				c.Set("clinic_id", "-1")
+			},
+			wantClinicID:    0,
+			wantOK:          false,
+			wantStatus:      http.StatusInternalServerError,
+			wantBodyContain: "invalid clinic context",
+		},
+		{
+			name: "returns false for empty string",
+			setupContext: func(c *gin.Context) {
+				c.Set("clinic_id", "")
+			},
+			wantClinicID:    0,
+			wantOK:          false,
+			wantStatus:      http.StatusInternalServerError,
+			wantBodyContain: "invalid clinic context",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			tt.setupContext(c)
+
+			clinicID, ok := extractClinicID(c)
+
+			assert.Equal(t, tt.wantOK, ok)
+			if tt.wantOK {
+				assert.Equal(t, tt.wantClinicID, clinicID)
+			} else {
+				assert.Equal(t, uint64(0), clinicID)
+				assert.Equal(t, tt.wantStatus, w.Code)
+				assert.Contains(t, w.Body.String(), tt.wantBodyContain)
+			}
+		})
+	}
+}
+
 func TestRespondError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

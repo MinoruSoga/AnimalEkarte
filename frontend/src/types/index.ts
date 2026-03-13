@@ -156,6 +156,8 @@ export interface Pet {
   petNumber?: string; // Optional for mocks that might not have it
   name: string; // Unified name
   species: string;
+  /** バックエンドの animal_species.id */
+  animalSpeciesId?: string;
   breed?: string;
   gender?: string;
   status?: "生存" | "死亡";
@@ -163,9 +165,13 @@ export interface Pet {
   weight?: string;
   environment?: string;
   lastVisit?: string;
+  /** バックエンドの insurance.id */
+  insuranceId?: string;
   insuranceName?: string;
   insuranceDetails?: string;
   remarks?: string;
+  /** マイクロチップ番号 */
+  microchipId?: string;
 }
 
 // Reservation Types

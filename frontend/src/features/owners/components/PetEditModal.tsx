@@ -26,11 +26,11 @@ import {
   PET_GENDER_VALUES,
   ACQUISITION_TYPE_VALUES,
   DANGER_LEVEL_VALUES,
-  INSURANCE_COMPANY_VALUES,
-  PET_INSURANCE_RATIO_VALUES,
-  PET_SPECIES_VALUES,
   PetFormData,
 } from "../types";
+import { useGetAnimalSpecies } from "../api/get-animal-species";
+import { useGetInsurances } from "../api/get-insurances";
+
 import { isOneOf } from "@/lib/type-utils";
 
 const LABEL_CLS = `text-sm ${C.text60}`;
@@ -51,12 +51,16 @@ export function PetEditModal({
   petData,
   onSave,
 }: PetEditModalProps) {
+  const { data: animalSpeciesList = [], isLoading: isLoadingSpecies } = useGetAnimalSpecies();
+  const { data: insuranceList = [], isLoading: isLoadingInsurances } = useGetInsurances();
+
   const [formData, setFormData] = useState<PetFormData>(() => ({
     id: petData?.id || "",
     petNumber: petData?.petNumber || "",
     petName: petData?.petName || "",
     petNameKana: petData?.petNameKana || "",
     species: petData?.species || "",
+    animalSpeciesId: petData?.animalSpeciesId || "",
     gender: petData?.gender || "",
     birthDate: petData?.birthDate || "",
     breed: petData?.breed || "",
@@ -69,8 +73,10 @@ export function PetEditModal({
     environment: petData?.environment || "",
     status: petData?.status || "生存",
     remarks: petData?.remarks || "",
+    insuranceId: petData?.insuranceId || "",
     insuranceName: petData?.insuranceName,
     insuranceDetails: petData?.insuranceDetails,
+    microchipId: petData?.microchipId || "",
   }));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -85,9 +91,8 @@ export function PetEditModal({
   const handleSave = () => {
     const errors: Record<string, string> = {};
     if (!formData.petName.trim()) errors.petName = "ペット名を入力してください";
-    if (!formData.species) errors.species = "種別を選択してください";
+    if (!formData.animalSpeciesId) errors.animalSpeciesId = "動物種を選択してください";
     if (!formData.gender) errors.gender = "性別を選択してください";
-    if (!formData.birthDate) errors.birthDate = "生年月日を選択してください";
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -170,32 +175,36 @@ export function PetEditModal({
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="species" className={LABEL_CLS}>
-                種 <span className={C.textRequired}>*</span>
+              <Label htmlFor="animalSpeciesId" className={LABEL_CLS}>
+                動物種 <span className={C.textRequired}>*</span>
               </Label>
               <Select
-                value={formData.species}
+                value={formData.animalSpeciesId || ""}
                 onValueChange={(value) => {
-                  if (isOneOf(value, PET_SPECIES_VALUES)) {
-                    setFormData(prev => ({ ...prev, species: value }));
-                    clearFieldError("species");
-                  }
+                  const selected = animalSpeciesList.find((s) => String(s.id) === value);
+                  setFormData(prev => ({
+                    ...prev,
+                    animalSpeciesId: value,
+                    species: selected?.name ?? prev.species,
+                  }));
+                  clearFieldError("animalSpeciesId");
                 }}
+                disabled={isLoadingSpecies}
               >
                 <SelectTrigger
-                  className={`${INPUT_CLS} ${fieldErrors.species ? STYLE.formInputError : ""}`}
+                  className={`${INPUT_CLS} ${fieldErrors.animalSpeciesId ? STYLE.formInputError : ""}`}
                 >
-                  <SelectValue placeholder="選択してください" />
+                  <SelectValue placeholder={isLoadingSpecies ? "読み込み中..." : "選択してください"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {PET_SPECIES_VALUES.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
+                  {animalSpeciesList.map((s) => (
+                    <SelectItem key={s.id} value={String(s.id)}>
+                      {s.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <FormFieldError message={fieldErrors.species} />
+              <FormFieldError message={fieldErrors.animalSpeciesId} />
             </div>
 
             <div className="space-y-1">
@@ -229,18 +238,16 @@ export function PetEditModal({
 
             <div className="space-y-1">
               <Label htmlFor="birthDate" className={LABEL_CLS}>
-                生年月日 <span className={C.textRequired}>*</span>
+                生年月日
               </Label>
               <NotionDatePicker
                 id="birthDate"
                 value={formData.birthDate}
                 onChange={(val) => {
                   setFormData(prev => ({ ...prev, birthDate: val }));
-                  clearFieldError("birthDate");
                 }}
                 placeholder="生年月日を選択…"
               />
-              <FormFieldError message={fieldErrors.birthDate} />
             </div>
           </div>
 
@@ -280,9 +287,26 @@ export function PetEditModal({
               </Label>
               <Input
                 id="weight"
+                type="number"
+                min="0"
+                step="0.1"
                 value={formData.weight || ""}
                 onChange={(e) =>
                   setFormData(prev => ({ ...prev, weight: e.target.value }))
+                }
+                className={INPUT_CLS}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="microchipId" className={LABEL_CLS}>
+                マイクロチップ番号
+              </Label>
+              <Input
+                id="microchipId"
+                value={formData.microchipId || ""}
+                onChange={(e) =>
+                  setFormData(prev => ({ ...prev, microchipId: e.target.value }))
                 }
                 className={INPUT_CLS}
               />
@@ -384,49 +408,33 @@ export function PetEditModal({
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="insuranceName" className={LABEL_CLS}>
-                保険名
+              <Label htmlFor="insuranceId" className={LABEL_CLS}>
+                保険
               </Label>
               <Select
-                value={formData.insuranceName || ""}
+                value={formData.insuranceId || ""}
                 onValueChange={(value) => {
-                  if (isOneOf(value, INSURANCE_COMPANY_VALUES)) {
-                    setFormData(prev => ({ ...prev, insuranceName: value }));
-                  }
+                  const selected = insuranceList.find((ins) => String(ins.id) === value);
+                  setFormData(prev => ({
+                    ...prev,
+                    insuranceId: value,
+                    insuranceName: selected?.name as PetFormData["insuranceName"],
+                    insuranceDetails: selected?.coverage_rate != null
+                      ? `${selected.coverage_rate}%補償`
+                      : prev.insuranceDetails,
+                  }));
                 }}
+                disabled={isLoadingInsurances}
               >
                 <SelectTrigger className={INPUT_CLS}>
-                  <SelectValue placeholder="選択してください" />
+                  <SelectValue placeholder={isLoadingInsurances ? "読み込み中..." : "保険を選択"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {INSURANCE_COMPANY_VALUES.map((company) => (
-                    <SelectItem key={company} value={company}>
-                      {company}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="insuranceDetails" className={LABEL_CLS}>
-                保険詳細(負担割合など)
-              </Label>
-              <Select
-                value={formData.insuranceDetails || ""}
-                onValueChange={(value) => {
-                  if (isOneOf(value, PET_INSURANCE_RATIO_VALUES)) {
-                    setFormData(prev => ({ ...prev, insuranceDetails: value }));
-                  }
-                }}
-              >
-                <SelectTrigger className={INPUT_CLS}>
-                  <SelectValue placeholder="選択してください" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PET_INSURANCE_RATIO_VALUES.map((ratio) => (
-                    <SelectItem key={ratio} value={ratio}>
-                      {ratio}
+                  <SelectItem value="">なし</SelectItem>
+                  {insuranceList.map((ins) => (
+                    <SelectItem key={ins.id} value={String(ins.id)}>
+                      {ins.name}
+                      {ins.coverage_rate != null ? ` (${ins.coverage_rate}%補償)` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>

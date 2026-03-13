@@ -5,7 +5,6 @@ import (
 )
 
 // AnimalSpecies はペット種類マスタ（v12.0 pet_species ENUM廃止→マスタテーブル化）
-// @name AnimalSpecies
 type AnimalSpecies struct {
 	ID        uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	Name      string    `gorm:"not null"                                       json:"name"`

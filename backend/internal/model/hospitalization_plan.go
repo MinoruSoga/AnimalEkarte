@@ -3,8 +3,6 @@ package model
 import (
 	"time"
 )
-
-// @name BodySize
 type BodySize string
 
 const (
@@ -12,16 +10,12 @@ const (
 	BodySizeMedium BodySize = "medium"
 	BodySizeLarge  BodySize = "large"
 )
-
-// @name BillingUnit
 type BillingUnit string
 
 const (
 	BillingUnitPerDay   BillingUnit = "per_day"
 	BillingUnitPerNight BillingUnit = "per_night"
 )
-
-// @name HospitalizationPlan
 type HospitalizationPlan struct {
 	ID          uint64       `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID    uint64       `gorm:"not null"                                       json:"clinic_id"`

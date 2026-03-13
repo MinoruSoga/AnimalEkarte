@@ -10,18 +10,6 @@ import (
 )
 
 // ListOwners godoc
-// @Summary 飼主一覧取得
-// @Description クリニックに所属する飼主の一覧をページネーションで返す
-// @Tags Owners
-// @Produce json
-// @Security BearerAuth
-// @Param page query int false "ページ番号 (default: 1)"
-// @Param limit query int false "件数 (1-100, default: 20)"
-// @Param search query string false "検索キーワード"
-// @Success 200 {object} handler.OwnerListResponse
-// @Failure 401 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /owners [get]
 func (h *Handler) ListOwners(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -43,18 +31,6 @@ func (h *Handler) ListOwners(c *gin.Context) {
 }
 
 // GetOwner godoc
-// @Summary 飼主取得
-// @Description 指定IDの飼主を返す
-// @Tags Owners
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "飼主ID"
-// @Success 200 {object} model.Owner
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /owners/{id} [get]
 func (h *Handler) GetOwner(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -74,18 +50,6 @@ func (h *Handler) GetOwner(c *gin.Context) {
 }
 
 // CreateOwner godoc
-// @Summary 飼主作成
-// @Description 新規飼主を作成する
-// @Tags Owners
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param body body model.Owner true "飼主情報"
-// @Success 201 {object} model.Owner
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /owners [post]
 func (h *Handler) CreateOwner(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -105,20 +69,6 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 }
 
 // UpdateOwner godoc
-// @Summary 飼主更新
-// @Description 指定IDの飼主情報を更新する
-// @Tags Owners
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "飼主ID"
-// @Param body body model.Owner true "飼主情報"
-// @Success 200 {object} model.Owner
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /owners/{id} [put]
 func (h *Handler) UpdateOwner(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -144,17 +94,6 @@ func (h *Handler) UpdateOwner(c *gin.Context) {
 }
 
 // DeleteOwner godoc
-// @Summary 飼主削除
-// @Description 指定IDの飼主を削除する
-// @Tags Owners
-// @Security BearerAuth
-// @Param id path integer true "飼主ID"
-// @Success 204
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /owners/{id} [delete]
 func (h *Handler) DeleteOwner(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {

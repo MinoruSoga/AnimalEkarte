@@ -14,15 +14,6 @@ import (
 // ---- Staff ----
 
 // ListStaffs godoc
-// @Summary スタッフ一覧取得
-// @Description クリニックに登録されているスタッフの一覧を返す。roleクエリで職種絞り込み可能。
-// @Tags StaffMasters
-// @Produce json
-// @Security BearerAuth
-// @Param role query string false "スタッフ職種でフィルタリング（例: veterinarian, nurse, trimmer, reception, manager）"
-// @Success 200 {array} model.Staff
-// @Failure 500 {object} map[string]string
-// @Router /masters/staffs [get]
 func (h *Handler) ListStaffs(c *gin.Context) {
 	var role *string
 	if r := c.Query("role"); r != "" {
@@ -49,18 +40,6 @@ type createStaffRequest struct {
 }
 
 // CreateStaff godoc
-// @Summary スタッフ作成
-// @Description 新規スタッフを登録する。スタッフ情報とシステムアカウントをアトミックに作成する。
-// @Tags StaffMasters
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param staff body createStaffRequest true "スタッフ登録情報"
-// @Success 201 {object} model.Staff
-// @Failure 400 {object} map[string]string
-// @Failure 409 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /masters/staffs [post]
 func (h *Handler) CreateStaff(c *gin.Context) {
 	var req createStaffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -91,19 +70,6 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 }
 
 // UpdateStaff godoc
-// @Summary スタッフ更新
-// @Description 指定IDのスタッフ情報を更新する。
-// @Tags StaffMasters
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param id path integer true "スタッフID"
-// @Param staff body model.Staff true "更新するスタッフ情報"
-// @Success 200 {object} model.Staff
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /masters/staffs/{id} [put]
 func (h *Handler) UpdateStaff(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -124,16 +90,6 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 }
 
 // DeleteStaff godoc
-// @Summary スタッフ削除
-// @Description 指定IDのスタッフを論理削除する。
-// @Tags StaffMasters
-// @Security BearerAuth
-// @Param id path integer true "スタッフID"
-// @Success 204
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /masters/staffs/{id} [delete]
 func (h *Handler) DeleteStaff(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
