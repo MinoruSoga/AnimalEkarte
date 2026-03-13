@@ -25,29 +25,12 @@ components:
   schemas:
     ErrorResponse:
       type: object
-      required: [code, message]
+      required: [error]
       properties:
-        code:
+        error:
           type: string
-          description: 機械可読なエラーコード
-          enum: [VALIDATION_ERROR, NOT_FOUND, CONFLICT, UNAUTHORIZED, FORBIDDEN, INTERNAL_ERROR]
-          example: VALIDATION_ERROR
-        message:
-          type: string
-          description: 人間可読なエラーメッセージ
-          example: "リクエストのバリデーションに失敗しました"
-        details:
-          type: array
-          description: フィールドレベルのバリデーションエラー詳細
-          items:
-            type: object
-            properties:
-              field:
-                type: string
-                example: email
-              message:
-                type: string
-                example: "有効なメールアドレスを入力してください"
+          description: エラーメッセージ
+          example: "resource not found"
     PaginatedResponse:
       type: object
       required: [data, total, page, limit]
@@ -69,12 +52,12 @@ components:
       required: [owner_name]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         owner_name:
           type: string
@@ -135,19 +118,19 @@ components:
       required: [owner_id, name, animal_species_id]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         owner_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
         animal_species_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
         pet_number:
           type: string
           description: カルテ番号
@@ -196,8 +179,8 @@ components:
           format: date
           nullable: true
         insurance_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         remarks:
           type: string
@@ -215,17 +198,20 @@ components:
         insurance:
           $ref: '#/components/schemas/Insurance'
           description: 保険情報（Preload時のみ含まれる）
+        owner:
+          $ref: '#/components/schemas/Owner'
+          description: 飼主情報（Preload時のみ含まれる）
     ReservationAppointment:
       type: object
       required: [start_time, end_time, service_type_id]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         start_time:
           type: string
@@ -236,22 +222,22 @@ components:
           format: date-time
           description: 終了日時
         owner_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         pet_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         visit_type:
           type: string
           enum: [first, revisit]
         service_type_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
         doctor_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         is_designated:
           type: boolean
@@ -269,17 +255,26 @@ components:
           type: string
           format: date-time
           readOnly: true
+        pet:
+          $ref: '#/components/schemas/Pet'
+          description: ペット情報（Preload時のみ含まれる）
+        service_type:
+          $ref: '#/components/schemas/ServiceType'
+          description: サービス種別情報（Preload時のみ含まれる）
+        doctor:
+          $ref: '#/components/schemas/Staff'
+          description: 担当医師情報（Preload時のみ含まれる）
     MedicalRecord:
       type: object
       required: [date, record_no]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         record_no:
           type: string
@@ -289,20 +284,20 @@ components:
           format: date
           description: 診察日
         owner_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         pet_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         doctor_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         reservation_appointment_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         status:
           type: string
@@ -315,24 +310,30 @@ components:
           type: string
           format: date-time
           readOnly: true
+        pet:
+          $ref: '#/components/schemas/Pet'
+          description: ペット情報（Preload時のみ含まれる）
+        inquiry:
+          $ref: '#/components/schemas/Inquiry'
+          description: 問診情報（Preload時のみ含まれる）
     Hospitalization:
       type: object
       required: [owner_id, pet_id, hospitalization_type, start_date, end_date]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         owner_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
         pet_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
         hospitalization_type:
           type: string
           enum: [hospitalization, hotel]
@@ -346,12 +347,12 @@ components:
           type: string
           enum: [admitted, discharged, reserved]
         cage_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         doctor_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         memo:
           type: string
@@ -372,28 +373,28 @@ components:
       required: [scheduled_date]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         medical_record_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         hospitalization_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         owner_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         pet_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         subtotal:
           type: integer
@@ -428,26 +429,26 @@ components:
       required: [date, staff_id, course_id]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         date:
           type: string
           format: date
         pet_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         staff_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
         course_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
         weight:
           type: string
         status:
@@ -485,12 +486,12 @@ components:
       required: [name, category, unit]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         name:
           type: string
@@ -531,12 +532,12 @@ components:
       required: [name, staff_role]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         name:
           type: string
@@ -547,8 +548,8 @@ components:
           type: string
           enum: [veterinarian, nurse, trimmer, reception, manager]
         job_title_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         license_number:
           type: string
@@ -596,8 +597,8 @@ components:
           description: 獣医師免許番号等
           example: 獣医第12345号
         job_title_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
           description: 役職ID
         sort_order:
@@ -609,12 +610,12 @@ components:
       required: [name]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         name:
           type: string
@@ -648,12 +649,12 @@ components:
       required: [name]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         name:
           type: string
@@ -675,8 +676,8 @@ components:
           enum: [per_tablet, per_ml, per_dose, per_gram]
           nullable: true
         inventory_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         default_quantity:
           type: integer
@@ -695,12 +696,12 @@ components:
       required: [name]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         name:
           type: string
@@ -734,8 +735,8 @@ components:
       required: [name]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         name:
           type: string
@@ -758,12 +759,12 @@ components:
       required: [name]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         name:
           type: string
@@ -792,12 +793,12 @@ components:
       required: [name]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         name:
           type: string
@@ -818,17 +819,65 @@ components:
           type: string
           format: date-time
           readOnly: true
+    Inquiry:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        medical_record_id:
+          type: integer
+          format: int64
+        chief_complaint_category_id:
+          type: integer
+          format: int64
+          nullable: true
+        chief_complaint:
+          type: string
+        history:
+          type: string
+        current_medications:
+          type: string
+        allergy_info:
+          type: string
+        last_meal:
+          type: string
+        last_defecation:
+          type: string
+        last_urination:
+          type: string
+        appetite:
+          type: string
+          enum: [normal, increased, decreased, none]
+          nullable: true
+        water_intake:
+          type: string
+          enum: [normal, increased, decreased, none]
+          nullable: true
+        owner_observations:
+          type: string
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     Consultation:
       type: object
       required: [name]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         name:
           type: string
@@ -862,12 +911,12 @@ components:
       required: [name]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         name:
           type: string
@@ -901,12 +950,12 @@ components:
       required: [name]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         name:
           type: string
@@ -942,12 +991,12 @@ components:
       required: [name]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         name:
           type: string
@@ -980,12 +1029,12 @@ components:
       required: [name]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         name:
           type: string
@@ -1017,12 +1066,12 @@ components:
       required: [name]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         name:
           type: string
@@ -1050,12 +1099,12 @@ components:
       required: [name]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         name:
           type: string
@@ -1079,12 +1128,12 @@ components:
       required: [name, diagnosis_category_id]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         name:
           type: string
@@ -1094,8 +1143,8 @@ components:
         description:
           type: string
         diagnosis_category_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
         sort_order:
           type: integer
         created_at:
@@ -1111,12 +1160,12 @@ components:
       required: [name]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         name:
           type: string
@@ -1151,12 +1200,12 @@ components:
       type: object
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         exam_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
         name:
           type: string
         inspection_value:
@@ -1194,21 +1243,21 @@ components:
       required: [medical_record_id, exam_type_id, date]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         medical_record_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
         pet_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
         exam_type_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
         doctor_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         date:
           type: string
@@ -1253,21 +1302,21 @@ components:
       required: [medical_record_id, vaccine_id, date]
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         medical_record_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
         pet_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
         vaccine_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
         doctor_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           nullable: true
         date:
           type: string
@@ -1322,8 +1371,8 @@ components:
       type: object
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
           readOnly: true
         name:
           type: string
@@ -1387,8 +1436,8 @@ components:
       type: object
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
         email:
           type: string
         display_name:
@@ -1407,16 +1456,16 @@ components:
           format: uri
           nullable: true
         main_clinic_id:
-          type: string
-          format: uuid
+          type: integer
+          format: int64
         clinics:
           type: array
           items:
             type: object
             properties:
               clinic_id:
-                type: string
-                format: uuid
+                type: integer
+                format: int64
               clinic_name:
                 type: string
               is_main:
@@ -1619,8 +1668,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '200':
           description: 飼主情報
@@ -1645,8 +1694,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -1679,8 +1728,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -1716,8 +1765,8 @@ paths:
           in: query
           description: 飼主IDで絞り込み
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '200':
           description: ペット一覧
@@ -1782,8 +1831,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '200':
           description: ペット情報
@@ -1808,8 +1857,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -1842,8 +1891,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -1885,14 +1934,14 @@ paths:
           in: query
           description: ペットIDで絞り込み
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
         - name: owner_id
           in: query
           description: 飼主IDで絞り込み
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '200':
           description: 予約一覧
@@ -1957,8 +2006,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '200':
           description: 予約情報
@@ -1983,8 +2032,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -2017,8 +2066,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -2050,14 +2099,14 @@ paths:
           in: query
           description: ペットIDで絞り込み
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
         - name: owner_id
           in: query
           description: 飼主IDで絞り込み
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '200':
           description: カルテ一覧
@@ -2122,8 +2171,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '200':
           description: カルテ情報
@@ -2148,8 +2197,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -2182,8 +2231,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -2219,14 +2268,14 @@ paths:
           in: query
           description: ペットIDで絞り込み
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
         - name: owner_id
           in: query
           description: 飼主IDで絞り込み
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '200':
           description: 入院一覧
@@ -2291,8 +2340,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '200':
           description: 入院情報
@@ -2317,8 +2366,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -2351,8 +2400,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -2384,19 +2433,19 @@ paths:
           in: query
           schema:
             type: string
-            enum: [pending, paid, cancelled]
+            enum: [waiting, completed, cancelled, pending]
         - name: pet_id
           in: query
           description: ペットIDで絞り込み
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
         - name: owner_id
           in: query
           description: 飼主IDで絞り込み
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '200':
           description: 会計一覧
@@ -2461,8 +2510,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '200':
           description: 会計情報
@@ -2487,8 +2536,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -2521,8 +2570,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -2554,14 +2603,14 @@ paths:
           in: query
           description: ペットIDで絞り込み
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
         - name: owner_id
           in: query
           description: 飼主IDで絞り込み
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '200':
           description: トリミング一覧
@@ -2626,8 +2675,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '200':
           description: トリミング情報
@@ -2652,8 +2701,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -2686,8 +2735,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -2714,11 +2763,11 @@ paths:
         - name: pet_id
           in: query
           description: ペットIDで絞り込み
-          schema: { type: string, format: uuid }
+          schema: { type: integer, format: int64 }
         - name: owner_id
           in: query
           description: 飼主IDで絞り込み
-          schema: { type: string, format: uuid }
+          schema: { type: integer, format: int64 }
         - name: status
           in: query
           description: ステータスで絞り込み
@@ -2775,7 +2824,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: string, format: uuid }
+          schema: { type: integer, format: int64 }
       responses:
         '200':
           description: 検査記録
@@ -2797,7 +2846,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: string, format: uuid }
+          schema: { type: integer, format: int64 }
       requestBody:
         required: true
         content:
@@ -2827,7 +2876,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: string, format: uuid }
+          schema: { type: integer, format: int64 }
       responses:
         '204':
           description: 削除成功
@@ -2852,11 +2901,11 @@ paths:
         - name: pet_id
           in: query
           description: ペットIDで絞り込み
-          schema: { type: string, format: uuid }
+          schema: { type: integer, format: int64 }
         - name: owner_id
           in: query
           description: 飼主IDで絞り込み
-          schema: { type: string, format: uuid }
+          schema: { type: integer, format: int64 }
       responses:
         '200':
           description: 予防接種記録一覧
@@ -2907,7 +2956,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: string, format: uuid }
+          schema: { type: integer, format: int64 }
       responses:
         '200':
           description: 予防接種記録
@@ -2929,7 +2978,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: string, format: uuid }
+          schema: { type: integer, format: int64 }
       requestBody:
         required: true
         content:
@@ -2959,7 +3008,7 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: string, format: uuid }
+          schema: { type: integer, format: int64 }
       responses:
         '204':
           description: 削除成功
@@ -3059,8 +3108,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '200':
           description: 在庫情報
@@ -3085,8 +3134,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -3119,8 +3168,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -3187,8 +3236,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '200':
           description: クリニック情報
@@ -3213,8 +3262,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -3247,8 +3296,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -3388,8 +3437,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -3422,8 +3471,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -3506,8 +3555,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -3540,8 +3589,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -3617,8 +3666,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -3651,8 +3700,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -3735,8 +3784,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -3769,8 +3818,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -3846,8 +3895,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -3880,8 +3929,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -3957,8 +4006,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -3991,8 +4040,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -4068,8 +4117,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -4102,8 +4151,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -4179,8 +4228,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -4213,8 +4262,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -4290,8 +4339,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -4324,8 +4373,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -4401,8 +4450,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -4435,8 +4484,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -4512,8 +4561,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -4546,8 +4595,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -4623,8 +4672,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -4657,8 +4706,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -4734,8 +4783,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -4768,8 +4817,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -4790,8 +4839,8 @@ paths:
         - name: category_id
           in: query
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '200':
           description: 診断名一覧
@@ -4851,8 +4900,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -4885,8 +4934,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
@@ -4962,8 +5011,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -4996,8 +5045,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            type: integer
+            format: int64
       responses:
         '204':
           description: 削除成功
