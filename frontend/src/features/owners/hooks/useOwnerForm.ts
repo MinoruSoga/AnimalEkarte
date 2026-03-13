@@ -22,6 +22,13 @@ const PET_STATUS_TO_API: Record<string, "alive" | "deceased" | undefined> = {
   "死亡": "deceased",
 };
 
+const MEMBERSHIP_TYPE_TO_API: Record<string, string> = {
+  "非会員": "non_member",
+  "会員": "member",
+  "退亡者": "deceased",
+  "他診/準": "transferred",
+};
+
 const DEFAULT_OWNER_DATA: OwnerData = {
   ownerId: "",
   postalCode: "",
@@ -283,7 +290,7 @@ export function useOwnerForm(
           remarks: ownerData.remarks,
           is_dangerous: ownerData.isDangerous,
           discount_rate: ownerData.discountRate,
-          membership_type: ownerData.membershipType,
+          membership_type: MEMBERSHIP_TYPE_TO_API[ownerData.membershipType] ?? ownerData.membershipType,
         };
 
         if (isEdit && id) {

@@ -13,7 +13,7 @@ function authRequestInterceptor(config: InternalAxiosRequestConfig) {
 
 export const axios = Axios.create({
   baseURL: API_URL,
-  timeout: 10000,
+  timeout: 60000,
   // httpOnly Cookie を cross-origin リクエストで自動送信するために必須
   withCredentials: true,
   headers: { "Content-Type": "application/json" },

@@ -3,6 +3,13 @@ import type { Pet } from "@/types";
 import type { BackendOwner, BackendPet } from "./types";
 import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 
+const MEMBERSHIP_TYPE_FROM_API: Record<string, string> = {
+  "non_member": "非会員",
+  "member": "会員",
+  "deceased": "退亡者",
+  "transferred": "他診/準",
+};
+
 // transformPet は transforms/pet の transformBackendPetToFrontend を使用
 const transformPet = (pet: BackendPet): Pet => transformBackendPetToFrontend(pet);
 
@@ -24,7 +31,7 @@ export const transformOwner = (owner: BackendOwner): Owner => ({
   remarks: owner.remarks ?? "",
   isDangerous: owner.is_dangerous ?? false,
   discountRate: owner.discount_rate ?? 0,
-  membershipType: owner.membership_type ?? "",
+  membershipType: MEMBERSHIP_TYPE_FROM_API[owner.membership_type ?? ""] ?? owner.membership_type ?? "",
   createdAt: owner.created_at ?? "",
   updatedAt: owner.updated_at ?? "",
   pets: owner.pets?.map((pet) => ({
