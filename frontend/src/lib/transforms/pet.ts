@@ -1,49 +1,50 @@
 import type { Pet as BackendPet } from "@/types/generated/models";
 import type { CreatePetRequest, UpdatePetRequest } from "@/types/pet";
 
-export const PET_STATUS_MAP: Partial<Record<string, "生存" | "死亡">> = {
+const PET_STATUS_MAP: Partial<Record<string, "生存" | "死亡">> = {
   alive: "生存",
   deceased: "死亡",
 };
 
+// 外部公開: useOwnerForm で使用
 export const PET_STATUS_REVERSE_MAP: Record<string, "alive" | "deceased"> = {
   "生存": "alive",
   "死亡": "deceased",
 };
 
-export const PET_GENDER_MAP: Record<string, string> = {
+const PET_GENDER_MAP: Record<string, string> = {
   male: "雄",
   female: "雌",
   unknown: "不明",
 };
 
-export const PET_GENDER_REVERSE_MAP: Record<string, string> = {
+const PET_GENDER_REVERSE_MAP: Record<string, string> = {
   "雄": "male",
   "雌": "female",
   "不明": "unknown",
 };
 
-export const ACQUISITION_TYPE_REVERSE_MAP: Record<string, string> = {
+const ACQUISITION_TYPE_REVERSE_MAP: Record<string, string> = {
   "購入": "purchased",
   "譲渡": "transferred",
   "保護": "rescued",
   "その他": "other",
 };
 
-export const ACQUISITION_TYPE_MAP: Record<string, string> = {
+const ACQUISITION_TYPE_MAP: Record<string, string> = {
   purchased: "購入",
   transferred: "譲渡",
   rescued: "保護",
   other: "その他",
 };
 
-export const DANGER_LEVEL_REVERSE_MAP: Record<string, string> = {
+const DANGER_LEVEL_REVERSE_MAP: Record<string, string> = {
   "低": "low",
   "中": "medium",
   "高": "high",
 };
 
-export const DANGER_LEVEL_MAP: Record<string, string> = {
+const DANGER_LEVEL_MAP: Record<string, string> = {
   low: "低",
   medium: "中",
   high: "高",
@@ -95,7 +96,7 @@ export type Pet = ReturnType<typeof transformBackendPetToFrontend>;
  * フロントエンドフォームデータの共通入力型
  * transformCreatePetRequest / transformUpdatePetRequest で共用
  */
-export type PetFormInput = {
+type PetFormInput = {
   ownerId?: string;
   name?: string;
   animalSpeciesId?: string;
