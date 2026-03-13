@@ -82,9 +82,10 @@ const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
 const MASTER_SECTIONS: SectionDef[] = [
   { title: "基本設定", keys: ["clinic"] },
   {
-    title: "診療関連マスタ",
-    keys: ["serviceType", "treatmentItems", "medicine", "diagnosisGroup"],
+    title: "カルテ",
+    keys: ["treatmentItems", "diagnosisGroup", "inquiry_template", "medicine"],
   },
+  { title: "診療関連マスタ", keys: ["serviceType"] },
   { title: "入院・ケージ管理", keys: ["hospitalization", "cage"] },
   { title: "トリミング関連", keys: ["trimmingGroup"] },
   { title: "スタッフ・保険", keys: ["staff", "job_title", "insurance"] },
