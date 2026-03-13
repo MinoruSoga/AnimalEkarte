@@ -188,3 +188,15 @@ func (h *Handler) DeleteClinic(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
+
+// RegisterClinicRoutes は法人・クリニック設定関連のルートを登録する
+func (h *Handler) RegisterClinicRoutes(rg *gin.RouterGroup) {
+	rg.GET("/company", h.GetCompany)
+	rg.PATCH("/company", h.UpdateCompany)
+	clinics := rg.Group("/clinics")
+	clinics.GET("", h.ListClinics)
+	clinics.POST("", h.CreateClinic)
+	clinics.GET("/:id", h.GetClinic)
+	clinics.PATCH("/:id", h.UpdateClinic)
+	clinics.DELETE("/:id", h.DeleteClinic)
+}

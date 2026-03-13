@@ -74,12 +74,12 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 }
 
 type updateStaffInput struct {
-	Name          string `json:"name"`
-	StaffRole     string `json:"staff_role"`
-	LicenseNumber string `json:"license_number"`
+	Name          string  `json:"name"`
+	StaffRole     string  `json:"staff_role"`
+	LicenseNumber string  `json:"license_number"`
 	JobTitleID    *uint64 `json:"job_title_id"`
-	SortOrder     int    `json:"sort_order"`
-	IsActive      *bool  `json:"is_active"`
+	SortOrder     int     `json:"sort_order"`
+	IsActive      *bool   `json:"is_active"`
 }
 
 // UpdateStaff godoc
@@ -137,4 +137,86 @@ func (h *Handler) DeleteStaff(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// RegisterMasterRoutes はマスタ関連の全ルートを登録する
+func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
+	masters := rg.Group("/masters")
+
+	masters.GET("/animal-species", h.ListAnimalSpecies)
+
+	masters.GET("/staffs", h.ListStaffs)
+	masters.POST("/staffs", h.CreateStaff)
+	masters.PATCH("/staffs/:id", h.UpdateStaff)
+	masters.DELETE("/staffs/:id", h.DeleteStaff)
+
+	masters.GET("/cages", h.ListCages)
+	masters.POST("/cages", h.CreateCage)
+	masters.PATCH("/cages/:id", h.UpdateCage)
+	masters.DELETE("/cages/:id", h.DeleteCage)
+
+	masters.GET("/medicines", h.ListMedicines)
+	masters.POST("/medicines", h.CreateMedicine)
+	masters.PATCH("/medicines/:id", h.UpdateMedicine)
+	masters.DELETE("/medicines/:id", h.DeleteMedicine)
+
+	masters.GET("/vaccines", h.ListVaccines)
+	masters.POST("/vaccines", h.CreateVaccine)
+	masters.PATCH("/vaccines/:id", h.UpdateVaccine)
+	masters.DELETE("/vaccines/:id", h.DeleteVaccine)
+
+	masters.GET("/insurances", h.ListInsurances)
+	masters.POST("/insurances", h.CreateInsurance)
+	masters.PATCH("/insurances/:id", h.UpdateInsurance)
+	masters.DELETE("/insurances/:id", h.DeleteInsurance)
+
+	masters.GET("/service-types", h.ListServiceTypes)
+	masters.POST("/service-types", h.CreateServiceType)
+	masters.PATCH("/service-types/:id", h.UpdateServiceType)
+	masters.DELETE("/service-types/:id", h.DeleteServiceType)
+
+	masters.GET("/consultations", h.ListConsultations)
+	masters.POST("/consultations", h.CreateConsultation)
+	masters.PATCH("/consultations/:id", h.UpdateConsultation)
+	masters.DELETE("/consultations/:id", h.DeleteConsultation)
+
+	masters.GET("/procedures", h.ListProcedures)
+	masters.POST("/procedures", h.CreateProcedure)
+	masters.PATCH("/procedures/:id", h.UpdateProcedure)
+	masters.DELETE("/procedures/:id", h.DeleteProcedure)
+
+	masters.GET("/hospitalization-plans", h.ListHospitalizationPlans)
+	masters.POST("/hospitalization-plans", h.CreateHospitalizationPlan)
+	masters.PATCH("/hospitalization-plans/:id", h.UpdateHospitalizationPlan)
+	masters.DELETE("/hospitalization-plans/:id", h.DeleteHospitalizationPlan)
+
+	masters.GET("/trimming-courses", h.ListTrimmingCourses)
+	masters.POST("/trimming-courses", h.CreateTrimmingCourse)
+	masters.PATCH("/trimming-courses/:id", h.UpdateTrimmingCourse)
+	masters.DELETE("/trimming-courses/:id", h.DeleteTrimmingCourse)
+
+	masters.GET("/trimming-options", h.ListTrimmingOptions)
+	masters.POST("/trimming-options", h.CreateTrimmingOption)
+	masters.PATCH("/trimming-options/:id", h.UpdateTrimmingOption)
+	masters.DELETE("/trimming-options/:id", h.DeleteTrimmingOption)
+
+	masters.GET("/examination-types", h.ListExaminationTypes)
+	masters.POST("/examination-types", h.CreateExaminationType)
+	masters.PATCH("/examination-types/:id", h.UpdateExaminationType)
+	masters.DELETE("/examination-types/:id", h.DeleteExaminationType)
+
+	masters.GET("/diagnosis-categories", h.ListDiagnosisCategories)
+	masters.POST("/diagnosis-categories", h.CreateDiagnosisCategory)
+	masters.PATCH("/diagnosis-categories/:id", h.UpdateDiagnosisCategory)
+	masters.DELETE("/diagnosis-categories/:id", h.DeleteDiagnosisCategory)
+
+	masters.GET("/diagnosis-names", h.ListDiagnosisNames)
+	masters.POST("/diagnosis-names", h.CreateDiagnosisName)
+	masters.PATCH("/diagnosis-names/:id", h.UpdateDiagnosisName)
+	masters.DELETE("/diagnosis-names/:id", h.DeleteDiagnosisName)
+
+	masters.GET("/checkup-types", h.ListCheckupTypes)
+	masters.POST("/checkup-types", h.CreateCheckupType)
+	masters.PATCH("/checkup-types/:id", h.UpdateCheckupType)
+	masters.DELETE("/checkup-types/:id", h.DeleteCheckupType)
 }

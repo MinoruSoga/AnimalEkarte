@@ -14,14 +14,14 @@ import (
 
 // mockVaccinationRepository は VaccinationRepository のテスト用モック実装
 type mockVaccinationRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error)
+	findAllFn  func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error)
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
 	createFn   func(ctx context.Context, vaccination *model.Vaccination) error
 	updateFn   func(ctx context.Context, clinicID uint64, vaccination *model.Vaccination) error
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockVaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error) {
+func (m *mockVaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error) {
 	return m.findAllFn(ctx, clinicID, petID, ownerID, page, limit)
 }
 

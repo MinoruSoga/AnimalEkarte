@@ -12,7 +12,7 @@ import (
 )
 
 type VaccinationRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
 	Create(ctx context.Context, vaccination *model.Vaccination) error
 	Update(ctx context.Context, clinicID uint64, vaccination *model.Vaccination) error
@@ -27,7 +27,7 @@ func NewVaccinationRepository(db *gorm.DB) VaccinationRepository {
 	return &vaccinationRepository{db: db}
 }
 
-func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error) {
+func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error) {
 	buildBase := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.Vaccination{}).
 			Joins("JOIN medical_records ON medical_records.id = vaccinations.medical_record_id").
@@ -46,7 +46,7 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 		return nil, 0, apperrors.Wrap(err, "count vaccinations")
 	}
 
-	var vaccinations []model.Vaccination
+	vaccinations := make([]model.Vaccination, 0)
 	if err := buildBase().Preload("Vaccine").Preload("Pet").Preload("Doctor").
 		Offset((page - 1) * limit).Limit(limit).Order("vaccinations.date DESC, vaccinations.created_at DESC").
 		Find(&vaccinations).Error; err != nil {

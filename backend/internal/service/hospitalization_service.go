@@ -8,7 +8,7 @@ import (
 )
 
 type HospitalizationService interface {
-	List(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error)
+	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	Create(ctx context.Context, hospitalization *model.Hospitalization) error
 	Update(ctx context.Context, hospitalization *model.Hospitalization) error
@@ -23,7 +23,7 @@ func NewHospitalizationService(repo repository.HospitalizationRepository) Hospit
 	return &hospitalizationService{repo: repo}
 }
 
-func (s *hospitalizationService) List(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error) {
+func (s *hospitalizationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error) {
 	return s.repo.FindAll(ctx, clinicID, petID, ownerID, status, page, limit)
 }
 

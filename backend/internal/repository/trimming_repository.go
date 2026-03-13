@@ -12,7 +12,7 @@ import (
 )
 
 type TrimmingRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error)
 	Create(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
 	Update(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
@@ -27,8 +27,8 @@ func NewTrimmingRepository(db *gorm.DB) TrimmingRepository {
 	return &trimmingRepository{db: db}
 }
 
-func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error) {
-	var trimmings []model.TrimmingRecord
+func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error) {
+	trimmings := make([]model.TrimmingRecord, 0)
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&model.TrimmingRecord{}).Where("trimming_records.clinic_id = ?", clinicID)

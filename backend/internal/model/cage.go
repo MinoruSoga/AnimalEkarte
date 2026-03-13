@@ -3,6 +3,7 @@ package model
 import (
 	"time"
 )
+
 type CageType string
 
 const (
@@ -11,6 +12,7 @@ const (
 	CageTypeCat     CageType = "cat"
 	CageTypeGeneral CageType = "general"
 )
+
 type CageSize string
 
 const (
@@ -18,6 +20,7 @@ const (
 	CageSizeMedium CageSize = "medium"
 	CageSizeLarge  CageSize = "large"
 )
+
 type Cage struct {
 	ID          uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID    uint64    `gorm:"not null"                                       json:"clinic_id"`

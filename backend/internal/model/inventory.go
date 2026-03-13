@@ -3,6 +3,7 @@ package model
 import (
 	"time"
 )
+
 type InventoryCategory string
 
 const (
@@ -11,6 +12,7 @@ const (
 	InventoryCategoryFood       InventoryCategory = "food"
 	InventoryCategoryOther      InventoryCategory = "other"
 )
+
 type InventoryStatus string
 
 const (
@@ -18,6 +20,7 @@ const (
 	InventoryStatusLow        InventoryStatus = "low"
 	InventoryStatusOutOfStock InventoryStatus = "out_of_stock"
 )
+
 type InventoryItem struct {
 	ID            uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID      uint64            `gorm:"not null"                                       json:"clinic_id"`

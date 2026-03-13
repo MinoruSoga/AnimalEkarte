@@ -3,6 +3,7 @@ package model
 import (
 	"time"
 )
+
 type Consultation struct {
 	ID            uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID      uint64    `gorm:"not null"                                       json:"clinic_id"`

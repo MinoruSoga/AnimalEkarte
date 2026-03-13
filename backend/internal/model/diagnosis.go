@@ -3,6 +3,7 @@ package model
 import (
 	"time"
 )
+
 type DiagnosisCategory struct {
 	ID          uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID    uint64    `gorm:"not null"                                       json:"clinic_id"`
@@ -18,6 +19,7 @@ type DiagnosisCategory struct {
 }
 
 func (DiagnosisCategory) TableName() string { return "diagnosis_categories" }
+
 type DiagnosisName struct {
 	ID                  uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID            uint64    `gorm:"not null"                                       json:"clinic_id"`

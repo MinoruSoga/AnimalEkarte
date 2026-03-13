@@ -27,7 +27,7 @@ type cageRepository struct{ db *gorm.DB }
 func NewCageRepository(db *gorm.DB) CageRepository { return &cageRepository{db: db} }
 
 func (r *cageRepository) FindAll(ctx context.Context, cageType *string) ([]model.Cage, error) {
-	var cages []model.Cage
+	cages := make([]model.Cage, 0)
 	q := r.db.WithContext(ctx).Model(&model.Cage{})
 	if cageType != nil {
 		q = q.Where("cage_type = ?", *cageType)

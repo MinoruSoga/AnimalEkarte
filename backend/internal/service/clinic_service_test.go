@@ -52,11 +52,11 @@ func (m *mockClinicRepository) Delete(ctx context.Context, id uint64) error {
 
 func TestClinicService_ListClinics(t *testing.T) {
 	tests := []struct {
-		name       string
+		name        string
 		repoClinics []model.Clinic
-		repoErr    error
-		wantLen    int
-		wantErr    bool
+		repoErr     error
+		wantLen     int
+		wantErr     bool
 	}{
 		{
 			name: "returns clinic list",
@@ -69,18 +69,18 @@ func TestClinicService_ListClinics(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:       "returns empty list when no clinics exist",
+			name:        "returns empty list when no clinics exist",
 			repoClinics: []model.Clinic{},
-			repoErr:    nil,
-			wantLen:    0,
-			wantErr:    false,
+			repoErr:     nil,
+			wantLen:     0,
+			wantErr:     false,
 		},
 		{
-			name:       "propagates repository error",
+			name:        "propagates repository error",
 			repoClinics: nil,
-			repoErr:    errors.New("db connection error"),
-			wantLen:    0,
-			wantErr:    true,
+			repoErr:     errors.New("db connection error"),
+			wantLen:     0,
+			wantErr:     true,
 		},
 	}
 
@@ -241,15 +241,15 @@ func TestClinicService_CreateClinic(t *testing.T) {
 
 func TestClinicService_UpdateClinic(t *testing.T) {
 	tests := []struct {
-		name           string
-		id             uint64
-		inputClinic    *model.Clinic
-		repoClinic     *model.Clinic
-		repoFindErr    error
-		repoUpdateErr  error
-		wantErr        bool
-		wantNF         bool
-		wantCompanyID  uint64
+		name          string
+		id            uint64
+		inputClinic   *model.Clinic
+		repoClinic    *model.Clinic
+		repoFindErr   error
+		repoUpdateErr error
+		wantErr       bool
+		wantNF        bool
+		wantCompanyID uint64
 	}{
 		{
 			name: "updates clinic successfully with immutable fields preserved",

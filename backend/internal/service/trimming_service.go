@@ -8,7 +8,7 @@ import (
 )
 
 type TrimmingService interface {
-	List(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error)
+	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error)
 	Create(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
 	Update(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
@@ -23,7 +23,7 @@ func NewTrimmingService(repo repository.TrimmingRepository) TrimmingService {
 	return &trimmingService{repo: repo}
 }
 
-func (s *trimmingService) List(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error) {
+func (s *trimmingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error) {
 	return s.repo.FindAll(ctx, clinicID, petID, ownerID, page, limit)
 }
 

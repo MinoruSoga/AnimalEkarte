@@ -3,6 +3,7 @@ package model
 import (
 	"time"
 )
+
 type TargetSize string
 
 const (
@@ -11,6 +12,7 @@ const (
 	TargetSizeLarge  TargetSize = "large"
 	TargetSizeCat    TargetSize = "cat"
 )
+
 type TrimmingCourse struct {
 	ID          uint64      `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID    uint64      `gorm:"not null"                                       json:"clinic_id"`
@@ -26,6 +28,7 @@ type TrimmingCourse struct {
 }
 
 func (TrimmingCourse) TableName() string { return "trimming_courses" }
+
 type TrimmingOption struct {
 	ID          uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID    uint64    `gorm:"not null"                                       json:"clinic_id"`

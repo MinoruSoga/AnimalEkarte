@@ -121,19 +121,3 @@ func TestAppError(t *testing.T) {
 		assert.Equal(t, inner, appErr.Unwrap())
 	})
 }
-
-func TestIs(t *testing.T) {
-	t.Run("delegates to errors.Is", func(t *testing.T) {
-		assert.True(t, Is(ErrNotFound, ErrNotFound))
-		assert.False(t, Is(ErrNotFound, ErrInvalidInput))
-	})
-}
-
-func TestAs(t *testing.T) {
-	t.Run("delegates to errors.As", func(t *testing.T) {
-		err := WrapNotFound("pet", "123")
-		var appErr *AppError
-		assert.True(t, As(err, &appErr))
-		assert.Equal(t, "NOT_FOUND", appErr.Code)
-	})
-}

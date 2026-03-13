@@ -15,7 +15,7 @@ type PetRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 	Create(ctx context.Context, pet *model.Pet) error
-	Update(ctx context.Context, pet *model.Pet) error
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -28,7 +28,7 @@ func NewPetRepository(db *gorm.DB) PetRepository {
 }
 
 func (r *petRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error) {
-	var pets []model.Pet
+	pets := make([]model.Pet, 0)
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&model.Pet{}).Where("clinic_id = ?", clinicID)
@@ -71,16 +71,16 @@ func (r *petRepository) Create(ctx context.Context, pet *model.Pet) error {
 	return nil
 }
 
-func (r *petRepository) Update(ctx context.Context, pet *model.Pet) error {
+func (r *petRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Pet{}).
-		Where("id = ? AND clinic_id = ?", pet.ID, pet.ClinicID).
-		Updates(pet)
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "update pet")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("pet", fmt.Sprintf("%d", pet.ID))
+		return apperrors.WrapNotFound("pet", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

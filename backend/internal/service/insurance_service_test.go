@@ -42,11 +42,11 @@ func (m *mockInsuranceRepository) Delete(ctx context.Context, id uint64) error {
 
 func TestInsuranceService_List(t *testing.T) {
 	tests := []struct {
-		name          string
+		name           string
 		repoInsurances []model.Insurance
-		repoErr       error
-		wantLen       int
-		wantErr       bool
+		repoErr        error
+		wantLen        int
+		wantErr        bool
 	}{
 		{
 			name: "returns insurance list",
@@ -59,18 +59,18 @@ func TestInsuranceService_List(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:          "returns empty list when no insurances exist",
+			name:           "returns empty list when no insurances exist",
 			repoInsurances: []model.Insurance{},
-			repoErr:       nil,
-			wantLen:       0,
-			wantErr:       false,
+			repoErr:        nil,
+			wantLen:        0,
+			wantErr:        false,
 		},
 		{
-			name:          "propagates repository error",
+			name:           "propagates repository error",
 			repoInsurances: nil,
-			repoErr:       errors.New("db connection error"),
-			wantLen:       0,
-			wantErr:       true,
+			repoErr:        errors.New("db connection error"),
+			wantLen:        0,
+			wantErr:        true,
 		},
 	}
 

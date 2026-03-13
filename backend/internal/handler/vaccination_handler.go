@@ -11,19 +11,19 @@ import (
 )
 
 type createVaccinationInput struct {
-	MedicalRecordID  uint64    `json:"medical_record_id"   binding:"required"`
-	PetID            *uint64   `json:"pet_id"`
-	VaccineID        uint64    `json:"vaccine_id"          binding:"required"`
-	Date             time.Time `json:"date"                binding:"required"`
-	DoctorID         *uint64   `json:"doctor_id"`
+	MedicalRecordID  uint64     `json:"medical_record_id"   binding:"required"`
+	PetID            *uint64    `json:"pet_id"`
+	VaccineID        uint64     `json:"vaccine_id"          binding:"required"`
+	Date             time.Time  `json:"date"                binding:"required"`
+	DoctorID         *uint64    `json:"doctor_id"`
 	NextDate         *time.Time `json:"next_date"`
-	NextScheduleType string    `json:"next_schedule_type"`
-	Supplemental     string    `json:"supplemental"`
-	Lot1             string    `json:"lot1"`
-	Lot2             string    `json:"lot2"`
-	Lot3             string    `json:"lot3"`
-	Lot4             string    `json:"lot4"`
-	Remarks          string    `json:"remarks"`
+	NextScheduleType string     `json:"next_schedule_type"`
+	Supplemental     string     `json:"supplemental"`
+	Lot1             string     `json:"lot1"`
+	Lot2             string     `json:"lot2"`
+	Lot3             string     `json:"lot3"`
+	Lot4             string     `json:"lot4"`
+	Remarks          string     `json:"remarks"`
 }
 
 type updateVaccinationInput struct {
@@ -198,4 +198,14 @@ func (h *Handler) DeleteVaccination(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// RegisterVaccinationRoutes は予防接種関連のルートを登録する
+func (h *Handler) RegisterVaccinationRoutes(rg *gin.RouterGroup) {
+	vaccinations := rg.Group("/vaccinations")
+	vaccinations.GET("", h.ListVaccinations)
+	vaccinations.POST("", h.CreateVaccination)
+	vaccinations.GET("/:id", h.GetVaccination)
+	vaccinations.PATCH("/:id", h.UpdateVaccination)
+	vaccinations.DELETE("/:id", h.DeleteVaccination)
 }

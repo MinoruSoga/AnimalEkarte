@@ -5,12 +5,14 @@ import (
 
 	"gorm.io/gorm"
 )
+
 type MedicalRecordStatus string
 
 const (
 	MedicalRecordStatusDraft     MedicalRecordStatus = "draft"
 	MedicalRecordStatusFinalized MedicalRecordStatus = "finalized"
 )
+
 type MedicalRecord struct {
 	ID                       uint64              `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID                 uint64              `gorm:"not null"                                       json:"clinic_id"`
@@ -23,7 +25,7 @@ type MedicalRecord struct {
 	Status                   MedicalRecordStatus `gorm:"type:medical_record_status;default:'draft'"      json:"status"`
 	CreatedAt                time.Time           `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt                time.Time           `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt                gorm.DeletedAt      `                                                      json:"deleted_at" swaggerignore:"true"`
+	DeletedAt                gorm.DeletedAt      `                                                      json:"-" swaggerignore:"true"`
 
 	// Relations
 	Owner         *Owner         `gorm:"foreignKey:OwnerID"          json:"owner,omitempty"`

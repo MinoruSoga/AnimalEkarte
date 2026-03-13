@@ -28,7 +28,7 @@ type staffRepository struct{ db *gorm.DB }
 func NewStaffRepository(db *gorm.DB) StaffRepository { return &staffRepository{db: db} }
 
 func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, role *string) ([]model.Staff, error) {
-	var staffs []model.Staff
+	staffs := make([]model.Staff, 0)
 	q := r.db.WithContext(ctx).Model(&model.Staff{}).Where("clinic_id = ?", clinicID)
 	if role != nil {
 		q = q.Where("staff_role = ?", *role)

@@ -30,7 +30,7 @@ func NewClinicRepository(db *gorm.DB) ClinicRepository {
 }
 
 func (r *clinicRepository) FindAll(ctx context.Context) ([]model.Clinic, error) {
-	var clinics []model.Clinic
+	clinics := make([]model.Clinic, 0)
 	if err := r.db.WithContext(ctx).Order("name ASC").Find(&clinics).Error; err != nil {
 		return nil, apperrors.Wrap(err, "find clinics")
 	}
@@ -63,10 +63,7 @@ func (r *clinicRepository) UpdateCompany(ctx context.Context, company *model.Com
 	var existing model.Company
 	err := r.db.WithContext(ctx).First(&existing).Error
 	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
-		// レコードが存在しない場合は新規作成
-		if company.ID == 0 {
-			// ID は SERIAL (auto_increment) のため DB に任せる
-		}
+		// レコードが存在しない場合は新規作成（ID は SERIAL のため DB に任せる）
 		if err := r.db.WithContext(ctx).Create(company).Error; err != nil {
 			return apperrors.Wrap(err, "create company")
 		}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -48,7 +49,7 @@ func (h *Handler) GetPet(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	pet, err := h.svc.Pet.GetByID(c.Request.Context(), clinicID, id)
@@ -67,11 +68,11 @@ func (h *Handler) CreatePet(c *gin.Context) {
 	}
 	var input service.CreatePetInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
-	pet, err := h.svc.Pet.Create(c.Request.Context(), clinicID, input)
+	pet, err := h.svc.Pet.Create(c.Request.Context(), clinicID, &input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -87,16 +88,16 @@ func (h *Handler) UpdatePet(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var input service.UpdatePetInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
-	pet, err := h.svc.Pet.Update(c.Request.Context(), clinicID, id, input)
+	pet, err := h.svc.Pet.Update(c.Request.Context(), clinicID, id, &input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -112,7 +113,7 @@ func (h *Handler) DeletePet(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.Pet.Delete(c.Request.Context(), clinicID, id); err != nil {
@@ -120,4 +121,14 @@ func (h *Handler) DeletePet(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// RegisterPetRoutes はペット関連のルートを登録する
+func (h *Handler) RegisterPetRoutes(rg *gin.RouterGroup) {
+	pets := rg.Group("/pets")
+	pets.GET("", h.ListPets)
+	pets.POST("", h.CreatePet)
+	pets.GET("/:id", h.GetPet)
+	pets.PATCH("/:id", h.UpdatePet)
+	pets.DELETE("/:id", h.DeletePet)
 }

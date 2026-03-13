@@ -29,7 +29,7 @@ func NewDiagnosisCategoryRepository(db *gorm.DB) DiagnosisCategoryRepository {
 }
 
 func (r *diagnosisCategoryRepository) FindAll(ctx context.Context) ([]model.DiagnosisCategory, error) {
-	var categories []model.DiagnosisCategory
+	categories := make([]model.DiagnosisCategory, 0)
 	if err := r.db.WithContext(ctx).Order("sort_order ASC, name ASC").Find(&categories).Error; err != nil {
 		return nil, apperrors.Wrap(err, "find diagnosis categories")
 	}
@@ -100,7 +100,7 @@ func NewDiagnosisNameRepository(db *gorm.DB) DiagnosisNameRepository {
 }
 
 func (r *diagnosisNameRepository) FindAll(ctx context.Context) ([]model.DiagnosisName, error) {
-	var names []model.DiagnosisName
+	names := make([]model.DiagnosisName, 0)
 	if err := r.db.WithContext(ctx).Order("sort_order ASC, name ASC").Find(&names).Error; err != nil {
 		return nil, apperrors.Wrap(err, "find diagnosis names")
 	}
@@ -108,7 +108,7 @@ func (r *diagnosisNameRepository) FindAll(ctx context.Context) ([]model.Diagnosi
 }
 
 func (r *diagnosisNameRepository) FindByCategoryID(ctx context.Context, categoryID uint64) ([]model.DiagnosisName, error) {
-	var names []model.DiagnosisName
+	names := make([]model.DiagnosisName, 0)
 	if err := r.db.WithContext(ctx).
 		Where("diagnosis_category_id = ?", categoryID).
 		Order("sort_order ASC, name ASC").

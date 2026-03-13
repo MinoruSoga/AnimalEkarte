@@ -14,15 +14,15 @@ import (
 
 // mockMedicalRecordRepository は MedicalRecordRepository のテスト用モック実装
 type mockMedicalRecordRepository struct {
-	findAllFn       func(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error)
-	findByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+	findAllFn        func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error)
+	findByIDFn       func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	findByRecordNoFn func(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error)
-	createFn        func(ctx context.Context, record *model.MedicalRecord) error
-	updateFn        func(ctx context.Context, record *model.MedicalRecord) error
-	deleteFn        func(ctx context.Context, clinicID, id uint64) error
+	createFn         func(ctx context.Context, record *model.MedicalRecord) error
+	updateFn         func(ctx context.Context, record *model.MedicalRecord) error
+	deleteFn         func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error) {
+func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error) {
 	return m.findAllFn(ctx, clinicID, petID, ownerID, page, limit)
 }
 

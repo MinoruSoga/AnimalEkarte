@@ -5,6 +5,7 @@ import (
 
 	"gorm.io/gorm"
 )
+
 type BillingStatus string
 
 const (
@@ -13,6 +14,7 @@ const (
 	BillingStatusCancelled BillingStatus = "cancelled"
 	BillingStatusPending   BillingStatus = "pending"
 )
+
 type PaymentMethod string
 
 const (
@@ -20,6 +22,7 @@ const (
 	PaymentMethodCreditCard      PaymentMethod = "credit_card"
 	PaymentMethodElectronicMoney PaymentMethod = "electronic_money"
 )
+
 type ItemCategory string
 
 const (
@@ -32,6 +35,7 @@ const (
 	ItemCategoryGoods       ItemCategory = "goods"
 	ItemCategoryOther       ItemCategory = "other"
 )
+
 type ItemSource string
 
 const (
@@ -39,6 +43,7 @@ const (
 	ItemSourceManual          ItemSource = "manual"
 	ItemSourceHospitalization ItemSource = "hospitalization"
 )
+
 type Billing struct {
 	ID                uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID          uint64         `gorm:"not null"                                       json:"clinic_id"`
@@ -54,7 +59,7 @@ type Billing struct {
 	ScheduledDate     time.Time      `gorm:"type:date;not null"                             json:"scheduled_date"`
 	CompletedAt       *time.Time     `                                                      json:"completed_at,omitempty"`
 	Memo              string         `gorm:"default:''"                                     json:"memo"`
-	DeletedAt         gorm.DeletedAt `                                                      json:"deleted_at" swaggerignore:"true"`
+	DeletedAt         gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
 	CreatedAt         time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
@@ -67,6 +72,7 @@ type Billing struct {
 }
 
 func (Billing) TableName() string { return "billings" }
+
 type BillingItem struct {
 	ID                    uint64       `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	BillingID             uint64       `gorm:"not null"                                       json:"billing_id"`
@@ -82,6 +88,7 @@ type BillingItem struct {
 }
 
 func (BillingItem) TableName() string { return "billing_items" }
+
 type Payment struct {
 	ID              uint64        `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	BillingID       uint64        `gorm:"not null;uniqueIndex"                           json:"billing_id"`

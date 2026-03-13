@@ -27,7 +27,7 @@ type insuranceRepository struct{ db *gorm.DB }
 func NewInsuranceRepository(db *gorm.DB) InsuranceRepository { return &insuranceRepository{db: db} }
 
 func (r *insuranceRepository) FindAll(ctx context.Context) ([]model.Insurance, error) {
-	var insurances []model.Insurance
+	insurances := make([]model.Insurance, 0)
 	if err := r.db.WithContext(ctx).Order("sort_order ASC, name ASC").Find(&insurances).Error; err != nil {
 		return nil, apperrors.Wrap(err, "find insurances")
 	}

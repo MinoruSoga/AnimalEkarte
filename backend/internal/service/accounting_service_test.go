@@ -14,14 +14,14 @@ import (
 
 // mockAccountingRepository は AccountingRepository のテスト用モック実装
 type mockAccountingRepository struct {
-	findAllFn func(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Billing, int64, error)
+	findAllFn  func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Billing, int64, error)
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	createFn   func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	updateFn   func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Billing, int64, error) {
+func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Billing, int64, error) {
 	return m.findAllFn(ctx, clinicID, petID, ownerID, status, page, limit)
 }
 

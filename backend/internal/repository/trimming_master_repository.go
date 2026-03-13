@@ -29,7 +29,7 @@ func NewTrimmingCourseRepository(db *gorm.DB) TrimmingCourseRepository {
 }
 
 func (r *trimmingCourseRepository) FindAll(ctx context.Context) ([]model.TrimmingCourse, error) {
-	var courses []model.TrimmingCourse
+	courses := make([]model.TrimmingCourse, 0)
 	if err := r.db.WithContext(ctx).Order("sort_order ASC, name ASC").Find(&courses).Error; err != nil {
 		return nil, apperrors.Wrap(err, "find trimming courses")
 	}
@@ -99,7 +99,7 @@ func NewTrimmingOptionRepository(db *gorm.DB) TrimmingOptionRepository {
 }
 
 func (r *trimmingOptionRepository) FindAll(ctx context.Context) ([]model.TrimmingOption, error) {
-	var options []model.TrimmingOption
+	options := make([]model.TrimmingOption, 0)
 	if err := r.db.WithContext(ctx).Order("sort_order ASC, name ASC").Find(&options).Error; err != nil {
 		return nil, apperrors.Wrap(err, "find trimming options")
 	}

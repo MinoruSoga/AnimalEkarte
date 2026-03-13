@@ -8,7 +8,7 @@ import (
 )
 
 type AccountingService interface {
-	List(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Billing, int64, error)
+	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Billing, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	Update(ctx context.Context, clinicID uint64, accounting *model.Billing) error
@@ -23,7 +23,7 @@ func NewAccountingService(repo repository.AccountingRepository) AccountingServic
 	return &accountingService{repo: repo}
 }
 
-func (s *accountingService) List(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Billing, int64, error) {
+func (s *accountingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Billing, int64, error) {
 	return s.repo.FindAll(ctx, clinicID, petID, ownerID, status, page, limit)
 }
 

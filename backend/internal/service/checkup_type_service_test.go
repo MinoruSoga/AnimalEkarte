@@ -97,36 +97,36 @@ func TestCheckupTypeService_List(t *testing.T) {
 
 func TestCheckupTypeService_GetByID(t *testing.T) {
 	tests := []struct {
-		name           string
-		id             uint64
+		name            string
+		id              uint64
 		repoCheckupType *model.CheckupType
-		repoErr        error
-		wantErr        bool
-		wantNotFound   bool
+		repoErr         error
+		wantErr         bool
+		wantNotFound    bool
 	}{
 		{
-			name:           "returns checkup type when found",
-			id:             1,
+			name:            "returns checkup type when found",
+			id:              1,
 			repoCheckupType: &model.CheckupType{ID: 1, Name: "定期健診"},
-			repoErr:        nil,
-			wantErr:        false,
-			wantNotFound:   false,
+			repoErr:         nil,
+			wantErr:         false,
+			wantNotFound:    false,
 		},
 		{
-			name:           "returns not found error when checkup type does not exist",
-			id:             999,
+			name:            "returns not found error when checkup type does not exist",
+			id:              999,
 			repoCheckupType: nil,
-			repoErr:        apperrors.WrapNotFound("checkup_type", "999"),
-			wantErr:        true,
-			wantNotFound:   true,
+			repoErr:         apperrors.WrapNotFound("checkup_type", "999"),
+			wantErr:         true,
+			wantNotFound:    true,
 		},
 		{
-			name:           "returns error on repository failure",
-			id:             1,
+			name:            "returns error on repository failure",
+			id:              1,
 			repoCheckupType: nil,
-			repoErr:        errors.New("db error"),
-			wantErr:        true,
-			wantNotFound:   false,
+			repoErr:         errors.New("db error"),
+			wantErr:         true,
+			wantNotFound:    false,
 		},
 	}
 

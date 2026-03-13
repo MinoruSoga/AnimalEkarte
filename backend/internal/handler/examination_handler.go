@@ -182,3 +182,13 @@ func (h *Handler) DeleteExamination(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
+
+// RegisterExaminationRoutes は検査関連のルートを登録する
+func (h *Handler) RegisterExaminationRoutes(rg *gin.RouterGroup) {
+	examinations := rg.Group("/examinations")
+	examinations.GET("", h.ListExaminations)
+	examinations.POST("", h.CreateExamination)
+	examinations.GET("/:id", h.GetExamination)
+	examinations.PATCH("/:id", h.UpdateExamination)
+	examinations.DELETE("/:id", h.DeleteExamination)
+}

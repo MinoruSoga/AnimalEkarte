@@ -37,7 +37,7 @@ type Owner struct {
 	MembershipType MembershipType `gorm:"type:membership_type;default:'non_member'"      json:"membership_type"`
 	CreatedAt      time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt      time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt      gorm.DeletedAt `                                                      json:"deleted_at" swaggerignore:"true"`
+	DeletedAt      gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
 
 	// Relations
 	Pets []Pet `gorm:"foreignKey:OwnerID" json:"pets,omitempty"`

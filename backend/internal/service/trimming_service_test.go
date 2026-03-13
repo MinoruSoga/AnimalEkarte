@@ -14,14 +14,14 @@ import (
 
 // mockTrimmingRepository は TrimmingRepository のテスト用モック実装
 type mockTrimmingRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error)
+	findAllFn  func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error)
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error)
 	createFn   func(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
 	updateFn   func(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockTrimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error) {
+func (m *mockTrimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error) {
 	return m.findAllFn(ctx, clinicID, petID, ownerID, page, limit)
 }
 
@@ -167,30 +167,30 @@ func TestTrimmingService_GetByID(t *testing.T) {
 		wantNotFound bool
 	}{
 		{
-			name:       "returns trimming record when found",
-			clinicID:   1,
-			id:         10,
-			repoRecord: &model.TrimmingRecord{ID: 10, ClinicID: 1},
-			repoErr:    nil,
-			wantErr:    false,
+			name:         "returns trimming record when found",
+			clinicID:     1,
+			id:           10,
+			repoRecord:   &model.TrimmingRecord{ID: 10, ClinicID: 1},
+			repoErr:      nil,
+			wantErr:      false,
 			wantNotFound: false,
 		},
 		{
-			name:       "returns not found error when record does not exist",
-			clinicID:   1,
-			id:         999,
-			repoRecord: nil,
-			repoErr:    apperrors.WrapNotFound("trimming_record", "999"),
-			wantErr:    true,
+			name:         "returns not found error when record does not exist",
+			clinicID:     1,
+			id:           999,
+			repoRecord:   nil,
+			repoErr:      apperrors.WrapNotFound("trimming_record", "999"),
+			wantErr:      true,
 			wantNotFound: true,
 		},
 		{
-			name:       "returns error on repository failure",
-			clinicID:   1,
-			id:         10,
-			repoRecord: nil,
-			repoErr:    errors.New("db error"),
-			wantErr:    true,
+			name:         "returns error on repository failure",
+			clinicID:     1,
+			id:           10,
+			repoRecord:   nil,
+			repoErr:      errors.New("db error"),
+			wantErr:      true,
 			wantNotFound: false,
 		},
 	}

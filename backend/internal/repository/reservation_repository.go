@@ -13,7 +13,7 @@ import (
 )
 
 type ReservationRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID *uint64, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
 	Create(ctx context.Context, reservation *model.ReservationAppointment) error
 	Update(ctx context.Context, reservation *model.ReservationAppointment) error
@@ -28,8 +28,8 @@ func NewReservationRepository(db *gorm.DB) ReservationRepository {
 	return &reservationRepository{db: db}
 }
 
-func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID *uint64, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
-	var reservations []model.ReservationAppointment
+func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
+	reservations := make([]model.ReservationAppointment, 0)
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&model.ReservationAppointment{}).Where("clinic_id = ?", clinicID)

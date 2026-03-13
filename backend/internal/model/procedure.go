@@ -3,6 +3,7 @@ package model
 import (
 	"time"
 )
+
 type AnesthesiaType string
 
 const (
@@ -10,6 +11,7 @@ const (
 	AnesthesiaTypeLocal   AnesthesiaType = "local"
 	AnesthesiaTypeGeneral AnesthesiaType = "general"
 )
+
 type Procedure struct {
 	ID          uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID    uint64         `gorm:"not null"                                       json:"clinic_id"`

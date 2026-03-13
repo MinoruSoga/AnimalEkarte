@@ -5,6 +5,7 @@ import (
 
 	"gorm.io/gorm"
 )
+
 type ExaminationStatus string
 
 const (
@@ -12,6 +13,7 @@ const (
 	ExaminationStatusInProgress ExaminationStatus = "検査中"
 	ExaminationStatusCompleted  ExaminationStatus = "完了"
 )
+
 type ExaminationResultStatus string
 
 const (
@@ -19,6 +21,7 @@ const (
 	ExaminationResultStatusHigh   ExaminationResultStatus = "high"
 	ExaminationResultStatusLow    ExaminationResultStatus = "low"
 )
+
 type Exam struct {
 	ID              uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	MedicalRecordID uint64            `gorm:"not null"                                       json:"medical_record_id"`
@@ -29,7 +32,7 @@ type Exam struct {
 	ResultSummary   string            `gorm:"default:''"                                     json:"result_summary"`
 	Machine         string            `gorm:"default:''"                                     json:"machine"`
 	Status          ExaminationStatus `gorm:"type:examination_status;default:'依頼中'"          json:"status"`
-	DeletedAt       gorm.DeletedAt    `                                                      json:"deleted_at" swaggerignore:"true"`
+	DeletedAt       gorm.DeletedAt    `                                                      json:"-" swaggerignore:"true"`
 	CreatedAt       time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
@@ -42,6 +45,7 @@ type Exam struct {
 }
 
 func (Exam) TableName() string { return "exams" }
+
 type ExamItem struct {
 	ID              uint64                  `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ExamID          uint64                  `gorm:"not null"                                       json:"exam_id"`

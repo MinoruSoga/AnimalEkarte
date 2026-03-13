@@ -29,7 +29,7 @@ func NewServiceTypeRepository(db *gorm.DB) ServiceTypeRepository {
 }
 
 func (r *serviceTypeRepository) FindAll(ctx context.Context) ([]model.ServiceType, error) {
-	var serviceTypes []model.ServiceType
+	serviceTypes := make([]model.ServiceType, 0)
 	if err := r.db.WithContext(ctx).Order("sort_order ASC, name ASC").Find(&serviceTypes).Error; err != nil {
 		return nil, apperrors.Wrap(err, "find service types")
 	}

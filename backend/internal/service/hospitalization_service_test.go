@@ -14,14 +14,14 @@ import (
 
 // mockHospitalizationRepository は HospitalizationRepository のテスト用モック実装
 type mockHospitalizationRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error)
+	findAllFn  func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error)
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	createFn   func(ctx context.Context, hospitalization *model.Hospitalization) error
 	updateFn   func(ctx context.Context, hospitalization *model.Hospitalization) error
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockHospitalizationRepository) FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error) {
+func (m *mockHospitalizationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error) {
 	return m.findAllFn(ctx, clinicID, petID, ownerID, status, page, limit)
 }
 
@@ -47,19 +47,19 @@ func TestHospitalizationService_List(t *testing.T) {
 	status := string(model.HospitalizationStatusAdmitted)
 
 	tests := []struct {
-		name        string
-		clinicID    uint64
-		petID       *uint64
-		ownerID     *uint64
-		status      *string
-		page        int
-		limit       int
-		repoItems   []model.Hospitalization
-		repoTotal   int64
-		repoErr     error
-		wantLen     int
-		wantTotal   int64
-		wantErr     bool
+		name      string
+		clinicID  uint64
+		petID     *uint64
+		ownerID   *uint64
+		status    *string
+		page      int
+		limit     int
+		repoItems []model.Hospitalization
+		repoTotal int64
+		repoErr   error
+		wantLen   int
+		wantTotal int64
+		wantErr   bool
 	}{
 		{
 			name:     "returns hospitalization list with total count",
@@ -180,11 +180,11 @@ func TestHospitalizationService_GetByID(t *testing.T) {
 			clinicID: 1,
 			id:       10,
 			repoItem: &model.Hospitalization{
-				ID:       10,
-				ClinicID: 1,
-				PetID:    5,
-				OwnerID:  2,
-				Status:   model.HospitalizationStatusAdmitted,
+				ID:        10,
+				ClinicID:  1,
+				PetID:     5,
+				OwnerID:   2,
+				Status:    model.HospitalizationStatusAdmitted,
 				StartDate: now,
 				EndDate:   now.Add(24 * time.Hour),
 			},
@@ -311,11 +311,11 @@ func TestHospitalizationService_Update(t *testing.T) {
 		{
 			name: "updates hospitalization successfully",
 			hospitalization: &model.Hospitalization{
-				ID:       1,
-				ClinicID: 1,
-				PetID:    5,
-				OwnerID:  2,
-				Status:   model.HospitalizationStatusAdmitted,
+				ID:        1,
+				ClinicID:  1,
+				PetID:     5,
+				OwnerID:   2,
+				Status:    model.HospitalizationStatusAdmitted,
 				StartDate: now,
 				EndDate:   now.Add(48 * time.Hour),
 			},

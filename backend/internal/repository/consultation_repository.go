@@ -29,7 +29,7 @@ func NewConsultationRepository(db *gorm.DB) ConsultationRepository {
 }
 
 func (r *consultationRepository) FindAll(ctx context.Context) ([]model.Consultation, error) {
-	var consultations []model.Consultation
+	consultations := make([]model.Consultation, 0)
 	if err := r.db.WithContext(ctx).Order("sort_order ASC, name ASC").Find(&consultations).Error; err != nil {
 		return nil, apperrors.Wrap(err, "find consultations")
 	}

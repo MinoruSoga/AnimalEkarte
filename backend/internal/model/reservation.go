@@ -5,6 +5,7 @@ import (
 
 	"gorm.io/gorm"
 )
+
 type ReservationStatus string
 
 const (
@@ -16,12 +17,14 @@ const (
 	ReservationStatusAccounting     ReservationStatus = "accounting"
 	ReservationStatusCompleted      ReservationStatus = "completed"
 )
+
 type VisitType string
 
 const (
 	VisitTypeFirst   VisitType = "first"
 	VisitTypeRevisit VisitType = "revisit"
 )
+
 type ReservationAppointment struct {
 	ID            uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID      uint64            `gorm:"not null"                                       json:"clinic_id"`
@@ -35,7 +38,7 @@ type ReservationAppointment struct {
 	IsDesignated  bool              `gorm:"default:false"                                  json:"is_designated"`
 	Status        ReservationStatus `gorm:"type:reservation_status;default:'pending'"      json:"status"`
 	Notes         string            `gorm:"default:''"                                     json:"notes"`
-	DeletedAt     gorm.DeletedAt    `                                                      json:"deleted_at" swaggerignore:"true"`
+	DeletedAt     gorm.DeletedAt    `                                                      json:"-" swaggerignore:"true"`
 	CreatedAt     time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt     time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
 

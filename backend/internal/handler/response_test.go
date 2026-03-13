@@ -12,15 +12,22 @@ import (
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
+func newTestContext() (*gin.Context, *httptest.ResponseRecorder) {
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	return c, w
+}
+
 func TestExtractClinicID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name           string
-		setupContext   func(c *gin.Context)
-		wantClinicID   uint64
-		wantOK         bool
-		wantStatus     int
+		name            string
+		setupContext    func(c *gin.Context)
+		wantClinicID    uint64
+		wantOK          bool
+		wantStatus      int
 		wantBodyContain string
 	}{
 		{
@@ -153,8 +160,7 @@ func TestRespondError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w := httptest.NewRecorder()
-			c, _ := gin.CreateTestContext(w)
+			c, w := newTestContext()
 
 			RespondError(c, tt.err)
 

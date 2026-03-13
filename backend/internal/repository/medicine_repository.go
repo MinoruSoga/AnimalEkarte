@@ -27,7 +27,7 @@ type medicineRepository struct{ db *gorm.DB }
 func NewMedicineRepository(db *gorm.DB) MedicineRepository { return &medicineRepository{db: db} }
 
 func (r *medicineRepository) FindAll(ctx context.Context) ([]model.Medicine, error) {
-	var medicines []model.Medicine
+	medicines := make([]model.Medicine, 0)
 	if err := r.db.WithContext(ctx).Order("sort_order ASC, name ASC").Find(&medicines).Error; err != nil {
 		return nil, apperrors.Wrap(err, "find medicines")
 	}

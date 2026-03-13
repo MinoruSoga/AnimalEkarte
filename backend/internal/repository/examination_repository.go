@@ -12,7 +12,7 @@ import (
 )
 
 type ExaminationRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Exam, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Exam, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Exam, error)
 	Create(ctx context.Context, exam *model.Exam) error
 	Update(ctx context.Context, clinicID uint64, exam *model.Exam) error
@@ -27,7 +27,7 @@ func NewExaminationRepository(db *gorm.DB) ExaminationRepository {
 	return &examinationRepository{db: db}
 }
 
-func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Exam, int64, error) {
+func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Exam, int64, error) {
 	buildBase := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.Exam{}).
 			Joins("JOIN medical_records ON medical_records.id = exams.medical_record_id").
@@ -49,7 +49,7 @@ func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 		return nil, 0, apperrors.Wrap(err, "count exams")
 	}
 
-	var exams []model.Exam
+	exams := make([]model.Exam, 0)
 	if err := buildBase().Preload("ExamType").Preload("Pet").Preload("Doctor").Preload("Items").
 		Offset((page - 1) * limit).Limit(limit).Order("exams.date DESC, exams.created_at DESC").
 		Find(&exams).Error; err != nil {

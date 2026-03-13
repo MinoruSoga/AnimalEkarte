@@ -97,35 +97,35 @@ func TestMedicineService_List(t *testing.T) {
 
 func TestMedicineService_GetByID(t *testing.T) {
 	tests := []struct {
-		name        string
-		id          uint64
+		name         string
+		id           uint64
 		repoMedicine *model.Medicine
-		repoErr     error
-		wantErr     bool
+		repoErr      error
+		wantErr      bool
 		wantNotFound bool
 	}{
 		{
-			name:        "returns medicine when found",
-			id:          1,
+			name:         "returns medicine when found",
+			id:           1,
 			repoMedicine: &model.Medicine{ID: 1, Name: "アモキシシリン"},
-			repoErr:     nil,
-			wantErr:     false,
+			repoErr:      nil,
+			wantErr:      false,
 			wantNotFound: false,
 		},
 		{
-			name:        "returns not found error when medicine does not exist",
-			id:          999,
+			name:         "returns not found error when medicine does not exist",
+			id:           999,
 			repoMedicine: nil,
-			repoErr:     apperrors.WrapNotFound("medicine", "999"),
-			wantErr:     true,
+			repoErr:      apperrors.WrapNotFound("medicine", "999"),
+			wantErr:      true,
 			wantNotFound: true,
 		},
 		{
-			name:        "returns error on repository failure",
-			id:          1,
+			name:         "returns error on repository failure",
+			id:           1,
 			repoMedicine: nil,
-			repoErr:     errors.New("db error"),
-			wantErr:     true,
+			repoErr:      errors.New("db error"),
+			wantErr:      true,
 			wantNotFound: false,
 		},
 	}
@@ -165,7 +165,7 @@ func TestMedicineService_Create(t *testing.T) {
 		{
 			name: "creates medicine successfully",
 			medicine: &model.Medicine{
-				Name:    "新規薬剤",
+				Name:     "新規薬剤",
 				ClinicID: 1,
 			},
 			repoErr: nil,
@@ -174,7 +174,7 @@ func TestMedicineService_Create(t *testing.T) {
 		{
 			name: "returns error when medicine already exists",
 			medicine: &model.Medicine{
-				Name:    "重複薬剤",
+				Name:     "重複薬剤",
 				ClinicID: 1,
 			},
 			repoErr: apperrors.WrapAlreadyExists("medicine", "重複薬剤"),
@@ -183,7 +183,7 @@ func TestMedicineService_Create(t *testing.T) {
 		{
 			name: "returns error on repository failure",
 			medicine: &model.Medicine{
-				Name:    "エラー薬剤",
+				Name:     "エラー薬剤",
 				ClinicID: 1,
 			},
 			repoErr: errors.New("db error"),
@@ -269,11 +269,11 @@ func TestMedicineService_Update(t *testing.T) {
 
 func TestMedicineService_Delete(t *testing.T) {
 	tests := []struct {
-		name     string
-		id       uint64
-		repoErr  error
-		wantErr  bool
-		wantNF   bool
+		name    string
+		id      uint64
+		repoErr error
+		wantErr bool
+		wantNF  bool
 	}{
 		{
 			name:    "deletes medicine successfully",

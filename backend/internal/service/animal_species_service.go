@@ -13,7 +13,9 @@ type AnimalSpeciesService interface {
 	List(ctx context.Context) ([]model.AnimalSpecies, error)
 }
 
-type animalSpeciesService struct{ repo repository.AnimalSpeciesRepository }
+type animalSpeciesService struct {
+	repo repository.AnimalSpeciesRepository
+}
 
 // NewAnimalSpeciesService はAnimalSpeciesServiceを初期化して返す
 func NewAnimalSpeciesService(repo repository.AnimalSpeciesRepository) AnimalSpeciesService {

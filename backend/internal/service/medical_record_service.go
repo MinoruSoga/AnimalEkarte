@@ -8,7 +8,7 @@ import (
 )
 
 type MedicalRecordService interface {
-	List(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error)
+	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	GetByRecordNo(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
@@ -24,7 +24,7 @@ func NewMedicalRecordService(repo repository.MedicalRecordRepository) MedicalRec
 	return &medicalRecordService{repo: repo}
 }
 
-func (s *medicalRecordService) List(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error) {
+func (s *medicalRecordService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error) {
 	return s.repo.FindAll(ctx, clinicID, petID, ownerID, page, limit)
 }
 

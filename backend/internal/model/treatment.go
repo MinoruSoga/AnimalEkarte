@@ -44,7 +44,7 @@ type Treatment struct {
 	DiscountRate    float64           `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
 	DiscountAmount  float64           `gorm:"type:numeric(10,2);default:0"                   json:"discount_amount"`
 	SortOrder       int               `gorm:"default:0"                                      json:"sort_order"`
-	DeletedAt       gorm.DeletedAt    `                                                      json:"deleted_at" swaggerignore:"true"`
+	DeletedAt       gorm.DeletedAt    `                                                      json:"-" swaggerignore:"true"`
 	CreatedAt       time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
 

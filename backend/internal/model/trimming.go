@@ -5,6 +5,7 @@ import (
 
 	"gorm.io/gorm"
 )
+
 type TrimmingStatus string
 
 const (
@@ -12,12 +13,14 @@ const (
 	TrimmingStatusReserved   TrimmingStatus = "reserved"
 	TrimmingStatusInProgress TrimmingStatus = "in_progress"
 )
+
 type BodyWeightUnit string
 
 const (
 	BodyWeightUnitKg BodyWeightUnit = "Kg"
 	BodyWeightUnitG  BodyWeightUnit = "g"
 )
+
 type TrimmingRecord struct {
 	ID             uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID       uint64         `gorm:"not null"                                       json:"clinic_id"`
@@ -38,7 +41,7 @@ type TrimmingRecord struct {
 	CompletedImage string         `gorm:"default:''"                                     json:"completed_image"`
 	CreatedAt      time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt      time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt      gorm.DeletedAt `                                                      json:"deleted_at" swaggerignore:"true"`
+	DeletedAt      gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
 
 	// Relations
 	Pet     *Pet             `gorm:"foreignKey:PetID"    json:"pet,omitempty"`
@@ -48,6 +51,7 @@ type TrimmingRecord struct {
 }
 
 func (TrimmingRecord) TableName() string { return "trimming_records" }
+
 type TrimmingRecordOption struct {
 	ID               uint64 `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	TrimmingRecordID uint64 `gorm:"not null"                                       json:"trimming_record_id"`

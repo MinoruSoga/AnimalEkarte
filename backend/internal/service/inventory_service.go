@@ -8,7 +8,7 @@ import (
 )
 
 type InventoryService interface {
-	List(ctx context.Context, clinicID uint64, category *string, status *string, page, limit int) ([]model.InventoryItem, int64, error)
+	List(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
 	Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
 	Update(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
@@ -23,7 +23,7 @@ func NewInventoryService(repo repository.InventoryRepository) InventoryService {
 	return &inventoryService{repo: repo}
 }
 
-func (s *inventoryService) List(ctx context.Context, clinicID uint64, category *string, status *string, page, limit int) ([]model.InventoryItem, int64, error) {
+func (s *inventoryService) List(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error) {
 	return s.repo.FindAll(ctx, clinicID, category, status, page, limit)
 }
 

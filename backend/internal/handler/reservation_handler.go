@@ -263,3 +263,13 @@ func (h *Handler) DeleteReservation(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
+
+// RegisterReservationRoutes は予約関連のルートを登録する
+func (h *Handler) RegisterReservationRoutes(rg *gin.RouterGroup) {
+	reservations := rg.Group("/reservations")
+	reservations.GET("", h.ListReservations)
+	reservations.POST("", h.CreateReservation)
+	reservations.GET("/:id", h.GetReservation)
+	reservations.PATCH("/:id", h.UpdateReservation)
+	reservations.DELETE("/:id", h.DeleteReservation)
+}

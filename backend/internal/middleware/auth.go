@@ -47,20 +47,18 @@ func Auth(secret string) gin.HandlerFunc {
 		}
 
 		claims := &JWTClaims{}
-		token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
+		if _, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
 			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
 			}
 			return key, nil
-		})
-
-		if err != nil || !token.Valid {
+		}); err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
 			c.Abort()
 			return
 		}
 
-		// クレームをコンテキストに格納
+		// err == nil が確定しているためクレームを安全に格納
 		c.Set("user_id", claims.UserID)
 		c.Set("clinic_id", claims.ClinicID)
 		c.Set("user_type", claims.UserType)

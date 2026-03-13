@@ -5,6 +5,7 @@ import (
 
 	"gorm.io/gorm"
 )
+
 type Checkup struct {
 	ID              uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	MedicalRecordID uint64         `gorm:"not null"                                       json:"medical_record_id"`
@@ -14,7 +15,7 @@ type Checkup struct {
 	DoctorID        *uint64        `                                                      json:"doctor_id,omitempty"`
 	Result          string         `gorm:"default:''"                                     json:"result"`
 	NextDate        *time.Time     `gorm:"type:date"                                      json:"next_date,omitempty"`
-	DeletedAt       gorm.DeletedAt `                                                      json:"deleted_at" swaggerignore:"true"`
+	DeletedAt       gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
 	CreatedAt       time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 

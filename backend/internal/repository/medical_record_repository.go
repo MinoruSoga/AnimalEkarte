@@ -12,7 +12,7 @@ import (
 )
 
 type MedicalRecordRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	FindByRecordNo(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
@@ -28,8 +28,8 @@ func NewMedicalRecordRepository(db *gorm.DB) MedicalRecordRepository {
 	return &medicalRecordRepository{db: db}
 }
 
-func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error) {
-	var records []model.MedicalRecord
+func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error) {
+	records := make([]model.MedicalRecord, 0)
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&model.MedicalRecord{}).Where("clinic_id = ?", clinicID)
@@ -42,7 +42,9 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, 
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count medical records")
 	}
-	if err := q.Offset((page - 1) * limit).Limit(limit).Order("date DESC, created_at DESC").Find(&records).Error; err != nil {
+	if err := q.Offset((page - 1) * limit).Limit(limit).Order("date DESC, created_at DESC").
+		Preload("Owner").Preload("Pet").Preload("Doctor").
+		Find(&records).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find medical records")
 	}
 	return records, total, nil

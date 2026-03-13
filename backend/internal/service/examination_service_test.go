@@ -14,14 +14,14 @@ import (
 
 // mockExaminationRepository は ExaminationRepository のテスト用モック実装
 type mockExaminationRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Exam, int64, error)
+	findAllFn  func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Exam, int64, error)
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Exam, error)
 	createFn   func(ctx context.Context, exam *model.Exam) error
 	updateFn   func(ctx context.Context, clinicID uint64, exam *model.Exam) error
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockExaminationRepository) FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Exam, int64, error) {
+func (m *mockExaminationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Exam, int64, error) {
 	return m.findAllFn(ctx, clinicID, petID, ownerID, status, page, limit)
 }
 

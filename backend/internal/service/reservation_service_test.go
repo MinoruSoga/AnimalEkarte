@@ -14,14 +14,14 @@ import (
 
 // mockReservationRepository は ReservationRepository のテスト用モック実装
 type mockReservationRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID *uint64, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
+	findAllFn  func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
 	createFn   func(ctx context.Context, reservation *model.ReservationAppointment) error
 	updateFn   func(ctx context.Context, reservation *model.ReservationAppointment) error
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockReservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID *uint64, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
+func (m *mockReservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
 	return m.findAllFn(ctx, clinicID, page, limit, date, status, petID, ownerID)
 }
 
@@ -46,20 +46,20 @@ func ptrTime(t time.Time) *time.Time { return &t }
 func TestReservationService_List(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
-		name              string
-		clinicID          uint64
-		page              int
-		limit             int
-		date              *time.Time
-		status            *string
-		petID             *uint64
-		ownerID           *uint64
-		repoReservations  []model.ReservationAppointment
-		repoTotal         int64
-		repoErr           error
-		wantLen           int
-		wantTotal         int64
-		wantErr           bool
+		name             string
+		clinicID         uint64
+		page             int
+		limit            int
+		date             *time.Time
+		status           *string
+		petID            *uint64
+		ownerID          *uint64
+		repoReservations []model.ReservationAppointment
+		repoTotal        int64
+		repoErr          error
+		wantLen          int
+		wantTotal        int64
+		wantErr          bool
 	}{
 		{
 			name:     "returns all reservations for clinic",
@@ -153,36 +153,36 @@ func TestReservationService_List(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name:              "returns empty list when no reservations exist",
-			clinicID:          1,
-			page:              1,
-			limit:             20,
-			date:              nil,
-			status:            nil,
-			petID:             nil,
-			ownerID:           nil,
-			repoReservations:  []model.ReservationAppointment{},
-			repoTotal:         0,
-			repoErr:           nil,
-			wantLen:           0,
-			wantTotal:         0,
-			wantErr:           false,
+			name:             "returns empty list when no reservations exist",
+			clinicID:         1,
+			page:             1,
+			limit:            20,
+			date:             nil,
+			status:           nil,
+			petID:            nil,
+			ownerID:          nil,
+			repoReservations: []model.ReservationAppointment{},
+			repoTotal:        0,
+			repoErr:          nil,
+			wantLen:          0,
+			wantTotal:        0,
+			wantErr:          false,
 		},
 		{
-			name:              "propagates repository error",
-			clinicID:          1,
-			page:              1,
-			limit:             20,
-			date:              nil,
-			status:            nil,
-			petID:             nil,
-			ownerID:           nil,
-			repoReservations:  nil,
-			repoTotal:         0,
-			repoErr:           errors.New("db connection error"),
-			wantLen:           0,
-			wantTotal:         0,
-			wantErr:           true,
+			name:             "propagates repository error",
+			clinicID:         1,
+			page:             1,
+			limit:            20,
+			date:             nil,
+			status:           nil,
+			petID:            nil,
+			ownerID:          nil,
+			repoReservations: nil,
+			repoTotal:        0,
+			repoErr:          errors.New("db connection error"),
+			wantLen:          0,
+			wantTotal:        0,
+			wantErr:          true,
 		},
 	}
 
@@ -211,13 +211,13 @@ func TestReservationService_List(t *testing.T) {
 func TestReservationService_GetByID(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
-		name               string
-		clinicID           uint64
-		id                 uint64
-		repoReservation    *model.ReservationAppointment
-		repoErr            error
-		wantReservation    *model.ReservationAppointment
-		wantErr            error
+		name            string
+		clinicID        uint64
+		id              uint64
+		repoReservation *model.ReservationAppointment
+		repoErr         error
+		wantReservation *model.ReservationAppointment
+		wantErr         error
 	}{
 		{
 			name:            "returns reservation when found",

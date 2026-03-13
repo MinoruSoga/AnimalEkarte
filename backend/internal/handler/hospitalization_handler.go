@@ -250,3 +250,13 @@ func (h *Handler) DeleteHospitalization(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
+
+// RegisterHospitalizationRoutes は入院関連のルートを登録する
+func (h *Handler) RegisterHospitalizationRoutes(rg *gin.RouterGroup) {
+	hospitalizations := rg.Group("/hospitalizations")
+	hospitalizations.GET("", h.ListHospitalizations)
+	hospitalizations.POST("", h.CreateHospitalization)
+	hospitalizations.GET("/:id", h.GetHospitalization)
+	hospitalizations.PATCH("/:id", h.UpdateHospitalization)
+	hospitalizations.DELETE("/:id", h.DeleteHospitalization)
+}

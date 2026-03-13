@@ -16,7 +16,7 @@ type mockOwnerRepository struct {
 	findAllFn        func(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error)
 	findByIDFn       func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
 	createWithPetsFn func(ctx context.Context, owner *model.Owner, pets []model.Pet) error
-	updateFn         func(ctx context.Context, owner *model.Owner) error
+	updateFn         func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn         func(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -35,13 +35,17 @@ func (m *mockOwnerRepository) CreateWithPets(ctx context.Context, owner *model.O
 	return nil
 }
 
-func (m *mockOwnerRepository) Update(ctx context.Context, owner *model.Owner) error {
-	return m.updateFn(ctx, owner)
+func (m *mockOwnerRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return m.updateFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockOwnerRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
 }
+
+// ポインタヘルパー関数（ptrString は accounting_service_test.go で定義済み）
+func ptrBool(b bool) *bool          { return &b }
+func ptrFloat64(f float64) *float64 { return &f }
 
 func TestOwnerService_List(t *testing.T) {
 	tests := []struct {
@@ -302,7 +306,7 @@ func TestOwnerService_CreateWithPets(t *testing.T) {
 			}
 			svc := NewOwnerService(repo)
 
-			owner, err := svc.CreateWithPets(context.Background(), tt.clinicID, tt.input)
+			owner, err := svc.CreateWithPets(context.Background(), tt.clinicID, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -320,88 +324,126 @@ func TestOwnerService_CreateWithPets(t *testing.T) {
 }
 
 func TestOwnerService_Update(t *testing.T) {
+	updatedOwner := &model.Owner{ID: 1, ClinicID: 1, OwnerName: "更新後 氏名"}
+
 	tests := []struct {
-		name     string
-		clinicID uint64
-		id       uint64
-		input    UpdateOwnerInput
-		repoErr  error
-		wantErr  bool
+		name       string
+		clinicID   uint64
+		id         uint64
+		input      UpdateOwnerInput
+		updateErr  error
+		findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
+		wantErr    bool
+		wantOwner  bool
 	}{
 		{
 			name:     "updates owner successfully",
 			clinicID: 1,
 			id:       1,
 			input: UpdateOwnerInput{
-				OwnerName:    "更新後 氏名",
-				DiscountRate: 10,
+				OwnerName:    ptrString("更新後 氏名"),
+				DiscountRate: ptrFloat64(10),
 			},
-			repoErr: nil,
-			wantErr: false,
+			updateErr: nil,
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+				return updatedOwner, nil
+			},
+			wantErr:   false,
+			wantOwner: true,
 		},
 		{
-			name:     "rejects invalid discount_rate",
+			name:     "rejects invalid discount_rate via pointer",
 			clinicID: 1,
 			id:       1,
 			input: UpdateOwnerInput{
-				OwnerName:    "バリデーション",
-				DiscountRate: -5,
+				DiscountRate: ptrFloat64(-5),
 			},
-			repoErr: nil,
-			wantErr: true,
+			updateErr: nil,
+			wantErr:   true,
 		},
 		{
-			name:     "rejects invalid membership_type",
+			name:     "rejects invalid membership_type via pointer",
 			clinicID: 1,
 			id:       1,
 			input: UpdateOwnerInput{
-				OwnerName:      "バリデーション",
-				MembershipType: "unknown_type",
+				MembershipType: func() *model.MembershipType {
+					v := model.MembershipType("unknown_type")
+					return &v
+				}(),
 			},
-			repoErr: nil,
-			wantErr: true,
+			updateErr: nil,
+			wantErr:   true,
+		},
+		{
+			name:      "returns error when no fields provided",
+			clinicID:  1,
+			id:        1,
+			input:     UpdateOwnerInput{}, // 全 nil
+			updateErr: nil,
+			wantErr:   true,
 		},
 		{
 			name:     "returns not found error when owner does not exist",
 			clinicID: 1,
 			id:       999,
 			input: UpdateOwnerInput{
-				OwnerName: "存在しない 飼主",
+				OwnerName: ptrString("存在しない 飼主"),
 			},
-			repoErr: apperrors.WrapNotFound("owner", "999"),
-			wantErr: true,
+			updateErr: apperrors.WrapNotFound("owner", "999"),
+			wantErr:   true,
 		},
 		{
 			name:     "returns error on repository failure",
 			clinicID: 1,
 			id:       1,
 			input: UpdateOwnerInput{
-				OwnerName: "エラー ケース",
+				OwnerName: ptrString("エラー ケース"),
 			},
-			repoErr: errors.New("db error"),
-			wantErr: true,
+			updateErr: errors.New("db error"),
+			wantErr:   true,
+		},
+		{
+			name:     "updates is_dangerous to false (zero value)",
+			clinicID: 1,
+			id:       1,
+			input: UpdateOwnerInput{
+				IsDangerous: ptrBool(false),
+			},
+			updateErr: nil,
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+				return &model.Owner{ID: 1, ClinicID: 1, IsDangerous: false}, nil
+			},
+			wantErr:   false,
+			wantOwner: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			findByIDFn := tt.findByIDFn
+			if findByIDFn == nil {
+				findByIDFn = func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+					return nil, errors.New("findByID should not be called")
+				}
+			}
 			repo := &mockOwnerRepository{
-				updateFn: func(_ context.Context, _ *model.Owner) error {
-					return tt.repoErr
+				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+					return tt.updateErr
 				},
+				findByIDFn: findByIDFn,
 			}
 			svc := NewOwnerService(repo)
 
-			owner, err := svc.Update(context.Background(), tt.clinicID, tt.id, tt.input)
+			owner, err := svc.Update(context.Background(), tt.clinicID, tt.id, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, owner)
 			} else {
 				assert.NoError(t, err)
-				assert.NotNil(t, owner)
-				assert.Equal(t, tt.id, owner.ID)
-				assert.Equal(t, tt.clinicID, owner.ClinicID)
+				if tt.wantOwner {
+					assert.NotNil(t, owner)
+				}
 			}
 		})
 	}

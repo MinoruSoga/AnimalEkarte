@@ -29,7 +29,7 @@ func NewExamTypeRepository(db *gorm.DB) ExamTypeRepository {
 }
 
 func (r *examTypeRepository) FindAll(ctx context.Context) ([]model.ExamType, error) {
-	var exTypes []model.ExamType
+	exTypes := make([]model.ExamType, 0)
 	if err := r.db.WithContext(ctx).Preload("Items").Order("sort_order ASC, name ASC").Find(&exTypes).Error; err != nil {
 		return nil, apperrors.Wrap(err, "find examination types")
 	}

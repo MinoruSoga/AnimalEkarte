@@ -8,7 +8,7 @@ import (
 )
 
 type VaccinationService interface {
-	List(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error)
+	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
 	Create(ctx context.Context, vaccination *model.Vaccination) error
 	Update(ctx context.Context, clinicID uint64, vaccination *model.Vaccination) error
@@ -23,7 +23,7 @@ func NewVaccinationService(repo repository.VaccinationRepository) VaccinationSer
 	return &vaccinationService{repo: repo}
 }
 
-func (s *vaccinationService) List(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error) {
+func (s *vaccinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error) {
 	return s.repo.FindAll(ctx, clinicID, petID, ownerID, page, limit)
 }
 

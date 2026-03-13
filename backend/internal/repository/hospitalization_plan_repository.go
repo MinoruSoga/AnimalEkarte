@@ -29,7 +29,7 @@ func NewHospitalizationPlanRepository(db *gorm.DB) HospitalizationPlanRepository
 }
 
 func (r *hospitalizationPlanRepository) FindAll(ctx context.Context) ([]model.HospitalizationPlan, error) {
-	var plans []model.HospitalizationPlan
+	plans := make([]model.HospitalizationPlan, 0)
 	if err := r.db.WithContext(ctx).Order("sort_order ASC, name ASC").Find(&plans).Error; err != nil {
 		return nil, apperrors.Wrap(err, "find hospitalization plans")
 	}

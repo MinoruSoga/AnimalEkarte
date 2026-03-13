@@ -12,7 +12,7 @@ import (
 )
 
 type AccountingRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Billing, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Billing, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	Update(ctx context.Context, clinicID uint64, accounting *model.Billing) error
@@ -27,8 +27,8 @@ func NewAccountingRepository(db *gorm.DB) AccountingRepository {
 	return &accountingRepository{db: db}
 }
 
-func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Billing, int64, error) {
-	var billings []model.Billing
+func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Billing, int64, error) {
+	billings := make([]model.Billing, 0)
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&model.Billing{}).Where("clinic_id = ?", clinicID)

@@ -16,7 +16,7 @@ type mockPetRepository struct {
 	findAllFn  func(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 	createFn   func(ctx context.Context, pet *model.Pet) error
-	updateFn   func(ctx context.Context, pet *model.Pet) error
+	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -32,8 +32,8 @@ func (m *mockPetRepository) Create(ctx context.Context, pet *model.Pet) error {
 	return m.createFn(ctx, pet)
 }
 
-func (m *mockPetRepository) Update(ctx context.Context, pet *model.Pet) error {
-	return m.updateFn(ctx, pet)
+func (m *mockPetRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return m.updateFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockPetRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -181,13 +181,13 @@ func TestPetService_GetByID(t *testing.T) {
 			wantErr:  nil,
 		},
 		{
-			name:    "returns not found error when pet does not exist",
+			name:     "returns not found error when pet does not exist",
 			clinicID: 1,
-			id:      999,
-			repoPet: nil,
-			repoErr: apperrors.WrapNotFound("pet", "999"),
-			wantPet: nil,
-			wantErr: apperrors.ErrNotFound,
+			id:       999,
+			repoPet:  nil,
+			repoErr:  apperrors.WrapNotFound("pet", "999"),
+			wantPet:  nil,
+			wantErr:  apperrors.ErrNotFound,
 		},
 		{
 			name:     "returns error on repository failure",
@@ -318,7 +318,7 @@ func TestPetService_Create(t *testing.T) {
 			}
 			svc := NewPetService(repo)
 
-			pet, err := svc.Create(context.Background(), tt.clinicID, tt.input)
+			pet, err := svc.Create(context.Background(), tt.clinicID, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -337,83 +337,105 @@ func TestPetService_Create(t *testing.T) {
 }
 
 func TestPetService_Update(t *testing.T) {
+	updatedPet := &model.Pet{ID: 1, ClinicID: 1, Name: "更新後ペット名"}
+
 	tests := []struct {
-		name     string
-		clinicID uint64
-		id       uint64
-		input    UpdatePetInput
-		repoErr  error
-		wantErr  bool
-		wantNF   bool
+		name       string
+		clinicID   uint64
+		id         uint64
+		input      UpdatePetInput
+		updateErr  error
+		findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+		wantErr    bool
+		wantNF     bool
+		wantPet    bool
 	}{
 		{
 			name:     "updates pet successfully",
 			clinicID: 1,
 			id:       1,
 			input: UpdatePetInput{
-				Name:   "更新後ペット名",
-				Gender: "female",
+				Name:   ptrString("更新後ペット名"),
+				Gender: ptrString("female"),
 			},
-			repoErr: nil,
+			updateErr: nil,
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+				return updatedPet, nil
+			},
 			wantErr: false,
-			wantNF:  false,
+			wantPet: true,
 		},
 		{
 			name:     "rejects invalid gender",
 			clinicID: 1,
 			id:       1,
 			input: UpdatePetInput{
-				Name:   "ペット",
-				Gender: "invalid",
+				Name:   ptrString("ペット"),
+				Gender: ptrString("invalid"),
 			},
-			repoErr: nil,
-			wantErr: true,
+			updateErr: nil,
+			wantErr:   true,
 		},
 		{
 			name:     "rejects invalid status",
 			clinicID: 1,
 			id:       1,
 			input: UpdatePetInput{
-				Name:   "ペット",
-				Status: "invalid",
+				Name:   ptrString("ペット"),
+				Status: ptrString("invalid"),
 			},
-			repoErr: nil,
-			wantErr: true,
+			updateErr: nil,
+			wantErr:   true,
+		},
+		{
+			name:      "returns error when no fields provided",
+			clinicID:  1,
+			id:        1,
+			input:     UpdatePetInput{}, // 全 nil
+			updateErr: nil,
+			wantErr:   true,
 		},
 		{
 			name:     "returns not found error when pet does not exist",
 			clinicID: 1,
 			id:       999,
 			input: UpdatePetInput{
-				Name: "存在しないペット",
+				Name: ptrString("存在しないペット"),
 			},
-			repoErr: apperrors.WrapNotFound("pet", "999"),
-			wantErr: true,
-			wantNF:  true,
+			updateErr: apperrors.WrapNotFound("pet", "999"),
+			wantErr:   true,
+			wantNF:    true,
 		},
 		{
 			name:     "returns error on repository failure",
 			clinicID: 1,
 			id:       1,
 			input: UpdatePetInput{
-				Name: "エラーケース",
+				Name: ptrString("エラーケース"),
 			},
-			repoErr: errors.New("db error"),
-			wantErr: true,
-			wantNF:  false,
+			updateErr: errors.New("db error"),
+			wantErr:   true,
+			wantNF:    false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			findByIDFn := tt.findByIDFn
+			if findByIDFn == nil {
+				findByIDFn = func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+					return nil, errors.New("findByID should not be called")
+				}
+			}
 			repo := &mockPetRepository{
-				updateFn: func(_ context.Context, _ *model.Pet) error {
-					return tt.repoErr
+				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+					return tt.updateErr
 				},
+				findByIDFn: findByIDFn,
 			}
 			svc := NewPetService(repo)
 
-			pet, err := svc.Update(context.Background(), tt.clinicID, tt.id, tt.input)
+			pet, err := svc.Update(context.Background(), tt.clinicID, tt.id, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -423,9 +445,9 @@ func TestPetService_Update(t *testing.T) {
 				}
 			} else {
 				assert.NoError(t, err)
-				assert.NotNil(t, pet)
-				assert.Equal(t, tt.id, pet.ID)
-				assert.Equal(t, tt.clinicID, pet.ClinicID)
+				if tt.wantPet {
+					assert.NotNil(t, pet)
+				}
 			}
 		})
 	}

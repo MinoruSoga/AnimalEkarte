@@ -3,6 +3,7 @@ package model
 import (
 	"time"
 )
+
 type VaccineSpecies string
 
 const (
@@ -10,6 +11,7 @@ const (
 	VaccineSpeciesCat  VaccineSpecies = "cat"
 	VaccineSpeciesBoth VaccineSpecies = "both"
 )
+
 type Vaccine struct {
 	ID          uint64          `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID    uint64          `gorm:"not null"                                       json:"clinic_id"`

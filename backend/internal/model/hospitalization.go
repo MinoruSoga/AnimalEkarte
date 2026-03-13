@@ -6,12 +6,14 @@ import (
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
+
 type HospitalizationType string
 
 const (
 	HospitalizationTypeInpatient HospitalizationType = "hospitalization"
 	HospitalizationTypeHotel     HospitalizationType = "hotel"
 )
+
 type HospitalizationStatus string
 
 const (
@@ -19,6 +21,7 @@ const (
 	HospitalizationStatusDischarged HospitalizationStatus = "discharged"
 	HospitalizationStatusReserved   HospitalizationStatus = "reserved"
 )
+
 type Hospitalization struct {
 	ID                  uint64                `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID            uint64                `gorm:"not null"                                       json:"clinic_id"`
@@ -35,7 +38,7 @@ type Hospitalization struct {
 	StaffNotes          string                `gorm:"default:''"                                     json:"staff_notes"`
 	CreatedAt           time.Time             `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt           time.Time             `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt           gorm.DeletedAt        `                                                      json:"deleted_at" swaggerignore:"true"`
+	DeletedAt           gorm.DeletedAt        `                                                      json:"-" swaggerignore:"true"`
 
 	// Relations
 	Owner          *Owner          `gorm:"foreignKey:OwnerID"           json:"owner,omitempty"`
@@ -48,6 +51,7 @@ type Hospitalization struct {
 }
 
 func (Hospitalization) TableName() string { return "hospitalizations" }
+
 type CarePlanType string
 
 const (
@@ -57,6 +61,7 @@ const (
 	CarePlanTypeInstruction CarePlanType = "instruction"
 	CarePlanTypeItem        CarePlanType = "item"
 )
+
 type CarePlanStatus string
 
 const (
@@ -64,6 +69,7 @@ const (
 	CarePlanStatusCompleted    CarePlanStatus = "completed"
 	CarePlanStatusDiscontinued CarePlanStatus = "discontinued"
 )
+
 type PlanTiming string
 
 const (
@@ -71,6 +77,7 @@ const (
 	PlanTimingNoon    PlanTiming = "noon"
 	PlanTimingNight   PlanTiming = "night"
 )
+
 type CarePlanItem struct {
 	ID                    uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	HospitalizationID     uint64         `gorm:"not null"                                       json:"hospitalization_id"`
@@ -96,6 +103,7 @@ type CarePlanItem struct {
 }
 
 func (CarePlanItem) TableName() string { return "care_plan_items" }
+
 type TreatmentPlan struct {
 	ID                uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	MedicalRecordID   *uint64        `                                                      json:"medical_record_id,omitempty"`
@@ -109,7 +117,7 @@ type TreatmentPlan struct {
 	DiscountAmount    float64        `gorm:"type:numeric(10,2);default:0"                   json:"discount_amount"`
 	Subtotal          float64        `gorm:"type:numeric(10,2);default:0"                   json:"subtotal"`
 	SortOrder         int            `gorm:"default:0"                                      json:"sort_order"`
-	DeletedAt         gorm.DeletedAt `                                                      json:"deleted_at" swaggerignore:"true"`
+	DeletedAt         gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
 	CreatedAt         time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
@@ -119,6 +127,7 @@ type TreatmentPlan struct {
 }
 
 func (TreatmentPlan) TableName() string { return "treatment_plans" }
+
 type DailyRecord struct {
 	ID                uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	HospitalizationID uint64    `gorm:"not null"                                       json:"hospitalization_id"`
@@ -133,6 +142,7 @@ type DailyRecord struct {
 }
 
 func (DailyRecord) TableName() string { return "daily_records" }
+
 type VitalRecord struct {
 	ID              uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	DailyRecordID   uint64    `gorm:"not null"                                       json:"daily_record_id"`
@@ -150,6 +160,7 @@ type VitalRecord struct {
 }
 
 func (VitalRecord) TableName() string { return "vital_records" }
+
 type CareLogType string
 
 const (
@@ -159,6 +170,7 @@ const (
 	CareLogTypeTreatment CareLogType = "treatment"
 	CareLogTypeOther     CareLogType = "other"
 )
+
 type CareLogStatus string
 
 const (
@@ -166,6 +178,7 @@ const (
 	CareLogStatusPartial   CareLogStatus = "partial"
 	CareLogStatusSkipped   CareLogStatus = "skipped"
 )
+
 type CareLogRecord struct {
 	ID            uint64        `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	DailyRecordID uint64        `gorm:"not null"                                       json:"daily_record_id"`
@@ -182,6 +195,7 @@ type CareLogRecord struct {
 }
 
 func (CareLogRecord) TableName() string { return "care_log_records" }
+
 type StaffNoteRecord struct {
 	ID            uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	DailyRecordID uint64    `gorm:"not null"                                       json:"daily_record_id"`

@@ -34,7 +34,7 @@ type Estimate struct {
 	Comment         string         `gorm:"default:''"                                     json:"comment"`
 	Notes           string         `gorm:"default:''"                                     json:"notes"`
 	CreatedBy       *uint64        `                                                      json:"created_by,omitempty"`
-	DeletedAt       gorm.DeletedAt `                                                      json:"deleted_at" swaggerignore:"true"`
+	DeletedAt       gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
 	CreatedAt       time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 

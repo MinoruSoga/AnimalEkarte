@@ -59,14 +59,14 @@ func (r *userAccountRepository) FindByIDWithMemberships(ctx context.Context, id 
 		return nil, apperrors.Wrap(err, "find user account by id")
 	}
 
-	var memberships []model.UserClinicMembership
+	memberships := make([]model.UserClinicMembership, 0)
 	if err := r.db.WithContext(ctx).
 		Where("user_id = ?", id).
 		Find(&memberships).Error; err != nil {
 		return nil, apperrors.Wrap(err, "find user clinic memberships")
 	}
 
-	var permissions []model.UserPermission
+	permissions := make([]model.UserPermission, 0)
 	if err := r.db.WithContext(ctx).
 		Where("user_id = ?", id).
 		Find(&permissions).Error; err != nil {

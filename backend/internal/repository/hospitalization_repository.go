@@ -12,7 +12,7 @@ import (
 )
 
 type HospitalizationRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	Create(ctx context.Context, hospitalization *model.Hospitalization) error
 	Update(ctx context.Context, hospitalization *model.Hospitalization) error
@@ -27,8 +27,8 @@ func NewHospitalizationRepository(db *gorm.DB) HospitalizationRepository {
 	return &hospitalizationRepository{db: db}
 }
 
-func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error) {
-	var hospitalizations []model.Hospitalization
+func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error) {
+	hospitalizations := make([]model.Hospitalization, 0)
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&model.Hospitalization{}).Where("clinic_id = ?", clinicID)

@@ -183,3 +183,13 @@ func (h *Handler) DeleteInventory(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
+
+// RegisterInventoryRoutes は在庫関連のルートを登録する
+func (h *Handler) RegisterInventoryRoutes(rg *gin.RouterGroup) {
+	inventory := rg.Group("/inventory")
+	inventory.GET("", h.ListInventory)
+	inventory.POST("", h.CreateInventory)
+	inventory.GET("/:id", h.GetInventory)
+	inventory.PATCH("/:id", h.UpdateInventory)
+	inventory.DELETE("/:id", h.DeleteInventory)
+}

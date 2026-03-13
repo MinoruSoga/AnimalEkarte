@@ -27,7 +27,7 @@ type vaccineRepository struct{ db *gorm.DB }
 func NewVaccineRepository(db *gorm.DB) VaccineRepository { return &vaccineRepository{db: db} }
 
 func (r *vaccineRepository) FindAll(ctx context.Context, species *string) ([]model.Vaccine, error) {
-	var vaccines []model.Vaccine
+	vaccines := make([]model.Vaccine, 0)
 	q := r.db.WithContext(ctx).Model(&model.Vaccine{})
 	if species != nil {
 		q = q.Where("species = ?", *species)

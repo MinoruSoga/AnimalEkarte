@@ -5,6 +5,7 @@ import (
 
 	"gorm.io/gorm"
 )
+
 type StaffRole string
 
 const (
@@ -14,6 +15,7 @@ const (
 	StaffRoleReception    StaffRole = "reception"
 	StaffRoleManager      StaffRole = "manager"
 )
+
 type Staff struct {
 	ID            uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID      uint64         `gorm:"not null"                                       json:"clinic_id"`
@@ -23,7 +25,7 @@ type Staff struct {
 	JobTitleID    *uint64        `                                                      json:"job_title_id,omitempty"`
 	LicenseNumber string         `gorm:"default:''"                                     json:"license_number"`
 	SortOrder     int            `gorm:"default:0"                                      json:"sort_order"`
-	DeletedAt     gorm.DeletedAt `                                                      json:"deleted_at" swaggerignore:"true"`
+	DeletedAt     gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
 	CreatedAt     time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt     time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
@@ -32,6 +34,7 @@ type Staff struct {
 }
 
 func (Staff) TableName() string { return "staffs" }
+
 type ShiftType string
 
 const (
@@ -41,6 +44,7 @@ const (
 	ShiftTypeOff       ShiftType = "off"
 	ShiftTypePaidLeave ShiftType = "paid_leave"
 )
+
 type ShiftEntry struct {
 	ID        uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID  uint64    `gorm:"not null"                                       json:"clinic_id"`

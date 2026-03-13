@@ -12,7 +12,7 @@ import (
 )
 
 type InventoryRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, category *string, status *string, page, limit int) ([]model.InventoryItem, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
 	Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
 	Update(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
@@ -27,8 +27,8 @@ func NewInventoryRepository(db *gorm.DB) InventoryRepository {
 	return &inventoryRepository{db: db}
 }
 
-func (r *inventoryRepository) FindAll(ctx context.Context, clinicID uint64, category *string, status *string, page, limit int) ([]model.InventoryItem, int64, error) {
-	var items []model.InventoryItem
+func (r *inventoryRepository) FindAll(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error) {
+	items := make([]model.InventoryItem, 0)
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&model.InventoryItem{}).Where("clinic_id = ?", clinicID)

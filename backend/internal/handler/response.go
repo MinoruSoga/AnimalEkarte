@@ -2,10 +2,15 @@ package handler
 
 import (
 	"errors"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
+	"unicode"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
@@ -40,9 +45,55 @@ func RespondError(c *gin.Context, err error) {
 	case errors.Is(err, apperrors.ErrForbidden):
 		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
 	default:
-		// 内部エラーの詳細は絶対に露出しない
+		slog.ErrorContext(c.Request.Context(), "internal server error",
+			slog.String("error", err.Error()),
+			slog.String("path", c.FullPath()),
+			slog.String("method", c.Request.Method))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 	}
+}
+
+// parseBindError は validator.ValidationErrors を人間可読メッセージに変換する。
+// ValidationErrors でない場合はそのまま err.Error() を返す。
+func parseBindError(err error) string {
+	var ve validator.ValidationErrors
+	if errors.As(err, &ve) {
+		msgs := make([]string, 0, len(ve))
+		for _, fe := range ve {
+			msgs = append(msgs, formatValidationError(fe))
+		}
+		return strings.Join(msgs, "; ")
+	}
+	return err.Error()
+}
+
+func formatValidationError(fe validator.FieldError) string {
+	field := camelToSnake(fe.Field())
+	switch fe.Tag() {
+	case "required":
+		return field + " is required"
+	case "min":
+		return fmt.Sprintf("%s must be at least %s", field, fe.Param())
+	case "max":
+		return fmt.Sprintf("%s must be at most %s", field, fe.Param())
+	case "oneof":
+		return fmt.Sprintf("%s must be one of: %s", field, strings.ReplaceAll(fe.Param(), " ", ", "))
+	default:
+		return fmt.Sprintf("%s is invalid (%s)", field, fe.Tag())
+	}
+}
+
+// camelToSnake は CamelCase を snake_case に変換する。
+// "OwnerName" → "owner_name", "IsDangerous" → "is_dangerous"
+func camelToSnake(s string) string {
+	var b strings.Builder
+	for i, r := range s {
+		if i > 0 && unicode.IsUpper(r) {
+			b.WriteByte('_')
+		}
+		b.WriteRune(unicode.ToLower(r))
+	}
+	return b.String()
 }
 
 // extractClinicID はJWT認証済みコンテキストから clinic_id を取得してパースする。

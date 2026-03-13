@@ -5,12 +5,14 @@ import (
 
 	"gorm.io/gorm"
 )
+
 type PetStatus string
 
 const (
 	PetStatusAlive    PetStatus = "alive"
 	PetStatusDeceased PetStatus = "deceased"
 )
+
 type PetGender string
 
 const (
@@ -18,6 +20,7 @@ const (
 	PetGenderFemale  PetGender = "female"
 	PetGenderUnknown PetGender = "unknown"
 )
+
 type AcquisitionType string
 
 const (
@@ -26,6 +29,7 @@ const (
 	AcquisitionTypeProtected AcquisitionType = "rescued"
 	AcquisitionTypeOther     AcquisitionType = "other"
 )
+
 type DangerLevel string
 
 const (
@@ -33,6 +37,7 @@ const (
 	DangerLevelMedium DangerLevel = "medium"
 	DangerLevelHigh   DangerLevel = "high"
 )
+
 type Pet struct {
 	ID              uint64           `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID        uint64           `gorm:"not null"                                       json:"clinic_id"`
@@ -58,7 +63,7 @@ type Pet struct {
 	Remarks         string           `gorm:"default:''"                                     json:"remarks"`
 	CreatedAt       time.Time        `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time        `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt       gorm.DeletedAt   `                                                      json:"deleted_at" swaggerignore:"true"`
+	DeletedAt       gorm.DeletedAt   `                                                      json:"-" swaggerignore:"true"`
 
 	// Relations
 	Owner         *Owner         `gorm:"foreignKey:OwnerID"          json:"owner,omitempty"`

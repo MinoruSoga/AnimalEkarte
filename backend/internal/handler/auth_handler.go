@@ -190,7 +190,8 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 	clinicNameMap := make(map[string]string, len(allClinics))
-	for _, cl := range allClinics {
+	for i := range allClinics {
+		cl := &allClinics[i]
 		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
 	}
 

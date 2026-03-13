@@ -12,33 +12,33 @@ import (
 )
 
 type createAccountingInput struct {
-	MedicalRecordID   *uint64              `json:"medical_record_id"`
-	HospitalizationID *uint64              `json:"hospitalization_id"`
-	OwnerID           *uint64              `json:"owner_id"`
-	PetID             *uint64              `json:"pet_id"`
-	Subtotal          int                  `json:"subtotal"`
-	TaxTotal          int                  `json:"tax_total"`
-	TotalAmount       int                  `json:"total_amount"`
-	HasInsurance      bool                 `json:"has_insurance"`
-	Status            string               `json:"status"`
-	ScheduledDate     time.Time            `json:"scheduled_date" binding:"required"`
-	CompletedAt       *time.Time           `json:"completed_at"`
-	Memo              string               `json:"memo"`
+	MedicalRecordID   *uint64    `json:"medical_record_id"`
+	HospitalizationID *uint64    `json:"hospitalization_id"`
+	OwnerID           *uint64    `json:"owner_id"`
+	PetID             *uint64    `json:"pet_id"`
+	Subtotal          int        `json:"subtotal"`
+	TaxTotal          int        `json:"tax_total"`
+	TotalAmount       int        `json:"total_amount"`
+	HasInsurance      bool       `json:"has_insurance"`
+	Status            string     `json:"status"`
+	ScheduledDate     time.Time  `json:"scheduled_date" binding:"required"`
+	CompletedAt       *time.Time `json:"completed_at"`
+	Memo              string     `json:"memo"`
 }
 
 type updateAccountingInput struct {
-	MedicalRecordID   *uint64              `json:"medical_record_id"`
-	HospitalizationID *uint64              `json:"hospitalization_id"`
-	OwnerID           *uint64              `json:"owner_id"`
-	PetID             *uint64              `json:"pet_id"`
-	Subtotal          int                  `json:"subtotal"`
-	TaxTotal          int                  `json:"tax_total"`
-	TotalAmount       int                  `json:"total_amount"`
-	HasInsurance      bool                 `json:"has_insurance"`
-	Status            string               `json:"status"`
-	ScheduledDate     *time.Time           `json:"scheduled_date"`
-	CompletedAt       *time.Time           `json:"completed_at"`
-	Memo              string               `json:"memo"`
+	MedicalRecordID   *uint64    `json:"medical_record_id"`
+	HospitalizationID *uint64    `json:"hospitalization_id"`
+	OwnerID           *uint64    `json:"owner_id"`
+	PetID             *uint64    `json:"pet_id"`
+	Subtotal          int        `json:"subtotal"`
+	TaxTotal          int        `json:"tax_total"`
+	TotalAmount       int        `json:"total_amount"`
+	HasInsurance      bool       `json:"has_insurance"`
+	Status            string     `json:"status"`
+	ScheduledDate     *time.Time `json:"scheduled_date"`
+	CompletedAt       *time.Time `json:"completed_at"`
+	Memo              string     `json:"memo"`
 }
 
 // ListAccountings godoc
@@ -213,4 +213,14 @@ func (h *Handler) DeleteAccounting(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// RegisterAccountingRoutes は会計関連のルートを登録する
+func (h *Handler) RegisterAccountingRoutes(rg *gin.RouterGroup) {
+	accountings := rg.Group("/accountings")
+	accountings.GET("", h.ListAccountings)
+	accountings.POST("", h.CreateAccounting)
+	accountings.GET("/:id", h.GetAccounting)
+	accountings.PATCH("/:id", h.UpdateAccounting)
+	accountings.DELETE("/:id", h.DeleteAccounting)
 }

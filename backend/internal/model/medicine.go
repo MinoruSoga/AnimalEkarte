@@ -3,6 +3,7 @@ package model
 import (
 	"time"
 )
+
 type DosageForm string
 
 const (
@@ -12,6 +13,7 @@ const (
 	DosageFormTopical   DosageForm = "topical"
 	DosageFormPowder    DosageForm = "powder"
 )
+
 type MedicineUnit string
 
 const (
@@ -20,6 +22,7 @@ const (
 	MedicineUnitPerDose   MedicineUnit = "per_dose"
 	MedicineUnitPerGram   MedicineUnit = "per_gram"
 )
+
 type Medicine struct {
 	ID              uint64        `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID        uint64        `gorm:"not null"                                       json:"clinic_id"`

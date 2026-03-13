@@ -5,6 +5,7 @@ import (
 
 	"gorm.io/gorm"
 )
+
 type UserType string
 
 const (
@@ -12,6 +13,7 @@ const (
 	UserTypeClinicAdmin UserType = "clinic_admin"
 	UserTypeStaff       UserType = "staff"
 )
+
 type AccountStatus string
 
 const (
@@ -19,6 +21,7 @@ const (
 	AccountStatusInactive AccountStatus = "inactive"
 	AccountStatusLocked   AccountStatus = "locked"
 )
+
 type PermissionType string
 
 const (
@@ -33,6 +36,7 @@ const (
 	PermissionShiftAdmin      PermissionType = "shift_admin"
 	PermissionInventory       PermissionType = "inventory"
 )
+
 type Clinic struct {
 	ID                 uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	CompanyID          uint64    `gorm:"not null"                                       json:"company_id"`
@@ -52,6 +56,7 @@ type Clinic struct {
 }
 
 func (Clinic) TableName() string { return "clinics" }
+
 type UserAccount struct {
 	ID              uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	Email           string         `gorm:"not null;uniqueIndex"                           json:"email"`
@@ -65,7 +70,7 @@ type UserAccount struct {
 	PasswordHash    string         `gorm:"not null;default:''"                            json:"-"`
 	CreatedAt       time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt       gorm.DeletedAt `                                                      json:"deleted_at" swaggerignore:"true"`
+	DeletedAt       gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
 
 	// Relations
 	Staff    *Staff    `gorm:"foreignKey:StaffID"    json:"staff,omitempty"`
@@ -73,6 +78,7 @@ type UserAccount struct {
 }
 
 func (UserAccount) TableName() string { return "user_accounts" }
+
 type UserClinicMembership struct {
 	ID       uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	UserID   uint64    `gorm:"not null"                                       json:"user_id"`
@@ -82,6 +88,7 @@ type UserClinicMembership struct {
 }
 
 func (UserClinicMembership) TableName() string { return "user_clinic_memberships" }
+
 type UserPermission struct {
 	ID         uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	UserID     uint64         `gorm:"not null"                                       json:"user_id"`

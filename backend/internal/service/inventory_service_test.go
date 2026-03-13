@@ -13,14 +13,14 @@ import (
 
 // mockInventoryRepository は InventoryRepository のテスト用モック実装
 type mockInventoryRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, category *string, status *string, page, limit int) ([]model.InventoryItem, int64, error)
+	findAllFn  func(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error)
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
 	createFn   func(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
 	updateFn   func(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockInventoryRepository) FindAll(ctx context.Context, clinicID uint64, category *string, status *string, page, limit int) ([]model.InventoryItem, int64, error) {
+func (m *mockInventoryRepository) FindAll(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error) {
 	return m.findAllFn(ctx, clinicID, category, status, page, limit)
 }
 

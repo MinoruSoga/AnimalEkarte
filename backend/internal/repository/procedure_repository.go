@@ -27,7 +27,7 @@ type procedureRepository struct{ db *gorm.DB }
 func NewProcedureRepository(db *gorm.DB) ProcedureRepository { return &procedureRepository{db: db} }
 
 func (r *procedureRepository) FindAll(ctx context.Context) ([]model.Procedure, error) {
-	var procedures []model.Procedure
+	procedures := make([]model.Procedure, 0)
 	if err := r.db.WithContext(ctx).Order("sort_order ASC, name ASC").Find(&procedures).Error; err != nil {
 		return nil, apperrors.Wrap(err, "find procedures")
 	}
