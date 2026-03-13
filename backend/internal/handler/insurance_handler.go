@@ -7,26 +7,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
-
-type createInsuranceInput struct {
-	Name         string `json:"name"          binding:"required"`
-	IsActive     bool   `json:"is_active"`
-	Description  string `json:"description"`
-	CoverageRate *int   `json:"coverage_rate"`
-	ContactPhone string `json:"contact_phone"`
-	SortOrder    int    `json:"sort_order"`
-}
-
-type updateInsuranceInput struct {
-	Name         string `json:"name"`
-	IsActive     *bool  `json:"is_active"`
-	Description  string `json:"description"`
-	CoverageRate *int   `json:"coverage_rate"`
-	ContactPhone string `json:"contact_phone"`
-	SortOrder    int    `json:"sort_order"`
-}
 
 // ---- Insurance ----
 
@@ -37,7 +20,7 @@ func (h *Handler) ListInsurances(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, insurances)
+	c.JSON(http.StatusOK, toInsuranceResponseList(insurances))
 }
 
 // CreateInsurance godoc
@@ -47,66 +30,75 @@ func (h *Handler) CreateInsurance(c *gin.Context) {
 		return
 	}
 
-	var input createInsuranceInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	var req createInsuranceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
+	coverageRate := 0
+	if req.CoverageRate != nil {
+		coverageRate = *req.CoverageRate
+	}
 	insurance := &model.Insurance{
 		ClinicID:     clinicID,
-		Name:         input.Name,
-		IsActive:     input.IsActive,
-		Description:  input.Description,
-		CoverageRate: input.CoverageRate,
-		ContactPhone: input.ContactPhone,
-		SortOrder:    input.SortOrder,
+		Name:         req.Name,
+		IsActive:     req.IsActive,
+		Description:  req.Description,
+		CoverageRate: &coverageRate,
+		ContactPhone: req.ContactPhone,
+		SortOrder:    req.SortOrder,
 	}
 
 	if err := h.svc.Insurance.Create(c.Request.Context(), insurance); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, insurance)
+	c.JSON(http.StatusCreated, toInsuranceResponse(insurance))
 }
 
 // UpdateInsurance godoc
 func (h *Handler) UpdateInsurance(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	var input updateInsuranceInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req updateInsuranceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
 	insurance := &model.Insurance{
 		ID:           id,
-		Name:         input.Name,
-		Description:  input.Description,
-		CoverageRate: input.CoverageRate,
-		ContactPhone: input.ContactPhone,
-		SortOrder:    input.SortOrder,
+		ClinicID:     clinicID,
+		Name:         req.Name,
+		Description:  req.Description,
+		CoverageRate: req.CoverageRate,
+		ContactPhone: req.ContactPhone,
+		SortOrder:    req.SortOrder,
 	}
-	if input.IsActive != nil {
-		insurance.IsActive = *input.IsActive
+	if req.IsActive != nil {
+		insurance.IsActive = *req.IsActive
 	}
 
 	if err := h.svc.Insurance.Update(c.Request.Context(), insurance); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, insurance)
+	c.JSON(http.StatusOK, toInsuranceResponse(insurance))
 }
 
 // DeleteInsurance godoc
 func (h *Handler) DeleteInsurance(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.Insurance.Delete(c.Request.Context(), id); err != nil {

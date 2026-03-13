@@ -204,7 +204,7 @@ function TrimmingCourseTab() {
       name: item.name,
       price: item.price != null ? String(item.price) : "",
       targetSize: item.targetSize ?? "",
-      duration: item.duration,
+      duration: item.duration != null ? String(item.duration) : "",
       description: item.description,
       isActive: item.isActive,
     });
@@ -236,7 +236,7 @@ function TrimmingCourseTab() {
         name: formData.name,
         price: priceValue,
         target_size: formData.targetSize !== "" ? formData.targetSize : null,
-        duration: formData.duration || undefined,
+        duration: formData.duration !== "" ? Number(formData.duration) : null,
         description: formData.description || undefined,
         is_active: formData.isActive,
       };
@@ -255,7 +255,7 @@ function TrimmingCourseTab() {
         name: formData.name,
         price: priceValue,
         target_size: formData.targetSize !== "" ? formData.targetSize : null,
-        duration: formData.duration || undefined,
+        duration: formData.duration !== "" ? Number(formData.duration) : null,
         description: formData.description || undefined,
         is_active: true,
       };
@@ -314,7 +314,7 @@ function TrimmingCourseTab() {
                   {item.targetSize ? TARGET_SIZE_LABELS[item.targetSize] : "-"}
                 </TableCell>
                 <TableCell className={`text-sm ${C.text70} py-2.5`}>
-                  {item.duration || "-"}
+                  {item.duration != null ? `${item.duration}分` : "-"}
                 </TableCell>
                 <TableCell className={`text-right font-mono text-sm ${C.text} py-2.5`}>
                   {item.price != null ? `¥${item.price.toLocaleString()}` : "-"}
@@ -411,16 +411,16 @@ function TrimmingCourseTab() {
 
                   <PropertyRow label="対象サイズ">
                     <Select
-                      value={formData.targetSize}
+                      value={formData.targetSize || "__none__"}
                       onValueChange={(v) =>
-                        setFormData({ ...formData, targetSize: v as TargetSize | "" })
+                        setFormData({ ...formData, targetSize: v === "__none__" ? "" : v as TargetSize })
                       }
                     >
                       <SelectTrigger className={STYLE.selectCompact}>
                         <SelectValue placeholder="選択" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">指定なし</SelectItem>
+                        <SelectItem value="__none__">指定なし</SelectItem>
                         {TARGET_SIZE_OPTIONS.map((opt) => (
                           <SelectItem key={opt.value} value={opt.value}>
                             {opt.label}
@@ -430,11 +430,12 @@ function TrimmingCourseTab() {
                     </Select>
                   </PropertyRow>
 
-                  <PropertyRow label="所要時間">
+                  <PropertyRow label="所要時間(分)">
                     <PropInput
+                      type="number"
                       value={formData.duration}
                       onChange={(v) => setFormData({ ...formData, duration: v })}
-                      placeholder="例: 90分"
+                      placeholder="90"
                     />
                   </PropertyRow>
 
@@ -535,7 +536,7 @@ function TrimmingOptionTab() {
     setFormData({
       name: item.name,
       price: item.price != null ? String(item.price) : "",
-      duration: item.duration,
+      duration: item.duration != null ? String(item.duration) : "",
       combinable: item.combinable,
       description: item.description,
       isActive: item.isActive,
@@ -567,7 +568,7 @@ function TrimmingOptionTab() {
       const req: UpdateTrimmingOptionRequest = {
         name: formData.name,
         price: priceValue,
-        duration: formData.duration || undefined,
+        duration: formData.duration !== "" ? Number(formData.duration) : null,
         combinable: formData.combinable,
         description: formData.description || undefined,
         is_active: formData.isActive,
@@ -586,7 +587,7 @@ function TrimmingOptionTab() {
       const req: CreateTrimmingOptionRequest = {
         name: formData.name,
         price: priceValue,
-        duration: formData.duration || undefined,
+        duration: formData.duration !== "" ? Number(formData.duration) : null,
         combinable: formData.combinable,
         description: formData.description || undefined,
         is_active: true,
@@ -643,7 +644,7 @@ function TrimmingOptionTab() {
                   {item.name}
                 </TableCell>
                 <TableCell className={`text-sm ${C.text70} py-2.5`}>
-                  {item.duration || "-"}
+                  {item.duration != null ? `${item.duration}分` : "-"}
                 </TableCell>
                 <TableCell className="text-center py-2.5">
                   <CombinablePill combinable={item.combinable} />
@@ -741,11 +742,12 @@ function TrimmingOptionTab() {
                     </button>
                   </PropertyRow>
 
-                  <PropertyRow label="所要時間">
+                  <PropertyRow label="所要時間(分)">
                     <PropInput
+                      type="number"
                       value={formData.duration}
                       onChange={(v) => setFormData({ ...formData, duration: v })}
-                      placeholder="例: 30分"
+                      placeholder="30"
                     />
                   </PropertyRow>
 

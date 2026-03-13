@@ -33,7 +33,7 @@ export interface BackendTrimmingCourse {
   is_active: boolean;
   description: string;
   target_size: TargetSize | null;
-  duration: string;
+  duration: number | null;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -46,7 +46,7 @@ export interface BackendTrimmingOption {
   price: number | null;
   is_active: boolean;
   description: string;
-  duration: string;
+  duration: number | null;
   combinable: boolean;
   sort_order: number;
   created_at: string;
@@ -65,7 +65,7 @@ export interface TrimmingCourse {
   isActive: boolean;
   description: string;
   targetSize: TargetSize | null;
-  duration: string;
+  duration: number | null;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -78,7 +78,7 @@ export interface TrimmingOption {
   price: number | null;
   isActive: boolean;
   description: string;
-  duration: string;
+  duration: number | null;
   combinable: boolean;
   sortOrder: number;
   createdAt: string;
@@ -94,7 +94,7 @@ export interface CreateTrimmingCourseRequest {
   price?: number | null;
   description?: string;
   target_size?: TargetSize | null;
-  duration?: string;
+  duration?: number | null;
   is_active?: boolean;
   sort_order?: number;
 }
@@ -104,7 +104,7 @@ export interface UpdateTrimmingCourseRequest {
   price?: number | null;
   description?: string;
   target_size?: TargetSize | null;
-  duration?: string;
+  duration?: number | null;
   is_active?: boolean;
   sort_order?: number;
 }
@@ -113,7 +113,7 @@ export interface CreateTrimmingOptionRequest {
   name: string;
   price?: number | null;
   description?: string;
-  duration?: string;
+  duration?: number | null;
   combinable?: boolean;
   is_active?: boolean;
   sort_order?: number;
@@ -123,7 +123,7 @@ export interface UpdateTrimmingOptionRequest {
   name?: string;
   price?: number | null;
   description?: string;
-  duration?: string;
+  duration?: number | null;
   combinable?: boolean;
   is_active?: boolean;
   sort_order?: number;
