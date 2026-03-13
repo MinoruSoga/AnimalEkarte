@@ -1,39 +1,27 @@
-import { getOwners, getOwner } from "./api";
-import type { Owner } from "@/types/owner";
+import { getOwner } from "./api";
+import { axios } from "@/lib/axios";
+import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
+import type { Owner } from "@/types/owner";
+import type { Pet as BackendPet } from "@/types/generated/models";
+
+interface PetsResponse {
+  data: BackendPet[];
+  total: number;
+  page: number;
+  limit: number;
+}
 
 export interface OwnersLoaderData {
-  owners: Owner[];
   pets: Pet[];
 }
 
 export const ownersLoader = async (): Promise<OwnersLoaderData> => {
-  const owners = await getOwners();
-  const pets: Pet[] = [];
-
-  owners.forEach((owner) => {
-    if (!owner.pets || owner.pets.length === 0) {
-      const placeholderPet: Pet = {
-        id: `owner-${owner.id}`,
-        ownerId: owner.id,
-        ownerName: owner.ownerName,
-        name: "-",
-        species: "-",
-        petNumber: "-",
-      };
-      pets.push(placeholderPet);
-    } else {
-      owner.pets.forEach((pet) => {
-        pets.push({
-          ...pet,
-          name: pet.name || "-",
-          species: pet.species || "-",
-        });
-      });
-    }
+  const { data } = await axios.get<PetsResponse>("/v1/pets", {
+    params: { limit: 500 },
   });
-
-  return { owners, pets };
+  const pets = data.data.map(transformBackendPetToFrontend);
+  return { pets };
 };
 
 export interface OwnerLoaderData {

@@ -25,8 +25,9 @@ export const PET_GENDER_REVERSE_MAP: Record<string, string> = {
 export const transformBackendPetToFrontend = (p: BackendPet): Pet => ({
   id: String(p.id ?? 0),
   ownerId: String(p.owner_id ?? 0),
-  ownerName: "",
-  phone: "",
+  ownerNumber: p.owner?.id,
+  ownerName: p.owner?.owner_name ?? "",
+  phone: p.owner?.phone ?? "",
   petNumber: p.pet_number,
   name: p.name ?? "",
   petNameKana: p.pet_name_kana ?? undefined,
