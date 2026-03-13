@@ -1,4 +1,4 @@
-import type { Pet } from "@/types";
+import type { Pet } from "@/lib/transforms/pet";
 
 /**
  * ペット作成リクエスト（バックエンドAPI）

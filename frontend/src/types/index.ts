@@ -147,38 +147,8 @@ export interface TreatmentPlan {
 }
 
 // Pet & Owner Types
-export interface Pet {
-  id: string; // Unified ID
-  ownerId: string;
-  ownerNumber?: number; // 飼主番号（表示用連番）
-  ownerName: string;
-  phone?: string;
-  petNumber?: string; // Optional for mocks that might not have it
-  name: string; // Unified name
-  petNameKana?: string;
-  species: string;
-  /** バックエンドの animal_species.id */
-  animalSpeciesId?: string;
-  breed?: string;
-  color?: string;
-  gender?: string;
-  status?: "生存" | "死亡";
-  birthDate?: string;
-  neuteredDate?: string;
-  weight?: string;
-  food?: string;
-  environment?: string;
-  acquisitionType?: string;
-  dangerLevel?: string;
-  lastVisit?: string;
-  /** バックエンドの insurance.id */
-  insuranceId?: string;
-  insuranceName?: string;
-  insuranceDetails?: string;
-  remarks?: string;
-  /** マイクロチップ番号 */
-  microchipId?: string;
-}
+// Pet 型は transformBackendPetToFrontend の ReturnType から自動導出（手動管理廃止）
+export type { Pet } from "@/lib/transforms/pet";
 
 // Reservation Types
 export interface ReservationAppointment {

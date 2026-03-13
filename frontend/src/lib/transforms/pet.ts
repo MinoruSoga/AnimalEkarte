@@ -1,4 +1,3 @@
-import type { Pet } from "@/types";
 import type { Pet as BackendPet } from "@/types/generated/models";
 import type { CreatePetRequest, UpdatePetRequest } from "@/types/pet";
 
@@ -47,8 +46,9 @@ export const DANGER_LEVEL_MAP: Record<string, string> = {
 
 /**
  * バックエンドペットレスポンスをフロントエンド Pet 型に変換
+ * ReturnType<typeof transformBackendPetToFrontend> が Pet 型の正式定義
  */
-export const transformBackendPetToFrontend = (p: BackendPet): Pet => ({
+export const transformBackendPetToFrontend = (p: BackendPet) => ({
   id: String(p.id ?? 0),
   ownerId: String(p.owner_id ?? 0),
   ownerNumber: p.owner?.id,
@@ -79,6 +79,12 @@ export const transformBackendPetToFrontend = (p: BackendPet): Pet => ({
       : undefined,
   remarks: p.remarks,
 });
+
+/**
+ * Pet フロントエンド型 — transformBackendPetToFrontend の戻り値から自動導出
+ * 手動管理せず BackendPet（models.ts）と常に同期される
+ */
+export type Pet = ReturnType<typeof transformBackendPetToFrontend>;
 
 /**
  * フロントエンドフォームデータからバックエンド CreatePetRequest に変換

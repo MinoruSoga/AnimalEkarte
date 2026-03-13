@@ -10,6 +10,7 @@ import {
   useDeleteTrimming,
 } from "../api";
 import type { CreateTrimmingRequest, UpdateTrimmingRequest } from "../api";
+import type { Pet } from "@/types";
 
 export interface TrimmingFormData {
   styleRequest: string;
@@ -128,7 +129,7 @@ export function useTrimmingForm(id?: string) {
           ownerName: existingTrimming.ownerName,
           species: existingTrimming.species,
           weight: existingTrimming.weight,
-        },
+        } as Pet,
       ]);
     }
   }, [isEdit, existingTrimming, setSelectedPets]);
@@ -200,8 +201,19 @@ export function useTrimmingForm(id?: string) {
 
     if (isEdit && id) {
       const req: UpdateTrimmingRequest = {
-        style_request: formData.styleRequest,
-        notes: formData.remarks,
+        style_request: formData.styleRequest || undefined,
+        bw: formData.bw || undefined,
+        bw_unit: formData.bwUnit || undefined,
+        bt: formData.bt || undefined,
+        used_shampoo: formData.usedShampoo || undefined,
+        used_ribbon: formData.usedRibbon || undefined,
+        treatment: formData.treatment || undefined,
+        charge: formData.charge || undefined,
+        remarks: formData.remarks || undefined,
+        option_ids:
+          formData.optionIds.length > 0
+            ? formData.optionIds.map(Number)
+            : undefined,
       };
       updateMutation.mutate(
         { id, req },
