@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -101,6 +101,53 @@ export function PetEditModal({
     });
   }, []);
 
+  // rerender-memo + js-cache-function-results:
+  // animalSpeciesList / insuranceList は React Query でキャッシュされた API マスタデータ。
+  // formData のキー入力ごとにモーダルが再レンダーされるが、リストが変わらない限り
+  // useMemo で JSX ノードの再生成を防ぐ。
+  const animalSpeciesSelectItems = useMemo(() =>
+    animalSpeciesList.map((s) => (
+      <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+    )),
+    [animalSpeciesList]
+  );
+
+  const insuranceSelectItems = useMemo(() =>
+    insuranceList.map((ins) => (
+      <SelectItem key={ins.id} value={String(ins.id)}>
+        {ins.name}{ins.coverage_rate != null ? ` (${ins.coverage_rate}%補償)` : ""}
+      </SelectItem>
+    )),
+    [insuranceList]
+  );
+
+  // rerender-functional-setstate: animalSpeciesList / insuranceList が stable な間は
+  // useCallback でハンドラを安定化し Select の不要な再レンダーを防ぐ
+  const handleAnimalSpeciesChange = useCallback((value: string) => {
+    const selected = animalSpeciesList.find((s) => String(s.id) === value);
+    setFormData(prev => ({
+      ...prev,
+      animalSpeciesId: value,
+      species: selected?.name ?? prev.species,
+    }));
+    clearFieldError("animalSpeciesId");
+  }, [animalSpeciesList, clearFieldError]);
+
+  const handleInsuranceChange = useCallback((value: string) => {
+    const actualValue = value === "none" ? "" : value;
+    const selected = insuranceList.find((ins) => String(ins.id) === actualValue);
+    setFormData(prev => ({
+      ...prev,
+      insuranceId: actualValue,
+      insuranceName: selected?.name as PetFormData["insuranceName"],
+      insuranceDetails: actualValue === ""
+        ? undefined
+        : selected?.coverage_rate != null
+          ? `${selected.coverage_rate}%補償`
+          : prev.insuranceDetails,
+    }));
+  }, [insuranceList]);
+
   const handleSave = () => {
     const errors: Record<string, string> = {};
     if (!formData.petName.trim()) errors.petName = "ペット名を入力してください";
@@ -196,15 +243,7 @@ export function PetEditModal({
               </Label>
               <Select
                 value={formData.animalSpeciesId || ""}
-                onValueChange={(value) => {
-                  const selected = animalSpeciesList.find((s) => String(s.id) === value);
-                  setFormData(prev => ({
-                    ...prev,
-                    animalSpeciesId: value,
-                    species: selected?.name ?? prev.species,
-                  }));
-                  clearFieldError("animalSpeciesId");
-                }}
+                onValueChange={handleAnimalSpeciesChange}
                 disabled={isLoadingSpecies}
               >
                 <SelectTrigger
@@ -212,13 +251,7 @@ export function PetEditModal({
                 >
                   <SelectValue placeholder={isLoadingSpecies ? "読み込み中..." : "選択してください"} />
                 </SelectTrigger>
-                <SelectContent>
-                  {animalSpeciesList.map((s) => (
-                    <SelectItem key={s.id} value={String(s.id)}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectContent>{animalSpeciesSelectItems}</SelectContent>
               </Select>
               <FormFieldError message={fieldErrors.animalSpeciesId} />
             </div>
@@ -397,20 +430,7 @@ export function PetEditModal({
               </Label>
               <Select
                 value={formData.insuranceId || "none"}
-                onValueChange={(value) => {
-                  const actualValue = value === "none" ? "" : value;
-                  const selected = insuranceList.find((ins) => String(ins.id) === actualValue);
-                  setFormData(prev => ({
-                    ...prev,
-                    insuranceId: actualValue,
-                    insuranceName: selected?.name as PetFormData["insuranceName"],
-                    insuranceDetails: actualValue === ""
-                      ? undefined
-                      : selected?.coverage_rate != null
-                        ? `${selected.coverage_rate}%補償`
-                        : prev.insuranceDetails,
-                  }));
-                }}
+                onValueChange={handleInsuranceChange}
                 disabled={isLoadingInsurances}
               >
                 <SelectTrigger className={INPUT_CLS}>
@@ -418,12 +438,7 @@ export function PetEditModal({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">なし</SelectItem>
-                  {insuranceList.map((ins) => (
-                    <SelectItem key={ins.id} value={String(ins.id)}>
-                      {ins.name}
-                      {ins.coverage_rate != null ? ` (${ins.coverage_rate}%補償)` : ""}
-                    </SelectItem>
-                  ))}
+                  {insuranceSelectItems}
                 </SelectContent>
               </Select>
             </div>
