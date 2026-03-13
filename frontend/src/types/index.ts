@@ -222,6 +222,8 @@ export const RESERVATION_TYPE_VALUES = ["診療", "検診", "手術", "トリミ
 export interface TrimmingRecord {
   id: string;
   date: string;
+  petId?: string;
+  ownerId?: string;
   petNumber: string;
   petName: string;
   ownerName: string;

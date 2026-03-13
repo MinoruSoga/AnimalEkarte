@@ -3,7 +3,7 @@ import { type ReactNode, useState, useCallback } from "react";
 import { useNavigate } from "react-router";
 
 // External
-import { Plus, FileText, AlertTriangle, Edit, Trash2, Receipt } from "lucide-react";
+import { Plus, FileText, Edit, Trash2, Receipt } from "lucide-react";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
@@ -20,7 +20,6 @@ import { C, STYLE } from "@/lib/design-tokens";
 import { getMedicalRecordStatusColor } from "@/utils/status-helpers";
 import { usePagination } from "@/hooks/usePagination";
 import { useTableSort } from "@/hooks/useTableSort";
-import { useStaffValidation } from "@/hooks/useStaffValidation";
 import type { MedicalRecord } from "@/types";
 
 // Relative
@@ -42,7 +41,6 @@ export function MedicalRecords() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const { data: filteredRecords, isLoading, isError } = useMedicalRecords(searchTerm);
-  const { isValidStaff } = useStaffValidation();
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
   const { mutate: deleteRecord } = useDeleteMedicalRecord();
 
@@ -170,12 +168,7 @@ export function MedicalRecords() {
                   <span className={`text-sm ${C.text40}`}>—</span>
                 )}
               </TableCell>
-              <TableCell className={STYLE.tableCell}>
-                <span className={`inline-flex items-center gap-1 ${!isValidStaff(r.doctor) ? C.danger : ""}`}>
-                  {!isValidStaff(r.doctor) && <AlertTriangle className="size-3 flex-shrink-0" />}
-                  {r.doctor}
-                </span>
-              </TableCell>
+              <TableCell className={STYLE.tableCell}>{r.doctor}</TableCell>
               <TableCell className="py-2">
                 <StatusBadge colorClass={getMedicalRecordStatusColor(r.status)}>
                   {r.status}

@@ -116,6 +116,23 @@ export function useTrimmingForm(id?: string) {
     string | null
   >(null);
 
+  // Edit mode: restore pet from fetched trimming data
+  useEffect(() => {
+    if (isEdit && existingTrimming?.petId) {
+      setSelectedPets([
+        {
+          id: existingTrimming.petId,
+          ownerId: existingTrimming.ownerId ?? "",
+          name: existingTrimming.petName,
+          petNumber: existingTrimming.petNumber,
+          ownerName: existingTrimming.ownerName,
+          species: existingTrimming.species,
+          weight: existingTrimming.weight,
+        },
+      ]);
+    }
+  }, [isEdit, existingTrimming, setSelectedPets]);
+
   // New mode: populate pet selection from petId query param
   useEffect(() => {
     if (!isEdit) {
@@ -200,13 +217,11 @@ export function useTrimmingForm(id?: string) {
       const pet = selectedPets[0];
       if (!pet) return false;
       const req: CreateTrimmingRequest = {
-        pet_id: pet.id,
-        owner_id: pet.ownerId,
-        appointment_date: new Date().toISOString(),
-        course: formData.courseId,
-        options: JSON.stringify(formData.optionIds),
-        style_request: formData.styleRequest,
-        notes: formData.remarks,
+        pet_id: Number(pet.id),
+        date: new Date().toISOString(),
+        course_id: formData.courseId ? Number(formData.courseId) : null,
+        style_request: formData.styleRequest || undefined,
+        remarks: formData.remarks || undefined,
       };
       createMutation.mutate(req, {
         onSuccess: () => {

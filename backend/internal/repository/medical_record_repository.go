@@ -43,7 +43,7 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, 
 		return nil, 0, apperrors.Wrap(err, "count medical records")
 	}
 	if err := q.Offset((page - 1) * limit).Limit(limit).Order("date DESC, created_at DESC").
-		Preload("Owner").Preload("Pet").Preload("Doctor").
+		Preload("Owner").Preload("Pet.AnimalSpecies").Preload("Doctor").Preload("Inquiry").
 		Find(&records).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find medical records")
 	}

@@ -10,14 +10,16 @@ export function transformTrimming(data: BackendTrimming): TrimmingRecord {
 
   return {
     id: String(data.id ?? 0),
-    date: data.date,
+    date: data.date ? String(data.date).split("T")[0] : "",
+    petId: data.pet?.id != null ? String(data.pet.id) : undefined,
+    ownerId: data.pet?.owner?.id != null ? String(data.pet.owner.id) : undefined,
     petNumber: data.pet?.pet_number ?? "",
     petName: data.pet?.name ?? "",
     ownerName: data.pet?.owner?.owner_name ?? "",
     species: data.pet?.animal_species?.name ?? "",
     weight: data.pet?.weight != null ? String(data.pet.weight) : "",
     styleRequest: data.style_request ?? "",
-    staff: String(data.staff_id ?? 0),
+    staff: data.staff?.name ?? "",
     status: statusMap[data.status] ?? "予約",
   };
 }

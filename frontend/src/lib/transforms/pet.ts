@@ -35,7 +35,7 @@ export const transformBackendPetToFrontend = (p: BackendPet): Pet => ({
   breed: p.breed,
   gender: p.gender ? (PET_GENDER_MAP[p.gender] ?? p.gender) : undefined,
   status: p.status ? PET_STATUS_MAP[p.status] : undefined,
-  birthDate: p.birth_date ?? undefined,
+  birthDate: p.birth_date ? p.birth_date.split("T")[0] : undefined,
   weight: p.weight?.toString(),
   environment: p.environment,
   lastVisit: p.last_visit ?? undefined,
