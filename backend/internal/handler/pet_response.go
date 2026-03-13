@@ -1,0 +1,113 @@
+package handler
+
+import (
+	"time"
+
+	"github.com/animal-ekarte/backend/internal/model"
+)
+
+type petAnimalSpeciesNested struct {
+	ID        uint64 `json:"id"`
+	Name      string `json:"name"`
+	SortOrder int    `json:"sort_order"`
+}
+
+type petInsuranceNested struct {
+	ID           uint64  `json:"id"`
+	Name         string  `json:"name"`
+	CoverageRate *int    `json:"coverage_rate,omitempty"`
+	ContactPhone string  `json:"contact_phone"`
+}
+
+type petOwnerNested struct {
+	ID        uint64 `json:"id"`
+	OwnerName string `json:"owner_name"`
+	Phone     string `json:"phone"`
+}
+
+type petResponse struct {
+	ID              uint64                  `json:"id"`
+	ClinicID        uint64                  `json:"clinic_id"`
+	OwnerID         uint64                  `json:"owner_id"`
+	AnimalSpeciesID uint64                  `json:"animal_species_id"`
+	PetNumber       string                  `json:"pet_number"`
+	Name            string                  `json:"name"`
+	PetNameKana     string                  `json:"pet_name_kana"`
+	Gender          string                  `json:"gender"`
+	Status          string                  `json:"status"`
+	BirthDate       *time.Time              `json:"birth_date,omitempty"`
+	Breed           string                  `json:"breed"`
+	Color           string                  `json:"color"`
+	Weight          *float64                `json:"weight,omitempty"`
+	NeuteredDate    *time.Time              `json:"neutered_date,omitempty"`
+	AcquisitionType *string                 `json:"acquisition_type,omitempty"`
+	DangerLevel     string                  `json:"danger_level"`
+	Food            string                  `json:"food"`
+	Environment     string                  `json:"environment"`
+	Phone           string                  `json:"phone"`
+	LastVisit       *time.Time              `json:"last_visit,omitempty"`
+	InsuranceID     *uint64                 `json:"insurance_id,omitempty"`
+	Remarks         string                  `json:"remarks"`
+	CreatedAt       time.Time               `json:"created_at"`
+	UpdatedAt       time.Time               `json:"updated_at"`
+	Owner           *petOwnerNested         `json:"owner,omitempty"`
+	AnimalSpecies   *petAnimalSpeciesNested `json:"animal_species,omitempty"`
+	Insurance       *petInsuranceNested     `json:"insurance,omitempty"`
+}
+
+func toPetResponse(p *model.Pet) petResponse {
+	var acquisitionType *string
+	if p.AcquisitionType != nil {
+		s := string(*p.AcquisitionType)
+		acquisitionType = &s
+	}
+	resp := petResponse{
+		ID:              p.ID,
+		ClinicID:        p.ClinicID,
+		OwnerID:         p.OwnerID,
+		AnimalSpeciesID: p.AnimalSpeciesID,
+		PetNumber:       p.PetNumber,
+		Name:            p.Name,
+		PetNameKana:     p.PetNameKana,
+		Gender:          string(p.Gender),
+		Status:          string(p.Status),
+		BirthDate:       p.BirthDate,
+		Breed:           p.Breed,
+		Color:           p.Color,
+		Weight:          p.Weight,
+		NeuteredDate:    p.NeuteredDate,
+		AcquisitionType: acquisitionType,
+		DangerLevel:     string(p.DangerLevel),
+		Food:            p.Food,
+		Environment:     p.Environment,
+		Phone:           p.Phone,
+		LastVisit:       p.LastVisit,
+		InsuranceID:     p.InsuranceID,
+		Remarks:         p.Remarks,
+		CreatedAt:       p.CreatedAt,
+		UpdatedAt:       p.UpdatedAt,
+	}
+	if p.Owner != nil {
+		resp.Owner = &petOwnerNested{
+			ID:        p.Owner.ID,
+			OwnerName: p.Owner.OwnerName,
+			Phone:     p.Owner.Phone,
+		}
+	}
+	if p.AnimalSpecies != nil {
+		resp.AnimalSpecies = &petAnimalSpeciesNested{
+			ID:        p.AnimalSpecies.ID,
+			Name:      p.AnimalSpecies.Name,
+			SortOrder: p.AnimalSpecies.SortOrder,
+		}
+	}
+	if p.Insurance != nil {
+		resp.Insurance = &petInsuranceNested{
+			ID:           p.Insurance.ID,
+			Name:         p.Insurance.Name,
+			CoverageRate: p.Insurance.CoverageRate,
+			ContactPhone: p.Insurance.ContactPhone,
+		}
+	}
+	return resp
+}
