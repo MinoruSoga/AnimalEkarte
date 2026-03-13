@@ -5,19 +5,21 @@ import type { Pet } from "@/types";
  * features/pets/api/types.ts から移管した共有型
  */
 export interface CreatePetRequest {
-  owner_id: string;
-  animal_species_id: string;
+  owner_id: number;
+  animal_species_id: number;
   pet_number?: string;
   name: string;
   pet_name_kana?: string;
   gender?: string;
   birth_date?: string;
   breed?: string;
+  color?: string;
   weight?: number;
   microchip_id?: string;
+  food?: string;
   environment?: string;
   status?: "alive" | "deceased";
-  insurance_id?: string;
+  insurance_id?: number;
   remarks?: string;
 }
 
@@ -25,19 +27,21 @@ export interface CreatePetRequest {
  * ペット更新リクエスト（バックエンドAPI）
  */
 export interface UpdatePetRequest {
-  owner_id?: string;
-  animal_species_id?: string;
+  owner_id?: number;
+  animal_species_id?: number;
   pet_number?: string;
   name?: string;
   pet_name_kana?: string;
   gender?: string;
   birth_date?: string;
   breed?: string;
+  color?: string;
   weight?: number;
   microchip_id?: string;
+  food?: string;
   environment?: string;
   status?: "alive" | "deceased";
-  insurance_id?: string;
+  insurance_id?: number;
   remarks?: string;
 }
 

@@ -160,10 +160,12 @@ export interface Pet {
   /** バックエンドの animal_species.id */
   animalSpeciesId?: string;
   breed?: string;
+  color?: string;
   gender?: string;
   status?: "生存" | "死亡";
   birthDate?: string;
   weight?: string;
+  food?: string;
   environment?: string;
   lastVisit?: string;
   /** バックエンドの insurance.id */
@@ -189,6 +191,7 @@ export interface ReservationAppointment {
   status: "confirmed" | "pending" | "checked_in" | "in_consultation" | "accounting" | "completed" | "cancelled";
   notes?: string;
   petId?: string;
+  nextAppointment?: "次回予約済" | "次回予約無";
 }
 
 export type ReservationStatus = ReservationAppointment["status"];
@@ -264,7 +267,8 @@ export interface AccountingRecord {
   petName: string;
   amount: number;
   method: "現金" | "クレジットカード" | "電子マネー" | "-";
-  status: "未収" | "回収済" | "キャンセル";
+  status: "会計待ち" | "会計済" | "キャンセル";
+  source?: "hospitalization";
   note?: string;
 }
 
@@ -274,6 +278,7 @@ export interface VaccinationRecord {
   ownerName: string;
   petName: string;
   vaccineName: string;
+  doctor: string;
   date: string;
   nextDate: string;
 }
@@ -281,6 +286,7 @@ export interface VaccinationRecord {
 // Settings Types
 export interface MasterItem {
   id: string;
+  code?: string;
   name: string;
   category?: string;
   price: number; // Changed from optional to required for TreatmentMaster compatibility
@@ -324,14 +330,12 @@ export const STAFF_ROLE_LABELS: Record<StaffRole, string> = {
 // Cage Types
 export interface Cage {
   id: string;
-  code: string;
   name: string;
   cageType: CageType;
   cageSize: CageSize;
-  bodySize?: BodySize;
-  billingUnit: BillingUnit;
   price: number;
   isActive: boolean;
+  description: string;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -339,8 +343,6 @@ export interface Cage {
 
 export type CageType = 'icu' | 'dog' | 'cat' | 'general';
 export type CageSize = 'small' | 'medium' | 'large';
-export type BodySize = 'small' | 'medium' | 'large';
-export type BillingUnit = 'per_day' | 'per_night';
 
 // Medicine Types
 export interface Medicine {
