@@ -6,6 +6,11 @@ export const PET_STATUS_MAP: Partial<Record<string, "生存" | "死亡">> = {
   deceased: "死亡",
 };
 
+export const PET_STATUS_REVERSE_MAP: Record<string, "alive" | "deceased"> = {
+  "生存": "alive",
+  "死亡": "deceased",
+};
+
 export const PET_GENDER_MAP: Record<string, string> = {
   male: "雄",
   female: "雌",

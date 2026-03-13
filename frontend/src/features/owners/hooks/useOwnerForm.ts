@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 // Internal - shared (feature 間 import 禁止のため @/features/pets は使用不可)
-import { transformCreatePetRequest, transformUpdatePetRequest } from "@/lib/transforms/pet";
+import { transformCreatePetRequest, transformUpdatePetRequest, PET_STATUS_REVERSE_MAP } from "@/lib/transforms/pet";
 import type { CreateOwnerRequest, UpdateOwnerRequest } from "@/types/owner";
 import type { Owner } from "@/types/owner";
 import type { Pet } from "@/types";
@@ -16,11 +16,6 @@ import type { OwnerData, PetFormData, MembershipType } from "../types";
 // feature 内
 import { createOwner } from "../api/create-owner";
 import { updateOwner } from "../api/update-owner";
-
-const PET_STATUS_TO_API: Record<string, "alive" | "deceased" | undefined> = {
-  "生存": "alive",
-  "死亡": "deceased",
-};
 
 const MEMBERSHIP_TYPE_TO_API: Record<string, string> = {
   "非会員": "non_member",
@@ -175,7 +170,7 @@ export function useOwnerForm(
         neuteredDate: petData.neuteredDate,
         acquisitionType: petData.acquisitionType,
         dangerLevel: petData.dangerLevel,
-        status: PET_STATUS_TO_API[petData.status],
+        status: PET_STATUS_REVERSE_MAP[petData.status],
         insuranceId: petData.insuranceId,
         remarks: petData.remarks,
       });
@@ -228,7 +223,7 @@ export function useOwnerForm(
         neuteredDate: petData.neuteredDate,
         acquisitionType: petData.acquisitionType,
         dangerLevel: petData.dangerLevel,
-        status: PET_STATUS_TO_API[petData.status],
+        status: PET_STATUS_REVERSE_MAP[petData.status],
         insuranceId: petData.insuranceId,
         remarks: petData.remarks,
       });
@@ -344,7 +339,7 @@ export function useOwnerForm(
                     neuteredDate: pet.neuteredDate,
                     acquisitionType: pet.acquisitionType,
                     dangerLevel: pet.dangerLevel,
-                    status: PET_STATUS_TO_API[pet.status],
+                    status: PET_STATUS_REVERSE_MAP[pet.status],
                     insuranceId: pet.insuranceId,
                     remarks: pet.remarks,
                   })
