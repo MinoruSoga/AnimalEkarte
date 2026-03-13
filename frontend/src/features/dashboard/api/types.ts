@@ -1,15 +1,4 @@
 import type { ReservationStatus } from "@/types";
-import type {
-  ReservationAppointment as ApiReservation,
-  Pet as ApiPet,
-  Owner as ApiOwner,
-} from "@/types/generated/models";
-
-/** Backend から返ってくる Reservation の raw 型（snake_case） */
-export type BackendDashboardReservation = ApiReservation;
-export type BackendPet = ApiPet;
-export type BackendOwner = ApiOwner;
-
 /** Dashboard カンバンカード用の変換後型 */
 export interface DashboardAppointment {
   id: string;

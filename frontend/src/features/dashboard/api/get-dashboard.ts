@@ -2,7 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { axios } from "@/lib/axios";
 import { transformReservationsToDashboardColumns } from "./transforms";
-import type { BackendDashboardReservation, DashboardColumn } from "./types";
+import type { ReservationAppointment as BackendDashboardReservation } from "@/types/generated/models";
+import type { DashboardColumn } from "./types";
 
 /** 今日の日付を YYYY-MM-DD 形式で返す */
 export function todayISO(): string {

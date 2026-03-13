@@ -23,8 +23,5 @@ export {
   useDeleteReservation,
 } from "./delete-reservation";
 export { transformReservation, transformToCreateRequest } from "./transforms";
-export type {
-  BackendReservation,
-  CreateReservationRequest,
-  UpdateReservationRequest,
-} from "./types";
+export type { ReservationAppointment as BackendReservation } from "@/types/generated/models";
+export type { CreateReservationRequest, UpdateReservationRequest } from "./types";

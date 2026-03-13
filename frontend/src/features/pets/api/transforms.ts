@@ -1,5 +1,5 @@
 import type { Pet } from "@/types";
-import type { BackendPet } from "./types";
+import type { Pet as BackendPet } from "@/types/generated/models";
 import type { CreatePetRequest, UpdatePetRequest } from "@/types/pet";
 import {
   transformBackendPetToFrontend,

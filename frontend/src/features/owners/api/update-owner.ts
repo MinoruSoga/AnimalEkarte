@@ -1,7 +1,7 @@
 import { axios } from "@/lib/axios";
 import type { Owner, UpdateOwnerRequest } from "@/types/owner";
 import { transformOwner } from "./transforms";
-import type { BackendOwner } from "./types";
+import type { Owner as BackendOwner } from "@/types/generated/models";
 
 export const updateOwner = async (
   id: string,

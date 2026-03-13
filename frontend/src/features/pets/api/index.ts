@@ -3,11 +3,8 @@ export { getPet, useGetPet } from "./get-pet";
 export { createPet, useCreatePet } from "./create-pet";
 export { updatePet, useUpdatePet } from "./update-pet";
 export { deletePet, useDeletePet } from "./delete-pet";
-export type {
-  BackendPet,
-  CreatePetRequest,
-  UpdatePetRequest,
-} from "./types";
+export type { Pet as BackendPet } from "@/types/generated/models";
+export type { CreatePetRequest, UpdatePetRequest } from "@/types/pet";
 export {
   transformBackendPetToFrontend,
   transformCreatePetRequest,

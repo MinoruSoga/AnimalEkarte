@@ -1,13 +1,3 @@
-import type {
-  ReservationAppointment as ApiReservation,
-  Owner as ApiOwner,
-  Pet as ApiPet,
-} from "@/types/generated/models";
-
-export type BackendReservation = ApiReservation;
-export type BackendOwner = ApiOwner;
-export type BackendPet = ApiPet;
-
 export interface CreateReservationRequest {
   pet_id: string;
   owner_id: string;

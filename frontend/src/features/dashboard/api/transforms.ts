@@ -1,10 +1,7 @@
 import { format } from "date-fns";
 import type { ReservationStatus } from "@/types";
-import type {
-  BackendDashboardReservation,
-  DashboardAppointment,
-  DashboardColumn,
-} from "./types";
+import type { ReservationAppointment as BackendDashboardReservation } from "@/types/generated/models";
+import type { DashboardAppointment, DashboardColumn } from "./types";
 
 /** Backend status 値 → カンバンカラム ID のマッピング */
 const STATUS_TO_COLUMN_ID: Record<string, ReservationStatus> = {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"gorm.io/gorm"
 
@@ -15,7 +16,7 @@ type OwnerRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
 	CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error
-	Update(ctx context.Context, owner *model.Owner) error
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -28,14 +29,17 @@ func NewOwnerRepository(db *gorm.DB) OwnerRepository {
 }
 
 func (r *ownerRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
-	var owners []model.Owner
+	owners := make([]model.Owner, 0)
 	var total int64
 
 	buildBase := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.Owner{}).Where("clinic_id = ?", clinicID)
 		if search != "" {
-			q = q.Where("owner_name ILIKE ? OR phone ILIKE ? OR email ILIKE ?",
-				"%"+search+"%", "%"+search+"%", "%"+search+"%")
+			pattern := "%" + escapeLike(search) + "%"
+			q = q.Where(
+				`(owner_name ILIKE ? ESCAPE '\' OR phone ILIKE ? ESCAPE '\' OR email ILIKE ? ESCAPE '\')`,
+				pattern, pattern, pattern,
+			)
 		}
 		return q
 	}
@@ -44,7 +48,6 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 		return nil, 0, apperrors.Wrap(err, "count owners")
 	}
 	if err := buildBase().
-		Preload("Pets").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance").
 		Offset((page - 1) * limit).Limit(limit).Order("created_at DESC").
 		Find(&owners).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find owners")
@@ -66,43 +69,52 @@ func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*m
 func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error {
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 1. 飼主を作成
-		if err := tx.WithContext(ctx).Create(owner).Error; err != nil {
+		if err := tx.Create(owner).Error; err != nil {
 			if isUniqueConstraintErr(err) {
 				return apperrors.WrapAlreadyExists("owner", "email already registered")
 			}
 			return apperrors.Wrap(err, "create owner")
 		}
 		// 2. ペットを順次作成（owner_id, clinic_id をサーバー側でセット）
-		createdPets := make([]model.Pet, 0, len(pets))
 		for i := range pets {
 			pets[i].OwnerID = owner.ID
 			pets[i].ClinicID = owner.ClinicID
-			if err := tx.WithContext(ctx).Create(&pets[i]).Error; err != nil {
+			if err := tx.Create(&pets[i]).Error; err != nil {
 				return apperrors.Wrap(err, "create pet")
 			}
-			// AnimalSpecies をPreloadしてレスポンスに含める
-			var created model.Pet
-			if err := tx.WithContext(ctx).Preload("AnimalSpecies").First(&created, pets[i].ID).Error; err != nil {
-				return apperrors.Wrap(err, "preload pet")
-			}
-			createdPets = append(createdPets, created)
 		}
-		owner.Pets = createdPets
 		return nil
 	})
-	return err
+	if err != nil {
+		return apperrors.Wrap(err, "create owner with pets")
+	}
+	// トランザクションコミット後に全リレーションをロードして呼び出し元に反映
+	loaded, err := r.FindByID(ctx, owner.ClinicID, owner.ID)
+	if err != nil {
+		return apperrors.Wrap(err, "reload owner after create")
+	}
+	*owner = *loaded
+	return nil
 }
 
-func (r *ownerRepository) Update(ctx context.Context, owner *model.Owner) error {
+// escapeLike escapes LIKE wildcard characters in s for use with PostgreSQL ILIKE ... ESCAPE '\'.
+func escapeLike(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	s = strings.ReplaceAll(s, `_`, `\_`)
+	return s
+}
+
+func (r *ownerRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Owner{}).
-		Where("id = ? AND clinic_id = ?", owner.ID, owner.ClinicID).
-		Updates(owner)
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "update owner")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", owner.ID))
+		return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

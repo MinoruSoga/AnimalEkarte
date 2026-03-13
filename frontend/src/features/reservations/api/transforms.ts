@@ -1,5 +1,6 @@
 import type { ReservationAppointment } from "@/types";
-import type { BackendReservation, CreateReservationRequest } from "./types";
+import type { ReservationAppointment as BackendReservation } from "@/types/generated/models";
+import type { CreateReservationRequest } from "./types";
 
 export const transformReservation = (
   reservation: BackendReservation

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import type { Owner } from "@/types/owner";
 import { transformOwner } from "./transforms";
-import type { BackendOwner } from "./types";
+import type { Owner as BackendOwner } from "@/types/generated/models";
 
 interface OwnersResponse {
   data: BackendOwner[];

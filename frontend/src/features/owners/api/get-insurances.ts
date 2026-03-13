@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
-import type { BackendInsurance } from "./types";
+import type { Insurance as BackendInsurance } from "@/types/generated/models";
 
 export const getInsurances = async (): Promise<BackendInsurance[]> => {
   const { data } = await axios.get<BackendInsurance[]>("/v1/masters/insurances");

@@ -1,6 +1,6 @@
 import type { Owner } from "@/types/owner";
+import type { Owner as BackendOwner, Pet as BackendPet } from "@/types/generated/models";
 import type { Pet } from "@/types";
-import type { BackendOwner, BackendPet } from "./types";
 import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 
 const MEMBERSHIP_TYPE_FROM_API: Record<string, string> = {
