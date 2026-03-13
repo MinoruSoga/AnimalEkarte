@@ -320,7 +320,7 @@ export function useOwnerForm(
 
           const pendingPets = pets.filter(p => p.isPending && p.animalSpeciesId);
           if (pendingPets.length > 0 && petMutations) {
-            await Promise.all(
+            const results = await Promise.allSettled(
               pendingPets.map(pet =>
                 petMutations.createPetFn(
                   transformCreatePetRequest({
@@ -346,6 +346,10 @@ export function useOwnerForm(
                 )
               )
             );
+            const failedCount = results.filter(r => r.status === "rejected").length;
+            if (failedCount > 0) {
+              toast.warning(`${failedCount}件のペット追加に失敗しました`);
+            }
           }
 
           toast.success("飼主情報を登録しました");

@@ -12,16 +12,32 @@ interface PetsResponse {
   limit: number;
 }
 
+const PER_PAGE = 100; // backend の parsePagination 上限
+
 export interface OwnersLoaderData {
   pets: Pet[];
 }
 
 export const ownersLoader = async (): Promise<OwnersLoaderData> => {
-  const { data } = await axios.get<PetsResponse>("/v1/pets", {
-    params: { limit: 500 },
+  // page 1 で総件数を確認し、残りのページを並列フェッチ
+  const { data: firstPage } = await axios.get<PetsResponse>("/v1/pets", {
+    params: { page: 1, limit: PER_PAGE },
   });
-  const pets = data.data.map(transformBackendPetToFrontend);
-  return { pets };
+
+  const totalPages = Math.ceil(firstPage.total / PER_PAGE);
+
+  const remainingPages = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, i) =>
+      axios.get<PetsResponse>("/v1/pets", {
+        params: { page: i + 2, limit: PER_PAGE },
+      }).then(r => r.data)
+    )
+  );
+
+  const allPets: Pet[] = [firstPage, ...remainingPages]
+    .flatMap(page => page.data.map(transformBackendPetToFrontend));
+
+  return { pets: allPets };
 };
 
 export interface OwnerLoaderData {

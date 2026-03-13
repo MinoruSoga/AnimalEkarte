@@ -570,7 +570,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
 
       <Suspense fallback={null}>
         <PetEditModal
-          key={editingPet?.id ?? (petModalOpen ? "new-open" : "new-closed")}
+          key={editingPet?.id ?? "new"}
           open={petModalOpen}
           onOpenChange={setPetModalOpen}
         ownerName={ownerData.ownerName || "新規飼主"}
