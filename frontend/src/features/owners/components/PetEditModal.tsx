@@ -36,6 +36,20 @@ import { isOneOf } from "@/lib/type-utils";
 const LABEL_CLS = `text-sm ${C.text60}`;
 const INPUT_CLS = STYLE.formInput;
 
+// rendering-hoist-jsx: 静的 SelectItem リストはコンポーネント外に定数として定義し
+// キー入力のたびに JSX ノードを再生成するコストを排除する
+const GENDER_SELECT_ITEMS = PET_GENDER_VALUES.map((g) => (
+  <SelectItem key={g} value={g}>{g}</SelectItem>
+));
+
+const ACQUISITION_SELECT_ITEMS = ACQUISITION_TYPE_VALUES.map((t) => (
+  <SelectItem key={t} value={t}>{t}</SelectItem>
+));
+
+const DANGER_SELECT_ITEMS = DANGER_LEVEL_VALUES.map((d) => (
+  <SelectItem key={d} value={d}>{d}</SelectItem>
+));
+
 interface PetEditModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -227,13 +241,7 @@ export function PetEditModal({
                 >
                   <SelectValue placeholder="選択してください" />
                 </SelectTrigger>
-                <SelectContent>
-                  {PET_GENDER_VALUES.map((g) => (
-                    <SelectItem key={g} value={g}>
-                      {g}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectContent>{GENDER_SELECT_ITEMS}</SelectContent>
               </Select>
               <FormFieldError message={fieldErrors.gender} />
             </div>
@@ -329,13 +337,7 @@ export function PetEditModal({
                 <SelectTrigger className={INPUT_CLS}>
                   <SelectValue placeholder="選択してください" />
                 </SelectTrigger>
-                <SelectContent>
-                  {ACQUISITION_TYPE_VALUES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectContent>{ACQUISITION_SELECT_ITEMS}</SelectContent>
               </Select>
             </div>
 
@@ -354,13 +356,7 @@ export function PetEditModal({
                 <SelectTrigger className={INPUT_CLS}>
                   <SelectValue placeholder="選択してください" />
                 </SelectTrigger>
-                <SelectContent>
-                  {DANGER_LEVEL_VALUES.map((d) => (
-                    <SelectItem key={d} value={d}>
-                      {d}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectContent>{DANGER_SELECT_ITEMS}</SelectContent>
               </Select>
             </div>
           </div>

@@ -56,9 +56,43 @@ const PetEditModal = lazy(() =>
   import("../components/PetEditModal").then(m => ({ default: m.PetEditModal }))
 );
 import { MEMBERSHIP_TYPE_VALUES } from "../types";
+import type { MembershipType } from "../types";
 import type { OwnerLoaderData } from "../loaders";
 
 const INPUT_CLS = STYLE.formInput;
+
+// rerender-memo: 会員区分ボタンを memo 化して ownerData の他フィールド変更による
+// 不要な再レンダリングと inline onClick 生成を排除する
+interface MembershipTypeButtonsProps {
+  value: MembershipType;
+  onChange: (type: MembershipType) => void;
+}
+
+const MembershipTypeButtons = memo(function MembershipTypeButtons({
+  value,
+  onChange,
+}: MembershipTypeButtonsProps) {
+  return (
+    <div className="flex gap-1.5 flex-wrap">
+      {MEMBERSHIP_TYPE_VALUES.map((type) => (
+        <Button
+          key={type}
+          type="button"
+          variant={value === type ? "default" : "outline"}
+          size="sm"
+          className={
+            value === type
+              ? `${STYLE.confirmPrimary} text-sm px-3`
+              : `h-11 text-sm ${C.text} ${C.hoverBgMedium} ${C.borderMedium} px-3`
+          }
+          onClick={() => onChange(type)}
+        >
+          {type}
+        </Button>
+      ))}
+    </div>
+  );
+});
 
 // rerender-memo: ペット行を memo 化して pets.map 内の N×8 インライン関数生成を排除
 interface PetTableRowProps {
@@ -188,10 +222,12 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
     navigate("/owners");
   };
 
-  const handleInputChange = (field: string, value: string | boolean | number) => {
+  // rerender-functional-setstate: setOwnerData・markDirty は両方安定した参照なので
+  // useCallback で handleInputChange を安定化できる → MembershipTypeButtons memo の前提条件
+  const handleInputChange = useCallback((field: string, value: string | boolean | number) => {
     setOwnerData(prev => ({ ...prev, [field]: value }));
     markDirty();
-  };
+  }, [setOwnerData, markDirty]);
 
   const handleSubmit = () => {
     handleSave(() => {
@@ -211,6 +247,11 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
   const handleDeletePetRequest = useCallback((id: string, name: string) => {
     setDeletePetTarget({ id, name });
   }, []);
+
+  // MembershipTypeButtons の onChange prop を安定化（handleInputChange が stable なので依存なし）
+  const handleMembershipChange = useCallback((type: MembershipType) => {
+    handleInputChange("membershipType", type);
+  }, [handleInputChange]);
 
   return (
     <PageLayout
@@ -276,26 +317,11 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
           </div>
           <div className="space-y-1.5">
             <Label className={`text-sm ${C.text60}`}>会員区分</Label>
-            <div className="flex gap-1.5 flex-wrap">
-              {MEMBERSHIP_TYPE_VALUES.map((type) => (
-                <Button
-                  key={type}
-                  type="button"
-                  variant={ownerData.membershipType === type ? "default" : "outline"}
-                  size="sm"
-                  className={
-                    ownerData.membershipType === type
-                      ? `${STYLE.confirmPrimary} text-sm px-3`
-                      : `h-11 text-sm ${C.text} ${C.hoverBgMedium} ${C.borderMedium} px-3`
-                  }
-                  onClick={() => {
-                    handleInputChange("membershipType", type);
-                  }}
-                >
-                  {type}
-                </Button>
-              ))}
-            </div>
+            {/* rerender-memo: MembershipTypeButtons は ownerData の他フィールド変更では再レンダーしない */}
+            <MembershipTypeButtons
+              value={ownerData.membershipType}
+              onChange={handleMembershipChange}
+            />
           </div>
 
           {/* Row 2 */}
