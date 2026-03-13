@@ -18,6 +18,9 @@ export interface CreatePetRequest {
   microchip_id?: string;
   food?: string;
   environment?: string;
+  neutered_date?: string;
+  acquisition_type?: string;
+  danger_level?: string;
   status?: "alive" | "deceased";
   insurance_id?: number;
   remarks?: string;
@@ -40,6 +43,9 @@ export interface UpdatePetRequest {
   microchip_id?: string;
   food?: string;
   environment?: string;
+  neutered_date?: string;
+  acquisition_type?: string;
+  danger_level?: string;
   status?: "alive" | "deceased";
   insurance_id?: number;
   remarks?: string;

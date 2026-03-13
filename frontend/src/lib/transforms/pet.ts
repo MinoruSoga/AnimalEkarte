@@ -19,6 +19,32 @@ export const PET_GENDER_REVERSE_MAP: Record<string, string> = {
   "不明": "unknown",
 };
 
+export const ACQUISITION_TYPE_REVERSE_MAP: Record<string, string> = {
+  "購入": "purchased",
+  "譲渡": "transferred",
+  "保護": "rescued",
+  "その他": "other",
+};
+
+export const ACQUISITION_TYPE_MAP: Record<string, string> = {
+  purchased: "購入",
+  transferred: "譲渡",
+  rescued: "保護",
+  other: "その他",
+};
+
+export const DANGER_LEVEL_REVERSE_MAP: Record<string, string> = {
+  "低": "low",
+  "中": "medium",
+  "高": "high",
+};
+
+export const DANGER_LEVEL_MAP: Record<string, string> = {
+  low: "低",
+  medium: "中",
+  high: "高",
+};
+
 /**
  * バックエンドペットレスポンスをフロントエンド Pet 型に変換
  */
@@ -38,9 +64,12 @@ export const transformBackendPetToFrontend = (p: BackendPet): Pet => ({
   gender: p.gender ? (PET_GENDER_MAP[p.gender] ?? p.gender) : undefined,
   status: p.status ? PET_STATUS_MAP[p.status] : undefined,
   birthDate: p.birth_date ? p.birth_date.split("T")[0] : undefined,
+  neuteredDate: p.neutered_date ? p.neutered_date.split("T")[0] : undefined,
   weight: p.weight?.toString(),
   food: p.food,
   environment: p.environment,
+  acquisitionType: p.acquisition_type ? (ACQUISITION_TYPE_MAP[p.acquisition_type] ?? p.acquisition_type) : undefined,
+  dangerLevel: p.danger_level ? (DANGER_LEVEL_MAP[p.danger_level] ?? p.danger_level) : undefined,
   lastVisit: p.last_visit ?? undefined,
   insuranceId: p.insurance_id != null ? String(p.insurance_id) : undefined,
   insuranceName: p.insurance?.name,
@@ -68,6 +97,9 @@ export const transformCreatePetRequest = (data: {
   microchipId?: string;
   food?: string;
   environment?: string;
+  neuteredDate?: string;
+  acquisitionType?: string;
+  dangerLevel?: string;
   status?: "alive" | "deceased";
   insuranceId?: string;
   remarks?: string;
@@ -85,6 +117,9 @@ export const transformCreatePetRequest = (data: {
   microchip_id: data.microchipId,
   food: data.food,
   environment: data.environment,
+  neutered_date: data.neuteredDate ? `${data.neuteredDate}T00:00:00Z` : undefined,
+  acquisition_type: data.acquisitionType ? (ACQUISITION_TYPE_REVERSE_MAP[data.acquisitionType] ?? data.acquisitionType) : undefined,
+  danger_level: data.dangerLevel ? (DANGER_LEVEL_REVERSE_MAP[data.dangerLevel] ?? data.dangerLevel) : undefined,
   status: data.status,
   insurance_id: data.insuranceId ? Number(data.insuranceId) : undefined,
   remarks: data.remarks,
@@ -107,6 +142,9 @@ export const transformUpdatePetRequest = (data: {
   microchipId?: string;
   food?: string;
   environment?: string;
+  neuteredDate?: string;
+  acquisitionType?: string;
+  dangerLevel?: string;
   status?: "alive" | "deceased";
   insuranceId?: string;
   remarks?: string;
@@ -124,6 +162,9 @@ export const transformUpdatePetRequest = (data: {
   microchip_id: data.microchipId,
   food: data.food,
   environment: data.environment,
+  neutered_date: data.neuteredDate ? `${data.neuteredDate}T00:00:00Z` : undefined,
+  acquisition_type: data.acquisitionType ? (ACQUISITION_TYPE_REVERSE_MAP[data.acquisitionType] ?? data.acquisitionType) : undefined,
+  danger_level: data.dangerLevel ? (DANGER_LEVEL_REVERSE_MAP[data.dangerLevel] ?? data.dangerLevel) : undefined,
   status: data.status,
   insurance_id: data.insuranceId ? Number(data.insuranceId) : undefined,
   remarks: data.remarks,

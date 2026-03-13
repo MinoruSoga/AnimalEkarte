@@ -164,9 +164,12 @@ export interface Pet {
   gender?: string;
   status?: "生存" | "死亡";
   birthDate?: string;
+  neuteredDate?: string;
   weight?: string;
   food?: string;
   environment?: string;
+  acquisitionType?: string;
+  dangerLevel?: string;
   lastVisit?: string;
   /** バックエンドの insurance.id */
   insuranceId?: string;
