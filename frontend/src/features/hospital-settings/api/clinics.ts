@@ -6,7 +6,8 @@ import { axios } from "@/lib/axios";
 // ─────────────────────────────────────────────────
 
 export interface BackendClinic {
-  id: string;
+  id: number;
+  company_id: number;
   name: string;
   postal_code: string;
   address: string;
@@ -56,7 +57,7 @@ export interface UpdateClinicRequest {
 // ─────────────────────────────────────────────────
 
 export interface Clinic {
-  id: string;
+  id: number;
   name: string;
   postalCode: string;
   address: string;
@@ -116,14 +117,14 @@ export async function createClinic(req: CreateClinicRequest): Promise<Clinic> {
 }
 
 export async function updateClinic(
-  id: string,
+  id: number,
   req: UpdateClinicRequest,
 ): Promise<Clinic> {
   const { data } = await axios.patch<BackendClinic>(`/v1/clinics/${id}`, req);
   return transformClinic(data);
 }
 
-export async function deleteClinic(id: string): Promise<void> {
+export async function deleteClinic(id: number): Promise<void> {
   await axios.delete(`/v1/clinics/${id}`);
 }
 
@@ -151,7 +152,7 @@ export function useCreateClinic() {
 export function useUpdateClinic() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: UpdateClinicRequest }) =>
+    mutationFn: ({ id, req }: { id: number; req: UpdateClinicRequest }) =>
       updateClinic(id, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CLINICS_QUERY_KEY });

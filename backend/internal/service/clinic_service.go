@@ -34,6 +34,12 @@ func (s *clinicService) GetClinicByID(ctx context.Context, id uint64) (*model.Cl
 }
 
 func (s *clinicService) CreateClinic(ctx context.Context, clinic *model.Clinic) (*model.Clinic, error) {
+	// company はシングルトンなので自動設定する
+	company, err := s.repo.GetCompany(ctx)
+	if err != nil {
+		return nil, err
+	}
+	clinic.CompanyID = company.ID
 	if err := s.repo.Create(ctx, clinic); err != nil {
 		return nil, err
 	}
@@ -45,7 +51,9 @@ func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, input *mode
 	if err != nil {
 		return nil, err
 	}
+	// immutable フィールドを既存レコードから引き継ぐ
 	input.ID = clinic.ID
+	input.CompanyID = clinic.CompanyID
 	if err := s.repo.Update(ctx, input); err != nil {
 		return nil, err
 	}
