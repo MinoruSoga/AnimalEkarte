@@ -82,8 +82,8 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
           setFormData((prev) => ({
             ...prev,
             hospitalizationType:
-              data.type === "入院" ? "入院" : "ホテル",
-            cageId: data.cage_id ?? "",
+              data.hospitalization_type === "hospitalization" ? "入院" : "ホテル",
+            cageId: data.cage_id ? String(data.cage_id) : "",
             displayDate: data.start_date,
             memo: data.memo ?? "",
             ownerRequest: data.owner_request ?? "",
@@ -93,11 +93,11 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
           if (data.pet && data.owner_id) {
             setSelectedPets([
               {
-                id: data.pet_id,
-                ownerId: data.owner_id,
-                ownerName: data.owner?.name ?? "",
+                id: String(data.pet_id),
+                ownerId: String(data.owner_id),
+                ownerName: data.owner?.owner_name ?? "",
                 name: data.pet.name,
-                species: data.pet.species,
+                species: data.pet.animal_species?.name ?? "",
                 breed: data.pet.breed,
                 gender: data.pet.gender,
               },

@@ -29,8 +29,6 @@ export {
 export type {
   BackendAccounting,
   BackendAccountingItem,
-  BackendPetSummary,
-  BackendOwnerSummary,
   CreateAccountingRequest,
   UpdateAccountingRequest,
 } from "./types";
