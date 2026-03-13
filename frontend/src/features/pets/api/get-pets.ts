@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import type { Pet } from "@/types";
-import { transformBackendPetToFrontend } from "./transforms";
+import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 import type { Pet as BackendPet } from "@/types/generated/models";
 
 interface PetsListResponse {

@@ -87,12 +87,13 @@ export const transformBackendPetToFrontend = (p: BackendPet) => ({
 export type Pet = ReturnType<typeof transformBackendPetToFrontend>;
 
 /**
- * フロントエンドフォームデータからバックエンド CreatePetRequest に変換
+ * フロントエンドフォームデータの共通入力型
+ * transformCreatePetRequest / transformUpdatePetRequest で共用
  */
-export const transformCreatePetRequest = (data: {
-  ownerId: string;
-  name: string;
-  animalSpeciesId: string;
+export type PetFormInput = {
+  ownerId?: string;
+  name?: string;
+  animalSpeciesId?: string;
   petNumber?: string;
   petNameKana?: string;
   breed?: string;
@@ -108,6 +109,15 @@ export const transformCreatePetRequest = (data: {
   status?: "alive" | "deceased";
   insuranceId?: string;
   remarks?: string;
+};
+
+/**
+ * フロントエンドフォームデータからバックエンド CreatePetRequest に変換
+ */
+export const transformCreatePetRequest = (data: PetFormInput & {
+  ownerId: string;
+  name: string;
+  animalSpeciesId: string;
 }): CreatePetRequest => ({
   owner_id: Number(data.ownerId),
   name: data.name,
@@ -132,26 +142,7 @@ export const transformCreatePetRequest = (data: {
 /**
  * フロントエンドフォームデータからバックエンド UpdatePetRequest に変換
  */
-export const transformUpdatePetRequest = (data: {
-  ownerId?: string;
-  name?: string;
-  animalSpeciesId?: string;
-  petNumber?: string;
-  petNameKana?: string;
-  breed?: string;
-  color?: string;
-  gender?: string;
-  birthDate?: string;
-  weight?: string;
-  food?: string;
-  environment?: string;
-  neuteredDate?: string;
-  acquisitionType?: string;
-  dangerLevel?: string;
-  status?: "alive" | "deceased";
-  insuranceId?: string;
-  remarks?: string;
-}): UpdatePetRequest => ({
+export const transformUpdatePetRequest = (data: PetFormInput): UpdatePetRequest => ({
   owner_id: data.ownerId ? Number(data.ownerId) : undefined,
   name: data.name,
   animal_species_id: data.animalSpeciesId ? Number(data.animalSpeciesId) : undefined,
