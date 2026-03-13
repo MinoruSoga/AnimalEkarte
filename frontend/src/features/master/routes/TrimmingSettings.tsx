@@ -21,10 +21,7 @@ import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable, DataTableRow } from "@/components/shared/DataTable";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { StatusBadge } from "@/components/shared/StatusBadge";
-import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { getMasterStatusColor } from "@/utils/status-helpers";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
   useListTrimmingCourses,
@@ -59,8 +56,7 @@ const COURSE_COLUMNS = [
   { header: "対象サイズ", className: "w-[120px]" },
   { header: "所要時間", className: "w-[100px]" },
   { header: "単価(税込)", className: "w-[110px]", align: "right" as const },
-  { header: "ステータス", className: "w-[100px]", align: "center" as const },
-  { header: "操作", className: "w-[80px]", align: "right" as const },
+  { header: "ステータス", className: "w-[90px]", align: "right" as const },
 ];
 
 const OPTION_COLUMNS = [
@@ -68,8 +64,7 @@ const OPTION_COLUMNS = [
   { header: "所要時間", className: "w-[100px]" },
   { header: "組合せ可否", className: "w-[110px]", align: "center" as const },
   { header: "単価(税込)", className: "w-[110px]", align: "right" as const },
-  { header: "ステータス", className: "w-[100px]", align: "center" as const },
-  { header: "操作", className: "w-[80px]", align: "right" as const },
+  { header: "ステータス", className: "w-[90px]", align: "right" as const },
 ];
 
 // ─────────────────────────────────────────────────
@@ -324,17 +319,25 @@ function TrimmingCourseTab() {
                 <TableCell className={`text-right font-mono text-sm ${C.text} py-2.5`}>
                   {item.price != null ? `¥${item.price.toLocaleString()}` : "-"}
                 </TableCell>
-                <TableCell className="text-center py-2.5">
-                  <StatusBadge colorClass={getMasterStatusColor(item.isActive ? "active" : "inactive")}>
-                    {item.isActive ? "有効" : "無効"}
-                  </StatusBadge>
-                </TableCell>
                 <TableCell className="text-right py-2.5">
-                  <RowActionButton onClick={() => handleEdit(item)} />
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`} />
+                    <span className={`text-sm ${item.isActive ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}>
+                      {item.isActive ? "有効" : "無効"}
+                    </span>
+                  </span>
                 </TableCell>
               </DataTableRow>
             )}
           />
+          <button
+            type="button"
+            onClick={handleCreate}
+            className="flex items-center gap-1.5 w-full px-3 py-2 text-sm text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[rgba(55,53,47,0.04)] transition-colors rounded"
+          >
+            <Plus className="size-3.5" />
+            新しいコースを追加...
+          </button>
         </div>
 
         {/* ── Right: Side Peek ── */}
@@ -648,17 +651,25 @@ function TrimmingOptionTab() {
                 <TableCell className={`text-right font-mono text-sm ${C.text} py-2.5`}>
                   {item.price != null ? `¥${item.price.toLocaleString()}` : "-"}
                 </TableCell>
-                <TableCell className="text-center py-2.5">
-                  <StatusBadge colorClass={getMasterStatusColor(item.isActive ? "active" : "inactive")}>
-                    {item.isActive ? "有効" : "無効"}
-                  </StatusBadge>
-                </TableCell>
                 <TableCell className="text-right py-2.5">
-                  <RowActionButton onClick={() => handleEdit(item)} />
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`} />
+                    <span className={`text-sm ${item.isActive ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}>
+                      {item.isActive ? "有効" : "無効"}
+                    </span>
+                  </span>
                 </TableCell>
               </DataTableRow>
             )}
           />
+          <button
+            type="button"
+            onClick={handleCreate}
+            className="flex items-center gap-1.5 w-full px-3 py-2 text-sm text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[rgba(55,53,47,0.04)] transition-colors rounded"
+          >
+            <Plus className="size-3.5" />
+            新しいオプションを追加...
+          </button>
         </div>
 
         {/* ── Right: Side Peek ── */}
