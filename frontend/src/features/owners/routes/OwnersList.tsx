@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback, useTransition } from "react";
+import { useState, useMemo, useCallback, useTransition, useDeferredValue } from "react";
 import { useNavigate, useLoaderData, useRevalidator } from "react-router";
 
 // External
@@ -36,6 +36,9 @@ export function OwnersList() {
   const revalidator = useRevalidator();
   const { pets } = useLoaderData<OwnersLoaderData>();
   const [searchTerm, setSearchTerm] = useState("");
+  // rerender-transitions: 入力は即座に反映しつつ、全件フィルタリングは
+  // ブラウザがアイドル時まで遅延させてタイプ中の UI ブロッキングを防ぐ
+  const deferredSearchTerm = useDeferredValue(searchTerm);
   const [pendingDeleteOwner, setPendingDeleteOwner] = useState<{
     id: string;
     name: string;
@@ -43,18 +46,18 @@ export function OwnersList() {
   const [isDeleting, startDeleteTransition] = useTransition();
 
   const filteredPets = useMemo(() => {
-    if (!searchTerm) return pets;
-    const lowerTerm = searchTerm.toLowerCase();
+    if (!deferredSearchTerm) return pets;
+    const lowerTerm = deferredSearchTerm.toLowerCase();
     return pets.filter((pet) => {
       const ownerNumberStr = pet.ownerNumber?.toString() ?? "";
       return (
         pet.ownerName.toLowerCase().includes(lowerTerm) ||
-        ownerNumberStr.includes(searchTerm) ||
+        ownerNumberStr.includes(deferredSearchTerm) ||
         pet.name.toLowerCase().includes(lowerTerm) ||
         (pet.species && pet.species.toLowerCase().includes(lowerTerm))
       );
     });
-  }, [pets, searchTerm]);
+  }, [pets, deferredSearchTerm]);
 
   const accessor = useCallback(
     (item: (typeof filteredPets)[number], key: SortKey): string =>
@@ -69,8 +72,11 @@ export function OwnersList() {
 
   const pagination = usePagination(sortedData, {
     pageSize: 20,
-    resetKey: searchTerm,
+    resetKey: deferredSearchTerm,
   });
+
+  // フィルタ計算が遅延中（入力値 ≠ deferred 値）の視覚フィードバック
+  const isFiltering = searchTerm !== deferredSearchTerm;
 
   const handleCreate = useCallback(() => {
     navigate("/owners/new");
@@ -254,12 +260,15 @@ export function OwnersList() {
 
         {/* Table */}
         {/* rerender-memo: renderRow を useCallback で安定化し DataTable の不要な再レンダリングを防ぐ */}
-        <DataTable
-          columns={columns}
-          data={pagination.paginatedData}
-          emptyMessage="データが見つかりません"
-          renderRow={renderRow}
-        />
+        {/* rerender-transitions: isFiltering 中は opacity を落としてフィルタ遅延を視覚化 */}
+        <div className={isFiltering ? "opacity-60 transition-opacity duration-150" : "transition-opacity duration-150"}>
+          <DataTable
+            columns={columns}
+            data={pagination.paginatedData}
+            emptyMessage="データが見つかりません"
+            renderRow={renderRow}
+          />
+        </div>
 
         {/* Pagination */}
         {pagination.totalPages > 1 && (
