@@ -44,7 +44,8 @@ func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, pet
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count billings")
 	}
-	if err := q.Offset((page - 1) * limit).Limit(limit).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
+	if err := q.Preload("Owner").Preload("Pet").Preload("Payments").Preload("Items").
+		Offset((page-1)*limit).Limit(limit).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find billings")
 	}
 	return billings, total, nil

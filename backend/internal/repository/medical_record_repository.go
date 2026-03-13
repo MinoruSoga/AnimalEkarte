@@ -57,7 +57,7 @@ func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uin
 		Preload("Vitals").
 		Preload("Doctor").
 		Preload("Owner").
-		Preload("Pet").
+		Preload("Pet.AnimalSpecies").
 		First(&record, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))

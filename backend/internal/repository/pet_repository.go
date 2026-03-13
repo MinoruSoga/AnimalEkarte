@@ -31,17 +31,23 @@ func (r *petRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *u
 	pets := make([]model.Pet, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.Pet{}).Where("clinic_id = ?", clinicID)
+	q := r.db.WithContext(ctx).Model(&model.Pet{}).Where("pets.clinic_id = ?", clinicID)
 	if ownerID != nil {
-		q = q.Where("owner_id = ?", ownerID)
+		q = q.Where("pets.owner_id = ?", *ownerID)
 	}
 	if search != "" {
-		q = q.Where("name ILIKE ? OR pet_name_kana ILIKE ?", "%"+search+"%", "%"+search+"%")
+		pattern := "%" + escapeLike(search) + "%"
+		q = q.Joins("LEFT JOIN owners ON owners.id = pets.owner_id").
+			Where(
+				`(pets.name ILIKE ? ESCAPE '\' OR pets.pet_name_kana ILIKE ? ESCAPE '\' OR owners.owner_name ILIKE ? ESCAPE '\')`,
+				pattern, pattern, pattern,
+			)
 	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count pets")
 	}
-	if err := q.Offset((page - 1) * limit).Limit(limit).Order("created_at DESC").Find(&pets).Error; err != nil {
+	if err := q.Preload("Owner").Preload("AnimalSpecies").Preload("Insurance").
+		Offset((page-1)*limit).Limit(limit).Order("pets.created_at DESC").Find(&pets).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find pets")
 	}
 	return pets, total, nil
