@@ -155,6 +155,7 @@ export interface Pet {
   phone?: string;
   petNumber?: string; // Optional for mocks that might not have it
   name: string; // Unified name
+  petNameKana?: string;
   species: string;
   /** バックエンドの animal_species.id */
   animalSpeciesId?: string;

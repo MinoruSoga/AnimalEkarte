@@ -1,49 +1,11 @@
 import type { Owner } from "@/types/owner";
 import type { Pet } from "@/types";
 import type { BackendOwner, BackendPet } from "./types";
+import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 
-/**
- * Transform backend pet response to frontend Pet type
- */
-const PET_STATUS_MAP: Record<string, "生存" | "死亡"> = {
-  alive: "生存",
-  deceased: "死亡",
-};
+// transformPet は transforms/pet の transformBackendPetToFrontend を使用
+const transformPet = (pet: BackendPet): Pet => transformBackendPetToFrontend(pet);
 
-const PET_GENDER_MAP: Record<string, string> = {
-  male: "雄",
-  female: "雌",
-  unknown: "不明",
-};
-
-export const transformPet = (pet: BackendPet): Pet => ({
-  id: String(pet.id ?? 0),
-  ownerId: String(pet.owner_id ?? 0),
-  ownerName: "",
-  phone: "",
-  petNumber: pet.pet_number,
-  name: pet.name ?? "",
-  species: pet.animal_species?.name ?? "",
-  animalSpeciesId: pet.animal_species_id != null ? String(pet.animal_species_id) : undefined,
-  breed: pet.breed,
-  gender: pet.gender ? (PET_GENDER_MAP[pet.gender] ?? pet.gender) : undefined,
-  status: pet.status ? PET_STATUS_MAP[pet.status] : undefined,
-  birthDate: pet.birth_date ?? undefined,
-  weight: pet.weight?.toString(),
-  environment: pet.environment,
-  lastVisit: pet.last_visit ?? undefined,
-  insuranceId: pet.insurance_id != null ? String(pet.insurance_id) : undefined,
-  insuranceName: pet.insurance?.name,
-  insuranceDetails:
-    pet.insurance?.coverage_rate != null
-      ? `${pet.insurance.coverage_rate}%補償`
-      : undefined,
-  remarks: pet.remarks,
-});
-
-/**
- * Transform backend owner response to frontend Owner type
- */
 export const transformOwner = (owner: BackendOwner): Owner => ({
   id: String(owner.id ?? 0),
   ownerName: owner.owner_name ?? "",
@@ -65,9 +27,8 @@ export const transformOwner = (owner: BackendOwner): Owner => ({
   membershipType: owner.membership_type ?? "",
   createdAt: owner.created_at ?? "",
   updatedAt: owner.updated_at ?? "",
-  pets: owner.pets?.map((pet) => {
-    const transformed = transformPet(pet);
-    transformed.ownerName = owner.owner_name ?? "";
-    return transformed;
-  }),
+  pets: owner.pets?.map((pet) => ({
+    ...transformPet(pet),
+    ownerName: owner.owner_name ?? "",
+  })),
 });

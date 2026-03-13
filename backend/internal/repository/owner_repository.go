@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"gorm.io/gorm"
 
@@ -31,15 +32,22 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 	var owners []model.Owner
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.Owner{}).Where("clinic_id = ?", clinicID)
-	if search != "" {
-		q = q.Where("owner_name ILIKE ? OR phone ILIKE ? OR email ILIKE ?",
-			"%"+search+"%", "%"+search+"%", "%"+search+"%")
+	buildBase := func() *gorm.DB {
+		q := r.db.WithContext(ctx).Model(&model.Owner{}).Where("clinic_id = ?", clinicID)
+		if search != "" {
+			q = q.Where("owner_name ILIKE ? OR phone ILIKE ? OR email ILIKE ?",
+				"%"+search+"%", "%"+search+"%", "%"+search+"%")
+		}
+		return q
 	}
-	if err := q.Count(&total).Error; err != nil {
+
+	if err := buildBase().Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count owners")
 	}
-	if err := q.Preload("Pets").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance").Offset((page - 1) * limit).Limit(limit).Order("created_at DESC").Find(&owners).Error; err != nil {
+	if err := buildBase().
+		Preload("Pets").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance").
+		Offset((page - 1) * limit).Limit(limit).Order("created_at DESC").
+		Find(&owners).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find owners")
 	}
 	return owners, total, nil
@@ -57,11 +65,11 @@ func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*m
 }
 
 func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 1. 飼主を作成
-		if err := tx.Create(owner).Error; err != nil {
+		if err := tx.WithContext(ctx).Create(owner).Error; err != nil {
 			if isUniqueConstraintErr(err) {
-				return apperrors.WrapAlreadyExists("owner", owner.Email)
+				return apperrors.WrapAlreadyExists("owner", "email already registered")
 			}
 			return apperrors.Wrap(err, "create owner")
 		}
@@ -70,12 +78,12 @@ func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner
 		for i := range pets {
 			pets[i].OwnerID = owner.ID
 			pets[i].ClinicID = owner.ClinicID
-			if err := tx.Create(&pets[i]).Error; err != nil {
+			if err := tx.WithContext(ctx).Create(&pets[i]).Error; err != nil {
 				return apperrors.Wrap(err, "create pet")
 			}
 			// AnimalSpecies をPreloadしてレスポンスに含める
 			var created model.Pet
-			if err := tx.Preload("AnimalSpecies").First(&created, pets[i].ID).Error; err != nil {
+			if err := tx.WithContext(ctx).Preload("AnimalSpecies").First(&created, pets[i].ID).Error; err != nil {
 				return apperrors.Wrap(err, "preload pet")
 			}
 			createdPets = append(createdPets, created)
@@ -83,12 +91,27 @@ func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner
 		owner.Pets = createdPets
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	slog.InfoContext(ctx, "owner created with pets",
+		slog.Uint64("owner_id", owner.ID),
+		slog.Int("pets_count", len(pets)))
+	return nil
 }
 
 func (r *ownerRepository) Update(ctx context.Context, owner *model.Owner) error {
-	if err := r.db.WithContext(ctx).Save(owner).Error; err != nil {
-		return apperrors.Wrap(err, "update owner")
+	result := r.db.WithContext(ctx).
+		Model(&model.Owner{}).
+		Where("id = ? AND clinic_id = ?", owner.ID, owner.ClinicID).
+		Updates(owner)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update owner")
 	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", owner.ID))
+	}
+	slog.InfoContext(ctx, "owner updated", slog.Uint64("owner_id", owner.ID))
 	return nil
 }
 

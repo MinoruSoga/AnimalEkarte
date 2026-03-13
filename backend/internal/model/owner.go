@@ -5,14 +5,16 @@ import (
 
 	"gorm.io/gorm"
 )
+
 type MembershipType string
 
 const (
-	MembershipTypeNonMember MembershipType = "non_member"
-	MembershipTypeMember    MembershipType = "member"
-	MembershipTypeDeceased  MembershipType = "deceased"
-	MembershipTypeOther     MembershipType = "transferred"
+	MembershipTypeNonMember   MembershipType = "non_member"
+	MembershipTypeMember      MembershipType = "member"
+	MembershipTypeDeceased    MembershipType = "deceased"
+	MembershipTypeTransferred MembershipType = "transferred"
 )
+
 type Owner struct {
 	ID             uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID       uint64         `gorm:"not null"                                       json:"clinic_id"`

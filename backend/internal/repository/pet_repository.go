@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"gorm.io/gorm"
 
@@ -64,17 +65,26 @@ func (r *petRepository) FindByID(ctx context.Context, clinicID, id uint64) (*mod
 func (r *petRepository) Create(ctx context.Context, pet *model.Pet) error {
 	if err := r.db.WithContext(ctx).Create(pet).Error; err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("pet", pet.Name)
+			return apperrors.WrapAlreadyExists("pet", "pet number already registered")
 		}
 		return apperrors.Wrap(err, "create pet")
 	}
+	slog.InfoContext(ctx, "pet created", slog.Uint64("pet_id", pet.ID))
 	return nil
 }
 
 func (r *petRepository) Update(ctx context.Context, pet *model.Pet) error {
-	if err := r.db.WithContext(ctx).Save(pet).Error; err != nil {
-		return apperrors.Wrap(err, "update pet")
+	result := r.db.WithContext(ctx).
+		Model(&model.Pet{}).
+		Where("id = ? AND clinic_id = ?", pet.ID, pet.ClinicID).
+		Updates(pet)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update pet")
 	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("pet", fmt.Sprintf("%d", pet.ID))
+	}
+	slog.InfoContext(ctx, "pet updated", slog.Uint64("pet_id", pet.ID))
 	return nil
 }
 

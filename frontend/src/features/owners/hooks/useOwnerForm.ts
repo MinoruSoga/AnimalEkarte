@@ -1,20 +1,21 @@
 // React/Framework
 import { useState, useTransition } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 // External
 import { toast } from "sonner";
 
-// Internal - direct imports (bundle-barrel-imports 準拠)
-import { createOwner } from "../api/create-owner";
-import { updateOwner } from "../api/update-owner";
-import { useCreatePet } from "@/features/pets/api/create-pet";
-import { useUpdatePet } from "@/features/pets/api/update-pet";
-import { useDeletePet } from "@/features/pets/api/delete-pet";
-import { createPet } from "@/features/pets/api/create-pet";
-import { transformCreatePetRequest, transformUpdatePetRequest } from "@/features/pets/api/transforms";
+// Internal - shared (feature 間 import 禁止のため @/features/pets は使用不可)
+import { transformCreatePetRequest, transformUpdatePetRequest } from "@/lib/transforms/pet";
 import type { CreateOwnerRequest, UpdateOwnerRequest } from "@/types/owner";
 import type { Owner } from "@/types/owner";
+import type { Pet } from "@/types";
+import type { PetMutations } from "@/types/pet";
 import type { OwnerData, PetFormData, MembershipType } from "../types";
+
+// feature 内
+import { createOwner } from "../api/create-owner";
+import { updateOwner } from "../api/update-owner";
 
 const PET_STATUS_TO_API: Record<string, "alive" | "deceased" | undefined> = {
   "生存": "alive",
@@ -69,7 +70,7 @@ function mapOwnerPetsToFormData(owner: Owner): PetFormData[] {
     id: backendPet.id,
     petNumber: backendPet.petNumber || "",
     petName: backendPet.name,
-    petNameKana: "",
+    petNameKana: backendPet.petNameKana || "",
     status: backendPet.status || "生存",
     species: backendPet.species,
     animalSpeciesId: backendPet.animalSpeciesId,
@@ -87,15 +88,14 @@ function mapOwnerPetsToFormData(owner: Owner): PetFormData[] {
   }));
 }
 
-export function useOwnerForm(id?: string, initialOwner?: Owner) {
+export function useOwnerForm(
+  id?: string,
+  initialOwner?: Owner,
+  petMutations?: PetMutations
+) {
   const isEdit = !!id;
-  // isSavePending: true while owner create/update API call is in-flight
+  const queryClient = useQueryClient();
   const [isSavePending, startSaveTransition] = useTransition();
-
-  // Pet API mutations（既存飼主へのペット即時追加・更新・削除）
-  const { mutate: createPetMutate } = useCreatePet();
-  const { mutate: updatePetMutate } = useUpdatePet();
-  const { mutate: deletePetMutate } = useDeletePet();
 
   const [ownerData, setOwnerData] = useState<OwnerData>(
     () => initialOwner ? mapOwnerToFormData(initialOwner) : DEFAULT_OWNER_DATA
@@ -119,7 +119,6 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
   };
 
   const handleDeletePet = (petId: string) => {
-    // isPending: 新規飼主モードでローカルに追加したペット → API呼び出し不要
     const target = pets.find(p => p.id === petId);
     if (target?.isPending) {
       setPets(prev => prev.filter(p => p.id !== petId));
@@ -127,7 +126,7 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
       return;
     }
 
-    deletePetMutate(petId, {
+    petMutations?.deletePetMutate(petId, {
       onSuccess: () => {
         setPets(prev => prev.filter((pet) => pet.id !== petId));
         toast.success("ペットを削除しました");
@@ -140,9 +139,7 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
 
   const handleSavePet = (petData: PetFormData) => {
     if (editingPet) {
-      // ─── 編集 ──────────────────────────────────────────
       if (editingPet.isPending) {
-        // pending ペット（新規飼主モード）: ローカル state のみ更新
         setPets(prev =>
           prev.map(p =>
             p.id === editingPet.id
@@ -153,10 +150,10 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
         return;
       }
 
-      // 既存 API 保存済みペット: 即時 PATCH
       const updateRequest = transformUpdatePetRequest({
         petNumber: petData.petNumber,
         name: petData.petName,
+        petNameKana: petData.petNameKana,
         animalSpeciesId: petData.animalSpeciesId,
         gender: petData.gender,
         birthDate: petData.birthDate,
@@ -168,7 +165,7 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
         remarks: petData.remarks,
       });
 
-      updatePetMutate(
+      petMutations?.updatePetMutate(
         { id: editingPet.id, req: updateRequest },
         {
           onSuccess: () => {
@@ -185,10 +182,7 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
         }
       );
     } else {
-      // ─── 新規追加 ──────────────────────────────────────
       if (!id) {
-        // 新規飼主モード: API呼び出しせずローカル state に追加
-        // 飼主登録（handleSave）時に Promise.all で一括送信する
         if (!petData.animalSpeciesId) {
           toast.error("動物種を選択してください");
           return;
@@ -198,7 +192,6 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
         return;
       }
 
-      // 既存飼主へのペット追加: 即時 POST
       if (!petData.animalSpeciesId) {
         toast.error("動物種を選択してください");
         return;
@@ -209,6 +202,7 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
         name: petData.petName || "",
         animalSpeciesId: petData.animalSpeciesId,
         petNumber: petData.petNumber,
+        petNameKana: petData.petNameKana,
         breed: petData.breed,
         gender: petData.gender,
         birthDate: petData.birthDate,
@@ -219,12 +213,13 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
         remarks: petData.remarks,
       });
 
-      createPetMutate(createRequest, {
-        onSuccess: (newPetData) => {
+      petMutations?.createPetMutate(createRequest, {
+        onSuccess: (newPetData: Pet) => {
           const newPet: PetFormData = {
             id: newPetData.id,
             petNumber: newPetData.petNumber || "",
             petName: newPetData.name,
+            petNameKana: newPetData.petNameKana || "",
             status: newPetData.status || "生存",
             species: newPetData.species,
             animalSpeciesId: newPetData.animalSpeciesId,
@@ -258,7 +253,6 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
   };
 
   const handleSave = (onSuccess?: () => void): void => {
-    // バリデーション（同期 — transition 前に実行）
     const errors: Record<string, string> = {};
     if (!ownerData.ownerName.trim()) errors.ownerName = "飼主名を入力してください";
     if (!ownerData.ownerNameKana.trim()) errors.ownerNameKana = "飼主名（カナ）を入力してください";
@@ -295,6 +289,7 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
         if (isEdit && id) {
           const updateData: UpdateOwnerRequest = ownerRequestPayload;
           await updateOwner(id, updateData);
+          await queryClient.invalidateQueries({ queryKey: ["owners"] });
           toast.success("飼主情報を更新しました");
         } else {
           const createData: CreateOwnerRequest = {
@@ -302,18 +297,19 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
             owner_name: ownerData.ownerName,
           };
           const newOwner = await createOwner(createData);
+          await queryClient.invalidateQueries({ queryKey: ["owners"] });
 
-          // pending ペットを飼主 ID を付けて一括 POST
           const pendingPets = pets.filter(p => p.isPending && p.animalSpeciesId);
-          if (pendingPets.length > 0) {
+          if (pendingPets.length > 0 && petMutations) {
             await Promise.all(
               pendingPets.map(pet =>
-                createPet(
+                petMutations.createPetFn(
                   transformCreatePetRequest({
                     ownerId: newOwner.id,
                     name: pet.petName || "",
                     animalSpeciesId: pet.animalSpeciesId!,
                     petNumber: pet.petNumber,
+                    petNameKana: pet.petNameKana,
                     breed: pet.breed,
                     gender: pet.gender,
                     birthDate: pet.birthDate,
@@ -332,7 +328,8 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
         }
 
         onSuccess?.();
-      } catch {
+      } catch (err) {
+        console.error("owner save failed", err);
         toast.error("保存に失敗しました");
       }
     });

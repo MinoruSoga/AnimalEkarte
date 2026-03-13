@@ -19,18 +19,18 @@ export const ownersRoutes: RouteObject[] = [
       {
         path: "new",
         lazy: async () => {
-          const { OwnerForm } = await import("@/features/owners/routes/OwnerForm");
-          return { Component: OwnerForm };
+          const { OwnerFormPage } = await import("@/app/pages/OwnerFormPage");
+          return { Component: OwnerFormPage };
         },
       },
       {
         path: ":id",
         lazy: async () => {
-          const [{ OwnerForm }, { ownerLoader }] = await Promise.all([
-            import("@/features/owners/routes/OwnerForm"),
+          const [{ OwnerFormPage }, { ownerLoader }] = await Promise.all([
+            import("@/app/pages/OwnerFormPage"),
             import("@/features/owners/loaders"),
           ]);
-          return { Component: OwnerForm, loader: ownerLoader };
+          return { Component: OwnerFormPage, loader: ownerLoader };
         },
       },
     ],

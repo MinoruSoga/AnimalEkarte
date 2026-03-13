@@ -49,6 +49,7 @@ import { C, STYLE } from "@/lib/design-tokens";
 
 // Relative
 import { useOwnerForm } from "../hooks/useOwnerForm";
+import type { PetMutations } from "@/types/pet";
 // Lazy-loaded modal — only loaded when first opened (bundle-dynamic-imports)
 const PetEditModal = lazy(() =>
   import("../components/PetEditModal").then(m => ({ default: m.PetEditModal }))
@@ -58,7 +59,7 @@ import type { OwnerLoaderData } from "../loaders";
 
 const INPUT_CLS = STYLE.formInput;
 
-export function OwnerForm() {
+export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}) {
   const navigate = useNavigate();
   const { id: ownerId } = useParams();
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
@@ -86,7 +87,7 @@ export function OwnerForm() {
     handleSave,
     fieldErrors,
     clearFieldError,
-  } = useOwnerForm(ownerId, initialOwner);
+  } = useOwnerForm(ownerId, initialOwner, petMutations);
 
   const handleBack = () => {
     navigate("/owners");
