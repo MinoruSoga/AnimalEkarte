@@ -196,26 +196,28 @@ export function LoginForm() {
         </button>
       </form>
 
-      {/* Demo accounts */}
-      <div className="mt-8">
-        <div className="flex items-center gap-2 mb-2">
-          <div className={`h-px flex-1 ${C.bgLight}`} />
-          <span className={`text-sm ${C.text35}`}>デモアカウント</span>
-          <div className={`h-px flex-1 ${C.bgLight}`} />
+      {/* Demo accounts (dev only) */}
+      {import.meta.env.DEV && (
+        <div className="mt-8">
+          <div className="flex items-center gap-2 mb-2">
+            <div className={`h-px flex-1 ${C.bgLight}`} />
+            <span className={`text-sm ${C.text35}`}>デモアカウント</span>
+            <div className={`h-px flex-1 ${C.bgLight}`} />
+          </div>
+          <p className={`text-sm text-center mb-2 ${C.text40}`}>パスワード: password</p>
+          <div className="space-y-px">
+            {MOCK_USERS.map((cred) => (
+              <DemoAccount
+                key={cred.email}
+                email={cred.email}
+                displayName={cred.user.displayName}
+                user={cred.user}
+                onSelect={handleSelectDemo}
+              />
+            ))}
+          </div>
         </div>
-        <p className={`text-sm text-center mb-2 ${C.text40}`}>パスワード: password</p>
-        <div className="space-y-px">
-          {MOCK_USERS.map((cred) => (
-            <DemoAccount
-              key={cred.email}
-              email={cred.email}
-              displayName={cred.user.displayName}
-              user={cred.user}
-              onSelect={handleSelectDemo}
-            />
-          ))}
-        </div>
-      </div>
+      )}
     </div>
   );
 }

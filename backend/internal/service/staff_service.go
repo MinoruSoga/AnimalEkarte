@@ -29,12 +29,12 @@ type CreateStaffInput struct {
 }
 
 type StaffService interface {
-	List(ctx context.Context, role *string) ([]model.Staff, error)
+	List(ctx context.Context, clinicID uint64, role *string) ([]model.Staff, error)
 	GetByID(ctx context.Context, id uint64) (*model.Staff, error)
 	// CreateWithAccount はスタッフとシステムアカウントをアトミックに作成する。
 	CreateWithAccount(ctx context.Context, input *CreateStaffInput) (*model.Staff, error)
 	Update(ctx context.Context, staff *model.Staff) error
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type staffService struct{ repo repository.StaffRepository }
@@ -43,8 +43,8 @@ func NewStaffService(repo repository.StaffRepository) StaffService {
 	return &staffService{repo: repo}
 }
 
-func (s *staffService) List(ctx context.Context, role *string) ([]model.Staff, error) {
-	return s.repo.FindAll(ctx, role)
+func (s *staffService) List(ctx context.Context, clinicID uint64, role *string) ([]model.Staff, error) {
+	return s.repo.FindAll(ctx, clinicID, role)
 }
 
 func (s *staffService) GetByID(ctx context.Context, id uint64) (*model.Staff, error) {
@@ -91,6 +91,6 @@ func (s *staffService) Update(ctx context.Context, staff *model.Staff) error {
 	return s.repo.Update(ctx, staff)
 }
 
-func (s *staffService) Delete(ctx context.Context, id uint64) error {
-	return s.repo.Delete(ctx, id)
+func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {
+	return s.repo.Delete(ctx, clinicID, id)
 }

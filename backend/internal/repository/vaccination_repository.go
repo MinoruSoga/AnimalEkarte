@@ -12,11 +12,11 @@ import (
 )
 
 type VaccinationRepository interface {
-	FindAll(ctx context.Context, petID *uint64, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error)
-	FindByID(ctx context.Context, id uint64) (*model.Vaccination, error)
+	FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
 	Create(ctx context.Context, vaccination *model.Vaccination) error
-	Update(ctx context.Context, vaccination *model.Vaccination) error
-	Delete(ctx context.Context, id uint64) error
+	Update(ctx context.Context, clinicID uint64, vaccination *model.Vaccination) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type vaccinationRepository struct {
@@ -27,21 +27,27 @@ func NewVaccinationRepository(db *gorm.DB) VaccinationRepository {
 	return &vaccinationRepository{db: db}
 }
 
-func (r *vaccinationRepository) FindAll(ctx context.Context, petID *uint64, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error) {
-	var vaccinations []model.Vaccination
-	var total int64
+func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error) {
+	buildBase := func() *gorm.DB {
+		q := r.db.WithContext(ctx).Model(&model.Vaccination{}).
+			Joins("JOIN medical_records ON medical_records.id = vaccinations.medical_record_id").
+			Where("medical_records.clinic_id = ?", clinicID)
+		if petID != nil {
+			q = q.Where("vaccinations.pet_id = ?", *petID)
+		}
+		if ownerID != nil {
+			q = q.Joins("JOIN pets ON pets.id = vaccinations.pet_id").Where("pets.owner_id = ?", *ownerID)
+		}
+		return q
+	}
 
-	q := r.db.WithContext(ctx).Model(&model.Vaccination{})
-	if petID != nil {
-		q = q.Where("vaccinations.pet_id = ?", *petID)
-	}
-	if ownerID != nil {
-		q = q.Joins("JOIN pets ON pets.id = vaccinations.pet_id").Where("pets.owner_id = ?", *ownerID)
-	}
-	if err := q.Count(&total).Error; err != nil {
+	var total int64
+	if err := buildBase().Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count vaccinations")
 	}
-	if err := q.Preload("Vaccine").Preload("Pet").Preload("Doctor").
+
+	var vaccinations []model.Vaccination
+	if err := buildBase().Preload("Vaccine").Preload("Pet").Preload("Doctor").
 		Offset((page - 1) * limit).Limit(limit).Order("vaccinations.date DESC, vaccinations.created_at DESC").
 		Find(&vaccinations).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find vaccinations")
@@ -49,13 +55,13 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, petID *uint64, owne
 	return vaccinations, total, nil
 }
 
-func (r *vaccinationRepository) FindByID(ctx context.Context, id uint64) (*model.Vaccination, error) {
+func (r *vaccinationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error) {
 	var vaccination model.Vaccination
 	if err := r.db.WithContext(ctx).
-		Preload("Vaccine").
-		Preload("Pet").
-		Preload("Doctor").
-		First(&vaccination, "id = ?", id).Error; err != nil {
+		Joins("JOIN medical_records ON medical_records.id = vaccinations.medical_record_id").
+		Where("vaccinations.id = ? AND medical_records.clinic_id = ?", id, clinicID).
+		Preload("Vaccine").Preload("Pet").Preload("Doctor").
+		First(&vaccination).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", id))
 		}
@@ -71,10 +77,10 @@ func (r *vaccinationRepository) Create(ctx context.Context, vaccination *model.V
 	return nil
 }
 
-func (r *vaccinationRepository) Update(ctx context.Context, vaccination *model.Vaccination) error {
+func (r *vaccinationRepository) Update(ctx context.Context, clinicID uint64, vaccination *model.Vaccination) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Vaccination{}).
-		Where("id = ?", vaccination.ID).
+		Where("id = ? AND medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ?)", vaccination.ID, clinicID).
 		Updates(vaccination)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "update vaccination")
@@ -85,8 +91,10 @@ func (r *vaccinationRepository) Update(ctx context.Context, vaccination *model.V
 	return nil
 }
 
-func (r *vaccinationRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Vaccination{}, "id = ?", id)
+func (r *vaccinationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).
+		Where("id = ? AND medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ?)", id, clinicID).
+		Delete(&model.Vaccination{})
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete vaccination")
 	}

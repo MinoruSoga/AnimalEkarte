@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -114,10 +115,14 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 		record.Status = model.MedicalRecordStatus(input.Status)
 	}
 
-	if err := h.svc.MedicalRecord.Create(c.Request.Context(), record); err != nil {
+	ctx := c.Request.Context()
+	if err := h.svc.MedicalRecord.Create(ctx, record); err != nil {
 		RespondError(c, err)
 		return
 	}
+	slog.InfoContext(ctx, "medical record created",
+		slog.Uint64("record_id", record.ID),
+		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
 	c.JSON(http.StatusCreated, record)
 }
 
@@ -154,10 +159,14 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 		record.Status = model.MedicalRecordStatus(input.Status)
 	}
 
-	if err := h.svc.MedicalRecord.Update(c.Request.Context(), record); err != nil {
+	ctx := c.Request.Context()
+	if err := h.svc.MedicalRecord.Update(ctx, record); err != nil {
 		RespondError(c, err)
 		return
 	}
+	slog.InfoContext(ctx, "medical record updated",
+		slog.Uint64("record_id", record.ID),
+		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
 	c.JSON(http.StatusOK, record)
 }
 

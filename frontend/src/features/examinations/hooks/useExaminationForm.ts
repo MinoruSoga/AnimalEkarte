@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import type { ExaminationRecord } from "@/types";
 import { usePetSelection } from "@/hooks/use-pet-selection";
-import { useGetPet } from "@/features/pets/api/get-pet";
+import { useGetPet } from "@/hooks/use-pet";
 import {
   useGetExamination,
   useCreateExamination,

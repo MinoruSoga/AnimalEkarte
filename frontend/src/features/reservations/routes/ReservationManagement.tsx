@@ -21,7 +21,7 @@ import type { CalendarView } from "../types";
 import { CALENDAR_VIEW_VALUES } from "../types";
 import { ReservationFormModal } from "@/components/shared/ReservationFormModal";
 import { useReservationManagement } from "../hooks/useReservationManagement";
-import { useServiceTypeColorMap } from "@/features/master/hooks/useServiceTypeColorMap";
+import { useServiceTypeColorMap } from "@/hooks/use-service-type-color-map";
 
 const MonthView = lazy(() =>
   import("../components/MonthView").then((m) => ({ default: m.MonthView }))

@@ -13,15 +13,15 @@ import (
 
 // mockStaffRepository は StaffRepository のテスト用モック実装
 type mockStaffRepository struct {
-	findAllFn          func(ctx context.Context, role *string) ([]model.Staff, error)
-	findByIDFn         func(ctx context.Context, id uint64) (*model.Staff, error)
+	findAllFn           func(ctx context.Context, clinicID uint64, role *string) ([]model.Staff, error)
+	findByIDFn          func(ctx context.Context, id uint64) (*model.Staff, error)
 	createWithAccountFn func(ctx context.Context, staff *model.Staff, account *model.UserAccount, membership *model.UserClinicMembership) error
-	updateFn           func(ctx context.Context, staff *model.Staff) error
-	deleteFn           func(ctx context.Context, id uint64) error
+	updateFn            func(ctx context.Context, staff *model.Staff) error
+	deleteFn            func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockStaffRepository) FindAll(ctx context.Context, role *string) ([]model.Staff, error) {
-	return m.findAllFn(ctx, role)
+func (m *mockStaffRepository) FindAll(ctx context.Context, clinicID uint64, role *string) ([]model.Staff, error) {
+	return m.findAllFn(ctx, clinicID, role)
 }
 
 func (m *mockStaffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff, error) {
@@ -36,13 +36,14 @@ func (m *mockStaffRepository) Update(ctx context.Context, staff *model.Staff) er
 	return m.updateFn(ctx, staff)
 }
 
-func (m *mockStaffRepository) Delete(ctx context.Context, id uint64) error {
-	return m.deleteFn(ctx, id)
+func (m *mockStaffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
 }
 
 func TestStaffService_List(t *testing.T) {
 	tests := []struct {
 		name       string
+		clinicID   uint64
 		role       *string
 		repoStaffs []model.Staff
 		repoErr    error
@@ -50,8 +51,9 @@ func TestStaffService_List(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name: "returns all staffs without role filter",
-			role: nil,
+			name:     "returns all staffs without role filter",
+			clinicID: 1,
+			role:     nil,
 			repoStaffs: []model.Staff{
 				{ID: 1, ClinicID: 1, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
 				{ID: 2, ClinicID: 1, Name: "鈴木 花子", StaffRole: model.StaffRoleNurse},
@@ -61,8 +63,9 @@ func TestStaffService_List(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "filters staffs by role",
-			role: ptrString("veterinarian"),
+			name:     "filters staffs by role",
+			clinicID: 1,
+			role:     ptrString("veterinarian"),
 			repoStaffs: []model.Staff{
 				{ID: 1, ClinicID: 1, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
 			},
@@ -72,6 +75,7 @@ func TestStaffService_List(t *testing.T) {
 		},
 		{
 			name:       "returns empty list when no staffs exist",
+			clinicID:   1,
 			role:       nil,
 			repoStaffs: []model.Staff{},
 			repoErr:    nil,
@@ -80,6 +84,7 @@ func TestStaffService_List(t *testing.T) {
 		},
 		{
 			name:       "propagates repository error",
+			clinicID:   1,
 			role:       nil,
 			repoStaffs: nil,
 			repoErr:    errors.New("db connection error"),
@@ -92,14 +97,14 @@ func TestStaffService_List(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			capturedRole := (*string)(nil)
 			repo := &mockStaffRepository{
-				findAllFn: func(_ context.Context, role *string) ([]model.Staff, error) {
+				findAllFn: func(_ context.Context, _ uint64, role *string) ([]model.Staff, error) {
 					capturedRole = role
 					return tt.repoStaffs, tt.repoErr
 				},
 			}
 			svc := NewStaffService(repo)
 
-			staffs, err := svc.List(context.Background(), tt.role)
+			staffs, err := svc.List(context.Background(), tt.clinicID, tt.role)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -330,45 +335,49 @@ func TestStaffService_Update(t *testing.T) {
 
 func TestStaffService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name     string
+		clinicID uint64
+		id       uint64
+		repoErr  error
+		wantErr  bool
+		wantNF   bool
 	}{
 		{
-			name:    "deletes staff successfully",
-			id:      10,
-			repoErr: nil,
-			wantErr: false,
-			wantNF:  false,
+			name:     "deletes staff successfully",
+			clinicID: 1,
+			id:       10,
+			repoErr:  nil,
+			wantErr:  false,
+			wantNF:   false,
 		},
 		{
-			name:    "returns not found error when staff does not exist",
-			id:      999,
-			repoErr: apperrors.WrapNotFound("staff", "999"),
-			wantErr: true,
-			wantNF:  true,
+			name:     "returns not found error when staff does not exist",
+			clinicID: 1,
+			id:       999,
+			repoErr:  apperrors.WrapNotFound("staff", "999"),
+			wantErr:  true,
+			wantNF:   true,
 		},
 		{
-			name:    "returns error on repository failure",
-			id:      10,
-			repoErr: errors.New("db error"),
-			wantErr: true,
-			wantNF:  false,
+			name:     "returns error on repository failure",
+			clinicID: 1,
+			id:       10,
+			repoErr:  errors.New("db error"),
+			wantErr:  true,
+			wantNF:   false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockStaffRepository{
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
 			svc := NewStaffService(repo)
 
-			err := svc.Delete(context.Background(), tt.id)
+			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)

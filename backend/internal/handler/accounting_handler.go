@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -136,10 +137,14 @@ func (h *Handler) CreateAccounting(c *gin.Context) {
 		billing.Status = model.BillingStatus(input.Status)
 	}
 
-	if err := h.svc.Accounting.Create(c.Request.Context(), clinicID, billing); err != nil {
+	ctx := c.Request.Context()
+	if err := h.svc.Accounting.Create(ctx, clinicID, billing); err != nil {
 		RespondError(c, err)
 		return
 	}
+	slog.InfoContext(ctx, "accounting created",
+		slog.Uint64("billing_id", billing.ID),
+		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
 	c.JSON(http.StatusCreated, billing)
 }
 
@@ -182,10 +187,14 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 		billing.Status = model.BillingStatus(input.Status)
 	}
 
-	if err := h.svc.Accounting.Update(c.Request.Context(), clinicID, billing); err != nil {
+	ctx := c.Request.Context()
+	if err := h.svc.Accounting.Update(ctx, clinicID, billing); err != nil {
 		RespondError(c, err)
 		return
 	}
+	slog.InfoContext(ctx, "accounting updated",
+		slog.Uint64("billing_id", billing.ID),
+		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
 	c.JSON(http.StatusOK, billing)
 }
 

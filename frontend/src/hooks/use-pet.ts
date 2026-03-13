@@ -3,6 +3,8 @@ import { useGetPets } from "@/features/pets/api/get-pets";
 import { useGetPet } from "@/features/pets/api/get-pet";
 import type { Pet } from "@/types";
 
+export { useGetPet };
+
 /**
  * Hook for searching/listing pets, optionally filtered by ownerId.
  * Wraps useGetPets with loading and error state.

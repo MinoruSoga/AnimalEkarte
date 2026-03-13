@@ -15,11 +15,15 @@ import (
 
 // ListStaffs godoc
 func (h *Handler) ListStaffs(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	var role *string
 	if r := c.Query("role"); r != "" {
 		role = &r
 	}
-	staffs, err := h.svc.Staff.List(c.Request.Context(), role)
+	staffs, err := h.svc.Staff.List(c.Request.Context(), clinicID, role)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -80,6 +84,10 @@ type updateStaffInput struct {
 
 // UpdateStaff godoc
 func (h *Handler) UpdateStaff(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
@@ -93,6 +101,7 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 
 	staff := &model.Staff{
 		ID:            id,
+		ClinicID:      clinicID,
 		Name:          input.Name,
 		LicenseNumber: input.LicenseNumber,
 		JobTitleID:    input.JobTitleID,
@@ -114,12 +123,16 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 
 // DeleteStaff godoc
 func (h *Handler) DeleteStaff(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	if err := h.svc.Staff.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.Staff.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}

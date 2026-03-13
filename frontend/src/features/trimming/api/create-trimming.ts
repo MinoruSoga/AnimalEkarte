@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { axios } from "@/lib/axios";
 import type { TrimmingRecord } from "@/types";
 import { transformTrimming } from "./transforms";
@@ -18,6 +19,9 @@ export const useCreateTrimming = () => {
     mutationFn: createTrimming,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trimmings"] });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "操作に失敗しました");
     },
   });
 };

@@ -80,12 +80,16 @@ func (h *Handler) ListExaminations(c *gin.Context) {
 
 // GetExamination godoc
 func (h *Handler) GetExamination(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	exam, err := h.svc.Examination.GetByID(c.Request.Context(), id)
+	exam, err := h.svc.Examination.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -123,6 +127,10 @@ func (h *Handler) CreateExamination(c *gin.Context) {
 
 // UpdateExamination godoc
 func (h *Handler) UpdateExamination(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
@@ -150,7 +158,7 @@ func (h *Handler) UpdateExamination(c *gin.Context) {
 		exam.Status = model.ExaminationStatus(input.Status)
 	}
 
-	if err := h.svc.Examination.Update(c.Request.Context(), exam); err != nil {
+	if err := h.svc.Examination.Update(c.Request.Context(), clinicID, exam); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -159,12 +167,16 @@ func (h *Handler) UpdateExamination(c *gin.Context) {
 
 // DeleteExamination godoc
 func (h *Handler) DeleteExamination(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	if err := h.svc.Examination.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.Examination.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}

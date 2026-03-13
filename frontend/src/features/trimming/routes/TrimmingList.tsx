@@ -44,7 +44,7 @@ export function TrimmingList() {
   const navigate = useNavigate();
   const [searchDate, setSearchDate] = useState({ from: "", to: "" });
   const [searchKeyword, setSearchKeyword] = useState("");
-  const { data: filteredRecords, deleteRecord } = useTrimmingRecords(searchKeyword, searchDate);
+  const { data: filteredRecords, isLoading, error, deleteRecord } = useTrimmingRecords(searchKeyword, searchDate);
   const { isValidStaff } = useStaffValidation();
 
   // Pagination
@@ -61,6 +61,13 @@ export function TrimmingList() {
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+
+  if (isLoading) return (
+    <div className="flex justify-center items-center p-8">
+      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
+    </div>
+  );
+  if (error) return <div className="p-4 text-red-600">データの取得に失敗しました</div>;
 
   const handleClear = () => {
     setSearchDate({ from: "", to: "" });

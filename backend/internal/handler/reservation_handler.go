@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -139,10 +140,14 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		reservation.Status = model.ReservationStatus(input.Status)
 	}
 
-	if err := h.svc.Reservation.Create(c.Request.Context(), reservation); err != nil {
+	ctx := c.Request.Context()
+	if err := h.svc.Reservation.Create(ctx, reservation); err != nil {
 		RespondError(c, err)
 		return
 	}
+	slog.InfoContext(ctx, "reservation created",
+		slog.Uint64("reservation_id", reservation.ID),
+		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
 	c.JSON(http.StatusCreated, reservation)
 }
 
@@ -188,10 +193,14 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 		reservation.IsDesignated = *input.IsDesignated
 	}
 
-	if err := h.svc.Reservation.Update(c.Request.Context(), reservation); err != nil {
+	ctx := c.Request.Context()
+	if err := h.svc.Reservation.Update(ctx, reservation); err != nil {
 		RespondError(c, err)
 		return
 	}
+	slog.InfoContext(ctx, "reservation updated",
+		slog.Uint64("reservation_id", reservation.ID),
+		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
 	c.JSON(http.StatusOK, reservation)
 }
 

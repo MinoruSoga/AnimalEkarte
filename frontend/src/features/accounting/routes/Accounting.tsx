@@ -24,7 +24,14 @@ import type { Accounting as AccountingType } from "../types";
 export function Accounting() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const { data: filteredRecords } = useAccountingRecords(searchTerm);
+  const { data: filteredRecords, isLoading, isError } = useAccountingRecords(searchTerm);
+
+  if (isLoading) return (
+    <div className="flex justify-center items-center p-8">
+      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
+    </div>
+  );
+  if (isError) return <div className="p-4 text-red-600">データの取得に失敗しました</div>;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("ja-JP", {

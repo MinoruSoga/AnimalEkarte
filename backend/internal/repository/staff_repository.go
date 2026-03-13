@@ -15,21 +15,21 @@ import (
 // ---- Staff ----
 
 type StaffRepository interface {
-	FindAll(ctx context.Context, role *string) ([]model.Staff, error)
+	FindAll(ctx context.Context, clinicID uint64, role *string) ([]model.Staff, error)
 	FindByID(ctx context.Context, id uint64) (*model.Staff, error)
 	// CreateWithAccount はスタッフ・ユーザーアカウント・クリニック所属を単一トランザクションで作成する。
 	CreateWithAccount(ctx context.Context, staff *model.Staff, account *model.UserAccount, membership *model.UserClinicMembership) error
 	Update(ctx context.Context, staff *model.Staff) error
-	Delete(ctx context.Context, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type staffRepository struct{ db *gorm.DB }
 
 func NewStaffRepository(db *gorm.DB) StaffRepository { return &staffRepository{db: db} }
 
-func (r *staffRepository) FindAll(ctx context.Context, role *string) ([]model.Staff, error) {
+func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, role *string) ([]model.Staff, error) {
 	var staffs []model.Staff
-	q := r.db.WithContext(ctx).Model(&model.Staff{})
+	q := r.db.WithContext(ctx).Model(&model.Staff{}).Where("clinic_id = ?", clinicID)
 	if role != nil {
 		q = q.Where("staff_role = ?", *role)
 	}
@@ -88,13 +88,13 @@ func (r *staffRepository) Update(ctx context.Context, staff *model.Staff) error 
 		return apperrors.Wrap(result.Error, "update staff")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.Wrap(apperrors.ErrNotFound, "update staff")
+		return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", staff.ID))
 	}
 	return nil
 }
 
-func (r *staffRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.Staff{}, "id = ?", id)
+func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).Delete(&model.Staff{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete staff")
 	}

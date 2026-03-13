@@ -328,8 +328,7 @@ export function useOwnerForm(
         }
 
         onSuccess?.();
-      } catch (err) {
-        console.error("owner save failed", err);
+      } catch {
         toast.error("保存に失敗しました");
       }
     });

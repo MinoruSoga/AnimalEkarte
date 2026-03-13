@@ -44,6 +44,11 @@ type updateVaccinationInput struct {
 
 // ListVaccinations godoc
 func (h *Handler) ListVaccinations(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	page, limit, err := parsePagination(c)
 	if err != nil {
 		RespondError(c, err)
@@ -70,7 +75,7 @@ func (h *Handler) ListVaccinations(c *gin.Context) {
 		ownerID = &id
 	}
 
-	vaccinations, total, err := h.svc.Vaccination.List(c.Request.Context(), petID, ownerID, page, limit)
+	vaccinations, total, err := h.svc.Vaccination.List(c.Request.Context(), clinicID, petID, ownerID, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -80,12 +85,16 @@ func (h *Handler) ListVaccinations(c *gin.Context) {
 
 // GetVaccination godoc
 func (h *Handler) GetVaccination(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	vaccination, err := h.svc.Vaccination.GetByID(c.Request.Context(), id)
+	vaccination, err := h.svc.Vaccination.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -129,6 +138,10 @@ func (h *Handler) CreateVaccination(c *gin.Context) {
 
 // UpdateVaccination godoc
 func (h *Handler) UpdateVaccination(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
@@ -162,7 +175,7 @@ func (h *Handler) UpdateVaccination(c *gin.Context) {
 		vaccination.NextScheduleType = &nst
 	}
 
-	if err := h.svc.Vaccination.Update(c.Request.Context(), vaccination); err != nil {
+	if err := h.svc.Vaccination.Update(c.Request.Context(), clinicID, vaccination); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -171,12 +184,16 @@ func (h *Handler) UpdateVaccination(c *gin.Context) {
 
 // DeleteVaccination godoc
 func (h *Handler) DeleteVaccination(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	if err := h.svc.Vaccination.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.Vaccination.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}

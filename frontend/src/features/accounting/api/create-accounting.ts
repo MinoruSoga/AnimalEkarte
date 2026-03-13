@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { axios } from "@/lib/axios";
 import type { AccountingRecord } from "@/types";
 import { transformAccounting } from "./transforms";
@@ -21,6 +22,9 @@ export const useCreateAccounting = () => {
     mutationFn: createAccounting,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["accountings"] });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "操作に失敗しました");
     },
   });
 };

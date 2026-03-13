@@ -41,7 +41,7 @@ type TableColumn = {
 export function MedicalRecords() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const { data: filteredRecords } = useMedicalRecords(searchTerm);
+  const { data: filteredRecords, isLoading, isError } = useMedicalRecords(searchTerm);
   const { isValidStaff } = useStaffValidation();
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
   const { mutate: deleteRecord } = useDeleteMedicalRecord();
@@ -67,6 +67,13 @@ export function MedicalRecords() {
     nextPage,
     prevPage,
   } = usePagination(sortedData, { pageSize: 20, resetKey: searchTerm });
+
+  if (isLoading) return (
+    <div className="flex justify-center items-center p-8">
+      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
+    </div>
+  );
+  if (isError) return <div className="p-4 text-red-600">データの取得に失敗しました</div>;
 
   const handleNavigateToForm = (recordId?: string) => {
     navigate(

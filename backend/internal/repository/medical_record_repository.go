@@ -34,7 +34,7 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, 
 
 	q := r.db.WithContext(ctx).Model(&model.MedicalRecord{}).Where("clinic_id = ?", clinicID)
 	if petID != nil {
-		q = q.Where("pet_id = ?", petID)
+		q = q.Where("pet_id = ?", *petID)
 	}
 	if ownerID != nil {
 		q = q.Where("owner_id = ?", *ownerID)
@@ -81,16 +81,11 @@ func (r *medicalRecordRepository) FindByRecordNo(ctx context.Context, clinicID u
 }
 
 func (r *medicalRecordRepository) Create(ctx context.Context, record *model.MedicalRecord) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(record).Error; err != nil {
-			if isUniqueConstraintErr(err) {
-				return apperrors.WrapAlreadyExists("medical_record", record.RecordNo)
-			}
-			return apperrors.Wrap(err, "create medical record")
+	if err := r.db.WithContext(ctx).Create(record).Error; err != nil {
+		if isUniqueConstraintErr(err) {
+			return apperrors.WrapAlreadyExists("medical_record", record.RecordNo)
 		}
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "create medical record transaction")
+		return apperrors.Wrap(err, "create medical record")
 	}
 	return nil
 }
@@ -104,7 +99,7 @@ func (r *medicalRecordRepository) Update(ctx context.Context, record *model.Medi
 		return apperrors.Wrap(result.Error, "update medical record")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.Wrap(apperrors.ErrNotFound, "update medical record")
+		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", record.ID))
 	}
 	return nil
 }

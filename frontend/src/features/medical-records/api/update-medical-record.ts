@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { axios } from "@/lib/axios";
 import type { MedicalRecord } from "@/types";
 import { transformMedicalRecord } from "./transforms";
@@ -21,8 +22,12 @@ export const useUpdateMedicalRecord = () => {
   return useMutation({
     mutationFn: ({ id, req }: { id: string; req: UpdateMedicalRecordRequest }) =>
       updateMedicalRecord(id, req),
-    onSuccess: () => {
+    onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: ["medical-records"] });
+      queryClient.invalidateQueries({ queryKey: ["medical-record", id] });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "操作に失敗しました");
     },
   });
 };
