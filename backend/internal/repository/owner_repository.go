@@ -48,6 +48,7 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 		return nil, 0, apperrors.Wrap(err, "count owners")
 	}
 	if err := buildBase().
+		Preload("Pets").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance").
 		Offset((page - 1) * limit).Limit(limit).Order("created_at DESC").
 		Find(&owners).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find owners")
