@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useTransition } from "react";
+import { useState, useTransition, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 // External
@@ -263,13 +263,15 @@ export function useOwnerForm(
     }
   };
 
-  const clearFieldError = (field: string) => {
+  // rerender-functional-setstate: setFieldErrors は stable setter のため useCallback で安定化可能
+  // → OwnerInfoSection memo の onClearError prop を stable に保つための前提条件
+  const clearFieldError = useCallback((field: string) => {
     setFieldErrors((prev) => {
       const next = { ...prev };
       delete next[field];
       return next;
     });
-  };
+  }, []);
 
   const handleSave = (onSuccess?: () => void): void => {
     const errors: Record<string, string> = {};

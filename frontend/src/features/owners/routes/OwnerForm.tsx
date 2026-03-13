@@ -50,7 +50,7 @@ import { C, STYLE } from "@/lib/design-tokens";
 // Relative
 import { useOwnerForm } from "../hooks/useOwnerForm";
 import type { PetMutations } from "@/types/pet";
-import type { PetFormData } from "../types";
+import type { PetFormData, OwnerData } from "../types";
 // Lazy-loaded modal — only loaded when first opened (bundle-dynamic-imports)
 const PetEditModal = lazy(() =>
   import("../components/PetEditModal").then(m => ({ default: m.PetEditModal }))
@@ -188,6 +188,208 @@ const PetTableRow = memo(function PetTableRow({
   );
 });
 
+// rendering-hoist-jsx: ペットテーブルの列ヘッダーは静的なので毎レンダーの再生成を排除
+const PET_TABLE_HEADER = (
+  <TableHeader>
+    <TableRow className={`hover:bg-transparent ${C.bgPage} border-b ${C.borderMedium} h-12`}>
+      <TableHead className={STYLE.tableCellMuted}>ペット番号</TableHead>
+      <TableHead className={STYLE.tableCellMuted}>ペット名</TableHead>
+      <TableHead className={STYLE.tableCellMuted}>生死</TableHead>
+      <TableHead className={STYLE.tableCellMuted}>種別</TableHead>
+      <TableHead className={STYLE.tableCellMuted}>性別</TableHead>
+      <TableHead className={STYLE.tableCellMuted}>生年月日</TableHead>
+      <TableHead className={STYLE.tableCellMuted}>毛色</TableHead>
+      <TableHead className={STYLE.tableCellMuted}>体重</TableHead>
+      <TableHead className={STYLE.tableCellMuted}>環境</TableHead>
+      <TableHead className={STYLE.tableCellMuted}>備考</TableHead>
+      <TableHead className={STYLE.tableCellMuted}>操作</TableHead>
+    </TableRow>
+  </TableHeader>
+);
+
+// rerender-memo: 飼主情報フィールド群を memo 化する
+// ペット追加/削除・モーダル開閉・deletePetTarget 変更では ownerData/fieldErrors が変わらないため
+// 17 フィールド全体の再レンダーを防ぐ（clearFieldError は useOwnerForm 内で useCallback 済み）
+interface OwnerInfoSectionProps {
+  ownerData: OwnerData;
+  fieldErrors: Record<string, string>;
+  isEdit: boolean;
+  onChange: (field: string, value: string | boolean | number) => void;
+  onClearError: (field: string) => void;
+  onMembershipChange: (type: MembershipType) => void;
+}
+
+const OwnerInfoSection = memo(function OwnerInfoSection({
+  ownerData,
+  fieldErrors,
+  isEdit,
+  onChange,
+  onClearError,
+  onMembershipChange,
+}: OwnerInfoSectionProps) {
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Row 1 */}
+      <div className="space-y-1.5">
+        <Label htmlFor="ownerId" className={`text-sm ${C.text60}`}>飼主No</Label>
+        <Input
+          id="ownerId"
+          type="text"
+          value={ownerData.ownerId}
+          onChange={(e) => onChange("ownerId", e.target.value)}
+          disabled={isEdit}
+          className={`${INPUT_CLS} disabled:opacity-50`}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="postalCode" className={`text-sm ${C.text60}`}>郵便番号</Label>
+        <Input
+          id="postalCode"
+          placeholder="123-4567"
+          value={ownerData.postalCode}
+          onChange={(e) => onChange("postalCode", e.target.value)}
+          className={INPUT_CLS}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="company" className={`text-sm ${C.text60}`}>会社名</Label>
+        <Input
+          id="company"
+          value={ownerData.company}
+          onChange={(e) => onChange("company", e.target.value)}
+          className={INPUT_CLS}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className={`text-sm ${C.text60}`}>会員区分</Label>
+        <MembershipTypeButtons value={ownerData.membershipType} onChange={onMembershipChange} />
+      </div>
+
+      {/* Row 2 */}
+      <div className="space-y-1.5">
+        <Label htmlFor="ownerName" className={`text-sm ${C.text60}`}>
+          飼主名 <span className={C.textRequired}>*</span>
+        </Label>
+        <Input
+          id="ownerName"
+          value={ownerData.ownerName}
+          aria-invalid={!!fieldErrors.ownerName}
+          aria-describedby={fieldErrors.ownerName ? "ownerName-error" : undefined}
+          onChange={(e) => { onChange("ownerName", e.target.value); onClearError("ownerName"); }}
+          className={`${INPUT_CLS} ${fieldErrors.ownerName ? STYLE.formInputError : ""}`}
+        />
+        <FormFieldError id="ownerName-error" message={fieldErrors.ownerName} />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="address1" className={`text-sm ${C.text60}`}>住所1（会社）</Label>
+        <Input id="address1" value={ownerData.address1} onChange={(e) => onChange("address1", e.target.value)} className={INPUT_CLS} />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="homePostalCode" className={`text-sm ${C.text60}`}>郵便番号(自宅)</Label>
+        <Input
+          id="homePostalCode"
+          placeholder="123-4567"
+          value={ownerData.homePostalCode || ""}
+          onChange={(e) => onChange("homePostalCode", e.target.value)}
+          className={INPUT_CLS}
+        />
+      </div>
+      <div className="space-y-1.5 col-span-2 lg:col-span-1 lg:row-span-3">
+        <Label className={`text-sm ${C.text60}`}>危険人物</Label>
+        <div className="flex items-center space-x-2 mb-2 h-10">
+          <Switch
+            id="dangerous"
+            checked={ownerData.isDangerous}
+            onCheckedChange={(checked) => onChange("isDangerous", checked)}
+            className="origin-left mr-2"
+          />
+          <label htmlFor="dangerous" className={`text-sm cursor-pointer ${C.text}`}>該当する</label>
+        </div>
+        <Label htmlFor="remarks" className={`text-sm ${C.text60}`}>備考・特記事項</Label>
+        <Textarea
+          id="remarks"
+          rows={6}
+          value={ownerData.remarks}
+          onChange={(e) => onChange("remarks", e.target.value)}
+          className={`text-sm ${C.text} min-h-[140px] resize-none ${C.borderMedium} p-3`}
+        />
+      </div>
+
+      {/* Row 3 */}
+      <div className="space-y-1.5">
+        <Label htmlFor="ownerNameKana" className={`text-sm ${C.text60}`}>
+          飼主名(カナ) <span className={C.textRequired}>*</span>
+        </Label>
+        <Input
+          id="ownerNameKana"
+          placeholder="ハヤシ フミアキ"
+          value={ownerData.ownerNameKana}
+          aria-invalid={!!fieldErrors.ownerNameKana}
+          aria-describedby={fieldErrors.ownerNameKana ? "ownerNameKana-error" : undefined}
+          onChange={(e) => { onChange("ownerNameKana", e.target.value); onClearError("ownerNameKana"); }}
+          className={`${INPUT_CLS} ${fieldErrors.ownerNameKana ? STYLE.formInputError : ""}`}
+        />
+        <FormFieldError id="ownerNameKana-error" message={fieldErrors.ownerNameKana} />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="address2" className={`text-sm ${C.text60}`}>住所2（会社）</Label>
+        <Input id="address2" value={ownerData.address2} onChange={(e) => onChange("address2", e.target.value)} className={INPUT_CLS} />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="homeAddress1" className={`text-sm ${C.text60}`}>住所1(自宅)</Label>
+        <Input id="homeAddress1" value={ownerData.homeAddress1} onChange={(e) => onChange("homeAddress1", e.target.value)} className={INPUT_CLS} />
+      </div>
+
+      {/* Row 4 */}
+      <div className="space-y-1.5">
+        <Label htmlFor="birthDate" className={`text-sm ${C.text60}`}>飼主生年月日</Label>
+        <NotionDatePicker id="birthDate" value={ownerData.birthDate} onChange={(val) => onChange("birthDate", val)} placeholder="生年月日を選択…" />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="email" className={`text-sm ${C.text60}`}>メールアドレス</Label>
+        <Input id="email" type="email" value={ownerData.email} onChange={(e) => onChange("email", e.target.value)} className={INPUT_CLS} />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="homeAddress2" className={`text-sm ${C.text60}`}>住所2(自宅)</Label>
+        <Input id="homeAddress2" value={ownerData.homeAddress2} onChange={(e) => onChange("homeAddress2", e.target.value)} className={INPUT_CLS} />
+      </div>
+
+      {/* Row 5 */}
+      <div className="space-y-1.5">
+        <Label htmlFor="phone" className={`text-sm ${C.text60}`}>
+          電話番号 <span className={C.textRequired}>*</span>
+        </Label>
+        <Input
+          id="phone"
+          placeholder="090-1234-5678"
+          value={ownerData.phone}
+          aria-invalid={!!fieldErrors.phone}
+          aria-describedby={fieldErrors.phone ? "phone-error" : undefined}
+          onChange={(e) => { onChange("phone", e.target.value); onClearError("phone"); }}
+          className={`${INPUT_CLS} ${fieldErrors.phone ? STYLE.formInputError : ""}`}
+        />
+        <FormFieldError id="phone-error" message={fieldErrors.phone} />
+      </div>
+      <div className="space-y-1.5 col-span-1 lg:col-span-2">
+        <Label htmlFor="companyPhone" className={`text-sm ${C.text60}`}>会社 電話番号</Label>
+        <Input id="companyPhone" value={ownerData.companyPhone} onChange={(e) => onChange("companyPhone", e.target.value)} className={INPUT_CLS} />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="discountRate" className={`text-sm ${C.text60}`}>値引率 (%)</Label>
+        <Input
+          id="discountRate"
+          type="number"
+          min="0"
+          max="100"
+          value={ownerData.discountRate || ""}
+          onChange={(e) => onChange("discountRate", Number(e.target.value))}
+          className={INPUT_CLS}
+        />
+      </div>
+    </div>
+  );
+});
+
 export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}) {
   const navigate = useNavigate();
   const { id: ownerId } = useParams();
@@ -272,254 +474,20 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
       <NavigationBlocker when={isDirty} />
 
       {/* Owner Information Form */}
+      {/* rerender-memo: OwnerInfoSection はペット操作・モーダル開閉では再レンダーしない */}
       <div className={`mb-4 rounded-lg bg-white p-4 border ${C.borderMedium}`}>
         <h2 className={`mb-3 text-sm font-bold ${C.text} flex items-center gap-2`}>
           <User className={`h-4 w-4 ${C.text60}`} />
           飼主情報
         </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Row 1 */}
-          <div className="space-y-1.5">
-            <Label htmlFor="ownerId" className={`text-sm ${C.text60}`}>
-              飼主No
-            </Label>
-            <Input
-              id="ownerId"
-              type="text"
-              value={ownerData.ownerId}
-              onChange={(e) => handleInputChange("ownerId", e.target.value)}
-              disabled={isEdit}
-              className={`${INPUT_CLS} disabled:opacity-50`}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="postalCode" className={`text-sm ${C.text60}`}>
-              郵便番号
-            </Label>
-            <Input
-              id="postalCode"
-              placeholder="123-4567"
-              value={ownerData.postalCode}
-              onChange={(e) => handleInputChange("postalCode", e.target.value)}
-              className={INPUT_CLS}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="company" className={`text-sm ${C.text60}`}>
-              会社名
-            </Label>
-            <Input
-              id="company"
-              value={ownerData.company}
-              onChange={(e) => handleInputChange("company", e.target.value)}
-              className={INPUT_CLS}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className={`text-sm ${C.text60}`}>会員区分</Label>
-            {/* rerender-memo: MembershipTypeButtons は ownerData の他フィールド変更では再レンダーしない */}
-            <MembershipTypeButtons
-              value={ownerData.membershipType}
-              onChange={handleMembershipChange}
-            />
-          </div>
-
-          {/* Row 2 */}
-          <div className="space-y-1.5">
-            <Label htmlFor="ownerName" className={`text-sm ${C.text60}`}>
-              飼主名 <span className={C.textRequired}>*</span>
-            </Label>
-            <Input
-              id="ownerName"
-              value={ownerData.ownerName}
-              aria-invalid={!!fieldErrors.ownerName}
-              aria-describedby={fieldErrors.ownerName ? "ownerName-error" : undefined}
-              onChange={(e) => {
-                handleInputChange("ownerName", e.target.value);
-                clearFieldError("ownerName");
-              }}
-              className={`${INPUT_CLS} ${fieldErrors.ownerName ? STYLE.formInputError : ""}`}
-            />
-            <FormFieldError id="ownerName-error" message={fieldErrors.ownerName} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="address1" className={`text-sm ${C.text60}`}>
-              住所1（会社）
-            </Label>
-            <Input
-              id="address1"
-              value={ownerData.address1}
-              onChange={(e) => handleInputChange("address1", e.target.value)}
-              className={INPUT_CLS}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="homePostalCode" className={`text-sm ${C.text60}`}>
-              郵便番号(自宅)
-            </Label>
-            <Input
-              id="homePostalCode"
-              placeholder="123-4567"
-              value={ownerData.homePostalCode || ""}
-              onChange={(e) => handleInputChange("homePostalCode", e.target.value)}
-              className={INPUT_CLS}
-            />
-          </div>
-          <div className="space-y-1.5 col-span-2 lg:col-span-1 lg:row-span-3">
-            <Label className={`text-sm ${C.text60}`}>危険人物</Label>
-            <div className="flex items-center space-x-2 mb-2 h-10">
-              <Switch
-                id="dangerous"
-                checked={ownerData.isDangerous}
-                onCheckedChange={(checked) => {
-                  handleInputChange("isDangerous", checked);
-                }}
-                className="origin-left mr-2"
-              />
-              <label
-                htmlFor="dangerous"
-                className={`text-sm cursor-pointer ${C.text}`}
-              >
-                該当する
-              </label>
-            </div>
-            <Label htmlFor="remarks" className={`text-sm ${C.text60}`}>
-              備考・特記事項
-            </Label>
-            <Textarea
-              id="remarks"
-              rows={6}
-              value={ownerData.remarks}
-              onChange={(e) => handleInputChange("remarks", e.target.value)}
-              className={`text-sm ${C.text} min-h-[140px] resize-none ${C.borderMedium} p-3`}
-            />
-          </div>
-
-          {/* Row 3 */}
-          <div className="space-y-1.5">
-            <Label htmlFor="ownerNameKana" className={`text-sm ${C.text60}`}>
-              飼主名(カナ) <span className={C.textRequired}>*</span>
-            </Label>
-            <Input
-              id="ownerNameKana"
-              placeholder="ハヤシ フミアキ"
-              value={ownerData.ownerNameKana}
-              aria-invalid={!!fieldErrors.ownerNameKana}
-              aria-describedby={fieldErrors.ownerNameKana ? "ownerNameKana-error" : undefined}
-              onChange={(e) => {
-                handleInputChange("ownerNameKana", e.target.value);
-                clearFieldError("ownerNameKana");
-              }}
-              className={`${INPUT_CLS} ${fieldErrors.ownerNameKana ? STYLE.formInputError : ""}`}
-            />
-            <FormFieldError id="ownerNameKana-error" message={fieldErrors.ownerNameKana} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="address2" className={`text-sm ${C.text60}`}>
-              住所2（会社）
-            </Label>
-            <Input
-              id="address2"
-              value={ownerData.address2}
-              onChange={(e) => handleInputChange("address2", e.target.value)}
-              className={INPUT_CLS}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="homeAddress1" className={`text-sm ${C.text60}`}>
-              住所1(自宅)
-            </Label>
-            <Input
-              id="homeAddress1"
-              value={ownerData.homeAddress1}
-              onChange={(e) => handleInputChange("homeAddress1", e.target.value)}
-              className={INPUT_CLS}
-            />
-          </div>
-
-          {/* Row 4 */}
-          <div className="space-y-1.5">
-            <Label htmlFor="birthDate" className={`text-sm ${C.text60}`}>
-              飼主生年月日
-            </Label>
-            <NotionDatePicker
-              id="birthDate"
-              value={ownerData.birthDate}
-              onChange={(val) => handleInputChange("birthDate", val)}
-              placeholder="生年月日を選択…"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="email" className={`text-sm ${C.text60}`}>
-              メールアドレス
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              value={ownerData.email}
-              onChange={(e) => handleInputChange("email", e.target.value)}
-              className={INPUT_CLS}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="homeAddress2" className={`text-sm ${C.text60}`}>
-              住所2(自宅)
-            </Label>
-            <Input
-              id="homeAddress2"
-              value={ownerData.homeAddress2}
-              onChange={(e) => handleInputChange("homeAddress2", e.target.value)}
-              className={INPUT_CLS}
-            />
-          </div>
-
-          {/* Row 5 */}
-          <div className="space-y-1.5">
-            <Label htmlFor="phone" className={`text-sm ${C.text60}`}>
-              電話番号 <span className={C.textRequired}>*</span>
-            </Label>
-            <Input
-              id="phone"
-              placeholder="090-1234-5678"
-              value={ownerData.phone}
-              aria-invalid={!!fieldErrors.phone}
-              aria-describedby={fieldErrors.phone ? "phone-error" : undefined}
-              onChange={(e) => {
-                handleInputChange("phone", e.target.value);
-                clearFieldError("phone");
-              }}
-              className={`${INPUT_CLS} ${fieldErrors.phone ? STYLE.formInputError : ""}`}
-            />
-            <FormFieldError id="phone-error" message={fieldErrors.phone} />
-          </div>
-          <div className="space-y-1.5 col-span-1 lg:col-span-2">
-            <Label htmlFor="companyPhone" className={`text-sm ${C.text60}`}>
-              会社 電話番号
-            </Label>
-            <Input
-              id="companyPhone"
-              value={ownerData.companyPhone}
-              onChange={(e) => handleInputChange("companyPhone", e.target.value)}
-              className={INPUT_CLS}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="discountRate" className={`text-sm ${C.text60}`}>
-              値引率 (%)
-            </Label>
-            <Input
-              id="discountRate"
-              type="number"
-              min="0"
-              max="100"
-              value={ownerData.discountRate || ""}
-              onChange={(e) =>
-                handleInputChange("discountRate", Number(e.target.value))
-              }
-              className={INPUT_CLS}
-            />
-          </div>
-        </div>
+        <OwnerInfoSection
+          ownerData={ownerData}
+          fieldErrors={fieldErrors}
+          isEdit={isEdit}
+          onChange={handleInputChange}
+          onClearError={clearFieldError}
+          onMembershipChange={handleMembershipChange}
+        />
       </div>
 
       {/* Pet Information */}
@@ -541,23 +509,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
 
         <div className={`rounded-lg bg-white overflow-hidden border ${C.borderMedium}`}>
           <Table>
-            <TableHeader>
-              <TableRow
-                className={`hover:bg-transparent ${C.bgPage} border-b ${C.borderMedium} h-12`}
-              >
-                <TableHead className={STYLE.tableCellMuted}>ペット番号</TableHead>
-                <TableHead className={STYLE.tableCellMuted}>ペット名</TableHead>
-                <TableHead className={STYLE.tableCellMuted}>生死</TableHead>
-                <TableHead className={STYLE.tableCellMuted}>種別</TableHead>
-                <TableHead className={STYLE.tableCellMuted}>性別</TableHead>
-                <TableHead className={STYLE.tableCellMuted}>生年月日</TableHead>
-                <TableHead className={STYLE.tableCellMuted}>毛色</TableHead>
-                <TableHead className={STYLE.tableCellMuted}>体重</TableHead>
-                <TableHead className={STYLE.tableCellMuted}>環境</TableHead>
-                <TableHead className={STYLE.tableCellMuted}>備考</TableHead>
-                <TableHead className={STYLE.tableCellMuted}>操作</TableHead>
-              </TableRow>
-            </TableHeader>
+            {PET_TABLE_HEADER}
             <TableBody>
               {pets.length === 0 ? (
                 <TableRow>
