@@ -1,6 +1,4 @@
-import { useState } from "react";
 import { useGetPets, useGetPet } from "@/features/pets/api";
-import type { Pet } from "@/types";
 
 export { useGetPet };
 
@@ -16,27 +14,6 @@ export function usePetSearch(ownerId?: string) {
     isLoading,
     error,
     isPending,
-  };
-}
-
-/**
- * Hook for managing a single selected pet in UI state.
- */
-export function usePetSelection() {
-  const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
-
-  const selectPet = (pet: Pet) => {
-    setSelectedPet(pet);
-  };
-
-  const clearSelection = () => {
-    setSelectedPet(null);
-  };
-
-  return {
-    selectedPet,
-    selectPet,
-    clearSelection,
   };
 }
 
