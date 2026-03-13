@@ -1,0 +1,406 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+)
+
+// mockInventoryRepository は InventoryRepository のテスト用モック実装
+type mockInventoryRepository struct {
+	findAllFn  func(ctx context.Context, clinicID uint64, category *string, status *string, page, limit int) ([]model.InventoryItem, int64, error)
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
+	createFn   func(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
+	updateFn   func(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
+	deleteFn   func(ctx context.Context, clinicID, id uint64) error
+}
+
+func (m *mockInventoryRepository) FindAll(ctx context.Context, clinicID uint64, category *string, status *string, page, limit int) ([]model.InventoryItem, int64, error) {
+	return m.findAllFn(ctx, clinicID, category, status, page, limit)
+}
+
+func (m *mockInventoryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error) {
+	return m.findByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockInventoryRepository) Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {
+	return m.createFn(ctx, clinicID, item)
+}
+
+func (m *mockInventoryRepository) Update(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {
+	return m.updateFn(ctx, clinicID, item)
+}
+
+func (m *mockInventoryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
+}
+
+func TestInventoryService_List(t *testing.T) {
+	category := string(model.InventoryCategoryMedicine)
+	status := string(model.InventoryStatusLow)
+
+	tests := []struct {
+		name      string
+		clinicID  uint64
+		category  *string
+		status    *string
+		page      int
+		limit     int
+		repoItems []model.InventoryItem
+		repoTotal int64
+		repoErr   error
+		wantLen   int
+		wantTotal int64
+		wantErr   bool
+	}{
+		{
+			name:     "returns inventory list with total count",
+			clinicID: 1,
+			page:     1,
+			limit:    20,
+			repoItems: []model.InventoryItem{
+				{ID: 1, ClinicID: 1, Name: "点滴セット", Category: model.InventoryCategoryMedicine, Quantity: 50, Status: model.InventoryStatusSufficient},
+				{ID: 2, ClinicID: 1, Name: "消毒液", Category: model.InventoryCategoryConsumable, Quantity: 5, Status: model.InventoryStatusLow},
+			},
+			repoTotal: 2,
+			wantLen:   2,
+			wantTotal: 2,
+			wantErr:   false,
+		},
+		{
+			name:      "returns empty list when no items exist",
+			clinicID:  1,
+			page:      1,
+			limit:     20,
+			repoItems: []model.InventoryItem{},
+			repoTotal: 0,
+			wantLen:   0,
+			wantTotal: 0,
+			wantErr:   false,
+		},
+		{
+			name:     "filters by category",
+			clinicID: 1,
+			category: &category,
+			page:     1,
+			limit:    20,
+			repoItems: []model.InventoryItem{
+				{ID: 1, ClinicID: 1, Name: "点滴セット", Category: model.InventoryCategoryMedicine},
+			},
+			repoTotal: 1,
+			wantLen:   1,
+			wantTotal: 1,
+			wantErr:   false,
+		},
+		{
+			name:     "filters by status",
+			clinicID: 1,
+			status:   &status,
+			page:     1,
+			limit:    20,
+			repoItems: []model.InventoryItem{
+				{ID: 2, ClinicID: 1, Name: "消毒液", Status: model.InventoryStatusLow},
+			},
+			repoTotal: 1,
+			wantLen:   1,
+			wantTotal: 1,
+			wantErr:   false,
+		},
+		{
+			name:      "propagates repository error",
+			clinicID:  1,
+			page:      1,
+			limit:     20,
+			repoItems: nil,
+			repoTotal: 0,
+			repoErr:   errors.New("db connection error"),
+			wantLen:   0,
+			wantTotal: 0,
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockInventoryRepository{
+				findAllFn: func(_ context.Context, _ uint64, _ *string, _ *string, _, _ int) ([]model.InventoryItem, int64, error) {
+					return tt.repoItems, tt.repoTotal, tt.repoErr
+				},
+			}
+			svc := NewInventoryService(repo)
+
+			items, total, err := svc.List(context.Background(), tt.clinicID, tt.category, tt.status, tt.page, tt.limit)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Len(t, items, tt.wantLen)
+				assert.Equal(t, tt.wantTotal, total)
+			}
+		})
+	}
+}
+
+func TestInventoryService_GetByID(t *testing.T) {
+	tests := []struct {
+		name     string
+		clinicID uint64
+		id       uint64
+		repoItem *model.InventoryItem
+		repoErr  error
+		wantErr  bool
+		wantNF   bool
+	}{
+		{
+			name:     "returns inventory item when found",
+			clinicID: 1,
+			id:       10,
+			repoItem: &model.InventoryItem{
+				ID:       10,
+				ClinicID: 1,
+				Name:     "点滴セット",
+				Category: model.InventoryCategoryMedicine,
+				Quantity: 100,
+				Status:   model.InventoryStatusSufficient,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name:     "returns not found error when item does not exist",
+			clinicID: 1,
+			id:       999,
+			repoItem: nil,
+			repoErr:  apperrors.WrapNotFound("inventory_item", "999"),
+			wantErr:  true,
+			wantNF:   true,
+		},
+		{
+			name:     "returns error on repository failure",
+			clinicID: 1,
+			id:       10,
+			repoItem: nil,
+			repoErr:  errors.New("db error"),
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockInventoryRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.InventoryItem, error) {
+					return tt.repoItem, tt.repoErr
+				},
+			}
+			svc := NewInventoryService(repo)
+
+			item, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.wantNF {
+					assert.True(t, apperrors.IsNotFound(err))
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.repoItem, item)
+			}
+		})
+	}
+}
+
+func TestInventoryService_Create(t *testing.T) {
+	tests := []struct {
+		name     string
+		clinicID uint64
+		item     *model.InventoryItem
+		repoErr  error
+		wantErr  bool
+	}{
+		{
+			name:     "creates inventory item successfully",
+			clinicID: 1,
+			item: &model.InventoryItem{
+				Name:          "新規薬剤",
+				Category:      model.InventoryCategoryMedicine,
+				Quantity:      100,
+				Unit:          "本",
+				MinStockLevel: 10,
+				Status:        model.InventoryStatusSufficient,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name:     "returns error when item already exists",
+			clinicID: 1,
+			item: &model.InventoryItem{
+				Name:     "既存薬剤",
+				Category: model.InventoryCategoryMedicine,
+			},
+			repoErr: apperrors.WrapAlreadyExists("inventory_item", "既存薬剤"),
+			wantErr: true,
+		},
+		{
+			name:     "returns error on repository failure",
+			clinicID: 1,
+			item: &model.InventoryItem{
+				Name:     "エラー薬剤",
+				Category: model.InventoryCategoryOther,
+			},
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockInventoryRepository{
+				createFn: func(_ context.Context, _ uint64, _ *model.InventoryItem) error {
+					return tt.repoErr
+				},
+			}
+			svc := NewInventoryService(repo)
+
+			err := svc.Create(context.Background(), tt.clinicID, tt.item)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestInventoryService_Update(t *testing.T) {
+	tests := []struct {
+		name     string
+		clinicID uint64
+		item     *model.InventoryItem
+		repoErr  error
+		wantErr  bool
+		wantNF   bool
+	}{
+		{
+			name:     "updates inventory item successfully",
+			clinicID: 1,
+			item: &model.InventoryItem{
+				ID:       1,
+				ClinicID: 1,
+				Name:     "更新後薬剤",
+				Category: model.InventoryCategoryMedicine,
+				Quantity: 200,
+				Status:   model.InventoryStatusSufficient,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name:     "returns not found error when item does not exist",
+			clinicID: 1,
+			item: &model.InventoryItem{
+				ID:       999,
+				ClinicID: 1,
+				Name:     "存在しない薬剤",
+			},
+			repoErr: apperrors.WrapNotFound("inventory_item", "999"),
+			wantErr: true,
+			wantNF:  true,
+		},
+		{
+			name:     "returns error on repository failure",
+			clinicID: 1,
+			item: &model.InventoryItem{
+				ID:       1,
+				ClinicID: 1,
+			},
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockInventoryRepository{
+				updateFn: func(_ context.Context, _ uint64, _ *model.InventoryItem) error {
+					return tt.repoErr
+				},
+			}
+			svc := NewInventoryService(repo)
+
+			err := svc.Update(context.Background(), tt.clinicID, tt.item)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.wantNF {
+					assert.True(t, apperrors.IsNotFound(err))
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestInventoryService_Delete(t *testing.T) {
+	tests := []struct {
+		name     string
+		clinicID uint64
+		id       uint64
+		repoErr  error
+		wantErr  bool
+		wantNF   bool
+	}{
+		{
+			name:     "deletes inventory item successfully",
+			clinicID: 1,
+			id:       10,
+			repoErr:  nil,
+			wantErr:  false,
+		},
+		{
+			name:     "returns not found error when item does not exist",
+			clinicID: 1,
+			id:       999,
+			repoErr:  apperrors.WrapNotFound("inventory_item", "999"),
+			wantErr:  true,
+			wantNF:   true,
+		},
+		{
+			name:     "returns error on repository failure",
+			clinicID: 1,
+			id:       10,
+			repoErr:  errors.New("db error"),
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockInventoryRepository{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return tt.repoErr
+				},
+			}
+			svc := NewInventoryService(repo)
+
+			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.wantNF {
+					assert.True(t, apperrors.IsNotFound(err))
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

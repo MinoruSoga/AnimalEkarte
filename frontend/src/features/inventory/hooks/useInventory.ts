@@ -24,7 +24,7 @@ function transformInventoryItem(data: BackendInventoryItem): InventoryItem {
     expiryDate: data.expiry_date ?? undefined,
     supplier: data.supplier,
     lastRestocked: data.last_restocked ?? undefined,
-    status: data.status ?? "sufficient",
+    status: (data.status ?? "sufficient") as InventoryItem["status"],
   };
 }
 

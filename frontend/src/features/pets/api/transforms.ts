@@ -6,6 +6,18 @@ const PET_STATUS_MAP: Record<string, "生存" | "死亡"> = {
   deceased: "死亡",
 };
 
+const PET_GENDER_MAP: Record<string, string> = {
+  male: "雄",
+  female: "雌",
+  unknown: "不明",
+};
+
+const PET_GENDER_REVERSE_MAP: Record<string, string> = {
+  "雄": "male",
+  "雌": "female",
+  "不明": "unknown",
+};
+
 /**
  * Transform backend pet response to frontend Pet type
  */
@@ -19,7 +31,7 @@ export const transformBackendPetToFrontend = (p: BackendPet): Pet => ({
   species: p.animal_species?.name ?? "",
   animalSpeciesId: p.animal_species_id != null ? String(p.animal_species_id) : undefined,
   breed: p.breed,
-  gender: p.gender,
+  gender: p.gender ? (PET_GENDER_MAP[p.gender] ?? p.gender) : undefined,
   status: p.status ? PET_STATUS_MAP[p.status] : undefined,
   birthDate: p.birth_date ?? undefined,
   weight: p.weight?.toString(),
@@ -57,7 +69,7 @@ export const transformCreatePetRequest = (data: {
   animal_species_id: data.animalSpeciesId,
   pet_number: data.petNumber,
   breed: data.breed,
-  gender: data.gender,
+  gender: data.gender ? (PET_GENDER_REVERSE_MAP[data.gender] ?? data.gender) : undefined,
   birth_date: data.birthDate,
   weight: data.weight ? parseFloat(data.weight) : undefined,
   microchip_id: data.microchipId,
@@ -90,7 +102,7 @@ export const transformUpdatePetRequest = (data: {
   animal_species_id: data.animalSpeciesId,
   pet_number: data.petNumber,
   breed: data.breed,
-  gender: data.gender,
+  gender: data.gender ? (PET_GENDER_REVERSE_MAP[data.gender] ?? data.gender) : undefined,
   birth_date: data.birthDate,
   weight: data.weight ? parseFloat(data.weight) : undefined,
   microchip_id: data.microchipId,

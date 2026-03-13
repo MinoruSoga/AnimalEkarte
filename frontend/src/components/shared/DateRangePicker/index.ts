@@ -1,2 +1,2 @@
-// DateRangePicker component placeholder
-// TODO: Add DateRangePicker component
+export { DateRangePicker } from "./DateRangePicker";
+export type { DateRangePickerProps } from "./DateRangePicker";

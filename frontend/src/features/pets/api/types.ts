@@ -1,11 +1,10 @@
 /**
  * Backend API response types
- * Generated from backend/docs/api.yaml via openapi-typescript
- * DO NOT EDIT BackendPet manually — run `make codegen` to regenerate
+ * Source: frontend/src/types/generated/models.ts (tygo generated)
  */
-import type { components } from "@/types/generated/api";
+import type { Pet } from "@/types/generated/models";
 
-export type BackendPet = components["schemas"]["Pet"];
+export type BackendPet = Pet;
 
 export interface CreatePetRequest {
   owner_id: string;

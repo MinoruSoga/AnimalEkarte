@@ -1,2 +1,2 @@
-// Inventory components placeholder
-// TODO: Add InventoryCard, StockAlert components as needed
+export { InventoryCard, StockAlert } from "./InventoryCard";
+export type { InventoryCardProps } from "./InventoryCard";

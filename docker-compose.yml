@@ -52,15 +52,15 @@ services:
       - backend
 
   codegen:
-    image: node:22-alpine
-    working_dir: /work
+    image: golang:1.25-alpine
+    working_dir: /app
     volumes:
-      - ./backend/docs:/work/spec:ro
-      - ./frontend/src/types/generated:/work/output
-    # api.yaml (OpenAPI 3.0) → TypeScript types
-    # api.yaml が single source of truth
+      - ./backend:/app
+      - ./frontend/src/types/generated:/output
+    # Go model → TypeScript types via tygo
+    # backend/internal/model/*.go が single source of truth
     command: >
-      sh -c "npx --yes openapi-typescript@^7 /work/spec/api.yaml -o /work/output/api.ts"
+      sh -c "go run github.com/gzuidhof/tygo@latest generate"
     profiles:
       - tools
 

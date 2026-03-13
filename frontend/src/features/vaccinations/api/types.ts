@@ -1,11 +1,10 @@
 /**
  * Backend API response types
- * Generated from backend/docs/api.yaml via openapi-typescript
- * DO NOT EDIT manually — run `make codegen` to regenerate
+ * Source: frontend/src/types/generated/models.ts (tygo generated)
  */
-import type { components } from "@/types/generated/api";
+import type { Vaccination } from "@/types/generated/models";
 
-export type BackendVaccination = components["schemas"]["Vaccination"];
+export type BackendVaccination = Vaccination;
 
 export interface CreateVaccinationRequest {
   medical_record_id: string;

@@ -77,13 +77,10 @@ test:
 test-cover:
 	docker compose exec backend go test -cover ./...
 
-# 型定義生成（api.yaml → Go型 + TypeScript型）
-# api.yaml (OpenAPI 3.0) が single source of truth
-# docker compose exec backend のワーキングディレクトリは /app（= backend/）
+# 型定義生成（Go model → TypeScript型）
+# backend/internal/model/*.go が single source of truth
 codegen:
 	mkdir -p frontend/src/types/generated
-	docker compose exec backend go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen \
-		--config oapi-codegen.yaml docs/api.yaml
 	docker compose run --rm codegen
 
 # 型定義の差分チェック（CI用）
@@ -128,7 +125,7 @@ help:
 	@echo "  lint-fix      Goリンター実行（自動修正）"
 	@echo "  test          Goテスト実行"
 	@echo "  test-cover    Goテスト実行（カバレッジ付き）"
-	@echo "  codegen       型定義生成（api.yaml → Go型 + TypeScript型）"
+	@echo "  codegen       型定義生成（Go model → TypeScript型）"
 	@echo "  codegen-check 型定義の差分チェック（CI用）"
 	@echo "  build-go      Goビルド（開発用）"
 	@echo "  mod-download  Goモジュールダウンロード"

@@ -10,6 +10,12 @@ const PET_STATUS_MAP: Record<string, "生存" | "死亡"> = {
   deceased: "死亡",
 };
 
+const PET_GENDER_MAP: Record<string, string> = {
+  male: "雄",
+  female: "雌",
+  unknown: "不明",
+};
+
 export const transformPet = (pet: BackendPet): Pet => ({
   id: String(pet.id ?? 0),
   ownerId: String(pet.owner_id ?? 0),
@@ -20,7 +26,7 @@ export const transformPet = (pet: BackendPet): Pet => ({
   species: pet.animal_species?.name ?? "",
   animalSpeciesId: pet.animal_species_id != null ? String(pet.animal_species_id) : undefined,
   breed: pet.breed,
-  gender: pet.gender,
+  gender: pet.gender ? (PET_GENDER_MAP[pet.gender] ?? pet.gender) : undefined,
   status: pet.status ? PET_STATUS_MAP[pet.status] : undefined,
   birthDate: pet.birth_date ?? undefined,
   weight: pet.weight?.toString(),

@@ -412,16 +412,19 @@ export function PetEditModal({
                 保険
               </Label>
               <Select
-                value={formData.insuranceId || ""}
+                value={formData.insuranceId || "none"}
                 onValueChange={(value) => {
-                  const selected = insuranceList.find((ins) => String(ins.id) === value);
+                  const actualValue = value === "none" ? "" : value;
+                  const selected = insuranceList.find((ins) => String(ins.id) === actualValue);
                   setFormData(prev => ({
                     ...prev,
-                    insuranceId: value,
+                    insuranceId: actualValue,
                     insuranceName: selected?.name as PetFormData["insuranceName"],
-                    insuranceDetails: selected?.coverage_rate != null
-                      ? `${selected.coverage_rate}%補償`
-                      : prev.insuranceDetails,
+                    insuranceDetails: actualValue === ""
+                      ? undefined
+                      : selected?.coverage_rate != null
+                        ? `${selected.coverage_rate}%補償`
+                        : prev.insuranceDetails,
                   }));
                 }}
                 disabled={isLoadingInsurances}
@@ -430,7 +433,7 @@ export function PetEditModal({
                   <SelectValue placeholder={isLoadingInsurances ? "読み込み中..." : "保険を選択"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">なし</SelectItem>
+                  <SelectItem value="none">なし</SelectItem>
                   {insuranceList.map((ins) => (
                     <SelectItem key={ins.id} value={String(ins.id)}>
                       {ins.name}

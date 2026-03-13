@@ -23,7 +23,7 @@ export function transformExamination(
     petName: data.pet?.name ?? "",
     testType: data.exam_type?.name ?? "",
     doctor: data.doctor?.name ?? String(data.doctor_id ?? ""),
-    status: data.status ?? "依頼中",
+    status: (data.status ?? "依頼中") as "依頼中" | "検査中" | "完了",
     resultSummary: data.result_summary ?? undefined,
     machine: data.machine ?? undefined,
     items: data.items?.map(transformExaminationItem),

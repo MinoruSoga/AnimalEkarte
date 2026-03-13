@@ -1,12 +1,11 @@
 /**
  * Backend API response types
- * Generated from backend/docs/api.yaml via openapi-typescript
- * DO NOT EDIT manually — run `make codegen` to regenerate
+ * Source: frontend/src/types/generated/models.ts (tygo generated)
  */
-import type { components } from "@/types/generated/api";
+import type { Exam, ExamItem } from "@/types/generated/models";
 
-export type BackendExaminationItem = components["schemas"]["ExaminationItem"];
-export type BackendExamination = components["schemas"]["Examination"];
+export type BackendExaminationItem = ExamItem;
+export type BackendExamination = Exam;
 
 export interface CreateExaminationRequest {
   medical_record_id: string;

@@ -1,11 +1,10 @@
 /**
  * Backend API response types
- * Generated from backend/docs/api.yaml via openapi-typescript
- * DO NOT EDIT manually — run `make codegen` to regenerate
+ * Source: frontend/src/types/generated/models.ts (tygo generated)
  */
-import type { components } from "@/types/generated/api";
+import type { InventoryItem } from "@/types/generated/models";
 
-export type BackendInventoryItem = components["schemas"]["InventoryItem"];
+export type BackendInventoryItem = InventoryItem;
 
 export interface CreateInventoryItemRequest {
   name: string;

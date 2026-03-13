@@ -217,7 +217,7 @@ export function OwnerForm() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="address1" className={`text-sm ${C.text60}`}>
-              住所1
+              住所1（会社）
             </Label>
             <Input
               id="address1"
@@ -289,7 +289,7 @@ export function OwnerForm() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="address2" className={`text-sm ${C.text60}`}>
-              住所2
+              住所2（会社）
             </Label>
             <Input
               id="address2"
@@ -383,6 +383,8 @@ export function OwnerForm() {
             <Input
               id="discountRate"
               type="number"
+              min="0"
+              max="100"
               value={ownerData.discountRate || ""}
               onChange={(e) =>
                 handleInputChange("discountRate", Number(e.target.value))
@@ -450,9 +452,13 @@ export function OwnerForm() {
                     <TableCell className={STYLE.tableCell}>{pet.status}</TableCell>
                     <TableCell className={STYLE.tableCell}>{pet.species}</TableCell>
                     <TableCell className={STYLE.tableCell}>{pet.gender}</TableCell>
-                    <TableCell className={STYLE.tableCell}>{pet.birthDate}</TableCell>
+                    <TableCell className={STYLE.tableCell}>
+                      {pet.birthDate ? pet.birthDate.slice(0, 10) : ""}
+                    </TableCell>
                     <TableCell className={STYLE.tableCell}>{pet.color}</TableCell>
-                    <TableCell className={STYLE.tableCell}>{pet.weight}</TableCell>
+                    <TableCell className={STYLE.tableCell}>
+                      {pet.weight ? `${pet.weight} kg` : ""}
+                    </TableCell>
                     <TableCell className={STYLE.tableCell}>{pet.environment}</TableCell>
                     <TableCell className={`${STYLE.tableCell} truncate max-w-[200px]`}>
                       {pet.remarks}
@@ -566,7 +572,7 @@ export function OwnerForm() {
           key={editingPet?.id ?? (petModalOpen ? "new-open" : "new-closed")}
           open={petModalOpen}
           onOpenChange={setPetModalOpen}
-        ownerName={ownerData.ownerName || "飼主名"}
+        ownerName={ownerData.ownerName || "新規飼主"}
         petData={editingPet ?? undefined}
         onSave={handleSavePet}
         />

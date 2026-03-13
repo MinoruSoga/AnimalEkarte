@@ -1,12 +1,11 @@
 /**
  * Backend API response types
- * Generated from backend/docs/api.yaml via openapi-typescript
- * DO NOT EDIT BackendClinic/BackendStaff manually — run `make codegen` to regenerate
+ * Source: frontend/src/types/generated/models.ts (tygo generated)
  */
-import type { components } from "@/types/generated/api";
+import type { Clinic, Staff } from "@/types/generated/models";
 
-export type BackendClinic = components["schemas"]["Clinic"];
-export type BackendStaff = components["schemas"]["Staff"];
+export type BackendClinic = Clinic;
+export type BackendStaff = Staff;
 
 export interface UpdateClinicRequest {
   name?: string;
@@ -21,7 +20,16 @@ export interface UpdateClinicRequest {
   logo_url?: string;
 }
 
-export type CreateStaffRequest = components["schemas"]["StaffRegistrationRequest"];
+export interface CreateStaffRequest {
+  name: string;
+  staff_role: "veterinarian" | "nurse" | "trimmer" | "reception" | "manager";
+  email: string;
+  password: string;
+  staff_code?: string;
+  license_number?: string;
+  job_title_id?: string | null;
+  sort_order: number;
+}
 
 export interface UpdateStaffRequest {
   code?: string;

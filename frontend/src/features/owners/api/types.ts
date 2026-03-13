@@ -1,11 +1,10 @@
 /**
  * Backend API response types
- * Generated from backend/docs/api.yaml via openapi-typescript
- * DO NOT EDIT manually — run `make codegen` to regenerate
+ * Source: frontend/src/types/generated/models.ts (tygo generated)
  */
-import type { components } from "@/types/generated/api";
+import type { Owner, Pet, AnimalSpecies, Insurance } from "@/types/generated/models";
 
-export type BackendOwner = components["schemas"]["Owner"];
-export type BackendPet = components["schemas"]["Pet"];
-export type BackendAnimalSpecies = components["schemas"]["AnimalSpecies"];
-export type BackendInsurance = components["schemas"]["Insurance"];
+export type BackendOwner = Owner;
+export type BackendPet = Pet;
+export type BackendAnimalSpecies = AnimalSpecies;
+export type BackendInsurance = Insurance;
