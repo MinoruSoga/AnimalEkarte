@@ -193,14 +193,44 @@ components:
           format: date-time
           readOnly: true
         animal_species:
-          $ref: '#/components/schemas/AnimalSpecies'
+          type: object
           description: 種別情報（Preload時のみ含まれる）
+          nullable: true
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+            sort_order:
+              type: integer
         insurance:
-          $ref: '#/components/schemas/Insurance'
+          type: object
           description: 保険情報（Preload時のみ含まれる）
+          nullable: true
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+            coverage_rate:
+              type: integer
+              nullable: true
+            contact_phone:
+              type: string
         owner:
-          $ref: '#/components/schemas/Owner'
+          type: object
           description: 飼主情報（Preload時のみ含まれる）
+          nullable: true
+          properties:
+            id:
+              type: integer
+              format: int64
+            owner_name:
+              type: string
+            phone:
+              type: string
     ReservationAppointment:
       type: object
       required: [start_time, end_time, service_type_id]
