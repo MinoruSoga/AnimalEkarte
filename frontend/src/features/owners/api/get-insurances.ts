@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES } from "@/lib/react-query";
 import type { BackendInsurance } from "./types";
 
 export const getInsurances = async (): Promise<BackendInsurance[]> => {
@@ -11,6 +12,6 @@ export const useGetInsurances = () => {
   return useQuery({
     queryKey: ["masters", "insurances"],
     queryFn: getInsurances,
-    staleTime: 30 * 60 * 1000, // 静的マスタデータは30分キャッシュ
+    staleTime: QUERY_STALE_TIMES.STATIC, // 静的マスタデータは30分キャッシュ
   });
 };

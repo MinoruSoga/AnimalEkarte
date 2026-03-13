@@ -5,9 +5,11 @@ import type { TreatmentPlan } from "@/types";
 import type { HospitalizationFormData } from "../types";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { usePetInfo } from "@/hooks/use-pet";
-import { axios } from "@/lib/axios";
-import { createHospitalization, updateHospitalization } from "../api";
-import type { BackendHospitalization } from "../api/types";
+import {
+  createHospitalization,
+  updateHospitalization,
+  useGetHospitalizationRaw,
+} from "../api";
 
 export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
   const navigate = useNavigate();
@@ -72,44 +74,50 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
   const [globalDiscount, setGlobalDiscount] = useState(0);
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
 
+  const {
+    data: hospitalizationData,
+    isLoading,
+    isError,
+  } = useGetHospitalizationRaw(id);
+
   useEffect(() => {
-    if (id) {
-      const loadHospitalization = async () => {
-        try {
-          const { data } = await axios.get<BackendHospitalization>(
-            `/v1/hospitalizations/${id}`
-          );
-          setFormData((prev) => ({
-            ...prev,
-            hospitalizationType:
-              data.hospitalization_type === "hospitalization" ? "入院" : "ホテル",
-            cageId: data.cage_id ? String(data.cage_id) : "",
-            displayDate: data.start_date,
-            memo: data.memo ?? "",
-            ownerRequest: data.owner_request ?? "",
-            staffNotes: data.staff_notes ?? "",
-          }));
-          // ペット情報を復元
-          if (data.pet && data.owner_id) {
-            setSelectedPets([
-              {
-                id: String(data.pet_id),
-                ownerId: String(data.owner_id),
-                ownerName: data.owner?.owner_name ?? "",
-                name: data.pet.name,
-                species: data.pet.animal_species?.name ?? "",
-                breed: data.pet.breed,
-                gender: data.pet.gender,
-              },
-            ]);
-          }
-        } catch {
-          toast.error("入院情報の取得に失敗しました");
-        }
-      };
-      loadHospitalization();
+    if (!hospitalizationData) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 非同期データからのフォーム初期化。React 18が自動バッチするため実害なし
+    setFormData((prev) => ({
+      ...prev,
+      hospitalizationType:
+        hospitalizationData.hospitalization_type === "hospitalization"
+          ? "入院"
+          : "ホテル",
+      cageId: hospitalizationData.cage_id
+        ? String(hospitalizationData.cage_id)
+        : "",
+      displayDate: hospitalizationData.start_date,
+      memo: hospitalizationData.memo ?? "",
+      ownerRequest: hospitalizationData.owner_request ?? "",
+      staffNotes: hospitalizationData.staff_notes ?? "",
+    }));
+    // ペット情報を復元
+    if (hospitalizationData.pet && hospitalizationData.owner_id) {
+      setSelectedPets([
+        {
+          id: String(hospitalizationData.pet_id),
+          ownerId: String(hospitalizationData.owner_id),
+          ownerName: hospitalizationData.owner?.owner_name ?? "",
+          name: hospitalizationData.pet.name,
+          species: hospitalizationData.pet.animal_species?.name ?? "",
+          breed: hospitalizationData.pet.breed,
+          gender: hospitalizationData.pet.gender,
+        },
+      ]);
     }
-  }, [id, setSelectedPets]);
+  }, [hospitalizationData, setSelectedPets]);
+
+  useEffect(() => {
+    if (isError) {
+      toast.error("入院情報の取得に失敗しました");
+    }
+  }, [isError]);
 
   // petId が URL から来た場合: usePetInfo の結果を selectedPets に反映
   useEffect(() => {
@@ -263,6 +271,8 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
 
   return {
     isEdit,
+    isLoading,
+    isError,
     formData: formDataWithPet,
     setFormData,
     treatmentPlans,

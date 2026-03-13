@@ -112,7 +112,15 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 		ReservationAppointmentID: input.ReservationAppointmentID,
 	}
 	if input.Status != "" {
-		record.Status = model.MedicalRecordStatus(input.Status)
+		status, err := validateEnum(input.Status,
+			model.MedicalRecordStatusDraft,
+			model.MedicalRecordStatusFinalized,
+		)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status: " + err.Error()})
+			return
+		}
+		record.Status = status
 	}
 
 	ctx := c.Request.Context()
@@ -156,7 +164,15 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 		record.Date = *input.Date
 	}
 	if input.Status != "" {
-		record.Status = model.MedicalRecordStatus(input.Status)
+		status, err := validateEnum(input.Status,
+			model.MedicalRecordStatusDraft,
+			model.MedicalRecordStatusFinalized,
+		)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status: " + err.Error()})
+			return
+		}
+		record.Status = status
 	}
 
 	ctx := c.Request.Context()

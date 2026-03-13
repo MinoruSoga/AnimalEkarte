@@ -28,6 +28,23 @@ export const useGetHospitalization = (id: string) => {
   });
 };
 
+export const getHospitalizationRaw = async (
+  id: string
+): Promise<BackendHospitalization> => {
+  const { data } = await axios.get<BackendHospitalization>(
+    `/v1/hospitalizations/${id}`
+  );
+  return data;
+};
+
+export const useGetHospitalizationRaw = (id: string | undefined) => {
+  return useQuery({
+    queryKey: ["hospitalization", "raw", id],
+    queryFn: () => getHospitalizationRaw(id!),
+    enabled: !!id,
+  });
+};
+
 // Fetch hospitalizations by pet ID
 export const getHospitalizationsByPetId = async (
   petId: string

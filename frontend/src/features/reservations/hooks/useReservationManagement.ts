@@ -105,7 +105,7 @@ export function useReservationManagement() {
         status: "confirmed",
         visitType: "first",
         type: "診療",
-        doctor: "医師A",
+        doctor: "",
         isDesignated: false,
         petId,
       };
@@ -127,7 +127,7 @@ export function useReservationManagement() {
         status: "confirmed",
         visitType: "first",
         type: "診療",
-        doctor: "医師A",
+        doctor: "",
         isDesignated: false,
       };
       handleOpenForm(stub);
@@ -150,7 +150,7 @@ export function useReservationManagement() {
       if (!data.start || !data.end || selectedPets.length === 0) return;
 
       const currentEditing = editingAppointmentRef.current;
-      const targetDoctor = data.doctor || currentEditing?.doctor || "医師A";
+      const targetDoctor = data.doctor || currentEditing?.doctor || "";
       const hasOverlap = checkOverlap(data.start, data.end, targetDoctor, currentEditing?.id);
 
       if (hasOverlap) {

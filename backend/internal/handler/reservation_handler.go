@@ -134,10 +134,31 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		Notes:         input.Notes,
 	}
 	if input.VisitType != "" {
-		reservation.VisitType = model.VisitType(input.VisitType)
+		vt, err := validateEnum(input.VisitType,
+			model.VisitTypeFirst,
+			model.VisitTypeRevisit,
+		)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid visit_type: " + err.Error()})
+			return
+		}
+		reservation.VisitType = vt
 	}
 	if input.Status != "" {
-		reservation.Status = model.ReservationStatus(input.Status)
+		status, err := validateEnum(input.Status,
+			model.ReservationStatusConfirmed,
+			model.ReservationStatusPending,
+			model.ReservationStatusCancelled,
+			model.ReservationStatusCheckedIn,
+			model.ReservationStatusInConsultation,
+			model.ReservationStatusAccounting,
+			model.ReservationStatusCompleted,
+		)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status: " + err.Error()})
+			return
+		}
+		reservation.Status = status
 	}
 
 	ctx := c.Request.Context()
@@ -184,10 +205,31 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 		reservation.EndTime = *input.EndTime
 	}
 	if input.VisitType != "" {
-		reservation.VisitType = model.VisitType(input.VisitType)
+		vt, err := validateEnum(input.VisitType,
+			model.VisitTypeFirst,
+			model.VisitTypeRevisit,
+		)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid visit_type: " + err.Error()})
+			return
+		}
+		reservation.VisitType = vt
 	}
 	if input.Status != "" {
-		reservation.Status = model.ReservationStatus(input.Status)
+		status, err := validateEnum(input.Status,
+			model.ReservationStatusConfirmed,
+			model.ReservationStatusPending,
+			model.ReservationStatusCancelled,
+			model.ReservationStatusCheckedIn,
+			model.ReservationStatusInConsultation,
+			model.ReservationStatusAccounting,
+			model.ReservationStatusCompleted,
+		)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status: " + err.Error()})
+			return
+		}
+		reservation.Status = status
 	}
 	if input.IsDesignated != nil {
 		reservation.IsDesignated = *input.IsDesignated

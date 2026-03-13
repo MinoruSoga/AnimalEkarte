@@ -26,8 +26,8 @@ type createHospitalizationInput struct {
 }
 
 type updateHospitalizationInput struct {
-	OwnerID             uint64     `json:"owner_id"`
-	PetID               uint64     `json:"pet_id"`
+	OwnerID             *uint64    `json:"owner_id"`
+	PetID               *uint64    `json:"pet_id"`
 	HospitalizationType string     `json:"hospitalization_type"`
 	StartDate           *time.Time `json:"start_date"`
 	EndDate             *time.Time `json:"end_date"`
@@ -114,11 +114,20 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 		return
 	}
 
+	hospType, err := validateEnum(input.HospitalizationType,
+		model.HospitalizationTypeInpatient,
+		model.HospitalizationTypeHotel,
+	)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid hospitalization_type: " + err.Error()})
+		return
+	}
+
 	hospitalization := &model.Hospitalization{
 		ClinicID:            clinicID,
 		OwnerID:             input.OwnerID,
 		PetID:               input.PetID,
-		HospitalizationType: model.HospitalizationType(input.HospitalizationType),
+		HospitalizationType: hospType,
 		StartDate:           input.StartDate,
 		EndDate:             input.EndDate,
 		CageID:              input.CageID,
@@ -128,7 +137,16 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 		StaffNotes:          input.StaffNotes,
 	}
 	if input.Status != "" {
-		hospitalization.Status = model.HospitalizationStatus(input.Status)
+		status, err := validateEnum(input.Status,
+			model.HospitalizationStatusAdmitted,
+			model.HospitalizationStatusDischarged,
+			model.HospitalizationStatusReserved,
+		)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status: " + err.Error()})
+			return
+		}
+		hospitalization.Status = status
 	}
 
 	ctx := c.Request.Context()
@@ -162,16 +180,28 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 	hospitalization := &model.Hospitalization{
 		ID:           id,
 		ClinicID:     clinicID,
-		OwnerID:      input.OwnerID,
-		PetID:        input.PetID,
 		CageID:       input.CageID,
 		DoctorID:     input.DoctorID,
 		Memo:         input.Memo,
 		OwnerRequest: input.OwnerRequest,
 		StaffNotes:   input.StaffNotes,
 	}
+	if input.OwnerID != nil {
+		hospitalization.OwnerID = *input.OwnerID
+	}
+	if input.PetID != nil {
+		hospitalization.PetID = *input.PetID
+	}
 	if input.HospitalizationType != "" {
-		hospitalization.HospitalizationType = model.HospitalizationType(input.HospitalizationType)
+		hospType, err := validateEnum(input.HospitalizationType,
+			model.HospitalizationTypeInpatient,
+			model.HospitalizationTypeHotel,
+		)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid hospitalization_type: " + err.Error()})
+			return
+		}
+		hospitalization.HospitalizationType = hospType
 	}
 	if input.StartDate != nil {
 		hospitalization.StartDate = *input.StartDate
@@ -180,7 +210,16 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 		hospitalization.EndDate = *input.EndDate
 	}
 	if input.Status != "" {
-		hospitalization.Status = model.HospitalizationStatus(input.Status)
+		status, err := validateEnum(input.Status,
+			model.HospitalizationStatusAdmitted,
+			model.HospitalizationStatusDischarged,
+			model.HospitalizationStatusReserved,
+		)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status: " + err.Error()})
+			return
+		}
+		hospitalization.Status = status
 	}
 
 	ctx := c.Request.Context()

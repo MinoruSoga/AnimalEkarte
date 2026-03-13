@@ -12,6 +12,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/middleware"
+	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // MeClinicMembership は GET /me のクリニック所属情報
@@ -46,6 +47,56 @@ type LoginResponse struct {
 	ExpiresAt int64       `json:"expires_at"`
 	UserType  string      `json:"user_type"`
 	User      *MeResponse `json:"user"`
+}
+
+// buildMeResponse はユーザーデータと補助情報からMeResponseを構築する。
+// clinicNameMap はクリニックID（string）→クリニック名のマップ。
+// mainClinicID はJWTクレームまたはログイン時のメインクリニックID（string）。
+func buildMeResponse(data *repository.UserAccountWithMemberships, mainClinicID string, clinicNameMap map[string]string) *MeResponse {
+	meClinicList := make([]MeClinicMembership, 0, len(data.Memberships))
+	for _, m := range data.Memberships {
+		clIDStr := strconv.FormatUint(m.ClinicID, 10)
+		meClinicList = append(meClinicList, MeClinicMembership{
+			ClinicID:   clIDStr,
+			ClinicName: clinicNameMap[clIDStr],
+			IsMain:     clIDStr == mainClinicID,
+		})
+	}
+
+	permMap := make(map[string][]string)
+	for _, p := range data.Permissions {
+		clIDStr := strconv.FormatUint(p.ClinicID, 10)
+		permMap[clIDStr] = append(permMap[clIDStr], string(p.Permission))
+	}
+
+	var jobTitle *string
+	if data.UserAccount.JobTitle != nil {
+		jt := data.UserAccount.JobTitle.Name
+		jobTitle = &jt
+	}
+	var staffRole *string
+	if data.UserAccount.Staff != nil {
+		sr := string(data.UserAccount.Staff.StaffRole)
+		staffRole = &sr
+	}
+	var avatarURL *string
+	if data.UserAccount.AvatarURL != "" {
+		av := data.UserAccount.AvatarURL
+		avatarURL = &av
+	}
+
+	return &MeResponse{
+		ID:           strconv.FormatUint(data.UserAccount.ID, 10),
+		Email:        data.UserAccount.Email,
+		DisplayName:  data.UserAccount.DisplayName,
+		UserType:     string(data.UserAccount.UserType),
+		StaffRole:    staffRole,
+		JobTitle:     jobTitle,
+		AvatarURL:    avatarURL,
+		MainClinicID: mainClinicID,
+		Clinics:      meClinicList,
+		Permissions:  permMap,
+	}
 }
 
 // Login godoc
@@ -142,48 +193,6 @@ func (h *Handler) Login(c *gin.Context) {
 	for _, cl := range allClinics {
 		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
 	}
-	meClinicList := make([]MeClinicMembership, 0, len(userData.Memberships))
-	for _, m := range userData.Memberships {
-		clIDStr := strconv.FormatUint(m.ClinicID, 10)
-		info := clinicNameMap[clIDStr]
-		meClinicList = append(meClinicList, MeClinicMembership{
-			ClinicID:   clIDStr,
-			ClinicName: info,
-			IsMain:     clIDStr == mainClinicID,
-		})
-	}
-	permMap := make(map[string][]string)
-	for _, p := range userData.Permissions {
-		clIDStr := strconv.FormatUint(p.ClinicID, 10)
-		permMap[clIDStr] = append(permMap[clIDStr], string(p.Permission))
-	}
-	var jobTitle *string
-	if userData.UserAccount.JobTitle != nil {
-		jt := userData.UserAccount.JobTitle.Name
-		jobTitle = &jt
-	}
-	var staffRole *string
-	if userData.UserAccount.Staff != nil {
-		sr := string(userData.UserAccount.Staff.StaffRole)
-		staffRole = &sr
-	}
-	var avatarURL *string
-	if userData.UserAccount.AvatarURL != "" {
-		av := userData.UserAccount.AvatarURL
-		avatarURL = &av
-	}
-	meResp := &MeResponse{
-		ID:           strconv.FormatUint(userData.UserAccount.ID, 10),
-		Email:        userData.UserAccount.Email,
-		DisplayName:  userData.UserAccount.DisplayName,
-		UserType:     string(userData.UserAccount.UserType),
-		StaffRole:    staffRole,
-		JobTitle:     jobTitle,
-		AvatarURL:    avatarURL,
-		MainClinicID: mainClinicID,
-		Clinics:      meClinicList,
-		Permissions:  permMap,
-	}
 
 	// httpOnly Cookie でトークンを保存（XSS攻撃でのトークン窃取を防止）
 	http.SetCookie(c.Writer, &http.Cookie{
@@ -199,7 +208,7 @@ func (h *Handler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, LoginResponse{
 		ExpiresAt: expiresAt.Unix(),
 		UserType:  claims.UserType,
-		User:      meResp,
+		User:      buildMeResponse(userData, mainClinicID, clinicNameMap),
 	})
 }
 
@@ -255,49 +264,5 @@ func (h *Handler) GetMe(c *gin.Context) {
 		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
 	}
 
-	meClinicList := make([]MeClinicMembership, 0, len(data.Memberships))
-	for _, m := range data.Memberships {
-		clIDStr := strconv.FormatUint(m.ClinicID, 10)
-		meClinicList = append(meClinicList, MeClinicMembership{
-			ClinicID:   clIDStr,
-			ClinicName: clinicNameMap[clIDStr],
-			IsMain:     clIDStr == mainClinicIDStr,
-		})
-	}
-
-	// 権限マップ: clinic_id → []permission
-	permMap := make(map[string][]string)
-	for _, p := range data.Permissions {
-		clIDStr := strconv.FormatUint(p.ClinicID, 10)
-		permMap[clIDStr] = append(permMap[clIDStr], string(p.Permission))
-	}
-
-	var jobTitle *string
-	if data.UserAccount.JobTitle != nil {
-		jt := data.UserAccount.JobTitle.Name
-		jobTitle = &jt
-	}
-	var staffRole *string
-	if data.UserAccount.Staff != nil {
-		sr := string(data.UserAccount.Staff.StaffRole)
-		staffRole = &sr
-	}
-	var avatarURL *string
-	if data.UserAccount.AvatarURL != "" {
-		av := data.UserAccount.AvatarURL
-		avatarURL = &av
-	}
-
-	c.JSON(http.StatusOK, MeResponse{
-		ID:           strconv.FormatUint(data.UserAccount.ID, 10),
-		Email:        data.UserAccount.Email,
-		DisplayName:  data.UserAccount.DisplayName,
-		UserType:     string(data.UserAccount.UserType),
-		StaffRole:    staffRole,
-		JobTitle:     jobTitle,
-		AvatarURL:    avatarURL,
-		MainClinicID: mainClinicIDStr,
-		Clinics:      meClinicList,
-		Permissions:  permMap,
-	})
+	c.JSON(http.StatusOK, buildMeResponse(data, mainClinicIDStr, clinicNameMap))
 }

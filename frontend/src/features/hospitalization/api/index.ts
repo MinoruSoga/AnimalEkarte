@@ -5,6 +5,8 @@ export {
 export {
   getHospitalization,
   useGetHospitalization,
+  getHospitalizationRaw,
+  useGetHospitalizationRaw,
   getHospitalizationsByPetId,
   useGetHospitalizationsByPetId,
   getHospitalizationsByOwnerId,
