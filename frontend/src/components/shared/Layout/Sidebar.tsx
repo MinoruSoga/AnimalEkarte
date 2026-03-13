@@ -15,19 +15,19 @@ import {
   Pill,
   ShieldCheck,
   Building2,
-  Stethoscope,
   Activity,
   Package,
   CalendarDays,
   ClipboardCheck,
   Clipboard,
+  ClipboardList,
   LogOut,
   User,
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useClinicInfo } from "@/hooks/use-clinic-info";
-import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 import type { MenuItem } from "@/types";
 
 /* ================================================================== */
@@ -45,14 +45,20 @@ const SidebarItem = ({ item, collapsed = false, level = 0 }: SidebarItemProps) =
   const navigate = useNavigate();
   const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
 
-  const isActive = item.path === "/"
-    ? location.pathname === "/"
-    : location.pathname.startsWith(item.path || "");
+  const isActive = item.path
+    ? (item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path))
+    : false;
 
   const hasSubItems = !!item.subItems?.length;
 
+  const checkAnyChildActive = (items: MenuItem[]): boolean =>
+    items.some(sub =>
+      (sub.path ? location.pathname.startsWith(sub.path) : false) ||
+      (sub.subItems ? checkAnyChildActive(sub.subItems) : false)
+    );
+
   const hasActiveChild = hasSubItems
-    ? (item.subItems?.some(sub => sub.path === location.pathname) ?? false)
+    ? checkAnyChildActive(item.subItems ?? [])
     : false;
 
   const isExpanded = manualExpanded ?? hasActiveChild;
@@ -181,22 +187,22 @@ export function Sidebar() {
       label: "マスタ設定",
       path: "/settings",
       subItems: [
-        { icon: <Building2    className="size-[18px]" />, label: "医院マスタ",             path: "/settings/clinic" },
-        { icon: <Activity     className="size-[18px]" />, label: "予約区分マスタ",       path: "/settings/service-type" },
-        { icon: <Stethoscope  className="size-[18px]" />, label: "診察マスタ",           path: "/settings/consultation" },
-        { icon: <TestTube     className="size-[18px]" />, label: "検査マスタ",           path: "/settings/examination" },
-        { icon: <Activity     className="size-[18px]" />, label: "処置マスタ",           path: "/settings/procedure" },
-        { icon: <Syringe      className="size-[18px]" />, label: "予防接種マスタ",       path: "/settings/vaccine" },
-        { icon: <Pill         className="size-[18px]" />, label: "薬剤マスタ",           path: "/settings/medicine" },
-        { icon: <Bed          className="size-[18px]" />, label: "入院マスタ",           path: "/settings/hospitalization" },
-        { icon: <Building2    className="size-[18px]" />, label: "ケージマスタ",         path: "/settings/cage" },
-        { icon: <Users        className="size-[18px]" />, label: "スタッフマスタ",       path: "/settings/staff" },
-        { icon: <ShieldCheck  className="size-[18px]" />, label: "保険マスタ",           path: "/settings/insurance" },
-        { icon: <Scissors     className="size-[18px]" />, label: "トリミングコースマスタ",   path: "/settings/trimming-course" },
-        { icon: <Scissors     className="size-[18px]" />, label: "トリミングオプションマスタ", path: "/settings/trimming-option" },
-        { icon: <Stethoscope  className="size-[18px]" />, label: "診断カテゴリマスタ",   path: "/settings/diagnosis-category" },
-        { icon: <Stethoscope  className="size-[18px]" />, label: "診断名マスタ",         path: "/settings/diagnosis-name" },
-        { icon: <Clipboard    className="size-[18px]" />, label: "診断病名マスタ",       path: "/settings/diagnosis" },
+        { icon: <Activity      className="size-[18px]" />, label: "予約区分マスタ",   path: "/settings/service-type" },
+        {
+          icon: <FileText className="size-[18px]" />,
+          label: "カルテ",
+          subItems: [
+            { icon: <ClipboardList className="size-[18px]" />, label: "治療プランマスタ", path: "/settings/treatment-items" },
+            { icon: <Pill          className="size-[18px]" />, label: "薬剤マスタ",       path: "/settings/medicine" },
+            { icon: <Clipboard     className="size-[18px]" />, label: "診断病名マスタ",   path: "/settings/diagnosis" },
+            { icon: <ClipboardCheck className="size-[18px]" />, label: "問診マスタ",      path: "/settings/inquiry-template" },
+          ],
+        },
+        { icon: <Bed          className="size-[18px]" />, label: "入院マスタ",       path: "/settings/hospitalization" },
+        { icon: <Building2    className="size-[18px]" />, label: "ケージマスタ",     path: "/settings/cage" },
+        { icon: <Scissors     className="size-[18px]" />, label: "トリミングマスタ", path: "/settings/trimming" },
+        { icon: <Users        className="size-[18px]" />, label: "スタッフマスタ",   path: "/settings/staff" },
+        { icon: <ShieldCheck  className="size-[18px]" />, label: "保険マスタ",       path: "/settings/insurance" },
       ],
     },
   ], []);
