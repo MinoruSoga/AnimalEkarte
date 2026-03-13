@@ -10,7 +10,6 @@ import (
 type OwnerService interface {
 	List(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
-	Create(ctx context.Context, owner *model.Owner) error
 	CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error
 	Update(ctx context.Context, owner *model.Owner) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -30,10 +29,6 @@ func (s *ownerService) List(ctx context.Context, clinicID uint64, page, limit in
 
 func (s *ownerService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
 	return s.repo.FindByID(ctx, clinicID, id)
-}
-
-func (s *ownerService) Create(ctx context.Context, owner *model.Owner) error {
-	return s.repo.Create(ctx, owner)
 }
 
 func (s *ownerService) CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error {

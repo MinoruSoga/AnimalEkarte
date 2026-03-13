@@ -61,20 +61,11 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 		return
 	}
 	input.ClinicID = clinicID
-
-	// pets が含まれている場合はアトミック作成
-	if len(input.Pets) > 0 {
-		pets := input.Pets
-		input.Pets = nil // GORMに自動処理させない
-		if err := h.svc.Owner.CreateWithPets(c.Request.Context(), &input, pets); err != nil {
-			RespondError(c, err)
-			return
-		}
-	} else {
-		if err := h.svc.Owner.Create(c.Request.Context(), &input); err != nil {
-			RespondError(c, err)
-			return
-		}
+	pets := input.Pets
+	input.Pets = nil // GORMの自動アソシエーションを抑制
+	if err := h.svc.Owner.CreateWithPets(c.Request.Context(), &input, pets); err != nil {
+		RespondError(c, err)
+		return
 	}
 	c.JSON(http.StatusCreated, input)
 }

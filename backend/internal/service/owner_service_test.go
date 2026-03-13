@@ -15,7 +15,6 @@ import (
 type mockOwnerRepository struct {
 	findAllFn        func(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error)
 	findByIDFn       func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
-	createFn         func(ctx context.Context, owner *model.Owner) error
 	createWithPetsFn func(ctx context.Context, owner *model.Owner, pets []model.Pet) error
 	updateFn         func(ctx context.Context, owner *model.Owner) error
 	deleteFn         func(ctx context.Context, clinicID, id uint64) error
@@ -27,10 +26,6 @@ func (m *mockOwnerRepository) FindAll(ctx context.Context, clinicID uint64, page
 
 func (m *mockOwnerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
 	return m.findByIDFn(ctx, clinicID, id)
-}
-
-func (m *mockOwnerRepository) Create(ctx context.Context, owner *model.Owner) error {
-	return m.createFn(ctx, owner)
 }
 
 func (m *mockOwnerRepository) CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error {
@@ -217,64 +212,6 @@ func TestOwnerService_GetByID_NotFound(t *testing.T) {
 	assert.Nil(t, owner)
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
-}
-
-func TestOwnerService_Create(t *testing.T) {
-	tests := []struct {
-		name    string
-		owner   *model.Owner
-		repoErr error
-		wantErr bool
-	}{
-		{
-			name: "creates owner successfully",
-			owner: &model.Owner{
-				ClinicID:  1,
-				OwnerName: "新規 飼主",
-				Email:     "new@example.com",
-			},
-			repoErr: nil,
-			wantErr: false,
-		},
-		{
-			name: "returns error when email already exists",
-			owner: &model.Owner{
-				ClinicID:  1,
-				OwnerName: "重複 飼主",
-				Email:     "existing@example.com",
-			},
-			repoErr: apperrors.WrapAlreadyExists("owner", "existing@example.com"),
-			wantErr: true,
-		},
-		{
-			name: "returns error on repository failure",
-			owner: &model.Owner{
-				ClinicID:  1,
-				OwnerName: "エラー 飼主",
-			},
-			repoErr: errors.New("db connection error"),
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockOwnerRepository{
-				createFn: func(_ context.Context, _ *model.Owner) error {
-					return tt.repoErr
-				},
-			}
-			svc := NewOwnerService(repo)
-
-			err := svc.Create(context.Background(), tt.owner)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
 }
 
 func TestOwnerService_Update(t *testing.T) {

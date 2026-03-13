@@ -14,7 +14,6 @@ import (
 type OwnerRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
-	Create(ctx context.Context, owner *model.Owner) error
 	CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error
 	Update(ctx context.Context, owner *model.Owner) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -55,16 +54,6 @@ func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*m
 		return nil, apperrors.Wrap(err, "find owner by id")
 	}
 	return &owner, nil
-}
-
-func (r *ownerRepository) Create(ctx context.Context, owner *model.Owner) error {
-	if err := r.db.WithContext(ctx).Create(owner).Error; err != nil {
-		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("owner", owner.Email)
-		}
-		return apperrors.Wrap(err, "create owner")
-	}
-	return nil
 }
 
 func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error {
