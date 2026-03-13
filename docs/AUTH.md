@@ -573,7 +573,7 @@ CREATE INDEX idx_shift_entries_clinic ON shift_entries(clinic_id);
 
 ## RLSポリシー設計
 
-DB_DEFINITION.md の RLS 設計を認証・認可モデルに基づき拡充。
+ERD.md の設計を認証・認可モデルに基づき拡充。
 
 ### ヘルパー関数
 
@@ -990,5 +990,5 @@ createBrowserRouter([
 | **仕様定義書** | `docs/SPECIFICATION.md` | Feature一覧、ルーティング構成、ロードマップ |
 | **画面仕様書** | `docs/SCREENS.md` | 全ルートの画面仕様（`/login` §15 追加済み） |
 | **ER図** | `docs/ERD.md` | エンティティ一覧（4エンティティ追加）、リレーション追加 |
-| **DB定義書** | `docs/DB_DEFINITION.md` | ENUM型追加、テーブル追加、RLSポリシー拡充、`clinic_id` カラム追加 |
+| **ER図** | `docs/ERD.md` | ENUM型追加、テーブル追加、`clinic_id` カラム追加（v5.0 最新版） |
 | **デザインシステム** | `docs/DESIGN_SYSTEM.md` | ログインページのUI仕様（§15 Login参照） |

@@ -32,7 +32,6 @@ export interface CreateStaffRequest {
 }
 
 export interface UpdateStaffRequest {
-  code?: string;
   name?: string;
   staff_role?: "veterinarian" | "nurse" | "trimmer" | "reception" | "manager";
   license_number?: string;

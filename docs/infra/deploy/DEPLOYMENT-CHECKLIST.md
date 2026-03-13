@@ -26,8 +26,6 @@ grep -r "console\.log\|console\.error" frontend/src --include="*.ts" --include="
 # シークレットが含まれていないか
 git diff main..HEAD | grep -iE "password|secret|token|key"
 
-# Swagger 最新化
-docker compose exec backend swag init -g cmd/api/main.go
 ```
 
 ---

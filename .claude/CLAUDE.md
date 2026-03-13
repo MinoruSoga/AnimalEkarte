@@ -325,5 +325,5 @@ slog.ErrorContext(ctx, "failed to create pet",
 | [Frontend規約](../frontend/CODING_RULES.md) | React 19詳細 |
 | [Backend規約](../backend/CODING_RULES.md) | Go/Gin詳細 |
 | [ERD](../docs/ERD.md) | データベース設計 |
-| [API設計](../docs/API-ROADMAP.md) | APIロードマップ |
+| [API仕様](../backend/docs/api.yaml) | OpenAPI仕様書 |
 | [仕様定義書](../spec.md) | システム仕様 |

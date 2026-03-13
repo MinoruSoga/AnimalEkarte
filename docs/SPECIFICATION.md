@@ -565,5 +565,5 @@ parseLocationState<T>(state: unknown): Partial<T>
 | **デザインシステム** | `docs/DESIGN_SYSTEM.md` | カラーパレット、タイポグラフィ、コンポーネントスタイリング規約、予約カレンダーFigma準拠パステルカラー |
 | **画面仕様書** | `docs/SCREENS.md` | 全42ルートの画面仕様・構成・データフロー・操作仕様 |
 | **ER図** | `docs/ERD.md` | 全45テーブルの定義・リレーション・列挙型一覧（Mermaid記法） |
-| **DB定義書** | `docs/DB_DEFINITION.md` | PostgreSQL DDL・インデックス・RLSポリシー設計・フロントエンド型マッピング |
+| **ER図** | `docs/ERD.md` | 全45テーブルの定義・リレーション（v5.0 最新版） |
 | **認証・認可設計書** | `docs/AUTH.md` | 認証フロー・RBAC（3層モデル: ユーザー種別/職種/権限）・マルチクリニック設計・RLSポリシー・フロントエンド実装方針 |

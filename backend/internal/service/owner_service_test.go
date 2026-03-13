@@ -13,11 +13,12 @@ import (
 
 // mockOwnerRepository は OwnerRepository のテスト用モック実装
 type mockOwnerRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
-	createFn   func(ctx context.Context, owner *model.Owner) error
-	updateFn   func(ctx context.Context, owner *model.Owner) error
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
+	findAllFn        func(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error)
+	findByIDFn       func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
+	createFn         func(ctx context.Context, owner *model.Owner) error
+	createWithPetsFn func(ctx context.Context, owner *model.Owner, pets []model.Pet) error
+	updateFn         func(ctx context.Context, owner *model.Owner) error
+	deleteFn         func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockOwnerRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
@@ -30,6 +31,13 @@ func (m *mockOwnerRepository) FindByID(ctx context.Context, clinicID, id uint64)
 
 func (m *mockOwnerRepository) Create(ctx context.Context, owner *model.Owner) error {
 	return m.createFn(ctx, owner)
+}
+
+func (m *mockOwnerRepository) CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error {
+	if m.createWithPetsFn != nil {
+		return m.createWithPetsFn(ctx, owner, pets)
+	}
+	return nil
 }
 
 func (m *mockOwnerRepository) Update(ctx context.Context, owner *model.Owner) error {
@@ -318,6 +326,70 @@ func TestOwnerService_Update(t *testing.T) {
 			svc := NewOwnerService(repo)
 
 			err := svc.Update(context.Background(), tt.owner)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestOwnerService_CreateWithPets(t *testing.T) {
+	tests := []struct {
+		name    string
+		owner   *model.Owner
+		pets    []model.Pet
+		repoErr error
+		wantErr bool
+	}{
+		{
+			name: "creates owner with pets atomically",
+			owner: &model.Owner{
+				ClinicID:  1,
+				OwnerName: "林 文昭",
+				Email:     "hayashi@example.com",
+			},
+			pets: []model.Pet{
+				{Name: "ポチ", AnimalSpeciesID: 1, Gender: model.PetGenderMale},
+				{Name: "タマ", AnimalSpeciesID: 2, Gender: model.PetGenderFemale},
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name: "creates owner without pets (empty slice)",
+			owner: &model.Owner{
+				ClinicID:  1,
+				OwnerName: "鈴木 次郎",
+			},
+			pets:    []model.Pet{},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name: "propagates repository error",
+			owner: &model.Owner{
+				ClinicID:  1,
+				OwnerName: "エラー 飼主",
+			},
+			pets:    []model.Pet{{Name: "ペット"}},
+			repoErr: errors.New("transaction failed"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockOwnerRepository{
+				createWithPetsFn: func(_ context.Context, _ *model.Owner, _ []model.Pet) error {
+					return tt.repoErr
+				},
+			}
+			svc := NewOwnerService(repo)
+
+			err := svc.CreateWithPets(context.Background(), tt.owner, tt.pets)
 
 			if tt.wantErr {
 				assert.Error(t, err)

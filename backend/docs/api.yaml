@@ -1395,6 +1395,10 @@ components:
           type: string
         user_type:
           type: string
+        staff_role:
+          type: string
+          nullable: true
+          enum: [veterinarian, nurse, trimmer, reception, manager]
         job_title:
           type: string
           nullable: true
@@ -3148,6 +3152,31 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createClinic
+      summary: クリニック作成
+      tags: [Clinics]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Clinic'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Clinic'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /clinics/{id}:
     get:
       operationId: getClinic
@@ -3201,6 +3230,28 @@ paths:
                 $ref: '#/components/schemas/Clinic'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteClinic
+      summary: クリニック削除
+      tags: [Clinics]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

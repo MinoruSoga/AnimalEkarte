@@ -12,7 +12,7 @@ Animal Ekarte のデプロイ手順・CI/CD・運用ガイド。
 |---------|-----|
 | Frontend | https://frontend-r0m0pyiaf-minorusogas-projects.vercel.app |
 | Backend API | http://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com |
-| Swagger UI | http://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com/swagger/index.html |
+| API仕様 | `backend/docs/api.yaml`（OpenAPI） |
 
 ---
 
