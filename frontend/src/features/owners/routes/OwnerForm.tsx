@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, lazy, Suspense } from "react";
+import { useState, lazy, Suspense, memo, useCallback } from "react";
 import { useNavigate, useParams, useLoaderData } from "react-router";
 
 // External
@@ -50,6 +50,7 @@ import { C, STYLE } from "@/lib/design-tokens";
 // Relative
 import { useOwnerForm } from "../hooks/useOwnerForm";
 import type { PetMutations } from "@/types/pet";
+import type { PetFormData } from "../types";
 // Lazy-loaded modal — only loaded when first opened (bundle-dynamic-imports)
 const PetEditModal = lazy(() =>
   import("../components/PetEditModal").then(m => ({ default: m.PetEditModal }))
@@ -58,6 +59,100 @@ import { MEMBERSHIP_TYPE_VALUES } from "../types";
 import type { OwnerLoaderData } from "../loaders";
 
 const INPUT_CLS = STYLE.formInput;
+
+// rerender-memo: ペット行を memo 化して pets.map 内の N×8 インライン関数生成を排除
+interface PetTableRowProps {
+  pet: PetFormData;
+  ownerId: string | undefined;
+  onEdit: (pet: PetFormData) => void;
+  onDeleteRequest: (id: string, name: string) => void;
+}
+
+const PetTableRow = memo(function PetTableRow({
+  pet,
+  ownerId,
+  onEdit,
+  onDeleteRequest,
+}: PetTableRowProps) {
+  const navigate = useNavigate();
+  const backFrom = ownerId ? `/owners/${ownerId}` : "/owners";
+
+  return (
+    <TableRow className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12`}>
+      <TableCell className={STYLE.tableCell}>{pet.petNumber}</TableCell>
+      <TableCell className={STYLE.tableCell}>{pet.petName}</TableCell>
+      <TableCell className={STYLE.tableCell}>{pet.status}</TableCell>
+      <TableCell className={STYLE.tableCell}>{pet.species}</TableCell>
+      <TableCell className={STYLE.tableCell}>{pet.gender}</TableCell>
+      <TableCell className={STYLE.tableCell}>
+        {pet.birthDate ? pet.birthDate.slice(0, 10) : ""}
+      </TableCell>
+      <TableCell className={STYLE.tableCell}>{pet.color}</TableCell>
+      <TableCell className={STYLE.tableCell}>
+        {pet.weight ? `${pet.weight} kg` : ""}
+      </TableCell>
+      <TableCell className={STYLE.tableCell}>{pet.environment}</TableCell>
+      <TableCell className={`${STYLE.tableCell} truncate max-w-[200px]`}>
+        {pet.remarks}
+      </TableCell>
+      <TableCell className="py-2">
+        <div className="flex gap-1 justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={`inline-flex items-center justify-center rounded-[4px] cursor-pointer ${STYLE.tableActionBtn} ${C.hoverBgLight}`}
+              aria-label="操作メニューを開く"
+            >
+              <MoreHorizontal className="size-5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>操作</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => onEdit(pet)}>
+                <Edit className="mr-2 h-4 w-4" />
+                詳細・編集
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`/reservations?petId=${pet.id}`)}>
+                <Calendar className="mr-2 h-4 w-4" />
+                予約作成
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => navigate(`/medical-records/new?petId=${pet.id}`, { state: { from: backFrom } })}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                カルテ作成
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => navigate(`/trimming/new?petId=${pet.id}`, { state: { from: backFrom } })}
+              >
+                <Scissors className="mr-2 h-4 w-4" />
+                トリミング
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => navigate(`/hospitalization/new?petId=${pet.id}`, { state: { from: backFrom } })}
+              >
+                <Bed className="mr-2 h-4 w-4" />
+                入院登録
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => navigate(`/accounting/new?petId=${pet.id}`, { state: { from: backFrom } })}
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                会計登録
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => onDeleteRequest(pet.id, pet.petName)}
+                className={`${C.danger} focus:${C.danger} ${C.focusBgLight}`}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                削除
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+});
 
 export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}) {
   const navigate = useNavigate();
@@ -111,6 +206,11 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
       setDeletePetTarget(null);
     }
   };
+
+  // rerender-memo: PetTableRow に渡すハンドラを安定化
+  const handleDeletePetRequest = useCallback((id: string, name: string) => {
+    setDeletePetTarget({ id, name });
+  }, []);
 
   return (
     <PageLayout
@@ -443,124 +543,15 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
                   </TableCell>
                 </TableRow>
               ) : (
+                // rerender-memo: PetTableRow で各行を memo 化 — N×8 インライン関数生成を排除
                 pets.map((pet) => (
-                  <TableRow
+                  <PetTableRow
                     key={pet.id}
-                    className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12`}
-                  >
-                    <TableCell className={STYLE.tableCell}>{pet.petNumber}</TableCell>
-                    <TableCell className={STYLE.tableCell}>{pet.petName}</TableCell>
-                    <TableCell className={STYLE.tableCell}>{pet.status}</TableCell>
-                    <TableCell className={STYLE.tableCell}>{pet.species}</TableCell>
-                    <TableCell className={STYLE.tableCell}>{pet.gender}</TableCell>
-                    <TableCell className={STYLE.tableCell}>
-                      {pet.birthDate ? pet.birthDate.slice(0, 10) : ""}
-                    </TableCell>
-                    <TableCell className={STYLE.tableCell}>{pet.color}</TableCell>
-                    <TableCell className={STYLE.tableCell}>
-                      {pet.weight ? `${pet.weight} kg` : ""}
-                    </TableCell>
-                    <TableCell className={STYLE.tableCell}>{pet.environment}</TableCell>
-                    <TableCell className={`${STYLE.tableCell} truncate max-w-[200px]`}>
-                      {pet.remarks}
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <div className="flex gap-1 justify-end">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            className={`inline-flex items-center justify-center rounded-[4px] cursor-pointer ${STYLE.tableActionBtn} ${C.hoverBgLight}`}
-                            aria-label="操作メニューを開く"
-                          >
-                            <MoreHorizontal className="size-5" />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>操作</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleEditPet(pet)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              詳細・編集
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                navigate(`/reservations?petId=${pet.id}`)
-                              }
-                            >
-                              <Calendar className="mr-2 h-4 w-4" />
-                              予約作成
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                navigate(`/medical-records/new?petId=${pet.id}`, {
-                                  state: {
-                                    from: ownerId
-                                      ? `/owners/${ownerId}`
-                                      : "/owners",
-                                  },
-                                })
-                              }
-                            >
-                              <FileText className="mr-2 h-4 w-4" />
-                              カルテ作成
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                navigate(`/trimming/new?petId=${pet.id}`, {
-                                  state: {
-                                    from: ownerId
-                                      ? `/owners/${ownerId}`
-                                      : "/owners",
-                                  },
-                                })
-                              }
-                            >
-                              <Scissors className="mr-2 h-4 w-4" />
-                              トリミング
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                navigate(`/hospitalization/new?petId=${pet.id}`, {
-                                  state: {
-                                    from: ownerId
-                                      ? `/owners/${ownerId}`
-                                      : "/owners",
-                                  },
-                                })
-                              }
-                            >
-                              <Bed className="mr-2 h-4 w-4" />
-                              入院登録
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                navigate(`/accounting/new?petId=${pet.id}`, {
-                                  state: {
-                                    from: ownerId
-                                      ? `/owners/${ownerId}`
-                                      : "/owners",
-                                  },
-                                })
-                              }
-                            >
-                              <CreditCard className="mr-2 h-4 w-4" />
-                              会計登録
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() =>
-                                setDeletePetTarget({
-                                  id: pet.id,
-                                  name: pet.petName,
-                                })
-                              }
-                              className={`${C.danger} focus:${C.danger} ${C.focusBgLight}`}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              削除
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                    pet={pet}
+                    ownerId={ownerId}
+                    onEdit={handleEditPet}
+                    onDeleteRequest={handleDeletePetRequest}
+                  />
                 ))
               )}
             </TableBody>

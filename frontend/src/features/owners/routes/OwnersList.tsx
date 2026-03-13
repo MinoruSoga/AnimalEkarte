@@ -72,17 +72,18 @@ export function OwnersList() {
     resetKey: searchTerm,
   });
 
-  const handleCreate = () => {
+  const handleCreate = useCallback(() => {
     navigate("/owners/new");
-  };
+  }, [navigate]);
 
-  const handleEdit = (ownerId: string) => {
+  // rerender-functional-setstate: useCallback で安定した関数参照を維持
+  const handleEdit = useCallback((ownerId: string) => {
     navigate(`/owners/${ownerId}`);
-  };
+  }, [navigate]);
 
-  const handleDeleteRequest = (ownerId: string, ownerName: string) => {
+  const handleDeleteRequest = useCallback((ownerId: string, ownerName: string) => {
     setPendingDeleteOwner({ id: ownerId, name: ownerName });
-  };
+  }, []);
 
   // rerender-dependencies: object依存を避け primitive の id のみを dep に使用
   const pendingDeleteOwnerId = pendingDeleteOwner?.id ?? null;
@@ -101,6 +102,67 @@ export function OwnersList() {
       }
     });
   }, [pendingDeleteOwnerId, revalidator]);
+
+  // rerender-memo: renderRow を安定化してインラインクロージャ生成を排除
+  const renderRow = useCallback((pet: (typeof filteredPets)[number]) => (
+    <DataTableRow
+      key={pet.id}
+      onClick={() => handleEdit(pet.ownerId)}
+    >
+      <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
+        {pet.ownerNumber ?? "-"}
+      </TableCell>
+      <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
+        {pet.ownerName}
+      </TableCell>
+      <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap`}>
+        {pet.petNumber || "-"}
+      </TableCell>
+      <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
+        {pet.name}
+      </TableCell>
+      <TableCell className="whitespace-nowrap py-2">
+        {/* rendering-conditional-render: && は空文字をそのまま描画するためternaryを使用 */}
+        {pet.status ? (
+          <StatusBadge colorClass={getPetStatusColor(pet.status)}>
+            {pet.status}
+          </StatusBadge>
+        ) : null}
+      </TableCell>
+      <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
+        {pet.species}
+      </TableCell>
+      <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap`}>
+        {formatDate(pet.birthDate)}
+      </TableCell>
+      <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap`}>
+        {formatWeight(pet.weight)}
+      </TableCell>
+      <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
+        {pet.environment || "-"}
+      </TableCell>
+      <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap`}>
+        {formatDate(pet.lastVisit)}
+      </TableCell>
+      <TableCell className="whitespace-nowrap py-2 text-right">
+        <RowActionDropdown
+          actions={[
+            {
+              label: "編集",
+              icon: Pencil,
+              onClick: () => handleEdit(pet.ownerId),
+            },
+            {
+              label: "削除",
+              icon: Trash2,
+              variant: "destructive",
+              onClick: () => handleDeleteRequest(pet.ownerId, pet.ownerName),
+            },
+          ]}
+        />
+      </TableCell>
+    </DataTableRow>
+  ), [handleEdit, handleDeleteRequest]);
 
   const columns = useMemo(() => [
     {
@@ -191,70 +253,12 @@ export function OwnersList() {
         />
 
         {/* Table */}
+        {/* rerender-memo: renderRow を useCallback で安定化し DataTable の不要な再レンダリングを防ぐ */}
         <DataTable
           columns={columns}
           data={pagination.paginatedData}
           emptyMessage="データが見つかりません"
-          renderRow={(pet) => (
-            <DataTableRow
-              key={pet.id}
-              onClick={() => handleEdit(pet.ownerId)}
-            >
-              <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
-                {pet.ownerNumber ?? "-"}
-              </TableCell>
-              <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
-                {pet.ownerName}
-              </TableCell>
-              <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap`}>
-                {pet.petNumber || "-"}
-              </TableCell>
-              <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
-                {pet.name}
-              </TableCell>
-              <TableCell className="whitespace-nowrap py-2">
-                {/* rendering-conditional-render: && は空文字をそのまま描画するためternaryを使用 */}
-                {pet.status ? (
-                  <StatusBadge colorClass={getPetStatusColor(pet.status)}>
-                    {pet.status}
-                  </StatusBadge>
-                ) : null}
-              </TableCell>
-              <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
-                {pet.species}
-              </TableCell>
-              <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap`}>
-                {formatDate(pet.birthDate)}
-              </TableCell>
-              <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap`}>
-                {formatWeight(pet.weight)}
-              </TableCell>
-              <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
-                {pet.environment || "-"}
-              </TableCell>
-              <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap`}>
-                {formatDate(pet.lastVisit)}
-              </TableCell>
-              <TableCell className="whitespace-nowrap py-2 text-right">
-                <RowActionDropdown
-                  actions={[
-                    {
-                      label: "編集",
-                      icon: Pencil,
-                      onClick: () => handleEdit(pet.ownerId),
-                    },
-                    {
-                      label: "削除",
-                      icon: Trash2,
-                      variant: "destructive",
-                      onClick: () =>
-                        handleDeleteRequest(pet.ownerId, pet.ownerName),
-                    },
-                  ]}
-                />
-              </TableCell>
-            </DataTableRow>
-          )}
+          renderRow={renderRow}
         />
 
         {/* Pagination */}
