@@ -1,53 +1,40 @@
+import type { Pet as BackendPet } from "@/types/generated/models";
 import type { Pet } from "@/lib/transforms/pet";
 
 /**
- * ペット作成リクエスト（バックエンドAPI）
- * features/pets/api/types.ts から移管した共有型
+ * サーバー側で自動生成されるフィールド（リクエストに含めない）
  */
-export interface CreatePetRequest {
-  owner_id: number;
-  animal_species_id: number;
-  pet_number?: string;
-  name: string;
-  pet_name_kana?: string;
-  gender?: string;
-  birth_date?: string;
-  breed?: string;
-  color?: string;
-  weight?: number;
-  food?: string;
-  environment?: string;
-  neutered_date?: string;
-  acquisition_type?: string;
-  danger_level?: string;
-  status?: "alive" | "deceased";
-  insurance_id?: number;
-  remarks?: string;
-}
+type ServerFields =
+  | "id"
+  | "clinic_id"
+  | "created_at"
+  | "updated_at"
+  | "deleted_at"
+  | "last_visit"
+  | "phone"
+  | "owner"
+  | "insurance"
+  | "animal_species";
+
+/**
+ * リクエストで送信可能なペットフィールド
+ * Goモデル変更 → make codegen → models.ts 更新で自動追従
+ */
+type PetWritable = Omit<BackendPet, ServerFields>;
+
+/**
+ * ペット作成リクエスト（バックエンドAPI）
+ * owner_id / animal_species_id / name のみ必須、残りはoptional
+ */
+export type CreatePetRequest =
+  Pick<PetWritable, "owner_id" | "animal_species_id" | "name"> &
+  Partial<Omit<PetWritable, "owner_id" | "animal_species_id" | "name">>;
 
 /**
  * ペット更新リクエスト（バックエンドAPI）
+ * PATCH: 全フィールドoptional
  */
-export interface UpdatePetRequest {
-  owner_id?: number;
-  animal_species_id?: number;
-  pet_number?: string;
-  name?: string;
-  pet_name_kana?: string;
-  gender?: string;
-  birth_date?: string;
-  breed?: string;
-  color?: string;
-  weight?: number;
-  food?: string;
-  environment?: string;
-  neutered_date?: string;
-  acquisition_type?: string;
-  danger_level?: string;
-  status?: "alive" | "deceased";
-  insurance_id?: number;
-  remarks?: string;
-}
+export type UpdatePetRequest = Partial<PetWritable>;
 
 /**
  * useOwnerForm への依存性注入インターフェース
