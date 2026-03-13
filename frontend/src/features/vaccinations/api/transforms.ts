@@ -5,11 +5,11 @@ export function transformVaccination(
   data: BackendVaccination
 ): VaccinationRecord {
   return {
-    id: data.id,
+    id: String(data.id ?? 0),
     ownerName: "",
     petName: data.pet?.name ?? "",
     vaccineName: data.vaccine?.name ?? "",
-    date: data.date,
+    date: data.date ?? "",
     nextDate: data.next_date ?? "",
   };
 }

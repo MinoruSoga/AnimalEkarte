@@ -2,8 +2,6 @@ package model
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // MedicalImageType は診療画像種別
@@ -22,8 +20,8 @@ const (
 
 // RecordImage は診療画像（v7.0追加）
 type RecordImage struct {
-	ID              uuid.UUID        `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	MedicalRecordID uuid.UUID        `gorm:"type:uuid;not null"                             json:"medical_record_id"`
+	ID              uint64           `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	MedicalRecordID uint64           `gorm:"not null"                                       json:"medical_record_id"`
 	ImageURL        string           `gorm:"not null;default:''"                            json:"image_url"`
 	ThumbnailURL    string           `gorm:"default:''"                                     json:"thumbnail_url"`
 	FileName        string           `gorm:"default:''"                                     json:"file_name"`
@@ -32,8 +30,8 @@ type RecordImage struct {
 	ImageType       MedicalImageType `gorm:"type:medical_image_type;default:'other'"        json:"image_type"`
 	Description     string           `gorm:"default:''"                                     json:"description"`
 	TakenAt         *time.Time       `gorm:"column:taken_at"                                json:"taken_at,omitempty"`
-	ExamID          *uuid.UUID       `gorm:"type:uuid"                                      json:"exam_id,omitempty"`
-	StaffID         *uuid.UUID       `gorm:"type:uuid"                                      json:"staff_id,omitempty"`
+	ExamID          *uint64          `                                                      json:"exam_id,omitempty"`
+	StaffID         *uint64          `                                                      json:"staff_id,omitempty"`
 	SortOrder       int              `gorm:"default:0"                                      json:"sort_order"`
 	CreatedAt       time.Time        `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time        `gorm:"autoUpdateTime"                                 json:"updated_at"`

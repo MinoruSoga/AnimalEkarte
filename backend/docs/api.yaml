@@ -27,8 +27,6 @@ components:
       type: object
       required: [code, message]
       properties:
-        code:
-          type: string
           description: 機械可読なエラーコード
           enum: [VALIDATION_ERROR, NOT_FOUND, CONFLICT, UNAUTHORIZED, FORBIDDEN, INTERNAL_ERROR]
           example: VALIDATION_ERROR
@@ -125,6 +123,11 @@ components:
           type: string
           format: date-time
           readOnly: true
+        pets:
+          type: array
+          description: ペット一覧（Preload時のみ含まれる）
+          items:
+            $ref: '#/components/schemas/Pet'
     Pet:
       type: object
       required: [owner_id, name, animal_species_id]
@@ -204,6 +207,12 @@ components:
           type: string
           format: date-time
           readOnly: true
+        animal_species:
+          $ref: '#/components/schemas/AnimalSpecies'
+          description: 種別情報（Preload時のみ含まれる）
+        insurance:
+          $ref: '#/components/schemas/Insurance'
+          description: 保険情報（Preload時のみ含まれる）
     ReservationAppointment:
       type: object
       required: [start_time, end_time, service_type_id]
@@ -527,8 +536,6 @@ components:
           type: string
           format: uuid
           readOnly: true
-        code:
-          type: string
         name:
           type: string
         is_active:
@@ -578,8 +585,6 @@ components:
           minLength: 8
           description: 初期パスワード（8文字以上）
           example: secure_pass_123
-        code:
-          type: string
           description: スタッフコード
           example: DR001
         license_number:
@@ -607,8 +612,6 @@ components:
           type: string
           format: uuid
           readOnly: true
-        code:
-          type: string
         name:
           type: string
         price:
@@ -648,8 +651,6 @@ components:
           type: string
           format: uuid
           readOnly: true
-        code:
-          type: string
         name:
           type: string
         price:
@@ -697,8 +698,6 @@ components:
           type: string
           format: uuid
           readOnly: true
-        code:
-          type: string
         name:
           type: string
         price:
@@ -726,6 +725,30 @@ components:
           type: string
           format: date-time
           readOnly: true
+    AnimalSpecies:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          description: 種別名（例：犬、猫）
+        is_active:
+          type: boolean
+          default: true
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     Insurance:
       type: object
       required: [name]
@@ -738,8 +761,6 @@ components:
           type: string
           format: uuid
           readOnly: true
-        code:
-          type: string
         name:
           type: string
         is_active:
@@ -774,8 +795,6 @@ components:
           type: string
           format: uuid
           readOnly: true
-        code:
-          type: string
         name:
           type: string
         is_active:
@@ -807,8 +826,6 @@ components:
           type: string
           format: uuid
           readOnly: true
-        code:
-          type: string
         name:
           type: string
         price:
@@ -848,8 +865,6 @@ components:
           type: string
           format: uuid
           readOnly: true
-        code:
-          type: string
         name:
           type: string
         price:
@@ -889,8 +904,6 @@ components:
           type: string
           format: uuid
           readOnly: true
-        code:
-          type: string
         name:
           type: string
         price:
@@ -932,8 +945,6 @@ components:
           type: string
           format: uuid
           readOnly: true
-        code:
-          type: string
         name:
           type: string
         price:
@@ -972,8 +983,6 @@ components:
           type: string
           format: uuid
           readOnly: true
-        code:
-          type: string
         name:
           type: string
         price:
@@ -1011,8 +1020,6 @@ components:
           type: string
           format: uuid
           readOnly: true
-        code:
-          type: string
         name:
           type: string
         price:
@@ -1046,8 +1053,6 @@ components:
           type: string
           format: uuid
           readOnly: true
-        code:
-          type: string
         name:
           type: string
         is_active:
@@ -1077,8 +1082,6 @@ components:
           type: string
           format: uuid
           readOnly: true
-        code:
-          type: string
         name:
           type: string
         is_active:
@@ -1111,8 +1114,6 @@ components:
           type: string
           format: uuid
           readOnly: true
-        code:
-          type: string
         name:
           type: string
         price:
@@ -1322,8 +1323,6 @@ components:
           readOnly: true
         name:
           type: string
-        branch_name:
-          type: string
         postal_code:
           type: string
         address:
@@ -1411,8 +1410,6 @@ components:
                 type: string
                 format: uuid
               clinic_name:
-                type: string
-              branch_name:
                 type: string
               is_main:
                 type: boolean
@@ -2984,6 +2981,12 @@ paths:
           in: query
           schema:
             type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive]
+          description: ステータスでフィルタリング
       responses:
         '200':
           description: 在庫一覧
@@ -3295,7 +3298,6 @@ paths:
               email: yamada@clinic.com
               password: secure_pass_123
               license_number: 獣医第12345号
-              code: DR001
               sort_order: 1
       responses:
         '201':
@@ -3383,6 +3385,13 @@ paths:
       operationId: listCages
       summary: ケージ一覧
       tags: [Masters]
+      parameters:
+        - name: cage_type
+          in: query
+          schema:
+            type: string
+            enum: [icu, dog, cat, general]
+          description: ケージ種別でフィルタリング
       responses:
         '200':
           description: ケージ一覧
@@ -3605,6 +3614,13 @@ paths:
       operationId: listVaccines
       summary: ワクチン一覧
       tags: [Masters]
+      parameters:
+        - name: species
+          in: query
+          schema:
+            type: string
+            enum: [dog, cat, both]
+          description: 対象種でフィルタリング
       responses:
         '200':
           description: ワクチン一覧

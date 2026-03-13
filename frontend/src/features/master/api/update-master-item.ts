@@ -13,7 +13,6 @@ export const updateMasterItem = async (
   if (!endpoint) throw new Error(`No endpoint for category: ${category}`);
   const payload: Record<string, unknown> = {};
   if (req.name !== undefined) payload.name = req.name;
-  if (req.code !== undefined) payload.code = req.code;
   if (req.price !== undefined) payload.price = req.price;
   if (req.description !== undefined) payload.description = req.description;
   if (req.status !== undefined) payload.is_active = req.status !== "inactive";

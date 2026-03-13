@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -12,11 +12,11 @@ import (
 )
 
 type PetRepository interface {
-	FindAll(ctx context.Context, clinicID uuid.UUID, ownerID *uuid.UUID, page, limit int, search string) ([]model.Pet, int64, error)
-	FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.Pet, error)
+	FindAll(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 	Create(ctx context.Context, pet *model.Pet) error
 	Update(ctx context.Context, pet *model.Pet) error
-	Delete(ctx context.Context, clinicID, id uuid.UUID) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type petRepository struct {
@@ -27,7 +27,7 @@ func NewPetRepository(db *gorm.DB) PetRepository {
 	return &petRepository{db: db}
 }
 
-func (r *petRepository) FindAll(ctx context.Context, clinicID uuid.UUID, ownerID *uuid.UUID, page, limit int, search string) ([]model.Pet, int64, error) {
+func (r *petRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error) {
 	var pets []model.Pet
 	var total int64
 
@@ -47,14 +47,14 @@ func (r *petRepository) FindAll(ctx context.Context, clinicID uuid.UUID, ownerID
 	return pets, total, nil
 }
 
-func (r *petRepository) FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.Pet, error) {
+func (r *petRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
 	var pet model.Pet
 	if err := r.db.WithContext(ctx).
 		Preload("Owner").
 		Preload("Insurance").
 		First(&pet, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("pet", id.String())
+			return nil, apperrors.WrapNotFound("pet", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find pet by id")
 	}
@@ -78,13 +78,13 @@ func (r *petRepository) Update(ctx context.Context, pet *model.Pet) error {
 	return nil
 }
 
-func (r *petRepository) Delete(ctx context.Context, clinicID, id uuid.UUID) error {
+func (r *petRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Pet{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete pet")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("pet", id.String())
+		return apperrors.WrapNotFound("pet", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

@@ -47,7 +47,7 @@ func runAuthMiddleware(t *testing.T, authHeader string) (*httptest.ResponseRecor
 		c.Status(http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
 	if authHeader != "" {
 		req.Header.Set("Authorization", authHeader)
 	}

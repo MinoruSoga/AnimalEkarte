@@ -4,8 +4,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -16,10 +16,10 @@ import (
 
 type HospitalizationPlanRepository interface {
 	FindAll(ctx context.Context) ([]model.HospitalizationPlan, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.HospitalizationPlan, error)
+	FindByID(ctx context.Context, id uint64) (*model.HospitalizationPlan, error)
 	Create(ctx context.Context, plan *model.HospitalizationPlan) error
 	Update(ctx context.Context, plan *model.HospitalizationPlan) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type hospitalizationPlanRepository struct{ db *gorm.DB }
@@ -36,11 +36,11 @@ func (r *hospitalizationPlanRepository) FindAll(ctx context.Context) ([]model.Ho
 	return plans, nil
 }
 
-func (r *hospitalizationPlanRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.HospitalizationPlan, error) {
+func (r *hospitalizationPlanRepository) FindByID(ctx context.Context, id uint64) (*model.HospitalizationPlan, error) {
 	var plan model.HospitalizationPlan
 	if err := r.db.WithContext(ctx).First(&plan, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("hospitalization_plan", id.String())
+			return nil, apperrors.WrapNotFound("hospitalization_plan", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find hospitalization plan by id")
 	}
@@ -64,13 +64,13 @@ func (r *hospitalizationPlanRepository) Update(ctx context.Context, plan *model.
 	return nil
 }
 
-func (r *hospitalizationPlanRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *hospitalizationPlanRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.HospitalizationPlan{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete hospitalization plan")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("hospitalization_plan", id.String())
+		return apperrors.WrapNotFound("hospitalization_plan", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

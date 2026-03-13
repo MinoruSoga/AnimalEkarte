@@ -12,7 +12,7 @@ async function updateAppointmentStatus(
   id: string,
   status: ReservationStatus
 ): Promise<void> {
-  await axios.put(`/v1/reservations/${id}`, { status });
+  await axios.patch(`/v1/reservations/${id}`, { status });
 }
 
 /** カンバン操作時のステータス更新 mutation hook */

@@ -25,7 +25,12 @@
 
 
 
+これらの1個のデザインをFigmaから実装して。
 
+/ui-sample/src/　配下のコードは完全に機能するコードとはいえないので、UIのみを参考にしてください。
+# Figmaデザイン
+・当日の受付
+@https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=700-9429&m=dev
 
 
 
@@ -98,3 +103,177 @@
 # Figmaデザイン
 ・ログイン
 @https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=694-9314&m=dev
+
+
+
+
+
+
+
+/vercel-react-best-practices
+「ログイン」ページの一連のコードが、vercel-react-best-practicesに準拠しいるか確認して。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+「予約管理」ページを下記のFigmaデザインと同じUIを実装してください。
+
+/ui-sample/src/　はFigmaデザインのコードがあります。
+/ui-sample/src/　配下のコードは完全に機能するコードとはいえないので、UIのみを参考にしてください。
+
+エージェントチームを使ってもいいです。
+
+# Figmaデザイン
+・予約一覧
+@https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=727-4767&m=dev
+
+・予約詳細
+@https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=727-5685&m=dev
+
+・予約登録
+@https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=728-6718&m=dev
+
+
+
+
+
+「マスタ管理」ページを下記のFigmaデザインと同じUIを実装してください。
+
+/ui-sample/src/　はFigmaデザインのコードがあります。
+/ui-sample/src/　配下のコードは完全に機能するコードとはいえないので、UIのみを参考にしてください。
+
+エージェントチームを使ってもいいです。
+
+・マスタ設定
+@https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=730-13954&m=dev
+
+・スタッフマスタ　一覧
+これらの1個のデザインをFigmaから実装して。
+@https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=730-14297&m=dev
+
+
+・スタッフマスタ　編集
+@https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=730-14665&m=dev
+
+
+「マスタ管理」ページの一連のコードをvercel-react-best-practicesに準拠しているか確認して。
+「飼主・ペット」ページの一連のコードをvercel-react-best-practicesに準拠しているか確認して。
+「予約管理」ページの一連のコードをvercel-react-best-practicesに準拠しているか確認して。
+エージェントチームを使ってもいいです。
+「トリミング」ページの一連のコードをvercel-react-best-practicesに準拠しているか確認して。
+エージェントチームを使ってもいいです。
+
+
+カルテページのテーブルですが、
+1つのカルテに対して下記のテーブルが紐づく必要があります。
+docs/ERD.mdのDB構造を再設計してください。
+エージェントチームを使用していいです。
+DBのコードはまだ変更しなくていいです。
+
+問診タブ　問診テーブル
+診察/治療タブ　診察/治療項目テーブル
+治療タブ　治療項目テーブル
+予防接種タブ　予防接種テーブル
+定期健診タブ　定期健診テーブル
+検査タブ　検査テーブル
+画像タブ　画像テーブル
+見積書タブ　見積書テーブル
+会計(医師確認)タブ　会計(医師確認)テーブル
+会計情報(受付が行う会計)　会計テーブル
+生体情報　生体情報テーブル
+ペット情報　ペット情報テーブル
+
+
+
+
+
+
+
+
+・カルテ編集　問診タブの定型文の項目をマスタ化
+・カルテ編集　問診タブの主訴区分の項目をマスタ化
+・診断1マスタを診断病名マスタに変更
+・診断2マスタを削除
+
+
+
+
+
+
+
+
+
+docs/ERD.mdにて、DBの正規化はできてるの？
+
+
+
+
+
+
+
+
+
+
+
+
+
+「https://sweep-tart-35834055.figma.site/owners」このブラウザをgetComputedStyle()を使って読み込んで、
+飼主・ペットのすべてのページのスタイルを修正してください。
+use Agent Teams.
+
+
+
+
+
+
+「https://sweep-tart-35834055.figma.site/hospitalization」このブラウザをgetComputedStyle()を使って読み込んで、
+入院・ホテルのすべてのページのスタイルを修正してください。
+use Agent Teams.
+
+
+APIドキュメントも更新してください。
+
+
+
+
+
+
+
+
+
+
+
+
+
+「カルテ」ページを下記のFigmaデザインと同じUIを実装してください。
+
+/ui-sample/src/　はFigmaデザインのコードがあります。
+/ui-sample/src/　配下のコードは完全に機能するコードとはいえないので、UIのみを参考にしてください。
+
+エージェントチームを使ってもいいです。
+
+# Figmaデザイン
+・カルテ一覧
+@https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=541-16097&m=dev
+
+・カルテ編集_問診タブ
+@https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=732-15178&m=dev
+
+・飼主編集
+@https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=703-2943&m=dev
+
+・飼主登録_ペット登録
+@https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=703-2527&m=dev
+
+・飼主編集_ペット編集
+@https://www.figma.com/design/SkCcTak2N5Zx84jJXPQ7W3/%E4%BB%95%E6%A7%98?node-id=703-3297&m=dev

@@ -3,9 +3,9 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -13,11 +13,11 @@ import (
 )
 
 type ReservationRepository interface {
-	FindAll(ctx context.Context, clinicID uuid.UUID, page, limit int, date *time.Time, status *string, petID *uuid.UUID, ownerID *uuid.UUID) ([]model.ReservationAppointment, int64, error)
-	FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.ReservationAppointment, error)
+	FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID *uint64, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
 	Create(ctx context.Context, reservation *model.ReservationAppointment) error
 	Update(ctx context.Context, reservation *model.ReservationAppointment) error
-	Delete(ctx context.Context, clinicID, id uuid.UUID) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type reservationRepository struct {
@@ -28,7 +28,7 @@ func NewReservationRepository(db *gorm.DB) ReservationRepository {
 	return &reservationRepository{db: db}
 }
 
-func (r *reservationRepository) FindAll(ctx context.Context, clinicID uuid.UUID, page, limit int, date *time.Time, status *string, petID *uuid.UUID, ownerID *uuid.UUID) ([]model.ReservationAppointment, int64, error) {
+func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID *uint64, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
 	var reservations []model.ReservationAppointment
 	var total int64
 
@@ -56,7 +56,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uuid.UUID,
 	return reservations, total, nil
 }
 
-func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.ReservationAppointment, error) {
+func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error) {
 	var reservation model.ReservationAppointment
 	if err := r.db.WithContext(ctx).
 		Preload("Pet").
@@ -64,7 +64,7 @@ func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uuid.
 		Preload("Doctor").
 		First(&reservation, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("reservation", id.String())
+			return nil, apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find reservation by id")
 	}
@@ -88,13 +88,13 @@ func (r *reservationRepository) Update(ctx context.Context, reservation *model.R
 	return nil
 }
 
-func (r *reservationRepository) Delete(ctx context.Context, clinicID, id uuid.UUID) error {
+func (r *reservationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.ReservationAppointment{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete reservation")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("reservation", id.String())
+		return apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

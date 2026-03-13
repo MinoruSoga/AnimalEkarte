@@ -38,7 +38,6 @@ export const MASTER_CATEGORY_ENDPOINT: Record<string, string> = {
 export function transformGenericMasterItem(data: GenericMasterBackendItem): MasterItem {
   return {
     id: data.id,
-    code: data.code ?? "",
     name: data.name,
     price: data.price != null ? Number(data.price) : 0,
     status: data.is_active ? "active" : "inactive",

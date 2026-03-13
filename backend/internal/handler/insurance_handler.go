@@ -3,9 +3,9 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -48,7 +48,6 @@ func (h *Handler) CreateInsurance(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = uuid.New()
 	if err := h.svc.Insurance.Create(c.Request.Context(), &input); err != nil {
 		RespondError(c, err)
 		return
@@ -63,7 +62,7 @@ func (h *Handler) CreateInsurance(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "保険ID（UUID）"
+// @Param id path integer true "保険ID"
 // @Param insurance body model.Insurance true "更新する保険情報"
 // @Success 200 {object} model.Insurance
 // @Failure 400 {object} map[string]string
@@ -71,7 +70,7 @@ func (h *Handler) CreateInsurance(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /masters/insurances/{id} [put]
 func (h *Handler) UpdateInsurance(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -94,14 +93,14 @@ func (h *Handler) UpdateInsurance(c *gin.Context) {
 // @Description 指定IDの保険を削除する。
 // @Tags InsuranceMasters
 // @Security BearerAuth
-// @Param id path string true "保険ID（UUID）"
+// @Param id path integer true "保険ID"
 // @Success 204
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /masters/insurances/{id} [delete]
 func (h *Handler) DeleteInsurance(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return

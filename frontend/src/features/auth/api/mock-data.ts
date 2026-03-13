@@ -38,14 +38,10 @@ export const MOCK_USERS: readonly MockCredential[] = [
       avatarUrl: null,
       mainClinicId: CLINIC_A_ID,
       clinics: [
-        { clinicId: CLINIC_A_ID, clinicName: "ノア動物病院", branchName: "八王子院", isMain: true },
-        { clinicId: CLINIC_B_ID, clinicName: "ノア動物病院", branchName: "城東医院", isMain: false },
-        { clinicId: CLINIC_C_ID, clinicName: "ノア動物病院", branchName: "敷島医院", isMain: false },
+        { clinicId: CLINIC_A_ID, clinicName: "八王子院", isMain: true },
       ],
       permissions: {
         [CLINIC_A_ID]: ADMIN_PERMISSIONS,
-        [CLINIC_B_ID]: ADMIN_PERMISSIONS,
-        [CLINIC_C_ID]: ADMIN_PERMISSIONS,
       },
     },
   },
@@ -61,7 +57,7 @@ export const MOCK_USERS: readonly MockCredential[] = [
       avatarUrl: null,
       mainClinicId: CLINIC_A_ID,
       clinics: [
-        { clinicId: CLINIC_A_ID, clinicName: "ノア動物病院", branchName: "八王子院", isMain: true },
+        { clinicId: CLINIC_A_ID, clinicName: "八王子院", isMain: true },
       ],
       permissions: { [CLINIC_A_ID]: ["medical", "hospitalization"] },
     },
@@ -78,7 +74,7 @@ export const MOCK_USERS: readonly MockCredential[] = [
       avatarUrl: null,
       mainClinicId: CLINIC_A_ID,
       clinics: [
-        { clinicId: CLINIC_A_ID, clinicName: "ノア動物病院", branchName: "八王子院", isMain: true },
+        { clinicId: CLINIC_A_ID, clinicName: "八王子院", isMain: true },
       ],
       permissions: { [CLINIC_A_ID]: ["medical_read", "hospitalization", "shift_admin", "inventory"] },
     },
@@ -95,7 +91,7 @@ export const MOCK_USERS: readonly MockCredential[] = [
       avatarUrl: null,
       mainClinicId: CLINIC_A_ID,
       clinics: [
-        { clinicId: CLINIC_A_ID, clinicName: "ノア動物病院", branchName: "八王子院", isMain: true },
+        { clinicId: CLINIC_A_ID, clinicName: "八王子院", isMain: true },
       ],
       permissions: { [CLINIC_A_ID]: ["reception", "billing"] },
     },
@@ -112,7 +108,7 @@ export const MOCK_USERS: readonly MockCredential[] = [
       avatarUrl: null,
       mainClinicId: CLINIC_A_ID,
       clinics: [
-        { clinicId: CLINIC_A_ID, clinicName: "ノア動物病院", branchName: "八王子院", isMain: true },
+        { clinicId: CLINIC_A_ID, clinicName: "八王子院", isMain: true },
       ],
       permissions: { [CLINIC_A_ID]: ["trimming", "reception", "billing"] },
     },
@@ -129,9 +125,9 @@ export const MOCK_USERS: readonly MockCredential[] = [
       avatarUrl: null,
       mainClinicId: CLINIC_A_ID,
       clinics: [
-        { clinicId: CLINIC_A_ID, clinicName: "ノア動物病院", branchName: "八王子院", isMain: true },
-        { clinicId: CLINIC_B_ID, clinicName: "ノア動物病院", branchName: "城東医院", isMain: false },
-        { clinicId: CLINIC_C_ID, clinicName: "ノア動物病院", branchName: "敷島医院", isMain: false },
+        { clinicId: CLINIC_A_ID, clinicName: "八王子院", isMain: true },
+        { clinicId: CLINIC_B_ID, clinicName: "城東医院", isMain: false },
+        { clinicId: CLINIC_C_ID, clinicName: "敷島医院", isMain: false },
       ],
       permissions: {},
     },

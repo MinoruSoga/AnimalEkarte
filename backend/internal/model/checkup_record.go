@@ -3,20 +3,20 @@ package model
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
+// @name Checkup
 type Checkup struct {
-	ID              uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	MedicalRecordID uuid.UUID      `gorm:"type:uuid;not null"                             json:"medical_record_id"`
-	PetID           *uuid.UUID     `gorm:"type:uuid"                                      json:"pet_id,omitempty"`
-	CheckupTypeID   uuid.UUID      `gorm:"type:uuid;not null"                             json:"checkup_type_id"`
+	ID              uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	MedicalRecordID uint64         `gorm:"not null"                                       json:"medical_record_id"`
+	PetID           *uint64        `                                                      json:"pet_id,omitempty"`
+	CheckupTypeID   uint64         `gorm:"not null"                                       json:"checkup_type_id"`
 	Date            time.Time      `gorm:"type:date;not null"                             json:"date"`
-	DoctorID        *uuid.UUID     `gorm:"type:uuid"                                      json:"doctor_id,omitempty"`
+	DoctorID        *uint64        `                                                      json:"doctor_id,omitempty"`
 	Result          string         `gorm:"default:''"                                     json:"result"`
 	NextDate        *time.Time     `gorm:"type:date"                                      json:"next_date,omitempty"`
-	DeletedAt       gorm.DeletedAt `                                                      json:"deleted_at"`
+	DeletedAt       gorm.DeletedAt `                                                      json:"deleted_at" swaggerignore:"true"`
 	CreatedAt       time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 

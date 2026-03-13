@@ -181,7 +181,7 @@ export function Sidebar() {
       label: "マスタ設定",
       path: "/settings",
       subItems: [
-        { icon: <Building2    className="size-[18px]" />, label: "病院情報",             path: "/settings/clinic" },
+        { icon: <Building2    className="size-[18px]" />, label: "医院マスタ",             path: "/settings/clinic" },
         { icon: <Activity     className="size-[18px]" />, label: "予約区分マスタ",       path: "/settings/service-type" },
         { icon: <Stethoscope  className="size-[18px]" />, label: "診察マスタ",           path: "/settings/consultation" },
         { icon: <TestTube     className="size-[18px]" />, label: "検査マスタ",           path: "/settings/examination" },

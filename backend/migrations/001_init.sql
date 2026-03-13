@@ -7,7 +7,6 @@
 -- -----------------------------------------------------------------------------
 -- 1. 拡張機能
 -- -----------------------------------------------------------------------------
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- -----------------------------------------------------------------------------
@@ -24,11 +23,11 @@ CREATE TYPE permission_type AS ENUM (
 );
 
 -- ペット関連
-CREATE TYPE pet_status AS ENUM ('生存', '死亡');
-CREATE TYPE pet_gender AS ENUM ('雄', '雌', '不明');
-CREATE TYPE acquisition_type AS ENUM ('購入', '譲渡', '保護', 'その他');
-CREATE TYPE danger_level AS ENUM ('低', '中', '高');
-CREATE TYPE membership_type AS ENUM ('非会員', '会員', '退亡者', '他診/準');
+CREATE TYPE pet_status AS ENUM ('alive', 'deceased');
+CREATE TYPE pet_gender AS ENUM ('male', 'female', 'unknown');
+CREATE TYPE acquisition_type AS ENUM ('purchased', 'transferred', 'rescued', 'other');
+CREATE TYPE danger_level AS ENUM ('low', 'medium', 'high');
+CREATE TYPE membership_type AS ENUM ('non_member', 'member', 'deceased', 'transferred');
 
 -- マスタ共通
 CREATE TYPE staff_role AS ENUM ('veterinarian', 'nurse', 'trimmer', 'reception', 'manager');
@@ -45,7 +44,7 @@ CREATE TYPE anesthesia_type AS ENUM ('none', 'local', 'general');
 CREATE TYPE vaccine_species AS ENUM ('dog', 'cat', 'both');
 
 -- 電子カルテ関連
-CREATE TYPE medical_record_status AS ENUM ('作成中', '確定済');
+CREATE TYPE medical_record_status AS ENUM ('draft', 'finalized');
 CREATE TYPE treatment_item_type AS ENUM ('consultation', 'procedure', 'medicine', 'other');
 CREATE TYPE treatment_status AS ENUM ('未完了', '完了', '-');
 CREATE TYPE examination_status AS ENUM ('依頼中', '検査中', '完了');
@@ -66,8 +65,8 @@ CREATE TYPE reservation_status AS ENUM (
     'in_consultation', 'accounting', 'completed'
 );
 CREATE TYPE billing_status AS ENUM ('waiting', 'completed', 'cancelled', 'pending');
-CREATE TYPE hospitalization_type AS ENUM ('入院', 'ホテル');
-CREATE TYPE hospitalization_status AS ENUM ('入院中', '退院済', '予約');
+CREATE TYPE hospitalization_type AS ENUM ('hospitalization', 'hotel');
+CREATE TYPE hospitalization_status AS ENUM ('admitted', 'discharged', 'reserved');
 CREATE TYPE care_plan_type AS ENUM ('food', 'medicine', 'treatment', 'instruction', 'item');
 CREATE TYPE care_plan_status AS ENUM ('active', 'completed', 'discontinued');
 CREATE TYPE care_log_type AS ENUM ('food', 'excretion', 'medicine', 'treatment', 'other');
@@ -76,7 +75,7 @@ CREATE TYPE plan_timing AS ENUM ('morning', 'noon', 'night');
 CREATE TYPE body_weight_unit AS ENUM ('Kg', 'g');
 
 -- トリミング・シフト関連
-CREATE TYPE trimming_status AS ENUM ('完了', '予約', '進行中');
+CREATE TYPE trimming_status AS ENUM ('completed', 'reserved', 'in_progress');
 CREATE TYPE payment_method AS ENUM ('cash', 'credit_card', 'electronic_money');
 CREATE TYPE shift_type AS ENUM ('full', 'morning', 'afternoon', 'off', 'paid_leave');
 
@@ -92,9 +91,8 @@ CREATE TYPE shift_type AS ENUM ('full', 'morning', 'afternoon', 'off', 'paid_lea
 -- 1. company（シングルトン: 本部情報）
 -- ------------------------------------
 CREATE TABLE company (
-    id                  uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    id                  BIGSERIAL   PRIMARY KEY,
     name                text        NOT NULL,
-    branch_name         text        NOT NULL DEFAULT '',
     postal_code         text        NOT NULL DEFAULT '',
     address             text        NOT NULL DEFAULT '',
     phone_number        text        NOT NULL DEFAULT '',
@@ -112,9 +110,9 @@ CREATE TABLE company (
 -- 2. clinics（クリニック情報）
 -- ------------------------------------
 CREATE TABLE clinics (
-    id                  uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    id                  BIGSERIAL   PRIMARY KEY,
+    company_id          bigint      NOT NULL REFERENCES company(id),
     name                text        NOT NULL,
-    branch_name         text        NOT NULL DEFAULT '',
     postal_code         text        NOT NULL DEFAULT '',
     address             text        NOT NULL DEFAULT '',
     phone_number        text        NOT NULL DEFAULT '',
@@ -137,8 +135,7 @@ CREATE TABLE clinics (
 -- 3. animal_species（ペット種類マスタ: システム共通）
 -- ------------------------------------
 CREATE TABLE animal_species (
-    id         uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    code       text          NOT NULL DEFAULT '',
+    id         BIGSERIAL     PRIMARY KEY,
     name       text          NOT NULL,
     is_active  boolean       NOT NULL DEFAULT true,
     sort_order integer                DEFAULT 0,
@@ -150,10 +147,9 @@ CREATE TABLE animal_species (
 -- 4. job_titles（職種マスタ）
 -- ------------------------------------
 CREATE TABLE job_titles (
-    id         uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id  uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    id         BIGSERIAL   PRIMARY KEY,
+    clinic_id  bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name       text        NOT NULL DEFAULT '',
-    code       text        NOT NULL DEFAULT '',
     sort_order integer     NOT NULL DEFAULT 0,
     is_active  boolean     NOT NULL DEFAULT true,
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -164,14 +160,13 @@ CREATE TABLE job_titles (
 -- 5. staffs（スタッフマスタ）
 -- ------------------------------------
 CREATE TABLE staffs (
-    id             uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id      uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code           text        NOT NULL DEFAULT '',
+    id             BIGSERIAL   PRIMARY KEY,
+    clinic_id      bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name           text        NOT NULL,
     is_active      boolean     NOT NULL DEFAULT true,
     staff_role     staff_role  NOT NULL,
     license_number text        NOT NULL DEFAULT '',
-    job_title_id   uuid                 REFERENCES job_titles(id) ON DELETE SET NULL,
+    job_title_id   bigint               REFERENCES job_titles(id) ON DELETE SET NULL,
     sort_order     integer              DEFAULT 0,
     created_at     timestamptz NOT NULL DEFAULT now(),
     updated_at     timestamptz NOT NULL DEFAULT now(),
@@ -182,15 +177,15 @@ CREATE TABLE staffs (
 -- 6. user_accounts（ユーザーアカウント）
 -- ------------------------------------
 CREATE TABLE user_accounts (
-    id                uuid           NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    id                BIGSERIAL      PRIMARY KEY,
     email             text           NOT NULL UNIQUE,
     display_name      text           NOT NULL,
     display_name_kana text           NOT NULL DEFAULT '',
     user_type         user_type      NOT NULL DEFAULT 'staff',
-    job_title_id      uuid                    REFERENCES job_titles(id) ON DELETE SET NULL,
+    job_title_id      bigint                  REFERENCES job_titles(id) ON DELETE SET NULL,
     status            account_status          DEFAULT 'active',
     avatar_url        text           NOT NULL DEFAULT '',
-    staff_id          uuid                    REFERENCES staffs(id) ON DELETE SET NULL,
+    staff_id          bigint                  REFERENCES staffs(id) ON DELETE SET NULL,
     password_hash     text           NOT NULL DEFAULT '',
     created_at        timestamptz    NOT NULL DEFAULT now(),
     updated_at        timestamptz    NOT NULL DEFAULT now(),
@@ -201,8 +196,8 @@ CREATE TABLE user_accounts (
 -- 7. owners（飼主情報）
 -- ------------------------------------
 CREATE TABLE owners (
-    id               uuid            NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id        uuid            NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    id               BIGSERIAL       PRIMARY KEY,
+    clinic_id        bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     owner_name       text            NOT NULL,
     owner_name_kana  text            NOT NULL DEFAULT '',
     birth_date       date,
@@ -219,7 +214,7 @@ CREATE TABLE owners (
     remarks          text            NOT NULL DEFAULT '',
     is_dangerous     boolean                  DEFAULT false,
     discount_rate    numeric                  DEFAULT 0,
-    membership_type  membership_type          DEFAULT '非会員',
+    membership_type  membership_type          DEFAULT 'non_member',
     created_at       timestamptz     NOT NULL DEFAULT now(),
     updated_at       timestamptz     NOT NULL DEFAULT now(),
     deleted_at       timestamptz
@@ -229,8 +224,8 @@ CREATE TABLE owners (
 -- 8. inventory_items（在庫管理）
 -- ------------------------------------
 CREATE TABLE inventory_items (
-    id              uuid               NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id       uuid               NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    id              BIGSERIAL          PRIMARY KEY,
+    clinic_id       bigint             NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name            text               NOT NULL,
     category        inventory_category NOT NULL,
     quantity        integer                     DEFAULT 0,
@@ -249,9 +244,8 @@ CREATE TABLE inventory_items (
 -- 9. exam_types（検査種別マスタ）
 -- ------------------------------------
 CREATE TABLE exam_types (
-    id          uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id   uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code        text        NOT NULL DEFAULT '',
+    id          BIGSERIAL   PRIMARY KEY,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name        text        NOT NULL,
     price       numeric,
     is_active   boolean     NOT NULL DEFAULT true,
@@ -265,8 +259,8 @@ CREATE TABLE exam_types (
 -- 10. exam_type_items（検査項目定義）
 -- ------------------------------------
 CREATE TABLE exam_type_items (
-    id               uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    exam_type_id     uuid        NOT NULL REFERENCES exam_types(id) ON DELETE CASCADE,
+    id               BIGSERIAL   PRIMARY KEY,
+    exam_type_id     bigint      NOT NULL REFERENCES exam_types(id) ON DELETE CASCADE,
     name             text        NOT NULL,
     inspection_value text        NOT NULL DEFAULT '',
     normal_value     text        NOT NULL DEFAULT '',
@@ -278,34 +272,33 @@ CREATE TABLE exam_type_items (
 -- 11. vaccines（ワクチンマスタ）
 -- ------------------------------------
 CREATE TABLE vaccines (
-    id          uuid            NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id   uuid            NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code        text            NOT NULL DEFAULT '',
-    name        text            NOT NULL,
-    price       numeric,
-    is_active   boolean         NOT NULL DEFAULT true,
-    description text            NOT NULL DEFAULT '',
-    species     vaccine_species,
-    interval    text            NOT NULL DEFAULT '',
-    sort_order  integer                  DEFAULT 0,
-    created_at  timestamptz     NOT NULL DEFAULT now(),
-    updated_at  timestamptz     NOT NULL DEFAULT now()
+    id           BIGSERIAL       PRIMARY KEY,
+    clinic_id    bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name         text            NOT NULL,
+    price        numeric,
+    is_active    boolean         NOT NULL DEFAULT true,
+    description  text            NOT NULL DEFAULT '',
+    species      vaccine_species,
+    interval     text            NOT NULL DEFAULT '',
+    inventory_id bigint                   REFERENCES inventory_items(id) ON DELETE SET NULL,
+    sort_order   integer                  DEFAULT 0,
+    created_at   timestamptz     NOT NULL DEFAULT now(),
+    updated_at   timestamptz     NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
 -- 12. medicines（薬剤マスタ）
 -- ------------------------------------
 CREATE TABLE medicines (
-    id               uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id        uuid          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code             text          NOT NULL DEFAULT '',
+    id               BIGSERIAL     PRIMARY KEY,
+    clinic_id        bigint        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name             text          NOT NULL,
     price            numeric,
     is_active        boolean       NOT NULL DEFAULT true,
     description      text          NOT NULL DEFAULT '',
     dosage_form      dosage_form,
     medicine_unit    medicine_unit,
-    inventory_id     uuid                   REFERENCES inventory_items(id) ON DELETE SET NULL,
+    inventory_id     bigint                 REFERENCES inventory_items(id) ON DELETE SET NULL,
     default_quantity integer                DEFAULT 1,
     sort_order       integer                DEFAULT 0,
     created_at       timestamptz   NOT NULL DEFAULT now(),
@@ -316,9 +309,8 @@ CREATE TABLE medicines (
 -- 13. insurances（保険マスタ）
 -- ------------------------------------
 CREATE TABLE insurances (
-    id            uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id     uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code          text        NOT NULL DEFAULT '',
+    id            BIGSERIAL   PRIMARY KEY,
+    clinic_id     bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name          text        NOT NULL,
     is_active     boolean     NOT NULL DEFAULT true,
     description   text        NOT NULL DEFAULT '',
@@ -333,9 +325,8 @@ CREATE TABLE insurances (
 -- 14. cages（ケージマスタ）
 -- ------------------------------------
 CREATE TABLE cages (
-    id          uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id   uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code        text        NOT NULL DEFAULT '',
+    id          BIGSERIAL   PRIMARY KEY,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name        text        NOT NULL,
     price       numeric,
     is_active   boolean     NOT NULL DEFAULT true,
@@ -351,9 +342,8 @@ CREATE TABLE cages (
 -- 15. service_types（サービス種別マスタ）
 -- ------------------------------------
 CREATE TABLE service_types (
-    id          uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id   uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code        text        NOT NULL DEFAULT '',
+    id          BIGSERIAL   PRIMARY KEY,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name        text        NOT NULL,
     is_active   boolean     NOT NULL DEFAULT true,
     description text        NOT NULL DEFAULT '',
@@ -367,9 +357,8 @@ CREATE TABLE service_types (
 -- 16. consultations（診察項目マスタ）
 -- ------------------------------------
 CREATE TABLE consultations (
-    id             uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id      uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code           text        NOT NULL DEFAULT '',
+    id             BIGSERIAL   PRIMARY KEY,
+    clinic_id      bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name           text        NOT NULL,
     price          numeric,
     is_active      boolean     NOT NULL DEFAULT true,
@@ -385,9 +374,8 @@ CREATE TABLE consultations (
 -- 17. procedures（処置項目マスタ）
 -- ------------------------------------
 CREATE TABLE procedures (
-    id          uuid            NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id   uuid            NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code        text            NOT NULL DEFAULT '',
+    id          BIGSERIAL       PRIMARY KEY,
+    clinic_id   bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name        text            NOT NULL,
     price       numeric,
     is_active   boolean         NOT NULL DEFAULT true,
@@ -403,9 +391,8 @@ CREATE TABLE procedures (
 -- 18. hospitalization_plans（入院プランマスタ）
 -- ------------------------------------
 CREATE TABLE hospitalization_plans (
-    id           uuid         NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id    uuid         NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code         text         NOT NULL DEFAULT '',
+    id           BIGSERIAL    PRIMARY KEY,
+    clinic_id    bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name         text         NOT NULL,
     price        numeric,
     is_active    boolean      NOT NULL DEFAULT true,
@@ -421,9 +408,8 @@ CREATE TABLE hospitalization_plans (
 -- 19. trimming_courses（トリミングコースマスタ）
 -- ------------------------------------
 CREATE TABLE trimming_courses (
-    id          uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id   uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code        text        NOT NULL DEFAULT '',
+    id          BIGSERIAL   PRIMARY KEY,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name        text        NOT NULL,
     price       numeric,
     is_active   boolean     NOT NULL DEFAULT true,
@@ -439,9 +425,8 @@ CREATE TABLE trimming_courses (
 -- 20. trimming_options（トリミングオプションマスタ）
 -- ------------------------------------
 CREATE TABLE trimming_options (
-    id          uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id   uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code        text        NOT NULL DEFAULT '',
+    id          BIGSERIAL   PRIMARY KEY,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name        text        NOT NULL,
     price       numeric,
     is_active   boolean     NOT NULL DEFAULT true,
@@ -457,9 +442,8 @@ CREATE TABLE trimming_options (
 -- 21. diagnosis_categories（診断カテゴリマスタ）
 -- ------------------------------------
 CREATE TABLE diagnosis_categories (
-    id          uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id   uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code        text        NOT NULL DEFAULT '',
+    id          BIGSERIAL   PRIMARY KEY,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name        text        NOT NULL,
     is_active   boolean     NOT NULL DEFAULT true,
     description text        NOT NULL DEFAULT '',
@@ -472,13 +456,12 @@ CREATE TABLE diagnosis_categories (
 -- 22. diagnosis_names（診断病名マスタ）
 -- ------------------------------------
 CREATE TABLE diagnosis_names (
-    id                    uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id             uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code                  text        NOT NULL DEFAULT '',
+    id                    BIGSERIAL   PRIMARY KEY,
+    clinic_id             bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name                  text        NOT NULL,
     is_active             boolean     NOT NULL DEFAULT true,
     description           text        NOT NULL DEFAULT '',
-    diagnosis_category_id uuid        NOT NULL REFERENCES diagnosis_categories(id) ON DELETE CASCADE,
+    diagnosis_category_id bigint      NOT NULL REFERENCES diagnosis_categories(id) ON DELETE CASCADE,
     sort_order            integer              DEFAULT 0,
     created_at            timestamptz NOT NULL DEFAULT now(),
     updated_at            timestamptz NOT NULL DEFAULT now()
@@ -488,9 +471,8 @@ CREATE TABLE diagnosis_names (
 -- 23. checkup_types（健診種別マスタ）
 -- ------------------------------------
 CREATE TABLE checkup_types (
-    id          uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id   uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code        text        NOT NULL DEFAULT '',
+    id          BIGSERIAL   PRIMARY KEY,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name        text        NOT NULL,
     price       numeric,
     is_active   boolean     NOT NULL DEFAULT true,
@@ -506,9 +488,8 @@ CREATE TABLE checkup_types (
 -- 24. chief_complaint_categories（主訴区分マスタ）
 -- ------------------------------------
 CREATE TABLE chief_complaint_categories (
-    id         uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id  uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    code       text        NOT NULL DEFAULT '',
+    id         BIGSERIAL   PRIMARY KEY,
+    clinic_id  bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name       text        NOT NULL,
     is_active  boolean     NOT NULL DEFAULT true,
     sort_order integer              DEFAULT 0,
@@ -520,8 +501,8 @@ CREATE TABLE chief_complaint_categories (
 -- 25. inquiry_templates（問診定型文マスタ）
 -- ------------------------------------
 CREATE TABLE inquiry_templates (
-    id         uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id  uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    id         BIGSERIAL   PRIMARY KEY,
+    clinic_id  bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     category   text        NOT NULL DEFAULT '',
     title      text        NOT NULL,
     content    text        NOT NULL DEFAULT '',
@@ -539,27 +520,27 @@ CREATE TABLE inquiry_templates (
 -- 26. pets（ペット情報）
 -- ------------------------------------
 CREATE TABLE pets (
-    id                uuid            NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id         uuid            NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    owner_id          uuid            NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,
+    id                BIGSERIAL       PRIMARY KEY,
+    clinic_id         bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_id          bigint          NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,
     pet_number        text            NOT NULL DEFAULT '',
     name              text            NOT NULL,
     pet_name_kana     text            NOT NULL DEFAULT '',
-    animal_species_id uuid            NOT NULL REFERENCES animal_species(id) ON DELETE RESTRICT,
-    gender            pet_gender               DEFAULT '不明',
-    status            pet_status               DEFAULT '生存',
+    animal_species_id bigint          NOT NULL REFERENCES animal_species(id) ON DELETE RESTRICT,
+    gender            pet_gender               DEFAULT 'unknown',
+    status            pet_status               DEFAULT 'alive',
     birth_date        date,
     breed             text            NOT NULL DEFAULT '',
     color             text            NOT NULL DEFAULT '',
     weight            numeric,
     neutered_date     date,
     acquisition_type  acquisition_type,
-    danger_level      danger_level             DEFAULT '低',
+    danger_level      danger_level             DEFAULT 'low',
     food              text            NOT NULL DEFAULT '',
     environment       text            NOT NULL DEFAULT '',
     phone             text            NOT NULL DEFAULT '',
     last_visit        date,
-    insurance_id      uuid                     REFERENCES insurances(id) ON DELETE SET NULL,
+    insurance_id      bigint                   REFERENCES insurances(id) ON DELETE SET NULL,
     remarks           text            NOT NULL DEFAULT '',
     created_at        timestamptz     NOT NULL DEFAULT now(),
     updated_at        timestamptz     NOT NULL DEFAULT now(),
@@ -570,9 +551,9 @@ CREATE TABLE pets (
 -- 27. user_clinic_memberships（ユーザー所属クリニック）
 -- ------------------------------------
 CREATE TABLE user_clinic_memberships (
-    id        uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id   uuid        NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
-    clinic_id uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    id        BIGSERIAL   PRIMARY KEY,
+    user_id   bigint      NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
+    clinic_id bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     is_main   boolean              DEFAULT false,
     joined_at timestamptz          DEFAULT now()
 );
@@ -581,11 +562,11 @@ CREATE TABLE user_clinic_memberships (
 -- 28. user_permissions（ユーザー権限）
 -- ------------------------------------
 CREATE TABLE user_permissions (
-    id         uuid            NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id    uuid            NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
-    clinic_id  uuid            NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    id         BIGSERIAL       PRIMARY KEY,
+    user_id    bigint          NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
+    clinic_id  bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     permission permission_type NOT NULL,
-    granted_by uuid                     REFERENCES user_accounts(id) ON DELETE SET NULL,
+    granted_by bigint                   REFERENCES user_accounts(id) ON DELETE SET NULL,
     granted_at timestamptz              DEFAULT now()
 );
 
@@ -597,15 +578,15 @@ CREATE TABLE user_permissions (
 -- 29. reservation_appointments（予約）
 -- ------------------------------------
 CREATE TABLE reservation_appointments (
-    id              uuid               NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id       uuid               NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    id              BIGSERIAL          PRIMARY KEY,
+    clinic_id       bigint             NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     start_time      timestamptz        NOT NULL,
     end_time        timestamptz        NOT NULL,
-    owner_id        uuid                        REFERENCES owners(id) ON DELETE SET NULL,
-    pet_id          uuid                        REFERENCES pets(id) ON DELETE SET NULL,
+    owner_id        bigint                      REFERENCES owners(id) ON DELETE SET NULL,
+    pet_id          bigint                      REFERENCES pets(id) ON DELETE SET NULL,
     visit_type      visit_type         NOT NULL DEFAULT 'revisit',
-    service_type_id uuid               NOT NULL REFERENCES service_types(id) ON DELETE RESTRICT,
-    doctor_id       uuid                        REFERENCES staffs(id) ON DELETE SET NULL,
+    service_type_id bigint             NOT NULL REFERENCES service_types(id) ON DELETE RESTRICT,
+    doctor_id       bigint                      REFERENCES staffs(id) ON DELETE SET NULL,
     is_designated   boolean                     DEFAULT false,
     status          reservation_status          DEFAULT 'pending',
     notes           text               NOT NULL DEFAULT '',
@@ -618,16 +599,16 @@ CREATE TABLE reservation_appointments (
 -- 30. hospitalizations（入院/ホテル管理）
 -- ------------------------------------
 CREATE TABLE hospitalizations (
-    id                   uuid                   NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id            uuid                   NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    owner_id             uuid                   NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,
-    pet_id               uuid                   NOT NULL REFERENCES pets(id) ON DELETE RESTRICT,
+    id                   BIGSERIAL              PRIMARY KEY,
+    clinic_id            bigint                 NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_id             bigint                 NOT NULL REFERENCES owners(id) ON DELETE RESTRICT,
+    pet_id               bigint                 NOT NULL REFERENCES pets(id) ON DELETE RESTRICT,
     hospitalization_type hospitalization_type   NOT NULL,
     start_date           date                   NOT NULL,
     end_date             date                   NOT NULL,
-    status               hospitalization_status          DEFAULT '予約',
-    cage_id              uuid                            REFERENCES cages(id) ON DELETE SET NULL,
-    doctor_id            uuid                            REFERENCES staffs(id) ON DELETE SET NULL,
+    status               hospitalization_status          DEFAULT 'reserved',
+    cage_id              bigint                          REFERENCES cages(id) ON DELETE SET NULL,
+    doctor_id            bigint                          REFERENCES staffs(id) ON DELETE SET NULL,
     memo                 text                   NOT NULL DEFAULT '',
     owner_request        text                   NOT NULL DEFAULT '',
     staff_notes          text                   NOT NULL DEFAULT '',
@@ -640,15 +621,15 @@ CREATE TABLE hospitalizations (
 -- 31. trimming_records（トリミング記録）
 -- ------------------------------------
 CREATE TABLE trimming_records (
-    id              uuid             NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id       uuid             NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    id              BIGSERIAL        PRIMARY KEY,
+    clinic_id       bigint           NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     date            date             NOT NULL,
-    pet_id          uuid                      REFERENCES pets(id) ON DELETE SET NULL,
+    pet_id          bigint                    REFERENCES pets(id) ON DELETE SET NULL,
     weight          text             NOT NULL DEFAULT '',
     style_request   text             NOT NULL DEFAULT '',
-    staff_id        uuid             NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
-    status          trimming_status           DEFAULT '予約',
-    course_id       uuid             NOT NULL REFERENCES trimming_courses(id) ON DELETE RESTRICT,
+    staff_id        bigint           NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+    status          trimming_status           DEFAULT 'reserved',
+    course_id       bigint           NOT NULL REFERENCES trimming_courses(id) ON DELETE RESTRICT,
     bw              text             NOT NULL DEFAULT '',
     bw_unit         body_weight_unit          DEFAULT 'Kg',
     bt              text             NOT NULL DEFAULT '',
@@ -666,15 +647,15 @@ CREATE TABLE trimming_records (
 -- 32. medical_records（電子カルテ）
 -- ------------------------------------
 CREATE TABLE medical_records (
-    id                         uuid                  NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id                  uuid                  NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    id                         BIGSERIAL             PRIMARY KEY,
+    clinic_id                  bigint                NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     record_no                  text                  NOT NULL,
     date                       date                  NOT NULL,
-    owner_id                   uuid                           REFERENCES owners(id) ON DELETE RESTRICT,
-    pet_id                     uuid                           REFERENCES pets(id) ON DELETE RESTRICT,
-    doctor_id                  uuid                           REFERENCES staffs(id) ON DELETE SET NULL,
-    reservation_appointment_id uuid                           REFERENCES reservation_appointments(id) ON DELETE SET NULL,
-    status                     medical_record_status          DEFAULT '作成中',
+    owner_id                   bigint                         REFERENCES owners(id) ON DELETE RESTRICT,
+    pet_id                     bigint                         REFERENCES pets(id) ON DELETE RESTRICT,
+    doctor_id                  bigint                         REFERENCES staffs(id) ON DELETE SET NULL,
+    reservation_appointment_id bigint                         REFERENCES reservation_appointments(id) ON DELETE SET NULL,
+    status                     medical_record_status          DEFAULT 'draft',
     created_at                 timestamptz           NOT NULL DEFAULT now(),
     updated_at                 timestamptz           NOT NULL DEFAULT now(),
     deleted_at                 timestamptz
@@ -684,14 +665,14 @@ CREATE TABLE medical_records (
 -- 33. vaccinations（予防接種記録）
 -- ------------------------------------
 CREATE TABLE vaccinations (
-    id                 uuid               NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    medical_record_id  uuid               NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
-    pet_id             uuid                        REFERENCES pets(id) ON DELETE SET NULL,
-    vaccine_id         uuid               NOT NULL REFERENCES vaccines(id) ON DELETE RESTRICT,
+    id                 BIGSERIAL          PRIMARY KEY,
+    medical_record_id  bigint             NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
+    pet_id             bigint                      REFERENCES pets(id) ON DELETE SET NULL,
+    vaccine_id         bigint             NOT NULL REFERENCES vaccines(id) ON DELETE RESTRICT,
     date               date               NOT NULL,
     next_date          date,
     next_schedule_type next_schedule_type,
-    doctor_id          uuid                        REFERENCES staffs(id) ON DELETE SET NULL,
+    doctor_id          bigint                      REFERENCES staffs(id) ON DELETE SET NULL,
     supplemental       text               NOT NULL DEFAULT '',
     lot1               text               NOT NULL DEFAULT '',
     lot2               text               NOT NULL DEFAULT '',
@@ -707,13 +688,13 @@ CREATE TABLE vaccinations (
 -- 34. checkups（定期健診記録）
 -- ------------------------------------
 CREATE TABLE checkups (
-    id                uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    medical_record_id uuid          NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
-    pet_id            uuid                   REFERENCES pets(id) ON DELETE SET NULL,
-    checkup_type_id   uuid          NOT NULL REFERENCES checkup_types(id) ON DELETE RESTRICT,
+    id                BIGSERIAL     PRIMARY KEY,
+    medical_record_id bigint        NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
+    pet_id            bigint                 REFERENCES pets(id) ON DELETE SET NULL,
+    checkup_type_id   bigint        NOT NULL REFERENCES checkup_types(id) ON DELETE RESTRICT,
     date              date          NOT NULL,
     next_date         date,
-    doctor_id         uuid                   REFERENCES staffs(id) ON DELETE SET NULL,
+    doctor_id         bigint                 REFERENCES staffs(id) ON DELETE SET NULL,
     result            text          NOT NULL DEFAULT '',
     created_at        timestamptz   NOT NULL DEFAULT now(),
     updated_at        timestamptz   NOT NULL DEFAULT now(),
@@ -724,12 +705,12 @@ CREATE TABLE checkups (
 -- 35. exams（検査記録）
 -- ------------------------------------
 CREATE TABLE exams (
-    id                uuid               NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    medical_record_id uuid               NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
-    pet_id            uuid                        REFERENCES pets(id) ON DELETE SET NULL,
+    id                BIGSERIAL          PRIMARY KEY,
+    medical_record_id bigint             NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
+    pet_id            bigint                      REFERENCES pets(id) ON DELETE SET NULL,
     date              date               NOT NULL,
-    exam_type_id      uuid               NOT NULL REFERENCES exam_types(id) ON DELETE RESTRICT,
-    doctor_id         uuid                        REFERENCES staffs(id) ON DELETE SET NULL,
+    exam_type_id      bigint             NOT NULL REFERENCES exam_types(id) ON DELETE RESTRICT,
+    doctor_id         bigint                      REFERENCES staffs(id) ON DELETE SET NULL,
     status            examination_status          DEFAULT '依頼中',
     result_summary    text               NOT NULL DEFAULT '',
     machine           text               NOT NULL DEFAULT '',
@@ -746,9 +727,9 @@ CREATE TABLE exams (
 -- 36. inquiries（問診タブ: medical_recordsと1:1）
 -- ------------------------------------
 CREATE TABLE inquiries (
-    id                          uuid               NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    medical_record_id           uuid               NOT NULL UNIQUE REFERENCES medical_records(id) ON DELETE CASCADE,
-    chief_complaint_category_id uuid                        REFERENCES chief_complaint_categories(id) ON DELETE SET NULL,
+    id                          BIGSERIAL          PRIMARY KEY,
+    medical_record_id           bigint             NOT NULL UNIQUE REFERENCES medical_records(id) ON DELETE CASCADE,
+    chief_complaint_category_id bigint                      REFERENCES chief_complaint_categories(id) ON DELETE SET NULL,
     chief_complaint             text               NOT NULL DEFAULT '',
     history                     text               NOT NULL DEFAULT '',
     current_medications         text               NOT NULL DEFAULT '',
@@ -760,7 +741,7 @@ CREATE TABLE inquiries (
     water_intake                water_intake_level,
     owner_observations          text               NOT NULL DEFAULT '',
     notes                       text               NOT NULL DEFAULT '',
-    staff_id                    uuid                        REFERENCES staffs(id) ON DELETE SET NULL,
+    staff_id                    bigint                      REFERENCES staffs(id) ON DELETE SET NULL,
     created_at                  timestamptz        NOT NULL DEFAULT now(),
     updated_at                  timestamptz        NOT NULL DEFAULT now()
 );
@@ -769,11 +750,11 @@ CREATE TABLE inquiries (
 -- 37. clinical_plans（診察/治療タブ: medical_recordsと1:1）
 -- ------------------------------------
 CREATE TABLE clinical_plans (
-    id                    uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    medical_record_id     uuid        NOT NULL UNIQUE REFERENCES medical_records(id) ON DELETE CASCADE,
+    id                    BIGSERIAL   PRIMARY KEY,
+    medical_record_id     bigint      NOT NULL UNIQUE REFERENCES medical_records(id) ON DELETE CASCADE,
     physical_exam         text        NOT NULL DEFAULT '',
-    diagnosis_category_id uuid                 REFERENCES diagnosis_categories(id) ON DELETE SET NULL,
-    diagnosis_name_id     uuid                 REFERENCES diagnosis_names(id) ON DELETE SET NULL,
+    diagnosis_category_id bigint               REFERENCES diagnosis_categories(id) ON DELETE SET NULL,
+    diagnosis_name_id     bigint               REFERENCES diagnosis_names(id) ON DELETE SET NULL,
     diagnosis_details     text        NOT NULL DEFAULT '',
     treatment_policy      text        NOT NULL DEFAULT '',
     created_at            timestamptz NOT NULL DEFAULT now(),
@@ -784,10 +765,10 @@ CREATE TABLE clinical_plans (
 -- 38. vitals（バイタル記録: 外来）
 -- ------------------------------------
 CREATE TABLE vitals (
-    id                uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    medical_record_id uuid        NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
+    id                BIGSERIAL   PRIMARY KEY,
+    medical_record_id bigint      NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
     recorded_at       timestamptz NOT NULL DEFAULT now(),
-    staff_id          uuid                 REFERENCES staffs(id) ON DELETE SET NULL,
+    staff_id          bigint               REFERENCES staffs(id) ON DELETE SET NULL,
     temperature       numeric,
     heart_rate        integer,
     respiration_rate  integer,
@@ -800,12 +781,12 @@ CREATE TABLE vitals (
 -- 39. treatments（治療明細）
 -- ------------------------------------
 CREATE TABLE treatments (
-    id                uuid                NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    medical_record_id uuid                NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
+    id                BIGSERIAL           PRIMARY KEY,
+    medical_record_id bigint              NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
     item_type         treatment_item_type NOT NULL DEFAULT 'other',
-    consultation_id   uuid                         REFERENCES consultations(id) ON DELETE SET NULL,
-    procedure_id      uuid                         REFERENCES procedures(id) ON DELETE SET NULL,
-    medicine_id       uuid                         REFERENCES medicines(id) ON DELETE SET NULL,
+    consultation_id   bigint                       REFERENCES consultations(id) ON DELETE SET NULL,
+    procedure_id      bigint                       REFERENCES procedures(id) ON DELETE SET NULL,
+    medicine_id       bigint                       REFERENCES medicines(id) ON DELETE SET NULL,
     selected          boolean                      DEFAULT false,
     status            treatment_status             DEFAULT '未完了',
     content           text                NOT NULL DEFAULT '',
@@ -815,7 +796,7 @@ CREATE TABLE treatments (
     quantity          integer                      DEFAULT 1,
     discount_rate     numeric                      DEFAULT 0,
     discount_amount   numeric                      DEFAULT 0,
-    inventory_id      uuid                         REFERENCES inventory_items(id) ON DELETE SET NULL,
+    inventory_id      bigint                       REFERENCES inventory_items(id) ON DELETE SET NULL,
     sort_order        integer                      DEFAULT 0,
     created_at        timestamptz         NOT NULL DEFAULT now(),
     updated_at        timestamptz         NOT NULL DEFAULT now(),
@@ -832,9 +813,9 @@ CREATE TABLE treatments (
 -- 40. treatment_plans（治療プラン: 外来・入院共用）
 -- ------------------------------------
 CREATE TABLE treatment_plans (
-    id                 uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    medical_record_id  uuid                 REFERENCES medical_records(id) ON DELETE CASCADE,
-    hospitalization_id uuid                 REFERENCES hospitalizations(id) ON DELETE CASCADE,
+    id                 BIGSERIAL   PRIMARY KEY,
+    medical_record_id  bigint               REFERENCES medical_records(id) ON DELETE CASCADE,
+    hospitalization_id bigint               REFERENCES hospitalizations(id) ON DELETE CASCADE,
     treatment_content  text        NOT NULL DEFAULT '',
     memo               text        NOT NULL DEFAULT '',
     insurance          boolean              DEFAULT false,
@@ -857,8 +838,8 @@ CREATE TABLE treatment_plans (
 -- 41. record_images（画像タブ）
 -- ------------------------------------
 CREATE TABLE record_images (
-    id                uuid               NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    medical_record_id uuid               NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
+    id                BIGSERIAL          PRIMARY KEY,
+    medical_record_id bigint             NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
     image_url         text               NOT NULL DEFAULT '',
     thumbnail_url     text               NOT NULL DEFAULT '',
     file_name         text               NOT NULL DEFAULT '',
@@ -867,8 +848,8 @@ CREATE TABLE record_images (
     image_type        medical_image_type NOT NULL DEFAULT 'other',
     description       text               NOT NULL DEFAULT '',
     taken_at          timestamptz,
-    exam_id           uuid                        REFERENCES exams(id) ON DELETE SET NULL,
-    staff_id          uuid                        REFERENCES staffs(id) ON DELETE SET NULL,
+    exam_id           bigint                      REFERENCES exams(id) ON DELETE SET NULL,
+    staff_id          bigint                      REFERENCES staffs(id) ON DELETE SET NULL,
     sort_order        integer                     DEFAULT 0,
     created_at        timestamptz        NOT NULL DEFAULT now(),
     updated_at        timestamptz        NOT NULL DEFAULT now()
@@ -878,12 +859,12 @@ CREATE TABLE record_images (
 -- 42. billing_reviews（会計医師確認タブ: medical_recordsと1:1）
 -- ------------------------------------
 CREATE TABLE billing_reviews (
-    id                uuid                  NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    medical_record_id uuid                  NOT NULL UNIQUE REFERENCES medical_records(id) ON DELETE CASCADE,
+    id                BIGSERIAL             PRIMARY KEY,
+    medical_record_id bigint                NOT NULL UNIQUE REFERENCES medical_records(id) ON DELETE CASCADE,
     status            billing_review_status          DEFAULT 'pending',
-    confirmed_by      uuid                           REFERENCES staffs(id) ON DELETE SET NULL,
+    confirmed_by      bigint                         REFERENCES staffs(id) ON DELETE SET NULL,
     confirmed_at      timestamptz,
-    returned_by       uuid                           REFERENCES staffs(id) ON DELETE SET NULL,
+    returned_by       bigint                         REFERENCES staffs(id) ON DELETE SET NULL,
     returned_at       timestamptz,
     return_reason     text                  NOT NULL DEFAULT '',
     memo              text                  NOT NULL DEFAULT '',
@@ -895,12 +876,12 @@ CREATE TABLE billing_reviews (
 -- 43. estimates（見積書）
 -- ------------------------------------
 CREATE TABLE estimates (
-    id                uuid            NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id         uuid            NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    id                BIGSERIAL       PRIMARY KEY,
+    clinic_id         bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     estimate_no       text            NOT NULL,
-    medical_record_id uuid                     REFERENCES medical_records(id) ON DELETE RESTRICT,
+    medical_record_id bigint                   REFERENCES medical_records(id) ON DELETE RESTRICT,
     title             text            NOT NULL DEFAULT '',
-    owner_id          uuid                     REFERENCES owners(id) ON DELETE SET NULL,
+    owner_id          bigint                   REFERENCES owners(id) ON DELETE SET NULL,
     status            estimate_status          DEFAULT 'draft',
     subtotal          numeric         NOT NULL DEFAULT 0,
     tax_total         numeric         NOT NULL DEFAULT 0,
@@ -910,7 +891,7 @@ CREATE TABLE estimates (
     valid_until       date,
     comment           text            NOT NULL DEFAULT '',
     notes             text            NOT NULL DEFAULT '',
-    created_by        uuid                     REFERENCES staffs(id) ON DELETE SET NULL,
+    created_by        bigint                   REFERENCES staffs(id) ON DELETE SET NULL,
     created_at        timestamptz     NOT NULL DEFAULT now(),
     updated_at        timestamptz     NOT NULL DEFAULT now(),
     deleted_at        timestamptz
@@ -920,25 +901,26 @@ CREATE TABLE estimates (
 -- 44. exam_items（検査結果明細）
 -- ------------------------------------
 CREATE TABLE exam_items (
-    id               uuid                       NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    exam_id          uuid                       NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
-    name             text                       NOT NULL DEFAULT '',
-    inspection_value text                       NOT NULL DEFAULT '',
-    normal_value     text                       NOT NULL DEFAULT '',
-    result           text                       NOT NULL DEFAULT '',
-    unit             text                       NOT NULL DEFAULT '',
-    ref              text                       NOT NULL DEFAULT '',
-    status           examination_result_status           DEFAULT 'normal',
-    sort_order       integer                             DEFAULT 0,
-    created_at       timestamptz                NOT NULL DEFAULT now()
+    id                BIGSERIAL                  PRIMARY KEY,
+    exam_id           bigint                     NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+    exam_type_item_id bigint                              REFERENCES exam_type_items(id) ON DELETE SET NULL,
+    name              text                       NOT NULL DEFAULT '',
+    inspection_value  text                       NOT NULL DEFAULT '',
+    normal_value      text                       NOT NULL DEFAULT '',
+    result            text                       NOT NULL DEFAULT '',
+    unit              text                       NOT NULL DEFAULT '',
+    ref               text                       NOT NULL DEFAULT '',
+    status            examination_result_status           DEFAULT 'normal',
+    sort_order        integer                             DEFAULT 0,
+    created_at        timestamptz                NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
 -- 45. daily_records（入院日次記録）
 -- ------------------------------------
 CREATE TABLE daily_records (
-    id                 uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    hospitalization_id uuid        NOT NULL REFERENCES hospitalizations(id) ON DELETE CASCADE,
+    id                 BIGSERIAL   PRIMARY KEY,
+    hospitalization_id bigint      NOT NULL REFERENCES hospitalizations(id) ON DELETE CASCADE,
     date               date        NOT NULL,
     created_at         timestamptz NOT NULL DEFAULT now(),
     updated_at         timestamptz NOT NULL DEFAULT now()
@@ -948,17 +930,17 @@ CREATE TABLE daily_records (
 -- 46. care_plan_items（ケアプラン項目）
 -- ------------------------------------
 CREATE TABLE care_plan_items (
-    id                      uuid             NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    hospitalization_id      uuid             NOT NULL REFERENCES hospitalizations(id) ON DELETE CASCADE,
+    id                      BIGSERIAL        PRIMARY KEY,
+    hospitalization_id      bigint           NOT NULL REFERENCES hospitalizations(id) ON DELETE CASCADE,
     type                    care_plan_type   NOT NULL,
     name                    text             NOT NULL DEFAULT '',
     description             text             NOT NULL DEFAULT '',
     timing                  plan_timing[]             DEFAULT '{}',
     status                  care_plan_status          DEFAULT 'active',
     notes                   text             NOT NULL DEFAULT '',
-    medicine_id             uuid                      REFERENCES medicines(id) ON DELETE SET NULL,
-    procedure_id            uuid                      REFERENCES procedures(id) ON DELETE SET NULL,
-    hospitalization_plan_id uuid                      REFERENCES hospitalization_plans(id) ON DELETE SET NULL,
+    medicine_id             bigint                    REFERENCES medicines(id) ON DELETE SET NULL,
+    procedure_id            bigint                    REFERENCES procedures(id) ON DELETE SET NULL,
+    hospitalization_plan_id bigint                    REFERENCES hospitalization_plans(id) ON DELETE SET NULL,
     unit_price              numeric                   DEFAULT 0,
     category                text             NOT NULL DEFAULT '',
     sort_order              integer                   DEFAULT 0,
@@ -980,8 +962,8 @@ CREATE TABLE care_plan_items (
 -- 47. estimate_items（見積明細）
 -- ------------------------------------
 CREATE TABLE estimate_items (
-    id                      uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    estimate_id             uuid          NOT NULL REFERENCES estimates(id) ON DELETE CASCADE,
+    id                      BIGSERIAL     PRIMARY KEY,
+    estimate_id             bigint        NOT NULL REFERENCES estimates(id) ON DELETE CASCADE,
     name                    text          NOT NULL DEFAULT '',
     category                item_category NOT NULL,
     unit_price              numeric       NOT NULL DEFAULT 0,
@@ -990,9 +972,9 @@ CREATE TABLE estimate_items (
     discount_rate           numeric                DEFAULT 0,
     discount_amount         numeric                DEFAULT 0,
     is_insurance_applicable boolean                DEFAULT false,
-    consultation_id         uuid                   REFERENCES consultations(id) ON DELETE SET NULL,
-    procedure_id            uuid                   REFERENCES procedures(id) ON DELETE SET NULL,
-    medicine_id             uuid                   REFERENCES medicines(id) ON DELETE SET NULL,
+    consultation_id         bigint                 REFERENCES consultations(id) ON DELETE SET NULL,
+    procedure_id            bigint                 REFERENCES procedures(id) ON DELETE SET NULL,
+    medicine_id             bigint                 REFERENCES medicines(id) ON DELETE SET NULL,
     sort_order              integer                DEFAULT 0,
     created_at              timestamptz   NOT NULL DEFAULT now()
 );
@@ -1001,13 +983,13 @@ CREATE TABLE estimate_items (
 -- 48. care_log_records（ケアログ）
 -- ------------------------------------
 CREATE TABLE care_log_records (
-    id              uuid            NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    daily_record_id uuid            NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
+    id              BIGSERIAL       PRIMARY KEY,
+    daily_record_id bigint          NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
     time            time            NOT NULL,
     type            care_log_type   NOT NULL,
     status          care_log_status NOT NULL DEFAULT 'completed',
     value           text            NOT NULL DEFAULT '',
-    staff_id        uuid                     REFERENCES staffs(id) ON DELETE SET NULL,
+    staff_id        bigint                   REFERENCES staffs(id) ON DELETE SET NULL,
     notes           text            NOT NULL DEFAULT '',
     created_at      timestamptz     NOT NULL DEFAULT now()
 );
@@ -1016,15 +998,15 @@ CREATE TABLE care_log_records (
 -- 49. vital_records（バイタル記録: 入院）
 -- ------------------------------------
 CREATE TABLE vital_records (
-    id               uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    daily_record_id  uuid        NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
+    id               BIGSERIAL   PRIMARY KEY,
+    daily_record_id  bigint      NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
     time             time        NOT NULL,
     temperature      numeric,
     heart_rate       integer,
     respiration_rate integer,
     weight           numeric,
     notes            text        NOT NULL DEFAULT '',
-    staff_id         uuid                 REFERENCES staffs(id) ON DELETE SET NULL,
+    staff_id         bigint               REFERENCES staffs(id) ON DELETE SET NULL,
     created_at       timestamptz NOT NULL DEFAULT now()
 );
 
@@ -1032,11 +1014,11 @@ CREATE TABLE vital_records (
 -- 50. staff_note_records（スタッフノート）
 -- ------------------------------------
 CREATE TABLE staff_note_records (
-    id              uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    daily_record_id uuid        NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
+    id              BIGSERIAL   PRIMARY KEY,
+    daily_record_id bigint      NOT NULL REFERENCES daily_records(id) ON DELETE CASCADE,
     time            text        NOT NULL DEFAULT '',
     content         text        NOT NULL DEFAULT '',
-    staff_id        uuid                 REFERENCES staffs(id) ON DELETE SET NULL,
+    staff_id        bigint               REFERENCES staffs(id) ON DELETE SET NULL,
     created_at      timestamptz NOT NULL DEFAULT now()
 );
 
@@ -1044,10 +1026,10 @@ CREATE TABLE staff_note_records (
 -- 51. trimming_record_options（トリミングオプション適用）
 -- ------------------------------------
 CREATE TABLE trimming_record_options (
-    id                 uuid    NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    trimming_record_id uuid    NOT NULL REFERENCES trimming_records(id) ON DELETE CASCADE,
-    option_id          uuid    NOT NULL REFERENCES trimming_options(id) ON DELETE RESTRICT,
-    sort_order         integer          DEFAULT 0
+    id                 BIGSERIAL PRIMARY KEY,
+    trimming_record_id bigint    NOT NULL REFERENCES trimming_records(id) ON DELETE CASCADE,
+    option_id          bigint    NOT NULL REFERENCES trimming_options(id) ON DELETE RESTRICT,
+    sort_order         integer            DEFAULT 0
 );
 
 -- ==========================================================================
@@ -1058,12 +1040,12 @@ CREATE TABLE trimming_record_options (
 -- 52. billings（会計）
 -- ------------------------------------
 CREATE TABLE billings (
-    id                 uuid           NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id          uuid           NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    medical_record_id  uuid                    REFERENCES medical_records(id) ON DELETE SET NULL,
-    hospitalization_id uuid                    REFERENCES hospitalizations(id) ON DELETE SET NULL,
-    owner_id           uuid                    REFERENCES owners(id) ON DELETE SET NULL,
-    pet_id             uuid                    REFERENCES pets(id) ON DELETE SET NULL,
+    id                 BIGSERIAL      PRIMARY KEY,
+    clinic_id          bigint         NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    medical_record_id  bigint                  REFERENCES medical_records(id) ON DELETE SET NULL,
+    hospitalization_id bigint                  REFERENCES hospitalizations(id) ON DELETE SET NULL,
+    owner_id           bigint                  REFERENCES owners(id) ON DELETE SET NULL,
+    pet_id             bigint                  REFERENCES pets(id) ON DELETE SET NULL,
     subtotal           integer        NOT NULL DEFAULT 0,
     tax_total          integer        NOT NULL DEFAULT 0,
     total_amount       integer        NOT NULL DEFAULT 0,
@@ -1081,8 +1063,8 @@ CREATE TABLE billings (
 -- 53. billing_items（会計明細）
 -- ------------------------------------
 CREATE TABLE billing_items (
-    id                      uuid          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    billing_id              uuid          NOT NULL REFERENCES billings(id) ON DELETE CASCADE,
+    id                      BIGSERIAL     PRIMARY KEY,
+    billing_id              bigint        NOT NULL REFERENCES billings(id) ON DELETE CASCADE,
     code                    text          NOT NULL DEFAULT '',
     category                item_category NOT NULL,
     name                    text          NOT NULL DEFAULT '',
@@ -1099,8 +1081,8 @@ CREATE TABLE billing_items (
 -- 54. payments（支払い: billingsと1:1）
 -- ------------------------------------
 CREATE TABLE payments (
-    id               uuid           NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    billing_id       uuid           NOT NULL UNIQUE REFERENCES billings(id) ON DELETE CASCADE,
+    id               BIGSERIAL      PRIMARY KEY,
+    billing_id       bigint         NOT NULL UNIQUE REFERENCES billings(id) ON DELETE CASCADE,
     subtotal         numeric        NOT NULL DEFAULT 0,
     tax_total        numeric        NOT NULL DEFAULT 0,
     total_amount     numeric        NOT NULL DEFAULT 0,
@@ -1120,9 +1102,9 @@ CREATE TABLE payments (
 -- 55. shift_entries（シフト管理）
 -- ------------------------------------
 CREATE TABLE shift_entries (
-    id         uuid        NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id  uuid        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    staff_id   uuid        NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+    id         BIGSERIAL   PRIMARY KEY,
+    clinic_id  bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    staff_id   bigint      NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
     date       date        NOT NULL,
     shift_type shift_type  NOT NULL,
     start_time time,
@@ -1163,31 +1145,6 @@ CREATE UNIQUE INDEX idx_trimming_record_options_unique ON trimming_record_option
 
 -- billings: medical_record_idがある場合は1対1
 CREATE UNIQUE INDEX idx_billings_medical_record_id_unique ON billings(medical_record_id) WHERE medical_record_id IS NOT NULL;
-
--- -----------------------------------------------------------------------------
--- 4.2 animal_species code 部分UNIQUEインデックス（clinic_id なし）
--- -----------------------------------------------------------------------------
-CREATE UNIQUE INDEX idx_animal_species_code ON animal_species(code) WHERE code != '';
-
--- -----------------------------------------------------------------------------
--- 4.3 マスタテーブル code 部分UNIQUEインデックス（clinic_id + code）
--- -----------------------------------------------------------------------------
-CREATE UNIQUE INDEX idx_staffs_clinic_code ON staffs(clinic_id, code) WHERE code != '';
-CREATE UNIQUE INDEX idx_exam_types_clinic_code ON exam_types(clinic_id, code) WHERE code != '';
-CREATE UNIQUE INDEX idx_vaccines_clinic_code ON vaccines(clinic_id, code) WHERE code != '';
-CREATE UNIQUE INDEX idx_medicines_clinic_code ON medicines(clinic_id, code) WHERE code != '';
-CREATE UNIQUE INDEX idx_insurances_clinic_code ON insurances(clinic_id, code) WHERE code != '';
-CREATE UNIQUE INDEX idx_cages_clinic_code ON cages(clinic_id, code) WHERE code != '';
-CREATE UNIQUE INDEX idx_service_types_clinic_code ON service_types(clinic_id, code) WHERE code != '';
-CREATE UNIQUE INDEX idx_consultations_clinic_code ON consultations(clinic_id, code) WHERE code != '';
-CREATE UNIQUE INDEX idx_procedures_clinic_code ON procedures(clinic_id, code) WHERE code != '';
-CREATE UNIQUE INDEX idx_hospitalization_plans_clinic_code ON hospitalization_plans(clinic_id, code) WHERE code != '';
-CREATE UNIQUE INDEX idx_trimming_courses_clinic_code ON trimming_courses(clinic_id, code) WHERE code != '';
-CREATE UNIQUE INDEX idx_trimming_options_clinic_code ON trimming_options(clinic_id, code) WHERE code != '';
-CREATE UNIQUE INDEX idx_diagnosis_categories_clinic_code ON diagnosis_categories(clinic_id, code) WHERE code != '';
-CREATE UNIQUE INDEX idx_diagnosis_names_clinic_code ON diagnosis_names(clinic_id, code) WHERE code != '';
-CREATE UNIQUE INDEX idx_checkup_types_clinic_code ON checkup_types(clinic_id, code) WHERE code != '';
-CREATE UNIQUE INDEX idx_job_titles_clinic_code ON job_titles(clinic_id, code) WHERE code != '';
 
 -- -----------------------------------------------------------------------------
 -- 4.4 基本FKインデックス

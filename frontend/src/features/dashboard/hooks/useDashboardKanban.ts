@@ -1,20 +1,15 @@
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import type { Appointment, ColumnData } from "@/types";
-import { useDashboardData, useUpdateAppointmentStatus, todayISO, COLUMN_TITLE_TO_STATUS } from "../api";
-import type { DashboardColumn, DashboardAppointment } from "../api";
-import { MOCK_DASHBOARD_COLUMNS } from "../api/mock-data";
+// bundle-barrel-imports: barrel経由ではなく各ファイルから直接import
+import { useDashboardData, todayISO } from "../api/get-dashboard";
+import { useStaffs, buildStaffMap } from "../api/get-staffs";
+import { useUpdateAppointmentStatus } from "../api/update-appointment-status";
+import { COLUMN_TITLE_TO_STATUS, DASHBOARD_COLUMNS } from "../api/transforms";
+import type { DashboardColumn, DashboardAppointment } from "../api/types";
 
-/** DashboardColumn → ColumnData（@/types）変換 */
-function toColumnData(col: DashboardColumn): ColumnData {
-  return {
-    title: col.title,
-    appointments: col.appointments.map(toAppointment),
-  };
-}
-
-/** DashboardAppointment → Appointment（@/types）変換 */
-function toAppointment(appt: DashboardAppointment): Appointment {
+/** DashboardAppointment → Appointment（@/types）変換。doctor_id をスタッフ名に解決する */
+function toAppointment(appt: DashboardAppointment, staffMap: Map<string, string>): Appointment {
   return {
     id: appt.id,
     time: appt.time,
@@ -25,29 +20,53 @@ function toAppointment(appt: DashboardAppointment): Appointment {
     serviceType: appt.serviceType,
     nextAppointment: appt.nextAppointment,
     isDesignated: appt.isDesignated,
-    doctor: appt.doctor,
+    // doctor_id（UUID）をスタッフ名に変換。未登録IDの場合はUUIDをそのまま表示
+    doctor: appt.doctor ? (staffMap.get(appt.doctor) ?? appt.doctor) : undefined,
     petId: appt.petId,
     ownerId: appt.ownerId,
+  };
+}
+
+/** DashboardColumn → ColumnData（@/types）変換 */
+function toColumnData(col: DashboardColumn, staffMap: Map<string, string>): ColumnData {
+  return {
+    title: col.title,
+    appointments: col.appointments.map((appt) => toAppointment(appt, staffMap)),
   };
 }
 
 export function useDashboardKanban() {
   const today = useMemo(() => todayISO(), []);
   const { data: apiColumns, isLoading } = useDashboardData(today);
+  const { data: staffs } = useStaffs();
   const updateStatusMutation = useUpdateAppointmentStatus();
 
-  // API データを ColumnData[] に変換。APIが空のときはモックデータをフォールバックとして使用
+  // staffId → スタッフ名のMap（APIレスポンス変換で使用）
+  // staffs が undefined（ローディング中）の場合は空配列で buildStaffMap を呼ぶ。
+  // インライン `= []` デフォルトは毎レンダーで新規参照を生成し useMemo が無限再計算するため禁止。
+  const staffMap = useMemo(() => buildStaffMap(staffs ?? []), [staffs]);
+
+  // API データを ColumnData[] に変換。ローディング中は空カラムを表示
   const apiColumnData: ColumnData[] = useMemo(() => {
-    if (!apiColumns) return MOCK_DASHBOARD_COLUMNS;
-    const converted = apiColumns.map(toColumnData);
-    // 全カラムが空（APIからデータなし）の場合はモックにフォールバック
-    const hasAnyAppointment = converted.some(c => c.appointments.length > 0);
-    return hasAnyAppointment ? converted : MOCK_DASHBOARD_COLUMNS;
-  }, [apiColumns]);
+    if (!apiColumns) {
+      // ローディング中: 空のカラム構造を返す（モックデータは表示しない）
+      return DASHBOARD_COLUMNS.map((col) => ({ title: col.title, appointments: [] }));
+    }
+    return apiColumns.map((col) => toColumnData(col, staffMap));
+  }, [apiColumns, staffMap]);
+
+  // rerender-defer-reads: onError callback内でのみ使用するため useRef で保持。
+  // これにより apiColumnData 参照更新（30秒ポーリング）ごとに moveCard/advanceStatus/cancelAppointment が
+  // 再生成されるのを防ぐ。
+  const apiColumnDataRef = useRef(apiColumnData);
+  useEffect(() => {
+    apiColumnDataRef.current = apiColumnData;
+  }, [apiColumnData]);
 
   // ローカル状態: API から取得したデータを元にドラッグ操作のために保持
-  const [prevApiColumns, setPrevApiColumns] = useState(apiColumnData);
-  const [columns, setColumns] = useState<ColumnData[]>(apiColumnData);
+  // rerender-lazy-state-init: 初期値は空配列で明示（apiColumnDataはローディング中は空）
+  const [prevApiColumns, setPrevApiColumns] = useState<ColumnData[]>([]);
+  const [columns, setColumns] = useState<ColumnData[]>([]);
 
   // useEffect を使わずレンダー内でインライン同期（rerender-derived-state-no-effect 準拠）
   // APIデータが更新されたときのみ columns をリセット（参照比較で余分な更新を防ぐ）
@@ -127,8 +146,8 @@ export function useDashboardKanban() {
           {
             onError: () => {
               toast.error("ステータスの更新に失敗しました");
-              // 楽観的更新を元に戻すためにローカル状態を再同期
-              setColumns(apiColumnData);
+              // rerender-defer-reads: refで最新値を参照（依存配列から除外するため）
+              setColumns(apiColumnDataRef.current);
             },
           }
         );
@@ -167,7 +186,7 @@ export function useDashboardKanban() {
       return newColumns;
     });
     return true;
-  }, [filteredColumns, apiColumnData, updateStatusMutation]);
+  }, [filteredColumns, updateStatusMutation]);
 
   const advanceStatus = useCallback((appointment: Appointment) => {
     const currentColumnTitle = filteredColumns.find(c => c.appointments.some(a => a.id === appointment.id))?.title;
@@ -216,7 +235,8 @@ export function useDashboardKanban() {
         {
           onError: () => {
             toast.error("ステータスの更新に失敗しました");
-            setColumns(apiColumnData);
+            // rerender-defer-reads: refで最新値を参照
+            setColumns(apiColumnDataRef.current);
           },
         }
       );
@@ -241,7 +261,7 @@ export function useDashboardKanban() {
       }
       return newColumns;
     });
-  }, [filteredColumns, apiColumnData, updateStatusMutation]);
+  }, [filteredColumns, updateStatusMutation]);
 
   const cancelAppointment = useCallback((appointmentId: string) => {
     // API でキャンセルステータスに更新
@@ -250,7 +270,8 @@ export function useDashboardKanban() {
       {
         onError: () => {
           toast.error("予約の取り消しに失敗しました");
-          setColumns(apiColumnData);
+          // rerender-defer-reads: refで最新値を参照
+          setColumns(apiColumnDataRef.current);
         },
       }
     );
@@ -267,7 +288,7 @@ export function useDashboardKanban() {
       }
       return prev;
     });
-  }, [apiColumnData, updateStatusMutation]);
+  }, [updateStatusMutation]);
 
   const updateAppointment = useCallback((updatedAppointment: Appointment) => {
     setColumns(prev => {
@@ -291,6 +312,7 @@ export function useDashboardKanban() {
     columns,
     filteredColumns,
     isLoading,
+    staffs: staffs ?? [],
     moveCard,
     advanceStatus,
     cancelAppointment,

@@ -7,8 +7,7 @@ import type { BackendClinic } from "@/features/hospital-settings/api/types";
 
 function transformToClinicInfo(data: BackendClinic): ClinicInfo {
   return {
-    name: data.name,
-    branchName: data.branch_name ?? "",
+    name: data.name ?? "",
     postalCode: data.postal_code ?? "",
     address: data.address ?? "",
     phoneNumber: data.phone_number ?? "",
@@ -26,27 +25,9 @@ const getClinics = async (): Promise<BackendClinic[]> => {
   return data;
 };
 
-const createClinic = async (info: ClinicInfo): Promise<BackendClinic> => {
-  const { data } = await axios.post<BackendClinic>("/v1/clinics", {
-    name: info.name,
-    branch_name: info.branchName,
-    postal_code: info.postalCode,
-    address: info.address,
-    phone_number: info.phoneNumber,
-    fax_number: info.faxNumber,
-    registration_number: info.registrationNumber,
-    director_name: info.directorName,
-    email: info.email,
-    website: info.website,
-    logo_url: info.logoUrl,
-  });
-  return data;
-};
-
 const updateClinic = async (id: string, info: ClinicInfo): Promise<BackendClinic> => {
-  const { data } = await axios.put<BackendClinic>(`/v1/clinics/${id}`, {
+  const { data } = await axios.patch<BackendClinic>(`/v1/clinics/${id}`, {
     name: info.name,
-    branch_name: info.branchName,
     postal_code: info.postalCode,
     address: info.address,
     phone_number: info.phoneNumber,
@@ -73,18 +54,10 @@ export function useClinicInfo() {
     ? transformToClinicInfo(firstClinic)
     : {
         name: "",
-        branchName: "",
         postalCode: "",
         address: "",
         phoneNumber: "",
       };
-
-  const createMutation = useMutation({
-    mutationFn: createClinic,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["clinics"] });
-    },
-  });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, info }: { id: string; info: ClinicInfo }) =>
@@ -96,22 +69,19 @@ export function useClinicInfo() {
 
   const updateClinicInfo = useCallback(
     (newInfo: ClinicInfo) => {
-      if (firstClinic) {
-        updateMutation.mutate(
-          { id: firstClinic.id, info: newInfo },
-          {
-            onSuccess: () => toast.success("病院情報を更新しました"),
-            onError: () => toast.error("病院情報の保存に失敗しました"),
-          }
-        );
-      } else {
-        createMutation.mutate(newInfo, {
-          onSuccess: () => toast.success("病院情報を登録しました"),
-          onError: () => toast.error("病院情報の保存に失敗しました"),
-        });
+      if (!firstClinic) {
+        toast.error("クリニック情報が取得できていません");
+        return;
       }
+      updateMutation.mutate(
+        { id: String(firstClinic.id ?? 0), info: newInfo },
+        {
+          onSuccess: () => toast.success("病院情報を更新しました"),
+          onError: () => toast.error("病院情報の保存に失敗しました"),
+        }
+      );
     },
-    [firstClinic, updateMutation, createMutation]
+    [firstClinic, updateMutation]
   );
 
   return {

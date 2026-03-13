@@ -1,6 +1,5 @@
 export interface ClinicInfo {
   name: string;
-  branchName: string;
   postalCode: string;
   address: string;
   phoneNumber: string;

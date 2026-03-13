@@ -228,7 +228,7 @@ v10.0 にて24テーブルへの `clinic_id` 追加完了（003_add_clinic_id.sq
 erDiagram
     %% ===== 法人・医院 =====
     company {
-        uuid id PK
+        integer id PK
         text name
         text branch_name
     }
@@ -294,7 +294,6 @@ erDiagram
     %% ===== マスタ =====
     animal_species {
         uuid id PK
-        text code
         text name
         boolean is_active
         integer sort_order
@@ -303,7 +302,6 @@ erDiagram
     staffs {
         uuid id PK
         uuid clinic_id FK
-        text code
         text name
         boolean is_active
         staff_role staff_role
@@ -315,7 +313,6 @@ erDiagram
         uuid id PK
         uuid clinic_id FK
         text name
-        text code
         int sort_order
         boolean is_active
         timestamptz created_at
@@ -334,7 +331,6 @@ erDiagram
     exam_types {
         uuid id PK
         uuid clinic_id FK
-        text code
         text name
         boolean is_active
     }
@@ -349,16 +345,15 @@ erDiagram
     vaccines {
         uuid id PK
         uuid clinic_id FK
-        text code
         text name
         boolean is_active
         vaccine_species species
+        uuid inventory_id FK
     }
 
     medicines {
         uuid id PK
         uuid clinic_id FK
-        text code
         text name
         boolean is_active
         dosage_form dosage_form
@@ -368,7 +363,6 @@ erDiagram
     insurances {
         uuid id PK
         uuid clinic_id FK
-        text code
         text name
         boolean is_active
         integer coverage_rate
@@ -377,7 +371,6 @@ erDiagram
     cages {
         uuid id PK
         uuid clinic_id FK
-        text code
         text name
         boolean is_active
         cage_type cage_type
@@ -387,7 +380,6 @@ erDiagram
     service_types {
         uuid id PK
         uuid clinic_id FK
-        text code
         text name
         boolean is_active
         text color
@@ -396,7 +388,6 @@ erDiagram
     consultations {
         uuid id PK
         uuid clinic_id FK
-        text code
         text name
         boolean is_active
     }
@@ -404,7 +395,6 @@ erDiagram
     procedures {
         uuid id PK
         uuid clinic_id FK
-        text code
         text name
         boolean is_active
         anesthesia_type anesthesia
@@ -413,7 +403,6 @@ erDiagram
     hospitalization_plans {
         uuid id PK
         uuid clinic_id FK
-        text code
         text name
         boolean is_active
         body_size body_size
@@ -423,7 +412,6 @@ erDiagram
     trimming_courses {
         uuid id PK
         uuid clinic_id FK
-        text code
         text name
         boolean is_active
         target_size target_size
@@ -432,7 +420,6 @@ erDiagram
     trimming_options {
         uuid id PK
         uuid clinic_id FK
-        text code
         text name
         boolean is_active
         boolean combinable
@@ -441,7 +428,6 @@ erDiagram
     diagnosis_categories {
         uuid id PK
         uuid clinic_id FK
-        text code
         text name
         boolean is_active
     }
@@ -449,7 +435,6 @@ erDiagram
     diagnosis_names {
         uuid id PK
         uuid clinic_id FK
-        text code
         text name
         boolean is_active
         uuid diagnosis_category_id FK
@@ -458,7 +443,6 @@ erDiagram
     checkup_types {
         uuid id PK
         uuid clinic_id FK
-        text code
         text name
         boolean is_active
         text interval
@@ -467,7 +451,6 @@ erDiagram
     chief_complaint_categories {
         uuid id PK
         uuid clinic_id FK
-        text code
         text name
         boolean is_active
         integer sort_order
@@ -547,6 +530,7 @@ erDiagram
     exam_items {
         uuid id PK
         uuid exam_id FK
+        uuid exam_type_item_id FK
         text name
         text inspection_value
         examination_result_status status
@@ -826,6 +810,7 @@ erDiagram
     exam_types ||--o{ exam_type_items : "exam_type_id"
     diagnosis_categories ||--o{ diagnosis_names : "diagnosis_category_id"
     inventory_items ||--o{ medicines : "inventory_id"
+    inventory_items ||--o{ vaccines : "inventory_id"
     clinics ||--o{ chief_complaint_categories : "clinic_id"
     clinics ||--o{ inquiry_templates : "clinic_id"
 
@@ -851,6 +836,7 @@ erDiagram
     exam_types ||--o{ exams : "exam_type_id"
     staffs ||--o{ exams : "doctor_id"
     exams ||--o{ exam_items : "exam_id"
+    exam_type_items ||--o{ exam_items : "exam_type_item_id"
 
     medical_records ||--o{ vaccinations : "medical_record_id"
     pets ||--o{ vaccinations : "pet_id"
@@ -1229,7 +1215,6 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| code | text | YES | '' | コード |
 | name | text | NO | | 種類名（犬・猫・鳥・その他 等） |
 | is_active | boolean | YES | true | 状態 |
 | sort_order | integer | YES | 0 | 並び順 |
@@ -1238,7 +1223,6 @@ erDiagram
 
 **FK:** なし（システム共通マスタ）
 
-**インデックス:** `(code) WHERE code != ''` UNIQUE（部分インデックス）
 
 ---
 
@@ -1250,7 +1234,6 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| code | text | YES | '' | スタッフコード |
 | name | text | NO | | スタッフ名 |
 | is_active | boolean | YES | true | 状態 |
 | staff_role | staff_role | NO | | 役割 |
@@ -1278,7 +1261,6 @@ erDiagram
 | id | uuid | NO | gen_random_uuid() | PK |
 | clinic_id | uuid | NO | - | clinics.id FK（所属医院） |
 | name | text | NO | '' | 職種名（例: 獣医師, 看護師） |
-| code | text | YES | '' | 識別コード |
 | sort_order | int | NO | 0 | 表示順 |
 | is_active | boolean | NO | true | 有効フラグ |
 | created_at | timestamptz | NO | now() | 作成日時 |
@@ -1286,7 +1268,6 @@ erDiagram
 
 **FK**: clinic_id → clinics(id) RESTRICT
 
-**制約**: `(clinic_id, code)` で部分一意インデックス（WHERE code != ''）
 
 ---
 
@@ -1326,7 +1307,6 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| code | text | YES | '' | コード |
 | name | text | NO | | 検査種別名 |
 | price | numeric | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
@@ -1368,19 +1348,20 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| code | text | YES | '' | コード |
 | name | text | NO | | ワクチン名 |
 | price | numeric | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | species | vaccine_species | YES | | 対象動物種 |
 | interval | text | YES | '' | 接種間隔 |
+| inventory_id | uuid | YES | | inventory_items.id FK |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
+- `inventory_id` → `inventory_items.id` (SET NULL)
 
 **インデックス:** `(clinic_id)`
 
@@ -1394,7 +1375,6 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| code | text | YES | '' | コード |
 | name | text | NO | | 薬剤名 |
 | price | numeric | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
@@ -1423,7 +1403,6 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| code | text | YES | '' | コード |
 | name | text | NO | | 保険名 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
@@ -1448,7 +1427,6 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| code | text | YES | '' | コード |
 | name | text | NO | | ケージ名 |
 | price | numeric | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
@@ -1474,7 +1452,6 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| code | text | YES | '' | コード |
 | name | text | NO | | サービス種別名 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
@@ -1498,7 +1475,6 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| code | text | YES | '' | コード |
 | name | text | NO | | 診察項目名 |
 | price | numeric | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
@@ -1524,7 +1500,6 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| code | text | YES | '' | コード |
 | name | text | NO | | 処置項目名 |
 | price | numeric | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
@@ -1550,7 +1525,6 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| code | text | YES | '' | コード |
 | name | text | NO | | プラン名 |
 | price | numeric | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
@@ -1576,7 +1550,6 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| code | text | YES | '' | コード |
 | name | text | NO | | コース名 |
 | price | numeric | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
@@ -1602,7 +1575,6 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| code | text | YES | '' | コード |
 | name | text | NO | | オプション名 |
 | price | numeric | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
@@ -1628,7 +1600,6 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| code | text | YES | '' | コード |
 | name | text | NO | | カテゴリ名 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
@@ -1651,7 +1622,6 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| code | text | YES | '' | コード |
 | name | text | NO | | 診断名 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
@@ -1676,7 +1646,6 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| code | text | YES | '' | コード |
 | name | text | NO | | 健診種別名 |
 | price | numeric | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
@@ -1702,7 +1671,6 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO | - | FK → clinics(id) RESTRICT（所属医院） |
-| code | text | YES | '' | コード |
 | name | text | NO | | 区分名 |
 | is_active | boolean | YES | true | 状態 |
 | sort_order | integer | YES | 0 | 並び順 |
@@ -1927,6 +1895,7 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | exam_id | uuid | NO | | exams.id FK |
+| exam_type_item_id | uuid | YES | | exam_type_items.id FK（検査項目定義への参照） |
 | name | text | NO | '' | 検査項目名 |
 | inspection_value | text | YES | '' | 検査値 |
 | normal_value | text | YES | '' | 正常値 |
@@ -1937,7 +1906,9 @@ erDiagram
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 
-**FK:** `exam_id` → `exams.id` (CASCADE)
+**FK:**
+- `exam_id` → `exams.id` (CASCADE)
+- `exam_type_item_id` → `exam_type_items.id` (SET NULL)
 
 ---
 
@@ -2438,7 +2409,6 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | billing_id | uuid | NO | | billings.id FK |
-| code | text | YES | '' | コード |
 | category | item_category | NO | | 明細カテゴリ |
 | name | text | NO | '' | 項目名 |
 | unit_price | numeric | NO | 0 | 単価 |
@@ -2617,6 +2587,7 @@ FK なし（システム共通マスタ）
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
 | exam_id | exams.id | CASCADE |
+| exam_type_item_id | exam_type_items.id | SET NULL |
 
 ### exams
 
@@ -2848,6 +2819,7 @@ FK なし（システム共通マスタ）
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
 | clinic_id | clinics.id | RESTRICT |
+| inventory_id | inventory_items.id | SET NULL |
 
 ### user_accounts
 
@@ -2915,28 +2887,6 @@ FK なし（システム共通マスタ）
 | user_clinic_memberships | (user_id, clinic_id) | 重複所属防止 |
 | user_clinic_memberships | (user_id) WHERE is_main = true | 主所属医院は1件のみ（部分インデックス） |
 | trimming_record_options | (trimming_record_id, option_id) | 重複オプション防止 |
-
-### マスタテーブル code 部分UNIQUEインデックス
-
-以下のテーブルは `(clinic_id, code)` に `WHERE code != ''` の部分UNIQUEインデックスを持つ。
-
-- staffs
-- exam_types
-- vaccines
-- medicines
-- insurances
-- cages
-- service_types
-- consultations
-- procedures
-- hospitalization_plans
-- trimming_courses
-- trimming_options
-- diagnosis_categories
-- diagnosis_names
-- checkup_types
-
-> `ON CONFLICT DO NOTHING`（ターゲット未指定）を使用すること。部分インデックスは `ON CONFLICT (code)` 構文と不一致となるため。
 
 ### v7.0 追加テーブルのインデックス
 

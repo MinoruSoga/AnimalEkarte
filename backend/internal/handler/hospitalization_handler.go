@@ -2,9 +2,9 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -19,7 +19,7 @@ import (
 // @Param page query int false "ページ番号 (default: 1)"
 // @Param limit query int false "件数 (1-100, default: 20)"
 // @Param status query string false "ステータスフィルター"
-// @Success 200 {object} handler.PaginatedResponse
+// @Success 200 {object} handler.HospitalizationListResponse
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
 // @Failure 500 {object} map[string]string
@@ -35,18 +35,18 @@ func (h *Handler) ListHospitalizations(c *gin.Context) {
 		return
 	}
 
-	var petID *uuid.UUID
+	var petID *uint64
 	if s := c.Query("pet_id"); s != "" {
-		id, err := uuid.Parse(s)
+		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pet_id"})
 			return
 		}
 		petID = &id
 	}
-	var ownerID *uuid.UUID
+	var ownerID *uint64
 	if s := c.Query("owner_id"); s != "" {
-		id, err := uuid.Parse(s)
+		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id"})
 			return
@@ -74,7 +74,7 @@ func (h *Handler) ListHospitalizations(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "入院UUID"
+// @Param id path integer true "入院ID"
 // @Success 200 {object} model.Hospitalization
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
@@ -86,7 +86,7 @@ func (h *Handler) GetHospitalization(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -122,7 +122,6 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = uuid.New()
 	input.ClinicID = clinicID
 	if err := h.svc.Hospitalization.Create(c.Request.Context(), &input); err != nil {
 		RespondError(c, err)
@@ -138,7 +137,7 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "入院UUID"
+// @Param id path integer true "入院ID"
 // @Param body body model.Hospitalization true "入院情報"
 // @Success 200 {object} model.Hospitalization
 // @Failure 400 {object} map[string]string
@@ -151,7 +150,7 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -177,7 +176,7 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "入院UUID"
+// @Param id path integer true "入院ID"
 // @Success 204 "No Content"
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
@@ -189,7 +188,7 @@ func (h *Handler) DeleteHospitalization(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return

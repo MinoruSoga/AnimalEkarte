@@ -2,10 +2,9 @@ package model
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
+// @name InventoryCategory
 type InventoryCategory string
 
 const (
@@ -15,6 +14,7 @@ const (
 	InventoryCategoryOther      InventoryCategory = "other"
 )
 
+// @name InventoryStatus
 type InventoryStatus string
 
 const (
@@ -23,9 +23,10 @@ const (
 	InventoryStatusOutOfStock InventoryStatus = "out_of_stock"
 )
 
+// @name InventoryItem
 type InventoryItem struct {
-	ID            uuid.UUID         `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	ClinicID      uuid.UUID         `gorm:"type:uuid;not null"                             json:"clinic_id"`
+	ID            uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID      uint64            `gorm:"not null"                                       json:"clinic_id"`
 	Name          string            `gorm:"not null"                                        json:"name"`
 	Category      InventoryCategory `gorm:"type:inventory_category;not null"                json:"category"`
 	Quantity      int               `gorm:"default:0"                                       json:"quantity"`

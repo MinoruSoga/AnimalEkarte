@@ -3,10 +3,10 @@ package model
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
+// @name StaffRole
 type StaffRole string
 
 const (
@@ -17,17 +17,17 @@ const (
 	StaffRoleManager      StaffRole = "manager"
 )
 
+// @name Staff
 type Staff struct {
-	ID            uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	ClinicID      uuid.UUID      `gorm:"type:uuid;not null"                             json:"clinic_id"`
-	Code          string         `gorm:"default:''"                                     json:"code"`
+	ID            uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID      uint64         `gorm:"not null"                                       json:"clinic_id"`
 	Name          string         `gorm:"not null"                                       json:"name"`
 	IsActive      bool           `gorm:"default:true"                                   json:"is_active"`
 	StaffRole     StaffRole      `gorm:"type:staff_role;not null"                       json:"staff_role"`
-	JobTitleID    *uuid.UUID     `gorm:"type:uuid"                                      json:"job_title_id,omitempty"`
+	JobTitleID    *uint64        `                                                      json:"job_title_id,omitempty"`
 	LicenseNumber string         `gorm:"default:''"                                     json:"license_number"`
 	SortOrder     int            `gorm:"default:0"                                      json:"sort_order"`
-	DeletedAt     gorm.DeletedAt `                                                      json:"deleted_at"`
+	DeletedAt     gorm.DeletedAt `                                                      json:"deleted_at" swaggerignore:"true"`
 	CreatedAt     time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt     time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
@@ -37,6 +37,7 @@ type Staff struct {
 
 func (Staff) TableName() string { return "staffs" }
 
+// @name ShiftType
 type ShiftType string
 
 const (
@@ -47,10 +48,11 @@ const (
 	ShiftTypePaidLeave ShiftType = "paid_leave"
 )
 
+// @name ShiftEntry
 type ShiftEntry struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	ClinicID  uuid.UUID `gorm:"type:uuid;not null"                             json:"clinic_id"`
-	StaffID   uuid.UUID `gorm:"type:uuid;not null"                             json:"staff_id"`
+	ID        uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID  uint64    `gorm:"not null"                                       json:"clinic_id"`
+	StaffID   uint64    `gorm:"not null"                                       json:"staff_id"`
 	Date      time.Time `gorm:"type:date;not null"                             json:"date"`
 	ShiftType ShiftType `gorm:"type:shift_type;not null"                       json:"shift_type"`
 	StartTime string    `gorm:"default:''"                                     json:"start_time"`

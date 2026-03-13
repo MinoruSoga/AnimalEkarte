@@ -1,59 +1,42 @@
 /**
- * Backend API response types (snake_case)
- * These types reflect the JSON response from the backend
+ * Backend API response types
+ * Generated from backend/docs/api.yaml via openapi-typescript
+ * DO NOT EDIT BackendPet manually — run `make codegen` to regenerate
  */
+import type { components } from "@/types/generated/api";
 
-export interface BackendPet {
-  id: string;
-  owner_id: string;
-  pet_number: string;
-  name: string;
-  species: string;
-  breed?: string;
-  gender?: string;
-  birth_date?: string;
-  weight?: number;
-  microchip_id?: string;
-  environment?: string;
-  status?: "生存" | "死亡";
-  insurance_name?: string;
-  insurance_details?: string;
-  last_visit?: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
+export type BackendPet = components["schemas"]["Pet"];
 
 export interface CreatePetRequest {
   owner_id: string;
+  animal_species_id: string;
   pet_number?: string;
   name: string;
-  species: string;
-  breed?: string;
+  pet_name_kana?: string;
   gender?: string;
   birth_date?: string;
+  breed?: string;
   weight?: number;
   microchip_id?: string;
   environment?: string;
-  status?: string;
-  insurance_name?: string;
-  insurance_details?: string;
-  notes?: string;
+  status?: "alive" | "deceased";
+  insurance_id?: string;
+  remarks?: string;
 }
 
 export interface UpdatePetRequest {
   owner_id?: string;
+  animal_species_id?: string;
   pet_number?: string;
   name?: string;
-  species?: string;
-  breed?: string;
+  pet_name_kana?: string;
   gender?: string;
   birth_date?: string;
+  breed?: string;
   weight?: number;
   microchip_id?: string;
   environment?: string;
-  status?: string;
-  insurance_name?: string;
-  insurance_details?: string;
-  notes?: string;
+  status?: "alive" | "deceased";
+  insurance_id?: string;
+  remarks?: string;
 }

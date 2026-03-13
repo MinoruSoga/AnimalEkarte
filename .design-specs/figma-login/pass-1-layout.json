@@ -1,0 +1,108 @@
+{
+  "pass": 1,
+  "title": "Layout & Structure",
+  "description": "Overall layout structure of the login page",
+  "page": {
+    "type": "full-viewport",
+    "layout": "centered-vertical",
+    "background": "beige/off-white",
+    "overflow": "auto",
+    "alignment": {
+      "horizontal": "center",
+      "vertical": "start-with-top-padding"
+    }
+  },
+  "sections": [
+    {
+      "id": "logo-block",
+      "type": "header",
+      "position": "top-center",
+      "content": [
+        {
+          "element": "logo-icon",
+          "type": "icon-with-background",
+          "shape": "rounded-square",
+          "contains": "stethoscope-with-paw icon (white icon on teal background)"
+        },
+        {
+          "element": "clinic-name",
+          "type": "heading",
+          "text": "ノア動物病院"
+        },
+        {
+          "element": "subtitle",
+          "type": "subheading",
+          "text": "管理システムにログイン"
+        }
+      ]
+    },
+    {
+      "id": "login-form",
+      "type": "form",
+      "position": "center",
+      "layout": "vertical-stack",
+      "width": "fixed (approx 360px)",
+      "content": [
+        {
+          "element": "email-field-group",
+          "type": "labeled-input",
+          "label": "メールアドレス",
+          "input": {
+            "placeholder": "例: admin@example.com",
+            "type": "email"
+          }
+        },
+        {
+          "element": "password-field-group",
+          "type": "labeled-input",
+          "label": "パスワード",
+          "input": {
+            "placeholder": "パスワードを入力",
+            "type": "password",
+            "suffix": "eye-icon toggle"
+          }
+        },
+        {
+          "element": "submit-button",
+          "type": "primary-button",
+          "text": "ログイン",
+          "width": "full-width"
+        }
+      ]
+    },
+    {
+      "id": "demo-accounts",
+      "type": "supplementary-section",
+      "position": "below-form",
+      "layout": "vertical-stack",
+      "content": [
+        {
+          "element": "section-divider",
+          "type": "divider-with-center-label",
+          "label": "デモアカウント",
+          "structure": "line — text — line"
+        },
+        {
+          "element": "password-hint",
+          "type": "caption",
+          "text": "パスワード: password",
+          "alignment": "center"
+        },
+        {
+          "element": "demo-account-list",
+          "type": "clickable-list",
+          "item-structure": "avatar | [name + role-badge] + email",
+          "items": [
+            { "name": "田中 太郎", "role": "医院管理者", "email": "admin@example.com", "avatar-char": "田" },
+            { "name": "山田 花子", "role": "医師", "email": "vet@example.com", "avatar-char": "山" },
+            { "name": "佐藤 美咲", "role": "看護師", "email": "nurse@example.com", "avatar-char": "佐" },
+            { "name": "鈴木 一郎", "role": "受付", "email": "reception@example.com", "avatar-char": "鈴" },
+            { "name": "高橋 さくら", "role": "トリマー", "email": "trimmer@example.com", "avatar-char": "高" },
+            { "name": "本部 管理者", "role": "運営管理者", "email": "system@example.com", "avatar-char": "本" }
+          ]
+        }
+      ]
+    }
+  ],
+  "visual-flow": "logo-icon → clinic-name → subtitle → gap → email-label → email-input → gap → password-label → password-input → gap → login-button → gap → divider-with-label → password-hint → demo-list-items × 6"
+}

@@ -4,8 +4,6 @@ package service
 import (
 	"context"
 
-	"github.com/google/uuid"
-
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -14,10 +12,10 @@ import (
 
 type CageService interface {
 	List(ctx context.Context, cageType *string) ([]model.Cage, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*model.Cage, error)
+	GetByID(ctx context.Context, id uint64) (*model.Cage, error)
 	Create(ctx context.Context, cage *model.Cage) error
 	Update(ctx context.Context, cage *model.Cage) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type cageService struct{ repo repository.CageRepository }
@@ -29,7 +27,7 @@ func NewCageService(repo repository.CageRepository) CageService {
 func (s *cageService) List(ctx context.Context, cageType *string) ([]model.Cage, error) {
 	return s.repo.FindAll(ctx, cageType)
 }
-func (s *cageService) GetByID(ctx context.Context, id uuid.UUID) (*model.Cage, error) {
+func (s *cageService) GetByID(ctx context.Context, id uint64) (*model.Cage, error) {
 	return s.repo.FindByID(ctx, id)
 }
 func (s *cageService) Create(ctx context.Context, cage *model.Cage) error {
@@ -38,6 +36,6 @@ func (s *cageService) Create(ctx context.Context, cage *model.Cage) error {
 func (s *cageService) Update(ctx context.Context, cage *model.Cage) error {
 	return s.repo.Update(ctx, cage)
 }
-func (s *cageService) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *cageService) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
 }

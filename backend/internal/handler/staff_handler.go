@@ -3,9 +3,9 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
@@ -43,9 +43,8 @@ type createStaffRequest struct {
 	StaffRole     model.StaffRole `json:"staff_role"     binding:"required"`
 	Email         string          `json:"email"          binding:"required,email"`
 	Password      string          `json:"password"       binding:"required,min=8"`
-	Code          string          `json:"code"`
 	LicenseNumber string          `json:"license_number"`
-	JobTitleID    *uuid.UUID      `json:"job_title_id"`
+	JobTitleID    *uint64         `json:"job_title_id"`
 	SortOrder     int             `json:"sort_order"`
 }
 
@@ -69,10 +68,8 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 		return
 	}
 
-	clinicIDStr := c.GetString("clinic_id")
-	clinicID, err := uuid.Parse(clinicIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid clinic_id in token"})
+	clinicID, ok := extractClinicID(c)
+	if !ok {
 		return
 	}
 
@@ -82,7 +79,6 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 		StaffRole:     req.StaffRole,
 		Email:         req.Email,
 		Password:      req.Password,
-		Code:          req.Code,
 		LicenseNumber: req.LicenseNumber,
 		JobTitleID:    req.JobTitleID,
 		SortOrder:     req.SortOrder,
@@ -101,7 +97,7 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "スタッフID（UUID）"
+// @Param id path integer true "スタッフID"
 // @Param staff body model.Staff true "更新するスタッフ情報"
 // @Success 200 {object} model.Staff
 // @Failure 400 {object} map[string]string
@@ -109,7 +105,7 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /masters/staffs/{id} [put]
 func (h *Handler) UpdateStaff(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -132,14 +128,14 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 // @Description 指定IDのスタッフを論理削除する。
 // @Tags StaffMasters
 // @Security BearerAuth
-// @Param id path string true "スタッフID（UUID）"
+// @Param id path integer true "スタッフID"
 // @Success 204
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /masters/staffs/{id} [delete]
 func (h *Handler) DeleteStaff(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return

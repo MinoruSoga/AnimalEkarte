@@ -3,11 +3,11 @@ package model
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 // EstimateStatus は見積書ステータス
+// @name EstimateStatus
 type EstimateStatus string
 
 const (
@@ -18,13 +18,14 @@ const (
 )
 
 // Estimate は見積書（v7.0追加）
+// @name Estimate
 type Estimate struct {
-	ID              uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	ClinicID        uuid.UUID      `gorm:"type:uuid;not null"                             json:"clinic_id"`
+	ID              uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID        uint64         `gorm:"not null"                                       json:"clinic_id"`
 	EstimateNo      string         `gorm:"not null;default:''"                            json:"estimate_no"`
-	MedicalRecordID *uuid.UUID     `gorm:"type:uuid"                                      json:"medical_record_id,omitempty"`
+	MedicalRecordID *uint64        `                                                      json:"medical_record_id,omitempty"`
 	Title           string         `gorm:"default:''"                                     json:"title"`
-	OwnerID         *uuid.UUID     `gorm:"type:uuid"                                      json:"owner_id,omitempty"`
+	OwnerID         *uint64        `                                                      json:"owner_id,omitempty"`
 	Status          EstimateStatus `gorm:"type:estimate_status;default:'draft'"           json:"status"`
 	Subtotal        float64        `gorm:"type:numeric(10,2);default:0"                   json:"subtotal"`
 	TaxTotal        float64        `gorm:"type:numeric(10,2);default:0"                   json:"tax_total"`
@@ -34,8 +35,8 @@ type Estimate struct {
 	ValidUntil      *time.Time     `gorm:"type:date"                                      json:"valid_until,omitempty"`
 	Comment         string         `gorm:"default:''"                                     json:"comment"`
 	Notes           string         `gorm:"default:''"                                     json:"notes"`
-	CreatedBy       *uuid.UUID     `gorm:"type:uuid"                                      json:"created_by,omitempty"`
-	DeletedAt       gorm.DeletedAt `                                                      json:"deleted_at"`
+	CreatedBy       *uint64        `                                                      json:"created_by,omitempty"`
+	DeletedAt       gorm.DeletedAt `                                                      json:"deleted_at" swaggerignore:"true"`
 	CreatedAt       time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
@@ -49,9 +50,10 @@ type Estimate struct {
 func (Estimate) TableName() string { return "estimates" }
 
 // EstimateItem は見積書明細
+// @name EstimateItem
 type EstimateItem struct {
-	ID                    uuid.UUID    `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	EstimateID            uuid.UUID    `gorm:"type:uuid;not null"                             json:"estimate_id"`
+	ID                    uint64       `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	EstimateID            uint64       `gorm:"not null"                                       json:"estimate_id"`
 	Name                  string       `gorm:"not null;default:''"                            json:"name"`
 	Category              ItemCategory `gorm:"type:item_category;not null"                    json:"category"`
 	UnitPrice             float64      `gorm:"type:numeric(10,2);default:0"                   json:"unit_price"`
@@ -60,9 +62,9 @@ type EstimateItem struct {
 	DiscountRate          float64      `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
 	DiscountAmount        float64      `gorm:"type:numeric(10,2);default:0"                   json:"discount_amount"`
 	IsInsuranceApplicable bool         `gorm:"default:false"                                  json:"is_insurance_applicable"`
-	ConsultationID        *uuid.UUID   `gorm:"type:uuid"                                      json:"consultation_id,omitempty"`
-	ProcedureID           *uuid.UUID   `gorm:"type:uuid"                                      json:"procedure_id,omitempty"`
-	MedicineID            *uuid.UUID   `gorm:"type:uuid"                                      json:"medicine_id,omitempty"`
+	ConsultationID        *uint64      `                                                      json:"consultation_id,omitempty"`
+	ProcedureID           *uint64      `                                                      json:"procedure_id,omitempty"`
+	MedicineID            *uint64      `                                                      json:"medicine_id,omitempty"`
 	SortOrder             int          `gorm:"default:0"                                      json:"sort_order"`
 	CreatedAt             time.Time    `gorm:"autoCreateTime"                                 json:"created_at"`
 

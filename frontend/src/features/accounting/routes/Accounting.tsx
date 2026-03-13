@@ -10,7 +10,7 @@ import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable, DataTableRow } from "@/components/shared/DataTable";
-import { PrimaryButton } from "@/components/shared/Form";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { getAccountingStatusColor } from "@/utils/status-helpers";

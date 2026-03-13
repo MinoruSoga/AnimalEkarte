@@ -11,7 +11,7 @@ import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable, DataTableRow } from "@/components/shared/DataTable";
-import { PrimaryButton } from "@/components/shared/Form";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { Pagination } from "@/components/shared/Pagination";
@@ -23,7 +23,8 @@ import { formatWeight } from "@/utils/format/number";
 import { usePagination } from "@/hooks/usePagination";
 import { useTableSort } from "@/hooks/useTableSort";
 import { STYLE } from "@/lib/design-tokens";
-import { deleteOwner } from "../api";
+// bundle-barrel-imports: バレルindex経由ではなく直接ファイルからimport
+import { deleteOwner } from "../api/delete-owner";
 
 // Types
 import type { OwnersLoaderData } from "../loaders";
@@ -83,12 +84,15 @@ export function OwnersList() {
     setPendingDeleteOwner({ id: ownerId, name: ownerName });
   };
 
+  // rerender-dependencies: object依存を避け primitive の id のみを dep に使用
+  const pendingDeleteOwnerId = pendingDeleteOwner?.id ?? null;
+
   const handleConfirmDelete = useCallback(() => {
-    if (!pendingDeleteOwner) return;
+    if (!pendingDeleteOwnerId) return;
 
     startDeleteTransition(async () => {
       try {
-        await deleteOwner(pendingDeleteOwner.id);
+        await deleteOwner(pendingDeleteOwnerId);
         toast.success("飼主を削除しました");
         setPendingDeleteOwner(null);
         revalidator.revalidate();
@@ -96,7 +100,7 @@ export function OwnersList() {
         toast.error("削除に失敗しました");
       }
     });
-  }, [pendingDeleteOwner, revalidator]);
+  }, [pendingDeleteOwnerId, revalidator]);
 
   const columns = useMemo(() => [
     {
@@ -209,11 +213,12 @@ export function OwnersList() {
                 {pet.name}
               </TableCell>
               <TableCell className="whitespace-nowrap py-2">
-                {pet.status && (
+                {/* rendering-conditional-render: && は空文字をそのまま描画するためternaryを使用 */}
+                {pet.status ? (
                   <StatusBadge colorClass={getPetStatusColor(pet.status)}>
                     {pet.status}
                   </StatusBadge>
-                )}
+                ) : null}
               </TableCell>
               <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
                 {pet.species}

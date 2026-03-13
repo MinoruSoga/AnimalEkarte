@@ -3,10 +3,10 @@ package model
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
+// @name BillingStatus
 type BillingStatus string
 
 const (
@@ -16,6 +16,7 @@ const (
 	BillingStatusPending   BillingStatus = "pending"
 )
 
+// @name PaymentMethod
 type PaymentMethod string
 
 const (
@@ -24,6 +25,7 @@ const (
 	PaymentMethodElectronicMoney PaymentMethod = "electronic_money"
 )
 
+// @name ItemCategory
 type ItemCategory string
 
 const (
@@ -37,6 +39,7 @@ const (
 	ItemCategoryOther       ItemCategory = "other"
 )
 
+// @name ItemSource
 type ItemSource string
 
 const (
@@ -45,13 +48,14 @@ const (
 	ItemSourceHospitalization ItemSource = "hospitalization"
 )
 
+// @name Billing
 type Billing struct {
-	ID                uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	ClinicID          uuid.UUID      `gorm:"type:uuid;not null"                             json:"clinic_id"`
-	MedicalRecordID   *uuid.UUID     `gorm:"type:uuid"                                      json:"medical_record_id,omitempty"`
-	HospitalizationID *uuid.UUID     `gorm:"type:uuid"                                      json:"hospitalization_id,omitempty"`
-	OwnerID           *uuid.UUID     `gorm:"type:uuid"                                      json:"owner_id,omitempty"`
-	PetID             *uuid.UUID     `gorm:"type:uuid"                                      json:"pet_id,omitempty"`
+	ID                uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID          uint64         `gorm:"not null"                                       json:"clinic_id"`
+	MedicalRecordID   *uint64        `                                                      json:"medical_record_id,omitempty"`
+	HospitalizationID *uint64        `                                                      json:"hospitalization_id,omitempty"`
+	OwnerID           *uint64        `                                                      json:"owner_id,omitempty"`
+	PetID             *uint64        `                                                      json:"pet_id,omitempty"`
 	Subtotal          int            `gorm:"default:0"                                      json:"subtotal"`
 	TaxTotal          int            `gorm:"default:0"                                      json:"tax_total"`
 	TotalAmount       int            `gorm:"default:0"                                      json:"total_amount"`
@@ -60,7 +64,7 @@ type Billing struct {
 	ScheduledDate     time.Time      `gorm:"type:date;not null"                             json:"scheduled_date"`
 	CompletedAt       *time.Time     `                                                      json:"completed_at,omitempty"`
 	Memo              string         `gorm:"default:''"                                     json:"memo"`
-	DeletedAt         gorm.DeletedAt `                                                      json:"deleted_at"`
+	DeletedAt         gorm.DeletedAt `                                                      json:"deleted_at" swaggerignore:"true"`
 	CreatedAt         time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
@@ -74,12 +78,12 @@ type Billing struct {
 
 func (Billing) TableName() string { return "billings" }
 
+// @name BillingItem
 type BillingItem struct {
-	ID                    uuid.UUID    `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	BillingID             uuid.UUID    `gorm:"type:uuid;not null"                             json:"billing_id"`
+	ID                    uint64       `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	BillingID             uint64       `gorm:"not null"                                       json:"billing_id"`
 	Category              ItemCategory `gorm:"type:item_category;not null"                    json:"category"`
 	Name                  string       `gorm:"not null;default:''"                            json:"name"`
-	Code                  string       `gorm:"default:''"                                     json:"code"`
 	UnitPrice             float64      `gorm:"type:numeric(10,2);not null;default:0"          json:"unit_price"`
 	Quantity              int          `gorm:"not null;default:1"                             json:"quantity"`
 	TaxRate               float64      `gorm:"type:numeric(3,2);default:0.10"                 json:"tax_rate"`
@@ -91,9 +95,10 @@ type BillingItem struct {
 
 func (BillingItem) TableName() string { return "billing_items" }
 
+// @name Payment
 type Payment struct {
-	ID              uuid.UUID     `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	BillingID       uuid.UUID     `gorm:"type:uuid;not null;uniqueIndex"                 json:"billing_id"`
+	ID              uint64        `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	BillingID       uint64        `gorm:"not null;uniqueIndex"                           json:"billing_id"`
 	Subtotal        float64       `gorm:"type:numeric(10,2);not null;default:0"          json:"subtotal"`
 	TaxTotal        float64       `gorm:"type:numeric(10,2);not null;default:0"          json:"tax_total"`
 	TotalAmount     float64       `gorm:"type:numeric(10,2);not null;default:0"          json:"total_amount"`

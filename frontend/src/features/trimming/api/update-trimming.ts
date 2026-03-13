@@ -8,7 +8,7 @@ export const updateTrimming = async (
   id: string,
   req: UpdateTrimmingRequest
 ): Promise<TrimmingRecord> => {
-  const { data } = await axios.put<BackendTrimming>(
+  const { data } = await axios.patch<BackendTrimming>(
     `/v1/trimmings/${id}`,
     req
   );

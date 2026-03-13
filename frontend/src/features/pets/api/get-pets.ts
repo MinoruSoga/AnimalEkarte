@@ -4,9 +4,16 @@ import type { Pet } from "@/types";
 import { transformBackendPetToFrontend } from "./transforms";
 import type { BackendPet } from "./types";
 
+interface PetsListResponse {
+  data: BackendPet[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export const getPets = async (): Promise<Pet[]> => {
-  const { data } = await axios.get<BackendPet[]>("/v1/pets");
-  return data.map(transformBackendPetToFrontend);
+  const { data } = await axios.get<PetsListResponse>("/v1/pets");
+  return data.data.map(transformBackendPetToFrontend);
 };
 
 export const useGetPets = (ownerId?: string) => {

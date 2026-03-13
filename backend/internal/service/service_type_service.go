@@ -4,8 +4,6 @@ package service
 import (
 	"context"
 
-	"github.com/google/uuid"
-
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -14,10 +12,10 @@ import (
 
 type ServiceTypeService interface { //nolint:revive // ServiceType is a domain entity name, cannot avoid stutter
 	List(ctx context.Context) ([]model.ServiceType, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*model.ServiceType, error)
+	GetByID(ctx context.Context, id uint64) (*model.ServiceType, error)
 	Create(ctx context.Context, serviceType *model.ServiceType) error
 	Update(ctx context.Context, serviceType *model.ServiceType) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type serviceTypeService struct {
@@ -31,7 +29,7 @@ func NewServiceTypeService(repo repository.ServiceTypeRepository) ServiceTypeSer
 func (s *serviceTypeService) List(ctx context.Context) ([]model.ServiceType, error) {
 	return s.repo.FindAll(ctx)
 }
-func (s *serviceTypeService) GetByID(ctx context.Context, id uuid.UUID) (*model.ServiceType, error) {
+func (s *serviceTypeService) GetByID(ctx context.Context, id uint64) (*model.ServiceType, error) {
 	return s.repo.FindByID(ctx, id)
 }
 func (s *serviceTypeService) Create(ctx context.Context, serviceType *model.ServiceType) error {
@@ -40,6 +38,6 @@ func (s *serviceTypeService) Create(ctx context.Context, serviceType *model.Serv
 func (s *serviceTypeService) Update(ctx context.Context, serviceType *model.ServiceType) error {
 	return s.repo.Update(ctx, serviceType)
 }
-func (s *serviceTypeService) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *serviceTypeService) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
 }

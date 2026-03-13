@@ -1,6 +1,5 @@
 export interface BackendMasterItem {
   id: string;
-  code: string;
   name: string;
   category: string;
   price?: number | null;
@@ -13,7 +12,6 @@ export interface BackendMasterItem {
 }
 
 export interface CreateMasterItemRequest {
-  code: string;
   name: string;
   category: string;
   price?: number | null;
@@ -23,7 +21,6 @@ export interface CreateMasterItemRequest {
 }
 
 export interface UpdateMasterItemRequest {
-  code?: string;
   name?: string;
   category?: string;
   price?: number | null;

@@ -1,47 +1,12 @@
-export interface BackendExaminationItem {
-  id: string;
-  exam_id: string;
-  name: string;
-  inspection_value: string;
-  normal_value: string;
-  result: string;
-  unit: string;
-  ref: string;
-  status: "normal" | "high" | "low";
-  sort_order: number;
-  created_at: string;
-}
+/**
+ * Backend API response types
+ * Generated from backend/docs/api.yaml via openapi-typescript
+ * DO NOT EDIT manually — run `make codegen` to regenerate
+ */
+import type { components } from "@/types/generated/api";
 
-export interface BackendExamination {
-  id: string;
-  medical_record_id: string;
-  pet_id?: string | null;
-  exam_type_id: string;
-  doctor_id?: string | null;
-  date: string;
-  result_summary: string;
-  machine: string;
-  status: "依頼中" | "検査中" | "完了";
-  created_at: string;
-  updated_at: string;
-  // Relations
-  exam_type?: {
-    id: string;
-    name: string;
-    code?: string;
-  } | null;
-  pet?: {
-    id: string;
-    name: string;
-    species?: string;
-    owner_id?: string;
-  } | null;
-  doctor?: {
-    id: string;
-    name: string;
-  } | null;
-  items?: BackendExaminationItem[];
-}
+export type BackendExaminationItem = components["schemas"]["ExamItem"];
+export type BackendExamination = components["schemas"]["Exam"];
 
 export interface CreateExaminationRequest {
   medical_record_id: string;

@@ -3,9 +3,9 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -49,7 +49,6 @@ func (h *Handler) CreateConsultation(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = uuid.New()
 	if err := h.svc.Consultation.Create(c.Request.Context(), &input); err != nil {
 		RespondError(c, err)
 		return
@@ -64,14 +63,14 @@ func (h *Handler) CreateConsultation(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "診察項目UUID"
+// @Param id path integer true "診察項目ID"
 // @Param request body model.Consultation true "診察項目情報"
 // @Success 200 {object} model.Consultation
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /masters/consultations/{id} [put]
 func (h *Handler) UpdateConsultation(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -96,13 +95,13 @@ func (h *Handler) UpdateConsultation(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "診察項目UUID"
+// @Param id path integer true "診察項目ID"
 // @Success 204
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /masters/consultations/{id} [delete]
 func (h *Handler) DeleteConsultation(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return

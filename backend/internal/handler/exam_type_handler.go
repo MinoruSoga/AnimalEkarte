@@ -3,9 +3,9 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -49,7 +49,6 @@ func (h *Handler) CreateExaminationType(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = uuid.New()
 	if err := h.svc.ExaminationType.Create(c.Request.Context(), &input); err != nil {
 		RespondError(c, err)
 		return
@@ -64,14 +63,14 @@ func (h *Handler) CreateExaminationType(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "検査種別UUID"
+// @Param id path integer true "検査種別ID"
 // @Param request body model.ExamType true "検査種別情報"
 // @Success 200 {object} model.ExamType
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /masters/examination-types/{id} [put]
 func (h *Handler) UpdateExaminationType(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -96,13 +95,13 @@ func (h *Handler) UpdateExaminationType(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "検査種別UUID"
+// @Param id path integer true "検査種別ID"
 // @Success 204
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /masters/examination-types/{id} [delete]
 func (h *Handler) DeleteExaminationType(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return

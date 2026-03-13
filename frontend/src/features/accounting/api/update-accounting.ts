@@ -8,7 +8,7 @@ export const updateAccounting = async (
   id: string,
   req: UpdateAccountingRequest
 ): Promise<AccountingRecord> => {
-  const { data } = await axios.put<BackendAccounting>(
+  const { data } = await axios.patch<BackendAccounting>(
     `/v1/accountings/${id}`,
     req
   );

@@ -4,8 +4,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -16,10 +16,10 @@ import (
 
 type DiagnosisCategoryRepository interface {
 	FindAll(ctx context.Context) ([]model.DiagnosisCategory, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.DiagnosisCategory, error)
+	FindByID(ctx context.Context, id uint64) (*model.DiagnosisCategory, error)
 	Create(ctx context.Context, category *model.DiagnosisCategory) error
 	Update(ctx context.Context, category *model.DiagnosisCategory) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type diagnosisCategoryRepository struct{ db *gorm.DB }
@@ -36,11 +36,11 @@ func (r *diagnosisCategoryRepository) FindAll(ctx context.Context) ([]model.Diag
 	return categories, nil
 }
 
-func (r *diagnosisCategoryRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.DiagnosisCategory, error) {
+func (r *diagnosisCategoryRepository) FindByID(ctx context.Context, id uint64) (*model.DiagnosisCategory, error) {
 	var category model.DiagnosisCategory
 	if err := r.db.WithContext(ctx).Preload("Names").First(&category, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("diagnosis_category", id.String())
+			return nil, apperrors.WrapNotFound("diagnosis_category", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find diagnosis category by id")
 	}
@@ -64,13 +64,13 @@ func (r *diagnosisCategoryRepository) Update(ctx context.Context, category *mode
 	return nil
 }
 
-func (r *diagnosisCategoryRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *diagnosisCategoryRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.DiagnosisCategory{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete diagnosis category")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("diagnosis_category", id.String())
+		return apperrors.WrapNotFound("diagnosis_category", fmt.Sprintf("%d", id))
 	}
 	return nil
 }
@@ -79,11 +79,11 @@ func (r *diagnosisCategoryRepository) Delete(ctx context.Context, id uuid.UUID) 
 
 type DiagnosisNameRepository interface {
 	FindAll(ctx context.Context) ([]model.DiagnosisName, error)
-	FindByCategoryID(ctx context.Context, categoryID uuid.UUID) ([]model.DiagnosisName, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.DiagnosisName, error)
+	FindByCategoryID(ctx context.Context, categoryID uint64) ([]model.DiagnosisName, error)
+	FindByID(ctx context.Context, id uint64) (*model.DiagnosisName, error)
 	Create(ctx context.Context, name *model.DiagnosisName) error
 	Update(ctx context.Context, name *model.DiagnosisName) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type diagnosisNameRepository struct{ db *gorm.DB }
@@ -100,7 +100,7 @@ func (r *diagnosisNameRepository) FindAll(ctx context.Context) ([]model.Diagnosi
 	return names, nil
 }
 
-func (r *diagnosisNameRepository) FindByCategoryID(ctx context.Context, categoryID uuid.UUID) ([]model.DiagnosisName, error) {
+func (r *diagnosisNameRepository) FindByCategoryID(ctx context.Context, categoryID uint64) ([]model.DiagnosisName, error) {
 	var names []model.DiagnosisName
 	if err := r.db.WithContext(ctx).
 		Where("diagnosis_category_id = ?", categoryID).
@@ -111,11 +111,11 @@ func (r *diagnosisNameRepository) FindByCategoryID(ctx context.Context, category
 	return names, nil
 }
 
-func (r *diagnosisNameRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.DiagnosisName, error) {
+func (r *diagnosisNameRepository) FindByID(ctx context.Context, id uint64) (*model.DiagnosisName, error) {
 	var name model.DiagnosisName
 	if err := r.db.WithContext(ctx).First(&name, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("diagnosis_name", id.String())
+			return nil, apperrors.WrapNotFound("diagnosis_name", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find diagnosis name by id")
 	}
@@ -139,13 +139,13 @@ func (r *diagnosisNameRepository) Update(ctx context.Context, name *model.Diagno
 	return nil
 }
 
-func (r *diagnosisNameRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *diagnosisNameRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.DiagnosisName{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete diagnosis name")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("diagnosis_name", id.String())
+		return apperrors.WrapNotFound("diagnosis_name", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

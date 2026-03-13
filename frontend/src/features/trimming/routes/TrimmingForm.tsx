@@ -20,8 +20,8 @@ import {
 } from "@/components/ui/select";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout";
-import { PrimaryButton } from "@/components/shared/Form";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { MasterSelectModal, MasterSelectTrigger } from "@/components/shared/MasterSelectModal";
 import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";

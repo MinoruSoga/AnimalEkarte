@@ -3,6 +3,7 @@ import { createBrowserRouter } from "react-router";
 
 import { Layout } from "@/components/shared/Layout";
 import { RootErrorBoundary } from "@/components/errors/RouteErrorBoundary";
+import { AuthProvider } from "@/features/auth";
 
 /* bundle-dynamic-imports: ログインページは未認証ユーザー専用。認証済みユーザーのバンドルに含めない */
 const Login = lazy(() =>
@@ -32,7 +33,13 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    element: <Layout />,
+    // AuthProvider を保護ルート側にのみ配置。
+    // /login は上のルートで AuthProvider 外に定義されているため GET /v1/me は実行されない。
+    element: (
+      <AuthProvider>
+        <Layout />
+      </AuthProvider>
+    ),
     errorElement: <RootErrorBoundary />,
     children: [
       ...dashboardRoutes,

@@ -1,11 +1,15 @@
 // React/Framework
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
+
+// External
+import { Trash2 } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout";
+import { C, STYLE } from "@/lib/design-tokens";
 
 // Relative
 import { MedicalRecordInterview } from "../components/MedicalRecordInterview";
@@ -44,6 +48,13 @@ export function MedicalRecordForm() {
     setAssessment,
   } = useMedicalRecordForm(recordId);
 
+  // ローカル状態: 担当者・診療種別（hookに追加するまでの暫定）
+  const [staffName, setStaffName] = useState("医師A");
+  const [serviceType, setServiceType] = useState("診療");
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  // 一度マウントしたタブを記録してhide/show方式で管理
+  const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(["問診"]));
+
   useEffect(() => {
     if (shouldRedirectToSelectPet) {
       navigate("/medical-records/select-pet");
@@ -56,11 +67,23 @@ export function MedicalRecordForm() {
     "診察/治療プラン",
     "治療",
     "予防接種",
+    "定期健診",
     "検査",
     "画像",
     "見積書",
     "会計(医師確認)",
   ];
+
+  // タブ切り替え: 一度開いたタブはhide/showで状態を維持する
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab);
+    setMountedTabs((prev) => {
+      if (prev.has(tab)) return prev;
+      const next = new Set(prev);
+      next.add(tab);
+      return next;
+    });
+  }, [setActiveTab]);
 
   if (isPetLoading) {
     return null;
@@ -76,103 +99,172 @@ export function MedicalRecordForm() {
       onBack={handleBack}
       maxWidth="max-w-[1440px]"
     >
+      {/* Sticky Header: Patient Info + Tabs */}
+      <div className={`sticky top-0 z-10 ${C.bgPage}`}>
         {/* Patient Info Card */}
-        {selectedPet && (
-            <PatientInfoCard
-              ownerName={selectedPet.ownerName}
-              petName={`${selectedPet.name}${selectedPet.species ? `(${selectedPet.species})` : ""}`}
-              petNumber={selectedPet.petNumber || selectedPet.id}
-              weight={selectedPet.weight || "-"}
-              staffName="医師A"
-              serviceType="診療"
-              petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
-              insuranceName={selectedPet.insuranceName || "保険情報未登録"}
-              insuranceDetails={selectedPet.insuranceDetails || "-"}
-              nextVisitDate="-"
-              nextVisitContent="-"
-            />
-        )}
+        <PatientInfoCard
+          ownerName={selectedPet.ownerName}
+          petName={`${selectedPet.name}${selectedPet.species ? `(${selectedPet.species})` : ""}`}
+          petNumber={selectedPet.petNumber || selectedPet.id}
+          weight={selectedPet.weight || "-"}
+          staffName={staffName}
+          serviceType={serviceType}
+          serviceTypeLabel="診療種別"
+          onServiceTypeClick={() => setServiceType(serviceType)}
+          onStaffClick={() => setStaffName(staffName)}
+          petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
+          insuranceName={selectedPet.insuranceName || "保険情報未登録"}
+          insuranceDetails={selectedPet.insuranceDetails || "-"}
+          nextVisitDate="-"
+          nextVisitContent="-"
+          sticky={false}
+        />
 
         {/* Tabs */}
-        <div className="flex border-b border-[rgba(55,53,47,0.16)] mb-4 overflow-x-auto">
+        <div className={`flex shrink-0 border-b ${C.borderMedium} overflow-x-auto ${C.bgPage}`}>
           {tabs.map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors relative whitespace-nowrap ${
+              onClick={() => handleTabChange(tab)}
+              className={`flex items-center px-4 h-11 text-base font-medium transition-colors relative whitespace-nowrap ${
                 activeTab === tab
-                  ? "text-[#37352F]"
-                  : "text-[#37352F]/60 hover:text-[#37352F]"
+                  ? C.text
+                  : `${C.text60} ${C.hoverText}`
               }`}
             >
               {tab}
               {activeTab === tab && (
-                <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#37352F]" />
+                <div className={`absolute bottom-0 left-0 w-full h-[2px] ${C.bgPrimary}`} />
               )}
             </button>
           ))}
         </div>
+      </div>
 
-        {/* Content Area */}
-        <div className={activeTab === "問診" ? "block" : "hidden"}>
-          <MedicalRecordInterview
-            chiefComplaint={chiefComplaint}
-            setChiefComplaint={setChiefComplaint}
-            treatmentPolicy={treatmentPolicy}
-            setTreatmentPolicy={setTreatmentPolicy}
-          />
-        </div>
-        <div className={activeTab === "診察/治療プラン" ? "block" : "hidden"}>
-          <MedicalRecordDiagnosisPlan
-            isNewRecord={isNewRecord}
-            items={treatmentPlanItems}
-            setItems={setTreatmentPlanItems}
-            plan={plan}
-            setPlan={setPlan}
-            assessment={assessment}
-            setAssessment={setAssessment}
-          />
-        </div>
-        <div className={activeTab === "治療" ? "block" : "hidden"}>
-          <MedicalRecordTreatment 
-            isNewRecord={isNewRecord} 
-            planItems={treatmentPlanItems}
-            setPlanItems={setTreatmentPlanItems}
-            completedItems={treatmentCompletedItems}
-            setCompletedItems={setTreatmentCompletedItems}
-          />
-        </div>
-        <div className={activeTab === "予防接種" ? "block" : "hidden"}>
-          <MedicalRecordVaccination />
-        </div>
-        <div className={activeTab === "検査" ? "block" : "hidden"}>
-          <MedicalRecordExamination isNewRecord={isNewRecord} />
-        </div>
-        <div className={activeTab === "画像" ? "block" : "hidden"}>
-          <MedicalRecordImage isNewRecord={isNewRecord} />
-        </div>
-        <div className={activeTab === "見積書" ? "block" : "hidden"}>
-          <MedicalRecordEstimate isNewRecord={isNewRecord} />
-        </div>
-        <div className={activeTab === "会計(医師確認)" ? "block" : "hidden"}>
-          <MedicalRecordBillCheck 
-            isNewRecord={isNewRecord} 
-            petId={selectedPet.id} 
-            completedItems={treatmentCompletedItems}
-          />
-        </div>
-
-        {/* Floating Save Button */}
-        {activeTab !== "会計(医師確認)" && (
-          <div className="fixed bottom-6 right-6 z-50">
-            <Button 
-                onClick={handleSave}
-                className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white shadow-lg px-5 h-10 text-sm rounded-md"
-            >
-              保存
-            </Button>
+      {/* Content Area */}
+      <div className="mt-4 flex-1 min-h-0">
+        {mountedTabs.has("問診") && (
+          <div className="h-full" style={{ display: activeTab === "問診" ? "block" : "none" }}>
+            <MedicalRecordInterview
+              chiefComplaint={chiefComplaint}
+              setChiefComplaint={setChiefComplaint}
+              treatmentPolicy={treatmentPolicy}
+              setTreatmentPolicy={setTreatmentPolicy}
+            />
           </div>
         )}
+        {mountedTabs.has("診察/治療プラン") && (
+          <div style={{ display: activeTab === "診察/治療プラン" ? "block" : "none" }}>
+            <MedicalRecordDiagnosisPlan
+              isNewRecord={isNewRecord}
+              items={treatmentPlanItems}
+              setItems={setTreatmentPlanItems}
+              plan={plan}
+              setPlan={setPlan}
+              assessment={assessment}
+              setAssessment={setAssessment}
+            />
+          </div>
+        )}
+        {mountedTabs.has("治療") && (
+          <div style={{ display: activeTab === "治療" ? "block" : "none" }}>
+            <MedicalRecordTreatment
+              isNewRecord={isNewRecord}
+              planItems={treatmentPlanItems}
+              setPlanItems={setTreatmentPlanItems}
+              completedItems={treatmentCompletedItems}
+              setCompletedItems={setTreatmentCompletedItems}
+            />
+          </div>
+        )}
+        {mountedTabs.has("予防接種") && (
+          <div style={{ display: activeTab === "予防接種" ? "block" : "none" }}>
+            <MedicalRecordVaccination />
+          </div>
+        )}
+        {mountedTabs.has("定期健診") && (
+          <div style={{ display: activeTab === "定期健診" ? "block" : "none" }}>
+            <div className={`flex items-center justify-center h-48 text-sm ${C.text40}`}>
+              準備中
+            </div>
+          </div>
+        )}
+        {mountedTabs.has("検査") && (
+          <div style={{ display: activeTab === "検査" ? "block" : "none" }}>
+            <MedicalRecordExamination isNewRecord={isNewRecord} />
+          </div>
+        )}
+        {mountedTabs.has("画像") && (
+          <div style={{ display: activeTab === "画像" ? "block" : "none" }}>
+            <MedicalRecordImage isNewRecord={isNewRecord} />
+          </div>
+        )}
+        {mountedTabs.has("見積書") && (
+          <div style={{ display: activeTab === "見積書" ? "block" : "none" }}>
+            <MedicalRecordEstimate isNewRecord={isNewRecord} />
+          </div>
+        )}
+        {mountedTabs.has("会計(医師確認)") && (
+          <div style={{ display: activeTab === "会計(医師確認)" ? "block" : "none" }}>
+            <MedicalRecordBillCheck
+              isNewRecord={isNewRecord}
+              petId={selectedPet.id}
+              completedItems={treatmentCompletedItems}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Floating Save / Delete Buttons */}
+      {activeTab !== "会計(医師確認)" && (
+        <div className="fixed bottom-6 right-6 z-50 flex gap-2">
+          {!isNewRecord && activeTab === "問診" && (
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteConfirmOpen(true)}
+              className={`${C.borderDanger} ${C.danger} ${C.hoverBgDanger5} h-10 text-sm px-4`}
+            >
+              <Trash2 className="h-4 w-4" />
+              削除
+            </Button>
+          )}
+          <Button
+            onClick={handleSave}
+            className={`${STYLE.btnPrimary} px-5`}
+          >
+            保存
+          </Button>
+        </div>
+      )}
+
+      {/* Delete confirm placeholder — connects to isDeleteConfirmOpen state */}
+      {isDeleteConfirmOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => setIsDeleteConfirmOpen(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-lg p-6 w-[400px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className={`text-base font-medium ${C.text} mb-2`}>カルテを削除しますか？</p>
+            <p className={`text-sm ${C.text60} mb-6`}>
+              {selectedPet.name}のカルテデータを削除します。この操作は元に戻せません。
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>
+                キャンセル
+              </Button>
+              <Button
+                className={`${STYLE.btnDanger}`}
+                onClick={() => setIsDeleteConfirmOpen(false)}
+              >
+                削除
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageLayout>
   );
 }

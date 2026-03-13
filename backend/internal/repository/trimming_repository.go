@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -12,11 +12,11 @@ import (
 )
 
 type TrimmingRepository interface {
-	FindAll(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, ownerID *uuid.UUID, page, limit int) ([]model.TrimmingRecord, int64, error)
-	FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.TrimmingRecord, error)
-	Create(ctx context.Context, clinicID uuid.UUID, trimming *model.TrimmingRecord) error
-	Update(ctx context.Context, clinicID uuid.UUID, trimming *model.TrimmingRecord) error
-	Delete(ctx context.Context, clinicID, id uuid.UUID) error
+	FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error)
+	Create(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
+	Update(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type trimmingRepository struct {
@@ -27,7 +27,7 @@ func NewTrimmingRepository(db *gorm.DB) TrimmingRepository {
 	return &trimmingRepository{db: db}
 }
 
-func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, ownerID *uuid.UUID, page, limit int) ([]model.TrimmingRecord, int64, error) {
+func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error) {
 	var trimmings []model.TrimmingRecord
 	var total int64
 
@@ -47,7 +47,7 @@ func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uuid.UUID, pe
 	return trimmings, total, nil
 }
 
-func (r *trimmingRepository) FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.TrimmingRecord, error) {
+func (r *trimmingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error) {
 	var trimming model.TrimmingRecord
 	if err := r.db.WithContext(ctx).
 		Preload("Pet").
@@ -56,14 +56,14 @@ func (r *trimmingRepository) FindByID(ctx context.Context, clinicID, id uuid.UUI
 		Preload("Options").
 		First(&trimming, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("trimming_record", id.String())
+			return nil, apperrors.WrapNotFound("trimming_record", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find trimming record by id")
 	}
 	return &trimming, nil
 }
 
-func (r *trimmingRepository) Create(ctx context.Context, clinicID uuid.UUID, trimming *model.TrimmingRecord) error {
+func (r *trimmingRepository) Create(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error {
 	trimming.ClinicID = clinicID
 	if err := r.db.WithContext(ctx).Create(trimming).Error; err != nil {
 		if isUniqueConstraintErr(err) {
@@ -74,25 +74,25 @@ func (r *trimmingRepository) Create(ctx context.Context, clinicID uuid.UUID, tri
 	return nil
 }
 
-func (r *trimmingRepository) Update(ctx context.Context, clinicID uuid.UUID, trimming *model.TrimmingRecord) error {
+func (r *trimmingRepository) Update(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error {
 	trimming.ClinicID = clinicID
 	result := r.db.WithContext(ctx).Where("id = ? AND clinic_id = ?", trimming.ID, clinicID).Save(trimming)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "update trimming record")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("trimming_record", trimming.ID.String())
+		return apperrors.WrapNotFound("trimming_record", fmt.Sprintf("%d", trimming.ID))
 	}
 	return nil
 }
 
-func (r *trimmingRepository) Delete(ctx context.Context, clinicID, id uuid.UUID) error {
+func (r *trimmingRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.TrimmingRecord{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete trimming record")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("trimming_record", id.String())
+		return apperrors.WrapNotFound("trimming_record", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

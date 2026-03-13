@@ -5,11 +5,11 @@ function transformExaminationItem(
   item: BackendExaminationItem
 ): ExaminationItem {
   return {
-    id: item.id,
-    name: item.name,
-    result: item.result,
-    unit: item.unit,
-    referenceRange: item.ref,
+    id: String(item.id ?? 0),
+    name: item.name ?? "",
+    result: item.result ?? "",
+    unit: item.unit ?? "",
+    referenceRange: item.ref ?? "",
   };
 }
 
@@ -17,15 +17,15 @@ export function transformExamination(
   data: BackendExamination
 ): ExaminationRecord {
   return {
-    id: data.id,
-    date: data.date,
+    id: String(data.id ?? 0),
+    date: data.date ?? "",
     ownerName: "",
     petName: data.pet?.name ?? "",
     testType: data.exam_type?.name ?? "",
-    doctor: data.doctor?.name ?? data.doctor_id ?? "",
-    status: data.status,
-    resultSummary: data.result_summary,
-    machine: data.machine,
+    doctor: data.doctor?.name ?? String(data.doctor_id ?? ""),
+    status: data.status ?? "依頼中",
+    resultSummary: data.result_summary ?? undefined,
+    machine: data.machine ?? undefined,
     items: data.items?.map(transformExaminationItem),
   };
 }

@@ -2,9 +2,9 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -18,7 +18,7 @@ import (
 // @Param page query int false "ページ番号 (default: 1)"
 // @Param limit query int false "件数 (1-100, default: 20)"
 // @Param search query string false "検索キーワード"
-// @Success 200 {object} handler.PaginatedResponse
+// @Success 200 {object} handler.OwnerListResponse
 // @Failure 401 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /owners [get]
@@ -48,7 +48,7 @@ func (h *Handler) ListOwners(c *gin.Context) {
 // @Tags Owners
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "飼主UUID"
+// @Param id path integer true "飼主ID"
 // @Success 200 {object} model.Owner
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
@@ -60,7 +60,7 @@ func (h *Handler) GetOwner(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -96,7 +96,6 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = uuid.New()
 	input.ClinicID = clinicID
 	if err := h.svc.Owner.Create(c.Request.Context(), &input); err != nil {
 		RespondError(c, err)
@@ -112,7 +111,7 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "飼主UUID"
+// @Param id path integer true "飼主ID"
 // @Param body body model.Owner true "飼主情報"
 // @Success 200 {object} model.Owner
 // @Failure 400 {object} map[string]string
@@ -125,7 +124,7 @@ func (h *Handler) UpdateOwner(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -149,7 +148,7 @@ func (h *Handler) UpdateOwner(c *gin.Context) {
 // @Description 指定IDの飼主を削除する
 // @Tags Owners
 // @Security BearerAuth
-// @Param id path string true "飼主UUID"
+// @Param id path integer true "飼主ID"
 // @Success 204
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
@@ -161,7 +160,7 @@ func (h *Handler) DeleteOwner(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return

@@ -3,10 +3,10 @@ package model
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
+// @name ReservationStatus
 type ReservationStatus string
 
 const (
@@ -19,6 +19,7 @@ const (
 	ReservationStatusCompleted      ReservationStatus = "completed"
 )
 
+// @name VisitType
 type VisitType string
 
 const (
@@ -26,20 +27,21 @@ const (
 	VisitTypeRevisit VisitType = "revisit"
 )
 
+// @name ReservationAppointment
 type ReservationAppointment struct {
-	ID            uuid.UUID         `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	ClinicID      uuid.UUID         `gorm:"type:uuid;not null"                             json:"clinic_id"`
+	ID            uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID      uint64            `gorm:"not null"                                       json:"clinic_id"`
 	StartTime     time.Time         `gorm:"not null"                                       json:"start_time"`
 	EndTime       time.Time         `gorm:"not null"                                       json:"end_time"`
-	OwnerID       *uuid.UUID        `gorm:"type:uuid"                                      json:"owner_id,omitempty"`
-	PetID         *uuid.UUID        `gorm:"type:uuid"                                      json:"pet_id,omitempty"`
+	OwnerID       *uint64           `                                                      json:"owner_id,omitempty"`
+	PetID         *uint64           `                                                      json:"pet_id,omitempty"`
 	VisitType     VisitType         `gorm:"type:visit_type;not null;default:'revisit'"     json:"visit_type"`
-	ServiceTypeID uuid.UUID         `gorm:"type:uuid;not null"                             json:"service_type_id"`
-	DoctorID      *uuid.UUID        `gorm:"type:uuid"                                      json:"doctor_id,omitempty"`
+	ServiceTypeID uint64            `gorm:"not null"                                       json:"service_type_id"`
+	DoctorID      *uint64           `                                                      json:"doctor_id,omitempty"`
 	IsDesignated  bool              `gorm:"default:false"                                  json:"is_designated"`
 	Status        ReservationStatus `gorm:"type:reservation_status;default:'pending'"      json:"status"`
 	Notes         string            `gorm:"default:''"                                     json:"notes"`
-	DeletedAt     gorm.DeletedAt    `                                                      json:"deleted_at"`
+	DeletedAt     gorm.DeletedAt    `                                                      json:"deleted_at" swaggerignore:"true"`
 	CreatedAt     time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt     time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
 

@@ -4,8 +4,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -16,10 +16,10 @@ import (
 
 type CageRepository interface {
 	FindAll(ctx context.Context, cageType *string) ([]model.Cage, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.Cage, error)
+	FindByID(ctx context.Context, id uint64) (*model.Cage, error)
 	Create(ctx context.Context, cage *model.Cage) error
 	Update(ctx context.Context, cage *model.Cage) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type cageRepository struct{ db *gorm.DB }
@@ -38,11 +38,11 @@ func (r *cageRepository) FindAll(ctx context.Context, cageType *string) ([]model
 	return cages, nil
 }
 
-func (r *cageRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Cage, error) {
+func (r *cageRepository) FindByID(ctx context.Context, id uint64) (*model.Cage, error) {
 	var cage model.Cage
 	if err := r.db.WithContext(ctx).First(&cage, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("cage", id.String())
+			return nil, apperrors.WrapNotFound("cage", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find cage by id")
 	}
@@ -66,13 +66,13 @@ func (r *cageRepository) Update(ctx context.Context, cage *model.Cage) error {
 	return nil
 }
 
-func (r *cageRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *cageRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Cage{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete cage")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("cage", id.String())
+		return apperrors.WrapNotFound("cage", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

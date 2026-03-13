@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -12,11 +12,11 @@ import (
 )
 
 type InventoryRepository interface {
-	FindAll(ctx context.Context, category *string, page, limit int) ([]model.InventoryItem, int64, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.InventoryItem, error)
-	Create(ctx context.Context, item *model.InventoryItem) error
-	Update(ctx context.Context, item *model.InventoryItem) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	FindAll(ctx context.Context, clinicID uint64, category *string, status *string, page, limit int) ([]model.InventoryItem, int64, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
+	Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
+	Update(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type inventoryRepository struct {
@@ -27,13 +27,16 @@ func NewInventoryRepository(db *gorm.DB) InventoryRepository {
 	return &inventoryRepository{db: db}
 }
 
-func (r *inventoryRepository) FindAll(ctx context.Context, category *string, page, limit int) ([]model.InventoryItem, int64, error) {
+func (r *inventoryRepository) FindAll(ctx context.Context, clinicID uint64, category *string, status *string, page, limit int) ([]model.InventoryItem, int64, error) {
 	var items []model.InventoryItem
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.InventoryItem{})
+	q := r.db.WithContext(ctx).Model(&model.InventoryItem{}).Where("clinic_id = ?", clinicID)
 	if category != nil {
 		q = q.Where("category = ?", *category)
+	}
+	if status != nil {
+		q = q.Where("status = ?", *status)
 	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count inventory items")
@@ -44,18 +47,19 @@ func (r *inventoryRepository) FindAll(ctx context.Context, category *string, pag
 	return items, total, nil
 }
 
-func (r *inventoryRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.InventoryItem, error) {
+func (r *inventoryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error) {
 	var item model.InventoryItem
-	if err := r.db.WithContext(ctx).First(&item, "id = ?", id).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&item, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("inventory_item", id.String())
+			return nil, apperrors.WrapNotFound("inventory_item", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find inventory item by id")
 	}
 	return &item, nil
 }
 
-func (r *inventoryRepository) Create(ctx context.Context, item *model.InventoryItem) error {
+func (r *inventoryRepository) Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {
+	item.ClinicID = clinicID
 	if err := r.db.WithContext(ctx).Create(item).Error; err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("inventory_item", item.Name)
@@ -65,20 +69,25 @@ func (r *inventoryRepository) Create(ctx context.Context, item *model.InventoryI
 	return nil
 }
 
-func (r *inventoryRepository) Update(ctx context.Context, item *model.InventoryItem) error {
-	if err := r.db.WithContext(ctx).Save(item).Error; err != nil {
-		return apperrors.Wrap(err, "update inventory item")
+func (r *inventoryRepository) Update(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {
+	item.ClinicID = clinicID
+	result := r.db.WithContext(ctx).Where("id = ? AND clinic_id = ?", item.ID, clinicID).Save(item)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update inventory item")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("inventory_item", fmt.Sprintf("%d", item.ID))
 	}
 	return nil
 }
 
-func (r *inventoryRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	result := r.db.WithContext(ctx).Delete(&model.InventoryItem{}, "id = ?", id)
+func (r *inventoryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).Delete(&model.InventoryItem{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete inventory item")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("inventory_item", id.String())
+		return apperrors.WrapNotFound("inventory_item", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

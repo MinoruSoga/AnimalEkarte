@@ -51,15 +51,9 @@ export function ClinicSettings() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">病院名 <span className="text-red-500">*</span></Label>
-                <Input id="name" {...register("name", { required: true })} placeholder="例: わんにゃん動物病院" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="branchName">支店名</Label>
-                <Input id="branchName" {...register("branchName")} placeholder="例: 八王子院" />
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="name">病院名 <span className="text-red-500">*</span></Label>
+              <Input id="name" {...register("name", { required: true })} placeholder="例: 八王子院" />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

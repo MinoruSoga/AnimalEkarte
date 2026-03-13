@@ -2,10 +2,9 @@ package model
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
+// @name VaccineSpecies
 type VaccineSpecies string
 
 const (
@@ -14,10 +13,10 @@ const (
 	VaccineSpeciesBoth VaccineSpecies = "both"
 )
 
+// @name Vaccine
 type Vaccine struct {
-	ID          uuid.UUID       `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	ClinicID    uuid.UUID       `gorm:"type:uuid;not null"                             json:"clinic_id"`
-	Code        string          `gorm:"default:''"                                     json:"code"`
+	ID          uint64          `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID    uint64          `gorm:"not null"                                       json:"clinic_id"`
 	Name        string          `gorm:"not null"                                       json:"name"`
 	Price       *float64        `gorm:"type:numeric(10,2)"                             json:"price,omitempty"`
 	IsActive    bool            `gorm:"default:true"                                   json:"is_active"`

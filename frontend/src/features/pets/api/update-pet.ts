@@ -8,7 +8,7 @@ export const updatePet = async (
   id: string,
   req: UpdatePetRequest
 ): Promise<Pet> => {
-  const { data } = await axios.put<BackendPet>(`/v1/pets/${id}`, req);
+  const { data } = await axios.patch<BackendPet>(`/v1/pets/${id}`, req);
   return transformBackendPetToFrontend(data);
 };
 

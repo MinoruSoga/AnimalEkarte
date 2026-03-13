@@ -57,7 +57,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.PaginatedResponse"
+                            "$ref": "#/definitions/handler.BillingListResponse"
                         }
                     },
                     "400": {
@@ -104,7 +104,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Billing"
+                            "$ref": "#/definitions/model.Billing"
                         }
                     }
                 ],
@@ -112,7 +112,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Billing"
+                            "$ref": "#/definitions/model.Billing"
                         }
                     },
                     "400": {
@@ -156,7 +156,7 @@ const docTemplate = `{
                 "summary": "会計詳細取得",
                 "parameters": [
                     {
-                        "type": "string",
+                        "type": "integer",
                         "description": "会計ID",
                         "name": "id",
                         "in": "path",
@@ -167,7 +167,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Billing"
+                            "$ref": "#/definitions/model.Billing"
                         }
                     },
                     "400": {
@@ -218,7 +218,7 @@ const docTemplate = `{
                 "summary": "会計更新",
                 "parameters": [
                     {
-                        "type": "string",
+                        "type": "integer",
                         "description": "会計ID",
                         "name": "id",
                         "in": "path",
@@ -230,7 +230,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Billing"
+                            "$ref": "#/definitions/model.Billing"
                         }
                     }
                 ],
@@ -238,7 +238,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Billing"
+                            "$ref": "#/definitions/model.Billing"
                         }
                     },
                     "400": {
@@ -291,7 +291,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.LoginInput"
+                            "$ref": "#/definitions/handler.LoginInput"
                         }
                     }
                 ],
@@ -299,7 +299,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.LoginResponse"
+                            "$ref": "#/definitions/handler.LoginResponse"
                         }
                     },
                     "400": {
@@ -322,6 +322,29 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/logout": {
+            "post": {
+                "description": "httpOnly Cookieを無効化してログアウト",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "ログアウト",
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -356,7 +379,71 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Clinic"
+                                "$ref": "#/definitions/model.Clinic"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "新規クリニックを登録する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Clinics"
+                ],
+                "summary": "クリニック作成",
+                "parameters": [
+                    {
+                        "description": "クリニック登録情報",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.createClinicRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.Clinic"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -392,7 +479,7 @@ const docTemplate = `{
                 "summary": "クリニック詳細取得",
                 "parameters": [
                     {
-                        "type": "string",
+                        "type": "integer",
                         "description": "クリニックID",
                         "name": "id",
                         "in": "path",
@@ -403,7 +490,134 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Clinic"
+                            "$ref": "#/definitions/model.Clinic"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "指定IDのクリニックを削除する",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Clinics"
+                ],
+                "summary": "クリニック削除",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "クリニックID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "指定IDのクリニック（院）情報を更新する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Clinics"
+                ],
+                "summary": "クリニック情報更新",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "クリニックID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新するクリニック情報",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.Clinic"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Clinic"
                         }
                     },
                     "400": {
@@ -458,7 +672,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Company"
+                            "$ref": "#/definitions/model.Company"
                         }
                     },
                     "404": {
@@ -505,7 +719,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Company"
+                            "$ref": "#/definitions/model.Company"
                         }
                     }
                 ],
@@ -513,11 +727,383 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Company"
+                            "$ref": "#/definitions/model.Company"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/examinations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "検査記録の一覧をページネーション付きで取得する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Examinations"
+                ],
+                "summary": "検査一覧取得",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ページ番号 (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "件数 (1-100, default: 20)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ペットIDフィルター",
+                        "name": "pet_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "飼主IDフィルター",
+                        "name": "owner_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "ステータスフィルター",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ExamListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "新しい検査記録を作成する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Examinations"
+                ],
+                "summary": "検査作成",
+                "parameters": [
+                    {
+                        "description": "検査情報",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.Exam"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.Exam"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/examinations/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "指定IDの検査記録を取得する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Examinations"
+                ],
+                "summary": "検査詳細取得",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "検査ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Exam"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "指定IDの検査記録を削除する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Examinations"
+                ],
+                "summary": "検査削除",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "検査ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "指定IDの検査記録を更新する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Examinations"
+                ],
+                "summary": "検査更新",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "検査ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新する検査情報",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.Exam"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Exam"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -588,7 +1174,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.PaginatedResponse"
+                            "$ref": "#/definitions/handler.HospitalizationListResponse"
                         }
                     },
                     "400": {
@@ -644,7 +1230,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Hospitalization"
+                            "$ref": "#/definitions/model.Hospitalization"
                         }
                     }
                 ],
@@ -652,7 +1238,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Hospitalization"
+                            "$ref": "#/definitions/model.Hospitalization"
                         }
                     },
                     "400": {
@@ -705,8 +1291,8 @@ const docTemplate = `{
                 "summary": "入院取得",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "入院UUID",
+                        "type": "integer",
+                        "description": "入院ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -716,7 +1302,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Hospitalization"
+                            "$ref": "#/definitions/model.Hospitalization"
                         }
                     },
                     "400": {
@@ -776,8 +1362,8 @@ const docTemplate = `{
                 "summary": "入院更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "入院UUID",
+                        "type": "integer",
+                        "description": "入院ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -788,7 +1374,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Hospitalization"
+                            "$ref": "#/definitions/model.Hospitalization"
                         }
                     }
                 ],
@@ -796,7 +1382,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Hospitalization"
+                            "$ref": "#/definitions/model.Hospitalization"
                         }
                     },
                     "400": {
@@ -856,8 +1442,8 @@ const docTemplate = `{
                 "summary": "入院削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "入院UUID",
+                        "type": "integer",
+                        "description": "入院ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -942,13 +1528,19 @@ const docTemplate = `{
                         "description": "カテゴリフィルター",
                         "name": "category",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "ステータスフィルター (sufficient, low, out_of_stock)",
+                        "name": "status",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.PaginatedResponse"
+                            "$ref": "#/definitions/handler.InventoryListResponse"
                         }
                     },
                     "400": {
@@ -995,7 +1587,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem"
+                            "$ref": "#/definitions/model.InventoryItem"
                         }
                     }
                 ],
@@ -1003,7 +1595,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem"
+                            "$ref": "#/definitions/model.InventoryItem"
                         }
                     },
                     "400": {
@@ -1047,7 +1639,7 @@ const docTemplate = `{
                 "summary": "在庫詳細取得",
                 "parameters": [
                     {
-                        "type": "string",
+                        "type": "integer",
                         "description": "在庫ID",
                         "name": "id",
                         "in": "path",
@@ -1058,7 +1650,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem"
+                            "$ref": "#/definitions/model.InventoryItem"
                         }
                     },
                     "400": {
@@ -1109,7 +1701,7 @@ const docTemplate = `{
                 "summary": "在庫更新",
                 "parameters": [
                     {
-                        "type": "string",
+                        "type": "integer",
                         "description": "在庫ID",
                         "name": "id",
                         "in": "path",
@@ -1121,7 +1713,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem"
+                            "$ref": "#/definitions/model.InventoryItem"
                         }
                     }
                 ],
@@ -1129,7 +1721,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem"
+                            "$ref": "#/definitions/model.InventoryItem"
                         }
                     },
                     "400": {
@@ -1191,7 +1783,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Cage"
+                                "$ref": "#/definitions/model.Cage"
                             }
                         }
                     },
@@ -1230,7 +1822,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Cage"
+                            "$ref": "#/definitions/model.Cage"
                         }
                     }
                 ],
@@ -1238,7 +1830,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Cage"
+                            "$ref": "#/definitions/model.Cage"
                         }
                     },
                     "400": {
@@ -1282,8 +1874,8 @@ const docTemplate = `{
                 "summary": "ケージ更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "ケージID（UUID）",
+                        "type": "integer",
+                        "description": "ケージID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1294,7 +1886,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Cage"
+                            "$ref": "#/definitions/model.Cage"
                         }
                     }
                 ],
@@ -1302,7 +1894,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Cage"
+                            "$ref": "#/definitions/model.Cage"
                         }
                     },
                     "400": {
@@ -1347,8 +1939,8 @@ const docTemplate = `{
                 "summary": "ケージ削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "ケージID（UUID）",
+                        "type": "integer",
+                        "description": "ケージID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1412,7 +2004,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.CheckupType"
+                                "$ref": "#/definitions/model.CheckupType"
                             }
                         }
                     },
@@ -1451,7 +2043,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.CheckupType"
+                            "$ref": "#/definitions/model.CheckupType"
                         }
                     }
                 ],
@@ -1459,7 +2051,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.CheckupType"
+                            "$ref": "#/definitions/model.CheckupType"
                         }
                     },
                     "400": {
@@ -1503,8 +2095,8 @@ const docTemplate = `{
                 "summary": "健診種別更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "健診種別UUID",
+                        "type": "integer",
+                        "description": "健診種別ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1515,7 +2107,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.CheckupType"
+                            "$ref": "#/definitions/model.CheckupType"
                         }
                     }
                 ],
@@ -1523,7 +2115,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.CheckupType"
+                            "$ref": "#/definitions/model.CheckupType"
                         }
                     },
                     "400": {
@@ -1565,8 +2157,8 @@ const docTemplate = `{
                 "summary": "健診種別削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "健診種別UUID",
+                        "type": "integer",
+                        "description": "健診種別ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1621,7 +2213,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation"
+                                "$ref": "#/definitions/model.Consultation"
                             }
                         }
                     },
@@ -1660,7 +2252,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation"
+                            "$ref": "#/definitions/model.Consultation"
                         }
                     }
                 ],
@@ -1668,7 +2260,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation"
+                            "$ref": "#/definitions/model.Consultation"
                         }
                     },
                     "400": {
@@ -1712,8 +2304,8 @@ const docTemplate = `{
                 "summary": "診察項目更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "診察項目UUID",
+                        "type": "integer",
+                        "description": "診察項目ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1724,7 +2316,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation"
+                            "$ref": "#/definitions/model.Consultation"
                         }
                     }
                 ],
@@ -1732,7 +2324,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation"
+                            "$ref": "#/definitions/model.Consultation"
                         }
                     },
                     "400": {
@@ -1774,8 +2366,8 @@ const docTemplate = `{
                 "summary": "診察項目削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "診察項目UUID",
+                        "type": "integer",
+                        "description": "診察項目ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1830,7 +2422,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory"
+                                "$ref": "#/definitions/model.DiagnosisCategory"
                             }
                         }
                     },
@@ -1869,7 +2461,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory"
+                            "$ref": "#/definitions/model.DiagnosisCategory"
                         }
                     }
                 ],
@@ -1877,7 +2469,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory"
+                            "$ref": "#/definitions/model.DiagnosisCategory"
                         }
                     },
                     "400": {
@@ -1921,8 +2513,8 @@ const docTemplate = `{
                 "summary": "診断カテゴリ更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "診断カテゴリUUID",
+                        "type": "integer",
+                        "description": "診断カテゴリID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1933,7 +2525,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory"
+                            "$ref": "#/definitions/model.DiagnosisCategory"
                         }
                     }
                 ],
@@ -1941,7 +2533,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory"
+                            "$ref": "#/definitions/model.DiagnosisCategory"
                         }
                     },
                     "400": {
@@ -1983,8 +2575,8 @@ const docTemplate = `{
                 "summary": "診断カテゴリ削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "診断カテゴリUUID",
+                        "type": "integer",
+                        "description": "診断カテゴリID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2035,8 +2627,8 @@ const docTemplate = `{
                 "summary": "診断名一覧取得",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "診断カテゴリUUID（省略時は全件返す）",
+                        "type": "integer",
+                        "description": "診断カテゴリID（省略時は全件返す）",
                         "name": "category_id",
                         "in": "query"
                     }
@@ -2047,7 +2639,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName"
+                                "$ref": "#/definitions/model.DiagnosisName"
                             }
                         }
                     },
@@ -2095,7 +2687,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName"
+                            "$ref": "#/definitions/model.DiagnosisName"
                         }
                     }
                 ],
@@ -2103,7 +2695,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName"
+                            "$ref": "#/definitions/model.DiagnosisName"
                         }
                     },
                     "400": {
@@ -2147,8 +2739,8 @@ const docTemplate = `{
                 "summary": "診断名更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "診断名UUID",
+                        "type": "integer",
+                        "description": "診断名ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2159,7 +2751,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName"
+                            "$ref": "#/definitions/model.DiagnosisName"
                         }
                     }
                 ],
@@ -2167,7 +2759,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName"
+                            "$ref": "#/definitions/model.DiagnosisName"
                         }
                     },
                     "400": {
@@ -2209,8 +2801,8 @@ const docTemplate = `{
                 "summary": "診断名削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "診断名UUID",
+                        "type": "integer",
+                        "description": "診断名ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2265,7 +2857,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ExamType"
+                                "$ref": "#/definitions/model.ExamType"
                             }
                         }
                     },
@@ -2304,7 +2896,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ExamType"
+                            "$ref": "#/definitions/model.ExamType"
                         }
                     }
                 ],
@@ -2312,7 +2904,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ExamType"
+                            "$ref": "#/definitions/model.ExamType"
                         }
                     },
                     "400": {
@@ -2356,8 +2948,8 @@ const docTemplate = `{
                 "summary": "検査種別更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "検査種別UUID",
+                        "type": "integer",
+                        "description": "検査種別ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2368,7 +2960,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ExamType"
+                            "$ref": "#/definitions/model.ExamType"
                         }
                     }
                 ],
@@ -2376,7 +2968,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ExamType"
+                            "$ref": "#/definitions/model.ExamType"
                         }
                     },
                     "400": {
@@ -2418,8 +3010,8 @@ const docTemplate = `{
                 "summary": "検査種別削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "検査種別UUID",
+                        "type": "integer",
+                        "description": "検査種別ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2474,7 +3066,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationPlan"
+                                "$ref": "#/definitions/model.HospitalizationPlan"
                             }
                         }
                     },
@@ -2513,7 +3105,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationPlan"
+                            "$ref": "#/definitions/model.HospitalizationPlan"
                         }
                     }
                 ],
@@ -2521,7 +3113,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationPlan"
+                            "$ref": "#/definitions/model.HospitalizationPlan"
                         }
                     },
                     "400": {
@@ -2565,8 +3157,8 @@ const docTemplate = `{
                 "summary": "入院プラン更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "入院プランUUID",
+                        "type": "integer",
+                        "description": "入院プランID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2577,7 +3169,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationPlan"
+                            "$ref": "#/definitions/model.HospitalizationPlan"
                         }
                     }
                 ],
@@ -2585,7 +3177,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationPlan"
+                            "$ref": "#/definitions/model.HospitalizationPlan"
                         }
                     },
                     "400": {
@@ -2627,8 +3219,8 @@ const docTemplate = `{
                 "summary": "入院プラン削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "入院プランUUID",
+                        "type": "integer",
+                        "description": "入院プランID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2680,7 +3272,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Insurance"
+                                "$ref": "#/definitions/model.Insurance"
                             }
                         }
                     },
@@ -2719,7 +3311,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Insurance"
+                            "$ref": "#/definitions/model.Insurance"
                         }
                     }
                 ],
@@ -2727,7 +3319,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Insurance"
+                            "$ref": "#/definitions/model.Insurance"
                         }
                     },
                     "400": {
@@ -2771,8 +3363,8 @@ const docTemplate = `{
                 "summary": "保険更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "保険ID（UUID）",
+                        "type": "integer",
+                        "description": "保険ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2783,7 +3375,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Insurance"
+                            "$ref": "#/definitions/model.Insurance"
                         }
                     }
                 ],
@@ -2791,7 +3383,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Insurance"
+                            "$ref": "#/definitions/model.Insurance"
                         }
                     },
                     "400": {
@@ -2836,8 +3428,8 @@ const docTemplate = `{
                 "summary": "保険削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "保険ID（UUID）",
+                        "type": "integer",
+                        "description": "保険ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2898,7 +3490,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine"
+                                "$ref": "#/definitions/model.Medicine"
                             }
                         }
                     },
@@ -2937,7 +3529,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine"
+                            "$ref": "#/definitions/model.Medicine"
                         }
                     }
                 ],
@@ -2945,7 +3537,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine"
+                            "$ref": "#/definitions/model.Medicine"
                         }
                     },
                     "400": {
@@ -2989,8 +3581,8 @@ const docTemplate = `{
                 "summary": "薬剤更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "薬剤ID（UUID）",
+                        "type": "integer",
+                        "description": "薬剤ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -3001,7 +3593,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine"
+                            "$ref": "#/definitions/model.Medicine"
                         }
                     }
                 ],
@@ -3009,7 +3601,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine"
+                            "$ref": "#/definitions/model.Medicine"
                         }
                     },
                     "400": {
@@ -3054,8 +3646,8 @@ const docTemplate = `{
                 "summary": "薬剤削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "薬剤ID（UUID）",
+                        "type": "integer",
+                        "description": "薬剤ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -3119,7 +3711,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure"
+                                "$ref": "#/definitions/model.Procedure"
                             }
                         }
                     },
@@ -3158,7 +3750,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure"
+                            "$ref": "#/definitions/model.Procedure"
                         }
                     }
                 ],
@@ -3166,7 +3758,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure"
+                            "$ref": "#/definitions/model.Procedure"
                         }
                     },
                     "400": {
@@ -3210,8 +3802,8 @@ const docTemplate = `{
                 "summary": "処置項目更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "処置項目UUID",
+                        "type": "integer",
+                        "description": "処置項目ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -3222,7 +3814,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure"
+                            "$ref": "#/definitions/model.Procedure"
                         }
                     }
                 ],
@@ -3230,7 +3822,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure"
+                            "$ref": "#/definitions/model.Procedure"
                         }
                     },
                     "400": {
@@ -3272,8 +3864,8 @@ const docTemplate = `{
                 "summary": "処置項目削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "処置項目UUID",
+                        "type": "integer",
+                        "description": "処置項目ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -3328,7 +3920,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ServiceType"
+                                "$ref": "#/definitions/model.ServiceType"
                             }
                         }
                     },
@@ -3367,7 +3959,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ServiceType"
+                            "$ref": "#/definitions/model.ServiceType"
                         }
                     }
                 ],
@@ -3375,7 +3967,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ServiceType"
+                            "$ref": "#/definitions/model.ServiceType"
                         }
                     },
                     "400": {
@@ -3419,8 +4011,8 @@ const docTemplate = `{
                 "summary": "サービス種別更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "サービス種別UUID",
+                        "type": "integer",
+                        "description": "サービス種別ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -3431,7 +4023,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ServiceType"
+                            "$ref": "#/definitions/model.ServiceType"
                         }
                     }
                 ],
@@ -3439,7 +4031,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ServiceType"
+                            "$ref": "#/definitions/model.ServiceType"
                         }
                     },
                     "400": {
@@ -3481,8 +4073,8 @@ const docTemplate = `{
                 "summary": "サービス種別削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "サービス種別UUID",
+                        "type": "integer",
+                        "description": "サービス種別ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -3542,7 +4134,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
+                                "$ref": "#/definitions/model.Staff"
                             }
                         }
                     },
@@ -3581,7 +4173,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.createStaffRequest"
+                            "$ref": "#/definitions/handler.createStaffRequest"
                         }
                     }
                 ],
@@ -3589,7 +4181,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
+                            "$ref": "#/definitions/model.Staff"
                         }
                     },
                     "400": {
@@ -3642,8 +4234,8 @@ const docTemplate = `{
                 "summary": "スタッフ更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "スタッフID（UUID）",
+                        "type": "integer",
+                        "description": "スタッフID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -3654,7 +4246,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
+                            "$ref": "#/definitions/model.Staff"
                         }
                     }
                 ],
@@ -3662,7 +4254,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
+                            "$ref": "#/definitions/model.Staff"
                         }
                     },
                     "400": {
@@ -3707,8 +4299,8 @@ const docTemplate = `{
                 "summary": "スタッフ削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "スタッフID（UUID）",
+                        "type": "integer",
+                        "description": "スタッフID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -3772,7 +4364,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingCourse"
+                                "$ref": "#/definitions/model.TrimmingCourse"
                             }
                         }
                     },
@@ -3811,7 +4403,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingCourse"
+                            "$ref": "#/definitions/model.TrimmingCourse"
                         }
                     }
                 ],
@@ -3819,7 +4411,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingCourse"
+                            "$ref": "#/definitions/model.TrimmingCourse"
                         }
                     },
                     "400": {
@@ -3863,8 +4455,8 @@ const docTemplate = `{
                 "summary": "トリミングコース更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "トリミングコースUUID",
+                        "type": "integer",
+                        "description": "トリミングコースID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -3875,7 +4467,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingCourse"
+                            "$ref": "#/definitions/model.TrimmingCourse"
                         }
                     }
                 ],
@@ -3883,7 +4475,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingCourse"
+                            "$ref": "#/definitions/model.TrimmingCourse"
                         }
                     },
                     "400": {
@@ -3925,8 +4517,8 @@ const docTemplate = `{
                 "summary": "トリミングコース削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "トリミングコースUUID",
+                        "type": "integer",
+                        "description": "トリミングコースID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -3981,7 +4573,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingOption"
+                                "$ref": "#/definitions/model.TrimmingOption"
                             }
                         }
                     },
@@ -4020,7 +4612,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingOption"
+                            "$ref": "#/definitions/model.TrimmingOption"
                         }
                     }
                 ],
@@ -4028,7 +4620,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingOption"
+                            "$ref": "#/definitions/model.TrimmingOption"
                         }
                     },
                     "400": {
@@ -4072,8 +4664,8 @@ const docTemplate = `{
                 "summary": "トリミングオプション更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "トリミングオプションUUID",
+                        "type": "integer",
+                        "description": "トリミングオプションID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -4084,7 +4676,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingOption"
+                            "$ref": "#/definitions/model.TrimmingOption"
                         }
                     }
                 ],
@@ -4092,7 +4684,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingOption"
+                            "$ref": "#/definitions/model.TrimmingOption"
                         }
                     },
                     "400": {
@@ -4134,8 +4726,8 @@ const docTemplate = `{
                 "summary": "トリミングオプション削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "トリミングオプションUUID",
+                        "type": "integer",
+                        "description": "トリミングオプションID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -4195,7 +4787,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccine"
+                                "$ref": "#/definitions/model.Vaccine"
                             }
                         }
                     },
@@ -4234,7 +4826,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccine"
+                            "$ref": "#/definitions/model.Vaccine"
                         }
                     }
                 ],
@@ -4242,7 +4834,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccine"
+                            "$ref": "#/definitions/model.Vaccine"
                         }
                     },
                     "400": {
@@ -4286,8 +4878,8 @@ const docTemplate = `{
                 "summary": "ワクチン更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "ワクチンID（UUID）",
+                        "type": "integer",
+                        "description": "ワクチンID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -4298,7 +4890,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccine"
+                            "$ref": "#/definitions/model.Vaccine"
                         }
                     }
                 ],
@@ -4306,7 +4898,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccine"
+                            "$ref": "#/definitions/model.Vaccine"
                         }
                     },
                     "400": {
@@ -4351,8 +4943,8 @@ const docTemplate = `{
                 "summary": "ワクチン削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "ワクチンID（UUID）",
+                        "type": "integer",
+                        "description": "ワクチンID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -4411,7 +5003,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.MeResponse"
+                            "$ref": "#/definitions/handler.MeResponse"
                         }
                     },
                     "401": {
@@ -4467,8 +5059,8 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "string",
-                        "description": "ペットUUID",
+                        "type": "integer",
+                        "description": "ペットID",
                         "name": "pet_id",
                         "in": "query"
                     }
@@ -4477,7 +5069,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.PaginatedResponse"
+                            "$ref": "#/definitions/handler.MedicalRecordListResponse"
                         }
                     },
                     "400": {
@@ -4533,7 +5125,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord"
+                            "$ref": "#/definitions/model.MedicalRecord"
                         }
                     }
                 ],
@@ -4541,7 +5133,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord"
+                            "$ref": "#/definitions/model.MedicalRecord"
                         }
                     },
                     "400": {
@@ -4594,8 +5186,8 @@ const docTemplate = `{
                 "summary": "診療記録取得",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "診療記録UUID",
+                        "type": "integer",
+                        "description": "診療記録ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -4605,7 +5197,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord"
+                            "$ref": "#/definitions/model.MedicalRecord"
                         }
                     },
                     "400": {
@@ -4665,8 +5257,8 @@ const docTemplate = `{
                 "summary": "診療記録更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "診療記録UUID",
+                        "type": "integer",
+                        "description": "診療記録ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -4677,7 +5269,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord"
+                            "$ref": "#/definitions/model.MedicalRecord"
                         }
                     }
                 ],
@@ -4685,7 +5277,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord"
+                            "$ref": "#/definitions/model.MedicalRecord"
                         }
                     },
                     "400": {
@@ -4745,8 +5337,8 @@ const docTemplate = `{
                 "summary": "診療記録削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "診療記録UUID",
+                        "type": "integer",
+                        "description": "診療記録ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -4834,7 +5426,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.PaginatedResponse"
+                            "$ref": "#/definitions/handler.OwnerListResponse"
                         }
                     },
                     "401": {
@@ -4881,7 +5473,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Owner"
+                            "$ref": "#/definitions/model.Owner"
                         }
                     }
                 ],
@@ -4889,7 +5481,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Owner"
+                            "$ref": "#/definitions/model.Owner"
                         }
                     },
                     "400": {
@@ -4939,8 +5531,8 @@ const docTemplate = `{
                 "summary": "飼主取得",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "飼主UUID",
+                        "type": "integer",
+                        "description": "飼主ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -4950,7 +5542,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Owner"
+                            "$ref": "#/definitions/model.Owner"
                         }
                     },
                     "400": {
@@ -5010,8 +5602,8 @@ const docTemplate = `{
                 "summary": "飼主更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "飼主UUID",
+                        "type": "integer",
+                        "description": "飼主ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -5022,7 +5614,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Owner"
+                            "$ref": "#/definitions/model.Owner"
                         }
                     }
                 ],
@@ -5030,7 +5622,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Owner"
+                            "$ref": "#/definitions/model.Owner"
                         }
                     },
                     "400": {
@@ -5084,8 +5676,8 @@ const docTemplate = `{
                 "summary": "飼主削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "飼主UUID",
+                        "type": "integer",
+                        "description": "飼主ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -5169,8 +5761,8 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "string",
-                        "description": "飼主UUID",
+                        "type": "integer",
+                        "description": "飼主ID",
                         "name": "owner_id",
                         "in": "query"
                     }
@@ -5179,7 +5771,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.PaginatedResponse"
+                            "$ref": "#/definitions/handler.PetListResponse"
                         }
                     },
                     "400": {
@@ -5235,7 +5827,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Pet"
+                            "$ref": "#/definitions/model.Pet"
                         }
                     }
                 ],
@@ -5243,7 +5835,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Pet"
+                            "$ref": "#/definitions/model.Pet"
                         }
                     },
                     "400": {
@@ -5293,8 +5885,8 @@ const docTemplate = `{
                 "summary": "ペット取得",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "ペットUUID",
+                        "type": "integer",
+                        "description": "ペットID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -5304,7 +5896,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Pet"
+                            "$ref": "#/definitions/model.Pet"
                         }
                     },
                     "400": {
@@ -5364,8 +5956,8 @@ const docTemplate = `{
                 "summary": "ペット更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "ペットUUID",
+                        "type": "integer",
+                        "description": "ペットID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -5376,7 +5968,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Pet"
+                            "$ref": "#/definitions/model.Pet"
                         }
                     }
                 ],
@@ -5384,7 +5976,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Pet"
+                            "$ref": "#/definitions/model.Pet"
                         }
                     },
                     "400": {
@@ -5438,8 +6030,8 @@ const docTemplate = `{
                 "summary": "ペット削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "ペットUUID",
+                        "type": "integer",
+                        "description": "ペットID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -5536,7 +6128,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.PaginatedResponse"
+                            "$ref": "#/definitions/handler.PaginatedResponse"
                         }
                     },
                     "400": {
@@ -5592,7 +6184,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ReservationAppointment"
+                            "$ref": "#/definitions/model.ReservationAppointment"
                         }
                     }
                 ],
@@ -5600,7 +6192,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ReservationAppointment"
+                            "$ref": "#/definitions/model.ReservationAppointment"
                         }
                     },
                     "400": {
@@ -5653,8 +6245,8 @@ const docTemplate = `{
                 "summary": "予約取得",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "予約UUID",
+                        "type": "integer",
+                        "description": "予約ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -5664,7 +6256,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ReservationAppointment"
+                            "$ref": "#/definitions/model.ReservationAppointment"
                         }
                     },
                     "400": {
@@ -5724,8 +6316,8 @@ const docTemplate = `{
                 "summary": "予約更新",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "予約UUID",
+                        "type": "integer",
+                        "description": "予約ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -5736,7 +6328,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ReservationAppointment"
+                            "$ref": "#/definitions/model.ReservationAppointment"
                         }
                     }
                 ],
@@ -5744,7 +6336,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ReservationAppointment"
+                            "$ref": "#/definitions/model.ReservationAppointment"
                         }
                     },
                     "400": {
@@ -5804,8 +6396,8 @@ const docTemplate = `{
                 "summary": "予約削除",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "予約UUID",
+                        "type": "integer",
+                        "description": "予約ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -5886,7 +6478,7 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "string",
+                        "type": "integer",
                         "description": "ペットIDフィルター",
                         "name": "pet_id",
                         "in": "query"
@@ -5896,7 +6488,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.PaginatedResponse"
+                            "$ref": "#/definitions/handler.TrimmingListResponse"
                         }
                     },
                     "400": {
@@ -5943,7 +6535,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingRecord"
+                            "$ref": "#/definitions/model.TrimmingRecord"
                         }
                     }
                 ],
@@ -5951,7 +6543,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingRecord"
+                            "$ref": "#/definitions/model.TrimmingRecord"
                         }
                     },
                     "400": {
@@ -5995,7 +6587,7 @@ const docTemplate = `{
                 "summary": "トリミング詳細取得",
                 "parameters": [
                     {
-                        "type": "string",
+                        "type": "integer",
                         "description": "トリミングID",
                         "name": "id",
                         "in": "path",
@@ -6006,7 +6598,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingRecord"
+                            "$ref": "#/definitions/model.TrimmingRecord"
                         }
                     },
                     "400": {
@@ -6057,7 +6649,7 @@ const docTemplate = `{
                 "summary": "トリミング更新",
                 "parameters": [
                     {
-                        "type": "string",
+                        "type": "integer",
                         "description": "トリミングID",
                         "name": "id",
                         "in": "path",
@@ -6069,7 +6661,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingRecord"
+                            "$ref": "#/definitions/model.TrimmingRecord"
                         }
                     }
                 ],
@@ -6077,7 +6669,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingRecord"
+                            "$ref": "#/definitions/model.TrimmingRecord"
                         }
                     },
                     "400": {
@@ -6109,3128 +6701,456 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/vaccinations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "予防接種記録の一覧をページネーション付きで取得する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vaccinations"
+                ],
+                "summary": "予防接種一覧取得",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ページ番号 (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "件数 (1-100, default: 20)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ペットIDフィルター",
+                        "name": "pet_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "飼主IDフィルター",
+                        "name": "owner_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.VaccinationListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "新しい予防接種記録を作成する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vaccinations"
+                ],
+                "summary": "予防接種作成",
+                "parameters": [
+                    {
+                        "description": "予防接種情報",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.Vaccination"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.Vaccination"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/vaccinations/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "指定IDの予防接種記録を取得する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vaccinations"
+                ],
+                "summary": "予防接種詳細取得",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "予防接種ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Vaccination"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "指定IDの予防接種記録を削除する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vaccinations"
+                ],
+                "summary": "予防接種削除",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "予防接種ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "指定IDの予防接種記録を更新する",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vaccinations"
+                ],
+                "summary": "予防接種更新",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "予防接種ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新する予防接種情報",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.Vaccination"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Vaccination"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
-        "github_com_animal-ekarte_backend_internal_model.AcquisitionType": {
-            "type": "string",
-            "enum": [
-                "購入",
-                "譲渡",
-                "保護",
-                "その他"
-            ],
-            "x-enum-varnames": [
-                "AcquisitionTypePurchase",
-                "AcquisitionTypeTransfer",
-                "AcquisitionTypeProtected",
-                "AcquisitionTypeOther"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.AnesthesiaType": {
-            "type": "string",
-            "enum": [
-                "none",
-                "local",
-                "general"
-            ],
-            "x-enum-varnames": [
-                "AnesthesiaTypeNone",
-                "AnesthesiaTypeLocal",
-                "AnesthesiaTypeGeneral"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.AnimalSpecies": {
+        "handler.BillingListResponse": {
             "type": "object",
             "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.AppetiteLevel": {
-            "type": "string",
-            "enum": [
-                "normal",
-                "increased",
-                "decreased",
-                "none"
-            ],
-            "x-enum-varnames": [
-                "AppetiteLevelNormal",
-                "AppetiteLevelIncreased",
-                "AppetiteLevelDecreased",
-                "AppetiteLevelNone"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.Billing": {
-            "type": "object",
-            "properties": {
-                "clinic_id": {
-                    "type": "string"
-                },
-                "completed_at": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "deleted_at": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "has_insurance": {
-                    "type": "boolean"
-                },
-                "hospitalization_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "items": {
+                "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.BillingItem"
+                        "$ref": "#/definitions/model.Billing"
                     }
                 },
-                "medical_record": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord"
+                "limit": {
+                    "type": "integer"
                 },
-                "medical_record_id": {
-                    "type": "string"
+                "page": {
+                    "type": "integer"
                 },
-                "memo": {
-                    "type": "string"
-                },
-                "owner": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Owner"
-                        }
-                    ]
-                },
-                "owner_id": {
-                    "type": "string"
-                },
-                "payments": {
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.ExamListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Payment"
+                        "$ref": "#/definitions/model.Exam"
                     }
                 },
-                "pet": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Pet"
-                },
-                "pet_id": {
-                    "type": "string"
-                },
-                "scheduled_date": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.BillingStatus"
-                },
-                "subtotal": {
+                "limit": {
                     "type": "integer"
                 },
-                "tax_total": {
+                "page": {
                     "type": "integer"
                 },
-                "total_amount": {
+                "total": {
                     "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
                 }
             }
         },
-        "github_com_animal-ekarte_backend_internal_model.BillingItem": {
+        "handler.HospitalizationListResponse": {
             "type": "object",
             "properties": {
-                "billing_id": {
-                    "type": "string"
-                },
-                "category": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ItemCategory"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_insurance_applicable": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "quantity": {
-                    "type": "integer"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "source": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ItemSource"
-                },
-                "tax_rate": {
-                    "type": "number"
-                },
-                "unit_price": {
-                    "type": "number"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.BillingReview": {
-            "type": "object",
-            "properties": {
-                "confirmed_at": {
-                    "type": "string"
-                },
-                "confirmed_by": {
-                    "type": "string"
-                },
-                "confirmed_staff": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "medical_record": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord"
-                        }
-                    ]
-                },
-                "medical_record_id": {
-                    "type": "string"
-                },
-                "memo": {
-                    "type": "string"
-                },
-                "return_reason": {
-                    "type": "string"
-                },
-                "returned_at": {
-                    "type": "string"
-                },
-                "returned_by": {
-                    "type": "string"
-                },
-                "returned_staff": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.BillingReviewStatus"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.BillingReviewStatus": {
-            "type": "string",
-            "enum": [
-                "pending",
-                "confirmed",
-                "returned"
-            ],
-            "x-enum-varnames": [
-                "BillingReviewStatusPending",
-                "BillingReviewStatusConfirmed",
-                "BillingReviewStatusReturned"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.BillingStatus": {
-            "type": "string",
-            "enum": [
-                "waiting",
-                "completed",
-                "cancelled",
-                "pending"
-            ],
-            "x-enum-varnames": [
-                "BillingStatusWaiting",
-                "BillingStatusCompleted",
-                "BillingStatusCancelled",
-                "BillingStatusPending"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.BillingUnit": {
-            "type": "string",
-            "enum": [
-                "per_day",
-                "per_night"
-            ],
-            "x-enum-varnames": [
-                "BillingUnitPerDay",
-                "BillingUnitPerNight"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.BodySize": {
-            "type": "string",
-            "enum": [
-                "small",
-                "medium",
-                "large"
-            ],
-            "x-enum-varnames": [
-                "BodySizeSmall",
-                "BodySizeMedium",
-                "BodySizeLarge"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.BodyWeightUnit": {
-            "type": "string",
-            "enum": [
-                "Kg",
-                "g"
-            ],
-            "x-enum-varnames": [
-                "BodyWeightUnitKg",
-                "BodyWeightUnitG"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.Cage": {
-            "type": "object",
-            "properties": {
-                "cage_size": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.CageSize"
-                },
-                "cage_type": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.CageType"
-                },
-                "clinic_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "number"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.CageSize": {
-            "type": "string",
-            "enum": [
-                "small",
-                "medium",
-                "large"
-            ],
-            "x-enum-varnames": [
-                "CageSizeSmall",
-                "CageSizeMedium",
-                "CageSizeLarge"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.CageType": {
-            "type": "string",
-            "enum": [
-                "icu",
-                "dog",
-                "cat",
-                "general"
-            ],
-            "x-enum-varnames": [
-                "CageTypeICU",
-                "CageTypeDog",
-                "CageTypeCat",
-                "CageTypeGeneral"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.CareLogRecord": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "daily_record_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "notes": {
-                    "type": "string"
-                },
-                "staff": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
-                        }
-                    ]
-                },
-                "staff_id": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.CareLogStatus"
-                },
-                "time": {
-                    "type": "string"
-                },
-                "type": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.CareLogType"
-                },
-                "value": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.CareLogStatus": {
-            "type": "string",
-            "enum": [
-                "completed",
-                "partial",
-                "skipped"
-            ],
-            "x-enum-varnames": [
-                "CareLogStatusCompleted",
-                "CareLogStatusPartial",
-                "CareLogStatusSkipped"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.CareLogType": {
-            "type": "string",
-            "enum": [
-                "food",
-                "excretion",
-                "medicine",
-                "treatment",
-                "other"
-            ],
-            "x-enum-varnames": [
-                "CareLogTypeFood",
-                "CareLogTypeExcretion",
-                "CareLogTypeMedicine",
-                "CareLogTypeTreatment",
-                "CareLogTypeOther"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.CarePlanItem": {
-            "type": "object",
-            "properties": {
-                "category": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "hospitalization_id": {
-                    "type": "string"
-                },
-                "hospitalization_plan": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationPlan"
-                },
-                "hospitalization_plan_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "medicine": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine"
-                        }
-                    ]
-                },
-                "medicine_id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "notes": {
-                    "type": "string"
-                },
-                "procedure": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure"
-                },
-                "procedure_id": {
-                    "type": "string"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.CarePlanStatus"
-                },
-                "timing": {
+                "data": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/model.Hospitalization"
                     }
                 },
-                "type": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.CarePlanType"
-                },
-                "unit_price": {
-                    "type": "number"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.CarePlanStatus": {
-            "type": "string",
-            "enum": [
-                "active",
-                "completed",
-                "discontinued"
-            ],
-            "x-enum-varnames": [
-                "CarePlanStatusActive",
-                "CarePlanStatusCompleted",
-                "CarePlanStatusDiscontinued"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.CarePlanType": {
-            "type": "string",
-            "enum": [
-                "food",
-                "medicine",
-                "treatment",
-                "instruction",
-                "item"
-            ],
-            "x-enum-varnames": [
-                "CarePlanTypeFood",
-                "CarePlanTypeMedicine",
-                "CarePlanTypeTreatment",
-                "CarePlanTypeInstruction",
-                "CarePlanTypeItem"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.Checkup": {
-            "type": "object",
-            "properties": {
-                "checkup_type": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.CheckupType"
-                },
-                "checkup_type_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "date": {
-                    "type": "string"
-                },
-                "deleted_at": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "doctor": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
-                },
-                "doctor_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "medical_record": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord"
-                        }
-                    ]
-                },
-                "medical_record_id": {
-                    "type": "string"
-                },
-                "next_date": {
-                    "type": "string"
-                },
-                "pet": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Pet"
-                },
-                "pet_id": {
-                    "type": "string"
-                },
-                "result": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.CheckupType": {
-            "type": "object",
-            "properties": {
-                "clinic_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "interval": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "number"
-                },
-                "sort_order": {
+                "limit": {
                     "type": "integer"
                 },
-                "target_age": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.ChiefComplaintCategory": {
-            "type": "object",
-            "properties": {
-                "clinic_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "sort_order": {
+                "page": {
                     "type": "integer"
                 },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.Clinic": {
-            "type": "object",
-            "properties": {
-                "address": {
-                    "type": "string"
-                },
-                "branch_name": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "director_name": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "fax_number": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "logo_url": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "phone_number": {
-                    "type": "string"
-                },
-                "postal_code": {
-                    "type": "string"
-                },
-                "registration_number": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "website": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.ClinicalPlan": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "diagnosis_category": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory"
-                },
-                "diagnosis_category_id": {
-                    "type": "string"
-                },
-                "diagnosis_details": {
-                    "type": "string"
-                },
-                "diagnosis_name": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName"
-                },
-                "diagnosis_name_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "medical_record": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord"
-                        }
-                    ]
-                },
-                "medical_record_id": {
-                    "type": "string"
-                },
-                "physical_exam": {
-                    "type": "string"
-                },
-                "treatment_policy": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.Company": {
-            "type": "object",
-            "properties": {
-                "address": {
-                    "type": "string"
-                },
-                "branch_name": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "director_name": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "fax_number": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "logo_url": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "phone_number": {
-                    "type": "string"
-                },
-                "postal_code": {
-                    "type": "string"
-                },
-                "registration_number": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "website": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.Consultation": {
-            "type": "object",
-            "properties": {
-                "clinic_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "duration": {
+                "total": {
                     "type": "integer"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "number"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "time_condition": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
                 }
             }
         },
-        "github_com_animal-ekarte_backend_internal_model.DailyRecord": {
+        "handler.InventoryListResponse": {
             "type": "object",
             "properties": {
-                "care_log_records": {
+                "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.CareLogRecord"
+                        "$ref": "#/definitions/model.InventoryItem"
                     }
                 },
-                "created_at": {
-                    "type": "string"
-                },
-                "date": {
-                    "type": "string"
-                },
-                "hospitalization_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "staff_note_records": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.StaffNoteRecord"
-                    }
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "vital_records": {
-                    "description": "Relations",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.VitalRecord"
-                    }
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.DangerLevel": {
-            "type": "string",
-            "enum": [
-                "低",
-                "中",
-                "高"
-            ],
-            "x-enum-varnames": [
-                "DangerLevelLow",
-                "DangerLevelMedium",
-                "DangerLevelHigh"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.DiagnosisCategory": {
-            "type": "object",
-            "properties": {
-                "clinic_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "names": {
-                    "description": "Relations",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName"
-                    }
-                },
-                "sort_order": {
+                "limit": {
                     "type": "integer"
                 },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.DiagnosisName": {
-            "type": "object",
-            "properties": {
-                "category": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory"
-                        }
-                    ]
-                },
-                "clinic_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "diagnosis_category_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "sort_order": {
+                "page": {
                     "type": "integer"
                 },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.DosageForm": {
-            "type": "string",
-            "enum": [
-                "tablet",
-                "liquid",
-                "injection",
-                "topical",
-                "powder"
-            ],
-            "x-enum-varnames": [
-                "DosageFormTablet",
-                "DosageFormLiquid",
-                "DosageFormInjection",
-                "DosageFormTopical",
-                "DosageFormPowder"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.Estimate": {
-            "type": "object",
-            "properties": {
-                "clinic_id": {
-                    "type": "string"
-                },
-                "comment": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "created_by": {
-                    "type": "string"
-                },
-                "created_staff": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
-                },
-                "deleted_at": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "discount_amount": {
-                    "type": "number"
-                },
-                "estimate_no": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "insurance_amount": {
-                    "type": "number"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.EstimateItem"
-                    }
-                },
-                "medical_record": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord"
-                        }
-                    ]
-                },
-                "medical_record_id": {
-                    "type": "string"
-                },
-                "notes": {
-                    "type": "string"
-                },
-                "owner": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Owner"
-                },
-                "owner_id": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.EstimateStatus"
-                },
-                "subtotal": {
-                    "type": "number"
-                },
-                "tax_total": {
-                    "type": "number"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "total_amount": {
-                    "type": "number"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "valid_until": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.EstimateItem": {
-            "type": "object",
-            "properties": {
-                "category": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ItemCategory"
-                },
-                "consultation": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation"
-                        }
-                    ]
-                },
-                "consultation_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "discount_amount": {
-                    "type": "number"
-                },
-                "discount_rate": {
-                    "type": "number"
-                },
-                "estimate_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_insurance_applicable": {
-                    "type": "boolean"
-                },
-                "medicine": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine"
-                },
-                "medicine_id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "procedure": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure"
-                },
-                "procedure_id": {
-                    "type": "string"
-                },
-                "quantity": {
-                    "type": "integer"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "tax_rate": {
-                    "type": "number"
-                },
-                "unit_price": {
-                    "type": "number"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.EstimateStatus": {
-            "type": "string",
-            "enum": [
-                "draft",
-                "sent",
-                "approved",
-                "rejected"
-            ],
-            "x-enum-varnames": [
-                "EstimateStatusDraft",
-                "EstimateStatusSent",
-                "EstimateStatusApproved",
-                "EstimateStatusRejected"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.Exam": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "date": {
-                    "type": "string"
-                },
-                "deleted_at": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "doctor": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
-                },
-                "doctor_id": {
-                    "type": "string"
-                },
-                "exam_type": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ExamType"
-                },
-                "exam_type_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ExamItem"
-                    }
-                },
-                "machine": {
-                    "type": "string"
-                },
-                "medical_record": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord"
-                        }
-                    ]
-                },
-                "medical_record_id": {
-                    "type": "string"
-                },
-                "pet": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Pet"
-                },
-                "pet_id": {
-                    "type": "string"
-                },
-                "result_summary": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ExaminationStatus"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.ExamItem": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "exam_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "inspection_value": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "normal_value": {
-                    "type": "string"
-                },
-                "ref": {
-                    "type": "string"
-                },
-                "result": {
-                    "type": "string"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ExaminationResultStatus"
-                },
-                "unit": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.ExamType": {
-            "type": "object",
-            "properties": {
-                "clinic_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "items": {
-                    "description": "Relations",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ExamTypeItem"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "number"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.ExamTypeItem": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "exam_type_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "inspection_value": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "normal_value": {
-                    "type": "string"
-                },
-                "sort_order": {
+                "total": {
                     "type": "integer"
                 }
             }
         },
-        "github_com_animal-ekarte_backend_internal_model.ExaminationResultStatus": {
-            "type": "string",
-            "enum": [
-                "normal",
-                "high",
-                "low"
-            ],
-            "x-enum-varnames": [
-                "ExaminationResultStatusNormal",
-                "ExaminationResultStatusHigh",
-                "ExaminationResultStatusLow"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.ExaminationStatus": {
-            "type": "string",
-            "enum": [
-                "依頼中",
-                "検査中",
-                "完了"
-            ],
-            "x-enum-varnames": [
-                "ExaminationStatusPending",
-                "ExaminationStatusInProgress",
-                "ExaminationStatusCompleted"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.Hospitalization": {
-            "type": "object",
-            "properties": {
-                "cage": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Cage"
-                },
-                "cage_id": {
-                    "type": "string"
-                },
-                "care_plan_items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.CarePlanItem"
-                    }
-                },
-                "clinic_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "daily_records": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.DailyRecord"
-                    }
-                },
-                "deleted_at": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "doctor": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
-                },
-                "doctor_id": {
-                    "type": "string"
-                },
-                "end_date": {
-                    "type": "string"
-                },
-                "hospitalization_type": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationType"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "memo": {
-                    "type": "string"
-                },
-                "owner": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Owner"
-                        }
-                    ]
-                },
-                "owner_id": {
-                    "type": "string"
-                },
-                "owner_request": {
-                    "type": "string"
-                },
-                "pet": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Pet"
-                },
-                "pet_id": {
-                    "type": "string"
-                },
-                "staff_notes": {
-                    "type": "string"
-                },
-                "start_date": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationStatus"
-                },
-                "treatment_plans": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TreatmentPlan"
-                    }
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.HospitalizationPlan": {
-            "type": "object",
-            "properties": {
-                "billing_unit": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.BillingUnit"
-                },
-                "body_size": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.BodySize"
-                },
-                "clinic_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "number"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.HospitalizationStatus": {
-            "type": "string",
-            "enum": [
-                "入院中",
-                "退院済",
-                "予約"
-            ],
-            "x-enum-varnames": [
-                "HospitalizationStatusAdmitted",
-                "HospitalizationStatusDischarged",
-                "HospitalizationStatusReserved"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.HospitalizationType": {
-            "type": "string",
-            "enum": [
-                "入院",
-                "ホテル"
-            ],
-            "x-enum-varnames": [
-                "HospitalizationTypeInpatient",
-                "HospitalizationTypeHotel"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.Inquiry": {
-            "type": "object",
-            "properties": {
-                "allergy_info": {
-                    "type": "string"
-                },
-                "appetite": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.AppetiteLevel"
-                },
-                "chief_complaint": {
-                    "type": "string"
-                },
-                "chief_complaint_category": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ChiefComplaintCategory"
-                },
-                "chief_complaint_category_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "current_medications": {
-                    "type": "string"
-                },
-                "history": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "last_defecation": {
-                    "type": "string"
-                },
-                "last_meal": {
-                    "type": "string"
-                },
-                "last_urination": {
-                    "type": "string"
-                },
-                "medical_record": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord"
-                        }
-                    ]
-                },
-                "medical_record_id": {
-                    "type": "string"
-                },
-                "notes": {
-                    "type": "string"
-                },
-                "owner_observations": {
-                    "type": "string"
-                },
-                "staff": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
-                },
-                "staff_id": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "water_intake": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.WaterIntakeLevel"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.Insurance": {
-            "type": "object",
-            "properties": {
-                "clinic_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "contact_phone": {
-                    "type": "string"
-                },
-                "coverage_rate": {
-                    "type": "integer"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.InventoryCategory": {
-            "type": "string",
-            "enum": [
-                "medicine",
-                "consumable",
-                "food",
-                "other"
-            ],
-            "x-enum-varnames": [
-                "InventoryCategoryMedicine",
-                "InventoryCategoryConsumable",
-                "InventoryCategoryFood",
-                "InventoryCategoryOther"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.InventoryItem": {
-            "type": "object",
-            "properties": {
-                "category": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryCategory"
-                },
-                "clinic_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "expiry_date": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "last_restocked": {
-                    "type": "string"
-                },
-                "location": {
-                    "type": "string"
-                },
-                "min_stock_level": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "quantity": {
-                    "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryStatus"
-                },
-                "supplier": {
-                    "type": "string"
-                },
-                "unit": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.InventoryStatus": {
-            "type": "string",
-            "enum": [
-                "sufficient",
-                "low",
-                "out_of_stock"
-            ],
-            "x-enum-varnames": [
-                "InventoryStatusSufficient",
-                "InventoryStatusLow",
-                "InventoryStatusOutOfStock"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.ItemCategory": {
-            "type": "string",
-            "enum": [
-                "examination",
-                "test",
-                "procedure",
-                "surgery",
-                "medicine",
-                "food",
-                "goods",
-                "other"
-            ],
-            "x-enum-varnames": [
-                "ItemCategoryExamination",
-                "ItemCategoryTest",
-                "ItemCategoryProcedure",
-                "ItemCategorySurgery",
-                "ItemCategoryMedicine",
-                "ItemCategoryFood",
-                "ItemCategoryGoods",
-                "ItemCategoryOther"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.ItemSource": {
-            "type": "string",
-            "enum": [
-                "medical_record",
-                "manual",
-                "hospitalization"
-            ],
-            "x-enum-varnames": [
-                "ItemSourceMedicalRecord",
-                "ItemSourceManual",
-                "ItemSourceHospitalization"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.JobTitle": {
-            "type": "object",
-            "properties": {
-                "clinic_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.MedicalRecord": {
-            "type": "object",
-            "properties": {
-                "billing_review": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.BillingReview"
-                },
-                "checkups": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Checkup"
-                    }
-                },
-                "clinic_id": {
-                    "type": "string"
-                },
-                "clinical_plan": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ClinicalPlan"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "date": {
-                    "type": "string"
-                },
-                "deleted_at": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "doctor": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
-                },
-                "doctor_id": {
-                    "type": "string"
-                },
-                "estimates": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Estimate"
-                    }
-                },
-                "exams": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Exam"
-                    }
-                },
-                "id": {
-                    "type": "string"
-                },
-                "inquiry": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Inquiry"
-                },
-                "owner": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Owner"
-                        }
-                    ]
-                },
-                "owner_id": {
-                    "type": "string"
-                },
-                "pet": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Pet"
-                },
-                "pet_id": {
-                    "type": "string"
-                },
-                "record_no": {
-                    "type": "string"
-                },
-                "reservation_appointment_id": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecordStatus"
-                },
-                "treatments": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Treatment"
-                    }
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "vaccinations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccination"
-                    }
-                },
-                "vitals": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Vital"
-                    }
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.MedicalRecordStatus": {
-            "type": "string",
-            "enum": [
-                "作成中",
-                "確定済"
-            ],
-            "x-enum-varnames": [
-                "MedicalRecordStatusDraft",
-                "MedicalRecordStatusFinalized"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.Medicine": {
-            "type": "object",
-            "properties": {
-                "clinic_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "default_quantity": {
-                    "type": "integer"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "dosage_form": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.DosageForm"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "inventory": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem"
-                        }
-                    ]
-                },
-                "inventory_id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "medicine_unit": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicineUnit"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "number"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.MedicineUnit": {
-            "type": "string",
-            "enum": [
-                "per_tablet",
-                "per_ml",
-                "per_dose",
-                "per_gram"
-            ],
-            "x-enum-varnames": [
-                "MedicineUnitPerTablet",
-                "MedicineUnitPerML",
-                "MedicineUnitPerDose",
-                "MedicineUnitPerGram"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.MembershipType": {
-            "type": "string",
-            "enum": [
-                "非会員",
-                "会員",
-                "退亡者",
-                "他診/準"
-            ],
-            "x-enum-varnames": [
-                "MembershipTypeNonMember",
-                "MembershipTypeMember",
-                "MembershipTypeDeceased",
-                "MembershipTypeOther"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.NextScheduleType": {
-            "type": "string",
-            "enum": [
-                "3weeks",
-                "4weeks",
-                "1year",
-                "other"
-            ],
-            "x-enum-varnames": [
-                "NextScheduleType3Weeks",
-                "NextScheduleType4Weeks",
-                "NextScheduleType1Year",
-                "NextScheduleTypeOther"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.Owner": {
-            "type": "object",
-            "properties": {
-                "address1": {
-                    "type": "string"
-                },
-                "address2": {
-                    "type": "string"
-                },
-                "birth_date": {
-                    "type": "string"
-                },
-                "clinic_id": {
-                    "type": "string"
-                },
-                "company": {
-                    "type": "string"
-                },
-                "company_phone": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "deleted_at": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "discount_rate": {
-                    "type": "number"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "home_address1": {
-                    "type": "string"
-                },
-                "home_address2": {
-                    "type": "string"
-                },
-                "home_postal_code": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_dangerous": {
-                    "type": "boolean"
-                },
-                "membership_type": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MembershipType"
-                },
-                "owner_name": {
-                    "type": "string"
-                },
-                "owner_name_kana": {
-                    "type": "string"
-                },
-                "pets": {
-                    "description": "Relations",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Pet"
-                    }
-                },
-                "phone": {
-                    "type": "string"
-                },
-                "postal_code": {
-                    "type": "string"
-                },
-                "remarks": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.Payment": {
-            "type": "object",
-            "properties": {
-                "billing_amount": {
-                    "type": "number"
-                },
-                "billing_id": {
-                    "type": "string"
-                },
-                "change_amount": {
-                    "type": "number"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "discount_amount": {
-                    "type": "number"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "insurance_amount": {
-                    "type": "number"
-                },
-                "insurance_name": {
-                    "type": "string"
-                },
-                "insurance_ratio": {
-                    "type": "number"
-                },
-                "method": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.PaymentMethod"
-                },
-                "received_amount": {
-                    "type": "number"
-                },
-                "subtotal": {
-                    "type": "number"
-                },
-                "tax_total": {
-                    "type": "number"
-                },
-                "total_amount": {
-                    "type": "number"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.PaymentMethod": {
-            "type": "string",
-            "enum": [
-                "cash",
-                "credit_card",
-                "electronic_money"
-            ],
-            "x-enum-varnames": [
-                "PaymentMethodCash",
-                "PaymentMethodCreditCard",
-                "PaymentMethodElectronicMoney"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.Pet": {
-            "type": "object",
-            "properties": {
-                "acquisition_type": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.AcquisitionType"
-                },
-                "animal_species": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.AnimalSpecies"
-                },
-                "animal_species_id": {
-                    "type": "string"
-                },
-                "birth_date": {
-                    "type": "string"
-                },
-                "breed": {
-                    "type": "string"
-                },
-                "clinic_id": {
-                    "type": "string"
-                },
-                "color": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "danger_level": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.DangerLevel"
-                },
-                "deleted_at": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "environment": {
-                    "type": "string"
-                },
-                "food": {
-                    "type": "string"
-                },
-                "gender": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.PetGender"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "insurance": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Insurance"
-                },
-                "insurance_id": {
-                    "type": "string"
-                },
-                "last_visit": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "neutered_date": {
-                    "type": "string"
-                },
-                "owner": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Owner"
-                        }
-                    ]
-                },
-                "owner_id": {
-                    "type": "string"
-                },
-                "pet_name_kana": {
-                    "type": "string"
-                },
-                "pet_number": {
-                    "type": "string"
-                },
-                "phone": {
-                    "type": "string"
-                },
-                "remarks": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.PetStatus"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "weight": {
-                    "type": "number"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.PetGender": {
-            "type": "string",
-            "enum": [
-                "雄",
-                "雌",
-                "不明"
-            ],
-            "x-enum-varnames": [
-                "PetGenderMale",
-                "PetGenderFemale",
-                "PetGenderUnknown"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.PetStatus": {
-            "type": "string",
-            "enum": [
-                "生存",
-                "死亡"
-            ],
-            "x-enum-varnames": [
-                "PetStatusAlive",
-                "PetStatusDeceased"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.Procedure": {
-            "type": "object",
-            "properties": {
-                "anesthesia": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.AnesthesiaType"
-                },
-                "clinic_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "duration": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "number"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.ReservationAppointment": {
-            "type": "object",
-            "properties": {
-                "clinic_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "deleted_at": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "doctor": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
-                },
-                "doctor_id": {
-                    "type": "string"
-                },
-                "end_time": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_designated": {
-                    "type": "boolean"
-                },
-                "notes": {
-                    "type": "string"
-                },
-                "owner": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Owner"
-                        }
-                    ]
-                },
-                "owner_id": {
-                    "type": "string"
-                },
-                "pet": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Pet"
-                },
-                "pet_id": {
-                    "type": "string"
-                },
-                "service_type": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ServiceType"
-                },
-                "service_type_id": {
-                    "type": "string"
-                },
-                "start_time": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.ReservationStatus"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "visit_type": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.VisitType"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.ReservationStatus": {
-            "type": "string",
-            "enum": [
-                "confirmed",
-                "pending",
-                "cancelled",
-                "checked_in",
-                "in_consultation",
-                "accounting",
-                "completed"
-            ],
-            "x-enum-varnames": [
-                "ReservationStatusConfirmed",
-                "ReservationStatusPending",
-                "ReservationStatusCancelled",
-                "ReservationStatusCheckedIn",
-                "ReservationStatusInConsultation",
-                "ReservationStatusAccounting",
-                "ReservationStatusCompleted"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.ServiceType": {
-            "type": "object",
-            "properties": {
-                "clinic_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "color": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.Staff": {
-            "type": "object",
-            "properties": {
-                "clinic_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "deleted_at": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "job_title": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.JobTitle"
-                        }
-                    ]
-                },
-                "job_title_id": {
-                    "type": "string"
-                },
-                "license_number": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "staff_role": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.StaffRole"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.StaffNoteRecord": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "daily_record_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "staff": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
-                        }
-                    ]
-                },
-                "staff_id": {
-                    "type": "string"
-                },
-                "time": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.StaffRole": {
-            "type": "string",
-            "enum": [
-                "veterinarian",
-                "nurse",
-                "trimmer",
-                "reception",
-                "manager"
-            ],
-            "x-enum-varnames": [
-                "StaffRoleVeterinarian",
-                "StaffRoleNurse",
-                "StaffRoleTrimmer",
-                "StaffRoleReception",
-                "StaffRoleManager"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.TargetSize": {
-            "type": "string",
-            "enum": [
-                "small",
-                "medium",
-                "large",
-                "cat"
-            ],
-            "x-enum-varnames": [
-                "TargetSizeSmall",
-                "TargetSizeMedium",
-                "TargetSizeLarge",
-                "TargetSizeCat"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.Treatment": {
-            "type": "object",
-            "properties": {
-                "consultation": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation"
-                },
-                "consultation_id": {
-                    "type": "string"
-                },
-                "content": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "deleted_at": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "discount_amount": {
-                    "type": "number"
-                },
-                "discount_rate": {
-                    "type": "number"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "insurance": {
-                    "type": "boolean"
-                },
-                "inventory": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem"
-                },
-                "inventory_id": {
-                    "type": "string"
-                },
-                "item_type": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TreatmentItemType"
-                },
-                "medical_record": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord"
-                        }
-                    ]
-                },
-                "medical_record_id": {
-                    "type": "string"
-                },
-                "medicine": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine"
-                },
-                "medicine_id": {
-                    "type": "string"
-                },
-                "memo": {
-                    "type": "string"
-                },
-                "procedure": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure"
-                },
-                "procedure_id": {
-                    "type": "string"
-                },
-                "quantity": {
-                    "type": "integer"
-                },
-                "selected": {
-                    "type": "boolean"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TreatmentStatus"
-                },
-                "unit_price": {
-                    "type": "number"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.TreatmentItemType": {
-            "type": "string",
-            "enum": [
-                "consultation",
-                "procedure",
-                "medicine",
-                "other"
-            ],
-            "x-enum-varnames": [
-                "TreatmentItemTypeConsultation",
-                "TreatmentItemTypeProcedure",
-                "TreatmentItemTypeMedicine",
-                "TreatmentItemTypeOther"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.TreatmentPlan": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "deleted_at": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "discount_amount": {
-                    "type": "number"
-                },
-                "discount_rate": {
-                    "type": "number"
-                },
-                "hospitalization": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Hospitalization"
-                },
-                "hospitalization_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "insurance": {
-                    "type": "boolean"
-                },
-                "medical_record": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord"
-                        }
-                    ]
-                },
-                "medical_record_id": {
-                    "type": "string"
-                },
-                "memo": {
-                    "type": "string"
-                },
-                "quantity": {
-                    "type": "integer"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "subtotal": {
-                    "type": "number"
-                },
-                "treatment_content": {
-                    "type": "string"
-                },
-                "unit_price": {
-                    "type": "number"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.TreatmentStatus": {
-            "type": "string",
-            "enum": [
-                "未完了",
-                "完了",
-                "-"
-            ],
-            "x-enum-varnames": [
-                "TreatmentStatusIncomplete",
-                "TreatmentStatusComplete",
-                "TreatmentStatusNA"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.TrimmingCourse": {
-            "type": "object",
-            "properties": {
-                "clinic_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "duration": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "number"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "target_size": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TargetSize"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.TrimmingOption": {
-            "type": "object",
-            "properties": {
-                "clinic_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "combinable": {
-                    "type": "boolean"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "duration": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "number"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.TrimmingRecord": {
-            "type": "object",
-            "properties": {
-                "bt": {
-                    "type": "string"
-                },
-                "bw": {
-                    "type": "string"
-                },
-                "bw_unit": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.BodyWeightUnit"
-                },
-                "clinic_id": {
-                    "type": "string"
-                },
-                "completed_image": {
-                    "type": "string"
-                },
-                "course": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingCourse"
-                },
-                "course_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "date": {
-                    "type": "string"
-                },
-                "deleted_at": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "options": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingOption"
-                    }
-                },
-                "pet": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Pet"
-                        }
-                    ]
-                },
-                "pet_id": {
-                    "type": "string"
-                },
-                "remarks": {
-                    "type": "string"
-                },
-                "staff": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
-                },
-                "staff_id": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingStatus"
-                },
-                "style_image": {
-                    "type": "string"
-                },
-                "style_request": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "used_ribbon": {
-                    "type": "string"
-                },
-                "used_shampoo": {
-                    "type": "string"
-                },
-                "weight": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.TrimmingStatus": {
-            "type": "string",
-            "enum": [
-                "完了",
-                "予約",
-                "進行中"
-            ],
-            "x-enum-varnames": [
-                "TrimmingStatusCompleted",
-                "TrimmingStatusReserved",
-                "TrimmingStatusInProgress"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.Vaccination": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "date": {
-                    "type": "string"
-                },
-                "deleted_at": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "doctor": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
-                },
-                "doctor_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "lot1": {
-                    "type": "string"
-                },
-                "lot2": {
-                    "type": "string"
-                },
-                "lot3": {
-                    "type": "string"
-                },
-                "lot4": {
-                    "type": "string"
-                },
-                "medical_record": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord"
-                        }
-                    ]
-                },
-                "medical_record_id": {
-                    "type": "string"
-                },
-                "next_date": {
-                    "type": "string"
-                },
-                "next_schedule_type": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.NextScheduleType"
-                },
-                "pet": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Pet"
-                },
-                "pet_id": {
-                    "type": "string"
-                },
-                "remarks": {
-                    "type": "string"
-                },
-                "supplemental": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "vaccine": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccine"
-                },
-                "vaccine_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.Vaccine": {
-            "type": "object",
-            "properties": {
-                "clinic_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "interval": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "number"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "species": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.VaccineSpecies"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.VaccineSpecies": {
-            "type": "string",
-            "enum": [
-                "dog",
-                "cat",
-                "both"
-            ],
-            "x-enum-varnames": [
-                "VaccineSpeciesDog",
-                "VaccineSpeciesCat",
-                "VaccineSpeciesBoth"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.VisitType": {
-            "type": "string",
-            "enum": [
-                "first",
-                "revisit"
-            ],
-            "x-enum-varnames": [
-                "VisitTypeFirst",
-                "VisitTypeRevisit"
-            ]
-        },
-        "github_com_animal-ekarte_backend_internal_model.Vital": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "heart_rate": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "medical_record": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord"
-                        }
-                    ]
-                },
-                "medical_record_id": {
-                    "type": "string"
-                },
-                "notes": {
-                    "type": "string"
-                },
-                "recorded_at": {
-                    "type": "string"
-                },
-                "respiration_rate": {
-                    "type": "integer"
-                },
-                "staff": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
-                },
-                "staff_id": {
-                    "type": "string"
-                },
-                "temperature": {
-                    "type": "number"
-                },
-                "weight": {
-                    "type": "number"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.VitalRecord": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "daily_record_id": {
-                    "type": "string"
-                },
-                "heart_rate": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "notes": {
-                    "type": "string"
-                },
-                "respiration_rate": {
-                    "type": "integer"
-                },
-                "staff": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.Staff"
-                        }
-                    ]
-                },
-                "staff_id": {
-                    "type": "string"
-                },
-                "temperature": {
-                    "type": "number"
-                },
-                "time": {
-                    "type": "string"
-                },
-                "weight": {
-                    "type": "number"
-                }
-            }
-        },
-        "github_com_animal-ekarte_backend_internal_model.WaterIntakeLevel": {
-            "type": "string",
-            "enum": [
-                "normal",
-                "increased",
-                "decreased",
-                "none"
-            ],
-            "x-enum-varnames": [
-                "WaterIntakeLevelNormal",
-                "WaterIntakeLevelIncreased",
-                "WaterIntakeLevelDecreased",
-                "WaterIntakeLevelNone"
-            ]
-        },
-        "gorm.DeletedAt": {
-            "type": "object",
-            "properties": {
-                "time": {
-                    "type": "string"
-                },
-                "valid": {
-                    "description": "Valid is true if Time is not NULL",
-                    "type": "boolean"
-                }
-            }
-        },
-        "internal_handler.LoginInput": {
+        "handler.LoginInput": {
             "type": "object",
             "required": [
                 "email",
@@ -9246,26 +7166,23 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handler.LoginResponse": {
+        "handler.LoginResponse": {
             "type": "object",
             "properties": {
                 "expires_at": {
                     "type": "integer"
                 },
-                "token": {
-                    "type": "string"
+                "user": {
+                    "$ref": "#/definitions/handler.MeResponse"
                 },
                 "user_type": {
                     "type": "string"
                 }
             }
         },
-        "internal_handler.MeClinicMembership": {
+        "handler.MeClinicMembership": {
             "type": "object",
             "properties": {
-                "branch_name": {
-                    "type": "string"
-                },
                 "clinic_id": {
                     "type": "string"
                 },
@@ -9277,7 +7194,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handler.MeResponse": {
+        "handler.MeResponse": {
             "type": "object",
             "properties": {
                 "avatar_url": {
@@ -9286,7 +7203,7 @@ const docTemplate = `{
                 "clinics": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/internal_handler.MeClinicMembership"
+                        "$ref": "#/definitions/handler.MeClinicMembership"
                     }
                 },
                 "display_name": {
@@ -9318,7 +7235,47 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handler.PaginatedResponse": {
+        "handler.MedicalRecordListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.MedicalRecord"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.OwnerListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Owner"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.PaginatedResponse": {
             "type": "object",
             "properties": {
                 "data": {},
@@ -9333,7 +7290,102 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handler.createStaffRequest": {
+        "handler.PetListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Pet"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.TrimmingListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.TrimmingRecord"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.VaccinationListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Vaccination"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.createClinicRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "director_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "fax_number": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "postal_code": {
+                    "type": "string"
+                },
+                "registration_number": {
+                    "type": "string"
+                },
+                "website": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.createStaffRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -9342,14 +7394,11 @@ const docTemplate = `{
                 "staff_role"
             ],
             "properties": {
-                "code": {
-                    "type": "string"
-                },
                 "email": {
                     "type": "string"
                 },
                 "job_title_id": {
-                    "type": "string"
+                    "type": "integer"
                 },
                 "license_number": {
                     "type": "string"
@@ -9365,9 +7414,3013 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "staff_role": {
-                    "$ref": "#/definitions/github_com_animal-ekarte_backend_internal_model.StaffRole"
+                    "$ref": "#/definitions/model.StaffRole"
                 }
             }
+        },
+        "model.AcquisitionType": {
+            "type": "string",
+            "enum": [
+                "purchased",
+                "transferred",
+                "rescued",
+                "other"
+            ],
+            "x-enum-varnames": [
+                "AcquisitionTypePurchase",
+                "AcquisitionTypeTransfer",
+                "AcquisitionTypeProtected",
+                "AcquisitionTypeOther"
+            ]
+        },
+        "model.AnesthesiaType": {
+            "type": "string",
+            "enum": [
+                "none",
+                "local",
+                "general"
+            ],
+            "x-enum-varnames": [
+                "AnesthesiaTypeNone",
+                "AnesthesiaTypeLocal",
+                "AnesthesiaTypeGeneral"
+            ]
+        },
+        "model.AnimalSpecies": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.AppetiteLevel": {
+            "type": "string",
+            "enum": [
+                "normal",
+                "increased",
+                "decreased",
+                "none"
+            ],
+            "x-enum-varnames": [
+                "AppetiteLevelNormal",
+                "AppetiteLevelIncreased",
+                "AppetiteLevelDecreased",
+                "AppetiteLevelNone"
+            ]
+        },
+        "model.Billing": {
+            "type": "object",
+            "properties": {
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "completed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "has_insurance": {
+                    "type": "boolean"
+                },
+                "hospitalization_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.BillingItem"
+                    }
+                },
+                "medical_record": {
+                    "$ref": "#/definitions/model.MedicalRecord"
+                },
+                "medical_record_id": {
+                    "type": "integer"
+                },
+                "memo": {
+                    "type": "string"
+                },
+                "owner": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Owner"
+                        }
+                    ]
+                },
+                "owner_id": {
+                    "type": "integer"
+                },
+                "payments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Payment"
+                    }
+                },
+                "pet": {
+                    "$ref": "#/definitions/model.Pet"
+                },
+                "pet_id": {
+                    "type": "integer"
+                },
+                "scheduled_date": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.BillingStatus"
+                },
+                "subtotal": {
+                    "type": "integer"
+                },
+                "tax_total": {
+                    "type": "integer"
+                },
+                "total_amount": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.BillingItem": {
+            "type": "object",
+            "properties": {
+                "billing_id": {
+                    "type": "integer"
+                },
+                "category": {
+                    "$ref": "#/definitions/model.ItemCategory"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_insurance_applicable": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "source": {
+                    "$ref": "#/definitions/model.ItemSource"
+                },
+                "tax_rate": {
+                    "type": "number"
+                },
+                "unit_price": {
+                    "type": "number"
+                }
+            }
+        },
+        "model.BillingReview": {
+            "type": "object",
+            "properties": {
+                "confirmed_at": {
+                    "type": "string"
+                },
+                "confirmed_by": {
+                    "type": "integer"
+                },
+                "confirmed_staff": {
+                    "$ref": "#/definitions/model.Staff"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "medical_record": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.MedicalRecord"
+                        }
+                    ]
+                },
+                "medical_record_id": {
+                    "type": "integer"
+                },
+                "memo": {
+                    "type": "string"
+                },
+                "return_reason": {
+                    "type": "string"
+                },
+                "returned_at": {
+                    "type": "string"
+                },
+                "returned_by": {
+                    "type": "integer"
+                },
+                "returned_staff": {
+                    "$ref": "#/definitions/model.Staff"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.BillingReviewStatus"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.BillingReviewStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "confirmed",
+                "returned"
+            ],
+            "x-enum-varnames": [
+                "BillingReviewStatusPending",
+                "BillingReviewStatusConfirmed",
+                "BillingReviewStatusReturned"
+            ]
+        },
+        "model.BillingStatus": {
+            "type": "string",
+            "enum": [
+                "waiting",
+                "completed",
+                "cancelled",
+                "pending"
+            ],
+            "x-enum-varnames": [
+                "BillingStatusWaiting",
+                "BillingStatusCompleted",
+                "BillingStatusCancelled",
+                "BillingStatusPending"
+            ]
+        },
+        "model.BillingUnit": {
+            "type": "string",
+            "enum": [
+                "per_day",
+                "per_night"
+            ],
+            "x-enum-varnames": [
+                "BillingUnitPerDay",
+                "BillingUnitPerNight"
+            ]
+        },
+        "model.BodySize": {
+            "type": "string",
+            "enum": [
+                "small",
+                "medium",
+                "large"
+            ],
+            "x-enum-varnames": [
+                "BodySizeSmall",
+                "BodySizeMedium",
+                "BodySizeLarge"
+            ]
+        },
+        "model.BodyWeightUnit": {
+            "type": "string",
+            "enum": [
+                "Kg",
+                "g"
+            ],
+            "x-enum-varnames": [
+                "BodyWeightUnitKg",
+                "BodyWeightUnitG"
+            ]
+        },
+        "model.Cage": {
+            "type": "object",
+            "properties": {
+                "cage_size": {
+                    "$ref": "#/definitions/model.CageSize"
+                },
+                "cage_type": {
+                    "$ref": "#/definitions/model.CageType"
+                },
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.CageSize": {
+            "type": "string",
+            "enum": [
+                "small",
+                "medium",
+                "large"
+            ],
+            "x-enum-varnames": [
+                "CageSizeSmall",
+                "CageSizeMedium",
+                "CageSizeLarge"
+            ]
+        },
+        "model.CageType": {
+            "type": "string",
+            "enum": [
+                "icu",
+                "dog",
+                "cat",
+                "general"
+            ],
+            "x-enum-varnames": [
+                "CageTypeICU",
+                "CageTypeDog",
+                "CageTypeCat",
+                "CageTypeGeneral"
+            ]
+        },
+        "model.CareLogRecord": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "daily_record_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "staff": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Staff"
+                        }
+                    ]
+                },
+                "staff_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.CareLogStatus"
+                },
+                "time": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/model.CareLogType"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.CareLogStatus": {
+            "type": "string",
+            "enum": [
+                "completed",
+                "partial",
+                "skipped"
+            ],
+            "x-enum-varnames": [
+                "CareLogStatusCompleted",
+                "CareLogStatusPartial",
+                "CareLogStatusSkipped"
+            ]
+        },
+        "model.CareLogType": {
+            "type": "string",
+            "enum": [
+                "food",
+                "excretion",
+                "medicine",
+                "treatment",
+                "other"
+            ],
+            "x-enum-varnames": [
+                "CareLogTypeFood",
+                "CareLogTypeExcretion",
+                "CareLogTypeMedicine",
+                "CareLogTypeTreatment",
+                "CareLogTypeOther"
+            ]
+        },
+        "model.CarePlanItem": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "hospitalization_id": {
+                    "type": "integer"
+                },
+                "hospitalization_plan": {
+                    "$ref": "#/definitions/model.HospitalizationPlan"
+                },
+                "hospitalization_plan_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "medicine": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Medicine"
+                        }
+                    ]
+                },
+                "medicine_id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "procedure": {
+                    "$ref": "#/definitions/model.Procedure"
+                },
+                "procedure_id": {
+                    "type": "integer"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.CarePlanStatus"
+                },
+                "timing": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "type": {
+                    "$ref": "#/definitions/model.CarePlanType"
+                },
+                "unit_price": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.CarePlanStatus": {
+            "type": "string",
+            "enum": [
+                "active",
+                "completed",
+                "discontinued"
+            ],
+            "x-enum-varnames": [
+                "CarePlanStatusActive",
+                "CarePlanStatusCompleted",
+                "CarePlanStatusDiscontinued"
+            ]
+        },
+        "model.CarePlanType": {
+            "type": "string",
+            "enum": [
+                "food",
+                "medicine",
+                "treatment",
+                "instruction",
+                "item"
+            ],
+            "x-enum-varnames": [
+                "CarePlanTypeFood",
+                "CarePlanTypeMedicine",
+                "CarePlanTypeTreatment",
+                "CarePlanTypeInstruction",
+                "CarePlanTypeItem"
+            ]
+        },
+        "model.Checkup": {
+            "type": "object",
+            "properties": {
+                "checkup_type": {
+                    "$ref": "#/definitions/model.CheckupType"
+                },
+                "checkup_type_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "doctor": {
+                    "$ref": "#/definitions/model.Staff"
+                },
+                "doctor_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "medical_record": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.MedicalRecord"
+                        }
+                    ]
+                },
+                "medical_record_id": {
+                    "type": "integer"
+                },
+                "next_date": {
+                    "type": "string"
+                },
+                "pet": {
+                    "$ref": "#/definitions/model.Pet"
+                },
+                "pet_id": {
+                    "type": "integer"
+                },
+                "result": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.CheckupType": {
+            "type": "object",
+            "properties": {
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "interval": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "target_age": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ChiefComplaintCategory": {
+            "type": "object",
+            "properties": {
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Clinic": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "company_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "director_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "fax_number": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "logo_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "postal_code": {
+                    "type": "string"
+                },
+                "registration_number": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "website": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ClinicalPlan": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "diagnosis_category": {
+                    "$ref": "#/definitions/model.DiagnosisCategory"
+                },
+                "diagnosis_category_id": {
+                    "type": "integer"
+                },
+                "diagnosis_details": {
+                    "type": "string"
+                },
+                "diagnosis_name": {
+                    "$ref": "#/definitions/model.DiagnosisName"
+                },
+                "diagnosis_name_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "medical_record": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.MedicalRecord"
+                        }
+                    ]
+                },
+                "medical_record_id": {
+                    "type": "integer"
+                },
+                "physical_exam": {
+                    "type": "string"
+                },
+                "treatment_policy": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Company": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "director_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "fax_number": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "logo_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "postal_code": {
+                    "type": "string"
+                },
+                "registration_number": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "website": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Consultation": {
+            "type": "object",
+            "properties": {
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "time_condition": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.DailyRecord": {
+            "type": "object",
+            "properties": {
+                "care_log_records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.CareLogRecord"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "hospitalization_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "staff_note_records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.StaffNoteRecord"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "vital_records": {
+                    "description": "Relations",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.VitalRecord"
+                    }
+                }
+            }
+        },
+        "model.DangerLevel": {
+            "type": "string",
+            "enum": [
+                "low",
+                "medium",
+                "high"
+            ],
+            "x-enum-varnames": [
+                "DangerLevelLow",
+                "DangerLevelMedium",
+                "DangerLevelHigh"
+            ]
+        },
+        "model.DiagnosisCategory": {
+            "type": "object",
+            "properties": {
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "names": {
+                    "description": "Relations",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.DiagnosisName"
+                    }
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.DiagnosisName": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.DiagnosisCategory"
+                        }
+                    ]
+                },
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "diagnosis_category_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.DosageForm": {
+            "type": "string",
+            "enum": [
+                "tablet",
+                "liquid",
+                "injection",
+                "topical",
+                "powder"
+            ],
+            "x-enum-varnames": [
+                "DosageFormTablet",
+                "DosageFormLiquid",
+                "DosageFormInjection",
+                "DosageFormTopical",
+                "DosageFormPowder"
+            ]
+        },
+        "model.Estimate": {
+            "type": "object",
+            "properties": {
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "integer"
+                },
+                "created_staff": {
+                    "$ref": "#/definitions/model.Staff"
+                },
+                "discount_amount": {
+                    "type": "number"
+                },
+                "estimate_no": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "insurance_amount": {
+                    "type": "number"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.EstimateItem"
+                    }
+                },
+                "medical_record": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.MedicalRecord"
+                        }
+                    ]
+                },
+                "medical_record_id": {
+                    "type": "integer"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "owner": {
+                    "$ref": "#/definitions/model.Owner"
+                },
+                "owner_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.EstimateStatus"
+                },
+                "subtotal": {
+                    "type": "number"
+                },
+                "tax_total": {
+                    "type": "number"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "valid_until": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.EstimateItem": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "$ref": "#/definitions/model.ItemCategory"
+                },
+                "consultation": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Consultation"
+                        }
+                    ]
+                },
+                "consultation_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "discount_amount": {
+                    "type": "number"
+                },
+                "discount_rate": {
+                    "type": "number"
+                },
+                "estimate_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_insurance_applicable": {
+                    "type": "boolean"
+                },
+                "medicine": {
+                    "$ref": "#/definitions/model.Medicine"
+                },
+                "medicine_id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "procedure": {
+                    "$ref": "#/definitions/model.Procedure"
+                },
+                "procedure_id": {
+                    "type": "integer"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "tax_rate": {
+                    "type": "number"
+                },
+                "unit_price": {
+                    "type": "number"
+                }
+            }
+        },
+        "model.EstimateStatus": {
+            "type": "string",
+            "enum": [
+                "draft",
+                "sent",
+                "approved",
+                "rejected"
+            ],
+            "x-enum-varnames": [
+                "EstimateStatusDraft",
+                "EstimateStatusSent",
+                "EstimateStatusApproved",
+                "EstimateStatusRejected"
+            ]
+        },
+        "model.Exam": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "doctor": {
+                    "$ref": "#/definitions/model.Staff"
+                },
+                "doctor_id": {
+                    "type": "integer"
+                },
+                "exam_type": {
+                    "$ref": "#/definitions/model.ExamType"
+                },
+                "exam_type_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.ExamItem"
+                    }
+                },
+                "machine": {
+                    "type": "string"
+                },
+                "medical_record": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.MedicalRecord"
+                        }
+                    ]
+                },
+                "medical_record_id": {
+                    "type": "integer"
+                },
+                "pet": {
+                    "$ref": "#/definitions/model.Pet"
+                },
+                "pet_id": {
+                    "type": "integer"
+                },
+                "result_summary": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.ExaminationStatus"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ExamItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "exam_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "inspection_value": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "normal_value": {
+                    "type": "string"
+                },
+                "ref": {
+                    "type": "string"
+                },
+                "result": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.ExaminationResultStatus"
+                },
+                "unit": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ExamType": {
+            "type": "object",
+            "properties": {
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "description": "Relations",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.ExamTypeItem"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ExamTypeItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "exam_type_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "inspection_value": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "normal_value": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ExaminationResultStatus": {
+            "type": "string",
+            "enum": [
+                "normal",
+                "high",
+                "low"
+            ],
+            "x-enum-varnames": [
+                "ExaminationResultStatusNormal",
+                "ExaminationResultStatusHigh",
+                "ExaminationResultStatusLow"
+            ]
+        },
+        "model.ExaminationStatus": {
+            "type": "string",
+            "enum": [
+                "依頼中",
+                "検査中",
+                "完了"
+            ],
+            "x-enum-varnames": [
+                "ExaminationStatusPending",
+                "ExaminationStatusInProgress",
+                "ExaminationStatusCompleted"
+            ]
+        },
+        "model.Hospitalization": {
+            "type": "object",
+            "properties": {
+                "cage": {
+                    "$ref": "#/definitions/model.Cage"
+                },
+                "cage_id": {
+                    "type": "integer"
+                },
+                "care_plan_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.CarePlanItem"
+                    }
+                },
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "daily_records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.DailyRecord"
+                    }
+                },
+                "doctor": {
+                    "$ref": "#/definitions/model.Staff"
+                },
+                "doctor_id": {
+                    "type": "integer"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "hospitalization_type": {
+                    "$ref": "#/definitions/model.HospitalizationType"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "memo": {
+                    "type": "string"
+                },
+                "owner": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Owner"
+                        }
+                    ]
+                },
+                "owner_id": {
+                    "type": "integer"
+                },
+                "owner_request": {
+                    "type": "string"
+                },
+                "pet": {
+                    "$ref": "#/definitions/model.Pet"
+                },
+                "pet_id": {
+                    "type": "integer"
+                },
+                "staff_notes": {
+                    "type": "string"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.HospitalizationStatus"
+                },
+                "treatment_plans": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.TreatmentPlan"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.HospitalizationPlan": {
+            "type": "object",
+            "properties": {
+                "billing_unit": {
+                    "$ref": "#/definitions/model.BillingUnit"
+                },
+                "body_size": {
+                    "$ref": "#/definitions/model.BodySize"
+                },
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.HospitalizationStatus": {
+            "type": "string",
+            "enum": [
+                "admitted",
+                "discharged",
+                "reserved"
+            ],
+            "x-enum-varnames": [
+                "HospitalizationStatusAdmitted",
+                "HospitalizationStatusDischarged",
+                "HospitalizationStatusReserved"
+            ]
+        },
+        "model.HospitalizationType": {
+            "type": "string",
+            "enum": [
+                "hospitalization",
+                "hotel"
+            ],
+            "x-enum-varnames": [
+                "HospitalizationTypeInpatient",
+                "HospitalizationTypeHotel"
+            ]
+        },
+        "model.Inquiry": {
+            "type": "object",
+            "properties": {
+                "allergy_info": {
+                    "type": "string"
+                },
+                "appetite": {
+                    "$ref": "#/definitions/model.AppetiteLevel"
+                },
+                "chief_complaint": {
+                    "type": "string"
+                },
+                "chief_complaint_category": {
+                    "$ref": "#/definitions/model.ChiefComplaintCategory"
+                },
+                "chief_complaint_category_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "current_medications": {
+                    "type": "string"
+                },
+                "history": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_defecation": {
+                    "type": "string"
+                },
+                "last_meal": {
+                    "type": "string"
+                },
+                "last_urination": {
+                    "type": "string"
+                },
+                "medical_record": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.MedicalRecord"
+                        }
+                    ]
+                },
+                "medical_record_id": {
+                    "type": "integer"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "owner_observations": {
+                    "type": "string"
+                },
+                "staff": {
+                    "$ref": "#/definitions/model.Staff"
+                },
+                "staff_id": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "water_intake": {
+                    "$ref": "#/definitions/model.WaterIntakeLevel"
+                }
+            }
+        },
+        "model.Insurance": {
+            "type": "object",
+            "properties": {
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "contact_phone": {
+                    "type": "string"
+                },
+                "coverage_rate": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.InventoryCategory": {
+            "type": "string",
+            "enum": [
+                "medicine",
+                "consumable",
+                "food",
+                "other"
+            ],
+            "x-enum-varnames": [
+                "InventoryCategoryMedicine",
+                "InventoryCategoryConsumable",
+                "InventoryCategoryFood",
+                "InventoryCategoryOther"
+            ]
+        },
+        "model.InventoryItem": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "$ref": "#/definitions/model.InventoryCategory"
+                },
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "expiry_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_restocked": {
+                    "type": "string"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "min_stock_level": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.InventoryStatus"
+                },
+                "supplier": {
+                    "type": "string"
+                },
+                "unit": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.InventoryStatus": {
+            "type": "string",
+            "enum": [
+                "sufficient",
+                "low",
+                "out_of_stock"
+            ],
+            "x-enum-varnames": [
+                "InventoryStatusSufficient",
+                "InventoryStatusLow",
+                "InventoryStatusOutOfStock"
+            ]
+        },
+        "model.ItemCategory": {
+            "type": "string",
+            "enum": [
+                "examination",
+                "test",
+                "procedure",
+                "surgery",
+                "medicine",
+                "food",
+                "goods",
+                "other"
+            ],
+            "x-enum-varnames": [
+                "ItemCategoryExamination",
+                "ItemCategoryTest",
+                "ItemCategoryProcedure",
+                "ItemCategorySurgery",
+                "ItemCategoryMedicine",
+                "ItemCategoryFood",
+                "ItemCategoryGoods",
+                "ItemCategoryOther"
+            ]
+        },
+        "model.ItemSource": {
+            "type": "string",
+            "enum": [
+                "medical_record",
+                "manual",
+                "hospitalization"
+            ],
+            "x-enum-varnames": [
+                "ItemSourceMedicalRecord",
+                "ItemSourceManual",
+                "ItemSourceHospitalization"
+            ]
+        },
+        "model.JobTitle": {
+            "type": "object",
+            "properties": {
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.MedicalRecord": {
+            "type": "object",
+            "properties": {
+                "billing_review": {
+                    "$ref": "#/definitions/model.BillingReview"
+                },
+                "checkups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Checkup"
+                    }
+                },
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "clinical_plan": {
+                    "$ref": "#/definitions/model.ClinicalPlan"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "doctor": {
+                    "$ref": "#/definitions/model.Staff"
+                },
+                "doctor_id": {
+                    "type": "integer"
+                },
+                "estimates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Estimate"
+                    }
+                },
+                "exams": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Exam"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "inquiry": {
+                    "$ref": "#/definitions/model.Inquiry"
+                },
+                "owner": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Owner"
+                        }
+                    ]
+                },
+                "owner_id": {
+                    "type": "integer"
+                },
+                "pet": {
+                    "$ref": "#/definitions/model.Pet"
+                },
+                "pet_id": {
+                    "type": "integer"
+                },
+                "record_no": {
+                    "type": "string"
+                },
+                "reservation_appointment_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.MedicalRecordStatus"
+                },
+                "treatments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Treatment"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "vaccinations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Vaccination"
+                    }
+                },
+                "vitals": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Vital"
+                    }
+                }
+            }
+        },
+        "model.MedicalRecordStatus": {
+            "type": "string",
+            "enum": [
+                "draft",
+                "finalized"
+            ],
+            "x-enum-varnames": [
+                "MedicalRecordStatusDraft",
+                "MedicalRecordStatusFinalized"
+            ]
+        },
+        "model.Medicine": {
+            "type": "object",
+            "properties": {
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "default_quantity": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "dosage_form": {
+                    "$ref": "#/definitions/model.DosageForm"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "inventory": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.InventoryItem"
+                        }
+                    ]
+                },
+                "inventory_id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "medicine_unit": {
+                    "$ref": "#/definitions/model.MedicineUnit"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.MedicineUnit": {
+            "type": "string",
+            "enum": [
+                "per_tablet",
+                "per_ml",
+                "per_dose",
+                "per_gram"
+            ],
+            "x-enum-varnames": [
+                "MedicineUnitPerTablet",
+                "MedicineUnitPerML",
+                "MedicineUnitPerDose",
+                "MedicineUnitPerGram"
+            ]
+        },
+        "model.MembershipType": {
+            "type": "string",
+            "enum": [
+                "non_member",
+                "member",
+                "deceased",
+                "transferred"
+            ],
+            "x-enum-varnames": [
+                "MembershipTypeNonMember",
+                "MembershipTypeMember",
+                "MembershipTypeDeceased",
+                "MembershipTypeOther"
+            ]
+        },
+        "model.NextScheduleType": {
+            "type": "string",
+            "enum": [
+                "3weeks",
+                "4weeks",
+                "1year",
+                "other"
+            ],
+            "x-enum-varnames": [
+                "NextScheduleType3Weeks",
+                "NextScheduleType4Weeks",
+                "NextScheduleType1Year",
+                "NextScheduleTypeOther"
+            ]
+        },
+        "model.Owner": {
+            "type": "object",
+            "properties": {
+                "address1": {
+                    "type": "string"
+                },
+                "address2": {
+                    "type": "string"
+                },
+                "birth_date": {
+                    "type": "string"
+                },
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "company": {
+                    "type": "string"
+                },
+                "company_phone": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "discount_rate": {
+                    "type": "number"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "home_address1": {
+                    "type": "string"
+                },
+                "home_address2": {
+                    "type": "string"
+                },
+                "home_postal_code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_dangerous": {
+                    "type": "boolean"
+                },
+                "membership_type": {
+                    "$ref": "#/definitions/model.MembershipType"
+                },
+                "owner_name": {
+                    "type": "string"
+                },
+                "owner_name_kana": {
+                    "type": "string"
+                },
+                "pets": {
+                    "description": "Relations",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Pet"
+                    }
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "postal_code": {
+                    "type": "string"
+                },
+                "remarks": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Payment": {
+            "type": "object",
+            "properties": {
+                "billing_amount": {
+                    "type": "number"
+                },
+                "billing_id": {
+                    "type": "integer"
+                },
+                "change_amount": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "discount_amount": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "insurance_amount": {
+                    "type": "number"
+                },
+                "insurance_name": {
+                    "type": "string"
+                },
+                "insurance_ratio": {
+                    "type": "number"
+                },
+                "method": {
+                    "$ref": "#/definitions/model.PaymentMethod"
+                },
+                "received_amount": {
+                    "type": "number"
+                },
+                "subtotal": {
+                    "type": "number"
+                },
+                "tax_total": {
+                    "type": "number"
+                },
+                "total_amount": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.PaymentMethod": {
+            "type": "string",
+            "enum": [
+                "cash",
+                "credit_card",
+                "electronic_money"
+            ],
+            "x-enum-varnames": [
+                "PaymentMethodCash",
+                "PaymentMethodCreditCard",
+                "PaymentMethodElectronicMoney"
+            ]
+        },
+        "model.Pet": {
+            "type": "object",
+            "properties": {
+                "acquisition_type": {
+                    "$ref": "#/definitions/model.AcquisitionType"
+                },
+                "animal_species": {
+                    "$ref": "#/definitions/model.AnimalSpecies"
+                },
+                "animal_species_id": {
+                    "type": "integer"
+                },
+                "birth_date": {
+                    "type": "string"
+                },
+                "breed": {
+                    "type": "string"
+                },
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "color": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "danger_level": {
+                    "$ref": "#/definitions/model.DangerLevel"
+                },
+                "environment": {
+                    "type": "string"
+                },
+                "food": {
+                    "type": "string"
+                },
+                "gender": {
+                    "$ref": "#/definitions/model.PetGender"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "insurance": {
+                    "$ref": "#/definitions/model.Insurance"
+                },
+                "insurance_id": {
+                    "type": "integer"
+                },
+                "last_visit": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "neutered_date": {
+                    "type": "string"
+                },
+                "owner": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Owner"
+                        }
+                    ]
+                },
+                "owner_id": {
+                    "type": "integer"
+                },
+                "pet_name_kana": {
+                    "type": "string"
+                },
+                "pet_number": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "remarks": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.PetStatus"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "weight": {
+                    "type": "number"
+                }
+            }
+        },
+        "model.PetGender": {
+            "type": "string",
+            "enum": [
+                "male",
+                "female",
+                "unknown"
+            ],
+            "x-enum-varnames": [
+                "PetGenderMale",
+                "PetGenderFemale",
+                "PetGenderUnknown"
+            ]
+        },
+        "model.PetStatus": {
+            "type": "string",
+            "enum": [
+                "alive",
+                "deceased"
+            ],
+            "x-enum-varnames": [
+                "PetStatusAlive",
+                "PetStatusDeceased"
+            ]
+        },
+        "model.Procedure": {
+            "type": "object",
+            "properties": {
+                "anesthesia": {
+                    "$ref": "#/definitions/model.AnesthesiaType"
+                },
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ReservationAppointment": {
+            "type": "object",
+            "properties": {
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "doctor": {
+                    "$ref": "#/definitions/model.Staff"
+                },
+                "doctor_id": {
+                    "type": "integer"
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_designated": {
+                    "type": "boolean"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "owner": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Owner"
+                        }
+                    ]
+                },
+                "owner_id": {
+                    "type": "integer"
+                },
+                "pet": {
+                    "$ref": "#/definitions/model.Pet"
+                },
+                "pet_id": {
+                    "type": "integer"
+                },
+                "service_type": {
+                    "$ref": "#/definitions/model.ServiceType"
+                },
+                "service_type_id": {
+                    "type": "integer"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.ReservationStatus"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "visit_type": {
+                    "$ref": "#/definitions/model.VisitType"
+                }
+            }
+        },
+        "model.ReservationStatus": {
+            "type": "string",
+            "enum": [
+                "confirmed",
+                "pending",
+                "cancelled",
+                "checked_in",
+                "in_consultation",
+                "accounting",
+                "completed"
+            ],
+            "x-enum-varnames": [
+                "ReservationStatusConfirmed",
+                "ReservationStatusPending",
+                "ReservationStatusCancelled",
+                "ReservationStatusCheckedIn",
+                "ReservationStatusInConsultation",
+                "ReservationStatusAccounting",
+                "ReservationStatusCompleted"
+            ]
+        },
+        "model.ServiceType": {
+            "type": "object",
+            "properties": {
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "color": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Staff": {
+            "type": "object",
+            "properties": {
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "job_title": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.JobTitle"
+                        }
+                    ]
+                },
+                "job_title_id": {
+                    "type": "integer"
+                },
+                "license_number": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "staff_role": {
+                    "$ref": "#/definitions/model.StaffRole"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.StaffNoteRecord": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "daily_record_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "staff": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Staff"
+                        }
+                    ]
+                },
+                "staff_id": {
+                    "type": "integer"
+                },
+                "time": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.StaffRole": {
+            "type": "string",
+            "enum": [
+                "veterinarian",
+                "nurse",
+                "trimmer",
+                "reception",
+                "manager"
+            ],
+            "x-enum-varnames": [
+                "StaffRoleVeterinarian",
+                "StaffRoleNurse",
+                "StaffRoleTrimmer",
+                "StaffRoleReception",
+                "StaffRoleManager"
+            ]
+        },
+        "model.TargetSize": {
+            "type": "string",
+            "enum": [
+                "small",
+                "medium",
+                "large",
+                "cat"
+            ],
+            "x-enum-varnames": [
+                "TargetSizeSmall",
+                "TargetSizeMedium",
+                "TargetSizeLarge",
+                "TargetSizeCat"
+            ]
+        },
+        "model.Treatment": {
+            "type": "object",
+            "properties": {
+                "consultation": {
+                    "$ref": "#/definitions/model.Consultation"
+                },
+                "consultation_id": {
+                    "type": "integer"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "discount_amount": {
+                    "type": "number"
+                },
+                "discount_rate": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "insurance": {
+                    "type": "boolean"
+                },
+                "inventory": {
+                    "$ref": "#/definitions/model.InventoryItem"
+                },
+                "inventory_id": {
+                    "type": "integer"
+                },
+                "item_type": {
+                    "$ref": "#/definitions/model.TreatmentItemType"
+                },
+                "medical_record": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.MedicalRecord"
+                        }
+                    ]
+                },
+                "medical_record_id": {
+                    "type": "integer"
+                },
+                "medicine": {
+                    "$ref": "#/definitions/model.Medicine"
+                },
+                "medicine_id": {
+                    "type": "integer"
+                },
+                "memo": {
+                    "type": "string"
+                },
+                "procedure": {
+                    "$ref": "#/definitions/model.Procedure"
+                },
+                "procedure_id": {
+                    "type": "integer"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "selected": {
+                    "type": "boolean"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.TreatmentStatus"
+                },
+                "unit_price": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.TreatmentItemType": {
+            "type": "string",
+            "enum": [
+                "consultation",
+                "procedure",
+                "medicine",
+                "other"
+            ],
+            "x-enum-varnames": [
+                "TreatmentItemTypeConsultation",
+                "TreatmentItemTypeProcedure",
+                "TreatmentItemTypeMedicine",
+                "TreatmentItemTypeOther"
+            ]
+        },
+        "model.TreatmentPlan": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "discount_amount": {
+                    "type": "number"
+                },
+                "discount_rate": {
+                    "type": "number"
+                },
+                "hospitalization": {
+                    "$ref": "#/definitions/model.Hospitalization"
+                },
+                "hospitalization_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "insurance": {
+                    "type": "boolean"
+                },
+                "medical_record": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.MedicalRecord"
+                        }
+                    ]
+                },
+                "medical_record_id": {
+                    "type": "integer"
+                },
+                "memo": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "subtotal": {
+                    "type": "number"
+                },
+                "treatment_content": {
+                    "type": "string"
+                },
+                "unit_price": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.TreatmentStatus": {
+            "type": "string",
+            "enum": [
+                "未完了",
+                "完了",
+                "-"
+            ],
+            "x-enum-varnames": [
+                "TreatmentStatusIncomplete",
+                "TreatmentStatusComplete",
+                "TreatmentStatusNA"
+            ]
+        },
+        "model.TrimmingCourse": {
+            "type": "object",
+            "properties": {
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "target_size": {
+                    "$ref": "#/definitions/model.TargetSize"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.TrimmingOption": {
+            "type": "object",
+            "properties": {
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "combinable": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.TrimmingRecord": {
+            "type": "object",
+            "properties": {
+                "bt": {
+                    "type": "string"
+                },
+                "bw": {
+                    "type": "string"
+                },
+                "bw_unit": {
+                    "$ref": "#/definitions/model.BodyWeightUnit"
+                },
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "completed_image": {
+                    "type": "string"
+                },
+                "course": {
+                    "$ref": "#/definitions/model.TrimmingCourse"
+                },
+                "course_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.TrimmingOption"
+                    }
+                },
+                "pet": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Pet"
+                        }
+                    ]
+                },
+                "pet_id": {
+                    "type": "integer"
+                },
+                "remarks": {
+                    "type": "string"
+                },
+                "staff": {
+                    "$ref": "#/definitions/model.Staff"
+                },
+                "staff_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.TrimmingStatus"
+                },
+                "style_image": {
+                    "type": "string"
+                },
+                "style_request": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "used_ribbon": {
+                    "type": "string"
+                },
+                "used_shampoo": {
+                    "type": "string"
+                },
+                "weight": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.TrimmingStatus": {
+            "type": "string",
+            "enum": [
+                "completed",
+                "reserved",
+                "in_progress"
+            ],
+            "x-enum-varnames": [
+                "TrimmingStatusCompleted",
+                "TrimmingStatusReserved",
+                "TrimmingStatusInProgress"
+            ]
+        },
+        "model.Vaccination": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "doctor": {
+                    "$ref": "#/definitions/model.Staff"
+                },
+                "doctor_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "lot1": {
+                    "type": "string"
+                },
+                "lot2": {
+                    "type": "string"
+                },
+                "lot3": {
+                    "type": "string"
+                },
+                "lot4": {
+                    "type": "string"
+                },
+                "medical_record": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.MedicalRecord"
+                        }
+                    ]
+                },
+                "medical_record_id": {
+                    "type": "integer"
+                },
+                "next_date": {
+                    "type": "string"
+                },
+                "next_schedule_type": {
+                    "$ref": "#/definitions/model.NextScheduleType"
+                },
+                "pet": {
+                    "$ref": "#/definitions/model.Pet"
+                },
+                "pet_id": {
+                    "type": "integer"
+                },
+                "remarks": {
+                    "type": "string"
+                },
+                "supplemental": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "vaccine": {
+                    "$ref": "#/definitions/model.Vaccine"
+                },
+                "vaccine_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.Vaccine": {
+            "type": "object",
+            "properties": {
+                "clinic_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "interval": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "species": {
+                    "$ref": "#/definitions/model.VaccineSpecies"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.VaccineSpecies": {
+            "type": "string",
+            "enum": [
+                "dog",
+                "cat",
+                "both"
+            ],
+            "x-enum-varnames": [
+                "VaccineSpeciesDog",
+                "VaccineSpeciesCat",
+                "VaccineSpeciesBoth"
+            ]
+        },
+        "model.VisitType": {
+            "type": "string",
+            "enum": [
+                "first",
+                "revisit"
+            ],
+            "x-enum-varnames": [
+                "VisitTypeFirst",
+                "VisitTypeRevisit"
+            ]
+        },
+        "model.Vital": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "heart_rate": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "medical_record": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.MedicalRecord"
+                        }
+                    ]
+                },
+                "medical_record_id": {
+                    "type": "integer"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "recorded_at": {
+                    "type": "string"
+                },
+                "respiration_rate": {
+                    "type": "integer"
+                },
+                "staff": {
+                    "$ref": "#/definitions/model.Staff"
+                },
+                "staff_id": {
+                    "type": "integer"
+                },
+                "temperature": {
+                    "type": "number"
+                },
+                "weight": {
+                    "type": "number"
+                }
+            }
+        },
+        "model.VitalRecord": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "daily_record_id": {
+                    "type": "integer"
+                },
+                "heart_rate": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "respiration_rate": {
+                    "type": "integer"
+                },
+                "staff": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Staff"
+                        }
+                    ]
+                },
+                "staff_id": {
+                    "type": "integer"
+                },
+                "temperature": {
+                    "type": "number"
+                },
+                "time": {
+                    "type": "string"
+                },
+                "weight": {
+                    "type": "number"
+                }
+            }
+        },
+        "model.WaterIntakeLevel": {
+            "type": "string",
+            "enum": [
+                "normal",
+                "increased",
+                "decreased",
+                "none"
+            ],
+            "x-enum-varnames": [
+                "WaterIntakeLevelNormal",
+                "WaterIntakeLevelIncreased",
+                "WaterIntakeLevelDecreased",
+                "WaterIntakeLevelNone"
+            ]
         }
     },
     "securityDefinitions": {

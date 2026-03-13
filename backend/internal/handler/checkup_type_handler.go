@@ -3,9 +3,9 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -49,7 +49,6 @@ func (h *Handler) CreateCheckupType(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = uuid.New()
 	if err := h.svc.CheckupType.Create(c.Request.Context(), &input); err != nil {
 		RespondError(c, err)
 		return
@@ -64,14 +63,14 @@ func (h *Handler) CreateCheckupType(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "健診種別UUID"
+// @Param id path integer true "健診種別ID"
 // @Param request body model.CheckupType true "健診種別情報"
 // @Success 200 {object} model.CheckupType
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /masters/checkup-types/{id} [put]
 func (h *Handler) UpdateCheckupType(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -96,13 +95,13 @@ func (h *Handler) UpdateCheckupType(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "健診種別UUID"
+// @Param id path integer true "健診種別ID"
 // @Success 204
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /masters/checkup-types/{id} [delete]
 func (h *Handler) DeleteCheckupType(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return

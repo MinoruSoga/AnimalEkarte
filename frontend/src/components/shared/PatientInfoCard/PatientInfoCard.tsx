@@ -11,15 +11,20 @@ interface PatientInfoCardProps {
   staffName?: string;
   staffLabel?: string;
   serviceType?: string;
+  /** 診療種別ラベル（デフォルト: "診療種別"） */
+  serviceTypeLabel?: string;
   className?: string;
-
-  // New optional props for dynamic data
-  petDetails?: string; // e.g. "9才5ヶ月 / メス / 避妊済"
-  insuranceName?: string; // e.g. "ペット保険Aプラン"
-  insuranceDetails?: string; // e.g. "普通or危険"
-  nextVisitDate?: string; // e.g. "2025/10/10"
-  nextVisitContent?: string; // e.g. "ノミ予防"
-  onStaffClick?: () => void; // Optional callback when staff button is clicked
+  sticky?: boolean;
+  hideStaff?: boolean;
+  petDetails?: string;
+  insuranceName?: string;
+  insuranceDetails?: string;
+  nextVisitDate?: string;
+  nextVisitContent?: string;
+  onStaffClick?: () => void;
+  onVitalClick?: () => void;
+  onOwnerClick?: () => void;
+  onServiceTypeClick?: () => void;
 }
 
 export function PatientInfoCard({
@@ -30,19 +35,26 @@ export function PatientInfoCard({
   staffName = "医師A",
   staffLabel = "",
   serviceType = "診療",
-  className: _className,
+  serviceTypeLabel = "診療種別",
   petDetails = "9才5ヶ月 / メス / 避妊済",
   insuranceName = "ペット保険Aプラン",
   insuranceDetails = "普通or危険",
   nextVisitDate = "2025/10/10",
   nextVisitContent = "ノミ予防",
+  sticky = true,
+  hideStaff = false,
   onStaffClick,
+  onVitalClick,
+  onOwnerClick,
+  onServiceTypeClick,
 }: PatientInfoCardProps) {
   return (
-    <div className="sticky top-0 z-10 bg-white px-3 py-1.5 border-b border-[rgba(55,53,47,0.16)]">
-      <div className="flex flex-wrap items-center gap-2">
+    <div
+      className={`${sticky ? "sticky top-0 z-10" : ""} bg-white px-4 py-2.5 border-b border-[rgba(55,53,47,0.16)]`}
+    >
+      <div className="flex flex-wrap items-center gap-3">
         {/* Avatar */}
-        <div className="shrink-0 size-8">
+        <div className="shrink-0 size-9">
           <ImageWithFallback
             src={imgEllipse1}
             alt="Pet"
@@ -50,59 +62,100 @@ export function PatientInfoCard({
           />
         </div>
 
-        {/* Basic Info - Compact Row */}
+        {/* Basic Info */}
         <div className="flex flex-col gap-0.5 mr-3">
-             <div className="flex items-baseline gap-2">
-                 <span className="text-base font-medium text-[#37352F]">{ownerName}</span>
-                 <span className="text-base font-medium text-[#37352F]">{petName}</span>
-                 <span className="text-sm text-[#37352F]/60">{petNumber}</span>
-             </div>
-             <div className="flex items-center gap-3 text-sm text-[#37352F]/60">
-                 <span className="flex items-center gap-1"><User className="size-3" /> {petDetails}</span>
-                 <span className="flex items-center gap-1"><Activity className="size-3" /> {weight}</span>
-             </div>
+          <div className="flex items-baseline gap-2">
+            {onOwnerClick ? (
+              <button
+                type="button"
+                onClick={onOwnerClick}
+                className="text-base font-medium text-[#37352F] hover:underline decoration-dotted underline-offset-2 cursor-pointer"
+              >
+                {ownerName}
+              </button>
+            ) : (
+              <span className="text-base font-medium text-[#37352F]">{ownerName}</span>
+            )}
+            <span className="text-base font-medium text-[#37352F]">{petName}</span>
+          </div>
+          <div className="flex items-center gap-3 text-sm text-[#37352F]/60">
+            {petNumber && (
+              <span className="font-mono text-[11px] px-1 py-0 rounded bg-[#F7F6F3] border border-[rgba(55,53,47,0.12)] text-[#37352F]/40 leading-4 tracking-wide">
+                #{petNumber}
+              </span>
+            )}
+            <span className="flex items-center gap-1">
+              <User className="size-3" /> {petDetails}
+            </span>
+            <span className="flex items-center gap-1">
+              <Activity className="size-3" /> {weight}
+            </span>
+          </div>
         </div>
 
-        {/* Status / Discount / Service */}
+        {/* Service / Insurance / Next Visit */}
         <div className="flex items-center gap-3 flex-1 overflow-x-auto no-scrollbar">
-             {/* Discount/Service Group */}
-             <div className="flex flex-col gap-0 min-w-[60px]">
-                 <span className="text-sm text-[#37352F]/60">値引率(100%)</span>
-                 <div className="flex items-center gap-1 cursor-pointer hover:bg-gray-50 rounded px-1 -ml-1 transition-colors">
-                     <span className="text-sm font-medium text-[#37352F]">{serviceType}</span>
-                     <ChevronDown className="size-3.5 text-[#37352F]/40" />
-                 </div>
-             </div>
+          {/* Service Type */}
+          <div className="flex flex-col gap-0 min-w-[60px]">
+            <span className="text-sm text-[#37352F]/60">{serviceTypeLabel}</span>
+            {onServiceTypeClick ? (
+              <div
+                className="flex items-center gap-1 cursor-pointer hover:bg-[#F7F6F3] rounded px-1 -ml-1 transition-colors"
+                onClick={onServiceTypeClick}
+              >
+                <span className="text-sm font-medium text-[#37352F]">{serviceType}</span>
+                <ChevronDown className="size-3.5 text-[#37352F]/40" />
+              </div>
+            ) : (
+              <span className="text-sm font-medium text-[#37352F] px-1 -ml-1">{serviceType}</span>
+            )}
+          </div>
 
-             {/* Insurance */}
-             <div className="flex flex-col gap-0 px-2 py-0.5 rounded bg-[#F7F6F3] border border-[#37352F]/10 min-w-[100px]">
-                 <span className="text-sm font-medium text-[#37352F] truncate">{insuranceName}</span>
-                 <span className="text-sm text-[#37352F]/60 truncate">{insuranceDetails}</span>
-             </div>
+          {/* Insurance */}
+          <div className="flex flex-col gap-0.5 px-3 py-1.5 rounded min-h-[38px] justify-center bg-[#F7F6F3] border border-[rgba(55,53,47,0.1)] min-w-[120px]">
+            <span className="text-sm font-medium text-[#37352F] truncate">{insuranceName}</span>
+            <span className="text-sm text-[#37352F]/60 truncate">{insuranceDetails}</span>
+          </div>
 
-             {/* Next Visit */}
-             <div className="flex flex-col gap-0 px-2 py-0.5 rounded bg-[#F7F6F3] border border-[#37352F]/10 min-w-[100px]">
-                  <div className="flex items-center gap-1">
-                     <Calendar className="size-3 text-[#37352F]/60" />
-                     <span className="text-sm text-[#37352F]">次回 {nextVisitDate}</span>
-                  </div>
-                  <span className="text-sm text-[#37352F]/60 truncate">{nextVisitContent}</span>
-             </div>
+          {/* Next Visit */}
+          <div className="flex flex-col gap-0.5 px-3 py-1.5 rounded min-h-[38px] justify-center bg-[#F7F6F3] border border-[rgba(55,53,47,0.1)] min-w-[120px]">
+            <div className="flex items-center gap-1">
+              <Calendar className="size-3 text-[#37352F]/60" />
+              <span className="text-sm text-[#37352F]">次回 {nextVisitDate}</span>
+            </div>
+            <span className="text-sm text-[#37352F]/60 truncate">{nextVisitContent}</span>
+          </div>
         </div>
 
         {/* Staff & Actions */}
         <div className="flex items-center gap-2 ml-auto shrink-0">
-            <Button variant="outline" size="sm" className="h-10 text-sm font-normal bg-white hover:bg-gray-50 px-2">
-                +生体情報
-            </Button>
+          {onVitalClick && (
             <Button
+              variant="outline"
               size="sm"
-              className={`h-10 bg-[#2383E2] hover:bg-[#1B6EC2] text-white text-sm gap-1 px-2 ${onStaffClick ? 'cursor-pointer' : ''}`}
-              onClick={onStaffClick}
+              className="h-9 text-sm font-normal bg-white hover:bg-[#F7F6F3] px-3 border-[rgba(55,53,47,0.16)] text-[#37352F]"
+              onClick={onVitalClick}
             >
-                {onStaffClick && <ChevronDown className="size-3.5" />}
-                {staffLabel ? `${staffLabel}${staffName}` : staffName}
+              +生体情報
             </Button>
+          )}
+          {!hideStaff && (
+            onStaffClick ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 text-sm gap-1 px-3 bg-[#F7F6F3] hover:bg-[rgba(55,53,47,0.1)] text-[#37352F] border border-[rgba(55,53,47,0.16)]"
+                onClick={onStaffClick}
+              >
+                {staffLabel ? `${staffLabel}${staffName}` : staffName}
+                <ChevronDown className="size-3.5 text-[#37352F]/40" />
+              </Button>
+            ) : (
+              <div className="h-9 text-sm flex items-center gap-1 px-3 rounded-md bg-[#F7F6F3] text-[#37352F] border border-[rgba(55,53,47,0.16)]">
+                {staffLabel ? `${staffLabel}${staffName}` : staffName}
+              </div>
+            )
+          )}
         </div>
       </div>
     </div>

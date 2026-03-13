@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 
 // --- Types ---
 export type TreatmentMasterItem = {
+  id: string;
   code: string;
   name: string;
   unitPrice: number;
@@ -35,23 +36,23 @@ interface TreatmentSearchDialogProps {
 const CATEGORY_ORDER = ["診察", "検査", "処置", "予防", "入院", "薬剤"];
 
 const TREATMENT_MASTER: TreatmentMasterItem[] = [
-  { code: "1001", name: "再診料(再診)", unitPrice: 800, category: "診察" },
-  { code: "1002", name: "初診料", unitPrice: 1500, category: "診察" },
-  { code: "1003", name: "時間外診察料", unitPrice: 2000, category: "診察" },
-  { code: "2001", name: "混合ワクチン(5種)", unitPrice: 6000, category: "予防" },
-  { code: "2002", name: "混合ワクチン(7種)", unitPrice: 8000, category: "予防" },
-  { code: "2003", name: "狂犬病予防注射", unitPrice: 3000, category: "予防" },
-  { code: "3001", name: "血液検査セットA", unitPrice: 5000, category: "検査" },
-  { code: "3002", name: "血液検査セットB(生化学)", unitPrice: 7000, category: "検査" },
-  { code: "3003", name: "X線検査(2枚)", unitPrice: 4000, category: "検査" },
-  { code: "3004", name: "超音波検査(腹部)", unitPrice: 3000, category: "検査" },
-  { code: "4001", name: "爪切り", unitPrice: 500, category: "処置" },
-  { code: "4002", name: "耳掃除", unitPrice: 800, category: "処置" },
-  { code: "4003", name: "肛門腺絞り", unitPrice: 500, category: "処置" },
-  { code: "5001", name: "入院料(小型)", unitPrice: 3000, category: "入院" },
-  { code: "5002", name: "入院料(中型)", unitPrice: 4000, category: "入院" },
-  { code: "6001", name: "内服薬A(抗生剤)", unitPrice: 100, category: "薬剤" },
-  { code: "6002", name: "内服薬B(消炎剤)", unitPrice: 80, category: "薬剤" },
+  { id: "1001", code: "1001", name: "再診料(再診)", unitPrice: 800, category: "診察" },
+  { id: "1002", code: "1002", name: "初診料", unitPrice: 1500, category: "診察" },
+  { id: "1003", code: "1003", name: "時間外診察料", unitPrice: 2000, category: "診察" },
+  { id: "2001", code: "2001", name: "混合ワクチン(5種)", unitPrice: 6000, category: "予防" },
+  { id: "2002", code: "2002", name: "混合ワクチン(7種)", unitPrice: 8000, category: "予防" },
+  { id: "2003", code: "2003", name: "狂犬病予防注射", unitPrice: 3000, category: "予防" },
+  { id: "3001", code: "3001", name: "血液検査セットA", unitPrice: 5000, category: "検査" },
+  { id: "3002", code: "3002", name: "血液検査セットB(生化学)", unitPrice: 7000, category: "検査" },
+  { id: "3003", code: "3003", name: "X線検査(2枚)", unitPrice: 4000, category: "検査" },
+  { id: "3004", code: "3004", name: "超音波検査(腹部)", unitPrice: 3000, category: "検査" },
+  { id: "4001", code: "4001", name: "爪切り", unitPrice: 500, category: "処置" },
+  { id: "4002", code: "4002", name: "耳掃除", unitPrice: 800, category: "処置" },
+  { id: "4003", code: "4003", name: "肛門腺絞り", unitPrice: 500, category: "処置" },
+  { id: "5001", code: "5001", name: "入院料(小型)", unitPrice: 3000, category: "入院" },
+  { id: "5002", code: "5002", name: "入院料(中型)", unitPrice: 4000, category: "入院" },
+  { id: "6001", code: "6001", name: "内服薬A(抗生剤)", unitPrice: 100, category: "薬剤" },
+  { id: "6002", code: "6002", name: "内服薬B(消炎剤)", unitPrice: 80, category: "薬剤" },
 ];
 
 // --- Sub-Components ---

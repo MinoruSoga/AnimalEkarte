@@ -4,8 +4,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -16,10 +16,10 @@ import (
 
 type TrimmingCourseRepository interface {
 	FindAll(ctx context.Context) ([]model.TrimmingCourse, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.TrimmingCourse, error)
+	FindByID(ctx context.Context, id uint64) (*model.TrimmingCourse, error)
 	Create(ctx context.Context, course *model.TrimmingCourse) error
 	Update(ctx context.Context, course *model.TrimmingCourse) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type trimmingCourseRepository struct{ db *gorm.DB }
@@ -36,11 +36,11 @@ func (r *trimmingCourseRepository) FindAll(ctx context.Context) ([]model.Trimmin
 	return courses, nil
 }
 
-func (r *trimmingCourseRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.TrimmingCourse, error) {
+func (r *trimmingCourseRepository) FindByID(ctx context.Context, id uint64) (*model.TrimmingCourse, error) {
 	var course model.TrimmingCourse
 	if err := r.db.WithContext(ctx).First(&course, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("trimming_course", id.String())
+			return nil, apperrors.WrapNotFound("trimming_course", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find trimming course by id")
 	}
@@ -64,13 +64,13 @@ func (r *trimmingCourseRepository) Update(ctx context.Context, course *model.Tri
 	return nil
 }
 
-func (r *trimmingCourseRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *trimmingCourseRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.TrimmingCourse{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete trimming course")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("trimming_course", id.String())
+		return apperrors.WrapNotFound("trimming_course", fmt.Sprintf("%d", id))
 	}
 	return nil
 }
@@ -79,10 +79,10 @@ func (r *trimmingCourseRepository) Delete(ctx context.Context, id uuid.UUID) err
 
 type TrimmingOptionRepository interface {
 	FindAll(ctx context.Context) ([]model.TrimmingOption, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.TrimmingOption, error)
+	FindByID(ctx context.Context, id uint64) (*model.TrimmingOption, error)
 	Create(ctx context.Context, option *model.TrimmingOption) error
 	Update(ctx context.Context, option *model.TrimmingOption) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type trimmingOptionRepository struct{ db *gorm.DB }
@@ -99,11 +99,11 @@ func (r *trimmingOptionRepository) FindAll(ctx context.Context) ([]model.Trimmin
 	return options, nil
 }
 
-func (r *trimmingOptionRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.TrimmingOption, error) {
+func (r *trimmingOptionRepository) FindByID(ctx context.Context, id uint64) (*model.TrimmingOption, error) {
 	var option model.TrimmingOption
 	if err := r.db.WithContext(ctx).First(&option, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("trimming_option", id.String())
+			return nil, apperrors.WrapNotFound("trimming_option", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find trimming option by id")
 	}
@@ -127,13 +127,13 @@ func (r *trimmingOptionRepository) Update(ctx context.Context, option *model.Tri
 	return nil
 }
 
-func (r *trimmingOptionRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *trimmingOptionRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.TrimmingOption{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete trimming option")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("trimming_option", id.String())
+		return apperrors.WrapNotFound("trimming_option", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

@@ -1,11 +1,12 @@
 package middleware
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"log/slog"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 // RequestLoggingMiddleware リクエストロギングミドルウェア
@@ -80,7 +81,9 @@ func RequestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		requestID := c.GetHeader("X-Request-ID")
 		if requestID == "" {
-			requestID = uuid.New().String()[:8]
+			b := make([]byte, 4)
+			_, _ = rand.Read(b)
+			requestID = hex.EncodeToString(b)
 		}
 
 		c.Set("request_id", requestID)

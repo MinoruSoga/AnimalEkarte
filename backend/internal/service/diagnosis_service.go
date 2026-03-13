@@ -4,8 +4,6 @@ package service
 import (
 	"context"
 
-	"github.com/google/uuid"
-
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -14,10 +12,10 @@ import (
 
 type DiagnosisCategoryService interface {
 	List(ctx context.Context) ([]model.DiagnosisCategory, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*model.DiagnosisCategory, error)
+	GetByID(ctx context.Context, id uint64) (*model.DiagnosisCategory, error)
 	Create(ctx context.Context, category *model.DiagnosisCategory) error
 	Update(ctx context.Context, category *model.DiagnosisCategory) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type diagnosisCategoryService struct {
@@ -31,7 +29,7 @@ func NewDiagnosisCategoryService(repo repository.DiagnosisCategoryRepository) Di
 func (s *diagnosisCategoryService) List(ctx context.Context) ([]model.DiagnosisCategory, error) {
 	return s.repo.FindAll(ctx)
 }
-func (s *diagnosisCategoryService) GetByID(ctx context.Context, id uuid.UUID) (*model.DiagnosisCategory, error) {
+func (s *diagnosisCategoryService) GetByID(ctx context.Context, id uint64) (*model.DiagnosisCategory, error) {
 	return s.repo.FindByID(ctx, id)
 }
 func (s *diagnosisCategoryService) Create(ctx context.Context, category *model.DiagnosisCategory) error {
@@ -40,7 +38,7 @@ func (s *diagnosisCategoryService) Create(ctx context.Context, category *model.D
 func (s *diagnosisCategoryService) Update(ctx context.Context, category *model.DiagnosisCategory) error {
 	return s.repo.Update(ctx, category)
 }
-func (s *diagnosisCategoryService) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *diagnosisCategoryService) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
 }
 
@@ -48,11 +46,11 @@ func (s *diagnosisCategoryService) Delete(ctx context.Context, id uuid.UUID) err
 
 type DiagnosisNameService interface {
 	List(ctx context.Context) ([]model.DiagnosisName, error)
-	ListByCategoryID(ctx context.Context, categoryID uuid.UUID) ([]model.DiagnosisName, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*model.DiagnosisName, error)
+	ListByCategoryID(ctx context.Context, categoryID uint64) ([]model.DiagnosisName, error)
+	GetByID(ctx context.Context, id uint64) (*model.DiagnosisName, error)
 	Create(ctx context.Context, name *model.DiagnosisName) error
 	Update(ctx context.Context, name *model.DiagnosisName) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type diagnosisNameService struct {
@@ -66,10 +64,10 @@ func NewDiagnosisNameService(repo repository.DiagnosisNameRepository) DiagnosisN
 func (s *diagnosisNameService) List(ctx context.Context) ([]model.DiagnosisName, error) {
 	return s.repo.FindAll(ctx)
 }
-func (s *diagnosisNameService) ListByCategoryID(ctx context.Context, categoryID uuid.UUID) ([]model.DiagnosisName, error) {
+func (s *diagnosisNameService) ListByCategoryID(ctx context.Context, categoryID uint64) ([]model.DiagnosisName, error) {
 	return s.repo.FindByCategoryID(ctx, categoryID)
 }
-func (s *diagnosisNameService) GetByID(ctx context.Context, id uuid.UUID) (*model.DiagnosisName, error) {
+func (s *diagnosisNameService) GetByID(ctx context.Context, id uint64) (*model.DiagnosisName, error) {
 	return s.repo.FindByID(ctx, id)
 }
 func (s *diagnosisNameService) Create(ctx context.Context, name *model.DiagnosisName) error {
@@ -78,6 +76,6 @@ func (s *diagnosisNameService) Create(ctx context.Context, name *model.Diagnosis
 func (s *diagnosisNameService) Update(ctx context.Context, name *model.DiagnosisName) error {
 	return s.repo.Update(ctx, name)
 }
-func (s *diagnosisNameService) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *diagnosisNameService) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
 }

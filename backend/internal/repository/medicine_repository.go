@@ -4,8 +4,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -16,10 +16,10 @@ import (
 
 type MedicineRepository interface {
 	FindAll(ctx context.Context) ([]model.Medicine, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.Medicine, error)
+	FindByID(ctx context.Context, id uint64) (*model.Medicine, error)
 	Create(ctx context.Context, medicine *model.Medicine) error
 	Update(ctx context.Context, medicine *model.Medicine) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type medicineRepository struct{ db *gorm.DB }
@@ -34,11 +34,11 @@ func (r *medicineRepository) FindAll(ctx context.Context) ([]model.Medicine, err
 	return medicines, nil
 }
 
-func (r *medicineRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Medicine, error) {
+func (r *medicineRepository) FindByID(ctx context.Context, id uint64) (*model.Medicine, error) {
 	var medicine model.Medicine
 	if err := r.db.WithContext(ctx).First(&medicine, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("medicine", id.String())
+			return nil, apperrors.WrapNotFound("medicine", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find medicine by id")
 	}
@@ -62,13 +62,13 @@ func (r *medicineRepository) Update(ctx context.Context, medicine *model.Medicin
 	return nil
 }
 
-func (r *medicineRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *medicineRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Medicine{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete medicine")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("medicine", id.String())
+		return apperrors.WrapNotFound("medicine", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

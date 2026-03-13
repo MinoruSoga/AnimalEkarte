@@ -4,8 +4,6 @@ package service
 import (
 	"context"
 
-	"github.com/google/uuid"
-
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -14,10 +12,10 @@ import (
 
 type CheckupTypeService interface {
 	List(ctx context.Context) ([]model.CheckupType, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*model.CheckupType, error)
+	GetByID(ctx context.Context, id uint64) (*model.CheckupType, error)
 	Create(ctx context.Context, checkupType *model.CheckupType) error
 	Update(ctx context.Context, checkupType *model.CheckupType) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type checkupTypeService struct {
@@ -31,7 +29,7 @@ func NewCheckupTypeService(repo repository.CheckupTypeRepository) CheckupTypeSer
 func (s *checkupTypeService) List(ctx context.Context) ([]model.CheckupType, error) {
 	return s.repo.FindAll(ctx)
 }
-func (s *checkupTypeService) GetByID(ctx context.Context, id uuid.UUID) (*model.CheckupType, error) {
+func (s *checkupTypeService) GetByID(ctx context.Context, id uint64) (*model.CheckupType, error) {
 	return s.repo.FindByID(ctx, id)
 }
 func (s *checkupTypeService) Create(ctx context.Context, checkupType *model.CheckupType) error {
@@ -40,6 +38,6 @@ func (s *checkupTypeService) Create(ctx context.Context, checkupType *model.Chec
 func (s *checkupTypeService) Update(ctx context.Context, checkupType *model.CheckupType) error {
 	return s.repo.Update(ctx, checkupType)
 }
-func (s *checkupTypeService) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *checkupTypeService) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
 }

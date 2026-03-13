@@ -47,8 +47,8 @@ interface GroupCardConfig {
 
 const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
   clinic: {
-    label: "病院情報",
-    description: "病院名、住所、電話番号などの基本情報を管理します",
+    label: "医院マスタ",
+    description: "院名、住所、電話番号などの医院基本情報を管理します",
     IconComponent: Building2,
     path: "/settings/clinic",
     countCategories: [],

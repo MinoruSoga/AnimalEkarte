@@ -8,7 +8,7 @@ export const updateReservation = async (
   id: string,
   req: UpdateReservationRequest
 ): Promise<ReservationAppointment> => {
-  const { data } = await axios.put<BackendReservation>(
+  const { data } = await axios.patch<BackendReservation>(
     `/v1/reservations/${id}`,
     req
   );

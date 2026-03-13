@@ -4,8 +4,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -16,10 +16,10 @@ import (
 
 type CheckupTypeRepository interface {
 	FindAll(ctx context.Context) ([]model.CheckupType, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.CheckupType, error)
+	FindByID(ctx context.Context, id uint64) (*model.CheckupType, error)
 	Create(ctx context.Context, checkupType *model.CheckupType) error
 	Update(ctx context.Context, checkupType *model.CheckupType) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type checkupTypeRepository struct{ db *gorm.DB }
@@ -36,11 +36,11 @@ func (r *checkupTypeRepository) FindAll(ctx context.Context) ([]model.CheckupTyp
 	return checkupTypes, nil
 }
 
-func (r *checkupTypeRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.CheckupType, error) {
+func (r *checkupTypeRepository) FindByID(ctx context.Context, id uint64) (*model.CheckupType, error) {
 	var checkupType model.CheckupType
 	if err := r.db.WithContext(ctx).First(&checkupType, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("checkup_type", id.String())
+			return nil, apperrors.WrapNotFound("checkup_type", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find checkup type by id")
 	}
@@ -64,13 +64,13 @@ func (r *checkupTypeRepository) Update(ctx context.Context, checkupType *model.C
 	return nil
 }
 
-func (r *checkupTypeRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *checkupTypeRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.CheckupType{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete checkup type")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("checkup_type", id.String())
+		return apperrors.WrapNotFound("checkup_type", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

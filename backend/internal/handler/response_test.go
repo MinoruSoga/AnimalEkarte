@@ -146,7 +146,7 @@ func TestParsePagination(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
-			c.Request = httptest.NewRequest(http.MethodGet, "/?"+tt.query, nil)
+			c.Request = httptest.NewRequest(http.MethodGet, "/?"+tt.query, http.NoBody)
 
 			page, limit, err := parsePagination(c)
 

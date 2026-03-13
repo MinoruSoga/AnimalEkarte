@@ -3,18 +3,16 @@ package service
 import (
 	"context"
 
-	"github.com/google/uuid"
-
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 type HospitalizationService interface {
-	List(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, ownerID *uuid.UUID, status *string, page, limit int) ([]model.Hospitalization, int64, error)
-	GetByID(ctx context.Context, clinicID, id uuid.UUID) (*model.Hospitalization, error)
+	List(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error)
+	GetByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	Create(ctx context.Context, hospitalization *model.Hospitalization) error
 	Update(ctx context.Context, hospitalization *model.Hospitalization) error
-	Delete(ctx context.Context, clinicID, id uuid.UUID) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type hospitalizationService struct {
@@ -25,11 +23,11 @@ func NewHospitalizationService(repo repository.HospitalizationRepository) Hospit
 	return &hospitalizationService{repo: repo}
 }
 
-func (s *hospitalizationService) List(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, ownerID *uuid.UUID, status *string, page, limit int) ([]model.Hospitalization, int64, error) {
+func (s *hospitalizationService) List(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error) {
 	return s.repo.FindAll(ctx, clinicID, petID, ownerID, status, page, limit)
 }
 
-func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uuid.UUID) (*model.Hospitalization, error) {
+func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
 	return s.repo.FindByID(ctx, clinicID, id)
 }
 
@@ -41,6 +39,6 @@ func (s *hospitalizationService) Update(ctx context.Context, hospitalization *mo
 	return s.repo.Update(ctx, hospitalization)
 }
 
-func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uuid.UUID) error {
+func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64) error {
 	return s.repo.Delete(ctx, clinicID, id)
 }

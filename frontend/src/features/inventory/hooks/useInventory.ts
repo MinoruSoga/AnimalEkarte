@@ -14,17 +14,17 @@ interface UseInventoryParams {
 
 function transformInventoryItem(data: BackendInventoryItem): InventoryItem {
   return {
-    id: data.id,
-    name: data.name,
-    category: data.category as InventoryItem["category"],
-    quantity: data.quantity,
-    unit: data.unit,
-    minStockLevel: data.min_stock_level,
+    id: String(data.id ?? 0),
+    name: data.name ?? "",
+    category: (data.category ?? "other") as InventoryItem["category"],
+    quantity: data.quantity ?? 0,
+    unit: data.unit ?? "",
+    minStockLevel: data.min_stock_level ?? 0,
     location: data.location,
     expiryDate: data.expiry_date ?? undefined,
     supplier: data.supplier,
     lastRestocked: data.last_restocked ?? undefined,
-    status: data.status,
+    status: data.status ?? "sufficient",
   };
 }
 

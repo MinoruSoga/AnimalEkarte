@@ -4,8 +4,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -16,10 +16,10 @@ import (
 
 type ProcedureRepository interface {
 	FindAll(ctx context.Context) ([]model.Procedure, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.Procedure, error)
+	FindByID(ctx context.Context, id uint64) (*model.Procedure, error)
 	Create(ctx context.Context, procedure *model.Procedure) error
 	Update(ctx context.Context, procedure *model.Procedure) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type procedureRepository struct{ db *gorm.DB }
@@ -34,11 +34,11 @@ func (r *procedureRepository) FindAll(ctx context.Context) ([]model.Procedure, e
 	return procedures, nil
 }
 
-func (r *procedureRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Procedure, error) {
+func (r *procedureRepository) FindByID(ctx context.Context, id uint64) (*model.Procedure, error) {
 	var procedure model.Procedure
 	if err := r.db.WithContext(ctx).First(&procedure, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("procedure", id.String())
+			return nil, apperrors.WrapNotFound("procedure", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find procedure by id")
 	}
@@ -62,13 +62,13 @@ func (r *procedureRepository) Update(ctx context.Context, procedure *model.Proce
 	return nil
 }
 
-func (r *procedureRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *procedureRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Procedure{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete procedure")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("procedure", id.String())
+		return apperrors.WrapNotFound("procedure", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

@@ -25,6 +25,10 @@ export function useDashboardData(date: string = todayISO()) {
     queryFn: () => getDashboard(date),
     // 30秒ごとにポーリングしてリアルタイム性を確保
     refetchInterval: 30_000,
+    // client-swr-dedup: staleTimeをrefetchIntervalより短く設定。
+    // staleTime=0（デフォルト）のままではコンポーネント再マウント時に即時再取得が走り
+    // ポーリングとは別に重複リクエストが発生する。
+    staleTime: 20_000,
     // ウィンドウフォーカス時も再取得
     refetchOnWindowFocus: true,
   });

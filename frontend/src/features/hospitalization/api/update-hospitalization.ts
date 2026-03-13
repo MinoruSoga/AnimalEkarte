@@ -11,7 +11,7 @@ export const updateHospitalization = async (
   id: string,
   req: UpdateHospitalizationRequest
 ): Promise<Hospitalization> => {
-  const { data } = await axios.put<BackendHospitalization>(
+  const { data } = await axios.patch<BackendHospitalization>(
     `/v1/hospitalizations/${id}`,
     req
   );

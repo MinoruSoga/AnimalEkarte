@@ -76,7 +76,7 @@ export function CarePlanDialog({
             ...formData,
             type: "treatment",
             name: item.name,
-            masterId: item.code,
+            masterId: item.id,
             unitPrice: item.unitPrice,
             category: item.category,
             description: item.category === "薬剤" ? "1錠" : "", 

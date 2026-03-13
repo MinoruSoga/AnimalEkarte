@@ -37,6 +37,21 @@ func Load() *Config {
 	}
 }
 
+// Validate は本番環境（GIN_MODE=release）での必須設定を検証する。
+// 未設定の場合はエラーを返す。
+func (c *Config) Validate() error {
+	if c.GinMode != "release" {
+		return nil
+	}
+	if c.JWTSecret == "" || c.JWTSecret == "dev-secret-change-me" {
+		return fmt.Errorf("JWT_SECRET must be explicitly set in release mode")
+	}
+	if c.DBPass == "" || c.DBPass == "ekarte_password" {
+		return fmt.Errorf("DB_PASSWORD must be explicitly set in release mode")
+	}
+	return nil
+}
+
 func (c *Config) DSN() string {
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",

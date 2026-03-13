@@ -9,7 +9,6 @@ import { USER_TYPE_VALUES, JOB_TITLE_VALUES, PERMISSION_VALUES } from "../types"
 const clinicMembershipSchema = z.object({
   clinic_id: z.string(),
   clinic_name: z.string(),
-  branch_name: z.string(),
   is_main: z.boolean(),
 });
 
@@ -49,7 +48,6 @@ export function mapMeToAuthUser(raw: unknown): AuthUser {
     clinics: me.clinics.map((c) => ({
       clinicId: c.clinic_id,
       clinicName: c.clinic_name,
-      branchName: c.branch_name,
       isMain: c.is_main,
     })),
     permissions: me.permissions,

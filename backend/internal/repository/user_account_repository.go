@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -14,7 +14,7 @@ import (
 // UserAccountRepository はユーザーアカウントのデータアクセス層
 type UserAccountRepository interface {
 	FindByEmail(ctx context.Context, email string) (*model.UserAccount, error)
-	FindByIDWithMemberships(ctx context.Context, id uuid.UUID) (*UserAccountWithMemberships, error)
+	FindByIDWithMemberships(ctx context.Context, id uint64) (*UserAccountWithMemberships, error)
 }
 
 // UserAccountWithMemberships はユーザー・所属クリニック・権限をまとめたクエリ結果
@@ -47,13 +47,14 @@ func (r *userAccountRepository) FindByEmail(ctx context.Context, email string) (
 }
 
 // FindByIDWithMemberships はIDでユーザーを取得し、所属クリニック・権限も合わせて返す。
-func (r *userAccountRepository) FindByIDWithMemberships(ctx context.Context, id uuid.UUID) (*UserAccountWithMemberships, error) {
+func (r *userAccountRepository) FindByIDWithMemberships(ctx context.Context, id uint64) (*UserAccountWithMemberships, error) {
 	var account model.UserAccount
 	if err := r.db.WithContext(ctx).
 		Preload("Staff").
+		Preload("JobTitle").
 		First(&account, "id = ? AND deleted_at IS NULL", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("user_account", id.String())
+			return nil, apperrors.WrapNotFound("user_account", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find user account by id")
 	}

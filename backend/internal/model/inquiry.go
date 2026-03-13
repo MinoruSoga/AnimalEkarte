@@ -2,11 +2,10 @@ package model
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // AppetiteLevel は食欲レベル
+// @name AppetiteLevel
 type AppetiteLevel string
 
 const (
@@ -17,6 +16,7 @@ const (
 )
 
 // WaterIntakeLevel は水分摂取レベル
+// @name WaterIntakeLevel
 type WaterIntakeLevel string
 
 const (
@@ -27,10 +27,11 @@ const (
 )
 
 // Inquiry は問診情報（カルテ問診タブ, v7.0追加）
+// @name Inquiry
 type Inquiry struct {
-	ID                       uuid.UUID         `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	MedicalRecordID          uuid.UUID         `gorm:"type:uuid;not null"                             json:"medical_record_id"`
-	ChiefComplaintCategoryID *uuid.UUID        `gorm:"type:uuid"                                      json:"chief_complaint_category_id,omitempty"`
+	ID                       uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	MedicalRecordID          uint64            `gorm:"not null"                                       json:"medical_record_id"`
+	ChiefComplaintCategoryID *uint64           `                                                      json:"chief_complaint_category_id,omitempty"`
 	ChiefComplaint           string            `gorm:"default:''"                                     json:"chief_complaint"`
 	History                  string            `gorm:"default:''"                                     json:"history"`
 	CurrentMedications       string            `gorm:"default:''"                                     json:"current_medications"`
@@ -42,7 +43,7 @@ type Inquiry struct {
 	WaterIntake              *WaterIntakeLevel `gorm:"type:water_intake_level"                       json:"water_intake,omitempty"`
 	OwnerObservations        string            `gorm:"default:''"                                     json:"owner_observations"`
 	Notes                    string            `gorm:"default:''"                                     json:"notes"`
-	StaffID                  *uuid.UUID        `gorm:"type:uuid"                                      json:"staff_id,omitempty"`
+	StaffID                  *uint64           `                                                      json:"staff_id,omitempty"`
 	CreatedAt                time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt                time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
 

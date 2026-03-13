@@ -1,6 +1,6 @@
 // React/Framework
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -13,29 +13,34 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable, DataTableRow } from "@/components/shared/DataTable";
-import { PrimaryButton } from "@/components/shared/Form";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { getMasterStatusColor } from "@/utils/status-helpers";
-import { useMasterItems } from "@/hooks/use-master-items";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import {
+  useListStaffs,
+  useCreateStaff,
+  useUpdateStaff,
+  useDeleteStaff,
+  STAFF_ROLE_LABELS,
+} from "@/features/master/api/staffs";
 
 // Types
-import type { MasterItem } from "@/types";
+import type { Staff, StaffRoleValue, CreateStaffRequest, UpdateStaffRequest } from "@/features/master/api/staffs";
 
 // ─────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────
 
-const STAFF_ROLES = [
-  { value: "院長", label: "院長" },
-  { value: "獣医師", label: "獣医師" },
-  { value: "看護師", label: "看護師" },
-  { value: "受付", label: "受付" },
-  { value: "トリマー", label: "トリマー" },
-  { value: "運営管理者", label: "運営管理者" },
-] as const;
+const STAFF_ROLE_OPTIONS: { value: StaffRoleValue; label: string }[] = [
+  { value: "veterinarian", label: "獣医師" },
+  { value: "nurse", label: "看護師" },
+  { value: "trimmer", label: "トリマー" },
+  { value: "reception", label: "受付" },
+  { value: "manager", label: "運営管理者" },
+];
 
 const COLUMNS = [
   { header: "社員番号", className: "w-[130px]" },
@@ -94,39 +99,81 @@ function PropertyRow({ label, children }: { label: string; children: ReactNode }
 }
 
 // ─────────────────────────────────────────────────
+// Form state types
+// ─────────────────────────────────────────────────
+
+interface StaffFormData {
+  name: string;
+  staff_role: StaffRoleValue;
+  code: string;
+  license_number: string;
+  is_active: boolean;
+  email: string;
+  password: string;
+}
+
+const DEFAULT_FORM_DATA: StaffFormData = {
+  name: "",
+  staff_role: "veterinarian",
+  code: "",
+  license_number: "",
+  is_active: true,
+  email: "",
+  password: "",
+};
+
+// ─────────────────────────────────────────────────
 // StaffSettings
 // ─────────────────────────────────────────────────
 
 export function StaffSettings() {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<MasterItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<Staff | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [formData, setFormData] = useState<Partial<MasterItem>>({});
-  const [pendingDelete, setPendingDelete] = useState<MasterItem | null>(null);
+  const [formData, setFormData] = useState<StaffFormData>(DEFAULT_FORM_DATA);
+  const [pendingDelete, setPendingDelete] = useState<Staff | null>(null);
 
-  const { data: filteredItems, add, update, remove } = useMasterItems("staff", searchTerm);
+  const { data: rawStaffs } = useListStaffs();
+  const staffs = rawStaffs ?? [];
+  const createMutation = useCreateStaff();
+  const updateMutation = useUpdateStaff();
+  const deleteMutation = useDeleteStaff();
 
-  const handleEdit = (item: MasterItem) => {
+  const filteredItems = useMemo(() => {
+    if (!searchTerm) return staffs;
+    const lower = searchTerm.toLowerCase();
+    return staffs.filter(
+      (s) =>
+        s.name.toLowerCase().includes(lower) ||
+        STAFF_ROLE_LABELS[s.staffRole].toLowerCase().includes(lower),
+    );
+  }, [staffs, searchTerm]);
+
+  const handleEdit = (item: Staff) => {
     setSelectedItem(item);
-    setFormData({ ...item });
+    setFormData({
+      name: item.name,
+      staff_role: item.staffRole,
+      code: item.code,
+      license_number: item.licenseNumber,
+      is_active: item.isActive,
+      email: "",
+      password: "",
+    });
     setIsEditing(true);
   };
 
   const handleCreate = () => {
     setSelectedItem(null);
-    setFormData({
-      category: "獣医師",
-      status: "active",
-      price: 0,
-    });
+    setFormData(DEFAULT_FORM_DATA);
     setIsEditing(true);
   };
 
   const handleCloseEdit = () => {
     setIsEditing(false);
     setSelectedItem(null);
-    setFormData({});
+    setFormData(DEFAULT_FORM_DATA);
   };
 
   const handleSave = () => {
@@ -136,17 +183,49 @@ export function StaffSettings() {
     }
 
     if (selectedItem) {
-      update(selectedItem.id, formData, {
-        onSuccess: () => {
-          toast.success("更新しました");
-          setIsEditing(false);
+      const req: UpdateStaffRequest = {
+        name: formData.name,
+        staff_role: formData.staff_role,
+        code: formData.code || undefined,
+        license_number: formData.license_number || undefined,
+        is_active: formData.is_active,
+      };
+      updateMutation.mutate(
+        { id: selectedItem.id, req },
+        {
+          onSuccess: () => {
+            toast.success("更新しました");
+            setIsEditing(false);
+          },
+          onError: () => {
+            toast.error("更新に失敗しました");
+          },
         },
-      });
+      );
     } else {
-      add(formData as Omit<MasterItem, "id">, {
+      if (!formData.email) {
+        toast.error("メールアドレスは必須です");
+        return;
+      }
+      if (!formData.password) {
+        toast.error("パスワードは必須です");
+        return;
+      }
+      const req: CreateStaffRequest = {
+        name: formData.name,
+        staff_role: formData.staff_role,
+        email: formData.email,
+        password: formData.password,
+        code: formData.code || undefined,
+        license_number: formData.license_number || undefined,
+      };
+      createMutation.mutate(req, {
         onSuccess: () => {
           toast.success("登録しました");
           setIsEditing(false);
+        },
+        onError: () => {
+          toast.error("登録に失敗しました");
         },
       });
     }
@@ -154,11 +233,14 @@ export function StaffSettings() {
 
   const handleDeleteConfirm = () => {
     if (!pendingDelete) return;
-    remove(pendingDelete.id, {
+    deleteMutation.mutate(pendingDelete.id, {
       onSuccess: () => {
         setPendingDelete(null);
         setIsEditing(false);
         toast.success("削除しました");
+      },
+      onError: () => {
+        toast.error("削除に失敗しました");
       },
     });
   };
@@ -201,11 +283,11 @@ export function StaffSettings() {
                       {item.name}
                     </TableCell>
                     <TableCell className="text-sm text-[#37352F] py-2.5">
-                      {item.category}
+                      {STAFF_ROLE_LABELS[item.staffRole]}
                     </TableCell>
                     <TableCell className="text-center py-2.5">
-                      <StatusBadge colorClass={getMasterStatusColor(item.status)}>
-                        {item.status === "active" ? "有効" : "無効"}
+                      <StatusBadge colorClass={getMasterStatusColor(item.isActive ? "active" : "inactive")}>
+                        {item.isActive ? "有効" : "無効"}
                       </StatusBadge>
                     </TableCell>
                     <TableCell className="text-right py-2.5">
@@ -229,7 +311,7 @@ export function StaffSettings() {
                 {selectedItem ? "編集" : "新規作成"}
               </span>
               <div className="flex items-center gap-1">
-                {selectedItem && (
+                {selectedItem ? (
                   <button
                     type="button"
                     onClick={() => setPendingDelete(selectedItem)}
@@ -237,7 +319,7 @@ export function StaffSettings() {
                   >
                     <Trash2 className="size-4" />
                   </button>
-                )}
+                ) : null}
                 <button
                   type="button"
                   onClick={handleCloseEdit}
@@ -268,7 +350,7 @@ export function StaffSettings() {
                       fontWeight: LAYOUT.pageTitle.fontWeight,
                       lineHeight: LAYOUT.pageTitle.lineHeight,
                     }}
-                    value={formData.name ?? ""}
+                    value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="無題"
                   />
@@ -286,13 +368,13 @@ export function StaffSettings() {
                       onClick={() =>
                         setFormData({
                           ...formData,
-                          status: formData.status === "inactive" ? "active" : "inactive",
+                          is_active: !formData.is_active,
                         })
                       }
                       className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
                     >
                       <NotionStatusPill
-                        status={formData.status === "inactive" ? "inactive" : "active"}
+                        status={formData.is_active ? "active" : "inactive"}
                       />
                     </button>
                   </PropertyRow>
@@ -302,7 +384,7 @@ export function StaffSettings() {
                     <input
                       type="text"
                       className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`}
-                      value={formData.code ?? ""}
+                      value={formData.code}
                       onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                       placeholder="例: ST-001"
                     />
@@ -311,14 +393,16 @@ export function StaffSettings() {
                   {/* 職種 */}
                   <PropertyRow label="職種">
                     <Select
-                      value={formData.category ?? "獣医師"}
-                      onValueChange={(val) => setFormData({ ...formData, category: val })}
+                      value={formData.staff_role}
+                      onValueChange={(val) =>
+                        setFormData({ ...formData, staff_role: val as StaffRoleValue })
+                      }
                     >
                       <SelectTrigger className={STYLE.selectCompact}>
                         <SelectValue placeholder="選択" />
                       </SelectTrigger>
                       <SelectContent>
-                        {STAFF_ROLES.map((r) => (
+                        {STAFF_ROLE_OPTIONS.map((r) => (
                           <SelectItem key={r.value} value={r.value}>
                             {r.label}
                           </SelectItem>
@@ -327,18 +411,47 @@ export function StaffSettings() {
                     </Select>
                   </PropertyRow>
 
-                  {/* 備考 */}
-                  <PropertyRow label="備考">
+                  {/* 資格番号 */}
+                  <PropertyRow label="資格番号">
                     <input
                       type="text"
                       className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`}
-                      value={formData.description ?? ""}
+                      value={formData.license_number}
                       onChange={(e) =>
-                        setFormData({ ...formData, description: e.target.value })
+                        setFormData({ ...formData, license_number: e.target.value })
                       }
                       placeholder="空"
                     />
                   </PropertyRow>
+
+                  {/* 新規作成時のみ: email / password */}
+                  {!selectedItem && (
+                    <>
+                      <PropertyRow label="メールアドレス">
+                        <input
+                          type="email"
+                          className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`}
+                          value={formData.email}
+                          onChange={(e) =>
+                            setFormData({ ...formData, email: e.target.value })
+                          }
+                          placeholder="例: staff@clinic.com"
+                        />
+                      </PropertyRow>
+
+                      <PropertyRow label="パスワード">
+                        <input
+                          type="password"
+                          className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`}
+                          value={formData.password}
+                          onChange={(e) =>
+                            setFormData({ ...formData, password: e.target.value })
+                          }
+                          placeholder="8文字以上"
+                        />
+                      </PropertyRow>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

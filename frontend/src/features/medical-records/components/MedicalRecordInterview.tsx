@@ -5,19 +5,50 @@ import { useCallback } from "react";
 import { InterviewChiefComplaint } from "./InterviewChiefComplaint";
 import { InterviewTreatmentPolicy } from "./InterviewTreatmentPolicy";
 import { InterviewHistory } from "./InterviewHistory";
+import type { InterviewHistoryItem } from "../types";
 
 interface MedicalRecordInterviewProps {
   chiefComplaint: string;
   setChiefComplaint: (value: string) => void;
   treatmentPolicy: string;
   setTreatmentPolicy: (value: string) => void;
+  historyItems?: InterviewHistoryItem[];
+  setHistoryItems?: (items: InterviewHistoryItem[]) => void;
 }
+
+const DEFAULT_HISTORY_ITEMS: InterviewHistoryItem[] = [
+  {
+    id: "1",
+    date: "2022/10/10 (月)",
+    author: "医者A",
+    type: "再診",
+    title: "消化器症状",
+    content: "嘔吐2回、下痢なし。食欲低下。",
+  },
+  {
+    id: "2",
+    date: "2022/10/09 (日)",
+    author: "医者B",
+    type: "初診",
+    title: "定期検診",
+    content: "異常なし。体重3.5kg",
+  },
+  {
+    id: "3",
+    date: "2022/09/15 (木)",
+    author: "医者A",
+    type: "ワクチン",
+    title: "混合ワクチン",
+    content: "5種混合ワクチン接種。副反応なし。",
+  },
+];
 
 export function MedicalRecordInterview({
   chiefComplaint,
   setChiefComplaint,
   treatmentPolicy,
   setTreatmentPolicy,
+  historyItems,
 }: MedicalRecordInterviewProps) {
   const templates = [
     { label: "定期検診", text: "# 定期検診\n特に異常なし。食欲・元気あり。" },
@@ -30,37 +61,13 @@ export function MedicalRecordInterview({
     setChiefComplaint(text);
   }, [setChiefComplaint]);
 
-  const historyItems = [
-    {
-      id: 1,
-      date: "2022/10/10 (月)",
-      author: "医者A",
-      type: "再診",
-      title: "消化器症状",
-      content: "嘔吐2回、下痢なし。食欲低下。",
-    },
-    {
-      id: 2,
-      date: "2022/10/09 (日)",
-      author: "医者B",
-      type: "初診",
-      title: "定期検診",
-      content: "異常なし。体重3.5kg",
-    },
-    {
-      id: 3,
-      date: "2022/09/15 (木)",
-      author: "医者A",
-      type: "ワクチン",
-      title: "混合ワクチン",
-      content: "5種混合ワクチン接種。副反応なし。",
-    },
-  ];
+  const resolvedHistoryItems =
+    historyItems && historyItems.length > 0 ? historyItems : DEFAULT_HISTORY_ITEMS;
 
   return (
-    <div className="grid grid-cols-12 gap-3 h-[calc(100vh-220px)] min-h-[500px]">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 pb-16 h-full">
       {/* Left Column: 主訴情報 (Chief Complaint) */}
-      <div className="col-span-3 flex flex-col gap-3 min-h-0">
+      <div className="col-span-1 lg:col-span-3 flex flex-col gap-3 min-h-0 h-full">
         <InterviewChiefComplaint
           chiefComplaint={chiefComplaint}
           setChiefComplaint={setChiefComplaint}
@@ -70,7 +77,7 @@ export function MedicalRecordInterview({
       </div>
 
       {/* Middle Column: 治療方針 (Treatment Policy) */}
-      <div className="col-span-4 flex flex-col gap-3 min-h-0">
+      <div className="col-span-1 lg:col-span-4 flex flex-col gap-3 min-h-0 h-full">
         <InterviewTreatmentPolicy
           treatmentPolicy={treatmentPolicy}
           setTreatmentPolicy={setTreatmentPolicy}
@@ -78,8 +85,8 @@ export function MedicalRecordInterview({
       </div>
 
       {/* Right Column: カルテ履歴 (Medical History) */}
-      <div className="col-span-5 flex flex-col gap-3 min-h-0">
-        <InterviewHistory historyItems={historyItems} />
+      <div className="col-span-1 lg:col-span-5 flex flex-col gap-3 min-h-0 h-full">
+        <InterviewHistory historyItems={resolvedHistoryItems} />
       </div>
     </div>
   );

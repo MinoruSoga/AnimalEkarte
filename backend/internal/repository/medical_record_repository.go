@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -12,12 +12,12 @@ import (
 )
 
 type MedicalRecordRepository interface {
-	FindAll(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, ownerID *uuid.UUID, page, limit int) ([]model.MedicalRecord, int64, error)
-	FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.MedicalRecord, error)
-	FindByRecordNo(ctx context.Context, clinicID uuid.UUID, recordNo string) (*model.MedicalRecord, error)
+	FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+	FindByRecordNo(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
 	Update(ctx context.Context, record *model.MedicalRecord) error
-	Delete(ctx context.Context, clinicID, id uuid.UUID) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type medicalRecordRepository struct {
@@ -28,7 +28,7 @@ func NewMedicalRecordRepository(db *gorm.DB) MedicalRecordRepository {
 	return &medicalRecordRepository{db: db}
 }
 
-func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, ownerID *uuid.UUID, page, limit int) ([]model.MedicalRecord, int64, error) {
+func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error) {
 	var records []model.MedicalRecord
 	var total int64
 
@@ -48,7 +48,7 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uuid.UUI
 	return records, total, nil
 }
 
-func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.MedicalRecord, error) {
+func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 	var record model.MedicalRecord
 	if err := r.db.WithContext(ctx).
 		Preload("Treatments").
@@ -58,14 +58,14 @@ func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uui
 		Preload("Pet").
 		First(&record, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("medical_record", id.String())
+			return nil, apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find medical record by id")
 	}
 	return &record, nil
 }
 
-func (r *medicalRecordRepository) FindByRecordNo(ctx context.Context, clinicID uuid.UUID, recordNo string) (*model.MedicalRecord, error) {
+func (r *medicalRecordRepository) FindByRecordNo(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error) {
 	var record model.MedicalRecord
 	if err := r.db.WithContext(ctx).
 		Preload("Treatments").
@@ -102,13 +102,13 @@ func (r *medicalRecordRepository) Update(ctx context.Context, record *model.Medi
 	return nil
 }
 
-func (r *medicalRecordRepository) Delete(ctx context.Context, clinicID, id uuid.UUID) error {
+func (r *medicalRecordRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.MedicalRecord{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete medical record")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("medical_record", id.String())
+		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

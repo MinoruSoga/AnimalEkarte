@@ -26,5 +26,6 @@ export const transformMedicalRecord = (
     treatment: record.treatment,
     prescription: record.prescription,
     notes: record.notes,
+    accountingId: record.accounting_id,
   };
 };

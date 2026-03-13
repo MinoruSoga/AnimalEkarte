@@ -4,7 +4,6 @@ import type { BackendMasterItem } from "./types";
 export function transformMasterItem(data: BackendMasterItem): MasterItem {
   return {
     id: data.id,
-    code: data.code,
     name: data.name,
     category: data.category,
     price: data.price || 0,

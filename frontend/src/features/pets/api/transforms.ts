@@ -1,27 +1,35 @@
 import type { Pet } from "@/types";
 import type { BackendPet, CreatePetRequest, UpdatePetRequest } from "./types";
 
+const PET_STATUS_MAP: Record<string, "生存" | "死亡"> = {
+  alive: "生存",
+  deceased: "死亡",
+};
+
 /**
  * Transform backend pet response to frontend Pet type
  */
 export const transformBackendPetToFrontend = (p: BackendPet): Pet => ({
-  id: p.id,
-  ownerId: p.owner_id,
+  id: String(p.id ?? 0),
+  ownerId: String(p.owner_id ?? 0),
   ownerName: "",
   phone: "",
   petNumber: p.pet_number,
-  name: p.name,
-  species: p.species,
+  name: p.name ?? "",
+  species: p.animal_species?.name ?? "",
   breed: p.breed,
   gender: p.gender,
-  status: p.status,
-  birthDate: p.birth_date,
+  status: p.status ? PET_STATUS_MAP[p.status] : undefined,
+  birthDate: p.birth_date ?? undefined,
   weight: p.weight?.toString(),
   environment: p.environment,
-  lastVisit: p.last_visit,
-  insuranceName: p.insurance_name,
-  insuranceDetails: p.insurance_details,
-  remarks: p.notes,
+  lastVisit: p.last_visit ?? undefined,
+  insuranceName: p.insurance?.name,
+  insuranceDetails:
+    p.insurance?.coverage_rate != null
+      ? `${p.insurance.coverage_rate}%補償`
+      : undefined,
+  remarks: p.remarks,
 });
 
 /**
@@ -30,7 +38,7 @@ export const transformBackendPetToFrontend = (p: BackendPet): Pet => ({
 export const transformCreatePetRequest = (data: {
   ownerId: string;
   name: string;
-  species: string;
+  animalSpeciesId: string;
   petNumber?: string;
   breed?: string;
   gender?: string;
@@ -38,14 +46,13 @@ export const transformCreatePetRequest = (data: {
   weight?: string;
   microchipId?: string;
   environment?: string;
-  status?: string;
-  insuranceName?: string;
-  insuranceDetails?: string;
-  notes?: string;
+  status?: "alive" | "deceased";
+  insuranceId?: string;
+  remarks?: string;
 }): CreatePetRequest => ({
   owner_id: data.ownerId,
   name: data.name,
-  species: data.species,
+  animal_species_id: data.animalSpeciesId,
   pet_number: data.petNumber,
   breed: data.breed,
   gender: data.gender,
@@ -54,9 +61,8 @@ export const transformCreatePetRequest = (data: {
   microchip_id: data.microchipId,
   environment: data.environment,
   status: data.status,
-  insurance_name: data.insuranceName,
-  insurance_details: data.insuranceDetails,
-  notes: data.notes,
+  insurance_id: data.insuranceId,
+  remarks: data.remarks,
 });
 
 /**
@@ -65,7 +71,7 @@ export const transformCreatePetRequest = (data: {
 export const transformUpdatePetRequest = (data: {
   ownerId?: string;
   name?: string;
-  species?: string;
+  animalSpeciesId?: string;
   petNumber?: string;
   breed?: string;
   gender?: string;
@@ -73,14 +79,13 @@ export const transformUpdatePetRequest = (data: {
   weight?: string;
   microchipId?: string;
   environment?: string;
-  status?: string;
-  insuranceName?: string;
-  insuranceDetails?: string;
-  notes?: string;
+  status?: "alive" | "deceased";
+  insuranceId?: string;
+  remarks?: string;
 }): UpdatePetRequest => ({
   owner_id: data.ownerId,
   name: data.name,
-  species: data.species,
+  animal_species_id: data.animalSpeciesId,
   pet_number: data.petNumber,
   breed: data.breed,
   gender: data.gender,
@@ -89,7 +94,6 @@ export const transformUpdatePetRequest = (data: {
   microchip_id: data.microchipId,
   environment: data.environment,
   status: data.status,
-  insurance_name: data.insuranceName,
-  insurance_details: data.insuranceDetails,
-  notes: data.notes,
+  insurance_id: data.insuranceId,
+  remarks: data.remarks,
 });

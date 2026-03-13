@@ -18,6 +18,7 @@ export interface BackendMedicalRecord {
   prescription?: string;
   notes?: string;
   status: string;
+  accounting_id?: string;
   created_at: string;
   updated_at: string;
 }

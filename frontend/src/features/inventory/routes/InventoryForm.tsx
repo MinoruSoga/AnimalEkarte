@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PageLayout } from "@/components/shared/PageLayout";
-import { PrimaryButton } from "@/components/shared/Form";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 
 // Relative
 import {

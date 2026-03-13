@@ -3,11 +3,11 @@ package model
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 // TreatmentItemType は治療項目種別
+// @name TreatmentItemType
 type TreatmentItemType string
 
 const (
@@ -18,6 +18,7 @@ const (
 )
 
 // TreatmentStatus は治療ステータス
+// @name TreatmentStatus
 type TreatmentStatus string
 
 const (
@@ -27,14 +28,15 @@ const (
 )
 
 // Treatment は治療項目（外来診療）
+// @name Treatment
 type Treatment struct {
-	ID              uuid.UUID         `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	MedicalRecordID uuid.UUID         `gorm:"type:uuid;not null"                             json:"medical_record_id"`
+	ID              uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	MedicalRecordID uint64            `gorm:"not null"                                       json:"medical_record_id"`
 	ItemType        TreatmentItemType `gorm:"type:treatment_item_type;not null;default:'other'" json:"item_type"`
-	ConsultationID  *uuid.UUID        `gorm:"type:uuid"                                      json:"consultation_id,omitempty"`
-	ProcedureID     *uuid.UUID        `gorm:"type:uuid"                                      json:"procedure_id,omitempty"`
-	MedicineID      *uuid.UUID        `gorm:"type:uuid"                                      json:"medicine_id,omitempty"`
-	InventoryID     *uuid.UUID        `gorm:"type:uuid"                                      json:"inventory_id,omitempty"`
+	ConsultationID  *uint64           `                                                      json:"consultation_id,omitempty"`
+	ProcedureID     *uint64           `                                                      json:"procedure_id,omitempty"`
+	MedicineID      *uint64           `                                                      json:"medicine_id,omitempty"`
+	InventoryID     *uint64           `                                                      json:"inventory_id,omitempty"`
 	UnitPrice       float64           `gorm:"type:numeric(10,2);default:0"                   json:"unit_price"`
 	Quantity        int               `gorm:"default:1"                                      json:"quantity"`
 	Selected        bool              `gorm:"default:false"                                  json:"selected"`
@@ -45,7 +47,7 @@ type Treatment struct {
 	DiscountRate    float64           `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
 	DiscountAmount  float64           `gorm:"type:numeric(10,2);default:0"                   json:"discount_amount"`
 	SortOrder       int               `gorm:"default:0"                                      json:"sort_order"`
-	DeletedAt       gorm.DeletedAt    `                                                      json:"deleted_at"`
+	DeletedAt       gorm.DeletedAt    `                                                      json:"deleted_at" swaggerignore:"true"`
 	CreatedAt       time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
 

@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/animal-ekarte/backend/internal/model"
@@ -18,12 +17,11 @@ import (
 // スタッフ情報とシステムアカウント情報を同時に受け取る。
 type CreateStaffInput struct {
 	// Staff fields
-	ClinicID      uuid.UUID
+	ClinicID      uint64
 	Name          string
 	StaffRole     model.StaffRole
-	Code          string
 	LicenseNumber string
-	JobTitleID    *uuid.UUID
+	JobTitleID    *uint64
 	SortOrder     int
 	// Account fields
 	Email    string
@@ -32,11 +30,11 @@ type CreateStaffInput struct {
 
 type StaffService interface {
 	List(ctx context.Context, role *string) ([]model.Staff, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*model.Staff, error)
+	GetByID(ctx context.Context, id uint64) (*model.Staff, error)
 	// CreateWithAccount はスタッフとシステムアカウントをアトミックに作成する。
 	CreateWithAccount(ctx context.Context, input *CreateStaffInput) (*model.Staff, error)
 	Update(ctx context.Context, staff *model.Staff) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type staffService struct{ repo repository.StaffRepository }
@@ -49,7 +47,7 @@ func (s *staffService) List(ctx context.Context, role *string) ([]model.Staff, e
 	return s.repo.FindAll(ctx, role)
 }
 
-func (s *staffService) GetByID(ctx context.Context, id uuid.UUID) (*model.Staff, error) {
+func (s *staffService) GetByID(ctx context.Context, id uint64) (*model.Staff, error) {
 	return s.repo.FindByID(ctx, id)
 }
 
@@ -60,11 +58,9 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 	}
 
 	staff := &model.Staff{
-		ID:            uuid.New(),
 		ClinicID:      input.ClinicID,
 		Name:          input.Name,
 		StaffRole:     input.StaffRole,
-		Code:          input.Code,
 		LicenseNumber: input.LicenseNumber,
 		JobTitleID:    input.JobTitleID,
 		SortOrder:     input.SortOrder,
@@ -72,16 +68,14 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 	}
 
 	account := &model.UserAccount{
-		ID:          uuid.New(),
-		Email:       input.Email,
-		DisplayName: input.Name,
-		UserType:    model.UserTypeStaff,
-		Status:      model.AccountStatusActive,
+		Email:        input.Email,
+		DisplayName:  input.Name,
+		UserType:     model.UserTypeStaff,
+		Status:       model.AccountStatusActive,
 		PasswordHash: string(hash),
 	}
 
 	membership := &model.UserClinicMembership{
-		ID:       uuid.New(),
 		ClinicID: input.ClinicID,
 		IsMain:   true,
 	}
@@ -97,6 +91,6 @@ func (s *staffService) Update(ctx context.Context, staff *model.Staff) error {
 	return s.repo.Update(ctx, staff)
 }
 
-func (s *staffService) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *staffService) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
 }

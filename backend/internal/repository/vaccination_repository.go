@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -12,11 +12,11 @@ import (
 )
 
 type VaccinationRepository interface {
-	FindAll(ctx context.Context, petID *uuid.UUID, ownerID *uuid.UUID, page, limit int) ([]model.Vaccination, int64, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.Vaccination, error)
+	FindAll(ctx context.Context, petID *uint64, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error)
+	FindByID(ctx context.Context, id uint64) (*model.Vaccination, error)
 	Create(ctx context.Context, vaccination *model.Vaccination) error
 	Update(ctx context.Context, vaccination *model.Vaccination) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type vaccinationRepository struct {
@@ -27,7 +27,7 @@ func NewVaccinationRepository(db *gorm.DB) VaccinationRepository {
 	return &vaccinationRepository{db: db}
 }
 
-func (r *vaccinationRepository) FindAll(ctx context.Context, petID *uuid.UUID, ownerID *uuid.UUID, page, limit int) ([]model.Vaccination, int64, error) {
+func (r *vaccinationRepository) FindAll(ctx context.Context, petID *uint64, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error) {
 	var vaccinations []model.Vaccination
 	var total int64
 
@@ -49,7 +49,7 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, petID *uuid.UUID, o
 	return vaccinations, total, nil
 }
 
-func (r *vaccinationRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Vaccination, error) {
+func (r *vaccinationRepository) FindByID(ctx context.Context, id uint64) (*model.Vaccination, error) {
 	var vaccination model.Vaccination
 	if err := r.db.WithContext(ctx).
 		Preload("Vaccine").
@@ -57,7 +57,7 @@ func (r *vaccinationRepository) FindByID(ctx context.Context, id uuid.UUID) (*mo
 		Preload("Doctor").
 		First(&vaccination, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("vaccination", id.String())
+			return nil, apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find vaccination by id")
 	}
@@ -77,18 +77,18 @@ func (r *vaccinationRepository) Update(ctx context.Context, vaccination *model.V
 		return apperrors.Wrap(result.Error, "update vaccination")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("vaccination", vaccination.ID.String())
+		return apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", vaccination.ID))
 	}
 	return nil
 }
 
-func (r *vaccinationRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *vaccinationRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Vaccination{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete vaccination")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("vaccination", id.String())
+		return apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

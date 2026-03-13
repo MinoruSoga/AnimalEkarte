@@ -12,7 +12,6 @@ export const createMasterItem = async (
   if (!endpoint) throw new Error(`No endpoint for category: ${category}`);
   const { data } = await axios.post<GenericMasterBackendItem>(endpoint, {
     name: req.name,
-    code: req.code ?? "",
     price: req.price,
     description: req.description ?? "",
     is_active: true,

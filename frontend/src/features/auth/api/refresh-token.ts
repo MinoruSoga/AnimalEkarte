@@ -8,20 +8,17 @@ export interface RefreshResponse {
 }
 
 /**
- * 起動時セッション復元: localStorage の JWT で GET /me を呼び出す。
- * トークン不在または 401 の場合は null を返してログアウト扱いにする。
+ * 起動時セッション復元: httpOnly Cookie が有効なら GET /me が成功する。
+ * Cookie 未存在または期限切れの場合は null を返してログアウト扱いにする。
+ * localStorage へのアクセスは不要（Cookie は自動送信される）。
  */
 export async function refreshToken(): Promise<RefreshResponse | null> {
-  const token = localStorage.getItem("token");
-  if (!token) return null;
-
   try {
     const { data: meData } = await axios.get<BackendMeResponse>("/v1/me");
     const user = mapMeToAuthUser(meData);
-    return { accessToken: token, user };
+    return { accessToken: "", user };
   } catch {
-    // 401 など認証失敗 — axios インターセプターが token を削除してリダイレクト済みのケースもある
-    localStorage.removeItem("token");
+    // 401 / ネットワークエラー → セッションなし
     return null;
   }
 }

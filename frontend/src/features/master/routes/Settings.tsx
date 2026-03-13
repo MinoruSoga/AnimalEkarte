@@ -28,7 +28,7 @@ import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable } from "@/components/shared/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable";
-import { PrimaryButton } from "@/components/shared/Form";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { getMasterStatusColor } from "@/utils/status-helpers";
@@ -193,7 +193,6 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
 
   const pageTitle = config?.label ?? "マスタ";
   const showPrice = config?.showPrice ?? (!isStaff && rawCategory !== "cage" && rawCategory !== "insurance");
-  const showCode = config?.showCode ?? false;
   const showCategory = config?.showCategory ?? false;
   const labels = config?.labels ?? { code: "コード", name: "名称", category: "カテゴリ" };
 
@@ -234,11 +233,6 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
       toast.error("名称は必須です");
       return;
     }
-    if (showCode && !formData.code) {
-      toast.error("コードは必須です");
-      return;
-    }
-
     // For staff, merge extras into formData description/category
     const payload: Partial<MasterItem> = isStaff
       ? {
@@ -311,13 +305,6 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
                     value={formData.name ?? ""}
                     onChange={(v) => setFormData({ ...formData, name: v })}
                     placeholder={config?.namePlaceholder ?? "山田 太郎"}
-                  />
-                </PropertyRow>
-                <PropertyRow label={labels.code}>
-                  <PropInput
-                    value={formData.code ?? ""}
-                    onChange={(v) => setFormData({ ...formData, code: v })}
-                    placeholder={config?.codePlaceholder ?? "ST-001"}
                   />
                 </PropertyRow>
                 <PropertyRow label="職種">
@@ -425,15 +412,6 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
           ) : (
             // ── Generic edit form ──
             <>
-              {showCode && (
-                <PropertyRow label={labels.code} required>
-                  <PropInput
-                    value={formData.code ?? ""}
-                    onChange={(v) => setFormData({ ...formData, code: v })}
-                    placeholder={config?.codePlaceholder ?? "EX-001"}
-                  />
-                </PropertyRow>
-              )}
               <PropertyRow label={labels.name} required>
                 <PropInput
                   value={formData.name ?? ""}
@@ -561,9 +539,6 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
         { header: "操作", className: "w-[80px]", align: "right" as const },
       ]
     : [
-        ...(showCode
-          ? [{ header: labels.code, className: "w-[120px]" }]
-          : []),
         { header: labels.name },
         ...(showCategory
           ? [{ header: labels.category, className: "w-[120px]" }]
@@ -625,11 +600,6 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
             </DataTableRow>
           ) : (
             <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
-              {showCode && (
-                <TableCell className={`font-mono text-sm ${C.text80} py-2`}>
-                  {item.code}
-                </TableCell>
-              )}
               <TableCell className={`font-medium text-sm ${C.text} py-2`}>
                 {item.name}
               </TableCell>

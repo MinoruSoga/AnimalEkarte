@@ -2,9 +2,9 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -18,8 +18,8 @@ import (
 // @Security BearerAuth
 // @Param page query int false "ページ番号 (default: 1)"
 // @Param limit query int false "件数 (1-100, default: 20)"
-// @Param pet_id query string false "ペットIDフィルター"
-// @Success 200 {object} PaginatedResponse
+// @Param pet_id query integer false "ペットIDフィルター"
+// @Success 200 {object} handler.TrimmingListResponse
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /trimmings [get]
@@ -35,9 +35,9 @@ func (h *Handler) ListTrimmings(c *gin.Context) {
 		return
 	}
 
-	var petID *uuid.UUID
+	var petID *uint64
 	if petIDStr := c.Query("pet_id"); petIDStr != "" {
-		id, err := uuid.Parse(petIDStr)
+		id, err := strconv.ParseUint(petIDStr, 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pet_id"})
 			return
@@ -45,9 +45,9 @@ func (h *Handler) ListTrimmings(c *gin.Context) {
 		petID = &id
 	}
 
-	var ownerID *uuid.UUID
+	var ownerID *uint64
 	if s := c.Query("owner_id"); s != "" {
-		id, err := uuid.Parse(s)
+		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id"})
 			return
@@ -70,7 +70,7 @@ func (h *Handler) ListTrimmings(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "トリミングID"
+// @Param id path integer true "トリミングID"
 // @Success 200 {object} model.TrimmingRecord
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
@@ -82,7 +82,7 @@ func (h *Handler) GetTrimming(c *gin.Context) {
 		return
 	}
 
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -118,7 +118,6 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = uuid.New()
 	if err := h.svc.Trimming.Create(c.Request.Context(), clinicID, &input); err != nil {
 		RespondError(c, err)
 		return
@@ -133,7 +132,7 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "トリミングID"
+// @Param id path integer true "トリミングID"
 // @Param input body model.TrimmingRecord true "更新するトリミング情報"
 // @Success 200 {object} model.TrimmingRecord
 // @Failure 400 {object} map[string]string
@@ -146,7 +145,7 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 		return
 	}
 
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -169,7 +168,7 @@ func (h *Handler) DeleteTrimming(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return

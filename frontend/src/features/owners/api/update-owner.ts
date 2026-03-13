@@ -7,6 +7,6 @@ export const updateOwner = async (
   id: string,
   data: UpdateOwnerRequest
 ): Promise<Owner> => {
-  const { data: responseData } = await axios.put<BackendOwner>(`/v1/owners/${id}`, data);
+  const { data: responseData } = await axios.patch<BackendOwner>(`/v1/owners/${id}`, data);
   return transformOwner(responseData);
 };

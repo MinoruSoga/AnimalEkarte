@@ -4,8 +4,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -16,10 +16,10 @@ import (
 
 type InsuranceRepository interface {
 	FindAll(ctx context.Context) ([]model.Insurance, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.Insurance, error)
+	FindByID(ctx context.Context, id uint64) (*model.Insurance, error)
 	Create(ctx context.Context, insurance *model.Insurance) error
 	Update(ctx context.Context, insurance *model.Insurance) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type insuranceRepository struct{ db *gorm.DB }
@@ -34,11 +34,11 @@ func (r *insuranceRepository) FindAll(ctx context.Context) ([]model.Insurance, e
 	return insurances, nil
 }
 
-func (r *insuranceRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Insurance, error) {
+func (r *insuranceRepository) FindByID(ctx context.Context, id uint64) (*model.Insurance, error) {
 	var insurance model.Insurance
 	if err := r.db.WithContext(ctx).First(&insurance, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("insurance", id.String())
+			return nil, apperrors.WrapNotFound("insurance", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find insurance by id")
 	}
@@ -62,13 +62,13 @@ func (r *insuranceRepository) Update(ctx context.Context, insurance *model.Insur
 	return nil
 }
 
-func (r *insuranceRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *insuranceRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Insurance{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete insurance")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("insurance", id.String())
+		return apperrors.WrapNotFound("insurance", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

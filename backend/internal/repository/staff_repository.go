@@ -4,8 +4,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -16,11 +16,11 @@ import (
 
 type StaffRepository interface {
 	FindAll(ctx context.Context, role *string) ([]model.Staff, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.Staff, error)
+	FindByID(ctx context.Context, id uint64) (*model.Staff, error)
 	// CreateWithAccount はスタッフ・ユーザーアカウント・クリニック所属を単一トランザクションで作成する。
 	CreateWithAccount(ctx context.Context, staff *model.Staff, account *model.UserAccount, membership *model.UserClinicMembership) error
 	Update(ctx context.Context, staff *model.Staff) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type staffRepository struct{ db *gorm.DB }
@@ -39,11 +39,11 @@ func (r *staffRepository) FindAll(ctx context.Context, role *string) ([]model.St
 	return staffs, nil
 }
 
-func (r *staffRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Staff, error) {
+func (r *staffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff, error) {
 	var staff model.Staff
 	if err := r.db.WithContext(ctx).First(&staff, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("staff", id.String())
+			return nil, apperrors.WrapNotFound("staff", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find staff by id")
 	}
@@ -51,7 +51,7 @@ func (r *staffRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.St
 }
 
 func (r *staffRepository) CreateWithAccount(ctx context.Context, staff *model.Staff, account *model.UserAccount, membership *model.UserClinicMembership) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(staff).Error; err != nil {
 			if isUniqueConstraintErr(err) {
 				return apperrors.WrapAlreadyExists("staff", staff.Name)
@@ -73,7 +73,10 @@ func (r *staffRepository) CreateWithAccount(ctx context.Context, staff *model.St
 		}
 
 		return nil
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "create staff with account transaction")
+	}
+	return nil
 }
 
 func (r *staffRepository) Update(ctx context.Context, staff *model.Staff) error {
@@ -83,13 +86,13 @@ func (r *staffRepository) Update(ctx context.Context, staff *model.Staff) error 
 	return nil
 }
 
-func (r *staffRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *staffRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Staff{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete staff")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("staff", id.String())
+		return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

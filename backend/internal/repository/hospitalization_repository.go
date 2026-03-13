@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -12,11 +12,11 @@ import (
 )
 
 type HospitalizationRepository interface {
-	FindAll(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, ownerID *uuid.UUID, status *string, page, limit int) ([]model.Hospitalization, int64, error)
-	FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.Hospitalization, error)
+	FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	Create(ctx context.Context, hospitalization *model.Hospitalization) error
 	Update(ctx context.Context, hospitalization *model.Hospitalization) error
-	Delete(ctx context.Context, clinicID, id uuid.UUID) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type hospitalizationRepository struct {
@@ -27,7 +27,7 @@ func NewHospitalizationRepository(db *gorm.DB) HospitalizationRepository {
 	return &hospitalizationRepository{db: db}
 }
 
-func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, ownerID *uuid.UUID, status *string, page, limit int) ([]model.Hospitalization, int64, error) {
+func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error) {
 	var hospitalizations []model.Hospitalization
 	var total int64
 
@@ -50,7 +50,7 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uuid.U
 	return hospitalizations, total, nil
 }
 
-func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.Hospitalization, error) {
+func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
 	var hospitalization model.Hospitalization
 	if err := r.db.WithContext(ctx).
 		Preload("Pet").
@@ -62,7 +62,7 @@ func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id u
 		Preload("TreatmentPlans").
 		First(&hospitalization, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("hospitalization", id.String())
+			return nil, apperrors.WrapNotFound("hospitalization", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find hospitalization by id")
 	}
@@ -86,13 +86,13 @@ func (r *hospitalizationRepository) Update(ctx context.Context, hospitalization 
 	return nil
 }
 
-func (r *hospitalizationRepository) Delete(ctx context.Context, clinicID, id uuid.UUID) error {
+func (r *hospitalizationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Hospitalization{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete hospitalization")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("hospitalization", id.String())
+		return apperrors.WrapNotFound("hospitalization", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

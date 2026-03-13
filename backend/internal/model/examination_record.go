@@ -3,10 +3,10 @@ package model
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
+// @name ExaminationStatus
 type ExaminationStatus string
 
 const (
@@ -15,6 +15,7 @@ const (
 	ExaminationStatusCompleted  ExaminationStatus = "完了"
 )
 
+// @name ExaminationResultStatus
 type ExaminationResultStatus string
 
 const (
@@ -23,17 +24,18 @@ const (
 	ExaminationResultStatusLow    ExaminationResultStatus = "low"
 )
 
+// @name Exam
 type Exam struct {
-	ID              uuid.UUID         `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	MedicalRecordID uuid.UUID         `gorm:"type:uuid;not null"                             json:"medical_record_id"`
-	PetID           *uuid.UUID        `gorm:"type:uuid"                                      json:"pet_id,omitempty"`
-	ExamTypeID      uuid.UUID         `gorm:"type:uuid;not null"                             json:"exam_type_id"`
-	DoctorID        *uuid.UUID        `gorm:"type:uuid"                                      json:"doctor_id,omitempty"`
+	ID              uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	MedicalRecordID uint64            `gorm:"not null"                                       json:"medical_record_id"`
+	PetID           *uint64           `                                                      json:"pet_id,omitempty"`
+	ExamTypeID      uint64            `gorm:"not null"                                       json:"exam_type_id"`
+	DoctorID        *uint64           `                                                      json:"doctor_id,omitempty"`
 	Date            time.Time         `gorm:"type:date;not null"                             json:"date"`
 	ResultSummary   string            `gorm:"default:''"                                     json:"result_summary"`
 	Machine         string            `gorm:"default:''"                                     json:"machine"`
 	Status          ExaminationStatus `gorm:"type:examination_status;default:'依頼中'"          json:"status"`
-	DeletedAt       gorm.DeletedAt    `                                                      json:"deleted_at"`
+	DeletedAt       gorm.DeletedAt    `                                                      json:"deleted_at" swaggerignore:"true"`
 	CreatedAt       time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
@@ -47,9 +49,10 @@ type Exam struct {
 
 func (Exam) TableName() string { return "exams" }
 
+// @name ExamItem
 type ExamItem struct {
-	ID              uuid.UUID               `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	ExamID          uuid.UUID               `gorm:"type:uuid;not null"                             json:"exam_id"`
+	ID              uint64                  `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ExamID          uint64                  `gorm:"not null"                                       json:"exam_id"`
 	Name            string                  `gorm:"not null;default:''"                            json:"name"`
 	InspectionValue string                  `gorm:"default:''"                                     json:"inspection_value"`
 	NormalValue     string                  `gorm:"default:''"                                     json:"normal_value"`

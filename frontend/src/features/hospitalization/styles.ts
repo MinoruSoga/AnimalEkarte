@@ -15,7 +15,7 @@ export const H_STYLES = {
     none: "p-0",
   },
   button: {
-    action: "h-10 px-4 text-base font-bold",
+    action: "h-11 px-4 text-sm font-medium",
     icon: "h-4 w-4",
     sm: "h-9 px-3 text-sm font-bold",
   },

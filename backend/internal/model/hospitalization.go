@@ -3,43 +3,45 @@ package model
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
+// @name HospitalizationType
 type HospitalizationType string
 
 const (
-	HospitalizationTypeInpatient HospitalizationType = "入院"
-	HospitalizationTypeHotel     HospitalizationType = "ホテル"
+	HospitalizationTypeInpatient HospitalizationType = "hospitalization"
+	HospitalizationTypeHotel     HospitalizationType = "hotel"
 )
 
+// @name HospitalizationStatus
 type HospitalizationStatus string
 
 const (
-	HospitalizationStatusAdmitted   HospitalizationStatus = "入院中"
-	HospitalizationStatusDischarged HospitalizationStatus = "退院済"
-	HospitalizationStatusReserved   HospitalizationStatus = "予約"
+	HospitalizationStatusAdmitted   HospitalizationStatus = "admitted"
+	HospitalizationStatusDischarged HospitalizationStatus = "discharged"
+	HospitalizationStatusReserved   HospitalizationStatus = "reserved"
 )
 
+// @name Hospitalization
 type Hospitalization struct {
-	ID                  uuid.UUID             `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	ClinicID            uuid.UUID             `gorm:"type:uuid;not null"                             json:"clinic_id"`
-	OwnerID             uuid.UUID             `gorm:"type:uuid;not null"                             json:"owner_id"`
-	PetID               uuid.UUID             `gorm:"type:uuid;not null"                             json:"pet_id"`
+	ID                  uint64                `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID            uint64                `gorm:"not null"                                       json:"clinic_id"`
+	OwnerID             uint64                `gorm:"not null"                                       json:"owner_id"`
+	PetID               uint64                `gorm:"not null"                                       json:"pet_id"`
 	HospitalizationType HospitalizationType   `gorm:"type:hospitalization_type;not null"             json:"hospitalization_type"`
 	StartDate           time.Time             `gorm:"type:date;not null"                             json:"start_date"`
 	EndDate             time.Time             `gorm:"type:date;not null"                             json:"end_date"`
-	Status              HospitalizationStatus `gorm:"type:hospitalization_status;default:'予約'"       json:"status"`
-	CageID              *uuid.UUID            `gorm:"type:uuid"                                      json:"cage_id,omitempty"`
-	DoctorID            *uuid.UUID            `gorm:"type:uuid"                                      json:"doctor_id,omitempty"`
+	Status              HospitalizationStatus `gorm:"type:hospitalization_status;default:'reserved'"  json:"status"`
+	CageID              *uint64               `                                                      json:"cage_id,omitempty"`
+	DoctorID            *uint64               `                                                      json:"doctor_id,omitempty"`
 	Memo                string                `gorm:"default:''"                                     json:"memo"`
 	OwnerRequest        string                `gorm:"default:''"                                     json:"owner_request"`
 	StaffNotes          string                `gorm:"default:''"                                     json:"staff_notes"`
 	CreatedAt           time.Time             `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt           time.Time             `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt           gorm.DeletedAt        `                                                      json:"deleted_at"`
+	DeletedAt           gorm.DeletedAt        `                                                      json:"deleted_at" swaggerignore:"true"`
 
 	// Relations
 	Owner          *Owner          `gorm:"foreignKey:OwnerID"           json:"owner,omitempty"`
@@ -53,6 +55,7 @@ type Hospitalization struct {
 
 func (Hospitalization) TableName() string { return "hospitalizations" }
 
+// @name CarePlanType
 type CarePlanType string
 
 const (
@@ -63,6 +66,7 @@ const (
 	CarePlanTypeItem        CarePlanType = "item"
 )
 
+// @name CarePlanStatus
 type CarePlanStatus string
 
 const (
@@ -71,6 +75,7 @@ const (
 	CarePlanStatusDiscontinued CarePlanStatus = "discontinued"
 )
 
+// @name PlanTiming
 type PlanTiming string
 
 const (
@@ -79,18 +84,19 @@ const (
 	PlanTimingNight   PlanTiming = "night"
 )
 
+// @name CarePlanItem
 type CarePlanItem struct {
-	ID                    uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	HospitalizationID     uuid.UUID      `gorm:"type:uuid;not null"                             json:"hospitalization_id"`
+	ID                    uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	HospitalizationID     uint64         `gorm:"not null"                                       json:"hospitalization_id"`
 	Type                  CarePlanType   `gorm:"type:care_plan_type;not null"                   json:"type"`
 	Name                  string         `gorm:"not null;default:''"                            json:"name"`
 	Description           string         `gorm:"default:''"                                     json:"description"`
 	Timing                pq.StringArray `gorm:"type:plan_timing[]"                             json:"timing" swaggertype:"array,string"`
 	Status                CarePlanStatus `gorm:"type:care_plan_status;default:'active'"         json:"status"`
 	Notes                 string         `gorm:"default:''"                                     json:"notes"`
-	MedicineID            *uuid.UUID     `gorm:"type:uuid"                                      json:"medicine_id,omitempty"`
-	ProcedureID           *uuid.UUID     `gorm:"type:uuid"                                      json:"procedure_id,omitempty"`
-	HospitalizationPlanID *uuid.UUID     `gorm:"type:uuid"                                      json:"hospitalization_plan_id,omitempty"`
+	MedicineID            *uint64        `                                                      json:"medicine_id,omitempty"`
+	ProcedureID           *uint64        `                                                      json:"procedure_id,omitempty"`
+	HospitalizationPlanID *uint64        `                                                      json:"hospitalization_plan_id,omitempty"`
 	UnitPrice             float64        `gorm:"type:numeric(10,2);default:0"                   json:"unit_price"`
 	Category              string         `gorm:"default:''"                                     json:"category"`
 	SortOrder             int            `gorm:"default:0"                                      json:"sort_order"`
@@ -105,10 +111,11 @@ type CarePlanItem struct {
 
 func (CarePlanItem) TableName() string { return "care_plan_items" }
 
+// @name TreatmentPlan
 type TreatmentPlan struct {
-	ID                uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	MedicalRecordID   *uuid.UUID     `gorm:"type:uuid"                                      json:"medical_record_id,omitempty"`
-	HospitalizationID *uuid.UUID     `gorm:"type:uuid"                                      json:"hospitalization_id,omitempty"`
+	ID                uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	MedicalRecordID   *uint64        `                                                      json:"medical_record_id,omitempty"`
+	HospitalizationID *uint64        `                                                      json:"hospitalization_id,omitempty"`
 	TreatmentContent  string         `gorm:"not null;default:''"                            json:"treatment_content"`
 	Memo              string         `gorm:"default:''"                                     json:"memo"`
 	Insurance         bool           `gorm:"default:false"                                  json:"insurance"`
@@ -118,7 +125,7 @@ type TreatmentPlan struct {
 	DiscountAmount    float64        `gorm:"type:numeric(10,2);default:0"                   json:"discount_amount"`
 	Subtotal          float64        `gorm:"type:numeric(10,2);default:0"                   json:"subtotal"`
 	SortOrder         int            `gorm:"default:0"                                      json:"sort_order"`
-	DeletedAt         gorm.DeletedAt `                                                      json:"deleted_at"`
+	DeletedAt         gorm.DeletedAt `                                                      json:"deleted_at" swaggerignore:"true"`
 	CreatedAt         time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
@@ -129,9 +136,10 @@ type TreatmentPlan struct {
 
 func (TreatmentPlan) TableName() string { return "treatment_plans" }
 
+// @name DailyRecord
 type DailyRecord struct {
-	ID                uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	HospitalizationID uuid.UUID `gorm:"type:uuid;not null"                             json:"hospitalization_id"`
+	ID                uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	HospitalizationID uint64    `gorm:"not null"                                       json:"hospitalization_id"`
 	Date              time.Time `gorm:"type:date;not null"                             json:"date"`
 	CreatedAt         time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt         time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
@@ -144,17 +152,18 @@ type DailyRecord struct {
 
 func (DailyRecord) TableName() string { return "daily_records" }
 
+// @name VitalRecord
 type VitalRecord struct {
-	ID              uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	DailyRecordID   uuid.UUID  `gorm:"type:uuid;not null"                             json:"daily_record_id"`
-	Time            string     `gorm:"not null;default:''"                            json:"time"`
-	Temperature     *float64   `gorm:"type:numeric(4,1)"                              json:"temperature,omitempty"`
-	HeartRate       *int       `gorm:"column:heart_rate"                              json:"heart_rate,omitempty"`
-	RespirationRate *int       `gorm:"column:respiration_rate"                        json:"respiration_rate,omitempty"`
-	Weight          *float64   `gorm:"type:numeric(6,2)"                              json:"weight,omitempty"`
-	Notes           string     `gorm:"default:''"                                     json:"notes"`
-	StaffID         *uuid.UUID `gorm:"type:uuid"                                      json:"staff_id,omitempty"`
-	CreatedAt       time.Time  `gorm:"autoCreateTime"                                 json:"created_at"`
+	ID              uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	DailyRecordID   uint64    `gorm:"not null"                                       json:"daily_record_id"`
+	Time            string    `gorm:"not null;default:''"                            json:"time"`
+	Temperature     *float64  `gorm:"type:numeric(4,1)"                              json:"temperature,omitempty"`
+	HeartRate       *int      `gorm:"column:heart_rate"                              json:"heart_rate,omitempty"`
+	RespirationRate *int      `gorm:"column:respiration_rate"                        json:"respiration_rate,omitempty"`
+	Weight          *float64  `gorm:"type:numeric(6,2)"                              json:"weight,omitempty"`
+	Notes           string    `gorm:"default:''"                                     json:"notes"`
+	StaffID         *uint64   `                                                      json:"staff_id,omitempty"`
+	CreatedAt       time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 
 	// Relations
 	Staff *Staff `gorm:"foreignKey:StaffID" json:"staff,omitempty"`
@@ -162,6 +171,7 @@ type VitalRecord struct {
 
 func (VitalRecord) TableName() string { return "vital_records" }
 
+// @name CareLogType
 type CareLogType string
 
 const (
@@ -172,6 +182,7 @@ const (
 	CareLogTypeOther     CareLogType = "other"
 )
 
+// @name CareLogStatus
 type CareLogStatus string
 
 const (
@@ -180,14 +191,15 @@ const (
 	CareLogStatusSkipped   CareLogStatus = "skipped"
 )
 
+// @name CareLogRecord
 type CareLogRecord struct {
-	ID            uuid.UUID     `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	DailyRecordID uuid.UUID     `gorm:"type:uuid;not null"                             json:"daily_record_id"`
+	ID            uint64        `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	DailyRecordID uint64        `gorm:"not null"                                       json:"daily_record_id"`
 	Time          string        `gorm:"not null;default:''"                            json:"time"`
 	Type          CareLogType   `gorm:"type:care_log_type;not null"                    json:"type"`
 	Status        CareLogStatus `gorm:"type:care_log_status;not null;default:'completed'" json:"status"`
 	Value         string        `gorm:"default:''"                                     json:"value"`
-	StaffID       *uuid.UUID    `gorm:"type:uuid"                                      json:"staff_id,omitempty"`
+	StaffID       *uint64       `                                                      json:"staff_id,omitempty"`
 	Notes         string        `gorm:"default:''"                                     json:"notes"`
 	CreatedAt     time.Time     `gorm:"autoCreateTime"                                 json:"created_at"`
 
@@ -197,13 +209,14 @@ type CareLogRecord struct {
 
 func (CareLogRecord) TableName() string { return "care_log_records" }
 
+// @name StaffNoteRecord
 type StaffNoteRecord struct {
-	ID            uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	DailyRecordID uuid.UUID  `gorm:"type:uuid;not null"                             json:"daily_record_id"`
-	Time          string     `gorm:"not null;default:''"                            json:"time"`
-	Content       string     `gorm:"not null;default:''"                            json:"content"`
-	StaffID       *uuid.UUID `gorm:"type:uuid"                                      json:"staff_id,omitempty"`
-	CreatedAt     time.Time  `gorm:"autoCreateTime"                                 json:"created_at"`
+	ID            uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	DailyRecordID uint64    `gorm:"not null"                                       json:"daily_record_id"`
+	Time          string    `gorm:"not null;default:''"                            json:"time"`
+	Content       string    `gorm:"not null;default:''"                            json:"content"`
+	StaffID       *uint64   `                                                      json:"staff_id,omitempty"`
+	CreatedAt     time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 
 	// Relations
 	Staff *Staff `gorm:"foreignKey:StaffID" json:"staff,omitempty"`

@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
@@ -49,21 +48,21 @@ func RespondError(c *gin.Context, err error) {
 // extractClinicID はJWT認証済みコンテキストから clinic_id を取得してパースする。
 // 取得・パース失敗時は即座にHTTPエラーレスポンスを書いて false を返す。
 // 呼び出し元はfalse時に即return すること。
-func extractClinicID(c *gin.Context) (uuid.UUID, bool) {
+func extractClinicID(c *gin.Context) (uint64, bool) {
 	val, exists := c.Get("clinic_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing clinic context"})
-		return uuid.UUID{}, false
+		return 0, false
 	}
 	clinicIDStr, ok := val.(string)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid clinic context"})
-		return uuid.UUID{}, false
+		return 0, false
 	}
-	clinicID, err := uuid.Parse(clinicIDStr)
+	clinicID, err := strconv.ParseUint(clinicIDStr, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid clinic context"})
-		return uuid.UUID{}, false
+		return 0, false
 	}
 	return clinicID, true
 }

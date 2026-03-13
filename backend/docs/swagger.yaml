@@ -1,2108 +1,58 @@
 basePath: /api/v1
 definitions:
-  github_com_animal-ekarte_backend_internal_model.AcquisitionType:
-    enum:
-    - 購入
-    - 譲渡
-    - 保護
-    - その他
-    type: string
-    x-enum-varnames:
-    - AcquisitionTypePurchase
-    - AcquisitionTypeTransfer
-    - AcquisitionTypeProtected
-    - AcquisitionTypeOther
-  github_com_animal-ekarte_backend_internal_model.AnesthesiaType:
-    enum:
-    - none
-    - local
-    - general
-    type: string
-    x-enum-varnames:
-    - AnesthesiaTypeNone
-    - AnesthesiaTypeLocal
-    - AnesthesiaTypeGeneral
-  github_com_animal-ekarte_backend_internal_model.AnimalSpecies:
+  handler.BillingListResponse:
     properties:
-      code:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      sort_order:
-        type: integer
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.AppetiteLevel:
-    enum:
-    - normal
-    - increased
-    - decreased
-    - none
-    type: string
-    x-enum-varnames:
-    - AppetiteLevelNormal
-    - AppetiteLevelIncreased
-    - AppetiteLevelDecreased
-    - AppetiteLevelNone
-  github_com_animal-ekarte_backend_internal_model.Billing:
-    properties:
-      clinic_id:
-        type: string
-      completed_at:
-        type: string
-      created_at:
-        type: string
-      deleted_at:
-        $ref: '#/definitions/gorm.DeletedAt'
-      has_insurance:
-        type: boolean
-      hospitalization_id:
-        type: string
-      id:
-        type: string
-      items:
+      data:
         items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.BillingItem'
+          $ref: '#/definitions/model.Billing'
         type: array
-      medical_record:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
-      medical_record_id:
-        type: string
-      memo:
-        type: string
-      owner:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
-        description: Relations
-      owner_id:
-        type: string
-      payments:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
+  handler.ExamListResponse:
+    properties:
+      data:
         items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Payment'
+          $ref: '#/definitions/model.Exam'
         type: array
-      pet:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
-      pet_id:
-        type: string
-      scheduled_date:
-        type: string
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.BillingStatus'
-      subtotal:
+      limit:
         type: integer
-      tax_total:
+      page:
         type: integer
-      total_amount:
+      total:
         type: integer
-      updated_at:
-        type: string
     type: object
-  github_com_animal-ekarte_backend_internal_model.BillingItem:
+  handler.HospitalizationListResponse:
     properties:
-      billing_id:
-        type: string
-      category:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ItemCategory'
-      code:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: string
-      is_insurance_applicable:
-        type: boolean
-      name:
-        type: string
-      quantity:
-        type: integer
-      sort_order:
-        type: integer
-      source:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ItemSource'
-      tax_rate:
-        type: number
-      unit_price:
-        type: number
-    type: object
-  github_com_animal-ekarte_backend_internal_model.BillingReview:
-    properties:
-      confirmed_at:
-        type: string
-      confirmed_by:
-        type: string
-      confirmed_staff:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
-      created_at:
-        type: string
-      id:
-        type: string
-      medical_record:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
-        description: Relations
-      medical_record_id:
-        type: string
-      memo:
-        type: string
-      return_reason:
-        type: string
-      returned_at:
-        type: string
-      returned_by:
-        type: string
-      returned_staff:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.BillingReviewStatus'
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.BillingReviewStatus:
-    enum:
-    - pending
-    - confirmed
-    - returned
-    type: string
-    x-enum-varnames:
-    - BillingReviewStatusPending
-    - BillingReviewStatusConfirmed
-    - BillingReviewStatusReturned
-  github_com_animal-ekarte_backend_internal_model.BillingStatus:
-    enum:
-    - waiting
-    - completed
-    - cancelled
-    - pending
-    type: string
-    x-enum-varnames:
-    - BillingStatusWaiting
-    - BillingStatusCompleted
-    - BillingStatusCancelled
-    - BillingStatusPending
-  github_com_animal-ekarte_backend_internal_model.BillingUnit:
-    enum:
-    - per_day
-    - per_night
-    type: string
-    x-enum-varnames:
-    - BillingUnitPerDay
-    - BillingUnitPerNight
-  github_com_animal-ekarte_backend_internal_model.BodySize:
-    enum:
-    - small
-    - medium
-    - large
-    type: string
-    x-enum-varnames:
-    - BodySizeSmall
-    - BodySizeMedium
-    - BodySizeLarge
-  github_com_animal-ekarte_backend_internal_model.BodyWeightUnit:
-    enum:
-    - Kg
-    - g
-    type: string
-    x-enum-varnames:
-    - BodyWeightUnitKg
-    - BodyWeightUnitG
-  github_com_animal-ekarte_backend_internal_model.Cage:
-    properties:
-      cage_size:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CageSize'
-      cage_type:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CageType'
-      clinic_id:
-        type: string
-      code:
-        type: string
-      created_at:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      price:
-        type: number
-      sort_order:
-        type: integer
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.CageSize:
-    enum:
-    - small
-    - medium
-    - large
-    type: string
-    x-enum-varnames:
-    - CageSizeSmall
-    - CageSizeMedium
-    - CageSizeLarge
-  github_com_animal-ekarte_backend_internal_model.CageType:
-    enum:
-    - icu
-    - dog
-    - cat
-    - general
-    type: string
-    x-enum-varnames:
-    - CageTypeICU
-    - CageTypeDog
-    - CageTypeCat
-    - CageTypeGeneral
-  github_com_animal-ekarte_backend_internal_model.CareLogRecord:
-    properties:
-      created_at:
-        type: string
-      daily_record_id:
-        type: string
-      id:
-        type: string
-      notes:
-        type: string
-      staff:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
-        description: Relations
-      staff_id:
-        type: string
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CareLogStatus'
-      time:
-        type: string
-      type:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CareLogType'
-      value:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.CareLogStatus:
-    enum:
-    - completed
-    - partial
-    - skipped
-    type: string
-    x-enum-varnames:
-    - CareLogStatusCompleted
-    - CareLogStatusPartial
-    - CareLogStatusSkipped
-  github_com_animal-ekarte_backend_internal_model.CareLogType:
-    enum:
-    - food
-    - excretion
-    - medicine
-    - treatment
-    - other
-    type: string
-    x-enum-varnames:
-    - CareLogTypeFood
-    - CareLogTypeExcretion
-    - CareLogTypeMedicine
-    - CareLogTypeTreatment
-    - CareLogTypeOther
-  github_com_animal-ekarte_backend_internal_model.CarePlanItem:
-    properties:
-      category:
-        type: string
-      created_at:
-        type: string
-      description:
-        type: string
-      hospitalization_id:
-        type: string
-      hospitalization_plan:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationPlan'
-      hospitalization_plan_id:
-        type: string
-      id:
-        type: string
-      medicine:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine'
-        description: Relations
-      medicine_id:
-        type: string
-      name:
-        type: string
-      notes:
-        type: string
-      procedure:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure'
-      procedure_id:
-        type: string
-      sort_order:
-        type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CarePlanStatus'
-      timing:
+      data:
         items:
-          type: string
+          $ref: '#/definitions/model.Hospitalization'
         type: array
-      type:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CarePlanType'
-      unit_price:
-        type: number
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.CarePlanStatus:
-    enum:
-    - active
-    - completed
-    - discontinued
-    type: string
-    x-enum-varnames:
-    - CarePlanStatusActive
-    - CarePlanStatusCompleted
-    - CarePlanStatusDiscontinued
-  github_com_animal-ekarte_backend_internal_model.CarePlanType:
-    enum:
-    - food
-    - medicine
-    - treatment
-    - instruction
-    - item
-    type: string
-    x-enum-varnames:
-    - CarePlanTypeFood
-    - CarePlanTypeMedicine
-    - CarePlanTypeTreatment
-    - CarePlanTypeInstruction
-    - CarePlanTypeItem
-  github_com_animal-ekarte_backend_internal_model.Checkup:
-    properties:
-      checkup_type:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CheckupType'
-      checkup_type_id:
-        type: string
-      created_at:
-        type: string
-      date:
-        type: string
-      deleted_at:
-        $ref: '#/definitions/gorm.DeletedAt'
-      doctor:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
-      doctor_id:
-        type: string
-      id:
-        type: string
-      medical_record:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
-        description: Relations
-      medical_record_id:
-        type: string
-      next_date:
-        type: string
-      pet:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
-      pet_id:
-        type: string
-      result:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.CheckupType:
-    properties:
-      clinic_id:
-        type: string
-      code:
-        type: string
-      created_at:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      interval:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      price:
-        type: number
-      sort_order:
+      limit:
         type: integer
-      target_age:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.ChiefComplaintCategory:
-    properties:
-      clinic_id:
-        type: string
-      code:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      sort_order:
+      page:
         type: integer
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.Clinic:
-    properties:
-      address:
-        type: string
-      branch_name:
-        type: string
-      created_at:
-        type: string
-      director_name:
-        type: string
-      email:
-        type: string
-      fax_number:
-        type: string
-      id:
-        type: string
-      is_active:
-        type: boolean
-      logo_url:
-        type: string
-      name:
-        type: string
-      phone_number:
-        type: string
-      postal_code:
-        type: string
-      registration_number:
-        type: string
-      updated_at:
-        type: string
-      website:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.ClinicalPlan:
-    properties:
-      created_at:
-        type: string
-      diagnosis_category:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory'
-      diagnosis_category_id:
-        type: string
-      diagnosis_details:
-        type: string
-      diagnosis_name:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName'
-      diagnosis_name_id:
-        type: string
-      id:
-        type: string
-      medical_record:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
-        description: Relations
-      medical_record_id:
-        type: string
-      physical_exam:
-        type: string
-      treatment_policy:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.Company:
-    properties:
-      address:
-        type: string
-      branch_name:
-        type: string
-      created_at:
-        type: string
-      director_name:
-        type: string
-      email:
-        type: string
-      fax_number:
-        type: string
-      id:
-        type: string
-      logo_url:
-        type: string
-      name:
-        type: string
-      phone_number:
-        type: string
-      postal_code:
-        type: string
-      registration_number:
-        type: string
-      updated_at:
-        type: string
-      website:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.Consultation:
-    properties:
-      clinic_id:
-        type: string
-      code:
-        type: string
-      created_at:
-        type: string
-      description:
-        type: string
-      duration:
+      total:
         type: integer
-      id:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      price:
-        type: number
-      sort_order:
-        type: integer
-      time_condition:
-        type: string
-      updated_at:
-        type: string
     type: object
-  github_com_animal-ekarte_backend_internal_model.DailyRecord:
+  handler.InventoryListResponse:
     properties:
-      care_log_records:
+      data:
         items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CareLogRecord'
+          $ref: '#/definitions/model.InventoryItem'
         type: array
-      created_at:
-        type: string
-      date:
-        type: string
-      hospitalization_id:
-        type: string
-      id:
-        type: string
-      staff_note_records:
-        items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.StaffNoteRecord'
-        type: array
-      updated_at:
-        type: string
-      vital_records:
-        description: Relations
-        items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.VitalRecord'
-        type: array
-    type: object
-  github_com_animal-ekarte_backend_internal_model.DangerLevel:
-    enum:
-    - 低
-    - 中
-    - 高
-    type: string
-    x-enum-varnames:
-    - DangerLevelLow
-    - DangerLevelMedium
-    - DangerLevelHigh
-  github_com_animal-ekarte_backend_internal_model.DiagnosisCategory:
-    properties:
-      clinic_id:
-        type: string
-      code:
-        type: string
-      created_at:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      names:
-        description: Relations
-        items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName'
-        type: array
-      sort_order:
+      limit:
         type: integer
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.DiagnosisName:
-    properties:
-      category:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory'
-        description: Relations
-      clinic_id:
-        type: string
-      code:
-        type: string
-      created_at:
-        type: string
-      description:
-        type: string
-      diagnosis_category_id:
-        type: string
-      id:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      sort_order:
+      page:
         type: integer
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.DosageForm:
-    enum:
-    - tablet
-    - liquid
-    - injection
-    - topical
-    - powder
-    type: string
-    x-enum-varnames:
-    - DosageFormTablet
-    - DosageFormLiquid
-    - DosageFormInjection
-    - DosageFormTopical
-    - DosageFormPowder
-  github_com_animal-ekarte_backend_internal_model.Estimate:
-    properties:
-      clinic_id:
-        type: string
-      comment:
-        type: string
-      created_at:
-        type: string
-      created_by:
-        type: string
-      created_staff:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
-      deleted_at:
-        $ref: '#/definitions/gorm.DeletedAt'
-      discount_amount:
-        type: number
-      estimate_no:
-        type: string
-      id:
-        type: string
-      insurance_amount:
-        type: number
-      items:
-        items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.EstimateItem'
-        type: array
-      medical_record:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
-        description: Relations
-      medical_record_id:
-        type: string
-      notes:
-        type: string
-      owner:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
-      owner_id:
-        type: string
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.EstimateStatus'
-      subtotal:
-        type: number
-      tax_total:
-        type: number
-      title:
-        type: string
-      total_amount:
-        type: number
-      updated_at:
-        type: string
-      valid_until:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.EstimateItem:
-    properties:
-      category:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ItemCategory'
-      consultation:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation'
-        description: Relations
-      consultation_id:
-        type: string
-      created_at:
-        type: string
-      discount_amount:
-        type: number
-      discount_rate:
-        type: number
-      estimate_id:
-        type: string
-      id:
-        type: string
-      is_insurance_applicable:
-        type: boolean
-      medicine:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine'
-      medicine_id:
-        type: string
-      name:
-        type: string
-      procedure:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure'
-      procedure_id:
-        type: string
-      quantity:
-        type: integer
-      sort_order:
-        type: integer
-      tax_rate:
-        type: number
-      unit_price:
-        type: number
-    type: object
-  github_com_animal-ekarte_backend_internal_model.EstimateStatus:
-    enum:
-    - draft
-    - sent
-    - approved
-    - rejected
-    type: string
-    x-enum-varnames:
-    - EstimateStatusDraft
-    - EstimateStatusSent
-    - EstimateStatusApproved
-    - EstimateStatusRejected
-  github_com_animal-ekarte_backend_internal_model.Exam:
-    properties:
-      created_at:
-        type: string
-      date:
-        type: string
-      deleted_at:
-        $ref: '#/definitions/gorm.DeletedAt'
-      doctor:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
-      doctor_id:
-        type: string
-      exam_type:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExamType'
-      exam_type_id:
-        type: string
-      id:
-        type: string
-      items:
-        items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExamItem'
-        type: array
-      machine:
-        type: string
-      medical_record:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
-        description: Relations
-      medical_record_id:
-        type: string
-      pet:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
-      pet_id:
-        type: string
-      result_summary:
-        type: string
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExaminationStatus'
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.ExamItem:
-    properties:
-      created_at:
-        type: string
-      exam_id:
-        type: string
-      id:
-        type: string
-      inspection_value:
-        type: string
-      name:
-        type: string
-      normal_value:
-        type: string
-      ref:
-        type: string
-      result:
-        type: string
-      sort_order:
-        type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExaminationResultStatus'
-      unit:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.ExamType:
-    properties:
-      clinic_id:
-        type: string
-      code:
-        type: string
-      created_at:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      is_active:
-        type: boolean
-      items:
-        description: Relations
-        items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExamTypeItem'
-        type: array
-      name:
-        type: string
-      price:
-        type: number
-      sort_order:
-        type: integer
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.ExamTypeItem:
-    properties:
-      created_at:
-        type: string
-      exam_type_id:
-        type: string
-      id:
-        type: string
-      inspection_value:
-        type: string
-      name:
-        type: string
-      normal_value:
-        type: string
-      sort_order:
+      total:
         type: integer
     type: object
-  github_com_animal-ekarte_backend_internal_model.ExaminationResultStatus:
-    enum:
-    - normal
-    - high
-    - low
-    type: string
-    x-enum-varnames:
-    - ExaminationResultStatusNormal
-    - ExaminationResultStatusHigh
-    - ExaminationResultStatusLow
-  github_com_animal-ekarte_backend_internal_model.ExaminationStatus:
-    enum:
-    - 依頼中
-    - 検査中
-    - 完了
-    type: string
-    x-enum-varnames:
-    - ExaminationStatusPending
-    - ExaminationStatusInProgress
-    - ExaminationStatusCompleted
-  github_com_animal-ekarte_backend_internal_model.Hospitalization:
-    properties:
-      cage:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Cage'
-      cage_id:
-        type: string
-      care_plan_items:
-        items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CarePlanItem'
-        type: array
-      clinic_id:
-        type: string
-      created_at:
-        type: string
-      daily_records:
-        items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DailyRecord'
-        type: array
-      deleted_at:
-        $ref: '#/definitions/gorm.DeletedAt'
-      doctor:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
-      doctor_id:
-        type: string
-      end_date:
-        type: string
-      hospitalization_type:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationType'
-      id:
-        type: string
-      memo:
-        type: string
-      owner:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
-        description: Relations
-      owner_id:
-        type: string
-      owner_request:
-        type: string
-      pet:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
-      pet_id:
-        type: string
-      staff_notes:
-        type: string
-      start_date:
-        type: string
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationStatus'
-      treatment_plans:
-        items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TreatmentPlan'
-        type: array
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.HospitalizationPlan:
-    properties:
-      billing_unit:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.BillingUnit'
-      body_size:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.BodySize'
-      clinic_id:
-        type: string
-      code:
-        type: string
-      created_at:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      price:
-        type: number
-      sort_order:
-        type: integer
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.HospitalizationStatus:
-    enum:
-    - 入院中
-    - 退院済
-    - 予約
-    type: string
-    x-enum-varnames:
-    - HospitalizationStatusAdmitted
-    - HospitalizationStatusDischarged
-    - HospitalizationStatusReserved
-  github_com_animal-ekarte_backend_internal_model.HospitalizationType:
-    enum:
-    - 入院
-    - ホテル
-    type: string
-    x-enum-varnames:
-    - HospitalizationTypeInpatient
-    - HospitalizationTypeHotel
-  github_com_animal-ekarte_backend_internal_model.Inquiry:
-    properties:
-      allergy_info:
-        type: string
-      appetite:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.AppetiteLevel'
-      chief_complaint:
-        type: string
-      chief_complaint_category:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ChiefComplaintCategory'
-      chief_complaint_category_id:
-        type: string
-      created_at:
-        type: string
-      current_medications:
-        type: string
-      history:
-        type: string
-      id:
-        type: string
-      last_defecation:
-        type: string
-      last_meal:
-        type: string
-      last_urination:
-        type: string
-      medical_record:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
-        description: Relations
-      medical_record_id:
-        type: string
-      notes:
-        type: string
-      owner_observations:
-        type: string
-      staff:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
-      staff_id:
-        type: string
-      updated_at:
-        type: string
-      water_intake:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.WaterIntakeLevel'
-    type: object
-  github_com_animal-ekarte_backend_internal_model.Insurance:
-    properties:
-      clinic_id:
-        type: string
-      code:
-        type: string
-      contact_phone:
-        type: string
-      coverage_rate:
-        type: integer
-      created_at:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      sort_order:
-        type: integer
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.InventoryCategory:
-    enum:
-    - medicine
-    - consumable
-    - food
-    - other
-    type: string
-    x-enum-varnames:
-    - InventoryCategoryMedicine
-    - InventoryCategoryConsumable
-    - InventoryCategoryFood
-    - InventoryCategoryOther
-  github_com_animal-ekarte_backend_internal_model.InventoryItem:
-    properties:
-      category:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryCategory'
-      clinic_id:
-        type: string
-      created_at:
-        type: string
-      expiry_date:
-        type: string
-      id:
-        type: string
-      last_restocked:
-        type: string
-      location:
-        type: string
-      min_stock_level:
-        type: integer
-      name:
-        type: string
-      quantity:
-        type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryStatus'
-      supplier:
-        type: string
-      unit:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.InventoryStatus:
-    enum:
-    - sufficient
-    - low
-    - out_of_stock
-    type: string
-    x-enum-varnames:
-    - InventoryStatusSufficient
-    - InventoryStatusLow
-    - InventoryStatusOutOfStock
-  github_com_animal-ekarte_backend_internal_model.ItemCategory:
-    enum:
-    - examination
-    - test
-    - procedure
-    - surgery
-    - medicine
-    - food
-    - goods
-    - other
-    type: string
-    x-enum-varnames:
-    - ItemCategoryExamination
-    - ItemCategoryTest
-    - ItemCategoryProcedure
-    - ItemCategorySurgery
-    - ItemCategoryMedicine
-    - ItemCategoryFood
-    - ItemCategoryGoods
-    - ItemCategoryOther
-  github_com_animal-ekarte_backend_internal_model.ItemSource:
-    enum:
-    - medical_record
-    - manual
-    - hospitalization
-    type: string
-    x-enum-varnames:
-    - ItemSourceMedicalRecord
-    - ItemSourceManual
-    - ItemSourceHospitalization
-  github_com_animal-ekarte_backend_internal_model.JobTitle:
-    properties:
-      clinic_id:
-        type: string
-      code:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      sort_order:
-        type: integer
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.MedicalRecord:
-    properties:
-      billing_review:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.BillingReview'
-      checkups:
-        items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Checkup'
-        type: array
-      clinic_id:
-        type: string
-      clinical_plan:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ClinicalPlan'
-      created_at:
-        type: string
-      date:
-        type: string
-      deleted_at:
-        $ref: '#/definitions/gorm.DeletedAt'
-      doctor:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
-      doctor_id:
-        type: string
-      estimates:
-        items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Estimate'
-        type: array
-      exams:
-        items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Exam'
-        type: array
-      id:
-        type: string
-      inquiry:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Inquiry'
-      owner:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
-        description: Relations
-      owner_id:
-        type: string
-      pet:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
-      pet_id:
-        type: string
-      record_no:
-        type: string
-      reservation_appointment_id:
-        type: string
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecordStatus'
-      treatments:
-        items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Treatment'
-        type: array
-      updated_at:
-        type: string
-      vaccinations:
-        items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccination'
-        type: array
-      vitals:
-        items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Vital'
-        type: array
-    type: object
-  github_com_animal-ekarte_backend_internal_model.MedicalRecordStatus:
-    enum:
-    - 作成中
-    - 確定済
-    type: string
-    x-enum-varnames:
-    - MedicalRecordStatusDraft
-    - MedicalRecordStatusFinalized
-  github_com_animal-ekarte_backend_internal_model.Medicine:
-    properties:
-      clinic_id:
-        type: string
-      code:
-        type: string
-      created_at:
-        type: string
-      default_quantity:
-        type: integer
-      description:
-        type: string
-      dosage_form:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DosageForm'
-      id:
-        type: string
-      inventory:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem'
-        description: Relations
-      inventory_id:
-        type: string
-      is_active:
-        type: boolean
-      medicine_unit:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicineUnit'
-      name:
-        type: string
-      price:
-        type: number
-      sort_order:
-        type: integer
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.MedicineUnit:
-    enum:
-    - per_tablet
-    - per_ml
-    - per_dose
-    - per_gram
-    type: string
-    x-enum-varnames:
-    - MedicineUnitPerTablet
-    - MedicineUnitPerML
-    - MedicineUnitPerDose
-    - MedicineUnitPerGram
-  github_com_animal-ekarte_backend_internal_model.MembershipType:
-    enum:
-    - 非会員
-    - 会員
-    - 退亡者
-    - 他診/準
-    type: string
-    x-enum-varnames:
-    - MembershipTypeNonMember
-    - MembershipTypeMember
-    - MembershipTypeDeceased
-    - MembershipTypeOther
-  github_com_animal-ekarte_backend_internal_model.NextScheduleType:
-    enum:
-    - 3weeks
-    - 4weeks
-    - 1year
-    - other
-    type: string
-    x-enum-varnames:
-    - NextScheduleType3Weeks
-    - NextScheduleType4Weeks
-    - NextScheduleType1Year
-    - NextScheduleTypeOther
-  github_com_animal-ekarte_backend_internal_model.Owner:
-    properties:
-      address1:
-        type: string
-      address2:
-        type: string
-      birth_date:
-        type: string
-      clinic_id:
-        type: string
-      company:
-        type: string
-      company_phone:
-        type: string
-      created_at:
-        type: string
-      deleted_at:
-        $ref: '#/definitions/gorm.DeletedAt'
-      discount_rate:
-        type: number
-      email:
-        type: string
-      home_address1:
-        type: string
-      home_address2:
-        type: string
-      home_postal_code:
-        type: string
-      id:
-        type: string
-      is_dangerous:
-        type: boolean
-      membership_type:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MembershipType'
-      owner_name:
-        type: string
-      owner_name_kana:
-        type: string
-      pets:
-        description: Relations
-        items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
-        type: array
-      phone:
-        type: string
-      postal_code:
-        type: string
-      remarks:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.Payment:
-    properties:
-      billing_amount:
-        type: number
-      billing_id:
-        type: string
-      change_amount:
-        type: number
-      created_at:
-        type: string
-      discount_amount:
-        type: number
-      id:
-        type: string
-      insurance_amount:
-        type: number
-      insurance_name:
-        type: string
-      insurance_ratio:
-        type: number
-      method:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.PaymentMethod'
-      received_amount:
-        type: number
-      subtotal:
-        type: number
-      tax_total:
-        type: number
-      total_amount:
-        type: number
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.PaymentMethod:
-    enum:
-    - cash
-    - credit_card
-    - electronic_money
-    type: string
-    x-enum-varnames:
-    - PaymentMethodCash
-    - PaymentMethodCreditCard
-    - PaymentMethodElectronicMoney
-  github_com_animal-ekarte_backend_internal_model.Pet:
-    properties:
-      acquisition_type:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.AcquisitionType'
-      animal_species:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.AnimalSpecies'
-      animal_species_id:
-        type: string
-      birth_date:
-        type: string
-      breed:
-        type: string
-      clinic_id:
-        type: string
-      color:
-        type: string
-      created_at:
-        type: string
-      danger_level:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DangerLevel'
-      deleted_at:
-        $ref: '#/definitions/gorm.DeletedAt'
-      environment:
-        type: string
-      food:
-        type: string
-      gender:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.PetGender'
-      id:
-        type: string
-      insurance:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Insurance'
-      insurance_id:
-        type: string
-      last_visit:
-        type: string
-      name:
-        type: string
-      neutered_date:
-        type: string
-      owner:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
-        description: Relations
-      owner_id:
-        type: string
-      pet_name_kana:
-        type: string
-      pet_number:
-        type: string
-      phone:
-        type: string
-      remarks:
-        type: string
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.PetStatus'
-      updated_at:
-        type: string
-      weight:
-        type: number
-    type: object
-  github_com_animal-ekarte_backend_internal_model.PetGender:
-    enum:
-    - 雄
-    - 雌
-    - 不明
-    type: string
-    x-enum-varnames:
-    - PetGenderMale
-    - PetGenderFemale
-    - PetGenderUnknown
-  github_com_animal-ekarte_backend_internal_model.PetStatus:
-    enum:
-    - 生存
-    - 死亡
-    type: string
-    x-enum-varnames:
-    - PetStatusAlive
-    - PetStatusDeceased
-  github_com_animal-ekarte_backend_internal_model.Procedure:
-    properties:
-      anesthesia:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.AnesthesiaType'
-      clinic_id:
-        type: string
-      code:
-        type: string
-      created_at:
-        type: string
-      description:
-        type: string
-      duration:
-        type: integer
-      id:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      price:
-        type: number
-      sort_order:
-        type: integer
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.ReservationAppointment:
-    properties:
-      clinic_id:
-        type: string
-      created_at:
-        type: string
-      deleted_at:
-        $ref: '#/definitions/gorm.DeletedAt'
-      doctor:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
-      doctor_id:
-        type: string
-      end_time:
-        type: string
-      id:
-        type: string
-      is_designated:
-        type: boolean
-      notes:
-        type: string
-      owner:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
-        description: Relations
-      owner_id:
-        type: string
-      pet:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
-      pet_id:
-        type: string
-      service_type:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ServiceType'
-      service_type_id:
-        type: string
-      start_time:
-        type: string
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ReservationStatus'
-      updated_at:
-        type: string
-      visit_type:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.VisitType'
-    type: object
-  github_com_animal-ekarte_backend_internal_model.ReservationStatus:
-    enum:
-    - confirmed
-    - pending
-    - cancelled
-    - checked_in
-    - in_consultation
-    - accounting
-    - completed
-    type: string
-    x-enum-varnames:
-    - ReservationStatusConfirmed
-    - ReservationStatusPending
-    - ReservationStatusCancelled
-    - ReservationStatusCheckedIn
-    - ReservationStatusInConsultation
-    - ReservationStatusAccounting
-    - ReservationStatusCompleted
-  github_com_animal-ekarte_backend_internal_model.ServiceType:
-    properties:
-      clinic_id:
-        type: string
-      code:
-        type: string
-      color:
-        type: string
-      created_at:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      sort_order:
-        type: integer
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.Staff:
-    properties:
-      clinic_id:
-        type: string
-      code:
-        type: string
-      created_at:
-        type: string
-      deleted_at:
-        $ref: '#/definitions/gorm.DeletedAt'
-      id:
-        type: string
-      is_active:
-        type: boolean
-      job_title:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.JobTitle'
-        description: Relations
-      job_title_id:
-        type: string
-      license_number:
-        type: string
-      name:
-        type: string
-      sort_order:
-        type: integer
-      staff_role:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.StaffRole'
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.StaffNoteRecord:
-    properties:
-      content:
-        type: string
-      created_at:
-        type: string
-      daily_record_id:
-        type: string
-      id:
-        type: string
-      staff:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
-        description: Relations
-      staff_id:
-        type: string
-      time:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.StaffRole:
-    enum:
-    - veterinarian
-    - nurse
-    - trimmer
-    - reception
-    - manager
-    type: string
-    x-enum-varnames:
-    - StaffRoleVeterinarian
-    - StaffRoleNurse
-    - StaffRoleTrimmer
-    - StaffRoleReception
-    - StaffRoleManager
-  github_com_animal-ekarte_backend_internal_model.TargetSize:
-    enum:
-    - small
-    - medium
-    - large
-    - cat
-    type: string
-    x-enum-varnames:
-    - TargetSizeSmall
-    - TargetSizeMedium
-    - TargetSizeLarge
-    - TargetSizeCat
-  github_com_animal-ekarte_backend_internal_model.Treatment:
-    properties:
-      consultation:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation'
-      consultation_id:
-        type: string
-      content:
-        type: string
-      created_at:
-        type: string
-      deleted_at:
-        $ref: '#/definitions/gorm.DeletedAt'
-      discount_amount:
-        type: number
-      discount_rate:
-        type: number
-      id:
-        type: string
-      insurance:
-        type: boolean
-      inventory:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem'
-      inventory_id:
-        type: string
-      item_type:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TreatmentItemType'
-      medical_record:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
-        description: Relations
-      medical_record_id:
-        type: string
-      medicine:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine'
-      medicine_id:
-        type: string
-      memo:
-        type: string
-      procedure:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure'
-      procedure_id:
-        type: string
-      quantity:
-        type: integer
-      selected:
-        type: boolean
-      sort_order:
-        type: integer
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TreatmentStatus'
-      unit_price:
-        type: number
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.TreatmentItemType:
-    enum:
-    - consultation
-    - procedure
-    - medicine
-    - other
-    type: string
-    x-enum-varnames:
-    - TreatmentItemTypeConsultation
-    - TreatmentItemTypeProcedure
-    - TreatmentItemTypeMedicine
-    - TreatmentItemTypeOther
-  github_com_animal-ekarte_backend_internal_model.TreatmentPlan:
-    properties:
-      created_at:
-        type: string
-      deleted_at:
-        $ref: '#/definitions/gorm.DeletedAt'
-      discount_amount:
-        type: number
-      discount_rate:
-        type: number
-      hospitalization:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Hospitalization'
-      hospitalization_id:
-        type: string
-      id:
-        type: string
-      insurance:
-        type: boolean
-      medical_record:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
-        description: Relations
-      medical_record_id:
-        type: string
-      memo:
-        type: string
-      quantity:
-        type: integer
-      sort_order:
-        type: integer
-      subtotal:
-        type: number
-      treatment_content:
-        type: string
-      unit_price:
-        type: number
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.TreatmentStatus:
-    enum:
-    - 未完了
-    - 完了
-    - '-'
-    type: string
-    x-enum-varnames:
-    - TreatmentStatusIncomplete
-    - TreatmentStatusComplete
-    - TreatmentStatusNA
-  github_com_animal-ekarte_backend_internal_model.TrimmingCourse:
-    properties:
-      clinic_id:
-        type: string
-      code:
-        type: string
-      created_at:
-        type: string
-      description:
-        type: string
-      duration:
-        type: string
-      id:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      price:
-        type: number
-      sort_order:
-        type: integer
-      target_size:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TargetSize'
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.TrimmingOption:
-    properties:
-      clinic_id:
-        type: string
-      code:
-        type: string
-      combinable:
-        type: boolean
-      created_at:
-        type: string
-      description:
-        type: string
-      duration:
-        type: string
-      id:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      price:
-        type: number
-      sort_order:
-        type: integer
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.TrimmingRecord:
-    properties:
-      bt:
-        type: string
-      bw:
-        type: string
-      bw_unit:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.BodyWeightUnit'
-      clinic_id:
-        type: string
-      completed_image:
-        type: string
-      course:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingCourse'
-      course_id:
-        type: string
-      created_at:
-        type: string
-      date:
-        type: string
-      deleted_at:
-        $ref: '#/definitions/gorm.DeletedAt'
-      id:
-        type: string
-      options:
-        items:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingOption'
-        type: array
-      pet:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
-        description: Relations
-      pet_id:
-        type: string
-      remarks:
-        type: string
-      staff:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
-      staff_id:
-        type: string
-      status:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingStatus'
-      style_image:
-        type: string
-      style_request:
-        type: string
-      updated_at:
-        type: string
-      used_ribbon:
-        type: string
-      used_shampoo:
-        type: string
-      weight:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.TrimmingStatus:
-    enum:
-    - 完了
-    - 予約
-    - 進行中
-    type: string
-    x-enum-varnames:
-    - TrimmingStatusCompleted
-    - TrimmingStatusReserved
-    - TrimmingStatusInProgress
-  github_com_animal-ekarte_backend_internal_model.Vaccination:
-    properties:
-      created_at:
-        type: string
-      date:
-        type: string
-      deleted_at:
-        $ref: '#/definitions/gorm.DeletedAt'
-      doctor:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
-      doctor_id:
-        type: string
-      id:
-        type: string
-      lot1:
-        type: string
-      lot2:
-        type: string
-      lot3:
-        type: string
-      lot4:
-        type: string
-      medical_record:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
-        description: Relations
-      medical_record_id:
-        type: string
-      next_date:
-        type: string
-      next_schedule_type:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.NextScheduleType'
-      pet:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
-      pet_id:
-        type: string
-      remarks:
-        type: string
-      supplemental:
-        type: string
-      updated_at:
-        type: string
-      vaccine:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccine'
-      vaccine_id:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.Vaccine:
-    properties:
-      clinic_id:
-        type: string
-      code:
-        type: string
-      created_at:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      interval:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      price:
-        type: number
-      sort_order:
-        type: integer
-      species:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.VaccineSpecies'
-      updated_at:
-        type: string
-    type: object
-  github_com_animal-ekarte_backend_internal_model.VaccineSpecies:
-    enum:
-    - dog
-    - cat
-    - both
-    type: string
-    x-enum-varnames:
-    - VaccineSpeciesDog
-    - VaccineSpeciesCat
-    - VaccineSpeciesBoth
-  github_com_animal-ekarte_backend_internal_model.VisitType:
-    enum:
-    - first
-    - revisit
-    type: string
-    x-enum-varnames:
-    - VisitTypeFirst
-    - VisitTypeRevisit
-  github_com_animal-ekarte_backend_internal_model.Vital:
-    properties:
-      created_at:
-        type: string
-      heart_rate:
-        type: integer
-      id:
-        type: string
-      medical_record:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
-        description: Relations
-      medical_record_id:
-        type: string
-      notes:
-        type: string
-      recorded_at:
-        type: string
-      respiration_rate:
-        type: integer
-      staff:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
-      staff_id:
-        type: string
-      temperature:
-        type: number
-      weight:
-        type: number
-    type: object
-  github_com_animal-ekarte_backend_internal_model.VitalRecord:
-    properties:
-      created_at:
-        type: string
-      daily_record_id:
-        type: string
-      heart_rate:
-        type: integer
-      id:
-        type: string
-      notes:
-        type: string
-      respiration_rate:
-        type: integer
-      staff:
-        allOf:
-        - $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
-        description: Relations
-      staff_id:
-        type: string
-      temperature:
-        type: number
-      time:
-        type: string
-      weight:
-        type: number
-    type: object
-  github_com_animal-ekarte_backend_internal_model.WaterIntakeLevel:
-    enum:
-    - normal
-    - increased
-    - decreased
-    - none
-    type: string
-    x-enum-varnames:
-    - WaterIntakeLevelNormal
-    - WaterIntakeLevelIncreased
-    - WaterIntakeLevelDecreased
-    - WaterIntakeLevelNone
-  gorm.DeletedAt:
-    properties:
-      time:
-        type: string
-      valid:
-        description: Valid is true if Time is not NULL
-        type: boolean
-    type: object
-  internal_handler.LoginInput:
+  handler.LoginInput:
     properties:
       email:
         type: string
@@ -2113,19 +63,17 @@ definitions:
     - email
     - password
     type: object
-  internal_handler.LoginResponse:
+  handler.LoginResponse:
     properties:
       expires_at:
         type: integer
-      token:
-        type: string
+      user:
+        $ref: '#/definitions/handler.MeResponse'
       user_type:
         type: string
     type: object
-  internal_handler.MeClinicMembership:
+  handler.MeClinicMembership:
     properties:
-      branch_name:
-        type: string
       clinic_id:
         type: string
       clinic_name:
@@ -2133,13 +81,13 @@ definitions:
       is_main:
         type: boolean
     type: object
-  internal_handler.MeResponse:
+  handler.MeResponse:
     properties:
       avatar_url:
         type: string
       clinics:
         items:
-          $ref: '#/definitions/internal_handler.MeClinicMembership'
+          $ref: '#/definitions/handler.MeClinicMembership'
         type: array
       display_name:
         type: string
@@ -2160,7 +108,33 @@ definitions:
       user_type:
         type: string
     type: object
-  internal_handler.PaginatedResponse:
+  handler.MedicalRecordListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/model.MedicalRecord'
+        type: array
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
+  handler.OwnerListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/model.Owner'
+        type: array
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
+  handler.PaginatedResponse:
     properties:
       data: {}
       limit:
@@ -2170,14 +144,74 @@ definitions:
       total:
         type: integer
     type: object
-  internal_handler.createStaffRequest:
+  handler.PetListResponse:
     properties:
-      code:
+      data:
+        items:
+          $ref: '#/definitions/model.Pet'
+        type: array
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
+  handler.TrimmingListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/model.TrimmingRecord'
+        type: array
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
+  handler.VaccinationListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/model.Vaccination'
+        type: array
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
+  handler.createClinicRequest:
+    properties:
+      address:
+        type: string
+      director_name:
         type: string
       email:
         type: string
-      job_title_id:
+      fax_number:
         type: string
+      name:
+        type: string
+      phone_number:
+        type: string
+      postal_code:
+        type: string
+      registration_number:
+        type: string
+      website:
+        type: string
+    required:
+    - name
+    type: object
+  handler.createStaffRequest:
+    properties:
+      email:
+        type: string
+      job_title_id:
+        type: integer
       license_number:
         type: string
       name:
@@ -2188,13 +222,2039 @@ definitions:
       sort_order:
         type: integer
       staff_role:
-        $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.StaffRole'
+        $ref: '#/definitions/model.StaffRole'
     required:
     - email
     - name
     - password
     - staff_role
     type: object
+  model.AcquisitionType:
+    enum:
+    - purchased
+    - transferred
+    - rescued
+    - other
+    type: string
+    x-enum-varnames:
+    - AcquisitionTypePurchase
+    - AcquisitionTypeTransfer
+    - AcquisitionTypeProtected
+    - AcquisitionTypeOther
+  model.AnesthesiaType:
+    enum:
+    - none
+    - local
+    - general
+    type: string
+    x-enum-varnames:
+    - AnesthesiaTypeNone
+    - AnesthesiaTypeLocal
+    - AnesthesiaTypeGeneral
+  model.AnimalSpecies:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  model.AppetiteLevel:
+    enum:
+    - normal
+    - increased
+    - decreased
+    - none
+    type: string
+    x-enum-varnames:
+    - AppetiteLevelNormal
+    - AppetiteLevelIncreased
+    - AppetiteLevelDecreased
+    - AppetiteLevelNone
+  model.Billing:
+    properties:
+      clinic_id:
+        type: integer
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      has_insurance:
+        type: boolean
+      hospitalization_id:
+        type: integer
+      id:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/model.BillingItem'
+        type: array
+      medical_record:
+        $ref: '#/definitions/model.MedicalRecord'
+      medical_record_id:
+        type: integer
+      memo:
+        type: string
+      owner:
+        allOf:
+        - $ref: '#/definitions/model.Owner'
+        description: Relations
+      owner_id:
+        type: integer
+      payments:
+        items:
+          $ref: '#/definitions/model.Payment'
+        type: array
+      pet:
+        $ref: '#/definitions/model.Pet'
+      pet_id:
+        type: integer
+      scheduled_date:
+        type: string
+      status:
+        $ref: '#/definitions/model.BillingStatus'
+      subtotal:
+        type: integer
+      tax_total:
+        type: integer
+      total_amount:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  model.BillingItem:
+    properties:
+      billing_id:
+        type: integer
+      category:
+        $ref: '#/definitions/model.ItemCategory'
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_insurance_applicable:
+        type: boolean
+      name:
+        type: string
+      quantity:
+        type: integer
+      sort_order:
+        type: integer
+      source:
+        $ref: '#/definitions/model.ItemSource'
+      tax_rate:
+        type: number
+      unit_price:
+        type: number
+    type: object
+  model.BillingReview:
+    properties:
+      confirmed_at:
+        type: string
+      confirmed_by:
+        type: integer
+      confirmed_staff:
+        $ref: '#/definitions/model.Staff'
+      created_at:
+        type: string
+      id:
+        type: integer
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: integer
+      memo:
+        type: string
+      return_reason:
+        type: string
+      returned_at:
+        type: string
+      returned_by:
+        type: integer
+      returned_staff:
+        $ref: '#/definitions/model.Staff'
+      status:
+        $ref: '#/definitions/model.BillingReviewStatus'
+      updated_at:
+        type: string
+    type: object
+  model.BillingReviewStatus:
+    enum:
+    - pending
+    - confirmed
+    - returned
+    type: string
+    x-enum-varnames:
+    - BillingReviewStatusPending
+    - BillingReviewStatusConfirmed
+    - BillingReviewStatusReturned
+  model.BillingStatus:
+    enum:
+    - waiting
+    - completed
+    - cancelled
+    - pending
+    type: string
+    x-enum-varnames:
+    - BillingStatusWaiting
+    - BillingStatusCompleted
+    - BillingStatusCancelled
+    - BillingStatusPending
+  model.BillingUnit:
+    enum:
+    - per_day
+    - per_night
+    type: string
+    x-enum-varnames:
+    - BillingUnitPerDay
+    - BillingUnitPerNight
+  model.BodySize:
+    enum:
+    - small
+    - medium
+    - large
+    type: string
+    x-enum-varnames:
+    - BodySizeSmall
+    - BodySizeMedium
+    - BodySizeLarge
+  model.BodyWeightUnit:
+    enum:
+    - Kg
+    - g
+    type: string
+    x-enum-varnames:
+    - BodyWeightUnitKg
+    - BodyWeightUnitG
+  model.Cage:
+    properties:
+      cage_size:
+        $ref: '#/definitions/model.CageSize'
+      cage_type:
+        $ref: '#/definitions/model.CageType'
+      clinic_id:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  model.CageSize:
+    enum:
+    - small
+    - medium
+    - large
+    type: string
+    x-enum-varnames:
+    - CageSizeSmall
+    - CageSizeMedium
+    - CageSizeLarge
+  model.CageType:
+    enum:
+    - icu
+    - dog
+    - cat
+    - general
+    type: string
+    x-enum-varnames:
+    - CageTypeICU
+    - CageTypeDog
+    - CageTypeCat
+    - CageTypeGeneral
+  model.CareLogRecord:
+    properties:
+      created_at:
+        type: string
+      daily_record_id:
+        type: integer
+      id:
+        type: integer
+      notes:
+        type: string
+      staff:
+        allOf:
+        - $ref: '#/definitions/model.Staff'
+        description: Relations
+      staff_id:
+        type: integer
+      status:
+        $ref: '#/definitions/model.CareLogStatus'
+      time:
+        type: string
+      type:
+        $ref: '#/definitions/model.CareLogType'
+      value:
+        type: string
+    type: object
+  model.CareLogStatus:
+    enum:
+    - completed
+    - partial
+    - skipped
+    type: string
+    x-enum-varnames:
+    - CareLogStatusCompleted
+    - CareLogStatusPartial
+    - CareLogStatusSkipped
+  model.CareLogType:
+    enum:
+    - food
+    - excretion
+    - medicine
+    - treatment
+    - other
+    type: string
+    x-enum-varnames:
+    - CareLogTypeFood
+    - CareLogTypeExcretion
+    - CareLogTypeMedicine
+    - CareLogTypeTreatment
+    - CareLogTypeOther
+  model.CarePlanItem:
+    properties:
+      category:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      hospitalization_id:
+        type: integer
+      hospitalization_plan:
+        $ref: '#/definitions/model.HospitalizationPlan'
+      hospitalization_plan_id:
+        type: integer
+      id:
+        type: integer
+      medicine:
+        allOf:
+        - $ref: '#/definitions/model.Medicine'
+        description: Relations
+      medicine_id:
+        type: integer
+      name:
+        type: string
+      notes:
+        type: string
+      procedure:
+        $ref: '#/definitions/model.Procedure'
+      procedure_id:
+        type: integer
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/model.CarePlanStatus'
+      timing:
+        items:
+          type: string
+        type: array
+      type:
+        $ref: '#/definitions/model.CarePlanType'
+      unit_price:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  model.CarePlanStatus:
+    enum:
+    - active
+    - completed
+    - discontinued
+    type: string
+    x-enum-varnames:
+    - CarePlanStatusActive
+    - CarePlanStatusCompleted
+    - CarePlanStatusDiscontinued
+  model.CarePlanType:
+    enum:
+    - food
+    - medicine
+    - treatment
+    - instruction
+    - item
+    type: string
+    x-enum-varnames:
+    - CarePlanTypeFood
+    - CarePlanTypeMedicine
+    - CarePlanTypeTreatment
+    - CarePlanTypeInstruction
+    - CarePlanTypeItem
+  model.Checkup:
+    properties:
+      checkup_type:
+        $ref: '#/definitions/model.CheckupType'
+      checkup_type_id:
+        type: integer
+      created_at:
+        type: string
+      date:
+        type: string
+      doctor:
+        $ref: '#/definitions/model.Staff'
+      doctor_id:
+        type: integer
+      id:
+        type: integer
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: integer
+      next_date:
+        type: string
+      pet:
+        $ref: '#/definitions/model.Pet'
+      pet_id:
+        type: integer
+      result:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.CheckupType:
+    properties:
+      clinic_id:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      interval:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      target_age:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.ChiefComplaintCategory:
+    properties:
+      clinic_id:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  model.Clinic:
+    properties:
+      address:
+        type: string
+      company_id:
+        type: integer
+      created_at:
+        type: string
+      director_name:
+        type: string
+      email:
+        type: string
+      fax_number:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      logo_url:
+        type: string
+      name:
+        type: string
+      phone_number:
+        type: string
+      postal_code:
+        type: string
+      registration_number:
+        type: string
+      updated_at:
+        type: string
+      website:
+        type: string
+    type: object
+  model.ClinicalPlan:
+    properties:
+      created_at:
+        type: string
+      diagnosis_category:
+        $ref: '#/definitions/model.DiagnosisCategory'
+      diagnosis_category_id:
+        type: integer
+      diagnosis_details:
+        type: string
+      diagnosis_name:
+        $ref: '#/definitions/model.DiagnosisName'
+      diagnosis_name_id:
+        type: integer
+      id:
+        type: integer
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: integer
+      physical_exam:
+        type: string
+      treatment_policy:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.Company:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      director_name:
+        type: string
+      email:
+        type: string
+      fax_number:
+        type: string
+      id:
+        type: integer
+      logo_url:
+        type: string
+      name:
+        type: string
+      phone_number:
+        type: string
+      postal_code:
+        type: string
+      registration_number:
+        type: string
+      updated_at:
+        type: string
+      website:
+        type: string
+    type: object
+  model.Consultation:
+    properties:
+      clinic_id:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      duration:
+        type: integer
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      time_condition:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.DailyRecord:
+    properties:
+      care_log_records:
+        items:
+          $ref: '#/definitions/model.CareLogRecord'
+        type: array
+      created_at:
+        type: string
+      date:
+        type: string
+      hospitalization_id:
+        type: integer
+      id:
+        type: integer
+      staff_note_records:
+        items:
+          $ref: '#/definitions/model.StaffNoteRecord'
+        type: array
+      updated_at:
+        type: string
+      vital_records:
+        description: Relations
+        items:
+          $ref: '#/definitions/model.VitalRecord'
+        type: array
+    type: object
+  model.DangerLevel:
+    enum:
+    - low
+    - medium
+    - high
+    type: string
+    x-enum-varnames:
+    - DangerLevelLow
+    - DangerLevelMedium
+    - DangerLevelHigh
+  model.DiagnosisCategory:
+    properties:
+      clinic_id:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      names:
+        description: Relations
+        items:
+          $ref: '#/definitions/model.DiagnosisName'
+        type: array
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  model.DiagnosisName:
+    properties:
+      category:
+        allOf:
+        - $ref: '#/definitions/model.DiagnosisCategory'
+        description: Relations
+      clinic_id:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      diagnosis_category_id:
+        type: integer
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  model.DosageForm:
+    enum:
+    - tablet
+    - liquid
+    - injection
+    - topical
+    - powder
+    type: string
+    x-enum-varnames:
+    - DosageFormTablet
+    - DosageFormLiquid
+    - DosageFormInjection
+    - DosageFormTopical
+    - DosageFormPowder
+  model.Estimate:
+    properties:
+      clinic_id:
+        type: integer
+      comment:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      created_staff:
+        $ref: '#/definitions/model.Staff'
+      discount_amount:
+        type: number
+      estimate_no:
+        type: string
+      id:
+        type: integer
+      insurance_amount:
+        type: number
+      items:
+        items:
+          $ref: '#/definitions/model.EstimateItem'
+        type: array
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: integer
+      notes:
+        type: string
+      owner:
+        $ref: '#/definitions/model.Owner'
+      owner_id:
+        type: integer
+      status:
+        $ref: '#/definitions/model.EstimateStatus'
+      subtotal:
+        type: number
+      tax_total:
+        type: number
+      title:
+        type: string
+      total_amount:
+        type: number
+      updated_at:
+        type: string
+      valid_until:
+        type: string
+    type: object
+  model.EstimateItem:
+    properties:
+      category:
+        $ref: '#/definitions/model.ItemCategory'
+      consultation:
+        allOf:
+        - $ref: '#/definitions/model.Consultation'
+        description: Relations
+      consultation_id:
+        type: integer
+      created_at:
+        type: string
+      discount_amount:
+        type: number
+      discount_rate:
+        type: number
+      estimate_id:
+        type: integer
+      id:
+        type: integer
+      is_insurance_applicable:
+        type: boolean
+      medicine:
+        $ref: '#/definitions/model.Medicine'
+      medicine_id:
+        type: integer
+      name:
+        type: string
+      procedure:
+        $ref: '#/definitions/model.Procedure'
+      procedure_id:
+        type: integer
+      quantity:
+        type: integer
+      sort_order:
+        type: integer
+      tax_rate:
+        type: number
+      unit_price:
+        type: number
+    type: object
+  model.EstimateStatus:
+    enum:
+    - draft
+    - sent
+    - approved
+    - rejected
+    type: string
+    x-enum-varnames:
+    - EstimateStatusDraft
+    - EstimateStatusSent
+    - EstimateStatusApproved
+    - EstimateStatusRejected
+  model.Exam:
+    properties:
+      created_at:
+        type: string
+      date:
+        type: string
+      doctor:
+        $ref: '#/definitions/model.Staff'
+      doctor_id:
+        type: integer
+      exam_type:
+        $ref: '#/definitions/model.ExamType'
+      exam_type_id:
+        type: integer
+      id:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/model.ExamItem'
+        type: array
+      machine:
+        type: string
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: integer
+      pet:
+        $ref: '#/definitions/model.Pet'
+      pet_id:
+        type: integer
+      result_summary:
+        type: string
+      status:
+        $ref: '#/definitions/model.ExaminationStatus'
+      updated_at:
+        type: string
+    type: object
+  model.ExamItem:
+    properties:
+      created_at:
+        type: string
+      exam_id:
+        type: integer
+      id:
+        type: integer
+      inspection_value:
+        type: string
+      name:
+        type: string
+      normal_value:
+        type: string
+      ref:
+        type: string
+      result:
+        type: string
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/model.ExaminationResultStatus'
+      unit:
+        type: string
+    type: object
+  model.ExamType:
+    properties:
+      clinic_id:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      items:
+        description: Relations
+        items:
+          $ref: '#/definitions/model.ExamTypeItem'
+        type: array
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  model.ExamTypeItem:
+    properties:
+      created_at:
+        type: string
+      exam_type_id:
+        type: integer
+      id:
+        type: integer
+      inspection_value:
+        type: string
+      name:
+        type: string
+      normal_value:
+        type: string
+      sort_order:
+        type: integer
+    type: object
+  model.ExaminationResultStatus:
+    enum:
+    - normal
+    - high
+    - low
+    type: string
+    x-enum-varnames:
+    - ExaminationResultStatusNormal
+    - ExaminationResultStatusHigh
+    - ExaminationResultStatusLow
+  model.ExaminationStatus:
+    enum:
+    - 依頼中
+    - 検査中
+    - 完了
+    type: string
+    x-enum-varnames:
+    - ExaminationStatusPending
+    - ExaminationStatusInProgress
+    - ExaminationStatusCompleted
+  model.Hospitalization:
+    properties:
+      cage:
+        $ref: '#/definitions/model.Cage'
+      cage_id:
+        type: integer
+      care_plan_items:
+        items:
+          $ref: '#/definitions/model.CarePlanItem'
+        type: array
+      clinic_id:
+        type: integer
+      created_at:
+        type: string
+      daily_records:
+        items:
+          $ref: '#/definitions/model.DailyRecord'
+        type: array
+      doctor:
+        $ref: '#/definitions/model.Staff'
+      doctor_id:
+        type: integer
+      end_date:
+        type: string
+      hospitalization_type:
+        $ref: '#/definitions/model.HospitalizationType'
+      id:
+        type: integer
+      memo:
+        type: string
+      owner:
+        allOf:
+        - $ref: '#/definitions/model.Owner'
+        description: Relations
+      owner_id:
+        type: integer
+      owner_request:
+        type: string
+      pet:
+        $ref: '#/definitions/model.Pet'
+      pet_id:
+        type: integer
+      staff_notes:
+        type: string
+      start_date:
+        type: string
+      status:
+        $ref: '#/definitions/model.HospitalizationStatus'
+      treatment_plans:
+        items:
+          $ref: '#/definitions/model.TreatmentPlan'
+        type: array
+      updated_at:
+        type: string
+    type: object
+  model.HospitalizationPlan:
+    properties:
+      billing_unit:
+        $ref: '#/definitions/model.BillingUnit'
+      body_size:
+        $ref: '#/definitions/model.BodySize'
+      clinic_id:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  model.HospitalizationStatus:
+    enum:
+    - admitted
+    - discharged
+    - reserved
+    type: string
+    x-enum-varnames:
+    - HospitalizationStatusAdmitted
+    - HospitalizationStatusDischarged
+    - HospitalizationStatusReserved
+  model.HospitalizationType:
+    enum:
+    - hospitalization
+    - hotel
+    type: string
+    x-enum-varnames:
+    - HospitalizationTypeInpatient
+    - HospitalizationTypeHotel
+  model.Inquiry:
+    properties:
+      allergy_info:
+        type: string
+      appetite:
+        $ref: '#/definitions/model.AppetiteLevel'
+      chief_complaint:
+        type: string
+      chief_complaint_category:
+        $ref: '#/definitions/model.ChiefComplaintCategory'
+      chief_complaint_category_id:
+        type: integer
+      created_at:
+        type: string
+      current_medications:
+        type: string
+      history:
+        type: string
+      id:
+        type: integer
+      last_defecation:
+        type: string
+      last_meal:
+        type: string
+      last_urination:
+        type: string
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: integer
+      notes:
+        type: string
+      owner_observations:
+        type: string
+      staff:
+        $ref: '#/definitions/model.Staff'
+      staff_id:
+        type: integer
+      updated_at:
+        type: string
+      water_intake:
+        $ref: '#/definitions/model.WaterIntakeLevel'
+    type: object
+  model.Insurance:
+    properties:
+      clinic_id:
+        type: integer
+      contact_phone:
+        type: string
+      coverage_rate:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  model.InventoryCategory:
+    enum:
+    - medicine
+    - consumable
+    - food
+    - other
+    type: string
+    x-enum-varnames:
+    - InventoryCategoryMedicine
+    - InventoryCategoryConsumable
+    - InventoryCategoryFood
+    - InventoryCategoryOther
+  model.InventoryItem:
+    properties:
+      category:
+        $ref: '#/definitions/model.InventoryCategory'
+      clinic_id:
+        type: integer
+      created_at:
+        type: string
+      expiry_date:
+        type: string
+      id:
+        type: integer
+      last_restocked:
+        type: string
+      location:
+        type: string
+      min_stock_level:
+        type: integer
+      name:
+        type: string
+      quantity:
+        type: integer
+      status:
+        $ref: '#/definitions/model.InventoryStatus'
+      supplier:
+        type: string
+      unit:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.InventoryStatus:
+    enum:
+    - sufficient
+    - low
+    - out_of_stock
+    type: string
+    x-enum-varnames:
+    - InventoryStatusSufficient
+    - InventoryStatusLow
+    - InventoryStatusOutOfStock
+  model.ItemCategory:
+    enum:
+    - examination
+    - test
+    - procedure
+    - surgery
+    - medicine
+    - food
+    - goods
+    - other
+    type: string
+    x-enum-varnames:
+    - ItemCategoryExamination
+    - ItemCategoryTest
+    - ItemCategoryProcedure
+    - ItemCategorySurgery
+    - ItemCategoryMedicine
+    - ItemCategoryFood
+    - ItemCategoryGoods
+    - ItemCategoryOther
+  model.ItemSource:
+    enum:
+    - medical_record
+    - manual
+    - hospitalization
+    type: string
+    x-enum-varnames:
+    - ItemSourceMedicalRecord
+    - ItemSourceManual
+    - ItemSourceHospitalization
+  model.JobTitle:
+    properties:
+      clinic_id:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  model.MedicalRecord:
+    properties:
+      billing_review:
+        $ref: '#/definitions/model.BillingReview'
+      checkups:
+        items:
+          $ref: '#/definitions/model.Checkup'
+        type: array
+      clinic_id:
+        type: integer
+      clinical_plan:
+        $ref: '#/definitions/model.ClinicalPlan'
+      created_at:
+        type: string
+      date:
+        type: string
+      doctor:
+        $ref: '#/definitions/model.Staff'
+      doctor_id:
+        type: integer
+      estimates:
+        items:
+          $ref: '#/definitions/model.Estimate'
+        type: array
+      exams:
+        items:
+          $ref: '#/definitions/model.Exam'
+        type: array
+      id:
+        type: integer
+      inquiry:
+        $ref: '#/definitions/model.Inquiry'
+      owner:
+        allOf:
+        - $ref: '#/definitions/model.Owner'
+        description: Relations
+      owner_id:
+        type: integer
+      pet:
+        $ref: '#/definitions/model.Pet'
+      pet_id:
+        type: integer
+      record_no:
+        type: string
+      reservation_appointment_id:
+        type: integer
+      status:
+        $ref: '#/definitions/model.MedicalRecordStatus'
+      treatments:
+        items:
+          $ref: '#/definitions/model.Treatment'
+        type: array
+      updated_at:
+        type: string
+      vaccinations:
+        items:
+          $ref: '#/definitions/model.Vaccination'
+        type: array
+      vitals:
+        items:
+          $ref: '#/definitions/model.Vital'
+        type: array
+    type: object
+  model.MedicalRecordStatus:
+    enum:
+    - draft
+    - finalized
+    type: string
+    x-enum-varnames:
+    - MedicalRecordStatusDraft
+    - MedicalRecordStatusFinalized
+  model.Medicine:
+    properties:
+      clinic_id:
+        type: integer
+      created_at:
+        type: string
+      default_quantity:
+        type: integer
+      description:
+        type: string
+      dosage_form:
+        $ref: '#/definitions/model.DosageForm'
+      id:
+        type: integer
+      inventory:
+        allOf:
+        - $ref: '#/definitions/model.InventoryItem'
+        description: Relations
+      inventory_id:
+        type: integer
+      is_active:
+        type: boolean
+      medicine_unit:
+        $ref: '#/definitions/model.MedicineUnit'
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  model.MedicineUnit:
+    enum:
+    - per_tablet
+    - per_ml
+    - per_dose
+    - per_gram
+    type: string
+    x-enum-varnames:
+    - MedicineUnitPerTablet
+    - MedicineUnitPerML
+    - MedicineUnitPerDose
+    - MedicineUnitPerGram
+  model.MembershipType:
+    enum:
+    - non_member
+    - member
+    - deceased
+    - transferred
+    type: string
+    x-enum-varnames:
+    - MembershipTypeNonMember
+    - MembershipTypeMember
+    - MembershipTypeDeceased
+    - MembershipTypeOther
+  model.NextScheduleType:
+    enum:
+    - 3weeks
+    - 4weeks
+    - 1year
+    - other
+    type: string
+    x-enum-varnames:
+    - NextScheduleType3Weeks
+    - NextScheduleType4Weeks
+    - NextScheduleType1Year
+    - NextScheduleTypeOther
+  model.Owner:
+    properties:
+      address1:
+        type: string
+      address2:
+        type: string
+      birth_date:
+        type: string
+      clinic_id:
+        type: integer
+      company:
+        type: string
+      company_phone:
+        type: string
+      created_at:
+        type: string
+      discount_rate:
+        type: number
+      email:
+        type: string
+      home_address1:
+        type: string
+      home_address2:
+        type: string
+      home_postal_code:
+        type: string
+      id:
+        type: integer
+      is_dangerous:
+        type: boolean
+      membership_type:
+        $ref: '#/definitions/model.MembershipType'
+      owner_name:
+        type: string
+      owner_name_kana:
+        type: string
+      pets:
+        description: Relations
+        items:
+          $ref: '#/definitions/model.Pet'
+        type: array
+      phone:
+        type: string
+      postal_code:
+        type: string
+      remarks:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.Payment:
+    properties:
+      billing_amount:
+        type: number
+      billing_id:
+        type: integer
+      change_amount:
+        type: number
+      created_at:
+        type: string
+      discount_amount:
+        type: number
+      id:
+        type: integer
+      insurance_amount:
+        type: number
+      insurance_name:
+        type: string
+      insurance_ratio:
+        type: number
+      method:
+        $ref: '#/definitions/model.PaymentMethod'
+      received_amount:
+        type: number
+      subtotal:
+        type: number
+      tax_total:
+        type: number
+      total_amount:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  model.PaymentMethod:
+    enum:
+    - cash
+    - credit_card
+    - electronic_money
+    type: string
+    x-enum-varnames:
+    - PaymentMethodCash
+    - PaymentMethodCreditCard
+    - PaymentMethodElectronicMoney
+  model.Pet:
+    properties:
+      acquisition_type:
+        $ref: '#/definitions/model.AcquisitionType'
+      animal_species:
+        $ref: '#/definitions/model.AnimalSpecies'
+      animal_species_id:
+        type: integer
+      birth_date:
+        type: string
+      breed:
+        type: string
+      clinic_id:
+        type: integer
+      color:
+        type: string
+      created_at:
+        type: string
+      danger_level:
+        $ref: '#/definitions/model.DangerLevel'
+      environment:
+        type: string
+      food:
+        type: string
+      gender:
+        $ref: '#/definitions/model.PetGender'
+      id:
+        type: integer
+      insurance:
+        $ref: '#/definitions/model.Insurance'
+      insurance_id:
+        type: integer
+      last_visit:
+        type: string
+      name:
+        type: string
+      neutered_date:
+        type: string
+      owner:
+        allOf:
+        - $ref: '#/definitions/model.Owner'
+        description: Relations
+      owner_id:
+        type: integer
+      pet_name_kana:
+        type: string
+      pet_number:
+        type: string
+      phone:
+        type: string
+      remarks:
+        type: string
+      status:
+        $ref: '#/definitions/model.PetStatus'
+      updated_at:
+        type: string
+      weight:
+        type: number
+    type: object
+  model.PetGender:
+    enum:
+    - male
+    - female
+    - unknown
+    type: string
+    x-enum-varnames:
+    - PetGenderMale
+    - PetGenderFemale
+    - PetGenderUnknown
+  model.PetStatus:
+    enum:
+    - alive
+    - deceased
+    type: string
+    x-enum-varnames:
+    - PetStatusAlive
+    - PetStatusDeceased
+  model.Procedure:
+    properties:
+      anesthesia:
+        $ref: '#/definitions/model.AnesthesiaType'
+      clinic_id:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      duration:
+        type: integer
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  model.ReservationAppointment:
+    properties:
+      clinic_id:
+        type: integer
+      created_at:
+        type: string
+      doctor:
+        $ref: '#/definitions/model.Staff'
+      doctor_id:
+        type: integer
+      end_time:
+        type: string
+      id:
+        type: integer
+      is_designated:
+        type: boolean
+      notes:
+        type: string
+      owner:
+        allOf:
+        - $ref: '#/definitions/model.Owner'
+        description: Relations
+      owner_id:
+        type: integer
+      pet:
+        $ref: '#/definitions/model.Pet'
+      pet_id:
+        type: integer
+      service_type:
+        $ref: '#/definitions/model.ServiceType'
+      service_type_id:
+        type: integer
+      start_time:
+        type: string
+      status:
+        $ref: '#/definitions/model.ReservationStatus'
+      updated_at:
+        type: string
+      visit_type:
+        $ref: '#/definitions/model.VisitType'
+    type: object
+  model.ReservationStatus:
+    enum:
+    - confirmed
+    - pending
+    - cancelled
+    - checked_in
+    - in_consultation
+    - accounting
+    - completed
+    type: string
+    x-enum-varnames:
+    - ReservationStatusConfirmed
+    - ReservationStatusPending
+    - ReservationStatusCancelled
+    - ReservationStatusCheckedIn
+    - ReservationStatusInConsultation
+    - ReservationStatusAccounting
+    - ReservationStatusCompleted
+  model.ServiceType:
+    properties:
+      clinic_id:
+        type: integer
+      color:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  model.Staff:
+    properties:
+      clinic_id:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      job_title:
+        allOf:
+        - $ref: '#/definitions/model.JobTitle'
+        description: Relations
+      job_title_id:
+        type: integer
+      license_number:
+        type: string
+      name:
+        type: string
+      sort_order:
+        type: integer
+      staff_role:
+        $ref: '#/definitions/model.StaffRole'
+      updated_at:
+        type: string
+    type: object
+  model.StaffNoteRecord:
+    properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      daily_record_id:
+        type: integer
+      id:
+        type: integer
+      staff:
+        allOf:
+        - $ref: '#/definitions/model.Staff'
+        description: Relations
+      staff_id:
+        type: integer
+      time:
+        type: string
+    type: object
+  model.StaffRole:
+    enum:
+    - veterinarian
+    - nurse
+    - trimmer
+    - reception
+    - manager
+    type: string
+    x-enum-varnames:
+    - StaffRoleVeterinarian
+    - StaffRoleNurse
+    - StaffRoleTrimmer
+    - StaffRoleReception
+    - StaffRoleManager
+  model.TargetSize:
+    enum:
+    - small
+    - medium
+    - large
+    - cat
+    type: string
+    x-enum-varnames:
+    - TargetSizeSmall
+    - TargetSizeMedium
+    - TargetSizeLarge
+    - TargetSizeCat
+  model.Treatment:
+    properties:
+      consultation:
+        $ref: '#/definitions/model.Consultation'
+      consultation_id:
+        type: integer
+      content:
+        type: string
+      created_at:
+        type: string
+      discount_amount:
+        type: number
+      discount_rate:
+        type: number
+      id:
+        type: integer
+      insurance:
+        type: boolean
+      inventory:
+        $ref: '#/definitions/model.InventoryItem'
+      inventory_id:
+        type: integer
+      item_type:
+        $ref: '#/definitions/model.TreatmentItemType'
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: integer
+      medicine:
+        $ref: '#/definitions/model.Medicine'
+      medicine_id:
+        type: integer
+      memo:
+        type: string
+      procedure:
+        $ref: '#/definitions/model.Procedure'
+      procedure_id:
+        type: integer
+      quantity:
+        type: integer
+      selected:
+        type: boolean
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/model.TreatmentStatus'
+      unit_price:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  model.TreatmentItemType:
+    enum:
+    - consultation
+    - procedure
+    - medicine
+    - other
+    type: string
+    x-enum-varnames:
+    - TreatmentItemTypeConsultation
+    - TreatmentItemTypeProcedure
+    - TreatmentItemTypeMedicine
+    - TreatmentItemTypeOther
+  model.TreatmentPlan:
+    properties:
+      created_at:
+        type: string
+      discount_amount:
+        type: number
+      discount_rate:
+        type: number
+      hospitalization:
+        $ref: '#/definitions/model.Hospitalization'
+      hospitalization_id:
+        type: integer
+      id:
+        type: integer
+      insurance:
+        type: boolean
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: integer
+      memo:
+        type: string
+      quantity:
+        type: integer
+      sort_order:
+        type: integer
+      subtotal:
+        type: number
+      treatment_content:
+        type: string
+      unit_price:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  model.TreatmentStatus:
+    enum:
+    - 未完了
+    - 完了
+    - '-'
+    type: string
+    x-enum-varnames:
+    - TreatmentStatusIncomplete
+    - TreatmentStatusComplete
+    - TreatmentStatusNA
+  model.TrimmingCourse:
+    properties:
+      clinic_id:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      duration:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      target_size:
+        $ref: '#/definitions/model.TargetSize'
+      updated_at:
+        type: string
+    type: object
+  model.TrimmingOption:
+    properties:
+      clinic_id:
+        type: integer
+      combinable:
+        type: boolean
+      created_at:
+        type: string
+      description:
+        type: string
+      duration:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  model.TrimmingRecord:
+    properties:
+      bt:
+        type: string
+      bw:
+        type: string
+      bw_unit:
+        $ref: '#/definitions/model.BodyWeightUnit'
+      clinic_id:
+        type: integer
+      completed_image:
+        type: string
+      course:
+        $ref: '#/definitions/model.TrimmingCourse'
+      course_id:
+        type: integer
+      created_at:
+        type: string
+      date:
+        type: string
+      id:
+        type: integer
+      options:
+        items:
+          $ref: '#/definitions/model.TrimmingOption'
+        type: array
+      pet:
+        allOf:
+        - $ref: '#/definitions/model.Pet'
+        description: Relations
+      pet_id:
+        type: integer
+      remarks:
+        type: string
+      staff:
+        $ref: '#/definitions/model.Staff'
+      staff_id:
+        type: integer
+      status:
+        $ref: '#/definitions/model.TrimmingStatus'
+      style_image:
+        type: string
+      style_request:
+        type: string
+      updated_at:
+        type: string
+      used_ribbon:
+        type: string
+      used_shampoo:
+        type: string
+      weight:
+        type: string
+    type: object
+  model.TrimmingStatus:
+    enum:
+    - completed
+    - reserved
+    - in_progress
+    type: string
+    x-enum-varnames:
+    - TrimmingStatusCompleted
+    - TrimmingStatusReserved
+    - TrimmingStatusInProgress
+  model.Vaccination:
+    properties:
+      created_at:
+        type: string
+      date:
+        type: string
+      doctor:
+        $ref: '#/definitions/model.Staff'
+      doctor_id:
+        type: integer
+      id:
+        type: integer
+      lot1:
+        type: string
+      lot2:
+        type: string
+      lot3:
+        type: string
+      lot4:
+        type: string
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: integer
+      next_date:
+        type: string
+      next_schedule_type:
+        $ref: '#/definitions/model.NextScheduleType'
+      pet:
+        $ref: '#/definitions/model.Pet'
+      pet_id:
+        type: integer
+      remarks:
+        type: string
+      supplemental:
+        type: string
+      updated_at:
+        type: string
+      vaccine:
+        $ref: '#/definitions/model.Vaccine'
+      vaccine_id:
+        type: integer
+    type: object
+  model.Vaccine:
+    properties:
+      clinic_id:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      interval:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      species:
+        $ref: '#/definitions/model.VaccineSpecies'
+      updated_at:
+        type: string
+    type: object
+  model.VaccineSpecies:
+    enum:
+    - dog
+    - cat
+    - both
+    type: string
+    x-enum-varnames:
+    - VaccineSpeciesDog
+    - VaccineSpeciesCat
+    - VaccineSpeciesBoth
+  model.VisitType:
+    enum:
+    - first
+    - revisit
+    type: string
+    x-enum-varnames:
+    - VisitTypeFirst
+    - VisitTypeRevisit
+  model.Vital:
+    properties:
+      created_at:
+        type: string
+      heart_rate:
+        type: integer
+      id:
+        type: integer
+      medical_record:
+        allOf:
+        - $ref: '#/definitions/model.MedicalRecord'
+        description: Relations
+      medical_record_id:
+        type: integer
+      notes:
+        type: string
+      recorded_at:
+        type: string
+      respiration_rate:
+        type: integer
+      staff:
+        $ref: '#/definitions/model.Staff'
+      staff_id:
+        type: integer
+      temperature:
+        type: number
+      weight:
+        type: number
+    type: object
+  model.VitalRecord:
+    properties:
+      created_at:
+        type: string
+      daily_record_id:
+        type: integer
+      heart_rate:
+        type: integer
+      id:
+        type: integer
+      notes:
+        type: string
+      respiration_rate:
+        type: integer
+      staff:
+        allOf:
+        - $ref: '#/definitions/model.Staff'
+        description: Relations
+      staff_id:
+        type: integer
+      temperature:
+        type: number
+      time:
+        type: string
+      weight:
+        type: number
+    type: object
+  model.WaterIntakeLevel:
+    enum:
+    - normal
+    - increased
+    - decreased
+    - none
+    type: string
+    x-enum-varnames:
+    - WaterIntakeLevelNormal
+    - WaterIntakeLevelIncreased
+    - WaterIntakeLevelDecreased
+    - WaterIntakeLevelNone
 host: localhost:8080
 info:
   contact: {}
@@ -2226,7 +2286,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.PaginatedResponse'
+            $ref: '#/definitions/handler.BillingListResponse'
         "400":
           description: Bad Request
           schema:
@@ -2254,14 +2314,14 @@ paths:
         name: input
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Billing'
+          $ref: '#/definitions/model.Billing'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Billing'
+            $ref: '#/definitions/model.Billing'
         "400":
           description: Bad Request
           schema:
@@ -2289,14 +2349,14 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Billing'
+            $ref: '#/definitions/model.Billing'
         "400":
           description: Bad Request
           schema:
@@ -2329,20 +2389,20 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 更新する会計情報
         in: body
         name: input
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Billing'
+          $ref: '#/definitions/model.Billing'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Billing'
+            $ref: '#/definitions/model.Billing'
         "400":
           description: Bad Request
           schema:
@@ -2377,14 +2437,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.LoginInput'
+          $ref: '#/definitions/handler.LoginInput'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.LoginResponse'
+            $ref: '#/definitions/handler.LoginResponse'
         "400":
           description: Bad Request
           schema:
@@ -2406,6 +2466,21 @@ paths:
       summary: ログイン
       tags:
       - Auth
+  /auth/logout:
+    post:
+      description: httpOnly Cookieを無効化してログアウト
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ログアウト
+      tags:
+      - Auth
   /clinics:
     get:
       consumes:
@@ -2418,7 +2493,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Clinic'
+              $ref: '#/definitions/model.Clinic'
             type: array
         "500":
           description: Internal Server Error
@@ -2431,7 +2506,84 @@ paths:
       summary: クリニック一覧取得
       tags:
       - Clinics
+    post:
+      consumes:
+      - application/json
+      description: 新規クリニックを登録する
+      parameters:
+      - description: クリニック登録情報
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createClinicRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Clinic'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: クリニック作成
+      tags:
+      - Clinics
   /clinics/{id}:
+    delete:
+      description: 指定IDのクリニックを削除する
+      parameters:
+      - description: クリニックID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: クリニック削除
+      tags:
+      - Clinics
     get:
       consumes:
       - application/json
@@ -2441,14 +2593,14 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Clinic'
+            $ref: '#/definitions/model.Clinic'
         "400":
           description: Bad Request
           schema:
@@ -2472,6 +2624,52 @@ paths:
       summary: クリニック詳細取得
       tags:
       - Clinics
+    patch:
+      consumes:
+      - application/json
+      description: 指定IDのクリニック（院）情報を更新する
+      parameters:
+      - description: クリニックID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新するクリニック情報
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.Clinic'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Clinic'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: クリニック情報更新
+      tags:
+      - Clinics
   /company:
     get:
       consumes:
@@ -2483,7 +2681,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Company'
+            $ref: '#/definitions/model.Company'
         "404":
           description: Not Found
           schema:
@@ -2511,14 +2709,14 @@ paths:
         name: input
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Company'
+          $ref: '#/definitions/model.Company'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Company'
+            $ref: '#/definitions/model.Company'
         "400":
           description: Bad Request
           schema:
@@ -2542,6 +2740,246 @@ paths:
       summary: 企業情報更新
       tags:
       - Company
+  /examinations:
+    get:
+      consumes:
+      - application/json
+      description: 検査記録の一覧をページネーション付きで取得する
+      parameters:
+      - description: 'ページ番号 (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: '件数 (1-100, default: 20)'
+        in: query
+        name: limit
+        type: integer
+      - description: ペットIDフィルター
+        in: query
+        name: pet_id
+        type: integer
+      - description: 飼主IDフィルター
+        in: query
+        name: owner_id
+        type: integer
+      - description: ステータスフィルター
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.ExamListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 検査一覧取得
+      tags:
+      - Examinations
+    post:
+      consumes:
+      - application/json
+      description: 新しい検査記録を作成する
+      parameters:
+      - description: 検査情報
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.Exam'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Exam'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 検査作成
+      tags:
+      - Examinations
+  /examinations/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定IDの検査記録を削除する
+      parameters:
+      - description: 検査ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 検査削除
+      tags:
+      - Examinations
+    get:
+      consumes:
+      - application/json
+      description: 指定IDの検査記録を取得する
+      parameters:
+      - description: 検査ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Exam'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 検査詳細取得
+      tags:
+      - Examinations
+    patch:
+      consumes:
+      - application/json
+      description: 指定IDの検査記録を更新する
+      parameters:
+      - description: 検査ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新する検査情報
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.Exam'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Exam'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 検査更新
+      tags:
+      - Examinations
   /hospitalizations:
     get:
       consumes:
@@ -2566,7 +3004,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.PaginatedResponse'
+            $ref: '#/definitions/handler.HospitalizationListResponse'
         "400":
           description: Bad Request
           schema:
@@ -2600,14 +3038,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Hospitalization'
+          $ref: '#/definitions/model.Hospitalization'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Hospitalization'
+            $ref: '#/definitions/model.Hospitalization'
         "400":
           description: Bad Request
           schema:
@@ -2637,11 +3075,11 @@ paths:
       - application/json
       description: 指定IDの入院情報を削除する
       parameters:
-      - description: 入院UUID
+      - description: 入院ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -2681,18 +3119,18 @@ paths:
       - application/json
       description: 指定IDの入院情報を取得する
       parameters:
-      - description: 入院UUID
+      - description: 入院ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Hospitalization'
+            $ref: '#/definitions/model.Hospitalization'
         "400":
           description: Bad Request
           schema:
@@ -2727,24 +3165,24 @@ paths:
       - application/json
       description: 指定IDの入院情報を更新する
       parameters:
-      - description: 入院UUID
+      - description: 入院ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 入院情報
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Hospitalization'
+          $ref: '#/definitions/model.Hospitalization'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Hospitalization'
+            $ref: '#/definitions/model.Hospitalization'
         "400":
           description: Bad Request
           schema:
@@ -2792,13 +3230,17 @@ paths:
         in: query
         name: category
         type: string
+      - description: ステータスフィルター (sufficient, low, out_of_stock)
+        in: query
+        name: status
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.PaginatedResponse'
+            $ref: '#/definitions/handler.InventoryListResponse'
         "400":
           description: Bad Request
           schema:
@@ -2826,14 +3268,14 @@ paths:
         name: input
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem'
+          $ref: '#/definitions/model.InventoryItem'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem'
+            $ref: '#/definitions/model.InventoryItem'
         "400":
           description: Bad Request
           schema:
@@ -2861,14 +3303,14 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem'
+            $ref: '#/definitions/model.InventoryItem'
         "400":
           description: Bad Request
           schema:
@@ -2901,20 +3343,20 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 更新する在庫情報
         in: body
         name: input
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem'
+          $ref: '#/definitions/model.InventoryItem'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.InventoryItem'
+            $ref: '#/definitions/model.InventoryItem'
         "400":
           description: Bad Request
           schema:
@@ -2953,7 +3395,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Cage'
+              $ref: '#/definitions/model.Cage'
             type: array
         "500":
           description: Internal Server Error
@@ -2976,14 +3418,14 @@ paths:
         name: cage
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Cage'
+          $ref: '#/definitions/model.Cage'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Cage'
+            $ref: '#/definitions/model.Cage'
         "400":
           description: Bad Request
           schema:
@@ -3005,11 +3447,11 @@ paths:
     delete:
       description: 指定IDのケージを削除する。
       parameters:
-      - description: ケージID（UUID）
+      - description: ケージID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       responses:
         "204":
           description: No Content
@@ -3041,24 +3483,24 @@ paths:
       - application/json
       description: 指定IDのケージ情報を更新する。
       parameters:
-      - description: ケージID（UUID）
+      - description: ケージID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 更新するケージ情報
         in: body
         name: cage
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Cage'
+          $ref: '#/definitions/model.Cage'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Cage'
+            $ref: '#/definitions/model.Cage'
         "400":
           description: Bad Request
           schema:
@@ -3094,7 +3536,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CheckupType'
+              $ref: '#/definitions/model.CheckupType'
             type: array
         "500":
           description: Internal Server Error
@@ -3117,14 +3559,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CheckupType'
+          $ref: '#/definitions/model.CheckupType'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CheckupType'
+            $ref: '#/definitions/model.CheckupType'
         "400":
           description: Bad Request
           schema:
@@ -3148,11 +3590,11 @@ paths:
       - application/json
       description: 指定IDの健診種別を削除する
       parameters:
-      - description: 健診種別UUID
+      - description: 健診種別ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -3180,24 +3622,24 @@ paths:
       - application/json
       description: 指定IDの健診種別を更新する
       parameters:
-      - description: 健診種別UUID
+      - description: 健診種別ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 健診種別情報
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CheckupType'
+          $ref: '#/definitions/model.CheckupType'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.CheckupType'
+            $ref: '#/definitions/model.CheckupType'
         "400":
           description: Bad Request
           schema:
@@ -3227,7 +3669,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation'
+              $ref: '#/definitions/model.Consultation'
             type: array
         "500":
           description: Internal Server Error
@@ -3250,14 +3692,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation'
+          $ref: '#/definitions/model.Consultation'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation'
+            $ref: '#/definitions/model.Consultation'
         "400":
           description: Bad Request
           schema:
@@ -3281,11 +3723,11 @@ paths:
       - application/json
       description: 指定IDの診察項目を削除する
       parameters:
-      - description: 診察項目UUID
+      - description: 診察項目ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -3313,24 +3755,24 @@ paths:
       - application/json
       description: 指定IDの診察項目を更新する
       parameters:
-      - description: 診察項目UUID
+      - description: 診察項目ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 診察項目情報
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation'
+          $ref: '#/definitions/model.Consultation'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Consultation'
+            $ref: '#/definitions/model.Consultation'
         "400":
           description: Bad Request
           schema:
@@ -3360,7 +3802,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory'
+              $ref: '#/definitions/model.DiagnosisCategory'
             type: array
         "500":
           description: Internal Server Error
@@ -3383,14 +3825,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory'
+          $ref: '#/definitions/model.DiagnosisCategory'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory'
+            $ref: '#/definitions/model.DiagnosisCategory'
         "400":
           description: Bad Request
           schema:
@@ -3414,11 +3856,11 @@ paths:
       - application/json
       description: 指定IDの診断カテゴリを削除する
       parameters:
-      - description: 診断カテゴリUUID
+      - description: 診断カテゴリID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -3446,24 +3888,24 @@ paths:
       - application/json
       description: 指定IDの診断カテゴリを更新する
       parameters:
-      - description: 診断カテゴリUUID
+      - description: 診断カテゴリID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 診断カテゴリ情報
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory'
+          $ref: '#/definitions/model.DiagnosisCategory'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisCategory'
+            $ref: '#/definitions/model.DiagnosisCategory'
         "400":
           description: Bad Request
           schema:
@@ -3487,10 +3929,10 @@ paths:
       - application/json
       description: 登録されている診断名の一覧を返す。category_idクエリパラメータでカテゴリ絞り込み可能
       parameters:
-      - description: 診断カテゴリUUID（省略時は全件返す）
+      - description: 診断カテゴリID（省略時は全件返す）
         in: query
         name: category_id
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -3498,7 +3940,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName'
+              $ref: '#/definitions/model.DiagnosisName'
             type: array
         "400":
           description: Bad Request
@@ -3527,14 +3969,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName'
+          $ref: '#/definitions/model.DiagnosisName'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName'
+            $ref: '#/definitions/model.DiagnosisName'
         "400":
           description: Bad Request
           schema:
@@ -3558,11 +4000,11 @@ paths:
       - application/json
       description: 指定IDの診断名を削除する
       parameters:
-      - description: 診断名UUID
+      - description: 診断名ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -3590,24 +4032,24 @@ paths:
       - application/json
       description: 指定IDの診断名を更新する
       parameters:
-      - description: 診断名UUID
+      - description: 診断名ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 診断名情報
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName'
+          $ref: '#/definitions/model.DiagnosisName'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.DiagnosisName'
+            $ref: '#/definitions/model.DiagnosisName'
         "400":
           description: Bad Request
           schema:
@@ -3637,7 +4079,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExamType'
+              $ref: '#/definitions/model.ExamType'
             type: array
         "500":
           description: Internal Server Error
@@ -3660,14 +4102,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExamType'
+          $ref: '#/definitions/model.ExamType'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExamType'
+            $ref: '#/definitions/model.ExamType'
         "400":
           description: Bad Request
           schema:
@@ -3691,11 +4133,11 @@ paths:
       - application/json
       description: 指定IDの検査種別を削除する
       parameters:
-      - description: 検査種別UUID
+      - description: 検査種別ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -3723,24 +4165,24 @@ paths:
       - application/json
       description: 指定IDの検査種別を更新する
       parameters:
-      - description: 検査種別UUID
+      - description: 検査種別ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 検査種別情報
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExamType'
+          $ref: '#/definitions/model.ExamType'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ExamType'
+            $ref: '#/definitions/model.ExamType'
         "400":
           description: Bad Request
           schema:
@@ -3770,7 +4212,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationPlan'
+              $ref: '#/definitions/model.HospitalizationPlan'
             type: array
         "500":
           description: Internal Server Error
@@ -3793,14 +4235,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationPlan'
+          $ref: '#/definitions/model.HospitalizationPlan'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationPlan'
+            $ref: '#/definitions/model.HospitalizationPlan'
         "400":
           description: Bad Request
           schema:
@@ -3824,11 +4266,11 @@ paths:
       - application/json
       description: 指定IDの入院プランを削除する
       parameters:
-      - description: 入院プランUUID
+      - description: 入院プランID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -3856,24 +4298,24 @@ paths:
       - application/json
       description: 指定IDの入院プランを更新する
       parameters:
-      - description: 入院プランUUID
+      - description: 入院プランID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 入院プラン情報
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationPlan'
+          $ref: '#/definitions/model.HospitalizationPlan'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.HospitalizationPlan'
+            $ref: '#/definitions/model.HospitalizationPlan'
         "400":
           description: Bad Request
           schema:
@@ -3901,7 +4343,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Insurance'
+              $ref: '#/definitions/model.Insurance'
             type: array
         "500":
           description: Internal Server Error
@@ -3924,14 +4366,14 @@ paths:
         name: insurance
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Insurance'
+          $ref: '#/definitions/model.Insurance'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Insurance'
+            $ref: '#/definitions/model.Insurance'
         "400":
           description: Bad Request
           schema:
@@ -3953,11 +4395,11 @@ paths:
     delete:
       description: 指定IDの保険を削除する。
       parameters:
-      - description: 保険ID（UUID）
+      - description: 保険ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       responses:
         "204":
           description: No Content
@@ -3989,24 +4431,24 @@ paths:
       - application/json
       description: 指定IDの保険情報を更新する。
       parameters:
-      - description: 保険ID（UUID）
+      - description: 保険ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 更新する保険情報
         in: body
         name: insurance
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Insurance'
+          $ref: '#/definitions/model.Insurance'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Insurance'
+            $ref: '#/definitions/model.Insurance'
         "400":
           description: Bad Request
           schema:
@@ -4040,7 +4482,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine'
+              $ref: '#/definitions/model.Medicine'
             type: array
         "500":
           description: Internal Server Error
@@ -4063,14 +4505,14 @@ paths:
         name: medicine
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine'
+          $ref: '#/definitions/model.Medicine'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine'
+            $ref: '#/definitions/model.Medicine'
         "400":
           description: Bad Request
           schema:
@@ -4092,11 +4534,11 @@ paths:
     delete:
       description: 指定IDの薬剤を削除する。
       parameters:
-      - description: 薬剤ID（UUID）
+      - description: 薬剤ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       responses:
         "204":
           description: No Content
@@ -4128,24 +4570,24 @@ paths:
       - application/json
       description: 指定IDの薬剤情報を更新する。
       parameters:
-      - description: 薬剤ID（UUID）
+      - description: 薬剤ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 更新する薬剤情報
         in: body
         name: medicine
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine'
+          $ref: '#/definitions/model.Medicine'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Medicine'
+            $ref: '#/definitions/model.Medicine'
         "400":
           description: Bad Request
           schema:
@@ -4181,7 +4623,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure'
+              $ref: '#/definitions/model.Procedure'
             type: array
         "500":
           description: Internal Server Error
@@ -4204,14 +4646,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure'
+          $ref: '#/definitions/model.Procedure'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure'
+            $ref: '#/definitions/model.Procedure'
         "400":
           description: Bad Request
           schema:
@@ -4235,11 +4677,11 @@ paths:
       - application/json
       description: 指定IDの処置項目を削除する
       parameters:
-      - description: 処置項目UUID
+      - description: 処置項目ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -4267,24 +4709,24 @@ paths:
       - application/json
       description: 指定IDの処置項目を更新する
       parameters:
-      - description: 処置項目UUID
+      - description: 処置項目ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 処置項目情報
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure'
+          $ref: '#/definitions/model.Procedure'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Procedure'
+            $ref: '#/definitions/model.Procedure'
         "400":
           description: Bad Request
           schema:
@@ -4314,7 +4756,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ServiceType'
+              $ref: '#/definitions/model.ServiceType'
             type: array
         "500":
           description: Internal Server Error
@@ -4337,14 +4779,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ServiceType'
+          $ref: '#/definitions/model.ServiceType'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ServiceType'
+            $ref: '#/definitions/model.ServiceType'
         "400":
           description: Bad Request
           schema:
@@ -4368,11 +4810,11 @@ paths:
       - application/json
       description: 指定IDのサービス種別を削除する
       parameters:
-      - description: サービス種別UUID
+      - description: サービス種別ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -4400,24 +4842,24 @@ paths:
       - application/json
       description: 指定IDのサービス種別を更新する
       parameters:
-      - description: サービス種別UUID
+      - description: サービス種別ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: サービス種別情報
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ServiceType'
+          $ref: '#/definitions/model.ServiceType'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ServiceType'
+            $ref: '#/definitions/model.ServiceType'
         "400":
           description: Bad Request
           schema:
@@ -4450,7 +4892,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+              $ref: '#/definitions/model.Staff'
             type: array
         "500":
           description: Internal Server Error
@@ -4473,14 +4915,14 @@ paths:
         name: staff
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.createStaffRequest'
+          $ref: '#/definitions/handler.createStaffRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+            $ref: '#/definitions/model.Staff'
         "400":
           description: Bad Request
           schema:
@@ -4508,11 +4950,11 @@ paths:
     delete:
       description: 指定IDのスタッフを論理削除する。
       parameters:
-      - description: スタッフID（UUID）
+      - description: スタッフID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       responses:
         "204":
           description: No Content
@@ -4544,24 +4986,24 @@ paths:
       - application/json
       description: 指定IDのスタッフ情報を更新する。
       parameters:
-      - description: スタッフID（UUID）
+      - description: スタッフID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 更新するスタッフ情報
         in: body
         name: staff
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+          $ref: '#/definitions/model.Staff'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Staff'
+            $ref: '#/definitions/model.Staff'
         "400":
           description: Bad Request
           schema:
@@ -4597,7 +5039,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingCourse'
+              $ref: '#/definitions/model.TrimmingCourse'
             type: array
         "500":
           description: Internal Server Error
@@ -4620,14 +5062,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingCourse'
+          $ref: '#/definitions/model.TrimmingCourse'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingCourse'
+            $ref: '#/definitions/model.TrimmingCourse'
         "400":
           description: Bad Request
           schema:
@@ -4651,11 +5093,11 @@ paths:
       - application/json
       description: 指定IDのトリミングコースを削除する
       parameters:
-      - description: トリミングコースUUID
+      - description: トリミングコースID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -4683,24 +5125,24 @@ paths:
       - application/json
       description: 指定IDのトリミングコースを更新する
       parameters:
-      - description: トリミングコースUUID
+      - description: トリミングコースID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: トリミングコース情報
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingCourse'
+          $ref: '#/definitions/model.TrimmingCourse'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingCourse'
+            $ref: '#/definitions/model.TrimmingCourse'
         "400":
           description: Bad Request
           schema:
@@ -4730,7 +5172,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingOption'
+              $ref: '#/definitions/model.TrimmingOption'
             type: array
         "500":
           description: Internal Server Error
@@ -4753,14 +5195,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingOption'
+          $ref: '#/definitions/model.TrimmingOption'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingOption'
+            $ref: '#/definitions/model.TrimmingOption'
         "400":
           description: Bad Request
           schema:
@@ -4784,11 +5226,11 @@ paths:
       - application/json
       description: 指定IDのトリミングオプションを削除する
       parameters:
-      - description: トリミングオプションUUID
+      - description: トリミングオプションID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -4816,24 +5258,24 @@ paths:
       - application/json
       description: 指定IDのトリミングオプションを更新する
       parameters:
-      - description: トリミングオプションUUID
+      - description: トリミングオプションID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: トリミングオプション情報
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingOption'
+          $ref: '#/definitions/model.TrimmingOption'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingOption'
+            $ref: '#/definitions/model.TrimmingOption'
         "400":
           description: Bad Request
           schema:
@@ -4866,7 +5308,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccine'
+              $ref: '#/definitions/model.Vaccine'
             type: array
         "500":
           description: Internal Server Error
@@ -4889,14 +5331,14 @@ paths:
         name: vaccine
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccine'
+          $ref: '#/definitions/model.Vaccine'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccine'
+            $ref: '#/definitions/model.Vaccine'
         "400":
           description: Bad Request
           schema:
@@ -4918,11 +5360,11 @@ paths:
     delete:
       description: 指定IDのワクチンを削除する。
       parameters:
-      - description: ワクチンID（UUID）
+      - description: ワクチンID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       responses:
         "204":
           description: No Content
@@ -4954,24 +5396,24 @@ paths:
       - application/json
       description: 指定IDのワクチン情報を更新する。
       parameters:
-      - description: ワクチンID（UUID）
+      - description: ワクチンID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 更新するワクチン情報
         in: body
         name: vaccine
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccine'
+          $ref: '#/definitions/model.Vaccine'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Vaccine'
+            $ref: '#/definitions/model.Vaccine'
         "400":
           description: Bad Request
           schema:
@@ -5004,7 +5446,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.MeResponse'
+            $ref: '#/definitions/handler.MeResponse'
         "401":
           description: Unauthorized
           schema:
@@ -5036,17 +5478,17 @@ paths:
         in: query
         name: limit
         type: integer
-      - description: ペットUUID
+      - description: ペットID
         in: query
         name: pet_id
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.PaginatedResponse'
+            $ref: '#/definitions/handler.MedicalRecordListResponse'
         "400":
           description: Bad Request
           schema:
@@ -5080,14 +5522,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+          $ref: '#/definitions/model.MedicalRecord'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+            $ref: '#/definitions/model.MedicalRecord'
         "400":
           description: Bad Request
           schema:
@@ -5117,11 +5559,11 @@ paths:
       - application/json
       description: 指定IDの診療記録を削除する
       parameters:
-      - description: 診療記録UUID
+      - description: 診療記録ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -5161,18 +5603,18 @@ paths:
       - application/json
       description: 指定IDの診療記録を取得する
       parameters:
-      - description: 診療記録UUID
+      - description: 診療記録ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+            $ref: '#/definitions/model.MedicalRecord'
         "400":
           description: Bad Request
           schema:
@@ -5207,24 +5649,24 @@ paths:
       - application/json
       description: 指定IDの診療記録を更新する
       parameters:
-      - description: 診療記録UUID
+      - description: 診療記録ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 診療記録情報
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+          $ref: '#/definitions/model.MedicalRecord'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.MedicalRecord'
+            $ref: '#/definitions/model.MedicalRecord'
         "400":
           description: Bad Request
           schema:
@@ -5276,7 +5718,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.PaginatedResponse'
+            $ref: '#/definitions/handler.OwnerListResponse'
         "401":
           description: Unauthorized
           schema:
@@ -5304,14 +5746,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
+          $ref: '#/definitions/model.Owner'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
+            $ref: '#/definitions/model.Owner'
         "400":
           description: Bad Request
           schema:
@@ -5339,11 +5781,11 @@ paths:
     delete:
       description: 指定IDの飼主を削除する
       parameters:
-      - description: 飼主UUID
+      - description: 飼主ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       responses:
         "204":
           description: No Content
@@ -5379,18 +5821,18 @@ paths:
     get:
       description: 指定IDの飼主を返す
       parameters:
-      - description: 飼主UUID
+      - description: 飼主ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
+            $ref: '#/definitions/model.Owner'
         "400":
           description: Bad Request
           schema:
@@ -5425,24 +5867,24 @@ paths:
       - application/json
       description: 指定IDの飼主情報を更新する
       parameters:
-      - description: 飼主UUID
+      - description: 飼主ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 飼主情報
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
+          $ref: '#/definitions/model.Owner'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Owner'
+            $ref: '#/definitions/model.Owner'
         "400":
           description: Bad Request
           schema:
@@ -5488,17 +5930,17 @@ paths:
         in: query
         name: search
         type: string
-      - description: 飼主UUID
+      - description: 飼主ID
         in: query
         name: owner_id
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.PaginatedResponse'
+            $ref: '#/definitions/handler.PetListResponse'
         "400":
           description: Bad Request
           schema:
@@ -5532,14 +5974,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+          $ref: '#/definitions/model.Pet'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+            $ref: '#/definitions/model.Pet'
         "400":
           description: Bad Request
           schema:
@@ -5567,11 +6009,11 @@ paths:
     delete:
       description: 指定IDのペットを削除する
       parameters:
-      - description: ペットUUID
+      - description: ペットID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       responses:
         "204":
           description: No Content
@@ -5607,18 +6049,18 @@ paths:
     get:
       description: 指定IDのペットを返す
       parameters:
-      - description: ペットUUID
+      - description: ペットID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+            $ref: '#/definitions/model.Pet'
         "400":
           description: Bad Request
           schema:
@@ -5653,24 +6095,24 @@ paths:
       - application/json
       description: 指定IDのペット情報を更新する
       parameters:
-      - description: ペットUUID
+      - description: ペットID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: ペット情報
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+          $ref: '#/definitions/model.Pet'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.Pet'
+            $ref: '#/definitions/model.Pet'
         "400":
           description: Bad Request
           schema:
@@ -5728,7 +6170,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.PaginatedResponse'
+            $ref: '#/definitions/handler.PaginatedResponse'
         "400":
           description: Bad Request
           schema:
@@ -5762,14 +6204,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ReservationAppointment'
+          $ref: '#/definitions/model.ReservationAppointment'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ReservationAppointment'
+            $ref: '#/definitions/model.ReservationAppointment'
         "400":
           description: Bad Request
           schema:
@@ -5799,11 +6241,11 @@ paths:
       - application/json
       description: 指定IDの予約を削除する
       parameters:
-      - description: 予約UUID
+      - description: 予約ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -5843,18 +6285,18 @@ paths:
       - application/json
       description: 指定IDの予約を取得する
       parameters:
-      - description: 予約UUID
+      - description: 予約ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ReservationAppointment'
+            $ref: '#/definitions/model.ReservationAppointment'
         "400":
           description: Bad Request
           schema:
@@ -5889,24 +6331,24 @@ paths:
       - application/json
       description: 指定IDの予約を更新する
       parameters:
-      - description: 予約UUID
+      - description: 予約ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 予約情報
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ReservationAppointment'
+          $ref: '#/definitions/model.ReservationAppointment'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.ReservationAppointment'
+            $ref: '#/definitions/model.ReservationAppointment'
         "400":
           description: Bad Request
           schema:
@@ -5953,14 +6395,14 @@ paths:
       - description: ペットIDフィルター
         in: query
         name: pet_id
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handler.PaginatedResponse'
+            $ref: '#/definitions/handler.TrimmingListResponse'
         "400":
           description: Bad Request
           schema:
@@ -5988,14 +6430,14 @@ paths:
         name: input
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingRecord'
+          $ref: '#/definitions/model.TrimmingRecord'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingRecord'
+            $ref: '#/definitions/model.TrimmingRecord'
         "400":
           description: Bad Request
           schema:
@@ -6023,14 +6465,14 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingRecord'
+            $ref: '#/definitions/model.TrimmingRecord'
         "400":
           description: Bad Request
           schema:
@@ -6063,20 +6505,20 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       - description: 更新するトリミング情報
         in: body
         name: input
         required: true
         schema:
-          $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingRecord'
+          $ref: '#/definitions/model.TrimmingRecord'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_animal-ekarte_backend_internal_model.TrimmingRecord'
+            $ref: '#/definitions/model.TrimmingRecord'
         "400":
           description: Bad Request
           schema:
@@ -6100,6 +6542,242 @@ paths:
       summary: トリミング更新
       tags:
       - Trimmings
+  /vaccinations:
+    get:
+      consumes:
+      - application/json
+      description: 予防接種記録の一覧をページネーション付きで取得する
+      parameters:
+      - description: 'ページ番号 (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: '件数 (1-100, default: 20)'
+        in: query
+        name: limit
+        type: integer
+      - description: ペットIDフィルター
+        in: query
+        name: pet_id
+        type: integer
+      - description: 飼主IDフィルター
+        in: query
+        name: owner_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.VaccinationListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 予防接種一覧取得
+      tags:
+      - Vaccinations
+    post:
+      consumes:
+      - application/json
+      description: 新しい予防接種記録を作成する
+      parameters:
+      - description: 予防接種情報
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.Vaccination'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Vaccination'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 予防接種作成
+      tags:
+      - Vaccinations
+  /vaccinations/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 指定IDの予防接種記録を削除する
+      parameters:
+      - description: 予防接種ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 予防接種削除
+      tags:
+      - Vaccinations
+    get:
+      consumes:
+      - application/json
+      description: 指定IDの予防接種記録を取得する
+      parameters:
+      - description: 予防接種ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Vaccination'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 予防接種詳細取得
+      tags:
+      - Vaccinations
+    patch:
+      consumes:
+      - application/json
+      description: 指定IDの予防接種記録を更新する
+      parameters:
+      - description: 予防接種ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新する予防接種情報
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.Vaccination'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Vaccination'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 予防接種更新
+      tags:
+      - Vaccinations
 securityDefinitions:
   BearerAuth:
     in: header

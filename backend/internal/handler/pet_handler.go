@@ -2,9 +2,9 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -18,8 +18,8 @@ import (
 // @Param page query int false "ページ番号 (default: 1)"
 // @Param limit query int false "件数 (1-100, default: 20)"
 // @Param search query string false "検索キーワード"
-// @Param owner_id query string false "飼主UUID"
-// @Success 200 {object} handler.PaginatedResponse
+// @Param owner_id query integer false "飼主ID"
+// @Success 200 {object} handler.PetListResponse
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
 // @Failure 500 {object} map[string]string
@@ -36,9 +36,9 @@ func (h *Handler) ListPets(c *gin.Context) {
 	}
 	search := c.Query("search")
 
-	var ownerID *uuid.UUID
+	var ownerID *uint64
 	if ownerIDStr := c.Query("owner_id"); ownerIDStr != "" {
-		id, err := uuid.Parse(ownerIDStr)
+		id, err := strconv.ParseUint(ownerIDStr, 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id"})
 			return
@@ -60,7 +60,7 @@ func (h *Handler) ListPets(c *gin.Context) {
 // @Tags Pets
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "ペットUUID"
+// @Param id path integer true "ペットID"
 // @Success 200 {object} model.Pet
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
@@ -72,7 +72,7 @@ func (h *Handler) GetPet(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -108,7 +108,6 @@ func (h *Handler) CreatePet(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = uuid.New()
 	input.ClinicID = clinicID
 	if err := h.svc.Pet.Create(c.Request.Context(), &input); err != nil {
 		RespondError(c, err)
@@ -124,7 +123,7 @@ func (h *Handler) CreatePet(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "ペットUUID"
+// @Param id path integer true "ペットID"
 // @Param body body model.Pet true "ペット情報"
 // @Success 200 {object} model.Pet
 // @Failure 400 {object} map[string]string
@@ -137,7 +136,7 @@ func (h *Handler) UpdatePet(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -161,7 +160,7 @@ func (h *Handler) UpdatePet(c *gin.Context) {
 // @Description 指定IDのペットを削除する
 // @Tags Pets
 // @Security BearerAuth
-// @Param id path string true "ペットUUID"
+// @Param id path integer true "ペットID"
 // @Success 204
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
@@ -173,7 +172,7 @@ func (h *Handler) DeletePet(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return

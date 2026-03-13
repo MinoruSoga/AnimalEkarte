@@ -213,7 +213,9 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		protected.GET("/company", h.GetCompany)
 		protected.PATCH("/company", h.UpdateCompany)
 		protected.GET("/clinics", h.ListClinics)
+		protected.POST("/clinics", h.CreateClinic)
 		protected.GET("/clinics/:id", h.GetClinic)
 		protected.PATCH("/clinics/:id", h.UpdateClinic)
+		protected.DELETE("/clinics/:id", h.DeleteClinic)
 	}
 }

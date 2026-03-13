@@ -8,7 +8,7 @@ export const updateMedicalRecord = async (
   id: string,
   req: UpdateMedicalRecordRequest
 ): Promise<MedicalRecord> => {
-  const { data } = await axios.put<BackendMedicalRecord>(
+  const { data } = await axios.patch<BackendMedicalRecord>(
     `/v1/medical-records/${id}`,
     req
   );

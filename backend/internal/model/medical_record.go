@@ -3,30 +3,31 @@ package model
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
+// @name MedicalRecordStatus
 type MedicalRecordStatus string
 
 const (
-	MedicalRecordStatusDraft     MedicalRecordStatus = "作成中"
-	MedicalRecordStatusFinalized MedicalRecordStatus = "確定済"
+	MedicalRecordStatusDraft     MedicalRecordStatus = "draft"
+	MedicalRecordStatusFinalized MedicalRecordStatus = "finalized"
 )
 
+// @name MedicalRecord
 type MedicalRecord struct {
-	ID                       uuid.UUID           `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	ClinicID                 uuid.UUID           `gorm:"type:uuid;not null"                             json:"clinic_id"`
+	ID                       uint64              `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID                 uint64              `gorm:"not null"                                       json:"clinic_id"`
 	RecordNo                 string              `gorm:"not null"                                       json:"record_no"`
 	Date                     time.Time           `gorm:"type:date;not null"                             json:"date"`
-	OwnerID                  *uuid.UUID          `gorm:"type:uuid"                                      json:"owner_id,omitempty"`
-	PetID                    *uuid.UUID          `gorm:"type:uuid"                                      json:"pet_id,omitempty"`
-	DoctorID                 *uuid.UUID          `gorm:"type:uuid"                                      json:"doctor_id,omitempty"`
-	ReservationAppointmentID *uuid.UUID          `gorm:"type:uuid"                                      json:"reservation_appointment_id,omitempty"`
-	Status                   MedicalRecordStatus `gorm:"type:medical_record_status;default:'作成中'"       json:"status"`
+	OwnerID                  *uint64             `                                                      json:"owner_id,omitempty"`
+	PetID                    *uint64             `                                                      json:"pet_id,omitempty"`
+	DoctorID                 *uint64             `                                                      json:"doctor_id,omitempty"`
+	ReservationAppointmentID *uint64             `                                                      json:"reservation_appointment_id,omitempty"`
+	Status                   MedicalRecordStatus `gorm:"type:medical_record_status;default:'draft'"      json:"status"`
 	CreatedAt                time.Time           `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt                time.Time           `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt                gorm.DeletedAt      `                                                      json:"deleted_at"`
+	DeletedAt                gorm.DeletedAt      `                                                      json:"deleted_at" swaggerignore:"true"`
 
 	// Relations
 	Owner         *Owner         `gorm:"foreignKey:OwnerID"          json:"owner,omitempty"`

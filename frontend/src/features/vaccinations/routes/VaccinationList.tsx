@@ -11,7 +11,7 @@ import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable } from "@/components/shared/DataTable";
-import { PrimaryButton } from "@/components/shared/Form";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { DataTableRow } from "@/components/shared/DataTable";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 

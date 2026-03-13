@@ -66,10 +66,7 @@ export function MasterSelectModal({
   const filtered = items.filter((item) => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
-    return (
-      item.name.toLowerCase().includes(term) ||
-      (item.code && item.code.toLowerCase().includes(term))
-    );
+    return item.name.toLowerCase().includes(term);
   });
 
   return (
@@ -122,11 +119,6 @@ export function MasterSelectModal({
               >
                 <div className="flex-1 min-w-0">
                   <div className="text-sm text-[#37352F]">{item.name}</div>
-                  {item.code && (
-                    <div className="text-xs text-[#37352F]/40 mt-0.5">
-                      {item.code}
-                    </div>
-                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-3">
                   {item.price != null && (

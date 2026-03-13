@@ -4,8 +4,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -16,10 +16,10 @@ import (
 
 type ServiceTypeRepository interface {
 	FindAll(ctx context.Context) ([]model.ServiceType, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.ServiceType, error)
+	FindByID(ctx context.Context, id uint64) (*model.ServiceType, error)
 	Create(ctx context.Context, serviceType *model.ServiceType) error
 	Update(ctx context.Context, serviceType *model.ServiceType) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type serviceTypeRepository struct{ db *gorm.DB }
@@ -36,11 +36,11 @@ func (r *serviceTypeRepository) FindAll(ctx context.Context) ([]model.ServiceTyp
 	return serviceTypes, nil
 }
 
-func (r *serviceTypeRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.ServiceType, error) {
+func (r *serviceTypeRepository) FindByID(ctx context.Context, id uint64) (*model.ServiceType, error) {
 	var serviceType model.ServiceType
 	if err := r.db.WithContext(ctx).First(&serviceType, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("service_type", id.String())
+			return nil, apperrors.WrapNotFound("service_type", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find service type by id")
 	}
@@ -64,13 +64,13 @@ func (r *serviceTypeRepository) Update(ctx context.Context, serviceType *model.S
 	return nil
 }
 
-func (r *serviceTypeRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *serviceTypeRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.ServiceType{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete service type")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("service_type", id.String())
+		return apperrors.WrapNotFound("service_type", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

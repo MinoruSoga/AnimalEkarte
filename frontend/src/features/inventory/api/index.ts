@@ -1,2 +1,2 @@
-export { getInventoryItems, useGetInventoryItems, getInventoryItem, useGetInventoryItem, getInventoryItemsByCategory, useGetInventoryItemsByCategory, getInventoryItemsByStatus, useGetInventoryItemsByStatus, createInventoryItem, useCreateInventoryItem, updateInventoryItem, useUpdateInventoryItem, deleteInventoryItem, useDeleteInventoryItem } from "./inventory";
+export { getInventoryItems, useGetInventoryItems, getInventoryItem, useGetInventoryItem, createInventoryItem, useCreateInventoryItem, updateInventoryItem, useUpdateInventoryItem, deleteInventoryItem, useDeleteInventoryItem } from "./inventory";
 export type { BackendInventoryItem, CreateInventoryItemRequest, UpdateInventoryItemRequest } from "./types";

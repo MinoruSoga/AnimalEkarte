@@ -1,0 +1,124 @@
+{
+  "pass": 5,
+  "title": "Spacing & Dimensions",
+  "description": "Exact dimensions, sizes, padding, margin, gap, border-radius values",
+  "page": {
+    "max-content-width": "400px",
+    "horizontal-padding": "16px (px-4)",
+    "top-padding": "48px (pt-12)",
+    "bottom-padding": "64px (pb-16)",
+    "background": "#F1F0EE"
+  },
+  "logo-block": {
+    "margin-bottom": "32px (mb-8)",
+    "logo-icon": {
+      "width": "48px",
+      "height": "48px",
+      "border-radius": "12px (rounded-xl)",
+      "background": "#038B94",
+      "margin-bottom": "16px (mb-4)",
+      "inner-icon-size": "24px (w-6 h-6)"
+    },
+    "clinic-name": {
+      "font-size": "28px",
+      "margin-top": "0",
+      "margin-bottom": "4px"
+    },
+    "subtitle": {
+      "font-size": "14px",
+      "margin-top": "4px"
+    },
+    "gap-logo-to-name": "16px",
+    "gap-name-to-subtitle": "4px"
+  },
+  "login-form": {
+    "width": "100% (full container width)",
+    "gap-between-fields": "16px (gap-4)",
+    "email-field-group": {
+      "label-to-input-gap": "6px (gap-1.5)"
+    },
+    "password-field-group": {
+      "label-to-input-gap": "6px (gap-1.5)"
+    },
+    "input": {
+      "height": "44px (h-11)",
+      "horizontal-padding": "12px (px-3)",
+      "border-radius": "6px (rounded-md)",
+      "border-width": "1px",
+      "border-color": "#D1D5DB",
+      "background": "#FFFFFF",
+      "font-size": "15px"
+    },
+    "password-input-right-padding": "40px (pr-10, to accommodate eye icon)",
+    "eye-icon": {
+      "size": "16px (w-4 h-4)",
+      "right-offset": "12px (right-3)",
+      "vertical": "centered (top-1/2 -translate-y-1/2)"
+    },
+    "submit-button": {
+      "height": "44px (h-11)",
+      "border-radius": "6px (rounded-md)",
+      "font-size": "15px",
+      "font-weight": "600",
+      "margin-top": "0 (part of form gap-4)"
+    }
+  },
+  "demo-section": {
+    "margin-top": "24px (mt-6)",
+    "divider": {
+      "margin-bottom": "8px (mb-2)",
+      "line-height": "1px",
+      "gap-around-label": "12px (gap-3)"
+    },
+    "password-hint": {
+      "margin-bottom": "12px (mb-3)",
+      "font-size": "12px"
+    },
+    "account-list": {
+      "gap-between-items": "4px (gap-1)"
+    },
+    "account-row": {
+      "horizontal-padding": "8px (px-2)",
+      "vertical-padding": "8px (py-2)",
+      "border-radius": "8px (rounded-lg)",
+      "gap-avatar-to-info": "12px (gap-3)"
+    },
+    "avatar": {
+      "width": "32px (w-8)",
+      "height": "32px (h-8)",
+      "border-radius": "50% (rounded-full)",
+      "background": "#E5E7EB",
+      "font-size": "14px"
+    },
+    "account-info": {
+      "name-row-gap": "6px (gap-1.5)",
+      "name-to-email-gap": "2px"
+    },
+    "role-badge": {
+      "font-size": "11px",
+      "horizontal-padding": "6px (px-1.5)",
+      "vertical-padding": "2px (py-0.5)",
+      "border-radius": "4px (rounded)",
+      "border-width": "1px"
+    }
+  },
+  "border-radius-summary": {
+    "logo-icon": "12px (rounded-xl)",
+    "inputs": "6px (rounded-md)",
+    "submit-button": "6px (rounded-md)",
+    "account-row-hover": "8px (rounded-lg)",
+    "avatar": "50% (rounded-full)",
+    "role-badge": "4px (rounded)"
+  },
+  "spacing-scale-used": {
+    "4px": "role-badge py, name-to-email gap",
+    "6px": "label-to-input gap, role-badge px, name-row gap",
+    "8px": "account-row px/py, divider mb",
+    "12px": "input px, divider label gap, demo-pw hint mb",
+    "16px": "form gap, logo mb, section top-padding",
+    "24px": "demo section mt",
+    "32px": "logo-block mb",
+    "48px": "page top padding",
+    "64px": "page bottom padding"
+  }
+}

@@ -3,9 +3,9 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -53,7 +53,6 @@ func (h *Handler) CreateCage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = uuid.New()
 	if err := h.svc.Cage.Create(c.Request.Context(), &input); err != nil {
 		RespondError(c, err)
 		return
@@ -68,7 +67,7 @@ func (h *Handler) CreateCage(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "ケージID（UUID）"
+// @Param id path integer true "ケージID"
 // @Param cage body model.Cage true "更新するケージ情報"
 // @Success 200 {object} model.Cage
 // @Failure 400 {object} map[string]string
@@ -76,7 +75,7 @@ func (h *Handler) CreateCage(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /masters/cages/{id} [put]
 func (h *Handler) UpdateCage(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -99,14 +98,14 @@ func (h *Handler) UpdateCage(c *gin.Context) {
 // @Description 指定IDのケージを削除する。
 // @Tags CageMasters
 // @Security BearerAuth
-// @Param id path string true "ケージID（UUID）"
+// @Param id path integer true "ケージID"
 // @Success 204
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /masters/cages/{id} [delete]
 func (h *Handler) DeleteCage(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return

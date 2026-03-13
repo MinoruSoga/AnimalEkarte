@@ -1,8 +1,9 @@
 // React/Framework
-import React from "react";
+import { memo } from "react";
+import { useNavigate } from "react-router";
 
 // External
-import { FileText } from "lucide-react";
+import { FileText, Settings } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { C, LAYOUT } from "@/lib/design-tokens";
 
 interface InterviewChiefComplaintProps {
   chiefComplaint: string;
@@ -24,25 +26,37 @@ interface InterviewChiefComplaintProps {
   onInsertTemplate: (text: string) => void;
 }
 
-export const InterviewChiefComplaint = React.memo(function InterviewChiefComplaint({
+export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
   chiefComplaint,
   setChiefComplaint,
   templates,
   onInsertTemplate,
 }: InterviewChiefComplaintProps) {
+  const navigate = useNavigate();
+
   return (
-    <Card className="flex-1 flex flex-col min-h-0 border-none shadow-none bg-transparent">
-      <CardHeader className="p-0 pb-2">
-        <CardTitle className="text-sm font-bold text-[#37352F] flex items-center gap-2">
+    <Card className="flex-1 flex flex-col min-h-0 border-none shadow-none bg-transparent gap-0">
+      <CardHeader className="p-0 pb-1.5">
+        <CardTitle className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
           <FileText className="size-4" />
           主訴情報
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0 flex-1 flex flex-col gap-2 min-h-0">
         <div className="space-y-1.5">
-          <Label className="text-sm text-[#37352F]/60">主訴区分</Label>
+          <div className="flex items-center justify-between">
+            <Label className={`text-sm ${C.text60}`}>主訴区分</Label>
+            <button
+              onClick={() => navigate("/settings/interview?tab=chief_complaint")}
+              className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors flex items-center gap-1`}
+              type="button"
+            >
+              <Settings className="size-3" />
+              マスタ編集
+            </button>
+          </div>
           <Select>
-            <SelectTrigger className="w-full h-10 bg-white border-[rgba(55,53,47,0.16)] text-sm text-[#37352F]">
+            <SelectTrigger className={`w-full ${LAYOUT.touch.md} bg-white ${C.borderMedium} text-sm ${C.text}`}>
               <SelectValue placeholder="選択してください" />
             </SelectTrigger>
             <SelectContent>
@@ -54,14 +68,24 @@ export const InterviewChiefComplaint = React.memo(function InterviewChiefComplai
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-sm text-[#37352F]/60">定型文挿入</Label>
+          <div className="flex items-center justify-between">
+            <Label className={`text-sm ${C.text60}`}>定型文挿入</Label>
+            <button
+              onClick={() => navigate("/settings/interview?tab=interview_template")}
+              className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors flex items-center gap-1`}
+              type="button"
+            >
+              <Settings className="size-3" />
+              マスタ編集
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {templates.map((tmpl) => (
               <Button
                 key={tmpl.label}
                 variant="outline"
                 size="sm"
-                className="h-10 text-sm px-3 bg-white hover:bg-slate-50 text-slate-600 border-[rgba(55,53,47,0.16)]"
+                className={`${LAYOUT.touch.md} text-sm px-3 bg-white ${C.hoverBgPage} ${C.text60} ${C.borderMedium}`}
                 onClick={() => onInsertTemplate(tmpl.text)}
               >
                 {tmpl.label}
@@ -71,11 +95,11 @@ export const InterviewChiefComplaint = React.memo(function InterviewChiefComplai
         </div>
 
         <div className="flex-1 flex flex-col gap-1.5 min-h-0">
-          <Label className="text-sm text-[#37352F]/60">主訴詳細</Label>
+          <Label className={`text-sm ${C.text60}`}>主訴詳細</Label>
           <Textarea
             value={chiefComplaint}
             onChange={(e) => setChiefComplaint(e.target.value)}
-            className="flex-1 resize-none bg-white border-[rgba(55,53,47,0.16)] focus-visible:ring-[#2EAADC] text-sm p-3 leading-relaxed font-mono"
+            className={`flex-1 resize-none bg-white ${C.borderMedium} text-sm p-3 leading-relaxed font-mono`}
           />
         </div>
       </CardContent>

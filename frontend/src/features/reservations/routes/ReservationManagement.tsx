@@ -12,8 +12,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Stethoscope } from "lucide-react";
-import { FormHeader, PrimaryButton } from "@/components/shared/Form";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { FormHeader } from "@/components/shared/Form/FormHeader";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { getCalendarViewLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
 import type { CalendarView } from "../types";

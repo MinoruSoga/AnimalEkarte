@@ -2,22 +2,23 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 
-	"github.com/google/uuid"
-
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // UserAccountService はユーザーアカウントのビジネスロジック
 type UserAccountService interface {
 	FindByEmail(ctx context.Context, email string) (*UserAccountResult, error)
-	GetMemberships(ctx context.Context, userID uuid.UUID) ([]MembershipResult, error)
+	GetMemberships(ctx context.Context, userID uint64) ([]MembershipResult, error)
 	GetWithMemberships(ctx context.Context, userIDStr string) (*repository.UserAccountWithMemberships, error)
 }
 
 // UserAccountResult は FindByEmail の結果
 type UserAccountResult struct {
-	ID           uuid.UUID
+	ID           uint64
 	Email        string
 	DisplayName  string
 	UserType     string
@@ -27,7 +28,7 @@ type UserAccountResult struct {
 
 // MembershipResult は GetMemberships の結果
 type MembershipResult struct {
-	ClinicID uuid.UUID
+	ClinicID uint64
 	IsMain   bool
 }
 
@@ -57,7 +58,7 @@ func (s *userAccountService) FindByEmail(ctx context.Context, email string) (*Us
 }
 
 // GetMemberships はユーザーの所属クリニック一覧を返す
-func (s *userAccountService) GetMemberships(ctx context.Context, userID uuid.UUID) ([]MembershipResult, error) {
+func (s *userAccountService) GetMemberships(ctx context.Context, userID uint64) ([]MembershipResult, error) {
 	data, err := s.repo.FindByIDWithMemberships(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -74,9 +75,9 @@ func (s *userAccountService) GetMemberships(ctx context.Context, userID uuid.UUI
 
 // GetWithMemberships はユーザー・所属クリニック・権限を一括取得する
 func (s *userAccountService) GetWithMemberships(ctx context.Context, userIDStr string) (*repository.UserAccountWithMemberships, error) {
-	id, err := uuid.Parse(userIDStr)
+	id, err := strconv.ParseUint(userIDStr, 10, 64)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(fmt.Errorf("invalid user id: %s", userIDStr), "parse user id")
 	}
 	return s.repo.FindByIDWithMemberships(ctx, id)
 }

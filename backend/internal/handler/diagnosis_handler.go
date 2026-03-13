@@ -3,9 +3,9 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -49,7 +49,6 @@ func (h *Handler) CreateDiagnosisCategory(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = uuid.New()
 	if err := h.svc.DiagnosisCategory.Create(c.Request.Context(), &input); err != nil {
 		RespondError(c, err)
 		return
@@ -64,14 +63,14 @@ func (h *Handler) CreateDiagnosisCategory(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "診断カテゴリUUID"
+// @Param id path integer true "診断カテゴリID"
 // @Param request body model.DiagnosisCategory true "診断カテゴリ情報"
 // @Success 200 {object} model.DiagnosisCategory
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /masters/diagnosis-categories/{id} [put]
 func (h *Handler) UpdateDiagnosisCategory(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -96,13 +95,13 @@ func (h *Handler) UpdateDiagnosisCategory(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "診断カテゴリUUID"
+// @Param id path integer true "診断カテゴリID"
 // @Success 204
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /masters/diagnosis-categories/{id} [delete]
 func (h *Handler) DeleteDiagnosisCategory(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -123,7 +122,7 @@ func (h *Handler) DeleteDiagnosisCategory(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param category_id query string false "診断カテゴリUUID（省略時は全件返す）"
+// @Param category_id query integer false "診断カテゴリID（省略時は全件返す）"
 // @Success 200 {array} model.DiagnosisName
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
@@ -133,7 +132,7 @@ func (h *Handler) ListDiagnosisNames(c *gin.Context) {
 	var err error
 
 	if catIDStr := c.Query("category_id"); catIDStr != "" {
-		catID, parseErr := uuid.Parse(catIDStr)
+		catID, parseErr := strconv.ParseUint(catIDStr, 10, 64)
 		if parseErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid category_id"})
 			return
@@ -168,7 +167,6 @@ func (h *Handler) CreateDiagnosisName(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = uuid.New()
 	if err := h.svc.DiagnosisName.Create(c.Request.Context(), &input); err != nil {
 		RespondError(c, err)
 		return
@@ -183,14 +181,14 @@ func (h *Handler) CreateDiagnosisName(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "診断名UUID"
+// @Param id path integer true "診断名ID"
 // @Param request body model.DiagnosisName true "診断名情報"
 // @Success 200 {object} model.DiagnosisName
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /masters/diagnosis-names/{id} [put]
 func (h *Handler) UpdateDiagnosisName(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -215,13 +213,13 @@ func (h *Handler) UpdateDiagnosisName(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "診断名UUID"
+// @Param id path integer true "診断名ID"
 // @Success 204
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /masters/diagnosis-names/{id} [delete]
 func (h *Handler) DeleteDiagnosisName(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return

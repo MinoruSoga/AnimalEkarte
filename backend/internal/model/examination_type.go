@@ -2,21 +2,19 @@ package model
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
+// @name ExamType
 type ExamType struct {
-	ID          uuid.UUID    `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	ClinicID    uuid.UUID    `gorm:"type:uuid;not null"                             json:"clinic_id"`
-	Code        string       `gorm:"default:''"                                     json:"code"`
-	Name        string       `gorm:"not null"                                       json:"name"`
-	Price       *float64     `gorm:"type:numeric(10,2)"                             json:"price,omitempty"`
-	IsActive    bool         `gorm:"default:true"                                   json:"is_active"`
-	Description string       `gorm:"default:''"                                     json:"description"`
-	SortOrder   int          `gorm:"default:0"                                      json:"sort_order"`
-	CreatedAt   time.Time    `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt   time.Time    `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	ID          uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID    uint64    `gorm:"not null"                                       json:"clinic_id"`
+	Name        string    `gorm:"not null"                                       json:"name"`
+	Price       *float64  `gorm:"type:numeric(10,2)"                             json:"price,omitempty"`
+	IsActive    bool      `gorm:"default:true"                                   json:"is_active"`
+	Description string    `gorm:"default:''"                                     json:"description"`
+	SortOrder   int       `gorm:"default:0"                                      json:"sort_order"`
+	CreatedAt   time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt   time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
 	Items []ExamTypeItem `gorm:"foreignKey:ExamTypeID" json:"items,omitempty"`
@@ -24,9 +22,10 @@ type ExamType struct {
 
 func (ExamType) TableName() string { return "exam_types" }
 
+// @name ExamTypeItem
 type ExamTypeItem struct {
-	ID              uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	ExamTypeID      uuid.UUID `gorm:"type:uuid;not null"                             json:"exam_type_id"`
+	ID              uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ExamTypeID      uint64    `gorm:"not null"                                       json:"exam_type_id"`
 	Name            string    `gorm:"not null"                                       json:"name"`
 	InspectionValue string    `gorm:"default:''"                                     json:"inspection_value"`
 	NormalValue     string    `gorm:"default:''"                                     json:"normal_value"`

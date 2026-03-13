@@ -4,8 +4,6 @@ package service
 import (
 	"context"
 
-	"github.com/google/uuid"
-
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -14,10 +12,10 @@ import (
 
 type ConsultationService interface {
 	List(ctx context.Context) ([]model.Consultation, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*model.Consultation, error)
+	GetByID(ctx context.Context, id uint64) (*model.Consultation, error)
 	Create(ctx context.Context, consultation *model.Consultation) error
 	Update(ctx context.Context, consultation *model.Consultation) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type consultationService struct {
@@ -31,7 +29,7 @@ func NewConsultationService(repo repository.ConsultationRepository) Consultation
 func (s *consultationService) List(ctx context.Context) ([]model.Consultation, error) {
 	return s.repo.FindAll(ctx)
 }
-func (s *consultationService) GetByID(ctx context.Context, id uuid.UUID) (*model.Consultation, error) {
+func (s *consultationService) GetByID(ctx context.Context, id uint64) (*model.Consultation, error) {
 	return s.repo.FindByID(ctx, id)
 }
 func (s *consultationService) Create(ctx context.Context, consultation *model.Consultation) error {
@@ -40,6 +38,6 @@ func (s *consultationService) Create(ctx context.Context, consultation *model.Co
 func (s *consultationService) Update(ctx context.Context, consultation *model.Consultation) error {
 	return s.repo.Update(ctx, consultation)
 }
-func (s *consultationService) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *consultationService) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
 }

@@ -48,6 +48,11 @@ func main() {
 
 	// 設定読み込み
 	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		slog.Error("config validation failed", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	gin.SetMode(cfg.GinMode)
 
 	// DB接続
 	db, err := repository.NewDB(cfg)
@@ -73,7 +78,10 @@ func main() {
 	r.Use(middleware.CORS())
 	r.Use(middleware.RequestLoggingMiddleware())
 	h.RegisterRoutes(r)
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// Swagger UI は開発・ステージング環境のみ有効
+	if cfg.GinMode != gin.ReleaseMode {
+		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
 
 	// HTTPサーバー設定
 	server := &http.Server{

@@ -15,10 +15,10 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FormHeader } from "@/components/shared/Form";
+import { FormHeader } from "@/components/shared/Form/FormHeader";
 
 // Shared
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 
 // Lazy-loaded modals — only loaded when first opened (bundle splitting)
 const DashboardDetailModal = lazy(() =>
@@ -36,25 +36,24 @@ import type { Appointment, ReservationAppointment, Pet } from "@/types";
 // Columns that don't show the "add" button — Set for O(1) lookup
 const NO_ADD_BUTTON_COLUMNS = new Set(["診療中", "会計待ち", "会計済"]);
 
-// Module-level constant — stable across renders, not recreated on each call
-const DOCTORS = [
-  { id: "all", name: "全て" },
-  { id: "医師A", name: "医師A" },
-  { id: "医師B", name: "医師B" },
-  { id: "医師C", name: "医師C" },
-  { id: "医師指名なし", name: "医師指名なし" },
-] as const;
-
 export function Dashboard() {
     const navigate = useNavigate();
     const {
         filteredColumns,
+        staffs,
         moveCard,
         advanceStatus,
         cancelAppointment,
         updateAppointment,
         filters
     } = useDashboardKanban();
+
+    // スタッフAPIから医師フィルター選択肢を動的生成
+    const doctors = useMemo(() => [
+      { id: "all", name: "全て" },
+      ...staffs.filter((s) => s.is_active).map((s) => ({ id: s.name, name: s.name })),
+      { id: "医師指名なし", name: "医師指名なし" },
+    ], [staffs]);
 
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -304,7 +303,7 @@ export function Dashboard() {
                                     <SelectValue placeholder="指名を選択" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {DOCTORS.map((doctor) => (
+                                    {doctors.map((doctor) => (
                                         <SelectItem key={doctor.id} value={doctor.id}>
                                             {doctor.name}
                                         </SelectItem>

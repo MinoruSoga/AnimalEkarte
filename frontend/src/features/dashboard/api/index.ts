@@ -1,4 +1,6 @@
 export { useDashboardData, getDashboard, todayISO } from "./get-dashboard";
+export { useStaffs, buildStaffMap } from "./get-staffs";
+export type { BackendStaff } from "./get-staffs";
 export { useUpdateAppointmentStatus } from "./update-appointment-status";
 export {
   transformReservationsToDashboardColumns,

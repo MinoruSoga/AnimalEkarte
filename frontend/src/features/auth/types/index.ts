@@ -46,7 +46,6 @@ export type Permission = (typeof PERMISSION_VALUES)[number];
 export interface ClinicMembership {
   clinicId: string;
   clinicName: string;
-  branchName: string;
   isMain: boolean;
 }
 

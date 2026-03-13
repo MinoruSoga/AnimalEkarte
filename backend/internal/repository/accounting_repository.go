@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -12,11 +12,11 @@ import (
 )
 
 type AccountingRepository interface {
-	FindAll(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, ownerID *uuid.UUID, status *string, page, limit int) ([]model.Billing, int64, error)
-	FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.Billing, error)
-	Create(ctx context.Context, clinicID uuid.UUID, accounting *model.Billing) error
-	Update(ctx context.Context, clinicID uuid.UUID, accounting *model.Billing) error
-	Delete(ctx context.Context, clinicID, id uuid.UUID) error
+	FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Billing, int64, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
+	Update(ctx context.Context, clinicID uint64, accounting *model.Billing) error
+	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 type accountingRepository struct {
@@ -27,7 +27,7 @@ func NewAccountingRepository(db *gorm.DB) AccountingRepository {
 	return &accountingRepository{db: db}
 }
 
-func (r *accountingRepository) FindAll(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, ownerID *uuid.UUID, status *string, page, limit int) ([]model.Billing, int64, error) {
+func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Billing, int64, error) {
 	var billings []model.Billing
 	var total int64
 
@@ -50,7 +50,7 @@ func (r *accountingRepository) FindAll(ctx context.Context, clinicID uuid.UUID, 
 	return billings, total, nil
 }
 
-func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uuid.UUID) (*model.Billing, error) {
+func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
 	var billing model.Billing
 	if err := r.db.WithContext(ctx).
 		Preload("Items").
@@ -59,14 +59,14 @@ func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uuid.U
 		Preload("Pet").
 		First(&billing, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("billing", id.String())
+			return nil, apperrors.WrapNotFound("billing", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find billing by id")
 	}
 	return &billing, nil
 }
 
-func (r *accountingRepository) Create(ctx context.Context, clinicID uuid.UUID, accounting *model.Billing) error {
+func (r *accountingRepository) Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error {
 	accounting.ClinicID = clinicID
 	if err := r.db.WithContext(ctx).Create(accounting).Error; err != nil {
 		if isUniqueConstraintErr(err) {
@@ -77,25 +77,25 @@ func (r *accountingRepository) Create(ctx context.Context, clinicID uuid.UUID, a
 	return nil
 }
 
-func (r *accountingRepository) Update(ctx context.Context, clinicID uuid.UUID, accounting *model.Billing) error {
+func (r *accountingRepository) Update(ctx context.Context, clinicID uint64, accounting *model.Billing) error {
 	accounting.ClinicID = clinicID
 	result := r.db.WithContext(ctx).Where("id = ? AND clinic_id = ?", accounting.ID, clinicID).Save(accounting)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "update billing")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("billing", accounting.ID.String())
+		return apperrors.WrapNotFound("billing", fmt.Sprintf("%d", accounting.ID))
 	}
 	return nil
 }
 
-func (r *accountingRepository) Delete(ctx context.Context, clinicID, id uuid.UUID) error {
+func (r *accountingRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Billing{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete billing")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("billing", id.String())
+		return apperrors.WrapNotFound("billing", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

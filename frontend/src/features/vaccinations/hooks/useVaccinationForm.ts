@@ -95,11 +95,10 @@ export function useVaccinationForm(id?: string) {
   const handleSave = () => {
     if (isEdit && id) {
       const req: UpdateVaccinationRequest = {
-        vaccine_name: formData.vaccineName || undefined,
-        vaccination_date: formData.date || undefined,
+        date: formData.date || undefined,
         next_date: formData.nextDate || null,
-        lot_number: formData.lot1 || undefined,
-        notes: formData.remarks || undefined,
+        lot1: formData.lot1 || undefined,
+        remarks: formData.remarks || undefined,
       };
       updateMutation.mutate(
         { id, req },
@@ -109,13 +108,13 @@ export function useVaccinationForm(id?: string) {
       const pet = selectedPets[0];
       if (!pet) return;
       const req: CreateVaccinationRequest = {
+        medical_record_id: "",
         pet_id: pet.id,
-        owner_id: pet.ownerId,
-        vaccine_name: formData.vaccineName,
-        vaccination_date: formData.date || new Date().toISOString(),
+        vaccine_id: formData.vaccineName,
+        date: formData.date || new Date().toISOString(),
         next_date: formData.nextDate || null,
-        lot_number: formData.lot1 || undefined,
-        notes: formData.remarks || undefined,
+        lot1: formData.lot1 || undefined,
+        remarks: formData.remarks || undefined,
       };
       createMutation.mutate(req, {
         onSuccess: () => navigate("/vaccinations"),

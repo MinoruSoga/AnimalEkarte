@@ -67,9 +67,8 @@ export function useExaminationForm(id?: string) {
       const req: UpdateExaminationRequest = {
         status: formDataWithPet.status,
         result_summary: formDataWithPet.resultSummary,
-        test_type: formDataWithPet.testType,
         machine: formDataWithPet.machine,
-        examination_date: formDataWithPet.date,
+        date: formDataWithPet.date,
       };
       updateMutation.mutate(
         { id, req },
@@ -79,11 +78,10 @@ export function useExaminationForm(id?: string) {
       const pet = selectedPets[0];
       if (!pet) return;
       const req: CreateExaminationRequest = {
+        medical_record_id: "",
         pet_id: pet.id,
-        owner_id: pet.ownerId,
-        examination_date:
-          formDataWithPet.date ?? new Date().toISOString(),
-        test_type: formDataWithPet.testType ?? "",
+        exam_type_id: formDataWithPet.testType ?? "",
+        date: formDataWithPet.date ?? new Date().toISOString(),
         result_summary: formDataWithPet.resultSummary,
         machine: formDataWithPet.machine,
       };

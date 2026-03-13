@@ -13,6 +13,11 @@ import type { Owner } from "@/types/owner";
 import { OwnerData, PetFormData, MembershipType, INSURANCE_COMPANY_VALUES, PET_INSURANCE_RATIO_VALUES } from "../types";
 import { isOneOf } from "@/lib/type-utils";
 
+const PET_STATUS_TO_API: Record<string, "alive" | "deceased" | undefined> = {
+  "生存": "alive",
+  "死亡": "deceased",
+};
+
 const DEFAULT_OWNER_DATA: OwnerData = {
   ownerId: "",
   postalCode: "",
@@ -131,16 +136,13 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
       const updateRequest = transformUpdatePetRequest({
         petNumber: petData.petNumber,
         name: petData.petName,
-        species: petData.species,
         gender: petData.gender,
         birthDate: petData.birthDate,
         breed: petData.breed,
         weight: petData.weight,
         environment: petData.environment,
-        status: petData.status,
-        insuranceName: petData.insuranceName,
-        insuranceDetails: petData.insuranceDetails,
-        notes: petData.remarks,
+        status: PET_STATUS_TO_API[petData.status],
+        remarks: petData.remarks,
       });
 
       updatePetMutate(
@@ -169,17 +171,15 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
       const createRequest = transformCreatePetRequest({
         ownerId: id,
         name: petData.petName || "",
-        species: petData.species || "",
+        animalSpeciesId: "", // TODO: form needs animal species ID selector
         petNumber: petData.petNumber,
         breed: petData.breed,
         gender: petData.gender,
         birthDate: petData.birthDate,
         weight: petData.weight,
         environment: petData.environment,
-        status: petData.status,
-        insuranceName: petData.insuranceName,
-        insuranceDetails: petData.insuranceDetails,
-        notes: petData.remarks,
+        status: PET_STATUS_TO_API[petData.status],
+        remarks: petData.remarks,
       });
 
       createPetMutate(createRequest, {

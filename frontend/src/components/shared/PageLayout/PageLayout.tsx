@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { FormHeader } from "@/components/shared/Form";
+import { FormHeader } from "@/components/shared/Form/FormHeader";
 
 interface PageLayoutProps {
   children: ReactNode;

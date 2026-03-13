@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import type { BackendClinic, CreateClinicRequest, UpdateClinicRequest } from "./types";
+import type { BackendClinic, UpdateClinicRequest } from "./types";
 
 export const getClinic = async (id: string): Promise<BackendClinic> => {
   const { data } = await axios.get<BackendClinic>(`/v1/clinics/${id}`);
@@ -16,7 +16,7 @@ export const useGetClinic = (id: string) => {
 };
 
 export const updateClinic = async (id: string, req: UpdateClinicRequest): Promise<BackendClinic> => {
-  const { data } = await axios.put<BackendClinic>(`/v1/clinics/${id}`, req);
+  const { data } = await axios.patch<BackendClinic>(`/v1/clinics/${id}`, req);
   return data;
 };
 
@@ -30,17 +30,3 @@ export const useUpdateClinic = () => {
   });
 };
 
-export const createClinic = async (req: CreateClinicRequest): Promise<BackendClinic> => {
-  const { data } = await axios.post<BackendClinic>("/v1/clinics", req);
-  return data;
-};
-
-export const useCreateClinic = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: createClinic,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["clinic"] });
-    },
-  });
-};

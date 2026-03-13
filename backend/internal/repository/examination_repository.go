@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -12,11 +12,11 @@ import (
 )
 
 type ExaminationRepository interface {
-	FindAll(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, ownerID *uuid.UUID, status *string, page, limit int) ([]model.Exam, int64, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.Exam, error)
+	FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Exam, int64, error)
+	FindByID(ctx context.Context, id uint64) (*model.Exam, error)
 	Create(ctx context.Context, exam *model.Exam) error
 	Update(ctx context.Context, exam *model.Exam) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type examinationRepository struct {
@@ -27,7 +27,7 @@ func NewExaminationRepository(db *gorm.DB) ExaminationRepository {
 	return &examinationRepository{db: db}
 }
 
-func (r *examinationRepository) FindAll(ctx context.Context, clinicID uuid.UUID, petID *uuid.UUID, ownerID *uuid.UUID, status *string, page, limit int) ([]model.Exam, int64, error) {
+func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, petID *uint64, ownerID *uint64, status *string, page, limit int) ([]model.Exam, int64, error) {
 	var exams []model.Exam
 	var total int64
 
@@ -52,7 +52,7 @@ func (r *examinationRepository) FindAll(ctx context.Context, clinicID uuid.UUID,
 	return exams, total, nil
 }
 
-func (r *examinationRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Exam, error) {
+func (r *examinationRepository) FindByID(ctx context.Context, id uint64) (*model.Exam, error) {
 	var exam model.Exam
 	if err := r.db.WithContext(ctx).
 		Preload("ExamType").
@@ -61,7 +61,7 @@ func (r *examinationRepository) FindByID(ctx context.Context, id uuid.UUID) (*mo
 		Preload("Items").
 		First(&exam, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("exam", id.String())
+			return nil, apperrors.WrapNotFound("exam", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find exam by id")
 	}
@@ -81,18 +81,18 @@ func (r *examinationRepository) Update(ctx context.Context, exam *model.Exam) er
 		return apperrors.Wrap(result.Error, "update exam")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("exam", exam.ID.String())
+		return apperrors.WrapNotFound("exam", fmt.Sprintf("%d", exam.ID))
 	}
 	return nil
 }
 
-func (r *examinationRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *examinationRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Exam{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete exam")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("exam", id.String())
+		return apperrors.WrapNotFound("exam", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

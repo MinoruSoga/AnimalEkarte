@@ -3,18 +3,19 @@ package model
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
+// @name TrimmingStatus
 type TrimmingStatus string
 
 const (
-	TrimmingStatusCompleted  TrimmingStatus = "完了"
-	TrimmingStatusReserved   TrimmingStatus = "予約"
-	TrimmingStatusInProgress TrimmingStatus = "進行中"
+	TrimmingStatusCompleted  TrimmingStatus = "completed"
+	TrimmingStatusReserved   TrimmingStatus = "reserved"
+	TrimmingStatusInProgress TrimmingStatus = "in_progress"
 )
 
+// @name BodyWeightUnit
 type BodyWeightUnit string
 
 const (
@@ -22,15 +23,16 @@ const (
 	BodyWeightUnitG  BodyWeightUnit = "g"
 )
 
+// @name TrimmingRecord
 type TrimmingRecord struct {
-	ID             uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	ClinicID       uuid.UUID      `gorm:"type:uuid;not null"                             json:"clinic_id"`
+	ID             uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID       uint64         `gorm:"not null"                                       json:"clinic_id"`
 	Date           time.Time      `gorm:"type:date;not null"                             json:"date"`
-	PetID          *uuid.UUID     `gorm:"type:uuid"                                      json:"pet_id,omitempty"`
-	StaffID        uuid.UUID      `gorm:"type:uuid;not null"                             json:"staff_id"`
-	CourseID       uuid.UUID      `gorm:"type:uuid;not null"                             json:"course_id"`
+	PetID          *uint64        `                                                      json:"pet_id,omitempty"`
+	StaffID        uint64         `gorm:"not null"                                       json:"staff_id"`
+	CourseID       uint64         `gorm:"not null"                                       json:"course_id"`
 	Weight         string         `gorm:"default:''"                                     json:"weight"`
-	Status         TrimmingStatus `gorm:"type:trimming_status;default:'予約'"              json:"status"`
+	Status         TrimmingStatus `gorm:"type:trimming_status;default:'reserved'"         json:"status"`
 	StyleRequest   string         `gorm:"default:''"                                     json:"style_request"`
 	BW             string         `gorm:"default:''"                                     json:"bw"`
 	BWUnit         BodyWeightUnit `gorm:"type:body_weight_unit;default:'Kg'"             json:"bw_unit"`
@@ -42,7 +44,7 @@ type TrimmingRecord struct {
 	CompletedImage string         `gorm:"default:''"                                     json:"completed_image"`
 	CreatedAt      time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt      time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt      gorm.DeletedAt `                                                      json:"deleted_at"`
+	DeletedAt      gorm.DeletedAt `                                                      json:"deleted_at" swaggerignore:"true"`
 
 	// Relations
 	Pet     *Pet             `gorm:"foreignKey:PetID"    json:"pet,omitempty"`
@@ -53,11 +55,12 @@ type TrimmingRecord struct {
 
 func (TrimmingRecord) TableName() string { return "trimming_records" }
 
+// @name TrimmingRecordOption
 type TrimmingRecordOption struct {
-	ID               uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	TrimmingRecordID uuid.UUID `gorm:"type:uuid;not null"                             json:"trimming_record_id"`
-	OptionID         uuid.UUID `gorm:"type:uuid;not null"                             json:"option_id"`
-	SortOrder        int       `gorm:"default:0"                                      json:"sort_order"`
+	ID               uint64 `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	TrimmingRecordID uint64 `gorm:"not null"                                       json:"trimming_record_id"`
+	OptionID         uint64 `gorm:"not null"                                       json:"option_id"`
+	SortOrder        int    `gorm:"default:0"                                      json:"sort_order"`
 }
 
 func (TrimmingRecordOption) TableName() string { return "trimming_record_options" }

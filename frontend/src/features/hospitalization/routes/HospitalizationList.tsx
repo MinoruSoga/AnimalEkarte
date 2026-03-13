@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
-import { PrimaryButton } from "@/components/shared/Form";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 
 // Relative
 import { HospitalizationBoard } from "../components/HospitalizationBoard";
@@ -48,11 +48,11 @@ export function HospitalizationList() {
       <div className="flex flex-col gap-4">
         {/* Status Tabs */}
         <Tabs value={statusFilter} onValueChange={(v) => isValidFilterStatus(v) && setStatusFilter(v)} className="w-full">
-            <TabsList className="grid w-[400px] grid-cols-4">
-                <TabsTrigger value={HOSPITALIZATION_FILTER_STATUS.ACTIVE}>入院中</TabsTrigger>
-                <TabsTrigger value={HOSPITALIZATION_FILTER_STATUS.RESERVED}>予約</TabsTrigger>
-                <TabsTrigger value={HOSPITALIZATION_FILTER_STATUS.DISCHARGED}>退院済</TabsTrigger>
-                <TabsTrigger value={HOSPITALIZATION_FILTER_STATUS.ALL}>すべて</TabsTrigger>
+            <TabsList className="grid w-[400px] grid-cols-4 h-11 p-[3px] rounded-xl">
+                <TabsTrigger value={HOSPITALIZATION_FILTER_STATUS.ACTIVE} className="rounded-[10px]">入院中</TabsTrigger>
+                <TabsTrigger value={HOSPITALIZATION_FILTER_STATUS.RESERVED} className="rounded-[10px]">予約</TabsTrigger>
+                <TabsTrigger value={HOSPITALIZATION_FILTER_STATUS.DISCHARGED} className="rounded-[10px]">退院済</TabsTrigger>
+                <TabsTrigger value={HOSPITALIZATION_FILTER_STATUS.ALL} className="rounded-[10px]">すべて</TabsTrigger>
             </TabsList>
         </Tabs>
 
@@ -66,7 +66,7 @@ export function HospitalizationList() {
                 count={filteredHospitalizations.length}
                 />
             </div>
-            <div className="bg-white rounded-md border border-[rgba(55,53,47,0.16)] p-1 h-10 flex items-center">
+            <div className="bg-white rounded-[6px] border border-[rgba(55,53,47,0.16)] p-1 h-11 flex items-center">
                 <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && isValidViewMode(v) && setViewMode(v)}>
                     <ToggleGroupItem value="board" size="sm" aria-label="Board View">
                         <LayoutGrid className="h-4 w-4" />

@@ -12,7 +12,7 @@ import Search from "lucide-react/dist/esm/icons/search";
 // Internal
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageLayout } from "@/components/shared/PageLayout";
-import { PrimaryButton } from "@/components/shared/Form";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import {
   Table,
   TableBody,

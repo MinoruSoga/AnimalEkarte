@@ -2,9 +2,9 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -20,7 +20,7 @@ import (
 // @Param limit query int false "件数 (1-100, default: 20)"
 // @Param category query string false "カテゴリフィルター"
 // @Param status query string false "ステータスフィルター (sufficient, low, out_of_stock)"
-// @Success 200 {object} PaginatedResponse
+// @Success 200 {object} handler.InventoryListResponse
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /inventory [get]
@@ -61,7 +61,7 @@ func (h *Handler) ListInventory(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "在庫ID"
+// @Param id path integer true "在庫ID"
 // @Success 200 {object} model.InventoryItem
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
@@ -73,7 +73,7 @@ func (h *Handler) GetInventory(c *gin.Context) {
 		return
 	}
 
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -109,7 +109,6 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = uuid.New()
 	if err := h.svc.Inventory.Create(c.Request.Context(), clinicID, &input); err != nil {
 		RespondError(c, err)
 		return
@@ -124,7 +123,7 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "在庫ID"
+// @Param id path integer true "在庫ID"
 // @Param input body model.InventoryItem true "更新する在庫情報"
 // @Success 200 {object} model.InventoryItem
 // @Failure 400 {object} map[string]string
@@ -137,7 +136,7 @@ func (h *Handler) UpdateInventory(c *gin.Context) {
 		return
 	}
 
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -160,7 +159,7 @@ func (h *Handler) DeleteInventory(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return

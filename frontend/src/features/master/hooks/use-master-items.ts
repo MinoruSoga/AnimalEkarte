@@ -27,14 +27,12 @@ export function useMasterItems(category?: string, searchTerm?: string) {
     return categoryItems.filter(
       (i) =>
         i.name.toLowerCase().includes(lower) ||
-        i.code.toLowerCase().includes(lower) ||
         (i.description && i.description.toLowerCase().includes(lower))
     );
   }, [categoryItems, searchTerm]);
 
   const add = (item: Omit<MasterItem, "id">, callbacks?: MutationCallbacks) => {
     const req: CreateMasterItemRequest = {
-      code: item.code,
       name: item.name,
       category: resolvedCategory,
       price: item.price ?? 0,
@@ -55,7 +53,6 @@ export function useMasterItems(category?: string, searchTerm?: string) {
     callbacks?: MutationCallbacks
   ) => {
     const req: UpdateMasterItemRequest = {
-      code: updates.code,
       name: updates.name,
       price: updates.price,
       status: updates.status,

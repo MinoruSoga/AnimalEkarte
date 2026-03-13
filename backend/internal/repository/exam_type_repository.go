@@ -4,8 +4,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -16,10 +16,10 @@ import (
 
 type ExamTypeRepository interface {
 	FindAll(ctx context.Context) ([]model.ExamType, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.ExamType, error)
+	FindByID(ctx context.Context, id uint64) (*model.ExamType, error)
 	Create(ctx context.Context, exType *model.ExamType) error
 	Update(ctx context.Context, exType *model.ExamType) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type examTypeRepository struct{ db *gorm.DB }
@@ -36,11 +36,11 @@ func (r *examTypeRepository) FindAll(ctx context.Context) ([]model.ExamType, err
 	return exTypes, nil
 }
 
-func (r *examTypeRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.ExamType, error) {
+func (r *examTypeRepository) FindByID(ctx context.Context, id uint64) (*model.ExamType, error) {
 	var exType model.ExamType
 	if err := r.db.WithContext(ctx).Preload("Items").First(&exType, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("examination_type", id.String())
+			return nil, apperrors.WrapNotFound("examination_type", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find examination type by id")
 	}
@@ -64,13 +64,13 @@ func (r *examTypeRepository) Update(ctx context.Context, exType *model.ExamType)
 	return nil
 }
 
-func (r *examTypeRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *examTypeRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.ExamType{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete examination type")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("examination_type", id.String())
+		return apperrors.WrapNotFound("examination_type", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

@@ -2,10 +2,10 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -52,18 +52,18 @@ func (h *Handler) ListReservations(c *gin.Context) {
 		status = &s
 	}
 
-	var petID *uuid.UUID
+	var petID *uint64
 	if s := c.Query("pet_id"); s != "" {
-		id, err := uuid.Parse(s)
+		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pet_id"})
 			return
 		}
 		petID = &id
 	}
-	var ownerID *uuid.UUID
+	var ownerID *uint64
 	if s := c.Query("owner_id"); s != "" {
-		id, err := uuid.Parse(s)
+		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id"})
 			return
@@ -86,7 +86,7 @@ func (h *Handler) ListReservations(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "予約UUID"
+// @Param id path integer true "予約ID"
 // @Success 200 {object} model.ReservationAppointment
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
@@ -98,7 +98,7 @@ func (h *Handler) GetReservation(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -134,7 +134,6 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = uuid.New()
 	input.ClinicID = clinicID
 	if err := h.svc.Reservation.Create(c.Request.Context(), &input); err != nil {
 		RespondError(c, err)
@@ -150,7 +149,7 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "予約UUID"
+// @Param id path integer true "予約ID"
 // @Param body body model.ReservationAppointment true "予約情報"
 // @Success 200 {object} model.ReservationAppointment
 // @Failure 400 {object} map[string]string
@@ -163,7 +162,7 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -189,7 +188,7 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "予約UUID"
+// @Param id path integer true "予約ID"
 // @Success 204 "No Content"
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
@@ -201,7 +200,7 @@ func (h *Handler) DeleteReservation(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return

@@ -1,10 +1,13 @@
 import { useState, useCallback, memo } from "react";
+import { useNavigate } from "react-router";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import Eye from "lucide-react/dist/esm/icons/eye";
 import EyeOff from "lucide-react/dist/esm/icons/eye-off";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { C } from "@/lib/design-tokens";
-import { useAuth } from "../hooks/useAuth";
+// AuthProvider はこのページを囲まないため useAuth() は使用不可。
+// login API を直接呼び出し、成功後に navigate("/") で保護ルート側に遷移する。
+import { login as loginApi } from "../api/login";
 import { MOCK_USERS } from "../api/mock-data";
 import { JOB_TITLE_LABELS, USER_TYPE_LABELS } from "../types";
 import type { AuthUser } from "../types";
@@ -32,19 +35,19 @@ const DemoAccount = memo(function DemoAccount({ email, displayName, user, onSele
     <button
       type="button"
       onClick={() => onSelect(email)}
-      className={`w-full text-left px-2.5 py-[7px] rounded-[3px] ${C.hoverBgLight} transition-colors flex items-center gap-2.5`}
+      className={`w-full text-left px-2.5 py-2 rounded-[3px] ${C.hoverBgLight} transition-colors flex items-center gap-3`}
     >
-      <div className={`size-[26px] rounded-full flex items-center justify-center shrink-0 ${C.bgSkeleton}`}>
-        <span className={`text-sm ${C.text50}`}>{displayName.charAt(0)}</span>
+      <div className={`size-[36px] rounded-full flex items-center justify-center shrink-0 ${C.bgInactive}`}>
+        <span className={`text-sm font-medium ${C.text65}`}>{displayName.charAt(0)}</span>
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className={`text-base ${C.text}`}>{displayName}</span>
-          <span className={`text-sm px-1.5 py-px rounded ${C.text50} ${C.bgHover}`}>
+          <span className={`text-sm font-medium ${C.text}`}>{displayName}</span>
+          <span className={`text-xs px-1.5 py-px rounded-[3px] ${C.text50} ${C.bgInactive}`}>
             {roleLabel}
           </span>
         </div>
-        <span className={`text-sm ${C.text30} block truncate`}>{email}</span>
+        <span className={`text-xs ${C.text35} block truncate`}>{email}</span>
       </div>
     </button>
   );
@@ -57,7 +60,7 @@ const INPUT_BASE = `w-full h-[48px] text-base rounded-[3px] ${C.bgInputLogin} bo
 /* ---- Login Form ---- */
 
 export function LoginForm() {
-  const { login } = useAuth();
+  const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -81,23 +84,33 @@ export function LoginForm() {
     setError(null);
   }, []);
 
+  // rerender-defer-reads: email/password は controlled input の value に必要だが
+  // submit ハンドラ内では event.currentTarget から読む。
+  // これにより handleSubmit がキー入力のたびに再生成されるのを防ぐ。
   const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
+    async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       setError(null);
 
-      if (!email.trim()) {
+      const form = e.currentTarget;
+      const emailValue = (form.elements.namedItem("login-email") as HTMLInputElement).value.trim();
+      const passwordValue = (form.elements.namedItem("login-password") as HTMLInputElement).value;
+
+      if (!emailValue) {
         setError("メールアドレスを入力してください");
         return;
       }
-      if (!password) {
+      if (!passwordValue) {
         setError("パスワードを入力してください");
         return;
       }
 
       setIsSubmitting(true);
       try {
-        await login(email.trim(), password);
+        await loginApi(emailValue, passwordValue);
+        // Cookie がセットされたあと保護ルートへ遷移。
+        // AuthProvider がマウントされ GET /v1/me でセッションが復元される。
+        navigate("/");
       } catch (err) {
         const message = err instanceof Error ? err.message : "ログインに失敗しました";
         setError(message);
@@ -105,7 +118,7 @@ export function LoginForm() {
         setIsSubmitting(false);
       }
     },
-    [email, password, login],
+    [navigate], // loginApi は安定した関数参照のため deps 不要
   );
 
   return (
@@ -176,7 +189,7 @@ export function LoginForm() {
         {/* Submit */}
         <button
           type="submit"
-          className="w-full h-[48px] text-base font-medium rounded-[3px] bg-[#038B94] hover:bg-[#027A82] transition-colors text-white disabled:opacity-60"
+          className="w-full h-[52px] text-base font-medium rounded-[3px] bg-[#038B94] hover:bg-[#027A82] transition-colors text-white disabled:opacity-60"
           disabled={isSubmitting}
         >
           {isSubmitting ? "ログイン中..." : "ログイン"}

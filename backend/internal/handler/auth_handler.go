@@ -3,6 +3,7 @@ package handler
 import (
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -17,7 +18,6 @@ import (
 type MeClinicMembership struct {
 	ClinicID   string `json:"clinic_id"`
 	ClinicName string `json:"clinic_name"`
-	BranchName string `json:"branch_name"`
 	IsMain     bool   `json:"is_main"`
 }
 
@@ -42,9 +42,9 @@ type LoginInput struct {
 
 // LoginResponse はログイン成功時のレスポンス
 type LoginResponse struct {
-	Token     string `json:"token"`
-	ExpiresAt int64  `json:"expires_at"`
-	UserType  string `json:"user_type"`
+	ExpiresAt int64       `json:"expires_at"`
+	UserType  string      `json:"user_type"`
+	User      *MeResponse `json:"user"`
 }
 
 // Login godoc
@@ -99,24 +99,28 @@ func (h *Handler) Login(c *gin.Context) {
 	// 所属クリニックを取得してメインクリニックIDを決定
 	memberships, mErr := h.svc.UserAccount.GetMemberships(ctx, account.ID)
 	mainClinicID := ""
-	if mErr == nil {
+	if mErr != nil {
+		slog.WarnContext(ctx, "failed to get memberships, token will have empty clinic_id",
+			slog.Uint64("user_id", account.ID),
+			slog.String("error", mErr.Error()))
+	} else {
 		for _, m := range memberships {
 			if m.IsMain {
-				mainClinicID = m.ClinicID.String()
+				mainClinicID = strconv.FormatUint(m.ClinicID, 10)
 				break
 			}
 		}
 		// isMain がなければ先頭を使う
 		if mainClinicID == "" && len(memberships) > 0 {
-			mainClinicID = memberships[0].ClinicID.String()
+			mainClinicID = strconv.FormatUint(memberships[0].ClinicID, 10)
 		}
 	}
 
 	expiresAt := time.Now().Add(24 * time.Hour)
 	claims := &middleware.JWTClaims{
-		UserID:   account.ID.String(),
+		UserID:   strconv.FormatUint(account.ID, 10),
 		ClinicID: mainClinicID,
-		UserType: string(account.UserType),
+		UserType: string(account.UserType), //nolint:unconvert // model.UserType is a named string type; explicit cast required
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -131,11 +135,96 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
+	// ユーザー詳細情報を取得（ログインレスポンスに含めて /me 呼び出しを不要にする）
+	userData, err := h.svc.UserAccount.GetWithMemberships(ctx, strconv.FormatUint(account.ID, 10))
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get user data for login response", slog.String("error", err.Error()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	allClinics, err := h.svc.Clinic.ListClinics(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list clinics for login response", slog.String("error", err.Error()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	clinicNameMap := make(map[string]string, len(allClinics))
+	for _, cl := range allClinics {
+		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
+	}
+	meClinicList := make([]MeClinicMembership, 0, len(userData.Memberships))
+	for _, m := range userData.Memberships {
+		clIDStr := strconv.FormatUint(m.ClinicID, 10)
+		info := clinicNameMap[clIDStr]
+		meClinicList = append(meClinicList, MeClinicMembership{
+			ClinicID:   clIDStr,
+			ClinicName: info,
+			IsMain:     clIDStr == mainClinicID,
+		})
+	}
+	permMap := make(map[string][]string)
+	for _, p := range userData.Permissions {
+		clIDStr := strconv.FormatUint(p.ClinicID, 10)
+		permMap[clIDStr] = append(permMap[clIDStr], string(p.Permission))
+	}
+	var jobTitle *string
+	if userData.UserAccount.JobTitle != nil {
+		jt := userData.UserAccount.JobTitle.Name
+		jobTitle = &jt
+	}
+	var avatarURL *string
+	if userData.UserAccount.AvatarURL != "" {
+		av := userData.UserAccount.AvatarURL
+		avatarURL = &av
+	}
+	meResp := &MeResponse{
+		ID:           strconv.FormatUint(userData.UserAccount.ID, 10),
+		Email:        userData.UserAccount.Email,
+		DisplayName:  userData.UserAccount.DisplayName,
+		UserType:     string(userData.UserAccount.UserType),
+		JobTitle:     jobTitle,
+		AvatarURL:    avatarURL,
+		MainClinicID: mainClinicID,
+		Clinics:      meClinicList,
+		Permissions:  permMap,
+	}
+
+	// httpOnly Cookie でトークンを保存（XSS攻撃でのトークン窃取を防止）
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "auth_token",
+		Value:    tokenStr,
+		HttpOnly: true,
+		Secure:   gin.Mode() == gin.ReleaseMode,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/",
+		MaxAge:   86400, // 24時間
+	})
+
 	c.JSON(http.StatusOK, LoginResponse{
-		Token:     tokenStr,
 		ExpiresAt: expiresAt.Unix(),
 		UserType:  claims.UserType,
+		User:      meResp,
 	})
+}
+
+// Logout godoc
+// @Summary ログアウト
+// @Description httpOnly Cookieを無効化してログアウト
+// @Tags Auth
+// @Produce json
+// @Success 200 {object} map[string]string
+// @Router /auth/logout [post]
+func (h *Handler) Logout(c *gin.Context) {
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "auth_token",
+		Value:    "",
+		HttpOnly: true,
+		Secure:   gin.Mode() == gin.ReleaseMode,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/",
+		MaxAge:   -1,
+	})
+	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }
 
 // GetMe godoc
@@ -152,11 +241,20 @@ func (h *Handler) Login(c *gin.Context) {
 func (h *Handler) GetMe(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	userIDVal, _ := c.Get("user_id")
+	userIDVal, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user context"})
+		return
+	}
+	userIDStr, ok := userIDVal.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
+		return
+	}
 	mainClinicIDVal, _ := c.Get("clinic_id")
 	mainClinicIDStr, _ := mainClinicIDVal.(string)
 
-	data, err := h.svc.UserAccount.GetWithMemberships(ctx, userIDVal.(string))
+	data, err := h.svc.UserAccount.GetWithMemberships(ctx, userIDStr)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get user account", slog.String("error", err.Error()))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
@@ -170,19 +268,18 @@ func (h *Handler) GetMe(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
-	clinicNameMap := make(map[string]struct{ Name, BranchName string }, len(allClinics))
-	for _, cl := range allClinics {
-		clinicNameMap[cl.ID.String()] = struct{ Name, BranchName string }{cl.Name, cl.BranchName}
+	clinicNameMap := make(map[string]string, len(allClinics))
+	for i := range allClinics {
+		cl := &allClinics[i]
+		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
 	}
 
 	meClinicList := make([]MeClinicMembership, 0, len(data.Memberships))
 	for _, m := range data.Memberships {
-		clIDStr := m.ClinicID.String()
-		info := clinicNameMap[clIDStr]
+		clIDStr := strconv.FormatUint(m.ClinicID, 10)
 		meClinicList = append(meClinicList, MeClinicMembership{
 			ClinicID:   clIDStr,
-			ClinicName: info.Name,
-			BranchName: info.BranchName,
+			ClinicName: clinicNameMap[clIDStr],
 			IsMain:     clIDStr == mainClinicIDStr,
 		})
 	}
@@ -190,13 +287,13 @@ func (h *Handler) GetMe(c *gin.Context) {
 	// 権限マップ: clinic_id → []permission
 	permMap := make(map[string][]string)
 	for _, p := range data.Permissions {
-		clIDStr := p.ClinicID.String()
+		clIDStr := strconv.FormatUint(p.ClinicID, 10)
 		permMap[clIDStr] = append(permMap[clIDStr], string(p.Permission))
 	}
 
 	var jobTitle *string
-	if data.UserAccount.Staff != nil && data.UserAccount.Staff.StaffRole != "" {
-		jt := string(data.UserAccount.Staff.StaffRole)
+	if data.UserAccount.JobTitle != nil {
+		jt := data.UserAccount.JobTitle.Name
 		jobTitle = &jt
 	}
 	var avatarURL *string
@@ -206,7 +303,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, MeResponse{
-		ID:           data.UserAccount.ID.String(),
+		ID:           strconv.FormatUint(data.UserAccount.ID, 10),
 		Email:        data.UserAccount.Email,
 		DisplayName:  data.UserAccount.DisplayName,
 		UserType:     string(data.UserAccount.UserType),

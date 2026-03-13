@@ -3,10 +3,10 @@ package model
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
+// @name NextScheduleType
 type NextScheduleType string
 
 const (
@@ -16,13 +16,14 @@ const (
 	NextScheduleTypeOther  NextScheduleType = "other"
 )
 
+// @name Vaccination
 type Vaccination struct {
-	ID               uuid.UUID         `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	MedicalRecordID  uuid.UUID         `gorm:"type:uuid;not null"                             json:"medical_record_id"`
-	PetID            *uuid.UUID        `gorm:"type:uuid"                                      json:"pet_id,omitempty"`
-	VaccineID        uuid.UUID         `gorm:"type:uuid;not null"                             json:"vaccine_id"`
+	ID               uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	MedicalRecordID  uint64            `gorm:"not null"                                       json:"medical_record_id"`
+	PetID            *uint64           `                                                      json:"pet_id,omitempty"`
+	VaccineID        uint64            `gorm:"not null"                                       json:"vaccine_id"`
 	Date             time.Time         `gorm:"type:date;not null"                             json:"date"`
-	DoctorID         *uuid.UUID        `gorm:"type:uuid"                                      json:"doctor_id,omitempty"`
+	DoctorID         *uint64           `                                                      json:"doctor_id,omitempty"`
 	NextDate         *time.Time        `gorm:"type:date"                                      json:"next_date,omitempty"`
 	NextScheduleType *NextScheduleType `gorm:"type:next_schedule_type"                       json:"next_schedule_type,omitempty"`
 	Supplemental     string            `gorm:"default:''"                                     json:"supplemental"`
@@ -31,7 +32,7 @@ type Vaccination struct {
 	Lot3             string            `gorm:"default:''"                                     json:"lot3"`
 	Lot4             string            `gorm:"default:''"                                     json:"lot4"`
 	Remarks          string            `gorm:"default:''"                                     json:"remarks"`
-	DeletedAt        gorm.DeletedAt    `                                                      json:"deleted_at"`
+	DeletedAt        gorm.DeletedAt    `                                                      json:"deleted_at" swaggerignore:"true"`
 	CreatedAt        time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt        time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
 

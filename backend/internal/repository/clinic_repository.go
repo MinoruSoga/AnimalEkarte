@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -13,11 +13,12 @@ import (
 
 type ClinicRepository interface {
 	FindAll(ctx context.Context) ([]model.Clinic, error)
-	FindByID(ctx context.Context, id uuid.UUID) (*model.Clinic, error)
+	FindByID(ctx context.Context, id uint64) (*model.Clinic, error)
 	GetCompany(ctx context.Context) (*model.Company, error)
 	UpdateCompany(ctx context.Context, company *model.Company) error
 	Create(ctx context.Context, clinic *model.Clinic) error
 	Update(ctx context.Context, clinic *model.Clinic) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type clinicRepository struct {
@@ -36,11 +37,11 @@ func (r *clinicRepository) FindAll(ctx context.Context) ([]model.Clinic, error) 
 	return clinics, nil
 }
 
-func (r *clinicRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Clinic, error) {
+func (r *clinicRepository) FindByID(ctx context.Context, id uint64) (*model.Clinic, error) {
 	var clinic model.Clinic
 	if err := r.db.WithContext(ctx).First(&clinic, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("clinic", id.String())
+			return nil, apperrors.WrapNotFound("clinic", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find clinic by id")
 	}
@@ -63,8 +64,8 @@ func (r *clinicRepository) UpdateCompany(ctx context.Context, company *model.Com
 	err := r.db.WithContext(ctx).First(&existing).Error
 	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		// レコードが存在しない場合は新規作成
-		if company.ID == (uuid.UUID{}) {
-			company.ID = uuid.New()
+		if company.ID == 0 {
+			// ID は SERIAL (auto_increment) のため DB に任せる
 		}
 		if err := r.db.WithContext(ctx).Create(company).Error; err != nil {
 			return apperrors.Wrap(err, "create company")
@@ -94,6 +95,17 @@ func (r *clinicRepository) Create(ctx context.Context, clinic *model.Clinic) err
 func (r *clinicRepository) Update(ctx context.Context, clinic *model.Clinic) error {
 	if err := r.db.WithContext(ctx).Save(clinic).Error; err != nil {
 		return apperrors.Wrap(err, "update clinic")
+	}
+	return nil
+}
+
+func (r *clinicRepository) Delete(ctx context.Context, id uint64) error {
+	result := r.db.WithContext(ctx).Delete(&model.Clinic{}, "id = ?", id)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "delete clinic")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("clinic", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

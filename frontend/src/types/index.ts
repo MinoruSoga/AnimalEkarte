@@ -5,7 +5,6 @@ import { ReactNode } from "react";
 // Clinic Types
 export interface ClinicInfo {
   name: string;
-  branchName: string;
   postalCode: string;
   address: string;
   phoneNumber: string;
@@ -70,6 +69,7 @@ export interface MedicalRecord {
   prescription?: string;
   notes?: string;
   visitType?: string;
+  accountingId?: string;  // 関連会計レコードID
 }
 
 // Hospitalization Types
@@ -272,7 +272,6 @@ export interface VaccinationRecord {
 // Settings Types
 export interface MasterItem {
   id: string;
-  code: string;
   name: string;
   category?: string;
   price: number; // Changed from optional to required for TreatmentMaster compatibility

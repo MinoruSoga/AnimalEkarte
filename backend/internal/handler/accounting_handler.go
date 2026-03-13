@@ -2,9 +2,9 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -19,7 +19,7 @@ import (
 // @Param page query int false "ページ番号 (default: 1)"
 // @Param limit query int false "件数 (1-100, default: 20)"
 // @Param status query string false "ステータスフィルター"
-// @Success 200 {object} PaginatedResponse
+// @Success 200 {object} handler.BillingListResponse
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /accountings [get]
@@ -35,18 +35,18 @@ func (h *Handler) ListAccountings(c *gin.Context) {
 		return
 	}
 
-	var petID *uuid.UUID
+	var petID *uint64
 	if s := c.Query("pet_id"); s != "" {
-		id, err := uuid.Parse(s)
+		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pet_id"})
 			return
 		}
 		petID = &id
 	}
-	var ownerID *uuid.UUID
+	var ownerID *uint64
 	if s := c.Query("owner_id"); s != "" {
-		id, err := uuid.Parse(s)
+		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id"})
 			return
@@ -74,7 +74,7 @@ func (h *Handler) ListAccountings(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "会計ID"
+// @Param id path integer true "会計ID"
 // @Success 200 {object} model.Billing
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
@@ -86,7 +86,7 @@ func (h *Handler) GetAccounting(c *gin.Context) {
 		return
 	}
 
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -122,7 +122,6 @@ func (h *Handler) CreateAccounting(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = uuid.New()
 	if err := h.svc.Accounting.Create(c.Request.Context(), clinicID, &input); err != nil {
 		RespondError(c, err)
 		return
@@ -137,7 +136,7 @@ func (h *Handler) CreateAccounting(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "会計ID"
+// @Param id path integer true "会計ID"
 // @Param input body model.Billing true "更新する会計情報"
 // @Success 200 {object} model.Billing
 // @Failure 400 {object} map[string]string
@@ -150,7 +149,7 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 		return
 	}
 
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -173,7 +172,7 @@ func (h *Handler) DeleteAccounting(c *gin.Context) {
 	if !ok {
 		return
 	}
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return

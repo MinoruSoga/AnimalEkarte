@@ -5,7 +5,6 @@ import type { BackendAccounting, BackendAccountingItem } from "./types";
 function transformAccountingItem(item: BackendAccountingItem): AccountingItem {
   return {
     id: item.id,
-    code: item.code,
     category: item.category as AccountingItem["category"],
     name: item.name,
     unitPrice: item.unit_price ?? 0,

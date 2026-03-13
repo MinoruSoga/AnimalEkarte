@@ -2,9 +2,9 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -18,9 +18,9 @@ import (
 // @Security BearerAuth
 // @Param page query int false "ページ番号 (default: 1)"
 // @Param limit query int false "件数 (1-100, default: 20)"
-// @Param pet_id query string false "ペットIDフィルター"
-// @Param owner_id query string false "飼主IDフィルター"
-// @Success 200 {object} PaginatedResponse
+// @Param pet_id query integer false "ペットIDフィルター"
+// @Param owner_id query integer false "飼主IDフィルター"
+// @Success 200 {object} handler.VaccinationListResponse
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
 // @Failure 500 {object} map[string]string
@@ -32,9 +32,9 @@ func (h *Handler) ListVaccinations(c *gin.Context) {
 		return
 	}
 
-	var petID *uuid.UUID
+	var petID *uint64
 	if s := c.Query("pet_id"); s != "" {
-		id, err := uuid.Parse(s)
+		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pet_id"})
 			return
@@ -42,9 +42,9 @@ func (h *Handler) ListVaccinations(c *gin.Context) {
 		petID = &id
 	}
 
-	var ownerID *uuid.UUID
+	var ownerID *uint64
 	if s := c.Query("owner_id"); s != "" {
-		id, err := uuid.Parse(s)
+		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id"})
 			return
@@ -67,7 +67,7 @@ func (h *Handler) ListVaccinations(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "予防接種ID"
+// @Param id path integer true "予防接種ID"
 // @Success 200 {object} model.Vaccination
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
@@ -75,7 +75,7 @@ func (h *Handler) ListVaccinations(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /vaccinations/{id} [get]
 func (h *Handler) GetVaccination(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -107,7 +107,6 @@ func (h *Handler) CreateVaccination(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = uuid.New()
 	if err := h.svc.Vaccination.Create(c.Request.Context(), &input); err != nil {
 		RespondError(c, err)
 		return
@@ -122,7 +121,7 @@ func (h *Handler) CreateVaccination(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "予防接種ID"
+// @Param id path integer true "予防接種ID"
 // @Param input body model.Vaccination true "更新する予防接種情報"
 // @Success 200 {object} model.Vaccination
 // @Failure 400 {object} map[string]string
@@ -131,7 +130,7 @@ func (h *Handler) CreateVaccination(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /vaccinations/{id} [patch]
 func (h *Handler) UpdateVaccination(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
@@ -156,7 +155,7 @@ func (h *Handler) UpdateVaccination(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "予防接種ID"
+// @Param id path integer true "予防接種ID"
 // @Success 204 "No Content"
 // @Failure 400 {object} map[string]string
 // @Failure 401 {object} map[string]string
@@ -164,7 +163,7 @@ func (h *Handler) UpdateVaccination(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /vaccinations/{id} [delete]
 func (h *Handler) DeleteVaccination(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return

@@ -4,8 +4,6 @@ package service
 import (
 	"context"
 
-	"github.com/google/uuid"
-
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -14,10 +12,10 @@ import (
 
 type VaccineService interface {
 	List(ctx context.Context, species *string) ([]model.Vaccine, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*model.Vaccine, error)
+	GetByID(ctx context.Context, id uint64) (*model.Vaccine, error)
 	Create(ctx context.Context, vaccine *model.Vaccine) error
 	Update(ctx context.Context, vaccine *model.Vaccine) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type vaccineService struct{ repo repository.VaccineRepository }
@@ -29,7 +27,7 @@ func NewVaccineService(repo repository.VaccineRepository) VaccineService {
 func (s *vaccineService) List(ctx context.Context, species *string) ([]model.Vaccine, error) {
 	return s.repo.FindAll(ctx, species)
 }
-func (s *vaccineService) GetByID(ctx context.Context, id uuid.UUID) (*model.Vaccine, error) {
+func (s *vaccineService) GetByID(ctx context.Context, id uint64) (*model.Vaccine, error) {
 	return s.repo.FindByID(ctx, id)
 }
 func (s *vaccineService) Create(ctx context.Context, vaccine *model.Vaccine) error {
@@ -38,6 +36,6 @@ func (s *vaccineService) Create(ctx context.Context, vaccine *model.Vaccine) err
 func (s *vaccineService) Update(ctx context.Context, vaccine *model.Vaccine) error {
 	return s.repo.Update(ctx, vaccine)
 }
-func (s *vaccineService) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *vaccineService) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
 }
