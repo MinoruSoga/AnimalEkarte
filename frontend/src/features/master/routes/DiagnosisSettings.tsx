@@ -1,10 +1,10 @@
 // React/Framework
 import type { ReactNode } from "react";
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 // External
-import { Plus, FolderTree, X, Trash2 } from "lucide-react";
+import { Plus, ClipboardList, X, Trash2, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
@@ -20,7 +20,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable, DataTableRow } from "@/components/shared/DataTable";
-import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
@@ -49,16 +48,24 @@ import type {
 // ─────────────────────────────────────────────────
 
 const CATEGORY_COLUMNS = [
+  { header: "", className: "w-[32px]" },
   { header: "カテゴリ名" },
-  { header: "備考", className: "w-[240px]" },
+  { header: "分類", className: "w-[200px]" },
   { header: "ステータス", className: "w-[90px]", align: "right" as const },
 ];
 
 const NAME_COLUMNS = [
-  { header: "診断名" },
-  { header: "カテゴリ", className: "w-[160px]" },
+  { header: "", className: "w-[32px]" },
+  { header: "診断病名" },
+  { header: "所属カテゴリ", className: "w-[200px]" },
+  { header: "分類", className: "w-[200px]" },
   { header: "ステータス", className: "w-[90px]", align: "right" as const },
 ];
+
+const TABS = [
+  { value: "diagnosis_category", label: "診断病名カテゴリ" },
+  { value: "diagnosis_name", label: "診断病名" },
+] as const;
 
 // ─────────────────────────────────────────────────
 // Notion Status Pill
@@ -129,6 +136,23 @@ function PropInput({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder ?? "空"}
     />
+  );
+}
+
+// ─────────────────────────────────────────────────
+// Link-style 新規登録 button
+// ─────────────────────────────────────────────────
+
+function AddButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1a6bc0] transition-colors cursor-pointer"
+    >
+      <Plus className="size-4" />
+      新規登録
+    </button>
   );
 }
 
@@ -237,10 +261,7 @@ function DiagnosisCategoryTab() {
                 count={filteredItems.length}
               />
             </div>
-            <PrimaryButton onClick={handleCreate}>
-              <Plus className="mr-1.5 size-4" />
-              新規登録
-            </PrimaryButton>
+            <AddButton onClick={handleCreate} />
           </div>
 
           <DataTable
@@ -249,11 +270,14 @@ function DiagnosisCategoryTab() {
             emptyMessage="診断カテゴリが登録されていません"
             renderRow={(item) => (
               <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
+                <TableCell className="w-[32px] py-2.5 text-[#37352F]/20">
+                  <GripVertical className="size-4" />
+                </TableCell>
                 <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
                   {item.name}
                 </TableCell>
-                <TableCell className={`text-sm ${C.text70} py-2.5 truncate max-w-[240px]`}>
-                  {item.description || "-"}
+                <TableCell className={`text-sm ${C.text60} py-2.5`}>
+                  diagnosis_category
                 </TableCell>
                 <TableCell className="text-right py-2.5">
                   <span className="inline-flex items-center gap-1.5">
@@ -266,18 +290,10 @@ function DiagnosisCategoryTab() {
               </DataTableRow>
             )}
           />
-          <button
-            type="button"
-            onClick={handleCreate}
-            className="flex items-center gap-1.5 w-full px-3 py-2 text-sm text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[rgba(55,53,47,0.04)] transition-colors rounded"
-          >
-            <Plus className="size-3.5" />
-            新しいカテゴリを追加...
-          </button>
         </div>
 
         {/* ── Right: Side Peek ── */}
-        {isEditing && (
+        {isEditing ? (
           <div
             className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 flex flex-col`}
           >
@@ -311,7 +327,7 @@ function DiagnosisCategoryTab() {
               <div className="px-16 pb-8">
                 <div className="pt-4 pb-2">
                   <div className={STYLE.pageIcon}>
-                    <FolderTree className={LAYOUT.pageIcon.innerIcon} />
+                    <ClipboardList className={LAYOUT.pageIcon.innerIcon} />
                   </div>
                 </div>
 
@@ -366,7 +382,7 @@ function DiagnosisCategoryTab() {
               </button>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       <ConfirmDialog
@@ -390,7 +406,6 @@ function DiagnosisNameTab() {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<DiagnosisName | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterCategoryId, setFilterCategoryId] = useState<string>("all");
   const [pendingDelete, setPendingDelete] = useState<DiagnosisName | null>(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -408,16 +423,10 @@ function DiagnosisNameTab() {
 
   const filteredItems = useMemo(() => {
     const names = rawNames ?? [];
-    let result = names;
-    if (filterCategoryId !== "all") {
-      result = result.filter((n) => n.diagnosisCategoryId === filterCategoryId);
-    }
-    if (searchTerm) {
-      const lower = searchTerm.toLowerCase();
-      result = result.filter((n) => n.name.toLowerCase().includes(lower));
-    }
-    return result;
-  }, [rawNames, filterCategoryId, searchTerm]);
+    if (!searchTerm) return names;
+    const lower = searchTerm.toLowerCase();
+    return names.filter((n) => n.name.toLowerCase().includes(lower));
+  }, [rawNames, searchTerm]);
 
   const categoryMap = useMemo(
     () => new Map((rawCategories ?? []).map((c) => [c.id, c.name])),
@@ -440,7 +449,7 @@ function DiagnosisNameTab() {
     const firstCategoryId = rawCategories?.[0]?.id ?? "";
     setFormData({
       name: "",
-      diagnosisCategoryId: filterCategoryId !== "all" ? filterCategoryId : firstCategoryId,
+      diagnosisCategoryId: firstCategoryId,
       description: "",
       isActive: true,
     });
@@ -455,7 +464,7 @@ function DiagnosisNameTab() {
 
   const handleSave = () => {
     if (!formData.name.trim()) {
-      toast.error("診断名は必須です");
+      toast.error("診断病名は必須です");
       return;
     }
     if (!formData.diagnosisCategoryId) {
@@ -519,41 +528,30 @@ function DiagnosisNameTab() {
               <SearchFilterBar
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
-                placeholder="診断名で検索..."
+                placeholder="診断病名で検索..."
                 count={filteredItems.length}
               />
             </div>
-            {/* Category filter */}
-            <Select value={filterCategoryId} onValueChange={setFilterCategoryId}>
-              <SelectTrigger className={`${STYLE.selectCompact} h-11 border ${C.borderMedium} bg-white w-[160px]`}>
-                <SelectValue placeholder="カテゴリで絞込" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">すべてのカテゴリ</SelectItem>
-                {(rawCategories ?? []).map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <PrimaryButton onClick={handleCreate}>
-              <Plus className="mr-1.5 size-4" />
-              新規登録
-            </PrimaryButton>
+            <AddButton onClick={handleCreate} />
           </div>
 
           <DataTable
             columns={NAME_COLUMNS}
             data={filteredItems}
-            emptyMessage="診断名が登録されていません"
+            emptyMessage="診断病名が登録されていません"
             renderRow={(item) => (
               <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
+                <TableCell className="w-[32px] py-2.5 text-[#37352F]/20">
+                  <GripVertical className="size-4" />
+                </TableCell>
                 <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
                   {item.name}
                 </TableCell>
                 <TableCell className={`text-sm ${C.text70} py-2.5`}>
                   {categoryMap.get(item.diagnosisCategoryId) ?? "-"}
+                </TableCell>
+                <TableCell className={`text-sm ${C.text60} py-2.5`}>
+                  diagnosis_name
                 </TableCell>
                 <TableCell className="text-right py-2.5">
                   <span className="inline-flex items-center gap-1.5">
@@ -566,18 +564,10 @@ function DiagnosisNameTab() {
               </DataTableRow>
             )}
           />
-          <button
-            type="button"
-            onClick={handleCreate}
-            className="flex items-center gap-1.5 w-full px-3 py-2 text-sm text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[rgba(55,53,47,0.04)] transition-colors rounded"
-          >
-            <Plus className="size-3.5" />
-            新しい診断名を追加...
-          </button>
         </div>
 
         {/* ── Right: Side Peek ── */}
-        {isEditing && (
+        {isEditing ? (
           <div
             className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 flex flex-col`}
           >
@@ -611,7 +601,7 @@ function DiagnosisNameTab() {
               <div className="px-16 pb-8">
                 <div className="pt-4 pb-2">
                   <div className={STYLE.pageIcon}>
-                    <FolderTree className={LAYOUT.pageIcon.innerIcon} />
+                    <ClipboardList className={LAYOUT.pageIcon.innerIcon} />
                   </div>
                 </div>
 
@@ -686,13 +676,13 @@ function DiagnosisNameTab() {
               </button>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       <ConfirmDialog
         open={pendingDelete !== null}
         onClose={() => setPendingDelete(null)}
-        title="診断名を削除しますか？"
+        title="診断病名を削除しますか？"
         description={`「${pendingDelete?.name}」を削除します。この操作は取り消せません。`}
         confirmLabel="削除"
         variant="destructive"
@@ -706,24 +696,24 @@ function DiagnosisNameTab() {
 // DiagnosisSettings (main page)
 // ─────────────────────────────────────────────────
 
-const TABS = [
-  { value: "category", label: "カテゴリ" },
-  { value: "name", label: "診断名" },
-] as const;
-
 export function DiagnosisSettings() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<string>("category");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") ?? "diagnosis_category";
+
+  const handleTabChange = (tab: string) => {
+    setSearchParams({ tab });
+  };
 
   return (
     <PageLayout
-      title="診断マスタ"
-      icon={<FolderTree className="size-5 text-[#37352F]" />}
+      title="診断病名マスタ"
+      icon={<ClipboardList className="size-5 text-[#37352F]" />}
       onBack={() => navigate("/settings")}
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList
             className={`h-9 bg-transparent border-b ${C.borderLight} rounded-none w-full justify-start gap-0 p-0`}
           >
@@ -739,10 +729,10 @@ export function DiagnosisSettings() {
               </TabsTrigger>
             ))}
           </TabsList>
-          <TabsContent value="category" className="mt-4">
+          <TabsContent value="diagnosis_category" className="mt-4">
             <DiagnosisCategoryTab />
           </TabsContent>
-          <TabsContent value="name" className="mt-4">
+          <TabsContent value="diagnosis_name" className="mt-4">
             <DiagnosisNameTab />
           </TabsContent>
         </Tabs>
