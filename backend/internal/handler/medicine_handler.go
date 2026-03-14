@@ -55,7 +55,7 @@ func (h *Handler) CreateMedicine(c *gin.Context) {
 
 	var req createMedicineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
@@ -95,7 +95,7 @@ func (h *Handler) UpdateMedicine(c *gin.Context) {
 
 	var req updateMedicineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 

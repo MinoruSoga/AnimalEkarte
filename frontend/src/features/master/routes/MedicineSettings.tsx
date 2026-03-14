@@ -49,7 +49,7 @@ import {
   useUpdateMedicine,
   useDeleteMedicine,
 } from "../api/medicines";
-import type { CreateMedicineRequest, UpdateMedicineRequest } from "../api/medicines";
+import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medicine";
 
 // Types
 import type { Medicine } from "@/types";
@@ -238,8 +238,8 @@ export function MedicineSettings() {
     setFormData({
       name: medicine.name,
       drugCategory: medicine.drugCategory ?? "",
-      dosageForm: medicine.dosageForm,
-      medicineUnit: medicine.medicineUnit,
+      dosageForm: medicine.dosageForm ?? "",
+      medicineUnit: medicine.medicineUnit ?? "",
       price: medicine.price,
       description: medicine.description,
       isActive: medicine.isActive,

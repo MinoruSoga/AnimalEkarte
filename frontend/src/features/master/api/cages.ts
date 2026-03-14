@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Cage } from "@/types";
 
 // Backend types (snake_case)
@@ -70,6 +71,8 @@ export const useGetAllCages = () => {
   return useQuery({
     queryKey: ["cages"],
     queryFn: getAllCages,
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 };
 
@@ -83,6 +86,8 @@ export const useGetCageById = (id: string) => {
     queryKey: ["cages", id],
     queryFn: () => getCageById(id),
     enabled: !!id,
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 };
 

@@ -335,24 +335,7 @@ export type CageType = 'icu' | 'dog' | 'cat' | 'general';
 export type CageSize = 'small' | 'medium' | 'large';
 
 // Medicine Types
-export interface Medicine {
-  id: string;
-  name: string;
-  drugCategory?: string;
-  dosageForm: DosageForm;
-  medicineUnit: MedicineUnit;
-  price: number;
-  defaultQuantity?: number;
-  inventoryId?: string;
-  description: string;
-  isActive: boolean;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export type DosageForm = 'tablet' | 'liquid' | 'injection' | 'topical' | 'powder';
-export type MedicineUnit = 'per_tablet' | 'per_ml' | 'per_dose' | 'per_gram';
+export type { Medicine } from "@/lib/transforms/medicine";
 
 // InsuranceCompany Types
 export interface InsuranceCompany {

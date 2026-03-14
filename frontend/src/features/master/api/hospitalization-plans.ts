@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import type { BodySize, BillingUnit } from "@/types/generated/models";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import type { BodySize, BillingUnit, HospitalizationPlan as ModelHospitalizationPlan } from "@/types/generated/models";
 import {
   BodySizeSmall,
   BodySizeMedium,
@@ -31,20 +32,6 @@ export interface HospitalizationPlan {
   bodySize: BodySize | null;
   billingUnit: BillingUnit | null;
   sortOrder: number;
-}
-
-interface BackendHospitalizationPlan {
-  id: number;
-  clinic_id: number;
-  name: string;
-  price?: number;
-  is_active: boolean;
-  description: string;
-  body_size?: BodySize;
-  billing_unit?: BillingUnit;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface CreateHospitalizationPlanRequest {
@@ -92,10 +79,10 @@ export const BILLING_UNIT_LABELS: Record<string, string> = {
 // ─────────────────────────────────────────────────
 
 function transformHospitalizationPlan(
-  data: BackendHospitalizationPlan,
+  data: ModelHospitalizationPlan,
 ): HospitalizationPlan {
   return {
-    id: String(data.id),
+    id: String(data.id ?? 0),
     name: data.name,
     price: data.price ?? 0,
     isActive: data.is_active,
@@ -115,14 +102,14 @@ const ENDPOINT = "/v1/masters/hospitalization-plans";
 export const getAllHospitalizationPlans = async (): Promise<
   HospitalizationPlan[]
 > => {
-  const { data } = await axios.get<BackendHospitalizationPlan[]>(ENDPOINT);
+  const { data } = await axios.get<ModelHospitalizationPlan[]>(ENDPOINT);
   return data.map(transformHospitalizationPlan);
 };
 
 export const createHospitalizationPlan = async (
   req: CreateHospitalizationPlanRequest,
 ): Promise<HospitalizationPlan> => {
-  const { data } = await axios.post<BackendHospitalizationPlan>(ENDPOINT, req);
+  const { data } = await axios.post<ModelHospitalizationPlan>(ENDPOINT, req);
   return transformHospitalizationPlan(data);
 };
 
@@ -130,7 +117,7 @@ export const updateHospitalizationPlan = async (
   id: string,
   req: UpdateHospitalizationPlanRequest,
 ): Promise<HospitalizationPlan> => {
-  const { data } = await axios.patch<BackendHospitalizationPlan>(
+  const { data } = await axios.patch<ModelHospitalizationPlan>(
     `${ENDPOINT}/${id}`,
     req,
   );
@@ -151,6 +138,8 @@ export const useGetAllHospitalizationPlans = () => {
   return useQuery({
     queryKey: [QUERY_KEY],
     queryFn: getAllHospitalizationPlans,
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 };
 

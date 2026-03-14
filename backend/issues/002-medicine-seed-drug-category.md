@@ -1,3 +1,9 @@
+---
+status: closed
+closed_at: 2026-03-14
+commits: 3d0fcee, 1f9e2b7
+---
+
 # 002: medicines シードデータに drug_category が未設定
 
 ## 概要

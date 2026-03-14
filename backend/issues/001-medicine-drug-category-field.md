@@ -1,3 +1,9 @@
+---
+status: closed
+closed_at: 2026-03-14
+commits: 3d0fcee, b9f9f50, 1f9e2b7
+---
+
 # [Issue #001] medicines テーブルに薬効分類（drug_category）フィールドが欠損
 
 ## 概要

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { MasterItem } from "@/types";
 
 /** Common fields present in ALL backend master entities */
@@ -60,10 +61,17 @@ export const useGetMasterItemsByCategory = (category: string) => {
     queryKey: ["masterItems", category],
     queryFn: () => getMasterItemsByEndpoint(endpoint),
     enabled: !!endpoint,
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 };
 
 // Keep this for backward compat but return empty (no global fetch endpoint anymore)
 export const getMasterItems = async (): Promise<MasterItem[]> => [];
 export const useGetMasterItems = () =>
-  useQuery({ queryKey: ["masterItems"], queryFn: getMasterItems });
+  useQuery({
+    queryKey: ["masterItems"],
+    queryFn: getMasterItems,
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
+  });

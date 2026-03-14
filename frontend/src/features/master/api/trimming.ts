@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import type {
+  TrimmingCourse as ModelTrimmingCourse,
+  TrimmingOption as ModelTrimmingOption,
+} from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Constants
@@ -20,38 +25,6 @@ export const TARGET_SIZE_OPTIONS: { value: TargetSize; label: string }[] = [
   { value: "large", label: "大型" },
   { value: "cat", label: "猫" },
 ];
-
-// ─────────────────────────────────────────────────
-// Backend types (snake_case) - api.yaml TrimmingCourse / TrimmingOption 準拠
-// ─────────────────────────────────────────────────
-
-export interface BackendTrimmingCourse {
-  id: string;
-  clinic_id: string;
-  name: string;
-  price: number | null;
-  is_active: boolean;
-  description: string;
-  target_size: TargetSize | null;
-  duration: number | null;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface BackendTrimmingOption {
-  id: string;
-  clinic_id: string;
-  name: string;
-  price: number | null;
-  is_active: boolean;
-  description: string;
-  duration: number | null;
-  combinable: boolean;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-}
 
 // ─────────────────────────────────────────────────
 // Frontend display types (camelCase)
@@ -133,31 +106,31 @@ export interface UpdateTrimmingOptionRequest {
 // Transform functions
 // ─────────────────────────────────────────────────
 
-function transformTrimmingCourse(data: BackendTrimmingCourse): TrimmingCourse {
+function transformTrimmingCourse(data: ModelTrimmingCourse): TrimmingCourse {
   return {
-    id: data.id,
-    clinicId: data.clinic_id,
+    id: String(data.id ?? 0),
+    clinicId: String(data.clinic_id ?? 0),
     name: data.name,
-    price: data.price,
+    price: data.price ?? null,
     isActive: data.is_active,
     description: data.description,
-    targetSize: data.target_size,
-    duration: data.duration,
+    targetSize: (data.target_size as TargetSize) ?? null,
+    duration: data.duration ?? null,
     sortOrder: data.sort_order,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };
 }
 
-function transformTrimmingOption(data: BackendTrimmingOption): TrimmingOption {
+function transformTrimmingOption(data: ModelTrimmingOption): TrimmingOption {
   return {
-    id: data.id,
-    clinicId: data.clinic_id,
+    id: String(data.id ?? 0),
+    clinicId: String(data.clinic_id ?? 0),
     name: data.name,
-    price: data.price,
+    price: data.price ?? null,
     isActive: data.is_active,
     description: data.description,
-    duration: data.duration,
+    duration: data.duration ?? null,
     combinable: data.combinable,
     sortOrder: data.sort_order,
     createdAt: data.created_at,
@@ -177,7 +150,7 @@ const TRIMMING_OPTIONS_KEY = ["masters", "trimming-options"] as const;
 // ─────────────────────────────────────────────────
 
 export async function listTrimmingCourses(): Promise<TrimmingCourse[]> {
-  const { data } = await axios.get<BackendTrimmingCourse[]>(
+  const { data } = await axios.get<ModelTrimmingCourse[]>(
     "/v1/masters/trimming-courses",
   );
   return data.map(transformTrimmingCourse);
@@ -186,7 +159,7 @@ export async function listTrimmingCourses(): Promise<TrimmingCourse[]> {
 export async function createTrimmingCourse(
   req: CreateTrimmingCourseRequest,
 ): Promise<TrimmingCourse> {
-  const { data } = await axios.post<BackendTrimmingCourse>(
+  const { data } = await axios.post<ModelTrimmingCourse>(
     "/v1/masters/trimming-courses",
     req,
   );
@@ -197,7 +170,7 @@ export async function updateTrimmingCourse(
   id: string,
   req: UpdateTrimmingCourseRequest,
 ): Promise<TrimmingCourse> {
-  const { data } = await axios.patch<BackendTrimmingCourse>(
+  const { data } = await axios.patch<ModelTrimmingCourse>(
     `/v1/masters/trimming-courses/${id}`,
     req,
   );
@@ -213,7 +186,7 @@ export async function deleteTrimmingCourse(id: string): Promise<void> {
 // ─────────────────────────────────────────────────
 
 export async function listTrimmingOptions(): Promise<TrimmingOption[]> {
-  const { data } = await axios.get<BackendTrimmingOption[]>(
+  const { data } = await axios.get<ModelTrimmingOption[]>(
     "/v1/masters/trimming-options",
   );
   return data.map(transformTrimmingOption);
@@ -222,7 +195,7 @@ export async function listTrimmingOptions(): Promise<TrimmingOption[]> {
 export async function createTrimmingOption(
   req: CreateTrimmingOptionRequest,
 ): Promise<TrimmingOption> {
-  const { data } = await axios.post<BackendTrimmingOption>(
+  const { data } = await axios.post<ModelTrimmingOption>(
     "/v1/masters/trimming-options",
     req,
   );
@@ -233,7 +206,7 @@ export async function updateTrimmingOption(
   id: string,
   req: UpdateTrimmingOptionRequest,
 ): Promise<TrimmingOption> {
-  const { data } = await axios.patch<BackendTrimmingOption>(
+  const { data } = await axios.patch<ModelTrimmingOption>(
     `/v1/masters/trimming-options/${id}`,
     req,
   );
@@ -252,6 +225,8 @@ export function useListTrimmingCourses() {
   return useQuery({
     queryKey: TRIMMING_COURSES_KEY,
     queryFn: listTrimmingCourses,
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 }
 
@@ -294,6 +269,8 @@ export function useListTrimmingOptions() {
   return useQuery({
     queryKey: TRIMMING_OPTIONS_KEY,
     queryFn: listTrimmingOptions,
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 }
 

@@ -1,25 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-
-// ─────────────────────────────────────────────────
-// Backend types (snake_case) - api.yaml Company schema 準拠
-// ─────────────────────────────────────────────────
-
-export interface BackendCompany {
-  id: number;
-  name: string;
-  postal_code: string;
-  address: string;
-  phone_number: string;
-  fax_number: string;
-  email: string;
-  website: string;
-  director_name: string;
-  registration_number: string;
-  logo_url: string;
-  created_at: string;
-  updated_at: string;
-}
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import type { Company as ModelCompany } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Request type
@@ -62,9 +44,9 @@ export interface Company {
 // Transform
 // ─────────────────────────────────────────────────
 
-function transformCompany(data: BackendCompany): Company {
+function transformCompany(data: ModelCompany): Company {
   return {
-    id: String(data.id),
+    id: String(data.id ?? 0),
     name: data.name,
     postalCode: data.postal_code,
     address: data.address,
@@ -91,12 +73,12 @@ const COMPANY_QUERY_KEY = ["company"] as const;
 // ─────────────────────────────────────────────────
 
 export async function getCompany(): Promise<Company> {
-  const { data } = await axios.get<BackendCompany>("/v1/company");
+  const { data } = await axios.get<ModelCompany>("/v1/company");
   return transformCompany(data);
 }
 
 export async function updateCompany(req: UpdateCompanyRequest): Promise<Company> {
-  const { data } = await axios.patch<BackendCompany>("/v1/company", req);
+  const { data } = await axios.patch<ModelCompany>("/v1/company", req);
   return transformCompany(data);
 }
 
@@ -108,6 +90,8 @@ export function useCompany() {
   return useQuery({
     queryKey: COMPANY_QUERY_KEY,
     queryFn: getCompany,
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 }
 

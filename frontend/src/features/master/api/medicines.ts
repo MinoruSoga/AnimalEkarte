@@ -1,56 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { Medicine } from "@/types";
+import { transformBackendMedicineToFrontend } from "@/lib/transforms/medicine";
+import type { Medicine } from "@/lib/transforms/medicine";
 import type { Medicine as MedicineModel } from "@/types/generated/models";
-
-function transformMedicine(data: MedicineModel): Medicine {
-  return {
-    id: String(data.id ?? 0),
-    name: data.name,
-    drugCategory: data.drug_category,
-    dosageForm: data.dosage_form as Medicine["dosageForm"],
-    medicineUnit: data.medicine_unit as Medicine["medicineUnit"],
-    price: data.price ?? 0,
-    defaultQuantity: data.default_quantity,
-    inventoryId: data.inventory_id !== undefined ? String(data.inventory_id ?? 0) : undefined,
-    description: data.description ?? "",
-    isActive: data.is_active,
-    sortOrder: data.sort_order ?? 0,
-    createdAt: data.created_at ?? "",
-    updatedAt: data.updated_at ?? "",
-  };
-}
-
-export interface CreateMedicineRequest {
-  name: string;
-  drug_category?: string;
-  dosage_form?: string;
-  medicine_unit?: string;
-  price?: number;
-  default_quantity?: number;
-  inventory_id?: number;
-  description?: string;
-  is_active?: boolean;
-  sort_order?: number;
-}
-
-export interface UpdateMedicineRequest {
-  name?: string;
-  drug_category?: string;
-  dosage_form?: string;
-  medicine_unit?: string;
-  price?: number;
-  default_quantity?: number;
-  inventory_id?: number | null;
-  description?: string;
-  is_active?: boolean;
-  sort_order?: number;
-}
+import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medicine";
 
 export const getAllMedicines = async (): Promise<Medicine[]> => {
   const { data } = await axios.get<MedicineModel[]>("/v1/masters/medicines");
-  return data.map(transformMedicine);
+  return data.map(transformBackendMedicineToFrontend);
 };
 
 export const useGetAllMedicines = () => {
@@ -64,7 +22,7 @@ export const useGetAllMedicines = () => {
 
 export const getMedicineById = async (id: string): Promise<Medicine> => {
   const { data } = await axios.get<MedicineModel>(`/v1/masters/medicines/${id}`);
-  return transformMedicine(data);
+  return transformBackendMedicineToFrontend(data);
 };
 
 export const useGetMedicineById = (id: string) => {
@@ -79,7 +37,7 @@ export const useGetMedicineById = (id: string) => {
 
 export const createMedicine = async (req: CreateMedicineRequest): Promise<Medicine> => {
   const { data } = await axios.post<MedicineModel>("/v1/masters/medicines", req);
-  return transformMedicine(data);
+  return transformBackendMedicineToFrontend(data);
 };
 
 export const useCreateMedicine = () => {
@@ -94,7 +52,7 @@ export const useCreateMedicine = () => {
 
 export const updateMedicine = async (id: string, req: UpdateMedicineRequest): Promise<Medicine> => {
   const { data } = await axios.patch<MedicineModel>(`/v1/masters/medicines/${id}`, req);
-  return transformMedicine(data);
+  return transformBackendMedicineToFrontend(data);
 };
 
 export const useUpdateMedicine = () => {

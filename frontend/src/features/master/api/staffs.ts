@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
 // ─────────────────────────────────────────────────
 // Backend types (snake_case) - api.yaml Staff schema 準拠
@@ -144,6 +145,8 @@ export function useListStaffs() {
   return useQuery({
     queryKey: STAFFS_QUERY_KEY,
     queryFn: listStaffs,
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 }
 
