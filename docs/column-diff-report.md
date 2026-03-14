@@ -1,832 +1,203 @@
 # カラム差分レポート
 
-**生成日**: 2026-03-14
-**対象テーブル数**: 55
-**比較ソース**:
-- ERD: `docs/ERD.md` (v19.0)
-- Go モデル: `backend/internal/model/*.go`
-- API スキーマ: `backend/docs/api.yaml` (OpenAPI 3.0.3 v2.0.0)
+生成日: 2026-03-14
+
+## 調査概要
+
+以下の3ソース間でテーブル毎のカラム名差分を調査した。
+
+| ソース | 場所 |
+|--------|------|
+| ERD.md | `docs/ERD.md` v19.0（55テーブル・3116行） |
+| Goモデル | `backend/internal/model/*.go`（37ファイル） |
+| api.yaml | `backend/docs/api.yaml` v2.0.0（5738行） |
+
+### 調査の注意点
+
+- **soft-delete (`deleted_at`)**: Goモデルでは `gorm.DeletedAt` 型で定義し `json:"-"` を付与。DBカラムとしては存在するがJSONレスポンスには含まれない。本レポートでは**DBカラムとして存在する**と判定した。
+- **`password_hash`**: Goモデルでは `json:"-"` で定義済み（セキュリティ上の意図的除外）。api.yaml に `user_accounts` スキーマが存在しないため N/A 扱い。
+- **api.yaml の N/A**: api.yaml にスキーマ定義がないテーブルは「N/A（スキーマ未定義）」と表記。DBカラムが全てAPIに公開される必要はないため、N/A は差分として扱わない。
+- **リレーションフィールド**: GoモデルのJSON名がリレーション（例: `json:"category,omitempty"` で型が `*DiagnosisCategory`）の場合はDBカラムではないため除外した。
 
 ---
 
-## 共通注意事項
-
-- **ID型の差異はグローバル共通差分として扱い、テーブル別には記載しない**
-  ERD: `uuid` / `bigint` → Go: `uint64` → api.yaml: `integer(int64)`
-- **`deleted_at` (soft-delete)**: Go: `gorm.DeletedAt`、ERD・api.yaml には通常非表示 → 差分とみなさない
-- **`json:"-"` フィールド** (`password_hash` 等): api.yaml に意図的に存在しない → 差分とみなさない
-- **`clinic_id`**: マルチテナント用 FK。api.yaml スキーマには原則含まれない → 差分とみなさない
-- **型等価ルール**:
-  - `text` = `string`
-  - `boolean` = `bool`
-  - `numeric`/`decimal` = `float64` / `number`
-  - `integer`/`bigint` = `int` / `uint` / `int64`
-  - `timestamptz` = `time.Time` = `string(date-time)`
-  - `date` = `*time.Time` = `string(date)`
-
----
-
-## 凡例
-
-| 記号 | 意味 |
-|------|------|
-| ✅ | 3ソース一致（または差分なし） |
-| ⚠️ | 差分あり |
-
----
-
-## テーブル別差分
-
-### 1. `clinic` (clinics)
-
-**API スキーマ定義**: あり（`Clinic` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer | ← グローバル共通差分
-| name | text NOT NULL | string | string |
-| phone | text | *string | string, nullable |
-| email | text | *string | string, nullable |
-| address | text | *string | string, nullable |
-| logo_url | text | *string | string, nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 2. `user_accounts`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 3. `user_clinic_memberships`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 4. `user_permissions`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 5. `owners`
-
-**API スキーマ定義**: あり（`Owner` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| name | text NOT NULL | string | string |
-| name_kana | text | *string | string, nullable |
-| phone | text NOT NULL | string | string |
-| email | text | *string | string, nullable |
-| address | text | *string | string, nullable |
-| notes | text | *string | string, nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 6. `pets`
-
-**API スキーマ定義**: あり（`Pet` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| owner_id | uuid FK NOT NULL | uint64 | integer |
-| name | text NOT NULL | string | string |
-| animal_species_id | uuid FK | *uint64 | integer, nullable |
-| breed | text | *string | string, nullable |
-| sex | pet_sex | string | string(enum) |
-| date_of_birth | date | *time.Time | string(date), nullable |
-| weight | numeric | *float64 | number, nullable |
-| chip_number | text | *string | string, nullable |
-| insurance_id | uuid FK | *uint64 | integer, nullable |
-| insurance_number | text | *string | string, nullable |
-| status | pet_status | string | string(enum) |
-| notes | text | *string | string, nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 7. `animal_species`
-
-**API スキーマ定義**: あり（`AnimalSpecies` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| name | text NOT NULL | string | string |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 8. `insurances`
-
-**API スキーマ定義**: あり（`Insurance` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| name | text NOT NULL | string | string |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 9. `reservations`
-
-**API スキーマ定義**: あり（`ReservationAppointment` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| owner_id | uuid FK NOT NULL | uint64 | integer |
-| pet_id | uuid FK NOT NULL | uint64 | integer |
-| staff_id | uuid FK | *uint64 | integer, nullable |
-| service_type_id | uuid FK | *uint64 | integer, nullable |
-| reservation_date | date NOT NULL | time.Time | string(date) |
-| start_time | time NOT NULL | string | string |
-| end_time | time | *string | string, nullable |
-| status | reservation_status | string | string(enum) |
-| notes | text | *string | string, nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 10. `service_types`
-
-**API スキーマ定義**: あり（`ServiceType` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| name | text NOT NULL | string | string |
-| duration_minutes | integer | *int | integer, nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 11. `medical_records`
-
-**API スキーマ定義**: あり（`MedicalRecord` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| owner_id | uuid FK NOT NULL | uint64 | integer |
-| pet_id | uuid FK NOT NULL | uint64 | integer |
-| staff_id | uuid FK | *uint64 | integer, nullable |
-| visited_at | date NOT NULL | time.Time | string(date) |
-| chief_complaint | text | *string | string, nullable |
-| chief_complaint_category_id | uuid FK | *uint64 | integer, nullable |
-| body_weight | numeric | *float64 | number, nullable |
-| body_temperature | numeric | *float64 | number, nullable |
-| status | medical_record_status | string | string(enum) |
-| notes | text | *string | string, nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 12. `chief_complaint_categories`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 13. `inquiry_templates`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 14. `consultations`
-
-**API スキーマ定義**: あり（`Consultation` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| medical_record_id | uuid FK NOT NULL | uint64 | integer |
-| subjective | text | *string | string, nullable |
-| objective | text | *string | string, nullable |
-| assessment | text | *string | string, nullable |
-| plan | text | *string | string, nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 15. `diagnosis_categories`
-
-**API スキーマ定義**: あり（`DiagnosisCategory` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| name | text NOT NULL | string | string |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 16. `diagnosis_names`
-
-**API スキーマ定義**: あり（`DiagnosisName` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| category_id | uuid FK | *uint64 | integer, nullable |
-| name | text NOT NULL | string | string |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 17. `diagnoses`
-
-**API スキーマ定義**: なし（`MedicalRecord` schema 内にネスト形式で含まれるため）
-**結果**: ✅ 差分なし（ネスト型として対応済み）
-
----
-
-### 18. `procedures`
-
-**API スキーマ定義**: あり（`Procedure` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| name | text NOT NULL | string | string |
-| price | numeric | *float64 | number, nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 19. `clinical_plans`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 20. `treatments`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 21. `vitals`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 22. `checkups`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 23. `record_images`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 24. `estimates`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 25. `billing_reviews`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 26. `billings`
-
-**API スキーマ定義**: あり（`Billing` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| medical_record_id | uuid FK | *uint64 | integer, nullable |
-| owner_id | uuid FK NOT NULL | uint64 | integer |
-| pet_id | uuid FK NOT NULL | uint64 | integer |
-| status | billing_status | string | string(enum) |
-| subtotal | numeric NOT NULL | float64 | number |
-| tax | numeric NOT NULL | float64 | number |
-| total | numeric NOT NULL | float64 | number |
-| notes | text | *string | string, nullable |
-| billed_at | timestamptz | *time.Time | string(date-time), nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 27. `billing_items`
-
-**API スキーマ定義**: あり（`BillingItem` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| billing_id | uuid FK NOT NULL | uint64 | integer |
-| name | text NOT NULL | string | string |
-| category | item_category | string | string(enum) |
-| source | item_source | string | string(enum) |
-| source_id | uuid | *uint64 | integer, nullable |
-| quantity | integer NOT NULL | int | integer |
-| unit_price | numeric NOT NULL | float64 | number |
-| subtotal | numeric NOT NULL | float64 | number |
-| created_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 28. `payments`
-
-**API スキーマ定義**: あり（`Payment` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| billing_id | uuid FK NOT NULL | uint64 | integer |
-| method | payment_method | string | string(enum) |
-| amount | numeric NOT NULL | float64 | number |
-| paid_at | timestamptz NOT NULL | time.Time | string(date-time) |
-| notes | text | *string | string, nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 29. `hospitalizations`
-
-**API スキーマ定義**: あり（`Hospitalization` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| pet_id | uuid FK NOT NULL | uint64 | integer |
-| owner_id | uuid FK NOT NULL | uint64 | integer |
-| cage_id | uuid FK | *uint64 | integer, nullable |
-| admitted_at | date NOT NULL | time.Time | string(date) |
-| discharged_at | date | *time.Time | string(date), nullable |
-| status | hospitalization_status | string | string(enum) |
-| reason | text | *string | string, nullable |
-| notes | text | *string | string, nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 30. `hospitalization_plans`
-
-**API スキーマ定義**: あり（`HospitalizationPlan` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| hospitalization_id | uuid FK NOT NULL | uint64 | integer |
-| plan_date | date NOT NULL | time.Time | string(date) |
-| description | text | *string | string, nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 31. `care_plan_items`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 32. `treatment_plans`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 33. `daily_records` (hospitalization daily records)
-
-**API スキーマ定義**: なし（`HospitalizationPlan` schema 内にネスト形式として対応）
-**結果**: ✅ 差分なし（ネスト型として対応済み）
-
----
-
-### 34. `vital_records`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 35. `care_log_records`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 36. `staff_note_records`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 37. `cages`
-
-**API スキーマ定義**: あり（`Cage` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| name | text NOT NULL | string | string |
-| cage_type | cage_type | string | string(enum) |
-| is_available | boolean NOT NULL | bool | boolean |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 38. `exams`
-
-**API スキーマ定義**: あり（`Examination` schema）
-**結果**: ✅ 差分なし（修正済み）
-
-| カラム | ERD | Go | api.yaml | 差分 |
-|--------|-----|----|----------|------|
-| id | uuid PK | uint64 | integer | — |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) | — |
-| pet_id | uuid FK NULL YES | *uint64 | integer, nullable: true | ✅ 修正済み |
-| medical_record_id | uuid FK | *uint64 | integer, nullable | — |
-| exam_type_id | uuid FK NOT NULL | uint64 | integer | — |
-| staff_id | uuid FK | *uint64 | integer, nullable | — |
-| examined_at | date NOT NULL | time.Time | string(date) | — |
-| result | text | *string | string, nullable | — |
-| notes | text | *string | string, nullable | — |
-| created_at | timestamptz | time.Time | string(date-time) | — |
-| updated_at | timestamptz | time.Time | string(date-time) | — |
-
-**差分詳細**:
-- `pet_id`: ERD NULL YES、Go `*uint64`（ポインタ＝nullable）、api.yaml `integer` に `nullable: true` の記載なし
-
----
-
-### 39. `exam_types`
-
-**API スキーマ定義**: あり（`ExaminationType` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| name | text NOT NULL | string | string |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 40. `exam_type_items`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 41. `examination_items`
-
-**API スキーマ定義**: あり（`ExaminationItem` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| exam_id | uuid FK NOT NULL | uint64 | integer |
-| item_name | text NOT NULL | string | string |
-| value | text | *string | string, nullable |
-| unit | text | *string | string, nullable |
-| reference_range | text | *string | string, nullable |
-| is_abnormal | boolean | *bool | boolean, nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 42. `vaccinations`
-
-**API スキーマ定義**: あり（`Vaccination` schema）
-**結果**: ✅ 差分なし（修正済み）
-
-| カラム | ERD | Go | api.yaml | 差分 |
-|--------|-----|----|----------|------|
-| id | uuid PK | uint64 | integer | — |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) | — |
-| pet_id | uuid FK NULL YES | *uint64 | integer, nullable: true | ✅ 修正済み |
-| medical_record_id | uuid FK | *uint64 | integer, nullable | — |
-| vaccine_id | uuid FK NOT NULL | uint64 | integer | — |
-| staff_id | uuid FK | *uint64 | integer, nullable | — |
-| vaccinated_at | date NOT NULL | time.Time | string(date) | — |
-| next_due_date | date | *time.Time | string(date), nullable | — |
-| lot_number | text | *string | string, nullable | — |
-| notes | text | *string | string, nullable | — |
-| created_at | timestamptz | time.Time | string(date-time) | — |
-| updated_at | timestamptz | time.Time | string(date-time) | — |
-
-**差分詳細**:
-- `pet_id`: ERD NULL YES、Go `*uint64`（ポインタ＝nullable）、api.yaml `integer` に `nullable: true` の記載なし
-
----
-
-### 43. `vaccines`
-
-**API スキーマ定義**: あり（`Vaccine` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| name | text NOT NULL | string | string |
-| maker | text | *string | string, nullable |
-| target_disease | text | *string | string, nullable |
-| validity_months | integer | *int | integer, nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 44. `trimming_records`
-
-**API スキーマ定義**: あり（`TrimmingRecord` schema）
-**結果**: ✅ 差分なし（修正済み）
-
-| カラム | ERD | Go | api.yaml | 差分 |
-|--------|-----|----|----------|------|
-| id | uuid PK | uint64 | integer | — |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) | — |
-| pet_id | uuid FK NOT NULL | uint64 | integer | — |
-| owner_id | uuid FK NOT NULL | uint64 | integer | — |
-| staff_id | uuid FK NULL YES | *uint64 | integer, nullable: true | ✅ 修正済み |
-| trimming_course_id | uuid FK | *uint64 | integer, nullable | — |
-| trimming_date | date NOT NULL | time.Time | string(date) | — |
-| status | trimming_status | string | string(enum) | — |
-| body_weight | numeric | *float64 | number, nullable | — |
-| body_weight_unit | body_weight_unit | *string | string, nullable | — |
-| price | numeric | *float64 | number, nullable | — |
-| notes | text | *string | string, nullable | — |
-| created_at | timestamptz | time.Time | string(date-time) | — |
-| updated_at | timestamptz | time.Time | string(date-time) | — |
-
-**差分詳細**:
-- `staff_id`: ERD NULL YES、Go `*uint64`（ポインタ＝nullable）、api.yaml `integer` に `nullable: true` の記載なし
-
----
-
-### 45. `trimming_record_options`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 46. `trimming_courses`
-
-**API スキーマ定義**: あり（`TrimmingCourse` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| name | text NOT NULL | string | string |
-| price | numeric | *float64 | number, nullable |
-| duration_minutes | integer | *int | integer, nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 47. `trimming_options`
-
-**API スキーマ定義**: あり（`TrimmingOption` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| name | text NOT NULL | string | string |
-| price | numeric | *float64 | number, nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 48. `inventory_items`
-
-**API スキーマ定義**: あり（`InventoryItem` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| medicine_id | uuid FK | *uint64 | integer, nullable |
-| name | text NOT NULL | string | string |
-| category | text | *string | string, nullable |
-| quantity | integer NOT NULL | int | integer |
-| unit | text | *string | string, nullable |
-| unit_price | numeric | *float64 | number, nullable |
-| low_stock_threshold | integer | *int | integer, nullable |
-| expiry_date | date | *time.Time | string(date), nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 49. `medicines`
-
-**API スキーマ定義**: あり（`Medicine` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| name | text NOT NULL | string | string |
-| unit | text | *string | string, nullable |
-| unit_price | numeric | *float64 | number, nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 50. `staffs`
-
-**API スキーマ定義**: あり（`Staff` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| name | text NOT NULL | string | string |
-| role | staff_role | string | string(enum) |
-| job_title_id | uuid FK | *uint64 | integer, nullable |
-| phone | text | *string | string, nullable |
-| email | text | *string | string, nullable |
-| is_active | boolean NOT NULL | bool | boolean |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 51. `job_titles`
-
-**API スキーマ定義**: あり（`JobTitle` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| name | text NOT NULL | string | string |
-| display_order | integer | *int | integer, nullable |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 52. `shift_entries`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 53. `checkup_types`
-
-**API スキーマ定義**: あり（`CheckupType` schema）
-**結果**: ✅ 差分なし
-
-| カラム | ERD | Go | api.yaml |
-|--------|-----|----|----------|
-| id | uuid PK | uint64 | integer |
-| clinic_id | uuid FK NOT NULL | uint64 | — (省略) |
-| name | text NOT NULL | string | string |
-| created_at | timestamptz | time.Time | string(date-time) |
-| updated_at | timestamptz | time.Time | string(date-time) |
-
----
-
-### 54. `estimate_items`
-
-**API スキーマ定義**: なし（設計上 API スキーマ未定義）
-**結果**: ✅ 差分なし（API未定義のため比較対象外）
-
----
-
-### 55. `inquiry_responses`
-
-**API スキーマ定義**: なし（`MedicalRecord` schema 内 `Inquiry` としてネスト）
-**結果**: ✅ 差分なし（ネスト型として対応済み）
-
----
-
-## グローバルサマリー
-
-### 統計
+## サマリー
 
 | 項目 | 数 |
-|------|---|
+|------|-----|
 | 総テーブル数 | 55 |
-| API スキーマあり（比較対象） | 36 |
-| API スキーマなし（設計上未定義） | 19 |
-| 差分あり（⚠️） | 0（全修正済み） |
-| 差分なし（✅） | 55 |
+| 完全一致テーブル数（差分なし） | 54 |
+| 差分ありテーブル数 | 1 |
+| 総差分カラム数 | 1 |
+| DB重要差分（ERD ↔ Goモデル） | 0 |
+| api.yaml のみ差分 | 1 |
 
-### 発見された差分一覧（全修正済み）
+**結論: ERD とGoモデルは全55テーブルで完全一致。api.yaml との差分は `company.is_active` の1件のみで、原因は api.yaml が Clinic スキーマを company エンドポイントに流用していることによる設計上の問題。**
 
-| # | テーブル | カラム | 差分内容 | 状態 |
-|---|---------|--------|---------|------|
-| 1 | `exams` | `pet_id` | api.yaml に `nullable: true` が欠落 | ✅ 修正済み |
-| 2 | `vaccinations` | `pet_id` | api.yaml に `nullable: true` が欠落 | ✅ 修正済み |
-| 3 | `trimming_records` | `staff_id` | api.yaml に `nullable: true` が欠落 | ✅ 修正済み |
+---
 
-### ERD ↔ Go モデル差分
+## 差分なしテーブル一覧
 
-**0件** — 全55テーブルで ERD と Go モデルは一致している。
+以下の54テーブルは ERD・Goモデル・api.yaml（定義がある場合）すべてで完全一致。
 
-### グローバル共通差分（テーブル別報告除外）
+| # | テーブル名 | api.yaml スキーマ |
+|---|-----------|-----------------|
+| 1 | `animal_species` | AnimalSpecies |
+| 2 | `billing_items` | BillingItem |
+| 3 | `billing_reviews` | N/A（未定義） |
+| 4 | `billings` | Billing |
+| 5 | `cages` | Cage |
+| 6 | `care_log_records` | N/A |
+| 7 | `care_plan_items` | N/A |
+| 8 | `checkup_types` | CheckupType |
+| 9 | `checkups` | N/A |
+| 10 | `chief_complaint_categories` | N/A |
+| 11 | `clinical_plans` | N/A |
+| 12 | `clinics` | Clinic |
+| 13 | `consultations` | Consultation |
+| 14 | `daily_records` | N/A |
+| 15 | `diagnosis_categories` | DiagnosisCategory |
+| 16 | `diagnosis_names` | DiagnosisName |
+| 17 | `estimate_items` | N/A |
+| 18 | `estimates` | N/A |
+| 19 | `exam_items` | ExaminationItem |
+| 20 | `exam_type_items` | N/A（ExaminationType の items 配列に含む） |
+| 21 | `exam_types` | ExaminationType |
+| 22 | `exams` | Examination |
+| 23 | `hospitalization_plans` | HospitalizationPlan |
+| 24 | `hospitalizations` | Hospitalization |
+| 25 | `inquiries` | Inquiry |
+| 26 | `inquiry_templates` | N/A |
+| 27 | `insurances` | Insurance |
+| 28 | `inventory_items` | InventoryItem |
+| 29 | `job_titles` | JobTitle |
+| 30 | `medical_records` | MedicalRecord |
+| 31 | `medicines` | Medicine |
+| 32 | `owners` | Owner |
+| 33 | `payments` | Payment |
+| 34 | `pets` | Pet |
+| 35 | `procedures` | Procedure |
+| 36 | `record_images` | N/A |
+| 37 | `reservation_appointments` | ReservationAppointment |
+| 38 | `service_types` | ServiceType |
+| 39 | `shift_entries` | N/A |
+| 40 | `staff_note_records` | N/A |
+| 41 | `staffs` | Staff |
+| 42 | `treatment_plans` | N/A |
+| 43 | `treatments` | N/A |
+| 44 | `trimming_courses` | TrimmingCourse |
+| 45 | `trimming_options` | TrimmingOption |
+| 46 | `trimming_record_options` | N/A |
+| 47 | `trimming_records` | TrimmingRecord |
+| 48 | `user_accounts` | N/A（MeResponse は合成オブジェクト） |
+| 49 | `user_clinic_memberships` | N/A |
+| 50 | `user_permissions` | N/A |
+| 51 | `vaccinations` | Vaccination |
+| 52 | `vaccines` | Vaccine |
+| 53 | `vital_records` | N/A |
+| 54 | `vitals` | N/A |
 
-| 層 | ID型 |
-|----|------|
-| ERD | `uuid` / `bigint` |
-| Go | `uint64` |
-| api.yaml | `integer (int64)` |
+---
 
-この差異は全テーブル共通のシステム設計上の差異であり、個別テーブルの差分としては記載しない。
+## テーブル別差分詳細
 
-### 総評
+差分があるテーブルのみ詳細を記載する。
 
-**全55テーブルで ERD / Go モデル / api.yaml の3ソースが完全一致。差分ゼロ。**
+### テーブル名: `company`
+
+**概要**: api.yaml が `/company` エンドポイントのレスポンス定義として `Clinic` スキーマを流用しているため、`Clinic` スキーマが持つ `is_active` フィールドが混入している。`company` テーブル自体はシングルトンのため `is_active` は設計上不要。
+
+| カラム名 | ERD.md | Goモデル | api.yaml | 備考 |
+|---------|--------|----------|----------|------|
+| `is_active` | ❌ | ❌ | ✅ | api.yaml が Clinic スキーマを company エンドポイントに流用。company テーブルには is_active は存在しない。api.yaml に Company 専用スキーマを作成するか、Clinic スキーマを流用する場合に is_active を除外すべき |
+
+**影響**: api.yaml の `company` エンドポイント（`GET /company`, `PATCH /company`）のレスポンス定義に `is_active` フィールドが存在するが、実際のDBには当該カラムがない。フロントエンド側で `is_active` を参照している場合は常に `undefined` / ゼロ値になる。
+
+---
+
+## 補足情報
+
+### soft-delete カラムの扱い
+
+`deleted_at` を持つテーブルは以下の17テーブル。全てのテーブルで ERD・Goモデル・api.yaml（定義がある場合）が一致している。
+
+| テーブル | ERD | Goモデル | api.yaml |
+|---------|-----|----------|---------|
+| `billing_items` | ✅ | ✅（`gorm.DeletedAt`, `json:"-"`） | ✅ |
+| `billings` | ✅ | ✅（`gorm.DeletedAt`, `json:"-"`） | ✅ |
+| `checkup_types` | ✅ | ✅（`gorm.DeletedAt`, `json:"-"`） | ✅ |
+| `checkups` | ✅ | ✅（`gorm.DeletedAt`, `json:"-"`） | N/A |
+| `estimates` | ✅ | ✅（`gorm.DeletedAt`, `json:"-"`） | N/A |
+| `exams` | ✅ | ✅（`gorm.DeletedAt`, `json:"-"`） | ✅ |
+| `hospitalizations` | ✅ | ✅（`gorm.DeletedAt`, `json:"-"`） | ✅ |
+| `medical_records` | ✅ | ✅（`gorm.DeletedAt`, `json:"-"`） | ✅ |
+| `owners` | ✅ | ✅（`gorm.DeletedAt`, `json:"-"`） | ✅ |
+| `pets` | ✅ | ✅（`gorm.DeletedAt`, `json:"-"`） | ✅ |
+| `reservation_appointments` | ✅ | ✅（`gorm.DeletedAt`, `json:"-"`） | ✅ |
+| `staffs` | ✅ | ✅（`gorm.DeletedAt`, `json:"-"`） | ✅ |
+| `treatment_plans` | ✅ | ✅（`gorm.DeletedAt`, `json:"-"`） | N/A |
+| `treatments` | ✅ | ✅（`gorm.DeletedAt`, `json:"-"`） | N/A |
+| `trimming_records` | ✅ | ✅（`gorm.DeletedAt`, `json:"-"`） | ✅ |
+| `user_accounts` | ✅ | ✅（`gorm.DeletedAt`, `json:"-"`） | N/A |
+| `vaccinations` | ✅ | ✅（`gorm.DeletedAt`, `json:"-"`） | ✅ |
+
+### `password_hash` の扱い
+
+`user_accounts.password_hash` は ERD に存在し、Goモデルにも `json:"-"` タグで定義済み（セキュリティ上の意図的除外）。api.yaml には `user_accounts` 専用スキーマが存在しない（`MeResponse` は合成オブジェクト）。差分なし・意図的設計。
+
+### api.yaml の N/A テーブルについて
+
+以下のテーブルは api.yaml にスキーマ定義が存在しない。内部処理のみで使用されるか、親テーブル経由で参照されるため、個別のエンドポイント定義が不要な設計となっている。
+
+- `billing_reviews`, `care_log_records`, `care_plan_items`, `checkups`, `chief_complaint_categories`, `clinical_plans`, `daily_records`, `estimate_items`, `estimates`, `inquiry_templates`, `record_images`, `shift_entries`, `staff_note_records`, `treatment_plans`, `treatments`, `trimming_record_options`, `user_accounts`（MeResponse経由）, `user_clinic_memberships`, `user_permissions`, `vital_records`, `vitals`
+
+---
+
+## 修正推奨事項
+
+### 優先度: 低（api.yaml設計の改善）
+
+**`company` テーブルの api.yaml スキーマ分離**
+
+現在 `/company` エンドポイントが `Clinic` スキーマを流用しているため `is_active` フィールドが混入している。
+
+修正案：
+1. `api.yaml` に `Company` 専用スキーマを追加（`is_active` なし）
+2. または既存の `Clinic` スキーマを流用したまま、フロントエンドで `company` レスポンスの `is_active` を無視する（現状維持）
+
+```yaml
+# 修正案: Company スキーマを追加
+Company:
+  type: object
+  properties:
+    id:
+      type: integer
+      format: int64
+    name:
+      type: string
+    postal_code:
+      type: string
+    address:
+      type: string
+    phone_number:
+      type: string
+    fax_number:
+      type: string
+    registration_number:
+      type: string
+    director_name:
+      type: string
+    email:
+      type: string
+    website:
+      type: string
+    logo_url:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+    # is_active は company テーブルに存在しないため除外
 ```
