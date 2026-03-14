@@ -5,6 +5,14 @@ import type {
   DiagnosisCategory as ModelDiagnosisCategory,
   DiagnosisName as ModelDiagnosisName,
 } from "@/types/generated/models";
+import type {
+  CreateDiagnosisCategoryRequest,
+  UpdateDiagnosisCategoryRequest,
+  CreateDiagnosisNameRequest,
+  UpdateDiagnosisNameRequest,
+  ReorderDiagnosisCategoryRequest,
+  ReorderDiagnosisNameRequest,
+} from "@/types/diagnosis";
 
 // ─────────────────────────────────────────────────
 // Transform functions → domain types (camelCase)
@@ -12,7 +20,7 @@ import type {
 
 function transformDiagnosisCategory(data: ModelDiagnosisCategory) {
   return {
-    id: data.id,                        // number (uint64)
+    id: String(data.id ?? 0),
     clinicId: data.clinic_id,
     name: data.name,
     isActive: data.is_active,
@@ -25,12 +33,12 @@ function transformDiagnosisCategory(data: ModelDiagnosisCategory) {
 
 function transformDiagnosisName(data: ModelDiagnosisName) {
   return {
-    id: data.id,                                // number (uint64)
+    id: String(data.id ?? 0),
     clinicId: data.clinic_id,
     name: data.name,
     isActive: data.is_active,
     description: data.description,
-    diagnosisCategoryId: data.diagnosis_category_id, // number (uint64)
+    diagnosisCategoryId: String(data.diagnosis_category_id ?? 0),
     sortOrder: data.sort_order,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
@@ -42,46 +50,17 @@ export type DiagnosisCategory = ReturnType<typeof transformDiagnosisCategory>;
 export type DiagnosisName = ReturnType<typeof transformDiagnosisName>;
 
 // ─────────────────────────────────────────────────
-// Request types
+// Request types re-export (@/types/diagnosis から導出済み)
 // ─────────────────────────────────────────────────
 
-export interface CreateDiagnosisCategoryRequest {
-  name: string;
-  description?: string;
-  is_active?: boolean;
-  sort_order?: number;
-}
-
-export interface UpdateDiagnosisCategoryRequest {
-  name?: string;
-  description?: string;
-  is_active?: boolean;
-  sort_order?: number;
-}
-
-export interface CreateDiagnosisNameRequest {
-  name: string;
-  diagnosis_category_id: number; // uint64 — string で送ると 400 になるため number 必須
-  description?: string;
-  is_active?: boolean;
-  sort_order?: number;
-}
-
-export interface UpdateDiagnosisNameRequest {
-  name?: string;
-  diagnosis_category_id?: number; // uint64
-  description?: string;
-  is_active?: boolean;
-  sort_order?: number;
-}
-
-export interface ReorderDiagnosisCategoryRequest {
-  ids: number[];
-}
-
-export interface ReorderDiagnosisNameRequest {
-  ids: number[];
-}
+export type {
+  CreateDiagnosisCategoryRequest,
+  UpdateDiagnosisCategoryRequest,
+  CreateDiagnosisNameRequest,
+  UpdateDiagnosisNameRequest,
+  ReorderDiagnosisCategoryRequest,
+  ReorderDiagnosisNameRequest,
+} from "@/types/diagnosis";
 
 // ─────────────────────────────────────────────────
 // Query keys
@@ -112,7 +91,7 @@ export async function createDiagnosisCategory(
 }
 
 export async function updateDiagnosisCategory(
-  id: number,
+  id: string,
   req: UpdateDiagnosisCategoryRequest,
 ): Promise<DiagnosisCategory> {
   const { data } = await axios.patch<ModelDiagnosisCategory>(
@@ -122,7 +101,7 @@ export async function updateDiagnosisCategory(
   return transformDiagnosisCategory(data);
 }
 
-export async function deleteDiagnosisCategory(id: number): Promise<void> {
+export async function deleteDiagnosisCategory(id: string): Promise<void> {
   await axios.delete(`/v1/masters/diagnosis-categories/${id}`);
 }
 
@@ -154,7 +133,7 @@ export async function createDiagnosisName(
 }
 
 export async function updateDiagnosisName(
-  id: number,
+  id: string,
   req: UpdateDiagnosisNameRequest,
 ): Promise<DiagnosisName> {
   const { data } = await axios.patch<ModelDiagnosisName>(
@@ -164,7 +143,7 @@ export async function updateDiagnosisName(
   return transformDiagnosisName(data);
 }
 
-export async function deleteDiagnosisName(id: number): Promise<void> {
+export async function deleteDiagnosisName(id: string): Promise<void> {
   await axios.delete(`/v1/masters/diagnosis-names/${id}`);
 }
 
@@ -200,7 +179,7 @@ export function useCreateDiagnosisCategory() {
 export function useUpdateDiagnosisCategory() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, req }: { id: number; req: UpdateDiagnosisCategoryRequest }) =>
+    mutationFn: ({ id, req }: { id: string; req: UpdateDiagnosisCategoryRequest }) =>
       updateDiagnosisCategory(id, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: DIAGNOSIS_CATEGORIES_KEY });
@@ -254,7 +233,7 @@ export function useCreateDiagnosisName() {
 export function useUpdateDiagnosisName() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, req }: { id: number; req: UpdateDiagnosisNameRequest }) =>
+    mutationFn: ({ id, req }: { id: string; req: UpdateDiagnosisNameRequest }) =>
       updateDiagnosisName(id, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: DIAGNOSIS_NAMES_KEY });

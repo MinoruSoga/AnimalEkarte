@@ -56,14 +56,13 @@ import {
 } from "@/features/master/api/diagnosis";
 
 // Types
+import type { DiagnosisCategory, DiagnosisName } from "@/features/master/api/diagnosis";
 import type {
-  DiagnosisCategory,
-  DiagnosisName,
   CreateDiagnosisCategoryRequest,
   UpdateDiagnosisCategoryRequest,
   CreateDiagnosisNameRequest,
   UpdateDiagnosisNameRequest,
-} from "@/features/master/api/diagnosis";
+} from "@/types/diagnosis";
 
 // ─────────────────────────────────────────────────
 // Columns
@@ -553,7 +552,7 @@ function DiagnosisCategoryTab() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<DiagnosisCategory | null>(null);
-  const [overrideOrder, setOverrideOrder] = useState<number[]>([]);
+  const [overrideOrder, setOverrideOrder] = useState<string[]>([]);
 
   const { data: rawCategories } = useListDiagnosisCategories();
   const createMutation = useCreateDiagnosisCategory();
@@ -569,7 +568,7 @@ function DiagnosisCategoryTab() {
   const orderedCategories = useMemo(() => {
     const base = rawCategories ?? [];
     if (overrideOrder.length === 0) return base;
-    const idx = new Map(overrideOrder.map((id, i) => [id, i]));
+    const idx = new Map<string, number>(overrideOrder.map((id, i) => [id, i]));
     return [...base].sort((a, b) => (idx.get(a.id) ?? 0) - (idx.get(b.id) ?? 0));
   }, [rawCategories, overrideOrder]);
 
@@ -585,12 +584,12 @@ function DiagnosisCategoryTab() {
     const currentIds = orderedCategories.map((i) => i.id);
     const newOrder = arrayMove(
       currentIds,
-      currentIds.indexOf(Number(active.id)),
-      currentIds.indexOf(Number(over.id)),
+      currentIds.indexOf(String(active.id)),
+      currentIds.indexOf(String(over.id)),
     );
     setOverrideOrder(newOrder);
     reorderMutation.mutate(
-      { ids: newOrder },
+      { ids: newOrder.map(Number) },
       { onSuccess: () => setOverrideOrder([]) },
     );
   };
@@ -725,7 +724,7 @@ function SortableNameRow({
   onEdit,
 }: {
   item: DiagnosisName;
-  categoryMap: Map<number, string>;
+  categoryMap: Map<string, string>;
   onEdit: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -773,7 +772,7 @@ function DiagnosisNameTab() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<DiagnosisName | null>(null);
-  const [overrideOrder, setOverrideOrder] = useState<number[]>([]);
+  const [overrideOrder, setOverrideOrder] = useState<string[]>([]);
 
   const { data: rawCategories } = useListDiagnosisCategories();
   const { data: rawNames } = useListDiagnosisNames();
@@ -791,7 +790,7 @@ function DiagnosisNameTab() {
   const orderedNames = useMemo(() => {
     const base = rawNames ?? [];
     if (overrideOrder.length === 0) return base;
-    const idx = new Map(overrideOrder.map((id, i) => [id, i]));
+    const idx = new Map<string, number>(overrideOrder.map((id, i) => [id, i]));
     return [...base].sort((a, b) => (idx.get(a.id) ?? 0) - (idx.get(b.id) ?? 0));
   }, [rawNames, overrideOrder]);
 
@@ -807,18 +806,18 @@ function DiagnosisNameTab() {
     const currentIds = orderedNames.map((i) => i.id);
     const newOrder = arrayMove(
       currentIds,
-      currentIds.indexOf(Number(active.id)),
-      currentIds.indexOf(Number(over.id)),
+      currentIds.indexOf(String(active.id)),
+      currentIds.indexOf(String(over.id)),
     );
     setOverrideOrder(newOrder);
     reorderMutation.mutate(
-      { ids: newOrder },
+      { ids: newOrder.map(Number) },
       { onSuccess: () => setOverrideOrder([]) },
     );
   };
 
   const categoryMap = useMemo(
-    () => new Map<number, string>((rawCategories ?? []).map((c) => [c.id, c.name])),
+    () => new Map<string, string>((rawCategories ?? []).map((c) => [c.id, c.name])),
     [rawCategories],
   );
 
