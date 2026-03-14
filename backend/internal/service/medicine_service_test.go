@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,31 +14,35 @@ import (
 
 // mockMedicineRepository は MedicineRepository のテスト用モック実装
 type mockMedicineRepository struct {
-	findAllFn  func(ctx context.Context) ([]model.Medicine, error)
-	findByIDFn func(ctx context.Context, id uint64) (*model.Medicine, error)
+	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.Medicine, error)
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
 	createFn   func(ctx context.Context, medicine *model.Medicine) error
-	updateFn   func(ctx context.Context, medicine *model.Medicine) error
-	deleteFn   func(ctx context.Context, id uint64) error
+	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockMedicineRepository) FindAll(ctx context.Context) ([]model.Medicine, error) {
-	return m.findAllFn(ctx)
+func (m *mockMedicineRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Medicine, error) {
+	return m.findAllFn(ctx, clinicID)
 }
 
-func (m *mockMedicineRepository) FindByID(ctx context.Context, id uint64) (*model.Medicine, error) {
-	return m.findByIDFn(ctx, id)
+func (m *mockMedicineRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error) {
+	return m.findByIDFn(ctx, clinicID, id)
 }
 
 func (m *mockMedicineRepository) Create(ctx context.Context, medicine *model.Medicine) error {
 	return m.createFn(ctx, medicine)
 }
 
-func (m *mockMedicineRepository) Update(ctx context.Context, medicine *model.Medicine) error {
-	return m.updateFn(ctx, medicine)
+func (m *mockMedicineRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return m.updateFn(ctx, clinicID, id, fields)
 }
 
-func (m *mockMedicineRepository) Delete(ctx context.Context, id uint64) error {
-	return m.deleteFn(ctx, id)
+func (m *mockMedicineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
+}
+
+func newTestMedicineService(repo *mockMedicineRepository) MedicineService {
+	return NewMedicineService(repo, slog.Default())
 }
 
 func TestMedicineService_List(t *testing.T) {
@@ -77,13 +82,13 @@ func TestMedicineService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockMedicineRepository{
-				findAllFn: func(_ context.Context) ([]model.Medicine, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.Medicine, error) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewMedicineService(repo)
+			svc := newTestMedicineService(repo)
 
-			medicines, err := svc.List(context.Background())
+			medicines, err := svc.List(context.Background(), 1)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -133,13 +138,13 @@ func TestMedicineService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockMedicineRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.Medicine, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
 					return tt.repoMedicine, tt.repoErr
 				},
 			}
-			svc := NewMedicineService(repo)
+			svc := newTestMedicineService(repo)
 
-			medicine, err := svc.GetByID(context.Background(), tt.id)
+			medicine, err := svc.GetByID(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -157,34 +162,40 @@ func TestMedicineService_GetByID(t *testing.T) {
 
 func TestMedicineService_Create(t *testing.T) {
 	tests := []struct {
-		name     string
-		medicine *model.Medicine
-		repoErr  error
-		wantErr  bool
+		name    string
+		input   *CreateMedicineInput
+		repoErr error
+		wantErr bool
 	}{
 		{
 			name: "creates medicine successfully",
-			medicine: &model.Medicine{
+			input: &CreateMedicineInput{
 				Name:     "新規薬剤",
-				ClinicID: 1,
+				IsActive: true,
 			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
+			name: "returns error when name is empty",
+			input: &CreateMedicineInput{
+				Name: "",
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
 			name: "returns error when medicine already exists",
-			medicine: &model.Medicine{
-				Name:     "重複薬剤",
-				ClinicID: 1,
+			input: &CreateMedicineInput{
+				Name: "重複薬剤",
 			},
 			repoErr: apperrors.WrapAlreadyExists("medicine", "重複薬剤"),
 			wantErr: true,
 		},
 		{
 			name: "returns error on repository failure",
-			medicine: &model.Medicine{
-				Name:     "エラー薬剤",
-				ClinicID: 1,
+			input: &CreateMedicineInput{
+				Name: "エラー薬剤",
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -198,70 +209,97 @@ func TestMedicineService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewMedicineService(repo)
+			svc := newTestMedicineService(repo)
 
-			err := svc.Create(context.Background(), tt.medicine)
+			medicine, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, medicine)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, medicine)
 			}
 		})
 	}
 }
 
 func TestMedicineService_Update(t *testing.T) {
+	existingMedicine := &model.Medicine{ID: 1, Name: "更新後薬剤名", ClinicID: 1}
+
 	tests := []struct {
-		name     string
-		medicine *model.Medicine
-		repoErr  error
-		wantErr  bool
+		name      string
+		id        uint64
+		input     *UpdateMedicineInput
+		updateErr error
+		findErr   error
+		wantErr   bool
 	}{
 		{
 			name: "updates medicine successfully",
-			medicine: &model.Medicine{
-				ID:   1,
-				Name: "更新後薬剤名",
+			id:   1,
+			input: &UpdateMedicineInput{
+				Name: strPtr("更新後薬剤名"),
 			},
-			repoErr: nil,
-			wantErr: false,
+			updateErr: nil,
+			findErr:   nil,
+			wantErr:   false,
+		},
+		{
+			name: "returns same medicine when no fields provided",
+			id:   1,
+			input: &UpdateMedicineInput{
+				// 全フィールド nil
+			},
+			updateErr: nil,
+			findErr:   nil,
+			wantErr:   false,
 		},
 		{
 			name: "returns not found error when medicine does not exist",
-			medicine: &model.Medicine{
-				ID:   999,
-				Name: "存在しない薬剤",
+			id:   999,
+			input: &UpdateMedicineInput{
+				Name: strPtr("存在しない薬剤"),
 			},
-			repoErr: apperrors.WrapNotFound("medicine", "999"),
-			wantErr: true,
+			updateErr: apperrors.WrapNotFound("medicine", "999"),
+			findErr:   nil,
+			wantErr:   true,
 		},
 		{
 			name: "returns error on repository failure",
-			medicine: &model.Medicine{
-				ID:   1,
-				Name: "エラーケース",
+			id:   1,
+			input: &UpdateMedicineInput{
+				Name: strPtr("エラーケース"),
 			},
-			repoErr: errors.New("db error"),
-			wantErr: true,
+			updateErr: errors.New("db error"),
+			findErr:   nil,
+			wantErr:   true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockMedicineRepository{
-				updateFn: func(_ context.Context, _ *model.Medicine) error {
-					return tt.repoErr
+				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+					return tt.updateErr
+				},
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
+					if tt.findErr != nil {
+						return nil, tt.findErr
+					}
+					return existingMedicine, nil
 				},
 			}
-			svc := NewMedicineService(repo)
+			svc := newTestMedicineService(repo)
 
-			err := svc.Update(context.Background(), tt.medicine)
+			medicine, err := svc.Update(context.Background(), 1, tt.id, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, medicine)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, medicine)
 			}
 		})
 	}
@@ -301,13 +339,13 @@ func TestMedicineService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockMedicineRepository{
-				deleteFn: func(_ context.Context, _ uint64) error {
+				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
 			}
-			svc := NewMedicineService(repo)
+			svc := newTestMedicineService(repo)
 
-			err := svc.Delete(context.Background(), tt.id)
+			err := svc.Delete(context.Background(), 1, tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -320,3 +358,6 @@ func TestMedicineService_Delete(t *testing.T) {
 		})
 	}
 }
+
+// strPtr はテスト用のヘルパー関数
+func strPtr(s string) *string { return &s }

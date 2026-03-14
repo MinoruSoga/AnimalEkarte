@@ -67,7 +67,7 @@ func NewServices(repos *repository.Repositories) *Services {
 		Inventory:              NewInventoryService(repos.Inventory),
 		Staff:                  NewStaffService(repos.Staff),
 		Cage:                   NewCageService(repos.Cage),
-		Medicine:               NewMedicineService(repos.Medicine),
+		Medicine:               NewMedicineService(repos.Medicine, slog.Default()),
 		Vaccine:                NewVaccineService(repos.Vaccine),
 		Insurance:              NewInsuranceService(repos.Insurance),
 		ServiceType:            NewServiceTypeService(repos.ServiceType),

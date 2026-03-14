@@ -337,7 +337,6 @@ export type CageSize = 'small' | 'medium' | 'large';
 // Medicine Types
 export interface Medicine {
   id: string;
-  code: string;
   name: string;
   dosageForm: DosageForm;
   medicineUnit: MedicineUnit;

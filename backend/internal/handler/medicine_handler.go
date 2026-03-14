@@ -2,48 +2,48 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
-
-type createMedicineInput struct {
-	Name            string   `json:"name"             binding:"required"`
-	Price           *float64 `json:"price"`
-	IsActive        bool     `json:"is_active"`
-	Description     string   `json:"description"`
-	DosageForm      string   `json:"dosage_form"`
-	MedicineUnit    string   `json:"medicine_unit"`
-	InventoryID     *uint64  `json:"inventory_id"`
-	DefaultQuantity int      `json:"default_quantity"`
-	SortOrder       int      `json:"sort_order"`
-}
-
-type updateMedicineInput struct {
-	Name            string   `json:"name"`
-	Price           *float64 `json:"price"`
-	IsActive        *bool    `json:"is_active"`
-	Description     string   `json:"description"`
-	DosageForm      string   `json:"dosage_form"`
-	MedicineUnit    string   `json:"medicine_unit"`
-	InventoryID     *uint64  `json:"inventory_id"`
-	DefaultQuantity int      `json:"default_quantity"`
-	SortOrder       int      `json:"sort_order"`
-}
-
-// ---- Medicine ----
 
 // ListMedicines godoc
 func (h *Handler) ListMedicines(c *gin.Context) {
-	medicines, err := h.svc.Medicine.List(c.Request.Context())
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
+	medicines, err := h.svc.Medicine.List(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, medicines)
+}
+
+// GetMedicine godoc
+func (h *Handler) GetMedicine(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	medicine, err := h.svc.Medicine.GetByID(c.Request.Context(), clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, medicine)
 }
 
 // CreateMedicine godoc
@@ -53,73 +53,65 @@ func (h *Handler) CreateMedicine(c *gin.Context) {
 		return
 	}
 
-	var input createMedicineInput
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req createMedicineRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	medicine := &model.Medicine{
-		ClinicID:        clinicID,
-		Name:            input.Name,
-		Price:           input.Price,
-		IsActive:        input.IsActive,
-		Description:     input.Description,
-		InventoryID:     input.InventoryID,
-		DefaultQuantity: input.DefaultQuantity,
-		SortOrder:       input.SortOrder,
-	}
-	if input.DosageForm != "" {
-		df := model.DosageForm(input.DosageForm)
-		medicine.DosageForm = &df
-	}
-	if input.MedicineUnit != "" {
-		mu := model.MedicineUnit(input.MedicineUnit)
-		medicine.MedicineUnit = &mu
+	input := service.CreateMedicineInput{
+		Name:            req.Name,
+		Price:           req.Price,
+		IsActive:        req.IsActive,
+		Description:     req.Description,
+		DosageForm:      req.DosageForm,
+		MedicineUnit:    req.MedicineUnit,
+		InventoryID:     req.InventoryID,
+		DefaultQuantity: req.DefaultQuantity,
+		SortOrder:       req.SortOrder,
 	}
 
-	if err := h.svc.Medicine.Create(c.Request.Context(), medicine); err != nil {
+	medicine, err := h.svc.Medicine.Create(c.Request.Context(), clinicID, &input)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
+	c.Header("Location", fmt.Sprintf("/v1/masters/medicines/%d", medicine.ID))
 	c.JSON(http.StatusCreated, medicine)
 }
 
 // UpdateMedicine godoc
 func (h *Handler) UpdateMedicine(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input updateMedicineInput
-	if err := c.ShouldBindJSON(&input); err != nil {
+
+	var req updateMedicineRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	medicine := &model.Medicine{
-		ID:              id,
-		Name:            input.Name,
-		Price:           input.Price,
-		Description:     input.Description,
-		InventoryID:     input.InventoryID,
-		DefaultQuantity: input.DefaultQuantity,
-		SortOrder:       input.SortOrder,
-	}
-	if input.IsActive != nil {
-		medicine.IsActive = *input.IsActive
-	}
-	if input.DosageForm != "" {
-		df := model.DosageForm(input.DosageForm)
-		medicine.DosageForm = &df
-	}
-	if input.MedicineUnit != "" {
-		mu := model.MedicineUnit(input.MedicineUnit)
-		medicine.MedicineUnit = &mu
+	input := service.UpdateMedicineInput{
+		Name:            req.Name,
+		Price:           req.Price,
+		IsActive:        req.IsActive,
+		Description:     req.Description,
+		DosageForm:      req.DosageForm,
+		MedicineUnit:    req.MedicineUnit,
+		InventoryID:     req.InventoryID,
+		DefaultQuantity: req.DefaultQuantity,
+		SortOrder:       req.SortOrder,
 	}
 
-	if err := h.svc.Medicine.Update(c.Request.Context(), medicine); err != nil {
+	medicine, err := h.svc.Medicine.Update(c.Request.Context(), clinicID, id, &input)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -128,12 +120,16 @@ func (h *Handler) UpdateMedicine(c *gin.Context) {
 
 // DeleteMedicine godoc
 func (h *Handler) DeleteMedicine(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	if err := h.svc.Medicine.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.Medicine.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}
