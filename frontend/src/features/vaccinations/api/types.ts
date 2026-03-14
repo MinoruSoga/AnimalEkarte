@@ -7,11 +7,11 @@ import type { Vaccination } from "@/types/generated/models";
 export type BackendVaccination = Vaccination;
 
 export interface CreateVaccinationRequest {
-  medical_record_id: string;
-  pet_id?: string | null;
-  vaccine_id: string;
+  medical_record_id?: number | null;
+  pet_id?: number | null;
+  vaccine_id: number;
   date: string;
-  doctor_id?: string | null;
+  doctor_id?: number | null;
   next_date?: string | null;
   lot1?: string;
   remarks?: string;

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useGetVaccinations } from "../api";
+import { useGetVaccinations } from "../api/get-vaccinations";
 
 export function useVaccinations(searchTerm: string) {
   const { data = [], isLoading, error } = useGetVaccinations();

@@ -5,8 +5,8 @@ import { transformVaccination } from "./transforms";
 import type { BackendVaccination } from "./types";
 
 export const getVaccinations = async (): Promise<VaccinationRecord[]> => {
-  const { data } = await axios.get<BackendVaccination[]>("/v1/vaccinations");
-  return data.map(transformVaccination);
+  const { data } = await axios.get<{ data: BackendVaccination[] }>("/v1/vaccinations");
+  return (data.data ?? []).map(transformVaccination);
 };
 
 export const useGetVaccinations = () => {

@@ -8,6 +8,7 @@ export function transformVaccination(
     id: String(data.id ?? 0),
     ownerName: "",
     petName: data.pet?.name ?? "",
+    vaccineId: String(data.vaccine_id ?? 0),
     vaccineName: data.vaccine?.name ?? "",
     doctor: "",
     date: data.date ?? "",

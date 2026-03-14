@@ -1,16 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
-import {
-  useGetVaccination,
-  useCreateVaccination,
-  useUpdateVaccination,
-} from "../api";
-import type { CreateVaccinationRequest, UpdateVaccinationRequest } from "../api";
+import { useGetVaccination } from "../api/get-vaccination";
+import { useCreateVaccination } from "../api/create-vaccination";
+import { useUpdateVaccination } from "../api/update-vaccination";
+import type { CreateVaccinationRequest, UpdateVaccinationRequest } from "../api/types";
 
 interface VaccinationFormState {
-  vaccineName: string;
+  vaccineId: string;
   date: string;
   supplemental: string;
   lot1: string;
@@ -23,7 +21,7 @@ interface VaccinationFormState {
 }
 
 const DEFAULT_FORM: VaccinationFormState = {
-  vaccineName: "",
+  vaccineId: "",
   date: "",
   supplemental: "",
   lot1: "",
@@ -57,7 +55,7 @@ export function useVaccinationForm(id?: string) {
   // Merge: server data as base + user edits on top
   const formData: VaccinationFormState = isEdit && existingVaccination
     ? {
-        vaccineName: existingVaccination.vaccineName,
+        vaccineId: existingVaccination.vaccineId,
         date: existingVaccination.date ? existingVaccination.date.slice(0, 10) : "",
         supplemental: "",
         lot1: "",
@@ -71,9 +69,11 @@ export function useVaccinationForm(id?: string) {
       }
     : { ...DEFAULT_FORM, ...localOverrides };
 
-  const setField = <K extends keyof VaccinationFormState>(key: K, value: VaccinationFormState[K]) => {
+  const setField = useCallback(<K extends keyof VaccinationFormState>(key: K, value: VaccinationFormState[K]) => {
     setLocalOverrides((prev) => ({ ...prev, [key]: value }));
-  };
+  }, []);
+
+  const [isSaveTransitionPending, startSaveTransition] = useTransition();
 
   // History Filter State
   const [filterStartDate, setFilterStartDate] = useState("");
@@ -93,66 +93,92 @@ export function useVaccinationForm(id?: string) {
   }, [isEdit, petId, petFromQuery, isPetLoading, setSelectedPets, navigate]);
 
   const handleSave = () => {
-    if (isEdit && id) {
-      const req: UpdateVaccinationRequest = {
-        date: formData.date || undefined,
-        next_date: formData.nextDate || null,
-        lot1: formData.lot1 || undefined,
-        remarks: formData.remarks || undefined,
-      };
-      updateMutation.mutate(
-        { id, req },
-        { onSuccess: () => navigate("/vaccinations") }
-      );
-    } else {
-      const pet = selectedPets[0];
-      if (!pet) return;
-      const req: CreateVaccinationRequest = {
-        medical_record_id: "",
-        pet_id: pet.id,
-        vaccine_id: formData.vaccineName,
-        date: formData.date || new Date().toISOString(),
-        next_date: formData.nextDate || null,
-        lot1: formData.lot1 || undefined,
-        remarks: formData.remarks || undefined,
-      };
-      createMutation.mutate(req, {
-        onSuccess: () => navigate("/vaccinations"),
-      });
-    }
+    startSaveTransition(() => {
+      if (isEdit && id) {
+        const req: UpdateVaccinationRequest = {
+          date: formData.date || undefined,
+          next_date: formData.nextDate || null,
+          lot1: formData.lot1 || undefined,
+          remarks: formData.remarks || undefined,
+        };
+        updateMutation.mutate(
+          { id, req },
+          { onSuccess: () => navigate("/vaccinations") }
+        );
+      } else {
+        const pet = selectedPets[0];
+        if (!pet) return;
+        const req: CreateVaccinationRequest = {
+          medical_record_id: null,
+          pet_id: Number(pet.id),
+          vaccine_id: Number(formData.vaccineId),
+          date: formData.date || new Date().toISOString(),
+          next_date: formData.nextDate || null,
+          lot1: formData.lot1 || undefined,
+          remarks: formData.remarks || undefined,
+        };
+        createMutation.mutate(req, {
+          onSuccess: () => navigate("/vaccinations"),
+        });
+      }
+    });
   };
 
   const handleClearHistoryFilter = () => {
     setHistorySearchTerm("");
   };
 
-  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isSaving = createMutation.isPending || updateMutation.isPending || isSaveTransitionPending;
+
+  const setVaccineId = useCallback((v: string) => setField("vaccineId", v), [setField]);
+  const setDate = useCallback((v: string) => setField("date", v), [setField]);
+  const setSupplemental = useCallback((v: string) => setField("supplemental", v), [setField]);
+  const setLot1 = useCallback((v: string) => setField("lot1", v), [setField]);
+  const setLot2 = useCallback((v: string) => setField("lot2", v), [setField]);
+  const setLot3 = useCallback((v: string) => setField("lot3", v), [setField]);
+  const setLot4 = useCallback((v: string) => setField("lot4", v), [setField]);
+  const setNextScheduleType = useCallback((v: string) => setField("nextScheduleType", v), [setField]);
+  const setNextDate = useCallback((v: string) => setField("nextDate", v), [setField]);
+  const setRemarks = useCallback((v: string) => setField("remarks", v), [setField]);
+
+  const form = useMemo(() => ({
+    vaccineId: formData.vaccineId,
+    setVaccineId,
+    date: formData.date,
+    setDate,
+    supplemental: formData.supplemental,
+    setSupplemental,
+    lot1: formData.lot1,
+    setLot1,
+    lot2: formData.lot2,
+    setLot2,
+    lot3: formData.lot3,
+    setLot3,
+    lot4: formData.lot4,
+    setLot4,
+    nextScheduleType: formData.nextScheduleType,
+    setNextScheduleType,
+    nextDate: formData.nextDate,
+    setNextDate,
+    remarks: formData.remarks,
+    setRemarks,
+  }), [
+    formData.vaccineId, setVaccineId,
+    formData.date, setDate,
+    formData.supplemental, setSupplemental,
+    formData.lot1, setLot1,
+    formData.lot2, setLot2,
+    formData.lot3, setLot3,
+    formData.lot4, setLot4,
+    formData.nextScheduleType, setNextScheduleType,
+    formData.nextDate, setNextDate,
+    formData.remarks, setRemarks,
+  ]);
 
   return {
     isEdit,
     petSelection,
-    form: {
-      vaccineName: formData.vaccineName,
-      setVaccineName: (v: string) => setField("vaccineName", v),
-      date: formData.date,
-      setDate: (v: string) => setField("date", v),
-      supplemental: formData.supplemental,
-      setSupplemental: (v: string) => setField("supplemental", v),
-      lot1: formData.lot1,
-      setLot1: (v: string) => setField("lot1", v),
-      lot2: formData.lot2,
-      setLot2: (v: string) => setField("lot2", v),
-      lot3: formData.lot3,
-      setLot3: (v: string) => setField("lot3", v),
-      lot4: formData.lot4,
-      setLot4: (v: string) => setField("lot4", v),
-      nextScheduleType: formData.nextScheduleType,
-      setNextScheduleType: (v: string) => setField("nextScheduleType", v),
-      nextDate: formData.nextDate,
-      setNextDate: (v: string) => setField("nextDate", v),
-      remarks: formData.remarks,
-      setRemarks: (v: string) => setField("remarks", v),
-    },
+    form,
     historyFilter: {
       filterStartDate, setFilterStartDate,
       filterEndDate, setFilterEndDate,

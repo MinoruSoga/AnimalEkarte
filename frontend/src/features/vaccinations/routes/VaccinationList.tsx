@@ -1,5 +1,5 @@
 // React/Framework
-import { useState } from "react";
+import { useState, useDeferredValue, useCallback } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -18,27 +18,30 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 // Relative
 import { useVaccinations } from "../hooks/useVaccinations";
 
+const COLUMNS = [
+  { header: "実施日", className: "w-[120px]" },
+  { header: "飼主名" },
+  { header: "ペット名" },
+  { header: "予防接種名" },
+  { header: "次回予定", className: "w-[140px]" },
+  { header: "操作", className: "w-[100px]", align: "right" as const },
+];
+
 export function VaccinationList() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const { data: filteredRecords } = useVaccinations(searchTerm);
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+  const { data: filteredRecords } = useVaccinations(deferredSearchTerm);
 
-  const handleCreate = () => {
+  const handleCreate = useCallback(() => {
     navigate("/vaccinations/select-pet");
-  };
+  }, [navigate]);
 
-  const handleEdit = (id: string) => {
+  const handleEdit = useCallback((id: string) => {
     navigate(`/vaccinations/${id}`);
-  };
+  }, [navigate]);
 
-  const columns = [
-    { header: "実施日", className: "w-[120px]" },
-    { header: "飼主名" },
-    { header: "ペット名" },
-    { header: "予防接種名" },
-    { header: "次回予定", className: "w-[140px]" },
-    { header: "操作", className: "w-[100px]", align: "right" as const },
-  ];
+  const handleSearchChange = useCallback((v: string) => setSearchTerm(v), []);
 
   return (
     <PageLayout
@@ -62,14 +65,14 @@ export function VaccinationList() {
         {/* Search */}
         <SearchFilterBar
           searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
+          onSearchChange={handleSearchChange}
           placeholder="飼主名、ペット名、予防接種名..."
           count={filteredRecords.length}
         />
 
         {/* Table */}
         <DataTable
-            columns={columns}
+            columns={COLUMNS}
             data={filteredRecords}
             emptyMessage="データが見つかりません"
             renderRow={(r) => (

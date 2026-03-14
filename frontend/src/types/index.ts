@@ -260,6 +260,7 @@ export interface VaccinationRecord {
   id: string;
   ownerName: string;
   petName: string;
+  vaccineId: string;
   vaccineName: string;
   doctor: string;
   date: string;

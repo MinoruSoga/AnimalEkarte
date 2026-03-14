@@ -51,7 +51,7 @@ export function VaccinationCard({
         </div>
 
         {/* 次回接種予定日 */}
-        {vaccination.nextDate && (
+        {vaccination.nextDate ? (
           <div
             className={`flex items-center gap-1.5 mt-1.5 text-sm ${
               overdue ? "text-[#EB5757]" : C.text60
@@ -64,12 +64,12 @@ export function VaccinationCard({
             )}
             <span>
               次回: {vaccination.nextDate}
-              {overdue && (
+              {overdue ? (
                 <span className="ml-1.5 text-xs font-medium">（期限超過）</span>
-              )}
+              ) : null}
             </span>
           </div>
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );
