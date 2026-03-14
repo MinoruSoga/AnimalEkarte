@@ -3,6 +3,25 @@ import type { ReactNode } from "react";
 import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
+// DnD
+import {
+  DndContext,
+  closestCenter,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
 // External
 import { Plus, ClipboardList, X, Trash2, GripVertical } from "lucide-react";
 import { toast } from "sonner";
@@ -27,10 +46,12 @@ import {
   useCreateDiagnosisCategory,
   useUpdateDiagnosisCategory,
   useDeleteDiagnosisCategory,
+  useReorderDiagnosisCategories,
   useListDiagnosisNames,
   useCreateDiagnosisName,
   useUpdateDiagnosisName,
   useDeleteDiagnosisName,
+  useReorderDiagnosisNames,
 } from "@/features/master/api/diagnosis";
 
 // Types
@@ -160,24 +181,97 @@ function AddButton({ onClick }: { onClick: () => void }) {
 // DiagnosisCategoryTab
 // ─────────────────────────────────────────────────
 
+function SortableCategoryRow({
+  item,
+  onEdit,
+}: {
+  item: DiagnosisCategory;
+  onEdit: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: item.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <DataTableRow ref={setNodeRef} style={style} {...attributes} onClick={onEdit}>
+      <TableCell
+        className="w-[32px] py-2.5 text-[#37352F]/20 cursor-grab"
+        {...listeners}
+      >
+        <GripVertical className="size-4" />
+      </TableCell>
+      <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
+        {item.name}
+      </TableCell>
+      <TableCell className={`text-sm ${C.text60} py-2.5`}>
+        diagnosis_category
+      </TableCell>
+      <TableCell className="text-right py-2.5">
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`}
+          />
+          <span
+            className={`text-sm ${item.isActive ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}
+          >
+            {item.isActive ? "有効" : "無効"}
+          </span>
+        </span>
+      </TableCell>
+    </DataTableRow>
+  );
+}
+
 function DiagnosisCategoryTab() {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<DiagnosisCategory | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<DiagnosisCategory | null>(null);
   const [formData, setFormData] = useState({ name: "", description: "", isActive: true });
+  const [overrideOrder, setOverrideOrder] = useState<string[]>([]);
 
   const { data: rawCategories } = useListDiagnosisCategories();
   const createMutation = useCreateDiagnosisCategory();
   const updateMutation = useUpdateDiagnosisCategory();
   const deleteMutation = useDeleteDiagnosisCategory();
+  const reorderMutation = useReorderDiagnosisCategories();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const orderedCategories = useMemo(() => {
+    const base = rawCategories ?? [];
+    if (overrideOrder.length === 0) return base;
+    const idx = new Map(overrideOrder.map((id, i) => [id, i]));
+    return [...base].sort((a, b) => (idx.get(a.id) ?? 0) - (idx.get(b.id) ?? 0));
+  }, [rawCategories, overrideOrder]);
 
   const filteredItems = useMemo(() => {
-    const categories = rawCategories ?? [];
-    if (!searchTerm) return categories;
+    if (!searchTerm) return orderedCategories;
     const lower = searchTerm.toLowerCase();
-    return categories.filter((c) => c.name.toLowerCase().includes(lower));
-  }, [rawCategories, searchTerm]);
+    return orderedCategories.filter((c) => c.name.toLowerCase().includes(lower));
+  }, [orderedCategories, searchTerm]);
+
+  const handleCategoryDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const currentIds = orderedCategories.map((i) => i.id);
+    const newOrder = arrayMove(
+      currentIds,
+      currentIds.indexOf(String(active.id)),
+      currentIds.indexOf(String(over.id)),
+    );
+    setOverrideOrder(newOrder);
+    reorderMutation.mutate(
+      { ids: newOrder.map((id) => Number(id)) },
+      { onSuccess: () => setOverrideOrder([]) },
+    );
+  };
 
   const handleEdit = (item: DiagnosisCategory) => {
     setSelectedItem(item);
@@ -264,32 +358,29 @@ function DiagnosisCategoryTab() {
             <AddButton onClick={handleCreate} />
           </div>
 
-          <DataTable
-            columns={CATEGORY_COLUMNS}
-            data={filteredItems}
-            emptyMessage="診断カテゴリが登録されていません"
-            renderRow={(item) => (
-              <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
-                <TableCell className="w-[32px] py-2.5 text-[#37352F]/20">
-                  <GripVertical className="size-4" />
-                </TableCell>
-                <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
-                  {item.name}
-                </TableCell>
-                <TableCell className={`text-sm ${C.text60} py-2.5`}>
-                  diagnosis_category
-                </TableCell>
-                <TableCell className="text-right py-2.5">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`} />
-                    <span className={`text-sm ${item.isActive ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}>
-                      {item.isActive ? "有効" : "無効"}
-                    </span>
-                  </span>
-                </TableCell>
-              </DataTableRow>
-            )}
-          />
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleCategoryDragEnd}
+          >
+            <SortableContext
+              items={filteredItems.map((i) => i.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <DataTable
+                columns={CATEGORY_COLUMNS}
+                data={filteredItems}
+                emptyMessage="診断カテゴリが登録されていません"
+                renderRow={(item) => (
+                  <SortableCategoryRow
+                    key={item.id}
+                    item={item}
+                    onEdit={() => handleEdit(item)}
+                  />
+                )}
+              />
+            </SortableContext>
+          </DndContext>
         </div>
 
         {/* ── Right: Side Peek ── */}
@@ -402,6 +493,55 @@ function DiagnosisCategoryTab() {
 // DiagnosisNameTab
 // ─────────────────────────────────────────────────
 
+function SortableNameRow({
+  item,
+  categoryMap,
+  onEdit,
+}: {
+  item: DiagnosisName;
+  categoryMap: Map<string, string>;
+  onEdit: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: item.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <DataTableRow ref={setNodeRef} style={style} {...attributes} onClick={onEdit}>
+      <TableCell
+        className="w-[32px] py-2.5 text-[#37352F]/20 cursor-grab"
+        {...listeners}
+      >
+        <GripVertical className="size-4" />
+      </TableCell>
+      <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
+        {item.name}
+      </TableCell>
+      <TableCell className={`text-sm ${C.text70} py-2.5`}>
+        {categoryMap.get(item.diagnosisCategoryId) ?? "-"}
+      </TableCell>
+      <TableCell className={`text-sm ${C.text60} py-2.5`}>
+        diagnosis_name
+      </TableCell>
+      <TableCell className="text-right py-2.5">
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`}
+          />
+          <span
+            className={`text-sm ${item.isActive ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}
+          >
+            {item.isActive ? "有効" : "無効"}
+          </span>
+        </span>
+      </TableCell>
+    </DataTableRow>
+  );
+}
+
 function DiagnosisNameTab() {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<DiagnosisName | null>(null);
@@ -420,13 +560,43 @@ function DiagnosisNameTab() {
   const createMutation = useCreateDiagnosisName();
   const updateMutation = useUpdateDiagnosisName();
   const deleteMutation = useDeleteDiagnosisName();
+  const reorderMutation = useReorderDiagnosisNames();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const [overrideOrder, setOverrideOrder] = useState<string[]>([]);
+
+  const orderedNames = useMemo(() => {
+    const base = rawNames ?? [];
+    if (overrideOrder.length === 0) return base;
+    const idx = new Map(overrideOrder.map((id, i) => [id, i]));
+    return [...base].sort((a, b) => (idx.get(a.id) ?? 0) - (idx.get(b.id) ?? 0));
+  }, [rawNames, overrideOrder]);
 
   const filteredItems = useMemo(() => {
-    const names = rawNames ?? [];
-    if (!searchTerm) return names;
+    if (!searchTerm) return orderedNames;
     const lower = searchTerm.toLowerCase();
-    return names.filter((n) => n.name.toLowerCase().includes(lower));
-  }, [rawNames, searchTerm]);
+    return orderedNames.filter((n) => n.name.toLowerCase().includes(lower));
+  }, [orderedNames, searchTerm]);
+
+  const handleNameDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const currentIds = orderedNames.map((i) => i.id);
+    const newOrder = arrayMove(
+      currentIds,
+      currentIds.indexOf(String(active.id)),
+      currentIds.indexOf(String(over.id)),
+    );
+    setOverrideOrder(newOrder);
+    reorderMutation.mutate(
+      { ids: newOrder.map((id) => Number(id)) },
+      { onSuccess: () => setOverrideOrder([]) },
+    );
+  };
 
   const categoryMap = useMemo(
     () => new Map((rawCategories ?? []).map((c) => [c.id, c.name])),
@@ -535,35 +705,30 @@ function DiagnosisNameTab() {
             <AddButton onClick={handleCreate} />
           </div>
 
-          <DataTable
-            columns={NAME_COLUMNS}
-            data={filteredItems}
-            emptyMessage="診断病名が登録されていません"
-            renderRow={(item) => (
-              <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
-                <TableCell className="w-[32px] py-2.5 text-[#37352F]/20">
-                  <GripVertical className="size-4" />
-                </TableCell>
-                <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
-                  {item.name}
-                </TableCell>
-                <TableCell className={`text-sm ${C.text70} py-2.5`}>
-                  {categoryMap.get(item.diagnosisCategoryId) ?? "-"}
-                </TableCell>
-                <TableCell className={`text-sm ${C.text60} py-2.5`}>
-                  diagnosis_name
-                </TableCell>
-                <TableCell className="text-right py-2.5">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`} />
-                    <span className={`text-sm ${item.isActive ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}>
-                      {item.isActive ? "有効" : "無効"}
-                    </span>
-                  </span>
-                </TableCell>
-              </DataTableRow>
-            )}
-          />
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleNameDragEnd}
+          >
+            <SortableContext
+              items={filteredItems.map((i) => i.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <DataTable
+                columns={NAME_COLUMNS}
+                data={filteredItems}
+                emptyMessage="診断病名が登録されていません"
+                renderRow={(item) => (
+                  <SortableNameRow
+                    key={item.id}
+                    item={item}
+                    categoryMap={categoryMap}
+                    onEdit={() => handleEdit(item)}
+                  />
+                )}
+              />
+            </SortableContext>
+          </DndContext>
         </div>
 
         {/* ── Right: Side Peek ── */}

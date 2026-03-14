@@ -89,6 +89,14 @@ export interface UpdateDiagnosisNameRequest {
   sort_order?: number;
 }
 
+export interface ReorderDiagnosisCategoryRequest {
+  ids: number[];
+}
+
+export interface ReorderDiagnosisNameRequest {
+  ids: number[];
+}
+
 // ─────────────────────────────────────────────────
 // Transform functions
 // ─────────────────────────────────────────────────
@@ -163,6 +171,12 @@ export async function deleteDiagnosisCategory(id: string): Promise<void> {
   await axios.delete(`/v1/masters/diagnosis-categories/${id}`);
 }
 
+export async function reorderDiagnosisCategories(
+  req: ReorderDiagnosisCategoryRequest,
+): Promise<void> {
+  await axios.patch("/v1/masters/diagnosis-categories/reorder", req);
+}
+
 // ─────────────────────────────────────────────────
 // API functions - DiagnosisName
 // ─────────────────────────────────────────────────
@@ -197,6 +211,12 @@ export async function updateDiagnosisName(
 
 export async function deleteDiagnosisName(id: string): Promise<void> {
   await axios.delete(`/v1/masters/diagnosis-names/${id}`);
+}
+
+export async function reorderDiagnosisNames(
+  req: ReorderDiagnosisNameRequest,
+): Promise<void> {
+  await axios.patch("/v1/masters/diagnosis-names/reorder", req);
 }
 
 // ─────────────────────────────────────────────────
@@ -241,6 +261,16 @@ export function useDeleteDiagnosisCategory() {
   });
 }
 
+export function useReorderDiagnosisCategories() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: reorderDiagnosisCategories,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_CATEGORIES_KEY });
+    },
+  });
+}
+
 // ─────────────────────────────────────────────────
 // TanStack Query hooks - DiagnosisName
 // ─────────────────────────────────────────────────
@@ -277,6 +307,16 @@ export function useDeleteDiagnosisName() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteDiagnosisName,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_NAMES_KEY });
+    },
+  });
+}
+
+export function useReorderDiagnosisNames() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: reorderDiagnosisNames,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: DIAGNOSIS_NAMES_KEY });
     },
