@@ -271,7 +271,7 @@ export function OwnersList() {
         </div>
 
         {/* Pagination */}
-        {pagination.totalPages > 1 && (
+        {pagination.totalPages > 1 ? (
           <Pagination
             currentPage={pagination.currentPage}
             totalPages={pagination.totalPages}
@@ -282,7 +282,7 @@ export function OwnersList() {
             onPrev={pagination.prevPage}
             onNext={pagination.nextPage}
           />
-        )}
+        ) : null}
       </div>
 
       {/* Delete Confirm Dialog */}

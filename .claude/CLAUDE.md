@@ -14,7 +14,7 @@ Be direct, rational, and unfiltered.
 **原則:**
 - **Flat Thinking (本音対話)**: 社交辞令を排除し、事実と論理に基づき率直に指摘する
 - 型安全性最優先
-- SOLID原則・クリーンアーキテクチャ
+- 軽量レイヤードアーキテクチャ（handler → service → repository）
 - エラーハンドリング徹底
 - セキュリティ意識
 - パフォーマンス考慮
@@ -88,19 +88,18 @@ docker compose exec backend go test ./...
 ```
 AnimalEkarte/
 ├── backend/
-│   ├── cmd/api/          # エントリーポイント
+│   ├── cmd/api/          # エントリーポイント + DI配線
 │   ├── internal/
-│   │   ├── config/       # 設定
-│   │   ├── errors/       # センチネルエラー定義
-│   │   ├── handler/      # HTTPハンドラ（Gin）
-│   │   ├── logger/       # slog構造化ログ
-│   │   ├── middleware/   # ミドルウェア
-│   │   ├── model/        # ドメインモデル
+│   │   ├── handler/      # HTTPハンドラ + *_request.go + *_response.go
+│   │   ├── service/      # ビジネスロジック + service input DTO + validators.go
 │   │   ├── repository/   # データアクセス（GORM）
-│   │   ├── service/      # ビジネスロジック
-│   │   └── validation/   # バリデーション
-│   ├── migrations/       # DBマイグレーション
-│   └── docs/             # Swagger
+│   │   ├── model/        # GORMモデル（DBスキーマ対応）
+│   │   ├── errors/       # センチネルエラー定義
+│   │   ├── middleware/   # 認証・CORS・ログ
+│   │   ├── config/       # 設定
+│   │   ├── logger/       # slog構造化ログ
+│   │   └── db/           # DB接続管理
+│   └── migrations/       # DBマイグレーション
 ├── frontend/
 │   └── src/
 │       ├── main.tsx      # Viteエントリーポイント
@@ -130,6 +129,28 @@ AnimalEkarte/
 ├── CODING_RULES.md       # コーディング規約
 └── docker-compose.yml
 ```
+
+---
+
+## ★ Frontend ベストプラクティス参照実装
+
+**`features/owners/` が全パターンのベストプラクティス実装。新機能実装時は必ずこの feature を参照すること。**
+
+| パターン（Vercel Rule） | 実装ファイル |
+|------------------------|------------|
+| `memo()` で大型フォームを独立セクションに分断 | `OwnerForm.tsx` — `OwnerInfoSection`, `PetTableRow`, `MembershipTypeButtons` |
+| `useCallback` でハンドラを安定化（memo の前提条件） | `OwnerForm.tsx` — `handleInputChange`, `handleDeletePetRequest` |
+| `useState(() => ...)` lazy init | `useOwnerForm.ts` |
+| `useDeferredValue` で検索フィルタを遅延 | `OwnersList.tsx` |
+| `useTransition` で API 書き込みの pending 管理 | `useOwnerForm.ts` |
+| `lazy()` + `Suspense` で重いモーダルを遅延ロード | `OwnerForm.tsx` — `PetEditModal` |
+| 静的 JSX はモジュール定数に巻き上げ | `OwnerForm.tsx` — `PET_TABLE_HEADER` |
+| API 由来 JSX リストは `useMemo` でキャッシュ | `PetEditModal.tsx` — `animalSpeciesSelectItems` |
+| loader 内独立フェッチは `Promise.all` で並列化 | `loaders.ts` — `ownersLoader` |
+| 条件レンダーは `? (...) : null`（`&&` 禁止） | `OwnersList.tsx` |
+| barrel index 経由でなく直接ファイル import | `OwnersList.tsx` — `../api/delete-owner` |
+
+詳細コード例: `frontend/CODING_RULES.md` **Section 12**
 
 ---
 
@@ -212,58 +233,18 @@ features/[feature]/
 
 ---
 
-## 📐 Backend核心ルール（Go / Gin / GORM）
+## 📐 Backend実装ルール（Go / Gin / GORM）
 
-### Context伝播（必須）
+詳細は **[backend/CLAUDE.md](../backend/CLAUDE.md)** を参照。
 
-```go
-// 全関数の第一引数にcontext.Context
-func (s *Service) GetPet(ctx context.Context, id string) (*Pet, error)
-func (r *Repository) FindByID(ctx context.Context, id uuid.UUID) (*Pet, error)
+### 核心ルール（要約）
 
-// GORMでもContext使用
-r.db.WithContext(ctx).First(&pet, "id = ?", id)
-```
-
-### エラーハンドリング
-
-```go
-// センチネルエラー定義
-var (
-    ErrNotFound     = errors.New("resource not found")
-    ErrInvalidInput = errors.New("invalid input")
-)
-
-// エラーラッピング
-func Wrap(err error, message string) error {
-    return fmt.Errorf("%s: %w", message, err)
-}
-
-// エラー判定
-if errors.Is(err, ErrNotFound) {
-    // 404レスポンス
-}
-```
-
-### slog構造化ログ
-
-```go
-slog.InfoContext(ctx, "pet created",
-    slog.String("pet_id", pet.ID.String()),
-    slog.String("name", pet.Name))
-
-slog.ErrorContext(ctx, "failed to create pet",
-    slog.String("error", err.Error()))
-```
-
-### 禁止事項
-
-| 禁止 | 理由 |
-|------|------|
-| `panic` 乱用 | 予期せぬクラッシュ |
-| `_ = err` | エラー握りつぶし |
-| グローバル変数 | 状態管理の複雑化 |
-| SQL文字列結合 | SQLインジェクション |
+- Context伝播: 全関数の第一引数に `context.Context`
+- handler: `*_request.go` でバインド → `service.XxxInput` に変換 → `toXxxResponse()` で包む
+- service: HTTP を知らない（`binding:` タグ禁止、`*gin.Context` 禁止）
+- PATCH: ポインタ型 + `buildXxxUpdateFields()` → `map[string]any` でGORMゼロ値問題を回避
+- エラー: sentinel → `WrapNotFound/WrapInvalidInput` → `RespondError(c, err)`
+- slog: service層のみ（handler・repositoryには書かない）
 
 ---
 
@@ -322,8 +303,9 @@ slog.ErrorContext(ctx, "failed to create pet",
 | ドキュメント | 説明 |
 |-------------|------|
 | [コーディング規約](../CODING_RULES.md) | 全体ルール |
-| [Frontend規約](../frontend/CODING_RULES.md) | React 19詳細 |
-| [Backend規約](../backend/CODING_RULES.md) | Go/Gin詳細 |
+| [Backend Claude設定](../backend/CLAUDE.md) | Backend実装パターン・禁止事項 |
+| [Frontend Claude設定](../frontend/CLAUDE.md) | Frontend実装パターン・禁止事項 |
+| [アーキテクチャ設計](../docs/architecture.md) | Backendアーキテクチャ詳細 |
+| [データフロー](../docs/data-flow.md) | リクエスト〜レスポンスのデータフロー |
 | [ERD](../docs/ERD.md) | データベース設計 |
-| [API仕様](../backend/docs/api.yaml) | OpenAPI仕様書 |
 | [仕様定義書](../spec.md) | システム仕様 |

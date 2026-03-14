@@ -1,6 +1,13 @@
 # 画面仕様書 バリデーション・データ型補完ドキュメント
 
-**更新日**: 2026-03-11  
+> ⚠️ **TypeScript型定義について**: このドキュメント内の TypeScript 型定義（`interface Appointment` 等）は
+> **`frontend/src/types/generated/models.ts`（tygo codegen 自動生成）に置き換え済み**です。
+> モデル型は `backend/internal/model/*.go` を編集後 `make codegen` で再生成してください。
+>
+> ✅ **最新の画面仕様**: `docs/screens/*.md` の個別ファイルを参照してください。
+> このドキュメントはバリデーションルール・エラーメッセージの詳細参照用として保持しています。
+
+**更新日**: 2026-03-11
 **バージョン**: 2.0（完全版）
 
 本ドキュメントは、SCREENS.mdとSCREENS_MASTER.mdで記載されている画面仕様に対して、バリデーションルール、エラーメッセージ、データ型定義を補完します。

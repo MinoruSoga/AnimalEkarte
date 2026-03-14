@@ -270,8 +270,14 @@ slog.Info("user login", slog.String("email", email))
 - [ ] `any` 型を使用していないか
 - [ ] `FC` / `forwardRef` を使用していないか
 - [ ] feature間importがないか
-- [ ] 不要な再レンダリングがないか
+- [ ] barrel index 経由の import をしていないか（直接ファイル import）
+- [ ] `&&` 条件レンダーを使っていないか（`? ... : null` を使う）
 - [ ] アクセシビリティは考慮されているか
+- [ ] 大型フォーム・リストで不要な再レンダーが起きていないか（`memo` + `useCallback` 境界）
+- [ ] 検索フィルタは `useDeferredValue` で遅延しているか
+- [ ] 重いモーダルは `lazy()` + `Suspense` で遅延ロードしているか
+- [ ] 静的 JSX（SelectItem 一覧など）はモジュール定数に巻き上げているか
+- [ ] loader の独立フェッチは `Promise.all` で並列化しているか
 
 #### Backend固有
 - [ ] Context伝播しているか
@@ -369,12 +375,40 @@ export function calculateAge(birthDate: Date): number {
 
 ### 9.1 Frontend
 
-| 対策 | 実装 |
-|------|------|
-| コード分割 | React.lazy + Suspense |
-| メモ化 | useMemo, useCallback（必要な場合のみ） |
-| 仮想スクロール | 大量リスト表示時 |
-| 画像最適化 | WebP + lazy loading |
+> **参照実装**: `features/owners/` がすべてのパターンのベストプラクティス実装。
+> 詳細コード例は `frontend/CODING_RULES.md` Section 12 を参照。
+
+#### Re-render 最適化
+
+| 対策 | 実装 | 参照 |
+|------|------|------|
+| 独立セクションの再レンダー遮断 | `memo()` + `useCallback` で境界を作る | `OwnerInfoSection`, `PetTableRow`, `MembershipTypeButtons` |
+| useState 高コスト初期化 | `useState(() => fn())` lazy 形式 | `useOwnerForm.ts` |
+| 検索フィルタの UI ブロッキング防止 | `useDeferredValue` + `isFiltering` フィードバック | `OwnersList.tsx` |
+| API ミューテーションの pending 管理 | `useTransition` | `useOwnerForm.ts` |
+| useCallback deps の安定化 | オブジェクト全体を deps にしない — primitive を抽出 | `pendingDeleteOwnerId` |
+
+#### Bundle 最適化
+
+| 対策 | 実装 | 参照 |
+|------|------|------|
+| 重いモーダルの遅延ロード | `lazy()` + `Suspense` | `PetEditModal` in `OwnerForm.tsx` |
+| tree-shaking の確保 | barrel index 経由でなく直接ファイル import | `import { deleteOwner } from "../api/delete-owner"` |
+
+#### レンダリングパフォーマンス
+
+| 対策 | 実装 | 参照 |
+|------|------|------|
+| 静的 JSX の再生成防止 | モジュールレベル定数に巻き上げ | `PET_TABLE_HEADER`, `GENDER_SELECT_ITEMS` |
+| API 由来 JSX リストのキャッシュ | `useMemo([list])` | `animalSpeciesSelectItems` in `PetEditModal.tsx` |
+| 条件レンダリングの一貫性 | `&&` 禁止 → 必ず `? (...) : null` | `OwnersList.tsx` |
+
+#### データローディング
+
+| 対策 | 実装 | 参照 |
+|------|------|------|
+| loader 内の並列フェッチ | `Promise.all` | `ownersLoader` in `loaders.ts` |
+| 一括処理の部分失敗対応 | `Promise.allSettled` | ペット一括作成 in `useOwnerForm.ts` |
 
 ### 9.2 Backend
 

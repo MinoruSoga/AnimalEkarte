@@ -59,14 +59,20 @@ go test -race ./...              # Race detection
 - テストファイルはfeature内の`__tests__/`ディレクトリに配置
 
 ### Feature Test Structure（bulletproof-react準拠）
+
+テストファイルは対象ファイルと**同階層**に配置する（`__tests__/` ディレクトリは使用しない）。
+
 ```
 src/features/owners/
-├── __tests__/
-│   ├── owner-form.test.tsx
-│   └── owner-list.test.tsx
-├── components/
+├── routes/
+│   ├── OwnersList.tsx
+│   └── OwnersList.test.tsx       ← 同階層
 ├── hooks/
+│   ├── useOwnerForm.ts
+│   └── useOwnerForm.test.ts      ← 同階層
 └── api/
+    ├── get-owners.ts
+    └── get-owners.test.ts        ← 同階層
 ```
 
 ### Naming

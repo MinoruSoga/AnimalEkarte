@@ -150,67 +150,12 @@ app/
 
 ## React 19 コーディングルール
 
-### コンポーネント定義
+> コード例の詳細は [`CODING_RULES.md` Section 2](./CODING_RULES.md) を参照。
+> コンポーネント定義・新hooks・フォームパターンの実装例がすべて記載されている。
 
-```typescript
-// ✅ 正しい: 関数宣言 + 明示的Props型
-interface PatientCardProps {
-  patient: Patient;
-  onSelect?: (id: string) => void;
-  ref?: React.Ref<HTMLDivElement>;  // React 19: ref as prop
-}
-
-export function PatientCard({ patient, onSelect, ref }: PatientCardProps) {
-  return <div ref={ref}>...</div>;
-}
-
-// ❌ 禁止
-export const PatientCard: FC<Props> = () => {};        // FC禁止
-export const PatientCard = forwardRef(() => {});       // forwardRef禁止
-```
-
-### React 19 新hooks
-
-```typescript
-// useActionState: フォームアクション管理
-import { useActionState } from "react";
-const [state, formAction, isPending] = useActionState(
-  async (prevState, formData: FormData) => {
-    // 処理
-    return { success: true, errors: null };
-  },
-  { success: false, errors: null }
-);
-
-// useOptimistic: 楽観的UI更新
-import { useOptimistic } from "react";
-const [optimisticItems, addOptimisticItem] = useOptimistic(
-  items,
-  (state, newItem) => [...state, newItem]
-);
-
-// use(): Promise/Context直接読み取り
-import { use } from "react";
-const data = use(fetchPromise);  // Suspense必須
-const theme = use(ThemeContext);
-
-// useFormStatus: フォーム送信状態（react-dom）
-import { useFormStatus } from "react-dom";
-const { pending } = useFormStatus();
-```
-
-### フォーム送信ボタン例
-
-```typescript
-export function SubmitButton({ children }: { children: React.ReactNode }) {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending ? "処理中..." : children}
-    </Button>
-  );
-}
-```
+**最重要禁止事項**（詳細は下記「禁止事項」テーブルにも記載）:
+- `FC` / `React.FC` → `export function Xxx(props: XxxProps)` に置き換える
+- `forwardRef` → ref を通常の prop として受け取る（React 19 では不要）
 
 ---
 
@@ -260,6 +205,31 @@ import type { Owner } from "@/types";
 | `export *` | tree-shaking阻害 | 明示的named export |
 | `console.log` 放置 | 本番コード汚染 | 削除 |
 | default export | IDE補完が弱い | 名前付きexport |
+| `&&` 条件レンダー | 0/空文字が漏れる | `? ... : null` |
+| barrel index 経由 import | tree-shaking 阻害 | 直接ファイル import |
+
+---
+
+## パフォーマンスパターン（Vercel React Best Practices準拠）
+
+> **参照実装**: `features/owners/` の実装がすべてのパターンのベストプラクティス。
+> 詳細コード例は `frontend/CODING_RULES.md` Section 12 を参照。
+
+### 必須パターン一覧
+
+| パターン | ルール | 実装場所 |
+|---------|--------|---------|
+| 独立したフォームセクションを `memo()` で分断 | `rerender-memo` | `OwnerForm.tsx` — `OwnerInfoSection`, `PetTableRow`, `MembershipTypeButtons` |
+| `memo()` に渡すハンドラは `useCallback` で安定化 | `rerender-functional-setstate` | `OwnerForm.tsx` — `handleInputChange`, `handleDeletePetRequest` |
+| `useState` 初期値に高コスト関数は lazy init | `rerender-lazy-state-init` | `useOwnerForm.ts` — `useState(() => ...)` |
+| 検索フィルタは `useDeferredValue` で遅延 | `rerender-transitions` | `OwnersList.tsx` — `useDeferredValue(searchTerm)` |
+| API ミューテーションは `useTransition` | `rerender-transitions` | `useOwnerForm.ts` — `startSaveTransition` |
+| 重いモーダルは `lazy()` + `Suspense` | `bundle-dynamic-imports` | `OwnerForm.tsx` — `const PetEditModal = lazy(...)` |
+| 静的 JSX はモジュール定数に巻き上げ | `rendering-hoist-jsx` | `OwnerForm.tsx` — `PET_TABLE_HEADER`; `PetEditModal.tsx` — `GENDER_SELECT_ITEMS` |
+| API 由来の JSX リストは `useMemo` | `js-cache-function-results` | `PetEditModal.tsx` — `animalSpeciesSelectItems` |
+| 条件レンダーは必ず `? (...) : null` | `rendering-conditional-render` | `OwnersList.tsx` — `{pet.status ? ... : null}` |
+| loader で独立フェッチは `Promise.all` | `async-parallel` | `loaders.ts` — `ownersLoader` |
+| `useCallback` deps にはオブジェクトでなく primitive | `rerender-dependencies` | `OwnersList.tsx` — `pendingDeleteOwnerId` |
 
 ---
 

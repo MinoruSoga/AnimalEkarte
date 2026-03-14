@@ -1,1 +1,0 @@
-This directory contains shared UI components used across multiple features.

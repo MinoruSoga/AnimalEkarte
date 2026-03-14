@@ -12,16 +12,25 @@ Animal Ekarte（動物病院電子カルテシステム）の技術ドキュメ�
 
 | ドキュメント | 説明 | 対象者 |
 |-------------|------|--------|
-| **[SPECIFICATION.md](./SPECIFICATION.md)** | 🎯 技術仕様書（技術スタック、アーキテクチャ、Feature一覧、ルーティング） | エンジニア全員 |
+| **[SPECIFICATION.md](./SPECIFICATION.md)** | 🎯 技術仕様書（技術スタック、アーキテクチャ、Feature一覧、ルーティング）⚠️初期設計版 | エンジニア全員 |
 | **[DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)** | 🎨 デザインシステム v3.0（Notionトークン、D&D、アクセシビリティ） | フロントエンド開発者 |
-| **[SCREENS.md](./SCREENS.md)** | 📱 画面仕様書 v3.0（全42ルート・メイン機能編） | フロントエンド開発者 |
 | **[AUTH.md](./AUTH.md)** | 🔐 認証・認可設計（RBAC、マルチクリニック、権限マトリクス） | エンジニア全員 |
 | **[ERD.md](./ERD.md)** | 🗄️ ER図 v5.0（全45テーブル・専用マスタテーブル版） | バックエンド開発者 |
-| **[SCREENS_MASTER.md](./SCREENS_MASTER.md)** | 📱 マスタ管理画面仕様 v3.0（全16カテゴリ詳細） | フロントエンド開発者 |
-| **[SCREENS_VALIDATION.md](./SCREENS_VALIDATION.md)** | ✅ バリデーション・データ型仕様 v2.0（全画面） | フロントエンド開発者 |
-| **[SCREENS_README.md](./SCREENS_README.md)** | 📖 画面仕様書ガイド（3ドキュメント構成の説明） | フロントエンド開発者 |
-| **[FORMS_SPECIFICATION.md](./FORMS_SPECIFICATION.md)** | 📝 フォーム仕様書（全画面フィールド詳細） | フロントエンド開発者 |
 | **[ATTRIBUTIONS.md](./ATTRIBUTIONS.md)** | 📄 ライセンス・帰属情報 | プロジェクト管理者 |
+
+### 画面仕様
+
+> **主要参照先**: `docs/screens/` 個別ファイル（アクティブ更新中）
+> 以下の旧モノリシック仕様書はアーキテクチャ参照用として保持しています。
+
+| ドキュメント | 説明 | 対象者 |
+|-------------|------|--------|
+| **[screens/](./screens/)** | 📱 ★ **現行** 画面仕様（画面ごとの個別ファイル、API連携含む） | フロントエンド開発者 |
+| **[SCREENS.md](./SCREENS.md)** | 📱 画面コンポーネント構成（`[R]`/`[S]`/`[C]`記法、アーキテクチャ参照用） | フロントエンド開発者 |
+| **[SCREENS_MASTER.md](./SCREENS_MASTER.md)** | 📱 マスタ管理画面仕様 v3.0（全16カテゴリ詳細） | フロントエンド開発者 |
+| **[SCREENS_DETAILED_TABS.md](./SCREENS_DETAILED_TABS.md)** | 📋 電子カルテタブ詳細仕様（TreatmentTable等の実装詳細） | フロントエンド開発者 |
+| **[SCREENS_VALIDATION.md](./SCREENS_VALIDATION.md)** | ✅ バリデーション・エラーメッセージ詳細 ⚠️TS型定義はmodels.ts参照 | フロントエンド開発者 |
+| **[FORMS_SPECIFICATION.md](./FORMS_SPECIFICATION.md)** | 📝 フォームフィールド詳細仕様（必須/任意・バリデーション・デフォルト値） | フロントエンド開発者 |
 
 ### 実装ガイド
 
@@ -44,7 +53,7 @@ Animal Ekarte（動物病院電子カルテシステム）の技術ドキュメ�
 
 ## 🎨 画面一覧
 
-全42ルートの仕様を `SCREENS.md` で統合管理しています。
+画面ごとの仕様は `docs/screens/` の個別ファイルで管理しています。
 
 | 機能 | ルート | 説明 |
 |------|--------|------|
@@ -63,7 +72,7 @@ Animal Ekarte（動物病院電子カルテシステム）の技術ドキュメ�
 | **シフト管理** | `/shifts` | ShiftCalendar、ShiftEditPopover |
 | **マスタ設定** | `/settings/*` | 15カテゴリのマスタデータ管理 |
 
-詳細は [SCREENS.md](./SCREENS.md) を参照。
+詳細は [screens/](./screens/) の個別ファイルを参照。コンポーネント構成は [SCREENS.md](./SCREENS.md) を参照。
 
 ---
 
@@ -209,7 +218,7 @@ make db
 
 - **仕様明確化**: [SPECIFICATION.md](./SPECIFICATION.md) を確認
 - **デザイン詳細**: [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md) を確認
-- **画面仕様**: [SCREENS.md](./SCREENS.md) から該当画面を検索
+- **画面仕様**: [screens/](./screens/) の該当画面ファイルを確認
 - **API詳細**: `backend/docs/api.yaml` を確認
 
 ### 関連ドキュメント
@@ -223,4 +232,4 @@ make db
 
 ---
 
-**最終更新**: 2026年3月13日 | **バージョン**: 3.1
+**最終更新**: 2026年3月14日 | **バージョン**: 3.2

@@ -166,39 +166,46 @@ features/dashboard/
 └── index.ts
 ```
 
-#### Feature構成例: owners
+#### Feature構成例: owners（★ ベストプラクティス参照実装）
 
 ```
 features/owners/
 ├── api/
-│   ├── getOwners.ts            # + useOwners()
-│   ├── getOwner.ts             # + useOwner()
-│   ├── createOwner.ts          # + useCreateOwner()
-│   ├── updateOwner.ts          # + useUpdateOwner()
-│   └── deleteOwner.ts          # + useDeleteOwner()
+│   ├── get-owners.ts           # axios直接呼び出し（loader用）
+│   ├── get-owner.ts            # 単体取得
+│   ├── get-animal-species.ts   # + useGetAnimalSpecies()（マスタ）
+│   ├── get-insurances.ts       # + useGetInsurances()（マスタ）
+│   ├── create-owner.ts         # axios直接呼び出し
+│   ├── update-owner.ts         # axios直接呼び出し
+│   ├── delete-owner.ts         # axios直接呼び出し
+│   ├── transforms.ts           # backend ↔ frontend 型変換
+│   └── index.ts
 ├── components/
-│   ├── OwnerForm/
-│   │   ├── OwnerForm.tsx
-│   │   └── index.ts
-│   ├── OwnerCard/
-│   │   ├── OwnerCard.tsx
-│   │   └── index.ts
-│   ├── OwnerList/
-│   │   ├── OwnerList.tsx
-│   │   └── index.ts
-│   └── OwnerSearch/
-│       ├── OwnerSearch.tsx
-│       └── index.ts
+│   ├── PetEditModal.tsx        # lazy()でロードされる重いモーダル
+│   │                           # rendering-hoist-jsx: GENDER_SELECT_ITEMS 等の定数
+│   │                           # js-cache-function-results: useMemo でJSXキャッシュ
+│   └── index.ts
 ├── hooks/
-│   ├── useOwnerForm.ts         # フォーム状態・バリデーション
-│   └── useOwnerSearch.ts       # 検索フィルタ状態
+│   ├── useOwnerForm.ts         # フォーム状態・ペットCRUD・保存ロジック
+│   │                           # rerender-lazy-state-init / rerender-transitions
+│   └── index.ts
 ├── routes/
-│   ├── OwnerList.tsx
-│   ├── OwnerDetail.tsx
-│   └── OwnerCreate.tsx
+│   ├── OwnerForm.tsx           # 新規登録・編集ページ
+│   │                           # rerender-memo: OwnerInfoSection, PetTableRow, MembershipTypeButtons
+│   │                           # bundle-dynamic-imports: lazy(PetEditModal)
+│   │                           # rendering-hoist-jsx: PET_TABLE_HEADER
+│   ├── OwnersList.tsx          # 一覧ページ
+│   │                           # rerender-transitions: useDeferredValue(searchTerm)
+│   │                           # rendering-conditional-render: ? null パターン
+│   └── index.ts
 ├── types/
 │   └── index.ts
-└── index.ts
+├── loaders.ts                  # React Router Data Mode ローダー
+│                               # async-parallel: Promise.all で全ページ並列フェッチ
+└── index.ts                    # 公開API
+                                # export { OwnerForm, OwnersList } from "./routes/..."
+                                # export { useOwnerForm } from "./hooks/..."
+                                # export { PetEditModal } from "./components/..."
 ```
 
 ### 1.4 主要ファイル実装例
@@ -228,29 +235,38 @@ export const router = createBrowserRouter([
       },
 
       // 飼い主管理
+      // ★ barrel index 経由ではなく直接ファイル import（bundle-barrel-imports）
+      // ★ Component + loader を Promise.all で並列 import（async-parallel）
       {
         path: "owners",
+        errorElement: <RouteErrorBoundary />,
         children: [
           {
             index: true,
-            lazy: () =>
-              import("@/features/owners").then((m) => ({
-                Component: m.OwnerList,
-              })),
+            lazy: async () => {
+              const [{ OwnersList }, { ownersLoader }] = await Promise.all([
+                import("@/features/owners/routes/OwnersList"),
+                import("@/features/owners/loaders"),
+              ]);
+              return { Component: OwnersList, loader: ownersLoader };
+            },
           },
           {
             path: "new",
-            lazy: () =>
-              import("@/features/owners").then((m) => ({
-                Component: m.OwnerCreate,
-              })),
+            lazy: async () => {
+              const { OwnerForm } = await import("@/features/owners/routes/OwnerForm");
+              return { Component: OwnerForm };
+            },
           },
           {
-            path: ":ownerId",
-            lazy: () =>
-              import("@/features/owners").then((m) => ({
-                Component: m.OwnerDetail,
-              })),
+            path: ":id",
+            lazy: async () => {
+              const [{ OwnerForm }, { ownerLoader }] = await Promise.all([
+                import("@/features/owners/routes/OwnerForm"),
+                import("@/features/owners/loaders"),
+              ]);
+              return { Component: OwnerForm, loader: ownerLoader };
+            },
           },
         ],
       },
@@ -508,25 +524,18 @@ export type { Xxx, CreateXxxDTO, UpdateXxxDTO } from "./types";
 #### Feature公開API例（features/owners/index.ts）
 
 ```typescript
-// Routes
-export { OwnerList } from "./routes/OwnerList";
-export { OwnerDetail } from "./routes/OwnerDetail";
-export { OwnerCreate } from "./routes/OwnerCreate";
+// Routes（ページコンポーネント）
+export { OwnerForm } from "./routes/OwnerForm";
+export { OwnersList } from "./routes/OwnersList";
 
-// API (React Query hooks)
-export { useOwners } from "./api/getOwners";
-export { useOwner } from "./api/getOwner";
-export { useCreateOwner } from "./api/createOwner";
-export { useUpdateOwner } from "./api/updateOwner";
-export { useDeleteOwner } from "./api/deleteOwner";
+// Hooks
+export { useOwnerForm } from "./hooks/useOwnerForm";
 
 // Components（外部公開が必要なもののみ）
-export { OwnerCard } from "./components/OwnerCard";
-export { OwnerForm } from "./components/OwnerForm";
-export { OwnerSearch } from "./components/OwnerSearch";
+export { PetEditModal } from "./components/PetEditModal";
 
-// Types
-export type { Owner, OwnerFormData } from "./types";
+// ※ ローダーは app/router.tsx から直接 import（公開API経由不要）
+// import { ownersLoader, ownerLoader } from "@/features/owners/loaders";
 ```
 
 #### main.tsx
@@ -578,8 +587,15 @@ export const PatientCard: FC<Props> = ({ patient }) => {};
 // ❌ 禁止: forwardRef（React 19では不要）
 export const PatientCard = forwardRef<HTMLDivElement, Props>((props, ref) => {});
 
-// ❌ 禁止: React.memo の過剰使用（必要な場合のみ）
-export const PatientCard = memo(({ patient }) => {});
+// ✅ React.memo: 親の別 state 変化で不要な再レンダーが発生するコンポーネントに適用
+// 対象: 重いフォームセクション、テーブル行、独立したサブセクション
+// 前提: props として渡す関数は useCallback で安定化すること
+const OwnerInfoSection = memo(function OwnerInfoSection({ data, onChange }: Props) {
+  return <div>...</div>;
+});
+
+// ❌ 軽量でシンプルなコンポーネントへの過剰適用は不要
+export const PatientCard = memo(({ patient }) => {});  // ❌ (props が毎回変わるなら無意味)
 ```
 
 ### 2.2 useActionState（フォーム管理）
@@ -593,7 +609,7 @@ interface FormState {
   errors: Record<string, string> | null;
 }
 
-export function OwnerForm() {
+export function PatientForm() {
   const navigate = useNavigate();
 
   const [state, formAction, isPending] = useActionState<FormState, FormData>(
@@ -964,22 +980,33 @@ function OwnerForm() {
   // UI 200行
 }
 
-// ✅ 責務で分割
-function OwnerForm() {
-  const { form, onSubmit, isPending } = useOwnerForm();
-  return <OwnerFormView form={form} onSubmit={onSubmit} isPending={isPending} />;
-}
-
-function OwnerFormView({ form, onSubmit, isPending }) {
+// ✅ 責務で分割 + memo() で再レンダー境界を設定（OwnerForm.tsx の実装パターン）
+// ページコンポーネント: フォーム状態を管理し、子に個別propsを渡す
+export function OwnerForm() {
+  const { formData, handleInputChange, handleSubmit, isPending } = useOwnerForm();
   return (
-    <form onSubmit={onSubmit}>
-      <OwnerBasicInfo form={form} />
-      <OwnerContactInfo form={form} />
-      <OwnerPetList form={form} />
-      <SubmitButton isPending={isPending} />
+    <form onSubmit={handleSubmit}>
+      <OwnerInfoSection
+        formData={formData}
+        onChange={handleInputChange}
+      />
+      <PetSection
+        pets={formData.pets}
+        onAdd={...}
+      />
     </form>
   );
 }
+
+// セクションコンポーネント: memo() で囲み、他セクション変更時の再レンダーを防ぐ
+const OwnerInfoSection = memo(function OwnerInfoSection({ formData, onChange }) {
+  return (
+    <div>
+      <Input value={formData.name} onChange={e => onChange("name", e.target.value)} />
+      <Input value={formData.email} onChange={e => onChange("email", e.target.value)} />
+    </div>
+  );
+});
 ```
 
 ### 4.3 条件付きレンダリング
@@ -999,9 +1026,15 @@ function Status({ isActive }: { isActive: boolean }) {
   return <span>{isActive ? "有効" : "無効"}</span>;
 }
 
-// ✅ && 演算子（存在チェック）
+// ❌ && 演算子（rendering-conditional-render 違反）
+// number が 0 のとき "0" がレンダリングされる危険がある
 function ErrorMessage({ error }: { error?: string }) {
-  return error && <p className="text-red-600">{error}</p>;
+  return error && <p className="text-red-600">{error}</p>;  // ❌
+}
+
+// ✅ 三項演算子を常に使用（ternary + null パターン）
+function ErrorMessage({ error }: { error?: string }) {
+  return error ? <p className="text-red-600">{error}</p> : null;  // ✅
 }
 
 // ❌ ネストした三項演算子
@@ -1444,7 +1477,261 @@ describe("Button", () => {
 
 ---
 
-## 12. 参照
+## 12. パフォーマンス最適化（Vercel React Best Practices準拠）
+
+> **参照実装**: `features/owners/` が全パターンのベストプラクティス実装。
+> 新機能を実装する際はこの feature を手本にすること。
+
+### 12.1 Re-render 最適化
+
+#### `rerender-memo` — コンポーネント境界で再レンダーを分断する
+
+大きなフォームやページは、独立した責務ごとに `memo()` コンポーネントに分割する。
+**前提**: props として渡すハンドラはすべて `useCallback` で安定化すること。
+
+```typescript
+// ✅ 飼主フォームの参照実装（OwnerForm.tsx）
+// ペット操作・モーダル開閉では ownerData/fieldErrors が変わらないため
+// 17フィールド全体の再レンダーを防ぐ
+const OwnerInfoSection = memo(function OwnerInfoSection({
+  ownerData,
+  fieldErrors,
+  onChange,
+  onClearError,
+}: OwnerInfoSectionProps) {
+  return <div className="grid grid-cols-4 gap-4">...</div>;
+});
+
+// ✅ テーブル行の参照実装 — N行×Mハンドラのインライン関数生成を排除
+const PetTableRow = memo(function PetTableRow({
+  pet,
+  onEdit,
+  onDeleteRequest,
+}: PetTableRowProps) {
+  return <TableRow>...</TableRow>;
+});
+
+// ✅ 安定したハンドラ（useCallback）を memo コンポーネントに渡す
+const handleDeletePetRequest = useCallback((id: string, name: string) => {
+  setDeletePetTarget({ id, name });
+}, []);  // deps なし = stable
+
+const clearFieldError = useCallback((field: string) => {
+  setFieldErrors((prev) => {
+    const next = { ...prev };
+    delete next[field];
+    return next;
+  });
+}, []);  // functional setstate なので deps なし
+```
+
+#### `rerender-functional-setstate` — 安定したコールバックのための関数型 setState
+
+```typescript
+// ✅ setState に関数形式を使うと deps から state を外せる → useCallback が安定
+const handleInputChange = useCallback((field: string, value: string | boolean | number) => {
+  setOwnerData(prev => ({ ...prev, [field]: value }));  // prev 参照 → 依存不要
+  markDirty();
+}, [setOwnerData, markDirty]);  // どちらも stable な setter
+
+// ❌ 直接 state を参照すると deps に追加が必要 → useCallback が不安定になる
+const handleInputChange = useCallback((field: string, value: string) => {
+  setOwnerData({ ...ownerData, [field]: value });  // ownerData が dep に必要
+}, [ownerData]);  // ownerData が変わるたびに新しい関数参照 → memo 無効
+```
+
+#### `rerender-lazy-state-init` — 高コストな初期化を lazy に
+
+```typescript
+// ✅ 関数を渡すと初回レンダー時のみ実行される
+const [ownerData, setOwnerData] = useState<OwnerData>(
+  () => initialOwner ? mapOwnerToFormData(initialOwner) : DEFAULT_OWNER_DATA
+);
+
+// ❌ 直接値を渡すと毎レンダーで mapOwnerToFormData が実行される
+const [ownerData, setOwnerData] = useState<OwnerData>(
+  initialOwner ? mapOwnerToFormData(initialOwner) : DEFAULT_OWNER_DATA  // ❌
+);
+```
+
+#### `rerender-transitions` + `useDeferredValue` — 非緊急更新の遅延
+
+```typescript
+// ✅ 大量データのフィルタリング（OwnersList.tsx の参照実装）
+const [searchTerm, setSearchTerm] = useState("");
+const deferredSearchTerm = useDeferredValue(searchTerm);
+
+// searchTerm: 入力は即座に反映（入力ブロッキングなし）
+// deferredSearchTerm: ブラウザがアイドル時にフィルタリングを遅延実行
+const filteredPets = useMemo(() => {
+  if (!deferredSearchTerm) return pets;
+  return pets.filter(pet => pet.ownerName.toLowerCase().includes(deferredSearchTerm));
+}, [pets, deferredSearchTerm]);
+
+// フィルタ遅延中の視覚フィードバック
+const isFiltering = searchTerm !== deferredSearchTerm;
+// <div className={isFiltering ? "opacity-60" : ""}>
+
+// ✅ API ミューテーションに useTransition
+const [isSavePending, startSaveTransition] = useTransition();
+startSaveTransition(async () => {
+  await saveData();
+});
+```
+
+#### `rerender-dependencies` — useCallback の deps にオブジェクトを使わない
+
+```typescript
+// ✅ オブジェクトからプリミティブを抽出して deps に使う
+const pendingDeleteOwnerId = pendingDeleteOwner?.id ?? null;  // string | null
+
+const handleConfirmDelete = useCallback(() => {
+  if (!pendingDeleteOwnerId) return;
+  deleteOwner(pendingDeleteOwnerId);
+}, [pendingDeleteOwnerId]);  // ✅ primitive
+
+// ❌ オブジェクト参照を deps に入れると毎回新しい関数が生成される
+const handleConfirmDelete = useCallback(() => {
+  if (!pendingDeleteOwner?.id) return;
+  deleteOwner(pendingDeleteOwner.id);
+}, [pendingDeleteOwner]);  // ❌ オブジェクト参照
+```
+
+---
+
+### 12.2 Bundle 最適化
+
+#### `bundle-dynamic-imports` — 重いモーダルを lazy load
+
+```typescript
+// ✅ 初回 open 時のみチャンクをフェッチ（OwnerForm.tsx の参照実装）
+const PetEditModal = lazy(() =>
+  import("../components/PetEditModal").then(m => ({ default: m.PetEditModal }))
+);
+
+// Suspense でラップ必須
+<Suspense fallback={null}>
+  <PetEditModal open={petModalOpen} ... />
+</Suspense>
+```
+
+#### `bundle-barrel-imports` — barrel index ファイル経由の import を避ける
+
+```typescript
+// ✅ 直接ファイルから import（tree-shaking が効く）
+import { deleteOwner } from "../api/delete-owner";
+import { formatDate } from "@/utils/format/date";
+
+// ❌ barrel 経由（不要なモジュールも bundle に含まれる）
+import { deleteOwner } from "../api";       // ❌
+import { formatDate } from "@/utils";       // ❌
+```
+
+---
+
+### 12.3 レンダリングパフォーマンス
+
+#### `rendering-hoist-jsx` — 静的な JSX をモジュールレベル定数に巻き上げる
+
+```typescript
+// ✅ 静的な JSX はコンポーネント外に定数として定義（OwnerForm.tsx の参照実装）
+// → コンポーネントが何回レンダーされても JSX ノードを再生成しない
+const PET_TABLE_HEADER = (
+  <TableHeader>
+    <TableRow>
+      <TableHead>ペット番号</TableHead>
+      <TableHead>ペット名</TableHead>
+      {/* ... */}
+    </TableRow>
+  </TableHeader>
+);
+
+// Select の選択肢も同様（enum 値から生成）
+const GENDER_SELECT_ITEMS = PET_GENDER_VALUES.map((g) => (
+  <SelectItem key={g} value={g}>{g}</SelectItem>
+));
+
+// API 由来のデータは useMemo（React Query キャッシュ）
+const animalSpeciesSelectItems = useMemo(() =>
+  animalSpeciesList.map((s) => (
+    <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+  )),
+  [animalSpeciesList]
+);
+```
+
+#### `rendering-conditional-render` — 条件付きレンダリングは必ず三項演算子
+
+```typescript
+// ✅ 常に ternary + null
+{pet.status ? <StatusBadge>{pet.status}</StatusBadge> : null}
+{pagination.totalPages > 1 ? <Pagination ... /> : null}
+
+// ❌ && 演算子（数値 0 や空文字を意図せずレンダリングする危険）
+{count && <span>{count}</span>}         // count=0 のとき "0" が表示される ❌
+{pagination.totalPages > 1 && <Pagination />}  // boolean なら問題ないが不統一 ❌
+```
+
+---
+
+### 12.4 非同期・データローディング
+
+#### `async-parallel` — loader での並列フェッチ
+
+```typescript
+// ✅ React Router loader での並列ページフェッチ（loaders.ts の参照実装）
+export const ownersLoader = async (): Promise<OwnersLoaderData> => {
+  // page 1 で総件数を確認
+  const { data: firstPage } = await axios.get<PetsResponse>("/v1/pets", {
+    params: { page: 1, limit: PER_PAGE },
+  });
+
+  const totalPages = Math.ceil(firstPage.total / PER_PAGE);
+
+  // 残りのページを Promise.all で並列フェッチ
+  const remainingPages = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, i) =>
+      axios.get<PetsResponse>("/v1/pets", { params: { page: i + 2, limit: PER_PAGE } })
+        .then(r => r.data)
+    )
+  );
+
+  return {
+    pets: [firstPage, ...remainingPages].flatMap(page =>
+      page.data.map(transformBackendPetToFrontend)
+    ),
+  };
+};
+
+// ✅ 複数の独立した非同期処理も Promise.allSettled で並列実行
+const results = await Promise.allSettled(
+  pendingPets.map(pet => createPet(transformCreatePetRequest(pet)))
+);
+const failedCount = results.filter(r => r.status === "rejected").length;
+```
+
+---
+
+### 12.5 パフォーマンスチェックリスト
+
+新規ページ・大型コンポーネント実装時の確認事項：
+
+- [ ] フォーム/テーブル内の独立したセクションを `memo()` で分断しているか
+- [ ] `memo()` コンポーネントに渡すハンドラは `useCallback` で安定化しているか
+- [ ] `useCallback` の deps にオブジェクト全体を入れていないか（primitive を抽出）
+- [ ] `useState` の初期値は高コストな場合 `() => ...` の lazy init 形式か
+- [ ] 検索/フィルタは `useDeferredValue` で UI ブロッキングを防いでいるか
+- [ ] API ミューテーションは `useTransition` で pending 状態を管理しているか
+- [ ] 重いモーダル/ダイアログは `lazy()` + `Suspense` で遅延ロードしているか
+- [ ] static な JSX (SelectItem 一覧など) はモジュール定数に巻き上げているか
+- [ ] API 由来の JSX リストは `useMemo([list])` でキャッシュしているか
+- [ ] 条件付きレンダリングはすべて `? (...) : null` 形式か（`&&` は使わない）
+- [ ] barrel index 経由ではなく直接ファイルから import しているか
+- [ ] loader 内で独立したフェッチは `Promise.all` で並列化しているか
+
+---
+
+## 13. 参照
 
 - [React 19 Release Notes](https://react.dev/blog/2024/12/05/react-19)
 - [Bulletproof React](https://github.com/alan2207/bulletproof-react)

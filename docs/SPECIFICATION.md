@@ -1,5 +1,9 @@
 # 動物病院管理システム 仕様定義書
 
+> ⚠️ **注意**: このドキュメントはバックエンドAPI実装前の初期設計ドキュメントです。
+> 現在の実装（barrel import 禁止・TanStack Query・Go Gin API）とは一部異なる記述があります。
+> **現在の実装ルール**: `frontend/CODING_RULES.md`、`frontend/CLAUDE.md` を参照してください。
+
 ## 1. プロジェクト概要
 本プロジェクトは、ReactとTailwind CSSを用いたモダンなWebベースの動物病院向け統合管理システム（PMS: Practice Management System）のプロトタイプです。
 予約管理、受付、電子カルテ、入院管理、会計までの一連の業務フローをシームレスに連携させ、獣医療現場の業務効率化と質の高い医療提供を支援することを目的としています。
@@ -81,32 +85,11 @@
 └── App.tsx                   # アプリケーションエントリポイント
 ```
 
-### Barrel Index パターン
-全17 featureに `api/index.ts` と `types/index.ts` のbarrel indexを整備済みです。
-- **型import**: 常に `../../{feature}/types` barrel経由
-- **API import**: 常に `../../{feature}/api` barrel経由
-- **サブモジュール直接参照禁止**: `../types/diagnosis` のような直接参照は不可
+### データ永続化
 
-### データ永続化の現状
-現在、バックエンドAPIは実装中。**Mock Data**（各 feature ディレクトリ内の `api/mockData.ts`）を使用して動作しています。
-一部機能（master, clinic）は `api/store.ts` でインメモリストアを保持しますが、ブラウザのリロードでリセットされます。
-**会計・入院機能**にはLocalStorageベースの永続化ストアを採用しており、ブラウザのリロードをまたいでデータが保持されます。
-
-### ストアバージョン管理（`features/hospitalization/api/store.ts`）
-
-`STORE_VERSION` 定数でスキーマ世代を管理します。この文字列を変更するとブラウザの旧 LocalStorage データを自動パージし、`MOCK_HOSPITALIZATIONS` で再初期化します。
-
-| 定数 | 現在値 | 変更タイミング |
-|---|---|---|
-| `STORE_VERSION` | `"v2026-03"` | モックデータのスキーマ変更・日付刷新・フィールド追加時 |
-| `STORE_VERSION_KEY` | `"animal_hospital_hosp_store_version"` | 変更不要（LocalStorageキー名） |
-
-**変更手順**: `store.ts` の `STORE_VERSION` 文字列を `"v2026-XX"` 形式でインクリメント → ブラウザ再アクセス時に自動マイグレーション実行。
-
-**HOSP\_STORE\_EVENT の発火タイミング**:
-- `setStoredHospitalizations` — 退院処理・入院情報更新・削除
-
-`useHospitalizations` はこのイベントを `addEventListener` でサブスクライブし、Detail画面からの退院処理がList/Board画面に即時反映されます。
+バックエンドAPIは実装済み（Go Gin + PostgreSQL）。
+TanStack Query（React Query v5）でサーバー状態を管理。
+モックデータ・LocalStorageストアは廃止済み。
 
 ## 4. コード品質規約
 
@@ -148,8 +131,10 @@ parseLocationState<T>(state: unknown): Partial<T>
 - `description` プロパティで補足情報を付与
 
 ### import規約
-- 全て相対パス（`../../feature/api` 等）
-- cross-feature importは barrel 経由のみ
+- 絶対パス: `@/` エイリアス使用（`@/features/owners/routes/OwnersList` 等）
+- barrel index 経由 import 禁止 → 直接ファイル import
+- cross-feature import 禁止 → app層で合成
+- 詳細: `frontend/CODING_RULES.md`
 
 ## 5. 共有コンポーネント一覧 (`/components/shared/`)
 

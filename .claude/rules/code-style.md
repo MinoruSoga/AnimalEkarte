@@ -69,3 +69,24 @@ paths: "**/*.{ts,tsx,js,jsx,go}"
 - `forwardRef` wrapper（React 19ではref as prop）
 - Cross-feature imports（feature間の直接import）
 - `export *` wildcard re-exports（tree-shaking阻害）
+- `&&` for conditional rendering（use `? (...) : null` instead）
+- Barrel index imports（import directly from source files）
+
+### Performance Rules（Vercel React Best Practices）
+
+> 参照実装: `features/owners/` — すべてのパターンが実装済み。
+> 詳細: `frontend/CODING_RULES.md` Section 12
+
+| Rule | Requirement |
+|------|-------------|
+| `rerender-memo` | 独立した大きいセクションは `memo()` で囲む。必ず props ハンドラを `useCallback` で安定化すること。 |
+| `rerender-functional-setstate` | `useCallback` 内の setState は `prev =>` 形式で state を deps から外す |
+| `rerender-lazy-state-init` | 高コストな useState 初期化は `useState(() => ...)` lazy 形式 |
+| `rerender-transitions` | 検索フィルタに `useDeferredValue`、API 書き込みに `useTransition` |
+| `rerender-dependencies` | `useCallback` deps にオブジェクトを入れない — primitive を抽出して使う |
+| `rendering-hoist-jsx` | コンポーネント外の静的 JSX（Select 選択肢など）はモジュール定数に巻き上げ |
+| `rendering-conditional-render` | 条件付きレンダリングは必ず `condition ? <X /> : null`（`&&` 禁止） |
+| `bundle-dynamic-imports` | 重いモーダル・ダイアログは `lazy()` + `Suspense` で遅延ロード |
+| `bundle-barrel-imports` | feature api/utils は barrel index 経由でなく直接ファイルから import |
+| `async-parallel` | loader 内の独立フェッチは `Promise.all` / `Promise.allSettled` で並列実行 |
+| `js-cache-function-results` | API 由来の JSX リスト生成は `useMemo([list])` でキャッシュ |
