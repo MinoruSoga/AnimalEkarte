@@ -18,7 +18,7 @@ type mockClinicRepository struct {
 	getCompanyFn    func(ctx context.Context) (*model.Company, error)
 	updateCompanyFn func(ctx context.Context, company *model.Company) error
 	createFn        func(ctx context.Context, clinic *model.Clinic) error
-	updateFn        func(ctx context.Context, clinic *model.Clinic) error
+	updateFn        func(ctx context.Context, id uint64, fields map[string]any) error
 	deleteFn        func(ctx context.Context, id uint64) error
 }
 
@@ -42,8 +42,8 @@ func (m *mockClinicRepository) Create(ctx context.Context, clinic *model.Clinic)
 	return m.createFn(ctx, clinic)
 }
 
-func (m *mockClinicRepository) Update(ctx context.Context, clinic *model.Clinic) error {
-	return m.updateFn(ctx, clinic)
+func (m *mockClinicRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
+	return m.updateFn(ctx, id, fields)
 }
 
 func (m *mockClinicRepository) Delete(ctx context.Context, id uint64) error {
@@ -243,7 +243,7 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 	tests := []struct {
 		name          string
 		id            uint64
-		inputClinic   *model.Clinic
+		inputFields   map[string]any
 		repoClinic    *model.Clinic
 		repoFindErr   error
 		repoUpdateErr error
@@ -252,16 +252,16 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 		wantCompanyID uint64
 	}{
 		{
-			name: "updates clinic successfully with immutable fields preserved",
+			name: "updates clinic successfully and returns fresh record from DB",
 			id:   1,
-			inputClinic: &model.Clinic{
-				Name:    "更新後院",
-				Address: "東京都渋谷区",
+			inputFields: map[string]any{
+				"name":    "更新後院",
+				"address": "東京都渋谷区",
 			},
 			repoClinic: &model.Clinic{
 				ID:        1,
 				CompanyID: 5,
-				Name:      "旧院名",
+				Name:      "更新後院",
 			},
 			repoFindErr:   nil,
 			repoUpdateErr: nil,
@@ -269,22 +269,18 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 			wantCompanyID: 5,
 		},
 		{
-			name: "returns not found error when clinic does not exist",
-			id:   999,
-			inputClinic: &model.Clinic{
-				Name: "存在しない院",
-			},
+			name:        "returns not found error when clinic does not exist",
+			id:          999,
+			inputFields: map[string]any{"name": "存在しない院"},
 			repoClinic:  nil,
 			repoFindErr: apperrors.WrapNotFound("clinic", "999"),
 			wantErr:     true,
 			wantNF:      true,
 		},
 		{
-			name: "returns error on update failure",
-			id:   1,
-			inputClinic: &model.Clinic{
-				Name: "更新後院",
-			},
+			name:        "returns error on update failure",
+			id:          1,
+			inputFields: map[string]any{"name": "更新後院"},
 			repoClinic: &model.Clinic{
 				ID:        1,
 				CompanyID: 5,
@@ -302,13 +298,13 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 				findByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
 					return tt.repoClinic, tt.repoFindErr
 				},
-				updateFn: func(_ context.Context, _ *model.Clinic) error {
+				updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
 					return tt.repoUpdateErr
 				},
 			}
 			svc := NewClinicService(repo)
 
-			result, err := svc.UpdateClinic(context.Background(), tt.id, tt.inputClinic)
+			result, err := svc.UpdateClinic(context.Background(), tt.id, tt.inputFields)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -319,7 +315,7 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
-				// immutable フィールドが既存レコードから引き継がれていることを確認
+				// 更新後に FindByID でリフレッシュした結果が返ることを確認
 				assert.Equal(t, tt.wantCompanyID, result.CompanyID)
 				assert.Equal(t, tt.repoClinic.ID, result.ID)
 			}

@@ -45,7 +45,7 @@ export function useClinicInfo() {
   const queryClient = useQueryClient();
 
   const { data: clinics = [], isLoading } = useQuery({
-    queryKey: ["clinics"],
+    queryKey: ["clinic-info"],
     queryFn: getClinics,
   });
 
@@ -63,7 +63,7 @@ export function useClinicInfo() {
     mutationFn: ({ id, info }: { id: string; info: ClinicInfo }) =>
       updateClinic(id, info),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["clinics"] });
+      queryClient.invalidateQueries({ queryKey: ["clinic-info"] });
     },
   });
 

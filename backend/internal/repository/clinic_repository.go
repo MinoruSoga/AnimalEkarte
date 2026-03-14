@@ -17,7 +17,7 @@ type ClinicRepository interface {
 	GetCompany(ctx context.Context) (*model.Company, error)
 	UpdateCompany(ctx context.Context, company *model.Company) error
 	Create(ctx context.Context, clinic *model.Clinic) error
-	Update(ctx context.Context, clinic *model.Clinic) error
+	Update(ctx context.Context, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, id uint64) error
 }
 
@@ -89,9 +89,13 @@ func (r *clinicRepository) Create(ctx context.Context, clinic *model.Clinic) err
 	return nil
 }
 
-func (r *clinicRepository) Update(ctx context.Context, clinic *model.Clinic) error {
-	if err := r.db.WithContext(ctx).Save(clinic).Error; err != nil {
-		return apperrors.Wrap(err, "update clinic")
+func (r *clinicRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
+	result := r.db.WithContext(ctx).Model(&model.Clinic{}).Where("id = ?", id).Updates(fields)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update clinic")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("clinic", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

@@ -34,6 +34,46 @@ func (h *Handler) GetClinic(c *gin.Context) {
 	c.JSON(http.StatusOK, clinic)
 }
 
+// buildClinicUpdateFields は updateClinicRequest から非 nil フィールドのみを map に変換する。
+// GORM のゼロ値問題を回避し、PATCH セマンティクス（未送信フィールドは既存値を保持）を実現する。
+func buildClinicUpdateFields(req updateClinicRequest) map[string]any {
+	fields := make(map[string]any)
+	if req.Name != nil {
+		fields["name"] = *req.Name
+	}
+	if req.PostalCode != nil {
+		fields["postal_code"] = *req.PostalCode
+	}
+	if req.Address != nil {
+		fields["address"] = *req.Address
+	}
+	if req.PhoneNumber != nil {
+		fields["phone_number"] = *req.PhoneNumber
+	}
+	if req.FaxNumber != nil {
+		fields["fax_number"] = *req.FaxNumber
+	}
+	if req.RegistrationNumber != nil {
+		fields["registration_number"] = *req.RegistrationNumber
+	}
+	if req.DirectorName != nil {
+		fields["director_name"] = *req.DirectorName
+	}
+	if req.Email != nil {
+		fields["email"] = *req.Email
+	}
+	if req.Website != nil {
+		fields["website"] = *req.Website
+	}
+	if req.LogoURL != nil {
+		fields["logo_url"] = *req.LogoURL
+	}
+	if req.IsActive != nil {
+		fields["is_active"] = *req.IsActive
+	}
+	return fields
+}
+
 // UpdateClinic godoc
 func (h *Handler) UpdateClinic(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -47,28 +87,13 @@ func (h *Handler) UpdateClinic(c *gin.Context) {
 		return
 	}
 
-	clinic := &model.Clinic{
-		Name:               req.Name,
-		PostalCode:         req.PostalCode,
-		Address:            req.Address,
-		PhoneNumber:        req.PhoneNumber,
-		FaxNumber:          req.FaxNumber,
-		RegistrationNumber: req.RegistrationNumber,
-		DirectorName:       req.DirectorName,
-		Email:              req.Email,
-		Website:            req.Website,
-		LogoURL:            req.LogoURL,
-	}
-	if req.IsActive != nil {
-		clinic.IsActive = *req.IsActive
-	}
-
-	result, err := h.svc.Clinic.UpdateClinic(c.Request.Context(), id, clinic)
+	fields := buildClinicUpdateFields(req)
+	result, err := h.svc.Clinic.UpdateClinic(c.Request.Context(), id, fields)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, toClinicResponse(result))
 }
 
 // CreateClinic godoc

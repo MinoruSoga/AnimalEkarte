@@ -11,7 +11,7 @@ type ClinicService interface {
 	ListClinics(ctx context.Context) ([]model.Clinic, error)
 	GetClinicByID(ctx context.Context, id uint64) (*model.Clinic, error)
 	CreateClinic(ctx context.Context, clinic *model.Clinic) (*model.Clinic, error)
-	UpdateClinic(ctx context.Context, id uint64, clinic *model.Clinic) (*model.Clinic, error)
+	UpdateClinic(ctx context.Context, id uint64, fields map[string]any) (*model.Clinic, error)
 	DeleteClinic(ctx context.Context, id uint64) error
 	GetCompany(ctx context.Context) (*model.Company, error)
 	UpdateCompany(ctx context.Context, company *model.Company) error
@@ -46,18 +46,16 @@ func (s *clinicService) CreateClinic(ctx context.Context, clinic *model.Clinic) 
 	return clinic, nil
 }
 
-func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, input *model.Clinic) (*model.Clinic, error) {
-	clinic, err := s.repo.FindByID(ctx, id)
-	if err != nil {
+func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, fields map[string]any) (*model.Clinic, error) {
+	// 存在確認（NotFound を早期返却）
+	if _, err := s.repo.FindByID(ctx, id); err != nil {
 		return nil, err
 	}
-	// immutable フィールドを既存レコードから引き継ぐ
-	input.ID = clinic.ID
-	input.CompanyID = clinic.CompanyID
-	if err := s.repo.Update(ctx, input); err != nil {
+	if err := s.repo.Update(ctx, id, fields); err != nil {
 		return nil, err
 	}
-	return input, nil
+	// 更新後の完全なレコードを DB から取得して返す（created_at 等のサーバー管理フィールドを正しく反映）
+	return s.repo.FindByID(ctx, id)
 }
 
 func (s *clinicService) DeleteClinic(ctx context.Context, id uint64) error {

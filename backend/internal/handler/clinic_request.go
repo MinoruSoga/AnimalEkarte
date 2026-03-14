@@ -14,17 +14,18 @@ type createClinicRequest struct {
 }
 
 // updateClinicRequest はクリニック更新リクエスト。
+// PATCH セマンティクス: 未送信フィールドは nil → 既存値を保持する。
 type updateClinicRequest struct {
-	Name               string `json:"name"`
-	PostalCode         string `json:"postal_code"`
-	Address            string `json:"address"`
-	PhoneNumber        string `json:"phone_number"`
-	FaxNumber          string `json:"fax_number"`
-	RegistrationNumber string `json:"registration_number"`
-	DirectorName       string `json:"director_name"`
-	Email              string `json:"email"`
-	Website            string `json:"website"`
-	LogoURL            string `json:"logo_url"`
-	IsActive           *bool  `json:"is_active"`
+	Name               *string `json:"name"`
+	PostalCode         *string `json:"postal_code"`
+	Address            *string `json:"address"`
+	PhoneNumber        *string `json:"phone_number"`
+	FaxNumber          *string `json:"fax_number"`
+	RegistrationNumber *string `json:"registration_number"`
+	DirectorName       *string `json:"director_name"`
+	Email              *string `json:"email"`
+	Website            *string `json:"website"`
+	LogoURL            *string `json:"logo_url"`
+	IsActive           *bool   `json:"is_active"`
 }
 
