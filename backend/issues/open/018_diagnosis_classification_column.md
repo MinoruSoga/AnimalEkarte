@@ -1,5 +1,7 @@
 ---
-status: open
+status: closed
+closed_at: 2026-03-15
+decision: option-A（分類列廃止。バックエンド変更不要。フロントエンド側で「分類」列の静的表示を削除する）
 ---
 
 # 診断病名マスタ「分類」列: item_type フィールドの要否検討
