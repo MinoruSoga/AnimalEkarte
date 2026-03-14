@@ -193,7 +193,15 @@ INSERT INTO medical_records (id, clinic_id, record_no, date, owner_id, pet_id, d
     (19, 3, 'R-2026-007', '2026-01-03', 15, 17, 2, 'finalized'),
     -- チビ / 佐々木 亮
     (20, 3, 'R-2026-008', '2026-01-06', 16, 18, 1, 'finalized')
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+    clinic_id  = EXCLUDED.clinic_id,
+    record_no  = EXCLUDED.record_no,
+    date       = EXCLUDED.date,
+    owner_id   = EXCLUDED.owner_id,
+    pet_id     = EXCLUDED.pet_id,
+    doctor_id  = EXCLUDED.doctor_id,
+    status     = EXCLUDED.status,
+    updated_at = now();
 
 SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) FROM medical_records));
 
@@ -225,3 +233,173 @@ INSERT INTO inquiries (id, medical_record_id, chief_complaint_category_id, chief
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('inquiries', 'id'), (SELECT MAX(id) FROM inquiries));
+
+-- -----------------------------------------------------------------------------
+-- 5. reservation_appointments（予約: 10件 — 002の誤データを正しい owner/pet で上書き）
+-- visit_type: 'revisit' | 'first'
+-- status: 'completed','accounting','in_consultation','checked_in','confirmed','pending'
+-- service_type: 1=一般診察, 2=予防接種, 8=定期健診
+-- doctor: 1=山田太郎, 2=高橋健一
+-- -----------------------------------------------------------------------------
+INSERT INTO reservation_appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, service_type_id, doctor_id, is_designated, status, notes) VALUES
+    (1,  3, '2026-03-12 09:00:00+09', '2026-03-12 09:30:00+09', 1,  1,  'revisit', 1, 1, true,  'completed',       '皮膚の経過観察'),
+    (2,  3, '2026-03-12 09:30:00+09', '2026-03-12 10:00:00+09', 2,  3,  'revisit', 8, 2, false, 'accounting',      '猫の定期健診'),
+    (3,  3, '2026-03-12 10:00:00+09', '2026-03-12 10:30:00+09', 3,  4,  'revisit', 1, 1, true,  'in_consultation',  '足を引きずっている'),
+    (4,  3, '2026-03-12 10:30:00+09', '2026-03-12 11:00:00+09', 4,  6,  'first',   2, 2, false, 'checked_in',      'ワクチン接種希望'),
+    (5,  3, '2026-03-12 14:00:00+09', '2026-03-12 14:30:00+09', 6,  8,  'revisit', 1, 1, false, 'confirmed',       '食欲低下が続いている'),
+    (6,  3, '2026-03-13 09:00:00+09', '2026-03-13 09:30:00+09', 7,  9,  'revisit', 8, 2, true,  'confirmed',       '耳の治療経過確認'),
+    (7,  3, '2026-03-13 10:00:00+09', '2026-03-13 10:30:00+09', 8,  10, 'first',   1, 1, false, 'confirmed',       '嘔吐が続いている'),
+    (8,  3, '2026-03-14 09:30:00+09', '2026-03-14 10:00:00+09', 9,  11, 'revisit', 1, 2, false, 'confirmed',       'ルナの経過観察'),
+    (9,  3, '2026-03-15 11:00:00+09', '2026-03-15 11:30:00+09', 10, 12, 'first',   2, 1, false, 'confirmed',       '初回ワクチン接種'),
+    (10, 3, '2026-03-16 14:00:00+09', '2026-03-16 14:30:00+09', 11, 13, 'revisit', 8, 2, true,  'confirmed',       '腎臓値の経過観察')
+ON CONFLICT (id) DO UPDATE SET
+    owner_id        = EXCLUDED.owner_id,
+    pet_id          = EXCLUDED.pet_id,
+    service_type_id = EXCLUDED.service_type_id,
+    visit_type      = EXCLUDED.visit_type,
+    status          = EXCLUDED.status,
+    notes           = EXCLUDED.notes,
+    updated_at      = now();
+
+SELECT setval(pg_get_serial_sequence('reservation_appointments', 'id'), (SELECT MAX(id) FROM reservation_appointments));
+
+-- -----------------------------------------------------------------------------
+-- 6. trimming_records（トリミング記録: 8件 NEW）
+-- status: 'completed' | 'reserved' | 'in_progress'
+-- course_id: 1=シャンプーコース, 2=爪切り・ブラッシング, 3=サマーカット, 4=全体カット
+-- staff: 6=鈴木一郎(トリマー), 12=高橋さくら(トリマー)
+-- -----------------------------------------------------------------------------
+INSERT INTO trimming_records (id, clinic_id, date, pet_id, weight, style_request, staff_id, status, course_id) VALUES
+    (1, 3, '2025-10-10', 1,  '26.5', 'サマーカット希望',        6,  'completed',   3),
+    (2, 3, '2025-10-15', 2,  '15.2', 'ふんわりカット',          12, 'reserved',    4),
+    (3, 3, '2025-10-12', 3,  '4.2',  '毛玉カット',              6,  'in_progress', 1),
+    (4, 3, '2026-01-06', 6,  '3.8',  'シャンプーコース',        6,  'completed',   1),
+    (5, 3, '2026-01-06', 17, '12.0', '全体カット',              12, 'completed',   4),
+    (6, 3, '2026-01-06', 10, '8.0',  '爪切り・ブラッシング',   12, 'reserved',    2),
+    (7, 3, '2026-01-06', 15, '5.0',  'シャンプー',              6,  'completed',   1),
+    (8, 3, '2026-01-06', 6,  '3.8',  'トリミング',              6,  'reserved',    3)
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('trimming_records', 'id'), (SELECT MAX(id) FROM trimming_records));
+
+-- -----------------------------------------------------------------------------
+-- 7. vaccinations（id 1-7, 全件 DO UPDATE）
+-- 002 の id=1-3 を正しい値で上書き。id=4-7 は 003 追加分。
+-- id=2: mr=8(チョコ/田中美咲), id=3: mr=16(ゴン/松本隆) + vaccine_id=1(混合5種犬) に修正
+-- vaccine_id: 1=混合5種犬, 5=3種猫, 7=狂犬病, 8=フィラリア予防薬(小型犬)
+-- -----------------------------------------------------------------------------
+INSERT INTO vaccinations (id, clinic_id, medical_record_id, pet_id, vaccine_id, date, next_date, next_schedule_type, doctor_id, remarks) VALUES
+    (1, 3, 1,  1,  1, '2026-02-15', '2027-02-15', '1year', 1, '接種後30分経過観察。異常なし。'),
+    (2, 3, 8,  6,  7, '2026-03-05', '2027-03-05', '1year', 1, '狂犬病予防法に基づく接種。済票発行。'),
+    (3, 3, 16, 14, 1, '2026-03-10', '2027-03-10', '1year', 2, '接種後の副反応なし。'),
+    (4, 3, 7,  4,  8, '2025-08-22', '2025-09-22', 'other', 2, 'フィラリア予防薬投与。体重9kg未満のため小型犬用。'),
+    (5, 3, 20, 18, 5, '2026-01-06', '2027-01-06', '1year', 1, '体調良好。ワクチン接種実施。'),
+    (6, 3, 6,  3,  5, '2026-01-06', '2027-01-06', '1year', 1, '年次ワクチン接種。'),
+    (7, 3, 15, 13, 5, '2026-01-06', '2027-01-06', '1year', 2, '体調良好。初回3種混合ワクチン。')
+ON CONFLICT (id) DO UPDATE SET
+    medical_record_id  = EXCLUDED.medical_record_id,
+    pet_id             = EXCLUDED.pet_id,
+    vaccine_id         = EXCLUDED.vaccine_id,
+    date               = EXCLUDED.date,
+    next_date          = EXCLUDED.next_date,
+    next_schedule_type = EXCLUDED.next_schedule_type,
+    doctor_id          = EXCLUDED.doctor_id,
+    remarks            = EXCLUDED.remarks,
+    updated_at         = now();
+
+SELECT setval(pg_get_serial_sequence('vaccinations', 'id'), (SELECT MAX(id) FROM vaccinations));
+
+-- -----------------------------------------------------------------------------
+-- 8. hospitalizations（id 1-7, 全件 DO UPDATE）
+-- 002 の id=1,2 を上書き: id=2 の pet_id を 10(ロッキー/中村勇気) → 8(ハチ/伊藤次郎) に修正
+-- type: 'hospitalization' | 'hotel'
+-- status: 'admitted' | 'discharged' | 'reserved'
+-- -----------------------------------------------------------------------------
+INSERT INTO hospitalizations (id, clinic_id, owner_id, pet_id, hospitalization_type, start_date, end_date, status, cage_id, doctor_id, memo, owner_request, staff_notes) VALUES
+    (1, 3, 3, 5,  'hospitalization', '2026-03-10', '2026-03-14', 'admitted',   5,    1, '急性胃腸炎による脱水治療。点滴管理中。',  '食事のアレルギーに注意してほしい（鶏肉不可）', '3/10入院開始。静脈点滴開始。3/11嘔吐1回。3/12状態改善傾向。'),
+    (2, 3, 6, 8,  'hospitalization', '2026-02-25', '2026-02-28', 'discharged', 4,    1, '外耳炎重症化に伴う入院治療。',             '怖がりなので優しく接してほしい',               '耳道洗浄を毎日実施。2/28退院時、症状改善。点耳薬処方。'),
+    (3, 3, 17, 19, 'hospitalization', '2026-02-10', '2026-02-20', 'discharged', NULL, 1, '骨折治療による入院。手術後経過観察。', '', '2/10手術実施。2/15抜糸。2/20退院。'),
+    (4, 3, 4,  6,  'hotel',           '2026-03-15', '2026-03-18', 'reserved',   NULL, 1, '旅行中のホテル預かり。', 'フードはロイヤルカナンのみ', ''),
+    (5, 3, 1,  1,  'hospitalization', '2026-03-20', '2026-03-25', 'reserved',   NULL, 1, '膝蓋骨脱臼手術予定。術前検査済み。', '怖がりなので静かな環境を希望', ''),
+    (6, 3, 9,  11, 'hospitalization', '2026-03-05', '2026-03-12', 'admitted',   3,    2, '慢性腎臓病の集中治療。点滴管理中。', 'ペルシャ猫のため温度管理に注意', '3/5入院。毎日皮下補液実施。3/12現在状態安定。'),
+    (7, 3, 3,  4,  'hospitalization', '2026-01-03', '2026-01-06', 'discharged', NULL, 1, '急性胃腸炎による脱水治療。', 'チキンアレルギーあり', '1/3入院。点滴開始。1/6状態改善し退院。')
+ON CONFLICT (id) DO UPDATE SET
+    owner_id              = EXCLUDED.owner_id,
+    pet_id                = EXCLUDED.pet_id,
+    hospitalization_type  = EXCLUDED.hospitalization_type,
+    start_date            = EXCLUDED.start_date,
+    end_date              = EXCLUDED.end_date,
+    status                = EXCLUDED.status,
+    cage_id               = EXCLUDED.cage_id,
+    doctor_id             = EXCLUDED.doctor_id,
+    memo                  = EXCLUDED.memo,
+    owner_request         = EXCLUDED.owner_request,
+    staff_notes           = EXCLUDED.staff_notes,
+    updated_at            = now();
+
+SELECT setval(pg_get_serial_sequence('hospitalizations', 'id'), (SELECT MAX(id) FROM hospitalizations));
+
+-- -----------------------------------------------------------------------------
+-- 9. inventory_items（id 6-14, 9件追加）
+-- 002 の 1-5 件に加え、mockData の inv-006〜inv-014 を追加。
+-- category: 'medicine' | 'consumable' | 'food' | 'other'
+-- status: 'sufficient' | 'low' | 'out_of_stock'
+-- -----------------------------------------------------------------------------
+INSERT INTO inventory_items (id, clinic_id, name, category, quantity, unit, min_stock_level, location, supplier, status) VALUES
+    (6,  3, '5種混合ワクチン',               'medicine',   25,  'バイアル', 15, '冷蔵庫 1',    '共立製薬',                'sufficient'),
+    (7,  3, '留置針 22G',                    'consumable',  0,   '本',       50, '処置室 棚D',  'テルモ',                  'out_of_stock'),
+    (8,  3, 'シリンジ 5mL',                  'consumable', 300,  '本',      100, '処置室 棚D',  'テルモ',                  'sufficient'),
+    (9,  3, 'メトクロプラミド注 10mg',        'medicine',    8,   'アンプル', 10, '薬品棚 A-3', '日本全薬工業',            'low'),
+    (10, 3, '療法食 消化器サポート（猫用）',  'food',       10,   '袋',        5, 'フード棚 C-1','ヒルズ',                 'sufficient'),
+    (11, 3, 'エリザベスカラー（S）',          'other',      15,   '個',        5, '倉庫 A',     'ペットメディカルサプライ', 'sufficient'),
+    (12, 3, 'ガーゼ 滅菌 7.5cm',            'consumable',  45,   '枚',       50, '処置室 棚E',  '白十字',                  'low'),
+    (13, 3, 'フィラリア予防薬（S）',          'medicine',   60,   '錠',       30, '薬品棚 B-1', 'メリアル・ジャパン',       'sufficient'),
+    (14, 3, 'ノミダニ駆除薬 スポット',        'medicine',   40,   'ピペット',  20, '薬品棚 B-2', 'エランコジャパン',         'sufficient')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('inventory_items', 'id'), (SELECT MAX(id) FROM inventory_items));
+
+-- -----------------------------------------------------------------------------
+-- 10. billings / billing_items / payments（002 の不整合を修正）
+-- billings id=2: owner_id 6→1(林文明), pet_id 10→1(Iris) ← medical_record=3(Iris/林文明) と一致
+-- billings id=3: medical_record_id 2→6(ミケ/田中花子 finalized) ← owner=2/pet=3 と一致
+-- payments id=1: billing_id 3→1(billing 1 total=4730 と一致)
+-- -----------------------------------------------------------------------------
+INSERT INTO billings (id, clinic_id, medical_record_id, hospitalization_id, owner_id, pet_id, subtotal, tax_total, total_amount, has_insurance, status, scheduled_date, completed_at, memo) VALUES
+    (2, 3, 3,    NULL, 1,  1,  3300, 330, 3630, true, 'completed', '2026-02-28', '2026-02-28 11:00:00+09', 'アニコム保険適用（Iris 耳炎治療）'),
+    (3, 3, 6,    NULL, 2,  3,  800,  80,  880,  true, 'waiting',   '2026-03-12', NULL,                     'アニコム保険適用。会計待ち。')
+ON CONFLICT (id) DO UPDATE SET
+    medical_record_id = EXCLUDED.medical_record_id,
+    owner_id          = EXCLUDED.owner_id,
+    pet_id            = EXCLUDED.pet_id,
+    memo              = EXCLUDED.memo,
+    updated_at        = now();
+
+INSERT INTO payments (id, billing_id, subtotal, tax_total, total_amount, insurance_name, insurance_ratio, insurance_amount, discount_amount, billing_amount, received_amount, change_amount, method) VALUES
+    (1, 1, 4300, 430, 4730, 'アニコム損保', 70, 3311, 0, 1419, 1500, 81, 'cash')
+ON CONFLICT (id) DO UPDATE SET
+    billing_id      = EXCLUDED.billing_id,
+    updated_at      = now();
+
+-- -----------------------------------------------------------------------------
+-- 11. vitals（002 の体重・記録日時を修正）
+-- 003 の medical_records 修正後の正しいペット体重に合わせる
+-- id=1-3: Iris(ゴールデンレトリーバー 26.5kg), id=4: Max(ラブラドール 15.2kg)
+-- id=5: ミケ(3.8kg) は変更なし
+-- -----------------------------------------------------------------------------
+INSERT INTO vitals (id, medical_record_id, recorded_at, staff_id, temperature, heart_rate, respiration_rate, weight, notes) VALUES
+    (1, 3, '2026-01-20 09:15:00+09', 1, 38.5, 80,  20, 26.5, '皮膚の搔痒感あり。体重良好。'),
+    (2, 2, '2025-12-15 10:00:00+09', 2, 38.8, 82,  22, 26.0, '体重前回比-500g'),
+    (3, 3, '2026-01-20 09:30:00+09', 1, 38.3, 78,  20, 26.5, '左耳を気にしている'),
+    (4, 4, '2025-11-05 11:00:00+09', 1, 39.1, 95,  24, 15.0, '軽度脱水。CRT 2秒'),
+    (5, 5, '2025-09-15 14:30:00+09', 2, 38.2, 160, 30,  3.8, '粘膜色やや蒼白')
+ON CONFLICT (id) DO UPDATE SET
+    medical_record_id = EXCLUDED.medical_record_id,
+    recorded_at       = EXCLUDED.recorded_at,
+    temperature       = EXCLUDED.temperature,
+    heart_rate        = EXCLUDED.heart_rate,
+    respiration_rate  = EXCLUDED.respiration_rate,
+    weight            = EXCLUDED.weight,
+    notes             = EXCLUDED.notes;
+
+SELECT setval(pg_get_serial_sequence('vitals', 'id'), (SELECT MAX(id) FROM vitals));
