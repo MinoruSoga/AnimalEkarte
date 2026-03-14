@@ -6,12 +6,12 @@ export function transformVaccination(
 ): VaccinationRecord {
   return {
     id: String(data.id ?? 0),
-    ownerName: "",
+    ownerName: data.pet?.owner?.owner_name ?? "",
     petName: data.pet?.name ?? "",
     vaccineId: String(data.vaccine_id ?? 0),
     vaccineName: data.vaccine?.name ?? "",
-    doctor: "",
-    date: data.date ?? "",
-    nextDate: data.next_date ?? "",
+    doctor: data.doctor?.name ?? "",
+    date: data.date ? data.date.slice(0, 10) : "",
+    nextDate: data.next_date ? data.next_date.slice(0, 10) : "",
   };
 }

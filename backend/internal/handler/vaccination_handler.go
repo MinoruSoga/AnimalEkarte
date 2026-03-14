@@ -104,6 +104,11 @@ func (h *Handler) GetVaccination(c *gin.Context) {
 
 // CreateVaccination godoc
 func (h *Handler) CreateVaccination(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	var input createVaccinationInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -111,6 +116,7 @@ func (h *Handler) CreateVaccination(c *gin.Context) {
 	}
 
 	vaccination := &model.Vaccination{
+		ClinicID:        clinicID,
 		MedicalRecordID: input.MedicalRecordID,
 		PetID:           input.PetID,
 		VaccineID:       input.VaccineID,

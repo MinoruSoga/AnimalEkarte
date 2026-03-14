@@ -30,8 +30,7 @@ func NewVaccinationRepository(db *gorm.DB) VaccinationRepository {
 func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error) {
 	buildBase := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.Vaccination{}).
-			Joins("JOIN medical_records ON medical_records.id = vaccinations.medical_record_id").
-			Where("medical_records.clinic_id = ?", clinicID)
+			Where("vaccinations.clinic_id = ?", clinicID)
 		if petID != nil {
 			q = q.Where("vaccinations.pet_id = ?", *petID)
 		}
@@ -47,8 +46,12 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 	}
 
 	vaccinations := make([]model.Vaccination, 0)
-	if err := buildBase().Preload("Vaccine").Preload("Pet").Preload("Doctor").
-		Offset((page - 1) * limit).Limit(limit).Order("vaccinations.date DESC, vaccinations.created_at DESC").
+	if err := buildBase().
+		Preload("Vaccine").
+		Preload("Pet").
+		Preload("Pet.Owner").
+		Preload("Doctor").
+		Offset((page-1)*limit).Limit(limit).Order("vaccinations.date DESC, vaccinations.created_at DESC").
 		Find(&vaccinations).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find vaccinations")
 	}

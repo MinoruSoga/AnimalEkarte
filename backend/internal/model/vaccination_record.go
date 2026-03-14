@@ -17,6 +17,7 @@ const (
 
 type Vaccination struct {
 	ID               uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID         uint64            `gorm:"not null"                                       json:"clinic_id"`
 	MedicalRecordID  *uint64           `                                                      json:"medical_record_id,omitempty"`
 	PetID            *uint64           `                                                      json:"pet_id,omitempty"`
 	VaccineID        uint64            `gorm:"not null"                                       json:"vaccine_id"`

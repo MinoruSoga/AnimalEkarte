@@ -60,14 +60,26 @@ func (s *shiftEntryService) List(ctx context.Context, clinicID uint64, yearMonth
 	return s.repo.List(ctx, clinicID, filter)
 }
 
+func parseTimeString(s *string) *time.Time {
+	if s == nil || *s == "" {
+		return nil
+	}
+	for _, layout := range []string{"15:04:05", "15:04"} {
+		if t, err := time.Parse(layout, *s); err == nil {
+			return &t
+		}
+	}
+	return nil
+}
+
 func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *CreateShiftEntryInput) (*model.ShiftEntry, error) {
 	entry := &model.ShiftEntry{
 		ClinicID:  clinicID,
 		StaffID:   input.StaffID,
 		Date:      input.Date,
 		ShiftType: input.ShiftType,
-		StartTime: input.StartTime,
-		EndTime:   input.EndTime,
+		StartTime: parseTimeString(input.StartTime),
+		EndTime:   parseTimeString(input.EndTime),
 		Note:      input.Note,
 	}
 	if err := s.repo.Create(ctx, entry); err != nil {
@@ -102,8 +114,8 @@ func (s *shiftEntryService) Delete(ctx context.Context, clinicID, id uint64) err
 func buildShiftEntryUpdateFields(input *UpdateShiftEntryInput) map[string]any {
 	fields := map[string]any{}
 	if input.ShiftType != nil { fields["shift_type"] = *input.ShiftType }
-	if input.StartTime != nil { fields["start_time"] = *input.StartTime }
-	if input.EndTime != nil   { fields["end_time"] = *input.EndTime }
+	if input.StartTime != nil { fields["start_time"] = parseTimeString(input.StartTime) }
+	if input.EndTime != nil   { fields["end_time"] = parseTimeString(input.EndTime) }
 	if input.Note != nil      { fields["note"] = *input.Note }
 	return fields
 }
