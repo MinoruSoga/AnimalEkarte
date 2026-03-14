@@ -230,13 +230,12 @@ erDiagram
     company {
         integer id PK
         text name
-        text branch_name
     }
 
     clinics {
         uuid id PK
+        bigint company_id FK
         text name
-        text branch_name
         boolean is_active
     }
 
@@ -447,6 +446,7 @@ erDiagram
         text name
         boolean is_active
         text interval
+        timestamptz deleted_at
     }
 
     chief_complaint_categories {
@@ -506,6 +506,14 @@ erDiagram
         uuid inventory_id FK
         numeric unit_price
         integer quantity
+        boolean selected
+        treatment_status status
+        text content
+        text memo
+        boolean insurance
+        numeric discount_rate
+        numeric discount_amount
+        integer sort_order
         timestamptz deleted_at
     }
 
@@ -517,6 +525,8 @@ erDiagram
         numeric temperature
         integer heart_rate
         numeric weight
+        integer respiration_rate
+        text notes
     }
 
     exams {
@@ -536,6 +546,7 @@ erDiagram
         text name
         text inspection_value
         examination_result_status status
+        timestamptz updated_at
     }
 
     vaccinations {
@@ -545,6 +556,15 @@ erDiagram
         uuid vaccine_id FK
         date date
         uuid doctor_id FK
+        uuid clinic_id FK
+        date next_date
+        text next_schedule_type
+        text supplemental
+        text lot1
+        text lot2
+        text lot3
+        text lot4
+        text remarks
         timestamptz deleted_at
     }
 
@@ -769,6 +789,7 @@ erDiagram
         text name
         numeric unit_price
         integer quantity
+        timestamptz deleted_at
     }
 
     payments {
@@ -954,8 +975,8 @@ erDiagram
 | `appetite_level` | normal, increased, decreased, none |
 | `billing_review_status` | pending, confirmed, returned |
 | `billing_status` | waiting, completed, cancelled, pending |
-| `acquisition_type` | 購入, 譲渡, 保護, その他 |
-| `anesthesia_type` | none, local, general |
+| `acquisition_type` | purchased, transferred, rescued, other |
+| `anesthesia_type` | none, local, sedation, general |
 | `billing_unit` | per_day, per_night |
 | `body_size` | small, medium, large |
 | `body_weight_unit` | Kg, g |
@@ -965,34 +986,34 @@ erDiagram
 | `care_log_type` | food, excretion, medicine, treatment, other |
 | `care_plan_status` | active, completed, discontinued |
 | `care_plan_type` | food, medicine, treatment, instruction, item |
-| `danger_level` | 低, 中, 高 |
+| `danger_level` | low, medium, high |
 | `dosage_form` | tablet, liquid, injection, topical, powder |
 | `estimate_status` | draft, sent, approved, rejected |
 | `examination_result_status` | normal, high, low |
-| `examination_status` | 依頼中, 検査中, 完了 |
-| `hospitalization_status` | 入院中, 退院済, 予約 |
-| `hospitalization_type` | 入院, ホテル |
+| `examination_status` | pending, in_progress, completed |
+| `hospitalization_status` | admitted, discharged, reserved |
+| `hospitalization_type` | hospitalization, hotel |
 | `inventory_category` | medicine, consumable, food, other |
 | `inventory_status` | sufficient, low, out_of_stock |
 | `item_category` | examination, test, procedure, surgery, medicine, food, goods, other |
 | `item_source` | medical_record, manual, hospitalization |
 | `medical_image_type` | xray, echo, photo, endoscope, ct, mri, microscope, other |
-| `medical_record_status` | 作成中, 確定済 |
+| `medical_record_status` | draft, finalized |
 | `medicine_unit` | per_tablet, per_ml, per_dose, per_gram |
-| `membership_type` | 非会員, 会員, 退亡者, 他診/準 |
+| `membership_type` | non_member, member, deceased, transferred |
 | `next_schedule_type` | 3weeks, 4weeks, 1year, other |
 | `payment_method` | cash, credit_card, electronic_money |
 | `permission_type` | account_admin, medical, medical_read, trimming, billing, reception, hospitalization, master_admin, shift_admin, inventory |
-| `pet_gender` | 雄, 雌, 不明 |
-| `pet_status` | 生存, 死亡 |
+| `pet_gender` | male, female, unknown |
+| `pet_status` | alive, deceased |
 | `plan_timing` | morning, noon, night |
 | `reservation_status` | confirmed, pending, cancelled, checked_in, in_consultation, accounting, completed |
 | `shift_type` | full, morning, afternoon, off, paid_leave |
 | `staff_role` | veterinarian, nurse, trimmer, reception, manager |
 | `target_size` | small, medium, large, cat |
 | `treatment_item_type` | consultation, procedure, medicine, other |
-| `treatment_status` | 未完了, 完了, - |
-| `trimming_status` | 完了, 予約, 進行中 |
+| `treatment_status` | pending, completed, not_applicable |
+| `trimming_status` | completed, reserved, in_progress |
 | `user_type` | system_admin, clinic_admin, staff |
 | `vaccine_species` | dog, cat, both |
 | `visit_type` | first, revisit |
@@ -1014,7 +1035,6 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | name | text | NO | | 法人名 |
-| branch_name | text | YES | '' | 支店名 |
 | postal_code | text | YES | '' | 郵便番号 |
 | address | text | YES | '' | 住所 |
 | phone_number | text | YES | '' | 電話番号 |
@@ -1036,8 +1056,8 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
+| company_id | bigint | NO | | company.id FK |
 | name | text | NO | | 医院名 |
-| branch_name | text | YES | '' | 支店名 |
 | postal_code | text | YES | '' | 郵便番号 |
 | address | text | YES | '' | 住所 |
 | phone_number | text | YES | '' | 電話番号 |
@@ -1065,6 +1085,7 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | email | text | NO | | メールアドレス（UNIQUE） |
+| password_hash | text | NO | | bcryptハッシュ化パスワード（JSON非公開） |
 | display_name | text | NO | | 表示名 |
 | display_name_kana | text | YES | '' | 表示名カナ |
 | user_type | user_type | NO | 'staff' | ユーザー種別 |
@@ -1582,7 +1603,7 @@ erDiagram
 | price | numeric | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
-| duration | text | YES | '' | 追加所要時間 |
+| duration | integer | YES | | 追加所要時間(分) |
 | combinable | boolean | NO | true | 他オプションと組み合わせ可能か |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
@@ -1658,6 +1679,7 @@ erDiagram
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
+| deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -1816,7 +1838,7 @@ erDiagram
 | procedure_id | uuid | YES | | procedures.id FK |
 | medicine_id | uuid | YES | | medicines.id FK |
 | selected | boolean | YES | false | 選択フラグ |
-| status | treatment_status | YES | '未完了' | 処置状態 |
+| status | treatment_status | YES | 'pending' | 処置状態 |
 | content | text | NO | '' | 内容 |
 | memo | text | YES | '' | メモ |
 | insurance | boolean | YES | false | 保険適用フラグ |
@@ -1876,7 +1898,7 @@ erDiagram
 | date | date | NO | | 検査日 |
 | exam_type_id | uuid | NO | | exam_types.id FK |
 | doctor_id | uuid | YES | | staffs.id FK |
-| status | examination_status | YES | '依頼中' | 検査状態 |
+| status | examination_status | YES | 'pending' | 検査状態 |
 | result_summary | text | YES | '' | 検査結果サマリ |
 | machine | text | YES | '' | 使用機器 |
 | created_at | timestamptz | YES | now() | 作成日時 |
@@ -1909,6 +1931,7 @@ erDiagram
 | status | examination_result_status | YES | 'normal' | 結果状態 |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
 - `exam_id` → `exams.id` (CASCADE)
@@ -1923,9 +1946,10 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
-| medical_record_id | uuid | NO  | | medical_records.id FK |
+| medical_record_id | uuid | YES | | medical_records.id FK（NULL = カルテなしの単独接種） |
 | pet_id | uuid | YES | | pets.id FK（ペット単位検索用。medical_record_id 経由でも辿れるが、JOIN 削減のため意図的に保持） |
 | vaccine_id | uuid | NO | | vaccines.id FK |
+| clinic_id | uuid | NO | | clinics.id FK（接種医院） |
 | date | date | NO | | 接種日 |
 | next_date | date | YES | | 次回接種予定日 |
 | next_schedule_type | next_schedule_type | YES | | 次回スケジュール種別 |
@@ -2322,9 +2346,9 @@ erDiagram
 | pet_id | uuid | YES | | pets.id FK |
 | weight | text | YES | '' | 体重 |
 | style_request | text | YES | '' | スタイルリクエスト |
-| staff_id | uuid | NO | | staffs.id FK |
-| status | trimming_status | YES | '予約' | 状態 |
-| course_id | uuid | NO  | | trimming_courses.id FK |
+| staff_id | uuid | YES | | staffs.id FK |
+| status | trimming_status | YES | 'reserved' | 状態 |
+| course_id | uuid | YES | | trimming_courses.id FK |
 | bw | text | YES | '' | 体重測定値 |
 | bw_unit | body_weight_unit | YES | 'Kg' | 体重単位 |
 | bt | text | YES | '' | 体温 |
@@ -2340,8 +2364,8 @@ erDiagram
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
 - `pet_id` → `pets.id` (SET NULL)
-- `staff_id` → `staffs.id` (RESTRICT)
-- `course_id` → `trimming_courses.id` (RESTRICT)
+- `staff_id` → `staffs.id` (SET NULL)
+- `course_id` → `trimming_courses.id` (SET NULL)
 
 **インデックス:** `(clinic_id)`
 
@@ -2422,6 +2446,7 @@ erDiagram
 | source | item_source | YES | 'manual' | 明細元 |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
+| deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:** `billing_id` → `billings.id` (CASCADE)
 
