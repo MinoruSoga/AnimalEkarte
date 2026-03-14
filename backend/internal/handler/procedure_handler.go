@@ -17,17 +17,20 @@ type createProcedureInput struct {
 	Description string   `json:"description"`
 	Duration    *int     `json:"duration"`
 	Anesthesia  string   `json:"anesthesia"`
+	ParentID    *uint64  `json:"parent_id"`
 	SortOrder   int      `json:"sort_order"`
 }
 
 type updateProcedureInput struct {
-	Name        string   `json:"name"`
-	Price       *float64 `json:"price"`
-	IsActive    *bool    `json:"is_active"`
-	Description string   `json:"description"`
-	Duration    *int     `json:"duration"`
-	Anesthesia  string   `json:"anesthesia"`
-	SortOrder   int      `json:"sort_order"`
+	Name          string   `json:"name"`
+	Price         *float64 `json:"price"`
+	IsActive      *bool    `json:"is_active"`
+	Description   string   `json:"description"`
+	Duration      *int     `json:"duration"`
+	Anesthesia    string   `json:"anesthesia"`
+	ParentID      *uint64  `json:"parent_id"`
+	ClearParentID bool     `json:"clear_parent_id"`
+	SortOrder     int      `json:"sort_order"`
 }
 
 // ---- Procedure ----
@@ -62,6 +65,7 @@ func (h *Handler) CreateProcedure(c *gin.Context) {
 		IsActive:    input.IsActive,
 		Description: input.Description,
 		Duration:    input.Duration,
+		ParentID:    input.ParentID,
 		SortOrder:   input.SortOrder,
 	}
 	if input.Anesthesia != "" {
@@ -101,6 +105,11 @@ func (h *Handler) UpdateProcedure(c *gin.Context) {
 	}
 	if input.Anesthesia != "" {
 		procedure.Anesthesia = model.AnesthesiaType(input.Anesthesia)
+	}
+	if input.ClearParentID {
+		procedure.ParentID = nil
+	} else if input.ParentID != nil {
+		procedure.ParentID = input.ParentID
 	}
 
 	if err := h.svc.Procedure.Update(c.Request.Context(), procedure); err != nil {

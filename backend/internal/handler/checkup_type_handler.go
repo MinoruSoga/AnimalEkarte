@@ -17,17 +17,20 @@ type createCheckupTypeInput struct {
 	Description string   `json:"description"`
 	Interval    string   `json:"interval"`
 	TargetAge   string   `json:"target_age"`
+	ParentID    *uint64  `json:"parent_id"`
 	SortOrder   int      `json:"sort_order"`
 }
 
 type updateCheckupTypeInput struct {
-	Name        string   `json:"name"`
-	Price       *float64 `json:"price"`
-	IsActive    *bool    `json:"is_active"`
-	Description string   `json:"description"`
-	Interval    string   `json:"interval"`
-	TargetAge   string   `json:"target_age"`
-	SortOrder   int      `json:"sort_order"`
+	Name          string   `json:"name"`
+	Price         *float64 `json:"price"`
+	IsActive      *bool    `json:"is_active"`
+	Description   string   `json:"description"`
+	Interval      string   `json:"interval"`
+	TargetAge     string   `json:"target_age"`
+	ParentID      *uint64  `json:"parent_id"`
+	ClearParentID bool     `json:"clear_parent_id"`
+	SortOrder     int      `json:"sort_order"`
 }
 
 // ---- CheckupType ----
@@ -63,6 +66,7 @@ func (h *Handler) CreateCheckupType(c *gin.Context) {
 		Description: input.Description,
 		Interval:    input.Interval,
 		TargetAge:   input.TargetAge,
+		ParentID:    input.ParentID,
 		SortOrder:   input.SortOrder,
 	}
 
@@ -97,6 +101,11 @@ func (h *Handler) UpdateCheckupType(c *gin.Context) {
 	}
 	if input.IsActive != nil {
 		checkupType.IsActive = *input.IsActive
+	}
+	if input.ClearParentID {
+		checkupType.ParentID = nil
+	} else if input.ParentID != nil {
+		checkupType.ParentID = input.ParentID
 	}
 
 	if err := h.svc.CheckupType.Update(c.Request.Context(), checkupType); err != nil {

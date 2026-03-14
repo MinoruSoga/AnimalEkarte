@@ -11,6 +11,7 @@ type ExaminationType struct {
 	Price       *float64  `gorm:"type:numeric(10,2)"                             json:"price,omitempty"`
 	IsActive    bool      `gorm:"default:true"                                   json:"is_active"`
 	Description string    `gorm:"default:''"                                     json:"description"`
+	ParentID    *uint64   `gorm:"column:parent_id"                               json:"parent_id,omitempty"`
 	SortOrder   int       `gorm:"default:0"                                      json:"sort_order"`
 	CreatedAt   time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt   time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`

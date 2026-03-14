@@ -17,17 +17,20 @@ type createVaccineInput struct {
 	Description string   `json:"description"`
 	Species     string   `json:"species"`
 	Interval    string   `json:"interval"`
+	ParentID    *uint64  `json:"parent_id"`
 	SortOrder   int      `json:"sort_order"`
 }
 
 type updateVaccineInput struct {
-	Name        string   `json:"name"`
-	Price       *float64 `json:"price"`
-	IsActive    *bool    `json:"is_active"`
-	Description string   `json:"description"`
-	Species     string   `json:"species"`
-	Interval    string   `json:"interval"`
-	SortOrder   int      `json:"sort_order"`
+	Name          string   `json:"name"`
+	Price         *float64 `json:"price"`
+	IsActive      *bool    `json:"is_active"`
+	Description   string   `json:"description"`
+	Species       string   `json:"species"`
+	Interval      string   `json:"interval"`
+	ParentID      *uint64  `json:"parent_id"`
+	ClearParentID bool     `json:"clear_parent_id"`
+	SortOrder     int      `json:"sort_order"`
 }
 
 // ---- Vaccine ----
@@ -66,6 +69,7 @@ func (h *Handler) CreateVaccine(c *gin.Context) {
 		IsActive:    input.IsActive,
 		Description: input.Description,
 		Interval:    input.Interval,
+		ParentID:    input.ParentID,
 		SortOrder:   input.SortOrder,
 	}
 	if input.Species != "" {
@@ -107,6 +111,11 @@ func (h *Handler) UpdateVaccine(c *gin.Context) {
 	if input.Species != "" {
 		s := model.VaccineSpecies(input.Species)
 		vaccine.Species = &s
+	}
+	if input.ClearParentID {
+		vaccine.ParentID = nil
+	} else if input.ParentID != nil {
+		vaccine.ParentID = input.ParentID
 	}
 
 	if err := h.svc.Vaccine.Update(c.Request.Context(), vaccine); err != nil {

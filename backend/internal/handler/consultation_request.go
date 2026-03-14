@@ -7,6 +7,7 @@ type createConsultationRequest struct {
 	Description   string   `json:"description"`
 	TimeCondition string   `json:"time_condition"`
 	Duration      *int     `json:"duration"`
+	ParentID      *uint64  `json:"parent_id"`
 	SortOrder     int      `json:"sort_order"`
 }
 
@@ -17,5 +18,7 @@ type updateConsultationRequest struct {
 	Description   string   `json:"description"`
 	TimeCondition string   `json:"time_condition"`
 	Duration      *int     `json:"duration"`
+	ParentID      *uint64  `json:"parent_id"`
+	ClearParentID bool     `json:"clear_parent_id"`
 	SortOrder     int      `json:"sort_order"`
 }

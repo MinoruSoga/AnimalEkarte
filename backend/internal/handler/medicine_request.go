@@ -3,7 +3,7 @@ package handler
 // createMedicineRequest は薬剤作成のバインド struct
 type createMedicineRequest struct {
 	Name            string   `json:"name"             binding:"required"`
-	DrugCategory    *string  `json:"drug_category"`
+	ParentID        *uint64  `json:"parent_id"`
 	Price           *float64 `json:"price"`
 	IsActive        bool     `json:"is_active"`
 	Description     string   `json:"description"`
@@ -14,12 +14,19 @@ type createMedicineRequest struct {
 	SortOrder       int      `json:"sort_order"`
 }
 
+// reorderMedicineRequest は薬剤並び替えのバインド struct
+type reorderMedicineRequest struct {
+	IDs []uint64 `json:"ids" binding:"required,min=1"`
+}
+
 // updateMedicineRequest は薬剤更新のバインド struct（全フィールドポインタ型）
-// DrugCategory/DosageForm/MedicineUnit: nil = 未指定, "" = NULL クリア, "value" = 値セット
+// DosageForm/MedicineUnit: nil = 未指定, "" = NULL クリア, "value" = 値セット
+// ParentID: nil = 未指定, clear_parent_id = true = NULL クリア, non-nil = 値セット
 // InventoryID: nil = 未指定, &nil = NULL クリア, &&val = 値セット
 type updateMedicineRequest struct {
 	Name            *string  `json:"name"`
-	DrugCategory    *string  `json:"drug_category"`
+	ParentID        *uint64  `json:"parent_id"`
+	ClearParentID   bool     `json:"clear_parent_id"`
 	Price           *float64 `json:"price"`
 	IsActive        *bool    `json:"is_active"`
 	Description     *string  `json:"description"`

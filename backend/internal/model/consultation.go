@@ -13,6 +13,7 @@ type Consultation struct {
 	Description   string    `gorm:"default:''"                                     json:"description"`
 	TimeCondition string    `gorm:"default:''"                                     json:"time_condition"`
 	Duration      *int      `gorm:"type:integer"                                   json:"duration,omitempty"`
+	ParentID      *uint64   `gorm:"column:parent_id"                               json:"parent_id,omitempty"`
 	SortOrder     int       `gorm:"default:0"                                      json:"sort_order"`
 	CreatedAt     time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt     time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`

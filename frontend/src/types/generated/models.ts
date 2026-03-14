@@ -193,6 +193,7 @@ export interface CheckupType {
   description: string;
   interval: string;
   target_age: string;
+  parent_id?: number /* uint64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -346,6 +347,7 @@ export interface Consultation {
   description: string;
   time_condition: string;
   duration?: number /* int */;
+  parent_id?: number /* uint64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -514,6 +516,7 @@ export interface ExaminationType {
   price?: number /* float64 */;
   is_active: boolean;
   description: string;
+  parent_id?: number /* uint64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -900,7 +903,7 @@ export interface Medicine {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  drug_category?: string;
+  parent_id?: number /* uint64 */;
   price?: number /* float64 */;
   is_active: boolean;
   description: string;
@@ -1022,6 +1025,7 @@ export interface Procedure {
   description: string;
   duration?: number /* int */;
   anesthesia: AnesthesiaType;
+  parent_id?: number /* uint64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -1353,6 +1357,7 @@ export interface Vaccine {
   species?: VaccineSpecies;
   interval: string;
   inventory_id?: number /* uint64 */;
+  parent_id?: number /* uint64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;

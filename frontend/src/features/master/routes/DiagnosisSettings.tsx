@@ -23,9 +23,15 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 // External
-import { Plus, ClipboardList, X, GripVertical, MoreHorizontal, Maximize2, Tag, FileText } from "lucide-react";
+import {
+  Plus,
+  FolderTree,
+  X,
+  GripVertical,
+  Trash2,
+  ClipboardList,
+} from "lucide-react";
 import { toast } from "sonner";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
@@ -40,7 +46,11 @@ import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable, DataTableRow } from "@/components/shared/DataTable";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { getMasterStatusColor } from "@/utils/status-helpers";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
   useListDiagnosisCategories,
@@ -71,16 +81,17 @@ import type {
 const CATEGORY_COLUMNS = [
   { header: "", className: "w-[32px]" },
   { header: "カテゴリ名" },
-  { header: "分類", className: "w-[200px]" },
-  { header: "ステータス", className: "w-[90px]", align: "right" as const },
+  { header: "備考", className: "w-[240px]" },
+  { header: "ステータス", className: "w-[100px]", align: "center" as const },
+  { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
 const NAME_COLUMNS = [
   { header: "", className: "w-[32px]" },
   { header: "診断病名" },
-  { header: "所属カテゴリ", className: "w-[200px]" },
-  { header: "分類", className: "w-[200px]" },
-  { header: "ステータス", className: "w-[90px]", align: "right" as const },
+  { header: "所属カテゴリ", className: "w-[160px]" },
+  { header: "ステータス", className: "w-[100px]", align: "center" as const },
+  { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
 const TABS = [
@@ -161,34 +172,15 @@ function PropInput({
 }
 
 // ─────────────────────────────────────────────────
-// Link-style 新規登録 button
+// DiagnosisCategorySidePanel
 // ─────────────────────────────────────────────────
 
-function AddButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1a6bc0] transition-colors cursor-pointer"
-    >
-      <Plus className="size-4" />
-      新規登録
-    </button>
-  );
-}
-
-// ─────────────────────────────────────────────────
-// DiagnosisCategoryModal
-// ─────────────────────────────────────────────────
-
-function DiagnosisCategoryModal({
-  open,
+function DiagnosisCategorySidePanel({
   item,
   onClose,
   onSave,
   onDeleteRequest,
 }: {
-  open: boolean;
   item: DiagnosisCategory | null;
   onClose: () => void;
   onSave: (data: { name: string; description: string; isActive: boolean }) => void;
@@ -199,139 +191,108 @@ function DiagnosisCategoryModal({
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,
   });
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/20" />
-        <DialogPrimitive.Content
-          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[600px] max-h-[85vh] bg-white rounded-[8px] border border-[#E8E8E8] shadow-xl flex flex-col overflow-hidden outline-none"
-          aria-describedby={undefined}
-        >
-          <DialogPrimitive.Title className="sr-only">
-            {item ? "カテゴリ編集" : "カテゴリ新規作成"}
-          </DialogPrimitive.Title>
-
-          {/* ── Header ── */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-[#E8E8E8]">
-            <span className="text-xs text-[#37352F]/35 pl-1 select-none">
-              {item ? "編集" : "新規作成"}
-            </span>
-            <div className="flex items-center gap-0.5">
-              {item ? (
-                <>
-                  <button
-                    type="button"
-                    className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-                    onClick={() => {}}
-                  >
-                    <Maximize2 className="size-4" />
-                  </button>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-                      onClick={() => setShowMoreMenu((v) => !v)}
-                    >
-                      <MoreHorizontal className="size-4" />
-                    </button>
-                    {showMoreMenu ? (
-                      <div className="absolute right-0 top-full mt-1 w-[140px] bg-white border border-[#E8E8E8] rounded-[6px] shadow-md z-10 py-1">
-                        <button
-                          type="button"
-                          className="w-full text-left px-3 py-1.5 text-sm text-[#EB5757] hover:bg-[#F7F6F3] transition-colors"
-                          onClick={() => { setShowMoreMenu(false); onDeleteRequest(); }}
-                        >
-                          削除
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                </>
-              ) : null}
-              <DialogPrimitive.Close className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}>
-                <X className="size-4" />
-              </DialogPrimitive.Close>
-            </div>
-          </div>
-
-          {/* ── Body ── */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="px-16 pb-8">
-              <div className="pt-4 pb-2">
-                <div className={STYLE.pageIcon}>
-                  <Tag className={LAYOUT.pageIcon.innerIcon} />
-                </div>
-              </div>
-              <div className="pb-1 mb-4">
-                <input
-                  type="text"
-                  className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
-                  style={{
-                    fontSize: LAYOUT.pageTitle.fontSize,
-                    fontWeight: LAYOUT.pageTitle.fontWeight,
-                    lineHeight: LAYOUT.pageTitle.lineHeight,
-                  }}
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="無題"
-                />
-              </div>
-              <div className={`${STYLE.sectionDivider} mb-1`} />
-              <div className="py-1">
-                <PropertyRow label="ステータス">
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                    className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-                  >
-                    <NotionStatusPill isActive={formData.isActive} />
-                  </button>
-                </PropertyRow>
-                <PropertyRow label="備考">
-                  <PropInput
-                    value={formData.description}
-                    onChange={(v) => setFormData({ ...formData, description: v })}
-                    placeholder="空"
-                  />
-                </PropertyRow>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Footer ── */}
-          <div className={STYLE.sidePeekFooter}>
-            <button type="button" onClick={onClose} className={STYLE.sidePeekCancelBtn}>
-              キャンセル
-            </button>
+    <div className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0`}>
+      {/* Toolbar */}
+      <div className={STYLE.sidePeekToolbar}>
+        <span className={`text-xs ${C.text35} pl-1 select-none`}>
+          {item !== null ? "編集" : "新規作成"}
+        </span>
+        <div className="flex items-center gap-1">
+          {item !== null ? (
             <button
               type="button"
-              onClick={() => onSave(formData)}
-              className={STYLE.sidePeekSaveBtn}
+              onClick={onDeleteRequest}
+              className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
             >
-              保存
+              <Trash2 className="size-4" />
             </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={onClose}
+            className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
+            aria-label="閉じる"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className={STYLE.sidePeekBody}>
+        <div className="px-16 pb-8">
+          <div className="pt-4 pb-2">
+            <div className={STYLE.pageIcon}>
+              <FolderTree className={LAYOUT.pageIcon.innerIcon} />
+            </div>
           </div>
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
+          <div className="pb-1 mb-4">
+            <input
+              type="text"
+              className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
+              style={{
+                fontSize: LAYOUT.pageTitle.fontSize,
+                fontWeight: LAYOUT.pageTitle.fontWeight,
+                lineHeight: LAYOUT.pageTitle.lineHeight,
+              }}
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="無題"
+              autoFocus
+            />
+          </div>
+          <div className={`${STYLE.sectionDivider} mb-1`} />
+          <div className="py-1">
+            <PropertyRow label="ステータス">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+                className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+              >
+                <NotionStatusPill isActive={formData.isActive} />
+              </button>
+            </PropertyRow>
+            <PropertyRow label="備考">
+              <PropInput
+                value={formData.description}
+                onChange={(v) => setFormData({ ...formData, description: v })}
+                placeholder="補足情報など"
+              />
+            </PropertyRow>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className={STYLE.sidePeekFooter}>
+        <button type="button" onClick={onClose} className={STYLE.sidePeekCancelBtn}>
+          キャンセル
+        </button>
+        <button
+          type="button"
+          onClick={() => onSave(formData)}
+          className={STYLE.sidePeekSaveBtn}
+        >
+          保存
+        </button>
+      </div>
+    </div>
   );
 }
 
 // ─────────────────────────────────────────────────
-// DiagnosisNameModal
+// DiagnosisNameSidePanel
 // ─────────────────────────────────────────────────
 
-function DiagnosisNameModal({
-  open,
+function DiagnosisNameSidePanel({
   item,
   categories,
   onClose,
   onSave,
   onDeleteRequest,
 }: {
-  open: boolean;
   item: DiagnosisName | null;
   categories: DiagnosisCategory[];
   onClose: () => void;
@@ -340,167 +301,128 @@ function DiagnosisNameModal({
 }) {
   const [formData, setFormData] = useState({
     name: item?.name ?? "",
-    diagnosisCategoryId: item ? String(item.diagnosisCategoryId) : (categories[0] ? String(categories[0].id) : ""),
+    diagnosisCategoryId: item
+      ? String(item.diagnosisCategoryId)
+      : categories[0]
+        ? String(categories[0].id)
+        : "",
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,
   });
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
-
-  const selectedCategoryName = useMemo(
-    () => categories.find((c) => String(c.id) === formData.diagnosisCategoryId)?.name ?? "",
-    [categories, formData.diagnosisCategoryId],
-  );
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/20" />
-        <DialogPrimitive.Content
-          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[600px] max-h-[85vh] bg-white rounded-[8px] border border-[#E8E8E8] shadow-xl flex flex-col overflow-hidden outline-none"
-          aria-describedby={undefined}
-        >
-          <DialogPrimitive.Title className="sr-only">
-            {item ? "診断病名編集" : "診断病名新規作成"}
-          </DialogPrimitive.Title>
-
-          {/* ── Header ── */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-[#E8E8E8]">
-            <span className="text-xs text-[#37352F]/35 pl-1 select-none">
-              {item ? "編集" : "新規作成"}
-            </span>
-            <div className="flex items-center gap-0.5">
-              {item ? (
-                <>
-                  <button type="button" className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`} onClick={() => {}}>
-                    <Maximize2 className="size-4" />
-                  </button>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-                      onClick={() => setShowMoreMenu((v) => !v)}
-                    >
-                      <MoreHorizontal className="size-4" />
-                    </button>
-                    {showMoreMenu ? (
-                      <div className="absolute right-0 top-full mt-1 w-[140px] bg-white border border-[#E8E8E8] rounded-[6px] shadow-md z-10 py-1">
-                        <button
-                          type="button"
-                          className="w-full text-left px-3 py-1.5 text-sm text-[#EB5757] hover:bg-[#F7F6F3] transition-colors"
-                          onClick={() => { setShowMoreMenu(false); onDeleteRequest(); }}
-                        >
-                          削除
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                </>
-              ) : null}
-              <DialogPrimitive.Close className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}>
-                <X className="size-4" />
-              </DialogPrimitive.Close>
-            </div>
-          </div>
-
-          {/* ── Body ── */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="px-16 pb-8">
-              <div className="pt-4 pb-2">
-                <div className={STYLE.pageIcon}>
-                  <FileText className={LAYOUT.pageIcon.innerIcon} />
-                </div>
-              </div>
-              <div className="pb-1 mb-4">
-                <input
-                  type="text"
-                  className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
-                  style={{
-                    fontSize: LAYOUT.pageTitle.fontSize,
-                    fontWeight: LAYOUT.pageTitle.fontWeight,
-                    lineHeight: LAYOUT.pageTitle.lineHeight,
-                  }}
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="無題"
-                />
-              </div>
-
-              <div className={`${STYLE.sectionDivider} mb-1`} />
-
-              <div className="py-1">
-                <PropertyRow label="ステータス">
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                    className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-                  >
-                    <NotionStatusPill isActive={formData.isActive} />
-                  </button>
-                </PropertyRow>
-                <PropertyRow label="備考">
-                  <PropInput
-                    value={formData.description}
-                    onChange={(v) => setFormData({ ...formData, description: v })}
-                    placeholder="空"
-                  />
-                </PropertyRow>
-              </div>
-
-              {/* ── 所属カテゴリセクション ── */}
-              <div className="mt-4 pt-4 border-t border-[#E8E8E8]">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-medium text-[#37352F]/50 uppercase tracking-wide">所属カテゴリ</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-[#37352F]/65 w-[140px] shrink-0">診断病名カテゴリ <span className="text-[#EB5757]">*</span></span>
-                    <Select
-                      value={formData.diagnosisCategoryId}
-                      onValueChange={(v) => setFormData({ ...formData, diagnosisCategoryId: v })}
-                    >
-                      <SelectTrigger className={STYLE.selectCompact}>
-                        <SelectValue placeholder="カテゴリを選択" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((cat) => (
-                          <SelectItem key={cat.id} value={String(cat.id)}>
-                            {cat.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {selectedCategoryName ? (
-                    <p className="text-xs text-[#37352F]/40 pl-[152px]">
-                      「{selectedCategoryName}」カテゴリに分類されます
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Footer ── */}
-          <div className={STYLE.sidePeekFooter}>
-            <button type="button" onClick={onClose} className={STYLE.sidePeekCancelBtn}>
-              キャンセル
-            </button>
+    <div className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0`}>
+      {/* Toolbar */}
+      <div className={STYLE.sidePeekToolbar}>
+        <span className={`text-xs ${C.text35} pl-1 select-none`}>
+          {item !== null ? "編集" : "新規作成"}
+        </span>
+        <div className="flex items-center gap-1">
+          {item !== null ? (
             <button
               type="button"
-              onClick={() => onSave(formData)}
-              className={STYLE.sidePeekSaveBtn}
+              onClick={onDeleteRequest}
+              className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
             >
-              保存
+              <Trash2 className="size-4" />
             </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={onClose}
+            className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
+            aria-label="閉じる"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className={STYLE.sidePeekBody}>
+        <div className="px-16 pb-8">
+          <div className="pt-4 pb-2">
+            <div className={STYLE.pageIcon}>
+              <FolderTree className={LAYOUT.pageIcon.innerIcon} />
+            </div>
           </div>
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
+          <div className="pb-1 mb-4">
+            <input
+              type="text"
+              className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
+              style={{
+                fontSize: LAYOUT.pageTitle.fontSize,
+                fontWeight: LAYOUT.pageTitle.fontWeight,
+                lineHeight: LAYOUT.pageTitle.lineHeight,
+              }}
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="無題"
+              autoFocus
+            />
+          </div>
+
+          <div className={`${STYLE.sectionDivider} mb-1`} />
+
+          <div className="py-1">
+            <PropertyRow label="ステータス">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+                className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+              >
+                <NotionStatusPill isActive={formData.isActive} />
+              </button>
+            </PropertyRow>
+
+            <PropertyRow label="カテゴリ">
+              <Select
+                value={formData.diagnosisCategoryId}
+                onValueChange={(v) => setFormData({ ...formData, diagnosisCategoryId: v })}
+              >
+                <SelectTrigger className={STYLE.selectCompact}>
+                  <SelectValue placeholder="カテゴリを選択" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={String(cat.id)}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </PropertyRow>
+
+            <PropertyRow label="備考">
+              <PropInput
+                value={formData.description}
+                onChange={(v) => setFormData({ ...formData, description: v })}
+                placeholder="補足情報など"
+              />
+            </PropertyRow>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className={STYLE.sidePeekFooter}>
+        <button type="button" onClick={onClose} className={STYLE.sidePeekCancelBtn}>
+          キャンセル
+        </button>
+        <button
+          type="button"
+          onClick={() => onSave(formData)}
+          className={STYLE.sidePeekSaveBtn}
+        >
+          保存
+        </button>
+      </div>
+    </div>
   );
 }
 
 // ─────────────────────────────────────────────────
-// DiagnosisCategoryTab
+// SortableCategoryRow
 // ─────────────────────────────────────────────────
 
 function SortableCategoryRow({
@@ -528,28 +450,28 @@ function SortableCategoryRow({
       <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
         {item.name}
       </TableCell>
-      <TableCell className={`text-sm ${C.text60} py-2.5`}>
-        diagnosis_category
+      <TableCell className={`text-sm ${C.text70} py-2.5 truncate max-w-[240px]`}>
+        {item.description || "-"}
+      </TableCell>
+      <TableCell className="text-center py-2.5">
+        <StatusBadge colorClass={getMasterStatusColor(item.isActive ? "active" : "inactive")}>
+          {item.isActive ? "有効" : "無効"}
+        </StatusBadge>
       </TableCell>
       <TableCell className="text-right py-2.5">
-        <span className="inline-flex items-center gap-1.5">
-          <span
-            className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`}
-          />
-          <span
-            className={`text-sm ${item.isActive ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}
-          >
-            {item.isActive ? "有効" : "無効"}
-          </span>
-        </span>
+        <RowActionButton onClick={onEdit} />
       </TableCell>
     </DataTableRow>
   );
 }
 
+// ─────────────────────────────────────────────────
+// DiagnosisCategoryTab
+// ─────────────────────────────────────────────────
+
 function DiagnosisCategoryTab() {
   const [selectedItem, setSelectedItem] = useState<DiagnosisCategory | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<DiagnosisCategory | null>(null);
   const [overrideOrder, setOverrideOrder] = useState<string[]>([]);
@@ -596,16 +518,16 @@ function DiagnosisCategoryTab() {
 
   const handleEdit = (item: DiagnosisCategory) => {
     setSelectedItem(item);
-    setIsModalOpen(true);
+    setIsEditing(true);
   };
 
   const handleCreate = () => {
     setSelectedItem(null);
-    setIsModalOpen(true);
+    setIsEditing(true);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
+  const handleClose = () => {
+    setIsEditing(false);
     setSelectedItem(null);
   };
 
@@ -623,7 +545,7 @@ function DiagnosisCategoryTab() {
       updateMutation.mutate(
         { id: selectedItem.id, req },
         {
-          onSuccess: () => { toast.success("更新しました"); handleCloseModal(); },
+          onSuccess: () => { toast.success("更新しました"); handleClose(); },
           onError: () => toast.error("更新に失敗しました"),
         },
       );
@@ -634,7 +556,7 @@ function DiagnosisCategoryTab() {
         is_active: true,
       };
       createMutation.mutate(req, {
-        onSuccess: () => { toast.success("登録しました"); handleCloseModal(); },
+        onSuccess: () => { toast.success("登録しました"); handleClose(); },
         onError: () => toast.error("登録に失敗しました"),
       });
     }
@@ -645,7 +567,7 @@ function DiagnosisCategoryTab() {
     deleteMutation.mutate(pendingDelete.id, {
       onSuccess: () => {
         setPendingDelete(null);
-        handleCloseModal();
+        handleClose();
         toast.success("削除しました");
       },
       onError: () => toast.error("削除に失敗しました"),
@@ -654,52 +576,60 @@ function DiagnosisCategoryTab() {
 
   return (
     <>
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex-1 min-w-0">
-            <SearchFilterBar
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              placeholder="カテゴリ名で検索..."
-              count={filteredItems.length}
-            />
+      <div className="flex h-full">
+        {/* Table area */}
+        <div className="flex flex-col gap-4 flex-1 min-w-0">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <SearchFilterBar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                placeholder="カテゴリ名で検索..."
+                count={filteredItems.length}
+              />
+            </div>
+            <PrimaryButton onClick={handleCreate}>
+              <Plus className="mr-1.5 size-4" />
+              新規登録
+            </PrimaryButton>
           </div>
-          <AddButton onClick={handleCreate} />
+
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleCategoryDragEnd}
+          >
+            <SortableContext
+              items={filteredItems.map((i) => i.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <DataTable
+                columns={CATEGORY_COLUMNS}
+                data={filteredItems}
+                emptyMessage="診断カテゴリが登録されていません"
+                renderRow={(item) => (
+                  <SortableCategoryRow
+                    key={item.id}
+                    item={item}
+                    onEdit={() => handleEdit(item)}
+                  />
+                )}
+              />
+            </SortableContext>
+          </DndContext>
         </div>
 
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleCategoryDragEnd}
-        >
-          <SortableContext
-            items={filteredItems.map((i) => i.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            <DataTable
-              columns={CATEGORY_COLUMNS}
-              data={filteredItems}
-              emptyMessage="診断カテゴリが登録されていません"
-              renderRow={(item) => (
-                <SortableCategoryRow
-                  key={item.id}
-                  item={item}
-                  onEdit={() => handleEdit(item)}
-                />
-              )}
-            />
-          </SortableContext>
-        </DndContext>
+        {/* Side peek */}
+        {isEditing ? (
+          <DiagnosisCategorySidePanel
+            key={selectedItem ? String(selectedItem.id) : "new-category"}
+            item={selectedItem}
+            onClose={handleClose}
+            onSave={handleSave}
+            onDeleteRequest={() => setPendingDelete(selectedItem)}
+          />
+        ) : null}
       </div>
-
-      <DiagnosisCategoryModal
-        key={selectedItem ? String(selectedItem.id) : "new-category"}
-        open={isModalOpen}
-        item={selectedItem}
-        onClose={handleCloseModal}
-        onSave={handleSave}
-        onDeleteRequest={() => setPendingDelete(selectedItem)}
-      />
 
       <ConfirmDialog
         open={pendingDelete !== null}
@@ -715,7 +645,7 @@ function DiagnosisCategoryTab() {
 }
 
 // ─────────────────────────────────────────────────
-// DiagnosisNameTab
+// SortableNameRow
 // ─────────────────────────────────────────────────
 
 function SortableNameRow({
@@ -748,28 +678,25 @@ function SortableNameRow({
       <TableCell className={`text-sm ${C.text70} py-2.5`}>
         {categoryMap.get(item.diagnosisCategoryId) ?? "-"}
       </TableCell>
-      <TableCell className={`text-sm ${C.text60} py-2.5`}>
-        diagnosis_name
+      <TableCell className="text-center py-2.5">
+        <StatusBadge colorClass={getMasterStatusColor(item.isActive ? "active" : "inactive")}>
+          {item.isActive ? "有効" : "無効"}
+        </StatusBadge>
       </TableCell>
       <TableCell className="text-right py-2.5">
-        <span className="inline-flex items-center gap-1.5">
-          <span
-            className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`}
-          />
-          <span
-            className={`text-sm ${item.isActive ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}
-          >
-            {item.isActive ? "有効" : "無効"}
-          </span>
-        </span>
+        <RowActionButton onClick={onEdit} />
       </TableCell>
     </DataTableRow>
   );
 }
 
+// ─────────────────────────────────────────────────
+// DiagnosisNameTab
+// ─────────────────────────────────────────────────
+
 function DiagnosisNameTab() {
   const [selectedItem, setSelectedItem] = useState<DiagnosisName | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<DiagnosisName | null>(null);
   const [overrideOrder, setOverrideOrder] = useState<string[]>([]);
@@ -800,6 +727,11 @@ function DiagnosisNameTab() {
     return orderedNames.filter((n) => n.name.toLowerCase().includes(lower));
   }, [orderedNames, searchTerm]);
 
+  const categoryMap = useMemo(
+    () => new Map<string, string>((rawCategories ?? []).map((c) => [c.id, c.name])),
+    [rawCategories],
+  );
+
   const handleNameDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -816,27 +748,27 @@ function DiagnosisNameTab() {
     );
   };
 
-  const categoryMap = useMemo(
-    () => new Map<string, string>((rawCategories ?? []).map((c) => [c.id, c.name])),
-    [rawCategories],
-  );
-
   const handleEdit = (item: DiagnosisName) => {
     setSelectedItem(item);
-    setIsModalOpen(true);
+    setIsEditing(true);
   };
 
   const handleCreate = () => {
     setSelectedItem(null);
-    setIsModalOpen(true);
+    setIsEditing(true);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
+  const handleClose = () => {
+    setIsEditing(false);
     setSelectedItem(null);
   };
 
-  const handleSave = (data: { name: string; diagnosisCategoryId: string; description: string; isActive: boolean }) => {
+  const handleSave = (data: {
+    name: string;
+    diagnosisCategoryId: string;
+    description: string;
+    isActive: boolean;
+  }) => {
     if (!data.name.trim()) {
       toast.error("診断病名は必須です");
       return;
@@ -856,7 +788,7 @@ function DiagnosisNameTab() {
       updateMutation.mutate(
         { id: selectedItem.id, req },
         {
-          onSuccess: () => { toast.success("更新しました"); handleCloseModal(); },
+          onSuccess: () => { toast.success("更新しました"); handleClose(); },
           onError: () => toast.error("更新に失敗しました"),
         },
       );
@@ -868,7 +800,7 @@ function DiagnosisNameTab() {
         is_active: true,
       };
       createMutation.mutate(req, {
-        onSuccess: () => { toast.success("登録しました"); handleCloseModal(); },
+        onSuccess: () => { toast.success("登録しました"); handleClose(); },
         onError: () => toast.error("登録に失敗しました"),
       });
     }
@@ -879,7 +811,7 @@ function DiagnosisNameTab() {
     deleteMutation.mutate(pendingDelete.id, {
       onSuccess: () => {
         setPendingDelete(null);
-        handleCloseModal();
+        handleClose();
         toast.success("削除しました");
       },
       onError: () => toast.error("削除に失敗しました"),
@@ -888,54 +820,62 @@ function DiagnosisNameTab() {
 
   return (
     <>
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex-1 min-w-0">
-            <SearchFilterBar
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              placeholder="診断病名で検索..."
-              count={filteredItems.length}
-            />
+      <div className="flex h-full">
+        {/* Table area */}
+        <div className="flex flex-col gap-4 flex-1 min-w-0">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <SearchFilterBar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                placeholder="診断病名で検索..."
+                count={filteredItems.length}
+              />
+            </div>
+            <PrimaryButton onClick={handleCreate}>
+              <Plus className="mr-1.5 size-4" />
+              新規登録
+            </PrimaryButton>
           </div>
-          <AddButton onClick={handleCreate} />
+
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleNameDragEnd}
+          >
+            <SortableContext
+              items={filteredItems.map((i) => i.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <DataTable
+                columns={NAME_COLUMNS}
+                data={filteredItems}
+                emptyMessage="診断病名が登録されていません"
+                renderRow={(item) => (
+                  <SortableNameRow
+                    key={item.id}
+                    item={item}
+                    categoryMap={categoryMap}
+                    onEdit={() => handleEdit(item)}
+                  />
+                )}
+              />
+            </SortableContext>
+          </DndContext>
         </div>
 
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleNameDragEnd}
-        >
-          <SortableContext
-            items={filteredItems.map((i) => i.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            <DataTable
-              columns={NAME_COLUMNS}
-              data={filteredItems}
-              emptyMessage="診断病名が登録されていません"
-              renderRow={(item) => (
-                <SortableNameRow
-                  key={item.id}
-                  item={item}
-                  categoryMap={categoryMap}
-                  onEdit={() => handleEdit(item)}
-                />
-              )}
-            />
-          </SortableContext>
-        </DndContext>
+        {/* Side peek */}
+        {isEditing ? (
+          <DiagnosisNameSidePanel
+            key={selectedItem ? String(selectedItem.id) : "new-name"}
+            item={selectedItem}
+            categories={rawCategories ?? []}
+            onClose={handleClose}
+            onSave={handleSave}
+            onDeleteRequest={() => setPendingDelete(selectedItem)}
+          />
+        ) : null}
       </div>
-
-      <DiagnosisNameModal
-        key={selectedItem ? String(selectedItem.id) : "new-name"}
-        open={isModalOpen}
-        item={selectedItem}
-        categories={rawCategories ?? []}
-        onClose={handleCloseModal}
-        onSave={handleSave}
-        onDeleteRequest={() => setPendingDelete(selectedItem)}
-      />
 
       <ConfirmDialog
         open={pendingDelete !== null}
@@ -965,7 +905,7 @@ export function DiagnosisSettings() {
 
   return (
     <PageLayout
-      title="診断病名マスタ"
+      title="診断マスタ"
       icon={<ClipboardList className="size-5 text-[#37352F]" />}
       onBack={() => navigate("/settings")}
       maxWidth="max-w-full"
@@ -989,10 +929,10 @@ export function DiagnosisSettings() {
             </TabsPrimitive.Trigger>
           ))}
         </TabsPrimitive.List>
-        <TabsPrimitive.Content value="diagnosis_category" className="mt-0">
+        <TabsPrimitive.Content value="diagnosis_category" className="mt-4">
           <DiagnosisCategoryTab />
         </TabsPrimitive.Content>
-        <TabsPrimitive.Content value="diagnosis_name" className="mt-0">
+        <TabsPrimitive.Content value="diagnosis_name" className="mt-4">
           <DiagnosisNameTab />
         </TabsPrimitive.Content>
       </TabsPrimitive.Root>

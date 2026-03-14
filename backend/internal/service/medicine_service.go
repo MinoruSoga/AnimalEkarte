@@ -14,7 +14,7 @@ import (
 
 const (
 	colMedicineName            = "name"
-	colMedicineDrugCategory    = "drug_category"
+	colMedicineParentID        = "parent_id"
 	colMedicinePrice           = "price"
 	colMedicineIsActive        = "is_active"
 	colMedicineDescription     = "description"
@@ -30,7 +30,7 @@ const (
 // CreateMedicineInput は薬剤作成の入力DTO
 type CreateMedicineInput struct {
 	Name            string
-	DrugCategory    *string
+	ParentID        *uint64
 	Price           *float64
 	IsActive        bool
 	Description     string
@@ -44,7 +44,8 @@ type CreateMedicineInput struct {
 // UpdateMedicineInput は薬剤更新の入力DTO（nil = 未指定）
 type UpdateMedicineInput struct {
 	Name            *string
-	DrugCategory    *string  // nil = 未指定, "" = NULL クリア, "抗生剤" = 値セット
+	ParentID        *uint64  // nil = 未指定（ClearParentID=false 時）
+	ClearParentID   bool     // true = parent_id を NULL にクリア
 	Price           *float64
 	IsActive        *bool
 	Description     *string
@@ -62,12 +63,10 @@ func buildMedicineUpdateFields(input *UpdateMedicineInput) map[string]any {
 	if input.Name != nil {
 		fields[colMedicineName] = *input.Name
 	}
-	if input.DrugCategory != nil {
-		if *input.DrugCategory == "" {
-			fields[colMedicineDrugCategory] = nil
-		} else {
-			fields[colMedicineDrugCategory] = *input.DrugCategory
-		}
+	if input.ClearParentID {
+		fields[colMedicineParentID] = nil
+	} else if input.ParentID != nil {
+		fields[colMedicineParentID] = *input.ParentID
 	}
 	if input.Price != nil {
 		fields[colMedicinePrice] = *input.Price
@@ -112,6 +111,7 @@ type MedicineService interface {
 	Create(ctx context.Context, clinicID uint64, input *CreateMedicineInput) (*model.Medicine, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateMedicineInput) (*model.Medicine, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type medicineService struct {
@@ -139,7 +139,7 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 	medicine := &model.Medicine{
 		ClinicID:        clinicID,
 		Name:            input.Name,
-		DrugCategory:    input.DrugCategory,
+		ParentID:        input.ParentID,
 		Price:           input.Price,
 		IsActive:        input.IsActive,
 		Description:     input.Description,
@@ -183,6 +183,13 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 		slog.Uint64("medicine_id", id),
 	)
 	return s.repo.FindByID(ctx, clinicID, id)
+}
+
+func (s *medicineService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if len(ids) == 0 {
+		return apperrors.WrapInvalidInput("ids must not be empty")
+	}
+	return s.repo.Reorder(ctx, clinicID, ids)
 }
 
 func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error {

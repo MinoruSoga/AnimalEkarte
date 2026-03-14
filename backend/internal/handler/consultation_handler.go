@@ -17,6 +17,7 @@ type createConsultationInput struct {
 	Description   string   `json:"description"`
 	TimeCondition string   `json:"time_condition"`
 	Duration      *int     `json:"duration"`
+	ParentID      *uint64  `json:"parent_id"`
 	SortOrder     int      `json:"sort_order"`
 }
 
@@ -27,6 +28,8 @@ type updateConsultationInput struct {
 	Description   string   `json:"description"`
 	TimeCondition string   `json:"time_condition"`
 	Duration      *int     `json:"duration"`
+	ParentID      *uint64  `json:"parent_id"`
+	ClearParentID bool     `json:"clear_parent_id"`
 	SortOrder     int      `json:"sort_order"`
 }
 
@@ -63,6 +66,7 @@ func (h *Handler) CreateConsultation(c *gin.Context) {
 		Description:   input.Description,
 		TimeCondition: input.TimeCondition,
 		Duration:      input.Duration,
+		ParentID:      input.ParentID,
 		SortOrder:     input.SortOrder,
 	}
 
@@ -97,6 +101,11 @@ func (h *Handler) UpdateConsultation(c *gin.Context) {
 	}
 	if input.IsActive != nil {
 		consultation.IsActive = *input.IsActive
+	}
+	if input.ClearParentID {
+		consultation.ParentID = nil
+	} else if input.ParentID != nil {
+		consultation.ParentID = input.ParentID
 	}
 
 	if err := h.svc.Consultation.Update(c.Request.Context(), consultation); err != nil {

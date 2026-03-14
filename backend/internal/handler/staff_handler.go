@@ -129,6 +129,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 
 	masters.GET("/medicines", h.ListMedicines)
 	masters.POST("/medicines", h.CreateMedicine)
+	masters.PATCH("/medicines/reorder", h.ReorderMedicines) // 静的パスを /:id より前に登録
 	masters.GET("/medicines/:id", h.GetMedicine)
 	masters.PATCH("/medicines/:id", h.UpdateMedicine)
 	masters.DELETE("/medicines/:id", h.DeleteMedicine)

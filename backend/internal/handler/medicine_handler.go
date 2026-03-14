@@ -61,7 +61,7 @@ func (h *Handler) CreateMedicine(c *gin.Context) {
 
 	input := service.CreateMedicineInput{
 		Name:            req.Name,
-		DrugCategory:    req.DrugCategory,
+		ParentID:        req.ParentID,
 		Price:           req.Price,
 		IsActive:        req.IsActive,
 		Description:     req.Description,
@@ -101,7 +101,8 @@ func (h *Handler) UpdateMedicine(c *gin.Context) {
 
 	input := service.UpdateMedicineInput{
 		Name:            req.Name,
-		DrugCategory:    req.DrugCategory,
+		ParentID:        req.ParentID,
+		ClearParentID:   req.ClearParentID,
 		Price:           req.Price,
 		IsActive:        req.IsActive,
 		Description:     req.Description,
@@ -118,6 +119,24 @@ func (h *Handler) UpdateMedicine(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, toMedicineResponse(medicine))
+}
+
+// ReorderMedicines godoc
+func (h *Handler) ReorderMedicines(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderMedicineRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+	if err := h.svc.Medicine.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
 }
 
 // DeleteMedicine godoc

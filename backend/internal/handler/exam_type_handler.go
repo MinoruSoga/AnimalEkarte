@@ -41,6 +41,7 @@ func (h *Handler) CreateExaminationType(c *gin.Context) {
 		Price:       req.Price,
 		IsActive:    req.IsActive,
 		Description: req.Description,
+		ParentID:    req.ParentID,
 		SortOrder:   req.SortOrder,
 	}
 
@@ -73,6 +74,11 @@ func (h *Handler) UpdateExaminationType(c *gin.Context) {
 	}
 	if req.IsActive != nil {
 		examType.IsActive = *req.IsActive
+	}
+	if req.ClearParentID {
+		examType.ParentID = nil
+	} else if req.ParentID != nil {
+		examType.ParentID = req.ParentID
 	}
 
 	if err := h.svc.ExaminationType.Update(c.Request.Context(), examType); err != nil {

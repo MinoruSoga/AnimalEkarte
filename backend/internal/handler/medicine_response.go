@@ -10,7 +10,7 @@ type medicineResponse struct {
 	ID              uint64    `json:"id"`
 	ClinicID        uint64    `json:"clinic_id"`
 	Name            string    `json:"name"`
-	DrugCategory    *string   `json:"drug_category,omitempty"`
+	ParentID        *uint64   `json:"parent_id,omitempty"`
 	Price           *float64  `json:"price,omitempty"`
 	IsActive        bool      `json:"is_active"`
 	Description     string    `json:"description"`
@@ -38,7 +38,7 @@ func toMedicineResponse(m *model.Medicine) medicineResponse {
 		ID:              m.ID,
 		ClinicID:        m.ClinicID,
 		Name:            m.Name,
-		DrugCategory:    m.DrugCategory,
+		ParentID:        m.ParentID,
 		Price:           m.Price,
 		IsActive:        m.IsActive,
 		Description:     m.Description,

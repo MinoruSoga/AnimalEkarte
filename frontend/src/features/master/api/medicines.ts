@@ -4,7 +4,7 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformBackendMedicineToFrontend } from "@/lib/transforms/medicine";
 import type { Medicine } from "@/lib/transforms/medicine";
 import type { Medicine as MedicineModel } from "@/types/generated/models";
-import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medicine";
+import type { CreateMedicineRequest, UpdateMedicineRequest, ReorderMedicinesRequest } from "@/types/medicine";
 
 export const getAllMedicines = async (): Promise<Medicine[]> => {
   const { data } = await axios.get<MedicineModel[]>("/v1/masters/medicines");
@@ -74,6 +74,20 @@ export const useDeleteMedicine = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteMedicine,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["medicines"] });
+    },
+  });
+};
+
+export const reorderMedicines = async (req: ReorderMedicinesRequest): Promise<void> => {
+  await axios.patch("/v1/masters/medicines/reorder", req);
+};
+
+export const useReorderMedicines = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: reorderMedicines,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["medicines"] });
     },

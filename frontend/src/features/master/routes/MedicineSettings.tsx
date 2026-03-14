@@ -1,9 +1,31 @@
 // React/Framework
 import { useState, useMemo, useCallback } from "react";
+import { flushSync } from "react-dom";
 import { useNavigate } from "react-router";
 
+// DnD
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  type DragEndEvent,
+  type DragStartEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
 // External
-import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
 import Pill from "lucide-react/dist/esm/icons/pill";
 import Plus from "lucide-react/dist/esm/icons/plus";
@@ -12,7 +34,7 @@ import X from "lucide-react/dist/esm/icons/x";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import GripVertical from "lucide-react/dist/esm/icons/grip-vertical";
 import MoreHorizontal from "lucide-react/dist/esm/icons/more-horizontal";
-import ArrowUpRight from "lucide-react/dist/esm/icons/arrow-up-right";
+import Maximize2 from "lucide-react/dist/esm/icons/maximize-2";
 
 // Internal – shared
 import { PageLayout } from "@/components/shared/PageLayout";
@@ -39,8 +61,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogPortal, DialogOverlay } from "@/components/ui/dialog";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 // Internal – feature API (direct import, no barrel)
 import {
@@ -48,6 +70,7 @@ import {
   useCreateMedicine,
   useUpdateMedicine,
   useDeleteMedicine,
+  useReorderMedicines,
 } from "../api/medicines";
 import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medicine";
 
@@ -71,14 +94,14 @@ const DOSAGE_FORM_SELECT_ITEMS = (
 
 const MEDICINE_UNIT_SELECT_ITEMS = (
   <>
-    <SelectItem value="per_tablet">錠</SelectItem>
-    <SelectItem value="per_ml">ml</SelectItem>
-    <SelectItem value="per_dose">回</SelectItem>
-    <SelectItem value="per_gram">g</SelectItem>
+    <SelectItem value="per_tablet">1錠あたり</SelectItem>
+    <SelectItem value="per_ml">1mlあたり</SelectItem>
+    <SelectItem value="per_dose">1回あたり</SelectItem>
+    <SelectItem value="per_gram">1gあたり</SelectItem>
   </>
 );
 
-// Full-width Select trigger (override STYLE.selectCompact's w-auto)
+// Full-width Select trigger — matches Figma (h-[30px], no border, rounded-[3px])
 const SELECT_TRIGGER_FULL = `h-[30px] text-sm bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-[3px] w-full`;
 
 // ─────────────────────────────────────────────────
@@ -87,7 +110,7 @@ const SELECT_TRIGGER_FULL = `h-[30px] text-sm bg-transparent ${C.text} border-0 
 
 interface MedicineFormData {
   name: string;
-  drugCategory: string;
+  parentId: string; // medicine の ID 文字列、空文字 = 親なし
   dosageForm: string;
   medicineUnit: string;
   price: number;
@@ -97,7 +120,7 @@ interface MedicineFormData {
 
 const INITIAL_FORM: MedicineFormData = {
   name: "",
-  drugCategory: "",
+  parentId: "",
   dosageForm: "tablet",
   medicineUnit: "per_tablet",
   price: 0,
@@ -160,11 +183,93 @@ function StatusDot({ active }: { active: boolean }) {
 }
 
 // ─────────────────────────────────────────────────
+// SortableMedicineRow
+// ─────────────────────────────────────────────────
+
+function SortableMedicineRow({
+  medicine,
+  onEdit,
+  grouped,
+}: {
+  medicine: Medicine;
+  onEdit: (medicine: Medicine) => void;
+  grouped: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: medicine.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    // ドラッグ中は完全透明でプレースホルダーとして高さを維持
+    opacity: isDragging ? 0 : 1,
+  };
+  return (
+    <TableRow
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      onClick={() => onEdit(medicine)}
+      className={`${STYLE.tableRow} group/row`}
+    >
+      <TableCell
+        className="w-8 px-0 py-0 pl-1 text-[#37352F]/20 group-hover/row:text-[#37352F]/50 transition-colors cursor-grab"
+        {...listeners}
+      >
+        <GripVertical className="size-4" />
+      </TableCell>
+      <TableCell className={`${STYLE.tableCell} font-medium ${grouped ? "pl-12!" : "pl-2"}`}>
+        {medicine.name}
+      </TableCell>
+      <TableCell className={`${STYLE.tableCell} w-[130px] text-right pr-4 font-mono`}>
+        {medicine.price > 0 ? `¥${medicine.price.toLocaleString()}` : "-"}
+      </TableCell>
+      <TableCell className="w-[110px] py-2 text-center">
+        <StatusDot active={medicine.isActive} />
+      </TableCell>
+    </TableRow>
+  );
+}
+
+// ─────────────────────────────────────────────────
+// MedicineRowOverlay — DragOverlay 用（テーブル外ポータルに描画）
+// ─────────────────────────────────────────────────
+
+function MedicineRowOverlay({
+  medicine,
+  grouped,
+}: {
+  medicine: Medicine;
+  grouped: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center h-12 bg-white border ${C.borderLight} rounded-[4px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] cursor-grabbing`}
+      style={{ width: "100%" }}
+    >
+      <div className="w-8 shrink-0 flex items-center justify-center text-[#37352F]/50">
+        <GripVertical className="size-4" />
+      </div>
+      <div className={`flex-1 min-w-0 text-sm font-medium ${C.text} ${grouped ? "pl-10" : "pl-0"}`}>
+        {medicine.name}
+      </div>
+      <div className="w-[130px] shrink-0 text-right pr-4 font-mono text-sm ${C.text}">
+        {medicine.price > 0 ? `¥${medicine.price.toLocaleString()}` : "-"}
+      </div>
+      <div className="w-[110px] shrink-0 flex justify-center">
+        <StatusDot active={medicine.isActive} />
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────
 // Main component
 // ─────────────────────────────────────────────────
 
 export function MedicineSettings() {
   const navigate = useNavigate();
+  const reduced = useReducedMotion();
+  const panelDuration = reduced ? 0 : 0.2;
 
   // ── UI state ──
   const [searchTerm, setSearchTerm] = useState("");
@@ -173,45 +278,93 @@ export function MedicineSettings() {
   const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
   const [formData, setFormData] = useState<MedicineFormData>(INITIAL_FORM);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [overrideOrder, setOverrideOrder] = useState<string[]>([]);
+  // 値は parentId 文字列、undefined = 親なし
+  const [overrideCategories, setOverrideCategories] = useState<Map<string, string | undefined>>(new Map());
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   // ── API ──
   const { data: medicines = [] } = useGetAllMedicines();
   const createMutation = useCreateMedicine();
   const updateMutation = useUpdateMedicine();
   const deleteMutation = useDeleteMedicine();
+  const reorderMutation = useReorderMedicines();
 
-  // ── Derived: existing categories for combobox (js-cache-function-results) ──
-  const categories = useMemo(
-    () =>
-      [...new Set(medicines.map((m) => m.drugCategory).filter((c): c is string => Boolean(c)))],
+  // ── DnD sensors ──
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  // ── Derived: overrideOrder + overrideCategories 適用済みリスト ──
+  const orderedMedicines = useMemo(() => {
+    let result: Medicine[];
+    if (overrideOrder.length === 0) {
+      result = medicines;
+    } else {
+      const idx = new Map<string, number>(overrideOrder.map((id, i) => [id, i]));
+      result = [...medicines].sort((a, b) => (idx.get(a.id) ?? 0) - (idx.get(b.id) ?? 0));
+    }
+    if (overrideCategories.size > 0) {
+      result = result.map((m) =>
+        overrideCategories.has(m.id)
+          ? { ...m, parentId: overrideCategories.get(m.id) }
+          : m,
+      );
+    }
+    return result;
+  }, [medicines, overrideOrder, overrideCategories]);
+
+  // ── Derived: medicines ID → Medicine マップ (js-cache-function-results) ──
+  const medicinesById = useMemo(
+    () => new Map(medicines.map((m) => [m.id, m])),
+    [medicines],
+  );
+
+  // ── Derived: カテゴリ medicine（parentId なし、price === 0）(js-cache-function-results) ──
+  const categoryMedicines = useMemo(
+    () => medicines.filter((m) => !m.parentId && m.price === 0),
     [medicines],
   );
 
   // ── Derived: filtered + grouped + ungrouped (js-cache-function-results) ──
   const { groupedMedicines, ungroupedMedicines, totalCount } = useMemo(() => {
     const lower = searchTerm.toLowerCase();
-    const filtered = medicines.filter(
+    const filtered = orderedMedicines.filter(
       (m) => !searchTerm || m.name.toLowerCase().includes(lower),
     );
 
-    const groups = new Map<string, Medicine[]>();
+    const groups = new Map<string, { header: Medicine; items: Medicine[] }>();
     const ungrouped: Medicine[] = [];
+
     for (const m of filtered) {
-      const cat = m.drugCategory;
-      if (!cat || cat.trim() === "") {
-        ungrouped.push(m);
-      } else {
-        const existing = groups.get(cat);
+      if (m.parentId) {
+        // 子 medicine → 親グループに追加
+        const existing = groups.get(m.parentId);
         if (existing) {
-          existing.push(m);
+          existing.items.push(m);
         } else {
-          groups.set(cat, [m]);
+          // 親が filtered にない場合でも medicinesById から取得
+          const parent = medicinesById.get(m.parentId);
+          if (parent) {
+            groups.set(m.parentId, { header: parent, items: [m] });
+          } else {
+            ungrouped.push(m); // 孤立アイテム
+          }
         }
+      } else if (m.price === 0) {
+        // カテゴリ medicine（price=0, parentId なし）→ グループヘッダー
+        if (!groups.has(m.id)) {
+          groups.set(m.id, { header: m, items: [] });
+        }
+      } else {
+        // 通常の ungrouped medicine（price > 0, parentId なし）
+        ungrouped.push(m);
       }
     }
 
     return { groupedMedicines: groups, ungroupedMedicines: ungrouped, totalCount: filtered.length };
-  }, [medicines, searchTerm]);
+  }, [orderedMedicines, searchTerm, medicinesById]);
 
   // ── Handlers ──
 
@@ -227,6 +380,79 @@ export function MedicineSettings() {
     });
   }, []);
 
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveId(String(event.active.id));
+  }, []);
+
+  const handleDragCancel = useCallback(() => {
+    setActiveId(null);
+  }, []);
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      setActiveId(null);
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      const activeItemId = String(active.id);
+      const overItemId = String(over.id);
+
+      const activeMedicine = orderedMedicines.find((m) => m.id === activeItemId);
+      const overMedicine = orderedMedicines.find((m) => m.id === overItemId);
+      if (!activeMedicine || !overMedicine) return;
+
+      const activeCat = activeMedicine.parentId ?? null;
+      const overCat = overMedicine.parentId ?? null;
+
+      if (activeCat !== overCat) {
+        // クロスグループ: parent_id を変更
+        flushSync(() => {
+          setOverrideCategories((prev) => {
+            const next = new Map(prev);
+            next.set(activeItemId, overCat ?? undefined);
+            return next;
+          });
+        });
+        const req: UpdateMedicineRequest = overCat
+          ? { parent_id: Number(overCat) }
+          : { clear_parent_id: true };
+        const clearOptimistic = () => {
+          setOverrideCategories((prev) => {
+            const next = new Map(prev);
+            next.delete(activeItemId);
+            return next;
+          });
+        };
+        updateMutation.mutate(
+          { id: activeItemId, req },
+          {
+            onSuccess: clearOptimistic,
+            onError: () => {
+              toast.error("カテゴリの変更に失敗しました");
+              clearOptimistic();
+            },
+          },
+        );
+      } else {
+        // 同カテゴリ: 並び替え
+        const currentIds = orderedMedicines.map((m) => m.id);
+        const newOrder = arrayMove(
+          currentIds,
+          currentIds.indexOf(activeItemId),
+          currentIds.indexOf(overItemId),
+        );
+        flushSync(() => {
+          setOverrideOrder(newOrder);
+        });
+        reorderMutation.mutate(
+          { ids: newOrder.map(Number) },
+          { onSuccess: () => setOverrideOrder([]) },
+        );
+      }
+    },
+    [orderedMedicines, reorderMutation, updateMutation],
+  );
+
   const handleCloseEdit = useCallback(() => {
     setIsEditing(false);
     setSelectedMedicine(null);
@@ -237,7 +463,7 @@ export function MedicineSettings() {
     setSelectedMedicine(medicine);
     setFormData({
       name: medicine.name,
-      drugCategory: medicine.drugCategory ?? "",
+      parentId: medicine.parentId ?? "",
       dosageForm: medicine.dosageForm ?? "",
       medicineUnit: medicine.medicineUnit ?? "",
       price: medicine.price,
@@ -247,11 +473,11 @@ export function MedicineSettings() {
     setIsEditing(true);
   }, []);
 
-  const handleCreate = useCallback((drugCategory?: string) => {
+  const handleCreate = useCallback((parentId?: string) => {
     setSelectedMedicine(null);
     setFormData({
       ...INITIAL_FORM,
-      drugCategory: drugCategory !== "uncategorized" ? (drugCategory ?? "") : "",
+      parentId: parentId !== "uncategorized" ? (parentId ?? "") : "",
     });
     setIsEditing(true);
   }, []);
@@ -269,13 +495,19 @@ export function MedicineSettings() {
     if (selectedMedicine) {
       const req: UpdateMedicineRequest = {
         name: formData.name,
-        drug_category: formData.drugCategory || undefined,
-        dosage_form: formData.dosageForm,
-        medicine_unit: formData.medicineUnit,
+        dosage_form: formData.dosageForm || undefined,
+        medicine_unit: formData.medicineUnit || undefined,
         price: formData.price,
         description: formData.description,
         is_active: formData.isActive,
       };
+      // parent_id の処理
+      if (formData.parentId) {
+        req.parent_id = Number(formData.parentId);
+      } else if (selectedMedicine.parentId) {
+        // 元々グループに属していたが今は外す
+        req.clear_parent_id = true;
+      }
       updateMutation.mutate(
         { id: selectedMedicine.id, req },
         {
@@ -289,12 +521,12 @@ export function MedicineSettings() {
     } else {
       const req: CreateMedicineRequest = {
         name: formData.name,
-        drug_category: formData.drugCategory || undefined,
-        dosage_form: formData.dosageForm,
-        medicine_unit: formData.medicineUnit,
+        dosage_form: formData.dosageForm || undefined,
+        medicine_unit: formData.medicineUnit || undefined,
         price: formData.price,
         description: formData.description,
         is_active: formData.isActive,
+        ...(formData.parentId ? { parent_id: Number(formData.parentId) } : {}),
       };
       createMutation.mutate(req, {
         onSuccess: () => {
@@ -327,6 +559,13 @@ export function MedicineSettings() {
   const tableContent = (
     <div className={STYLE.tableContainer}>
       <div className="flex-1 overflow-auto relative">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
         <Table>
           <TableHeader className="sticky top-0 z-10">
             <TableRow className={STYLE.tableHeaderRow}>
@@ -349,22 +588,22 @@ export function MedicineSettings() {
               </TableRow>
             ) : null}
 
-            {Array.from(groupedMedicines.entries()).map(([key, items]) => {
-              const isCollapsed = collapsedGroups.has(key);
+            {Array.from(groupedMedicines.entries()).map(([parentId, { header, items }]) => {
+              const isCollapsed = collapsedGroups.has(parentId);
 
               return (
                 <>
                   {/* Group header row */}
                   <TableRow
-                    key={`h-${key}`}
-                    className={`border-b ${C.borderLight} bg-[#F7F6F3]/30 h-9 group/header hover:bg-[#F7F6F3]/60`}
+                    key={`h-${parentId}`}
+                    className={`border-b ${C.borderLight} bg-[#F7F6F3]/30 h-[49px] group/header hover:bg-[#F7F6F3]/60`}
                   >
                     {/* Grip handle — left */}
                     <TableCell className="w-8 px-0 py-0">
                       <button
                         type="button"
                         tabIndex={-1}
-                        className="w-8 h-8 flex items-center justify-center rounded-[3px] text-[#37352F]/20 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F]/50 transition-colors opacity-0 group-hover/header:opacity-100 cursor-grab"
+                        className="w-8 h-8 flex items-center justify-center rounded-[3px] text-[#37352F]/20 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F]/50 transition-colors cursor-grab"
                       >
                         <GripVertical className="size-4" />
                       </button>
@@ -375,7 +614,7 @@ export function MedicineSettings() {
                       <div className="flex items-center">
                         <button
                           type="button"
-                          onClick={() => toggleGroup(key)}
+                          onClick={() => toggleGroup(parentId)}
                           className="flex flex-1 items-center gap-1.5 py-1.5 px-1 hover:bg-[rgba(55,53,47,0.04)] rounded-[3px] transition-colors"
                         >
                           <ChevronRight
@@ -383,8 +622,8 @@ export function MedicineSettings() {
                               isCollapsed ? "" : "rotate-90"
                             }`}
                           />
-                          <span className="text-xs font-medium text-[#37352F]/65 uppercase tracking-wide">
-                            {key}
+                          <span className="text-xs font-medium text-[#37352F]/65">
+                            {header.name}
                           </span>
                           <span className="text-xs text-[#37352F]/40 ml-0.5">{items.length}</span>
                         </button>
@@ -392,7 +631,7 @@ export function MedicineSettings() {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleCreate(key);
+                            handleCreate(parentId);
                           }}
                           className="w-8 h-8 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors opacity-0 group-hover/header:opacity-100"
                         >
@@ -410,60 +649,51 @@ export function MedicineSettings() {
                     </TableCell>
                   </TableRow>
 
-                  {/* Medicine rows */}
-                  {isCollapsed
-                    ? null
-                    : items.map((medicine) => (
-                        <TableRow
+                  {/* Medicine rows — sortable within this group */}
+                  {isCollapsed ? null : (
+                    <SortableContext
+                      items={items.map((m) => m.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {items.map((medicine) => (
+                        <SortableMedicineRow
                           key={medicine.id}
-                          onClick={() => handleEdit(medicine)}
-                          className={`${STYLE.tableRow} group/row`}
-                        >
-                          <TableCell className="w-8 px-0 py-0 pl-1 text-[#37352F]/20 group-hover/row:text-[#37352F]/50 transition-colors">
-                            <GripVertical className="size-4" />
-                          </TableCell>
-                          <TableCell className={`${STYLE.tableCell} pl-2 font-medium`}>
-                            {medicine.name}
-                          </TableCell>
-                          <TableCell
-                            className={`${STYLE.tableCell} w-[130px] text-right pr-4 font-mono`}
-                          >
-                            {medicine.price > 0 ? `¥${medicine.price.toLocaleString()}` : "-"}
-                          </TableCell>
-                          <TableCell className="w-[110px] py-2 text-center">
-                            <StatusDot active={medicine.isActive} />
-                          </TableCell>
-                        </TableRow>
+                          medicine={medicine}
+                          onEdit={handleEdit}
+                          grouped
+                        />
                       ))}
+                    </SortableContext>
+                  )}
                 </>
               );
             })}
 
-            {/* Ungrouped medicines — flat rows, no group header */}
-            {ungroupedMedicines.map((medicine) => (
-              <TableRow
-                key={medicine.id}
-                onClick={() => handleEdit(medicine)}
-                className={`${STYLE.tableRow} group/row`}
-              >
-                <TableCell className="w-8 px-0 py-0 pl-1 text-[#37352F]/20 group-hover/row:text-[#37352F]/50 transition-colors">
-                  <GripVertical className="size-4" />
-                </TableCell>
-                <TableCell className={`${STYLE.tableCell} pl-2 font-medium`}>
-                  {medicine.name}
-                </TableCell>
-                <TableCell
-                  className={`${STYLE.tableCell} w-[130px] text-right pr-4 font-mono`}
-                >
-                  {medicine.price > 0 ? `¥${medicine.price.toLocaleString()}` : "-"}
-                </TableCell>
-                <TableCell className="w-[110px] py-2 text-center">
-                  <StatusDot active={medicine.isActive} />
-                </TableCell>
-              </TableRow>
-            ))}
+            {/* Ungrouped medicines — flat rows, sortable */}
+            <SortableContext
+              items={ungroupedMedicines.map((m) => m.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {ungroupedMedicines.map((medicine) => (
+                <SortableMedicineRow
+                  key={medicine.id}
+                  medicine={medicine}
+                  onEdit={handleEdit}
+                  grouped={false}
+                />
+              ))}
+            </SortableContext>
           </TableBody>
         </Table>
+          <DragOverlay dropAnimation={null}>
+            {activeId ? (() => {
+              const m = orderedMedicines.find((x) => x.id === activeId);
+              if (!m) return null;
+              const isGrouped = Boolean(m.parentId);
+              return <MedicineRowOverlay medicine={m} grouped={isGrouped} />;
+            })() : null}
+          </DragOverlay>
+        </DndContext>
       </div>
 
       {/* Inline add row */}
@@ -478,27 +708,20 @@ export function MedicineSettings() {
     </div>
   );
 
-  // ── Center modal ──
-  const editModal = (
-    <Dialog
-      open={isEditing}
-      onOpenChange={(open) => {
-        if (!open) handleCloseEdit();
-      }}
-    >
-      <DialogPortal>
-        <DialogOverlay />
-        <DialogPrimitive.Content
-          className={`
-            fixed top-[50%] left-[50%] z-50 w-full translate-x-[-50%] translate-y-[-50%]
-            bg-white rounded-[12px] shadow-lg
-            sm:max-w-[600px]
-            data-[state=open]:animate-in data-[state=closed]:animate-out
-            data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0
-            data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95
-            duration-200
-            flex flex-col max-h-[90vh]
-          `}
+  // ── Side peek panel ──
+  const sidePeekPanel = (
+    <AnimatePresence>
+      {isEditing ? (
+        <motion.div
+          key="side-peek"
+          initial={{ width: 0, opacity: 0 }}
+          animate={{ width: 680, opacity: 1 }}
+          exit={{ width: 0, opacity: 0 }}
+          transition={{ duration: panelDuration, ease: [0.25, 0.1, 0.25, 1] }}
+          className="shrink-0 min-h-0 overflow-hidden"
+        >
+        <div
+          className={`flex flex-col h-full w-[680px] bg-white border-l ${C.borderLight} shadow-[-1px_0_5px_rgba(0,0,0,0.02)]`}
         >
           {/* Toolbar */}
           <div className="flex items-center justify-between h-[48px] px-3 shrink-0">
@@ -506,14 +729,14 @@ export function MedicineSettings() {
               {selectedMedicine ? "編集" : "新規作成"}
             </span>
             <div className="flex items-center gap-1">
-              {/* Expand button (non-functional / Figma placeholder) */}
+              {/* Expand button */}
               <button
                 type="button"
-                tabIndex={-1}
+                onClick={() => {}}
                 className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-                aria-label="展開"
+                aria-label="全画面で開く"
               >
-                <ArrowUpRight className="size-4" />
+                <Maximize2 className="size-4" />
               </button>
 
               {/* 3-dots dropdown */}
@@ -582,20 +805,18 @@ export function MedicineSettings() {
 
               {/* Properties */}
               <div className="py-1">
-                {/* Parent category (datalist combobox) */}
+                {/* Parent category select */}
                 <PropertyRow label="親カテゴリ">
-                  <input
-                    list="drug-category-list"
-                    value={formData.drugCategory}
-                    onChange={(e) => updateForm({ drugCategory: e.target.value })}
-                    placeholder="例: 抗生剤、消炎剤"
-                    className={STYLE.propertyInput}
-                  />
-                  <datalist id="drug-category-list">
-                    {categories.map((c) => (
-                      <option key={c} value={c} />
+                  <select
+                    value={formData.parentId}
+                    onChange={(e) => updateForm({ parentId: e.target.value })}
+                    className={SELECT_TRIGGER_FULL}
+                  >
+                    <option value="">なし（未分類）</option>
+                    {categoryMedicines.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
                     ))}
-                  </datalist>
+                  </select>
                 </PropertyRow>
 
                 {/* Price */}
@@ -678,7 +899,7 @@ export function MedicineSettings() {
           </div>
 
           {/* Footer */}
-          <div className={`${STYLE.sidePeekFooter} rounded-b-[12px]`}>
+          <div className={STYLE.sidePeekFooter}>
             <button
               type="button"
               onClick={handleCloseEdit}
@@ -690,43 +911,47 @@ export function MedicineSettings() {
               保存
             </button>
           </div>
-        </DialogPrimitive.Content>
-      </DialogPortal>
-    </Dialog>
+        </div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 
   return (
     <>
-      <PageLayout
-        title="薬剤マスタ"
-        icon={<Pill className="size-5 text-[#37352F]" />}
-        onBack={() => navigate("/settings")}
-        maxWidth="max-w-full"
-      >
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <SearchFilterBar
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                placeholder="薬品名で検索..."
-                count={totalCount}
-              />
+      <div className="flex h-full">
+        <div className="flex-1 min-w-0">
+          <PageLayout
+            title="薬剤マスタ"
+            icon={<Pill className="size-5 text-[#37352F]" />}
+            onBack={() => navigate("/settings")}
+            maxWidth="max-w-full"
+          >
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <SearchFilterBar
+                    searchTerm={searchTerm}
+                    onSearchChange={setSearchTerm}
+                    placeholder="薬品名で検索..."
+                    count={totalCount}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCreate()}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-[4px] ${C.accent} ${C.hoverBgAccent5} transition-colors whitespace-nowrap`}
+                >
+                  <Plus className="size-3.5" />
+                  新規登録
+                </button>
+              </div>
+              {tableContent}
             </div>
-            <button
-              type="button"
-              onClick={() => handleCreate()}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-[4px] ${C.accent} ${C.hoverBgAccent5} transition-colors whitespace-nowrap`}
-            >
-              <Plus className="size-3.5" />
-              新規登録
-            </button>
-          </div>
-          {tableContent}
+          </PageLayout>
         </div>
-      </PageLayout>
-
-      {editModal}
+        {sidePeekPanel}
+      </div>
 
       <ConfirmDialog
         open={deleteConfirmOpen}

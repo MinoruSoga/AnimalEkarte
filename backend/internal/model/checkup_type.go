@@ -15,6 +15,7 @@ type CheckupType struct {
 	Description string         `gorm:"default:''"                                     json:"description"`
 	Interval    string         `gorm:"default:''"                                     json:"interval"`
 	TargetAge   string         `gorm:"default:''"                                     json:"target_age"`
+	ParentID    *uint64        `gorm:"column:parent_id"                               json:"parent_id,omitempty"`
 	SortOrder   int            `gorm:"default:0"                                      json:"sort_order"`
 	CreatedAt   time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt   time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`

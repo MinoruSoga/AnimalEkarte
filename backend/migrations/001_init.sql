@@ -251,6 +251,7 @@ CREATE TABLE exam_types (
     price       numeric,
     is_active   boolean     NOT NULL DEFAULT true,
     description text        NOT NULL DEFAULT '',
+    parent_id   bigint               REFERENCES exam_types(id) ON DELETE SET NULL,
     sort_order  integer              DEFAULT 0,
     created_at  timestamptz NOT NULL DEFAULT now(),
     updated_at  timestamptz NOT NULL DEFAULT now()
@@ -282,6 +283,7 @@ CREATE TABLE vaccines (
     species      vaccine_species,
     interval     text            NOT NULL DEFAULT '',
     inventory_id bigint                   REFERENCES inventory_items(id) ON DELETE SET NULL,
+    parent_id    bigint                   REFERENCES vaccines(id) ON DELETE SET NULL,
     sort_order   integer                  DEFAULT 0,
     created_at   timestamptz     NOT NULL DEFAULT now(),
     updated_at   timestamptz     NOT NULL DEFAULT now()
@@ -297,7 +299,7 @@ CREATE TABLE medicines (
     price            numeric,
     is_active        boolean       NOT NULL DEFAULT true,
     description      text          NOT NULL DEFAULT '',
-    drug_category    varchar(100),
+    parent_id        bigint                 REFERENCES medicines(id) ON DELETE SET NULL,
     dosage_form      dosage_form,
     medicine_unit    medicine_unit,
     inventory_id     bigint                 REFERENCES inventory_items(id) ON DELETE SET NULL,
@@ -367,6 +369,7 @@ CREATE TABLE consultations (
     description    text        NOT NULL DEFAULT '',
     time_condition text        NOT NULL DEFAULT '',
     duration       integer,
+    parent_id      bigint               REFERENCES consultations(id) ON DELETE SET NULL,
     sort_order     integer              DEFAULT 0,
     created_at     timestamptz NOT NULL DEFAULT now(),
     updated_at     timestamptz NOT NULL DEFAULT now()
@@ -384,6 +387,7 @@ CREATE TABLE procedures (
     description text            NOT NULL DEFAULT '',
     duration    integer,
     anesthesia  anesthesia_type          DEFAULT 'none',
+    parent_id   bigint                   REFERENCES procedures(id) ON DELETE SET NULL,
     sort_order  integer                  DEFAULT 0,
     created_at  timestamptz     NOT NULL DEFAULT now(),
     updated_at  timestamptz     NOT NULL DEFAULT now()
@@ -481,6 +485,7 @@ CREATE TABLE checkup_types (
     description text        NOT NULL DEFAULT '',
     interval    text        NOT NULL DEFAULT '',
     target_age  text        NOT NULL DEFAULT '',
+    parent_id   bigint               REFERENCES checkup_types(id) ON DELETE SET NULL,
     sort_order  integer              DEFAULT 0,
     created_at  timestamptz NOT NULL DEFAULT now(),
     updated_at  timestamptz NOT NULL DEFAULT now(),
@@ -1161,19 +1166,25 @@ CREATE INDEX idx_staffs_clinic_id ON staffs(clinic_id);
 CREATE INDEX idx_job_titles_clinic_id ON job_titles(clinic_id);
 CREATE INDEX idx_inventory_items_clinic_id ON inventory_items(clinic_id);
 CREATE INDEX idx_exam_types_clinic_id ON exam_types(clinic_id);
+CREATE INDEX idx_exam_types_parent_id ON exam_types(parent_id);
 CREATE INDEX idx_vaccines_clinic_id ON vaccines(clinic_id);
+CREATE INDEX idx_vaccines_parent_id ON vaccines(parent_id);
 CREATE INDEX idx_medicines_clinic_id ON medicines(clinic_id);
+CREATE INDEX idx_medicines_parent_id ON medicines(parent_id);
 CREATE INDEX idx_insurances_clinic_id ON insurances(clinic_id);
 CREATE INDEX idx_cages_clinic_id ON cages(clinic_id);
 CREATE INDEX idx_service_types_clinic_id ON service_types(clinic_id);
 CREATE INDEX idx_consultations_clinic_id ON consultations(clinic_id);
+CREATE INDEX idx_consultations_parent_id ON consultations(parent_id);
 CREATE INDEX idx_procedures_clinic_id ON procedures(clinic_id);
+CREATE INDEX idx_procedures_parent_id ON procedures(parent_id);
 CREATE INDEX idx_hospitalization_plans_clinic_id ON hospitalization_plans(clinic_id);
 CREATE INDEX idx_trimming_courses_clinic_id ON trimming_courses(clinic_id);
 CREATE INDEX idx_trimming_options_clinic_id ON trimming_options(clinic_id);
 CREATE INDEX idx_diagnosis_categories_clinic_id ON diagnosis_categories(clinic_id);
 CREATE INDEX idx_diagnosis_names_clinic_id ON diagnosis_names(clinic_id);
 CREATE INDEX idx_checkup_types_clinic_id ON checkup_types(clinic_id);
+CREATE INDEX idx_checkup_types_parent_id ON checkup_types(parent_id);
 CREATE INDEX idx_checkup_types_deleted_at ON checkup_types(deleted_at);
 CREATE INDEX idx_chief_complaint_categories_clinic_id ON chief_complaint_categories(clinic_id);
 CREATE INDEX idx_inquiry_templates_clinic_id ON inquiry_templates(clinic_id);

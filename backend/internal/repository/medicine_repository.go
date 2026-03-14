@@ -20,6 +20,7 @@ type MedicineRepository interface {
 	Create(ctx context.Context, medicine *model.Medicine) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type medicineRepository struct{ db *gorm.DB }
@@ -77,6 +78,23 @@ func (r *medicineRepository) Update(ctx context.Context, clinicID, id uint64, fi
 		}
 	}
 	return nil
+}
+
+func (r *medicineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for i, id := range ids {
+			result := tx.Model(&model.Medicine{}).
+				Where("id = ? AND clinic_id = ?", id, clinicID).
+				Update("sort_order", i+1)
+			if result.Error != nil {
+				return apperrors.Wrap(result.Error, "reorder medicine")
+			}
+			if result.RowsAffected == 0 {
+				return apperrors.WrapInvalidInput(fmt.Sprintf("medicine id %d not found in this clinic", id))
+			}
+		}
+		return nil
+	})
 }
 
 func (r *medicineRepository) Delete(ctx context.Context, clinicID, id uint64) error {

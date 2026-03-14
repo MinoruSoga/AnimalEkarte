@@ -5,15 +5,18 @@ type createExaminationTypeRequest struct {
 	Price       *float64 `json:"price"`
 	IsActive    bool     `json:"is_active"`
 	Description string   `json:"description"`
+	ParentID    *uint64  `json:"parent_id"`
 	SortOrder   int      `json:"sort_order"`
 }
 
 type updateExaminationTypeRequest struct {
-	Name        string   `json:"name"`
-	Price       *float64 `json:"price"`
-	IsActive    *bool    `json:"is_active"`
-	Description string   `json:"description"`
-	SortOrder   int      `json:"sort_order"`
+	Name          string   `json:"name"`
+	Price         *float64 `json:"price"`
+	IsActive      *bool    `json:"is_active"`
+	Description   string   `json:"description"`
+	ParentID      *uint64  `json:"parent_id"`
+	ClearParentID bool     `json:"clear_parent_id"`
+	SortOrder     int      `json:"sort_order"`
 }
 
 type examTypeItemInput struct {
