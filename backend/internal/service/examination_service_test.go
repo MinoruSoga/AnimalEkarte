@@ -14,26 +14,26 @@ import (
 
 // mockExaminationRepository は ExaminationRepository のテスト用モック実装
 type mockExaminationRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Exam, int64, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Exam, error)
-	createFn   func(ctx context.Context, exam *model.Exam) error
-	updateFn   func(ctx context.Context, clinicID uint64, exam *model.Exam) error
+	findAllFn  func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Examination, int64, error)
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
+	createFn   func(ctx context.Context, exam *model.Examination) error
+	updateFn   func(ctx context.Context, clinicID uint64, exam *model.Examination) error
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockExaminationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Exam, int64, error) {
+func (m *mockExaminationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Examination, int64, error) {
 	return m.findAllFn(ctx, clinicID, petID, ownerID, status, page, limit)
 }
 
-func (m *mockExaminationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Exam, error) {
+func (m *mockExaminationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error) {
 	return m.findByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockExaminationRepository) Create(ctx context.Context, exam *model.Exam) error {
+func (m *mockExaminationRepository) Create(ctx context.Context, exam *model.Examination) error {
 	return m.createFn(ctx, exam)
 }
 
-func (m *mockExaminationRepository) Update(ctx context.Context, clinicID uint64, exam *model.Exam) error {
+func (m *mockExaminationRepository) Update(ctx context.Context, clinicID uint64, exam *model.Examination) error {
 	return m.updateFn(ctx, clinicID, exam)
 }
 
@@ -54,7 +54,7 @@ func TestExaminationService_List(t *testing.T) {
 		status    *string
 		page      int
 		limit     int
-		repoItems []model.Exam
+		repoItems []model.Examination
 		repoTotal int64
 		repoErr   error
 		wantLen   int
@@ -66,7 +66,7 @@ func TestExaminationService_List(t *testing.T) {
 			clinicID: 1,
 			page:     1,
 			limit:    20,
-			repoItems: []model.Exam{
+			repoItems: []model.Examination{
 				{ID: 1, MedicalRecordID: 10, ExamTypeID: 1, Status: model.ExaminationStatusPending},
 				{ID: 2, MedicalRecordID: 11, ExamTypeID: 2, Status: model.ExaminationStatusCompleted},
 			},
@@ -80,7 +80,7 @@ func TestExaminationService_List(t *testing.T) {
 			clinicID:  1,
 			page:      1,
 			limit:     20,
-			repoItems: []model.Exam{},
+			repoItems: []model.Examination{},
 			repoTotal: 0,
 			wantLen:   0,
 			wantTotal: 0,
@@ -92,7 +92,7 @@ func TestExaminationService_List(t *testing.T) {
 			petID:    &petID,
 			page:     1,
 			limit:    20,
-			repoItems: []model.Exam{
+			repoItems: []model.Examination{
 				{ID: 1, MedicalRecordID: 10, ExamTypeID: 1},
 			},
 			repoTotal: 1,
@@ -106,7 +106,7 @@ func TestExaminationService_List(t *testing.T) {
 			ownerID:  &ownerID,
 			page:     1,
 			limit:    20,
-			repoItems: []model.Exam{
+			repoItems: []model.Examination{
 				{ID: 1, MedicalRecordID: 10, ExamTypeID: 1},
 			},
 			repoTotal: 1,
@@ -120,7 +120,7 @@ func TestExaminationService_List(t *testing.T) {
 			status:   &status,
 			page:     1,
 			limit:    20,
-			repoItems: []model.Exam{
+			repoItems: []model.Examination{
 				{ID: 2, MedicalRecordID: 11, ExamTypeID: 2, Status: model.ExaminationStatusCompleted},
 			},
 			repoTotal: 1,
@@ -145,7 +145,7 @@ func TestExaminationService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExaminationRepository{
-				findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _ *string, _, _ int) ([]model.Exam, int64, error) {
+				findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _ *string, _, _ int) ([]model.Examination, int64, error) {
 					return tt.repoItems, tt.repoTotal, tt.repoErr
 				},
 			}
@@ -170,7 +170,7 @@ func TestExaminationService_GetByID(t *testing.T) {
 		name     string
 		clinicID uint64
 		id       uint64
-		repoItem *model.Exam
+		repoItem *model.Examination
 		repoErr  error
 		wantErr  bool
 		wantNF   bool
@@ -179,7 +179,7 @@ func TestExaminationService_GetByID(t *testing.T) {
 			name:     "returns exam when found",
 			clinicID: 1,
 			id:       10,
-			repoItem: &model.Exam{
+			repoItem: &model.Examination{
 				ID:              10,
 				MedicalRecordID: 5,
 				ExamTypeID:      1,
@@ -211,7 +211,7 @@ func TestExaminationService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExaminationRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Exam, error) {
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
 					return tt.repoItem, tt.repoErr
 				},
 			}
@@ -236,13 +236,13 @@ func TestExaminationService_Create(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
 		name    string
-		exam    *model.Exam
+		exam    *model.Examination
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates exam successfully",
-			exam: &model.Exam{
+			exam: &model.Examination{
 				MedicalRecordID: 5,
 				ExamTypeID:      1,
 				Date:            now,
@@ -253,7 +253,7 @@ func TestExaminationService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error on repository failure",
-			exam: &model.Exam{
+			exam: &model.Examination{
 				MedicalRecordID: 5,
 				ExamTypeID:      1,
 				Date:            now,
@@ -266,7 +266,7 @@ func TestExaminationService_Create(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExaminationRepository{
-				createFn: func(_ context.Context, _ *model.Exam) error {
+				createFn: func(_ context.Context, _ *model.Examination) error {
 					return tt.repoErr
 				},
 			}
@@ -288,7 +288,7 @@ func TestExaminationService_Update(t *testing.T) {
 	tests := []struct {
 		name     string
 		clinicID uint64
-		exam     *model.Exam
+		exam     *model.Examination
 		repoErr  error
 		wantErr  bool
 		wantNF   bool
@@ -296,7 +296,7 @@ func TestExaminationService_Update(t *testing.T) {
 		{
 			name:     "updates exam successfully",
 			clinicID: 1,
-			exam: &model.Exam{
+			exam: &model.Examination{
 				ID:              1,
 				MedicalRecordID: 5,
 				ExamTypeID:      1,
@@ -310,7 +310,7 @@ func TestExaminationService_Update(t *testing.T) {
 		{
 			name:     "returns not found error when exam does not exist",
 			clinicID: 1,
-			exam: &model.Exam{
+			exam: &model.Examination{
 				ID:              999,
 				MedicalRecordID: 5,
 				ExamTypeID:      1,
@@ -323,7 +323,7 @@ func TestExaminationService_Update(t *testing.T) {
 		{
 			name:     "returns error on repository failure",
 			clinicID: 1,
-			exam: &model.Exam{
+			exam: &model.Examination{
 				ID:              1,
 				MedicalRecordID: 5,
 			},
@@ -335,7 +335,7 @@ func TestExaminationService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExaminationRepository{
-				updateFn: func(_ context.Context, _ uint64, _ *model.Exam) error {
+				updateFn: func(_ context.Context, _ uint64, _ *model.Examination) error {
 					return tt.repoErr
 				},
 			}

@@ -12,10 +12,10 @@ import (
 )
 
 type ExaminationRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Exam, int64, error)
-	FindByID(ctx context.Context, clinicID, id uint64) (*model.Exam, error)
-	Create(ctx context.Context, exam *model.Exam) error
-	Update(ctx context.Context, clinicID uint64, exam *model.Exam) error
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Examination, int64, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
+	Create(ctx context.Context, exam *model.Examination) error
+	Update(ctx context.Context, clinicID uint64, exam *model.Examination) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -27,9 +27,9 @@ func NewExaminationRepository(db *gorm.DB) ExaminationRepository {
 	return &examinationRepository{db: db}
 }
 
-func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Exam, int64, error) {
+func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Examination, int64, error) {
 	buildBase := func() *gorm.DB {
-		q := r.db.WithContext(ctx).Model(&model.Exam{}).
+		q := r.db.WithContext(ctx).Model(&model.Examination{}).
 			Joins("JOIN medical_records ON medical_records.id = exams.medical_record_id").
 			Where("medical_records.clinic_id = ?", clinicID)
 		if petID != nil {
@@ -49,8 +49,8 @@ func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 		return nil, 0, apperrors.Wrap(err, "count exams")
 	}
 
-	exams := make([]model.Exam, 0)
-	if err := buildBase().Preload("ExamType").Preload("Pet").Preload("Doctor").Preload("Items").
+	exams := make([]model.Examination, 0)
+	if err := buildBase().Preload("ExaminationType").Preload("Pet").Preload("Doctor").Preload("Items").
 		Offset((page - 1) * limit).Limit(limit).Order("exams.date DESC, exams.created_at DESC").
 		Find(&exams).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find exams")
@@ -58,12 +58,12 @@ func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 	return exams, total, nil
 }
 
-func (r *examinationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Exam, error) {
-	var exam model.Exam
+func (r *examinationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error) {
+	var exam model.Examination
 	if err := r.db.WithContext(ctx).
 		Joins("JOIN medical_records ON medical_records.id = exams.medical_record_id").
 		Where("exams.id = ? AND medical_records.clinic_id = ?", id, clinicID).
-		Preload("ExamType").Preload("Pet").Preload("Doctor").Preload("Items").
+		Preload("ExaminationType").Preload("Pet").Preload("Doctor").Preload("Items").
 		First(&exam).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperrors.WrapNotFound("exam", fmt.Sprintf("%d", id))
@@ -73,16 +73,16 @@ func (r *examinationRepository) FindByID(ctx context.Context, clinicID, id uint6
 	return &exam, nil
 }
 
-func (r *examinationRepository) Create(ctx context.Context, exam *model.Exam) error {
+func (r *examinationRepository) Create(ctx context.Context, exam *model.Examination) error {
 	if err := r.db.WithContext(ctx).Create(exam).Error; err != nil {
 		return apperrors.Wrap(err, "create exam")
 	}
 	return nil
 }
 
-func (r *examinationRepository) Update(ctx context.Context, clinicID uint64, exam *model.Exam) error {
+func (r *examinationRepository) Update(ctx context.Context, clinicID uint64, exam *model.Examination) error {
 	result := r.db.WithContext(ctx).
-		Model(&model.Exam{}).
+		Model(&model.Examination{}).
 		Where("id = ? AND medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ?)", exam.ID, clinicID).
 		Updates(exam)
 	if result.Error != nil {
@@ -97,7 +97,7 @@ func (r *examinationRepository) Update(ctx context.Context, clinicID uint64, exa
 func (r *examinationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
 		Where("id = ? AND medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ?)", id, clinicID).
-		Delete(&model.Exam{})
+		Delete(&model.Examination{})
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete exam")
 	}

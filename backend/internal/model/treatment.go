@@ -20,9 +20,9 @@ const (
 type TreatmentStatus string
 
 const (
-	TreatmentStatusIncomplete TreatmentStatus = "未完了"
-	TreatmentStatusComplete   TreatmentStatus = "完了"
-	TreatmentStatusNA         TreatmentStatus = "-"
+	TreatmentStatusPending       TreatmentStatus = "pending"
+	TreatmentStatusCompleted     TreatmentStatus = "completed"
+	TreatmentStatusNotApplicable TreatmentStatus = "not_applicable"
 )
 
 // Treatment は治療項目（外来診療）
@@ -37,7 +37,7 @@ type Treatment struct {
 	UnitPrice       float64           `gorm:"type:numeric(10,2);default:0"                   json:"unit_price"`
 	Quantity        int               `gorm:"default:1"                                      json:"quantity"`
 	Selected        bool              `gorm:"default:false"                                  json:"selected"`
-	Status          TreatmentStatus   `gorm:"type:treatment_status;default:'未完了'"            json:"status"`
+	Status          TreatmentStatus   `gorm:"type:treatment_status;default:'pending'"          json:"status"`
 	Content         string            `gorm:"not null;default:''"                            json:"content"`
 	Memo            string            `gorm:"default:''"                                     json:"memo"`
 	Insurance       bool              `gorm:"default:false"                                  json:"insurance"`

@@ -13,8 +13,8 @@ import (
 type CreateTrimmingInput struct {
 	Date           time.Time
 	PetID          *uint64
-	StaffID        uint64
-	CourseID       uint64
+	StaffID        *uint64
+	CourseID       *uint64
 	Weight         string
 	Status         model.TrimmingStatus
 	StyleRequest   string
@@ -124,10 +124,10 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 		existing.PetID = input.PetID
 	}
 	if input.StaffID != nil {
-		existing.StaffID = *input.StaffID
+		existing.StaffID = input.StaffID
 	}
 	if input.CourseID != nil {
-		existing.CourseID = *input.CourseID
+		existing.CourseID = input.CourseID
 	}
 	if input.Weight != nil {
 		existing.Weight = *input.Weight

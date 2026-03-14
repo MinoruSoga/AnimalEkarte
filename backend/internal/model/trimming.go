@@ -26,8 +26,8 @@ type TrimmingRecord struct {
 	ClinicID       uint64         `gorm:"not null"                                       json:"clinic_id"`
 	Date           time.Time      `gorm:"type:date;not null"                             json:"date"`
 	PetID          *uint64        `                                                      json:"pet_id,omitempty"`
-	StaffID        uint64         `gorm:"not null"                                       json:"staff_id"`
-	CourseID       uint64         `gorm:"not null"                                       json:"course_id"`
+	StaffID        *uint64        `                                                      json:"staff_id,omitempty"`
+	CourseID       *uint64        `                                                      json:"course_id,omitempty"`
 	Weight         string         `gorm:"default:''"                                     json:"weight"`
 	Status         TrimmingStatus `gorm:"type:trimming_status;default:'reserved'"         json:"status"`
 	StyleRequest   string         `gorm:"default:''"                                     json:"style_request"`

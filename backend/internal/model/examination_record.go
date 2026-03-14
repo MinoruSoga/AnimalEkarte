@@ -9,9 +9,9 @@ import (
 type ExaminationStatus string
 
 const (
-	ExaminationStatusPending    ExaminationStatus = "依頼中"
-	ExaminationStatusInProgress ExaminationStatus = "検査中"
-	ExaminationStatusCompleted  ExaminationStatus = "完了"
+	ExaminationStatusPending    ExaminationStatus = "pending"
+	ExaminationStatusInProgress ExaminationStatus = "in_progress"
+	ExaminationStatusCompleted  ExaminationStatus = "completed"
 )
 
 type ExaminationResultStatus string
@@ -22,7 +22,7 @@ const (
 	ExaminationResultStatusLow    ExaminationResultStatus = "low"
 )
 
-type Exam struct {
+type Examination struct {
 	ID              uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	MedicalRecordID uint64            `gorm:"not null"                                       json:"medical_record_id"`
 	PetID           *uint64           `                                                      json:"pet_id,omitempty"`
@@ -31,7 +31,7 @@ type Exam struct {
 	Date            time.Time         `gorm:"type:date;not null"                             json:"date"`
 	ResultSummary   string            `gorm:"default:''"                                     json:"result_summary"`
 	Machine         string            `gorm:"default:''"                                     json:"machine"`
-	Status          ExaminationStatus `gorm:"type:examination_status;default:'依頼中'"          json:"status"`
+	Status          ExaminationStatus `gorm:"type:examination_status;default:'pending'"        json:"status"`
 	DeletedAt       gorm.DeletedAt    `                                                      json:"-" swaggerignore:"true"`
 	CreatedAt       time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
@@ -39,16 +39,17 @@ type Exam struct {
 	// Relations
 	MedicalRecord *MedicalRecord `gorm:"foreignKey:MedicalRecordID" json:"medical_record,omitempty"`
 	Pet           *Pet           `gorm:"foreignKey:PetID"           json:"pet,omitempty"`
-	ExamType      *ExamType      `gorm:"foreignKey:ExamTypeID"      json:"exam_type,omitempty"`
+	ExaminationType      *ExaminationType      `gorm:"foreignKey:ExamTypeID"      json:"exam_type,omitempty"`
 	Doctor        *Staff         `gorm:"foreignKey:DoctorID"        json:"doctor,omitempty"`
-	Items         []ExamItem     `gorm:"foreignKey:ExamID"          json:"items,omitempty"`
+	Items         []ExaminationItem     `gorm:"foreignKey:ExamID"          json:"items,omitempty"`
 }
 
-func (Exam) TableName() string { return "exams" }
+func (Examination) TableName() string { return "exams" }
 
-type ExamItem struct {
+type ExaminationItem struct {
 	ID              uint64                  `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ExamID          uint64                  `gorm:"not null"                                       json:"exam_id"`
+	ExamTypeItemID  *uint64                 `                                                      json:"exam_type_item_id,omitempty"`
 	Name            string                  `gorm:"not null;default:''"                            json:"name"`
 	InspectionValue string                  `gorm:"default:''"                                     json:"inspection_value"`
 	NormalValue     string                  `gorm:"default:''"                                     json:"normal_value"`
@@ -58,6 +59,10 @@ type ExamItem struct {
 	Status          ExaminationResultStatus `gorm:"type:examination_result_status;default:'normal'" json:"status"`
 	SortOrder       int                     `gorm:"default:0"                                      json:"sort_order"`
 	CreatedAt       time.Time               `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt       time.Time               `gorm:"autoUpdateTime"                                 json:"updated_at"`
+
+	// Relations
+	ExaminationTypeItem *ExaminationTypeItem `gorm:"foreignKey:ExamTypeItemID" json:"exam_type_item,omitempty"`
 }
 
-func (ExamItem) TableName() string { return "exam_items" }
+func (ExaminationItem) TableName() string { return "exam_items" }

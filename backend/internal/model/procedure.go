@@ -7,9 +7,10 @@ import (
 type AnesthesiaType string
 
 const (
-	AnesthesiaTypeNone    AnesthesiaType = "none"
-	AnesthesiaTypeLocal   AnesthesiaType = "local"
-	AnesthesiaTypeGeneral AnesthesiaType = "general"
+	AnesthesiaTypeNone     AnesthesiaType = "none"
+	AnesthesiaTypeLocal    AnesthesiaType = "local"
+	AnesthesiaTypeSedation AnesthesiaType = "sedation"
+	AnesthesiaTypeGeneral  AnesthesiaType = "general"
 )
 
 type Procedure struct {

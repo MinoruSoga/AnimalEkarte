@@ -34,11 +34,11 @@ type examinationResponse struct {
 	CreatedAt       time.Time                `json:"created_at"`
 	UpdatedAt       time.Time                `json:"updated_at"`
 	Pet             *petSummaryResponse      `json:"pet,omitempty"`
-	ExamType        *examTypeSummaryResponse `json:"exam_type,omitempty"`
+	ExaminationType        *examTypeSummaryResponse `json:"exam_type,omitempty"`
 	Doctor          *staffSummaryResponse    `json:"doctor,omitempty"`
 }
 
-func toExamItemResponse(i *model.ExamItem) examItemResponse {
+func toExamItemResponse(i *model.ExaminationItem) examItemResponse {
 	return examItemResponse{
 		ID:              i.ID,
 		ExamID:          i.ExamID,
@@ -54,7 +54,7 @@ func toExamItemResponse(i *model.ExamItem) examItemResponse {
 	}
 }
 
-func toExaminationResponse(e *model.Exam) examinationResponse {
+func toExaminationResponse(e *model.Examination) examinationResponse {
 	items := make([]examItemResponse, 0, len(e.Items))
 	for i := range e.Items {
 		items = append(items, toExamItemResponse(&e.Items[i]))
@@ -73,7 +73,7 @@ func toExaminationResponse(e *model.Exam) examinationResponse {
 		CreatedAt:       e.CreatedAt,
 		UpdatedAt:       e.UpdatedAt,
 		Pet:             toPetSummary(e.Pet),
-		ExamType:        toExamTypeSummary(e.ExamType),
+		ExaminationType:        toExamTypeSummary(e.ExaminationType),
 		Doctor:          toStaffSummary(e.Doctor),
 	}
 }

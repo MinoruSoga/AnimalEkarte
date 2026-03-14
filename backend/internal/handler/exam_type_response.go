@@ -29,7 +29,7 @@ type examTypeResponse struct {
 	UpdatedAt   time.Time              `json:"updated_at"`
 }
 
-func toExamTypeItemResponse(item *model.ExamTypeItem) examTypeItemResponse {
+func toExamTypeItemResponse(item *model.ExaminationTypeItem) examTypeItemResponse {
 	return examTypeItemResponse{
 		ID:              item.ID,
 		ExamTypeID:      item.ExamTypeID,
@@ -41,7 +41,7 @@ func toExamTypeItemResponse(item *model.ExamTypeItem) examTypeItemResponse {
 	}
 }
 
-func toExamTypeResponse(et *model.ExamType) examTypeResponse {
+func toExamTypeResponse(et *model.ExaminationType) examTypeResponse {
 	items := make([]examTypeItemResponse, 0, len(et.Items))
 	for i := range et.Items {
 		items = append(items, toExamTypeItemResponse(&et.Items[i]))
@@ -66,8 +66,8 @@ type examTypeSummaryResponse struct {
 	Name string `json:"name"`
 }
 
-// toExamTypeSummary は *model.ExamType を *examTypeSummaryResponse に変換する。nilの場合はnilを返す。
-func toExamTypeSummary(et *model.ExamType) *examTypeSummaryResponse {
+// toExamTypeSummary は *model.ExaminationType を *examTypeSummaryResponse に変換する。nilの場合はnilを返す。
+func toExamTypeSummary(et *model.ExaminationType) *examTypeSummaryResponse {
 	if et == nil {
 		return nil
 	}
@@ -77,7 +77,7 @@ func toExamTypeSummary(et *model.ExamType) *examTypeSummaryResponse {
 	}
 }
 
-func toExamTypeResponseList(items []model.ExamType) []examTypeResponse {
+func toExamTypeResponseList(items []model.ExaminationType) []examTypeResponse {
 	list := make([]examTypeResponse, 0, len(items))
 	for i := range items {
 		list = append(list, toExamTypeResponse(&items[i]))

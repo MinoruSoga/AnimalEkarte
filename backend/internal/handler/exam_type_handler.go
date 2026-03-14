@@ -51,7 +51,7 @@ func (h *Handler) CreateExaminationType(c *gin.Context) {
 		return
 	}
 
-	examType := &model.ExamType{
+	examType := &model.ExaminationType{
 		ClinicID:    clinicID,
 		Name:        input.Name,
 		Price:       input.Price,
@@ -80,7 +80,7 @@ func (h *Handler) UpdateExaminationType(c *gin.Context) {
 		return
 	}
 
-	examType := &model.ExamType{
+	examType := &model.ExaminationType{
 		ID:          id,
 		Name:        input.Name,
 		Price:       input.Price,

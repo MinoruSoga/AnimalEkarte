@@ -105,7 +105,7 @@ func (h *Handler) CreateExamination(c *gin.Context) {
 		return
 	}
 
-	exam := &model.Exam{
+	exam := &model.Examination{
 		MedicalRecordID: input.MedicalRecordID,
 		PetID:           input.PetID,
 		ExamTypeID:      input.ExamTypeID,
@@ -142,7 +142,7 @@ func (h *Handler) UpdateExamination(c *gin.Context) {
 		return
 	}
 
-	exam := &model.Exam{
+	exam := &model.Examination{
 		ID:              id,
 		MedicalRecordID: input.MedicalRecordID,
 		PetID:           input.PetID,

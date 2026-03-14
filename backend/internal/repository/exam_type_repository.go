@@ -1,4 +1,4 @@
-// Package repository provides data access implementations for ExamType entity.
+// Package repository provides data access implementations for ExaminationType entity.
 package repository
 
 import (
@@ -15,10 +15,10 @@ import (
 // ---- ExaminationType ----
 
 type ExamTypeRepository interface {
-	FindAll(ctx context.Context) ([]model.ExamType, error)
-	FindByID(ctx context.Context, id uint64) (*model.ExamType, error)
-	Create(ctx context.Context, exType *model.ExamType) error
-	Update(ctx context.Context, exType *model.ExamType) error
+	FindAll(ctx context.Context) ([]model.ExaminationType, error)
+	FindByID(ctx context.Context, id uint64) (*model.ExaminationType, error)
+	Create(ctx context.Context, exType *model.ExaminationType) error
+	Update(ctx context.Context, exType *model.ExaminationType) error
 	Delete(ctx context.Context, id uint64) error
 }
 
@@ -28,16 +28,16 @@ func NewExamTypeRepository(db *gorm.DB) ExamTypeRepository {
 	return &examTypeRepository{db: db}
 }
 
-func (r *examTypeRepository) FindAll(ctx context.Context) ([]model.ExamType, error) {
-	exTypes := make([]model.ExamType, 0)
+func (r *examTypeRepository) FindAll(ctx context.Context) ([]model.ExaminationType, error) {
+	exTypes := make([]model.ExaminationType, 0)
 	if err := r.db.WithContext(ctx).Preload("Items").Order("sort_order ASC, name ASC").Find(&exTypes).Error; err != nil {
 		return nil, apperrors.Wrap(err, "find examination types")
 	}
 	return exTypes, nil
 }
 
-func (r *examTypeRepository) FindByID(ctx context.Context, id uint64) (*model.ExamType, error) {
-	var exType model.ExamType
+func (r *examTypeRepository) FindByID(ctx context.Context, id uint64) (*model.ExaminationType, error) {
+	var exType model.ExaminationType
 	if err := r.db.WithContext(ctx).Preload("Items").First(&exType, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperrors.WrapNotFound("examination_type", fmt.Sprintf("%d", id))
@@ -47,7 +47,7 @@ func (r *examTypeRepository) FindByID(ctx context.Context, id uint64) (*model.Ex
 	return &exType, nil
 }
 
-func (r *examTypeRepository) Create(ctx context.Context, exType *model.ExamType) error {
+func (r *examTypeRepository) Create(ctx context.Context, exType *model.ExaminationType) error {
 	if err := r.db.WithContext(ctx).Create(exType).Error; err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("examination_type", exType.Name)
@@ -57,9 +57,9 @@ func (r *examTypeRepository) Create(ctx context.Context, exType *model.ExamType)
 	return nil
 }
 
-func (r *examTypeRepository) Update(ctx context.Context, exType *model.ExamType) error {
+func (r *examTypeRepository) Update(ctx context.Context, exType *model.ExaminationType) error {
 	result := r.db.WithContext(ctx).
-		Model(&model.ExamType{}).
+		Model(&model.ExaminationType{}).
 		Where("id = ? AND clinic_id = ?", exType.ID, exType.ClinicID).
 		Updates(exType)
 	if result.Error != nil {
@@ -72,7 +72,7 @@ func (r *examTypeRepository) Update(ctx context.Context, exType *model.ExamType)
 }
 
 func (r *examTypeRepository) Delete(ctx context.Context, id uint64) error {
-	result := r.db.WithContext(ctx).Delete(&model.ExamType{}, "id = ?", id)
+	result := r.db.WithContext(ctx).Delete(&model.ExaminationType{}, "id = ?", id)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete examination type")
 	}

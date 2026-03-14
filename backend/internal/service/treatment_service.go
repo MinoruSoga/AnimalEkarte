@@ -92,7 +92,7 @@ func (s *treatmentService) Create(ctx context.Context, medicalRecordID uint64, i
 		return nil, err
 	}
 
-	status := model.TreatmentStatusIncomplete
+	status := model.TreatmentStatusPending
 	if input.Status != "" {
 		s, err := parseTreatmentStatus(input.Status)
 		if err != nil {
@@ -275,9 +275,9 @@ func validateTreatmentItemType(t model.TreatmentItemType) error {
 
 func parseTreatmentStatus(s string) (model.TreatmentStatus, error) {
 	switch model.TreatmentStatus(s) {
-	case model.TreatmentStatusIncomplete,
-		model.TreatmentStatusComplete,
-		model.TreatmentStatusNA:
+	case model.TreatmentStatusPending,
+		model.TreatmentStatusCompleted,
+		model.TreatmentStatusNotApplicable:
 		return model.TreatmentStatus(s), nil
 	}
 	return "", apperrors.WrapInvalidInput("invalid status: " + s)

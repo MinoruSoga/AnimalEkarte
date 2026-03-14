@@ -13,26 +13,26 @@ import (
 
 // mockExamTypeRepository は ExamTypeRepository のテスト用モック実装
 type mockExamTypeRepository struct {
-	findAllFn  func(ctx context.Context) ([]model.ExamType, error)
-	findByIDFn func(ctx context.Context, id uint64) (*model.ExamType, error)
-	createFn   func(ctx context.Context, exType *model.ExamType) error
-	updateFn   func(ctx context.Context, exType *model.ExamType) error
+	findAllFn  func(ctx context.Context) ([]model.ExaminationType, error)
+	findByIDFn func(ctx context.Context, id uint64) (*model.ExaminationType, error)
+	createFn   func(ctx context.Context, exType *model.ExaminationType) error
+	updateFn   func(ctx context.Context, exType *model.ExaminationType) error
 	deleteFn   func(ctx context.Context, id uint64) error
 }
 
-func (m *mockExamTypeRepository) FindAll(ctx context.Context) ([]model.ExamType, error) {
+func (m *mockExamTypeRepository) FindAll(ctx context.Context) ([]model.ExaminationType, error) {
 	return m.findAllFn(ctx)
 }
 
-func (m *mockExamTypeRepository) FindByID(ctx context.Context, id uint64) (*model.ExamType, error) {
+func (m *mockExamTypeRepository) FindByID(ctx context.Context, id uint64) (*model.ExaminationType, error) {
 	return m.findByIDFn(ctx, id)
 }
 
-func (m *mockExamTypeRepository) Create(ctx context.Context, exType *model.ExamType) error {
+func (m *mockExamTypeRepository) Create(ctx context.Context, exType *model.ExaminationType) error {
 	return m.createFn(ctx, exType)
 }
 
-func (m *mockExamTypeRepository) Update(ctx context.Context, exType *model.ExamType) error {
+func (m *mockExamTypeRepository) Update(ctx context.Context, exType *model.ExaminationType) error {
 	return m.updateFn(ctx, exType)
 }
 
@@ -40,21 +40,21 @@ func (m *mockExamTypeRepository) Delete(ctx context.Context, id uint64) error {
 	return m.deleteFn(ctx, id)
 }
 
-func (m *mockExamTypeRepository) ReplaceItems(ctx context.Context, examTypeID uint64, items []model.ExamTypeItem) error {
+func (m *mockExamTypeRepository) ReplaceItems(ctx context.Context, examTypeID uint64, items []model.ExaminationTypeItem) error {
 	return nil
 }
 
 func TestExamTypeService_List(t *testing.T) {
 	tests := []struct {
 		name     string
-		repoData []model.ExamType
+		repoData []model.ExaminationType
 		repoErr  error
 		wantLen  int
 		wantErr  bool
 	}{
 		{
 			name: "returns exam type list",
-			repoData: []model.ExamType{
+			repoData: []model.ExaminationType{
 				{ID: 1, Name: "血液検査"},
 				{ID: 2, Name: "尿検査"},
 			},
@@ -64,7 +64,7 @@ func TestExamTypeService_List(t *testing.T) {
 		},
 		{
 			name:     "returns empty list when no exam types exist",
-			repoData: []model.ExamType{},
+			repoData: []model.ExaminationType{},
 			repoErr:  nil,
 			wantLen:  0,
 			wantErr:  false,
@@ -81,7 +81,7 @@ func TestExamTypeService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExamTypeRepository{
-				findAllFn: func(_ context.Context) ([]model.ExamType, error) {
+				findAllFn: func(_ context.Context) ([]model.ExaminationType, error) {
 					return tt.repoData, tt.repoErr
 				},
 			}
@@ -103,7 +103,7 @@ func TestExamTypeService_GetByID(t *testing.T) {
 	tests := []struct {
 		name         string
 		id           uint64
-		repoExamType *model.ExamType
+		repoExamType *model.ExaminationType
 		repoErr      error
 		wantErr      bool
 		wantNotFound bool
@@ -111,10 +111,10 @@ func TestExamTypeService_GetByID(t *testing.T) {
 		{
 			name: "returns exam type when found",
 			id:   1,
-			repoExamType: &model.ExamType{
+			repoExamType: &model.ExaminationType{
 				ID:   1,
 				Name: "血液検査",
-				Items: []model.ExamTypeItem{
+				Items: []model.ExaminationTypeItem{
 					{ID: 1, ExamTypeID: 1, Name: "白血球数"},
 					{ID: 2, ExamTypeID: 1, Name: "赤血球数"},
 				},
@@ -144,7 +144,7 @@ func TestExamTypeService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExamTypeRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.ExamType, error) {
+				findByIDFn: func(_ context.Context, _ uint64) (*model.ExaminationType, error) {
 					return tt.repoExamType, tt.repoErr
 				},
 			}
@@ -169,13 +169,13 @@ func TestExamTypeService_GetByID(t *testing.T) {
 func TestExamTypeService_Create(t *testing.T) {
 	tests := []struct {
 		name    string
-		exType  *model.ExamType
+		exType  *model.ExaminationType
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "creates exam type successfully",
-			exType: &model.ExamType{
+			exType: &model.ExaminationType{
 				Name:     "新規検査種別",
 				ClinicID: 1,
 			},
@@ -184,10 +184,10 @@ func TestExamTypeService_Create(t *testing.T) {
 		},
 		{
 			name: "creates exam type with items successfully",
-			exType: &model.ExamType{
+			exType: &model.ExaminationType{
 				Name:     "血液検査",
 				ClinicID: 1,
-				Items: []model.ExamTypeItem{
+				Items: []model.ExaminationTypeItem{
 					{Name: "白血球数", NormalValue: "5000-10000"},
 				},
 			},
@@ -196,7 +196,7 @@ func TestExamTypeService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error when exam type already exists",
-			exType: &model.ExamType{
+			exType: &model.ExaminationType{
 				Name:     "重複検査種別",
 				ClinicID: 1,
 			},
@@ -205,7 +205,7 @@ func TestExamTypeService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error on repository failure",
-			exType: &model.ExamType{
+			exType: &model.ExaminationType{
 				Name:     "エラー検査種別",
 				ClinicID: 1,
 			},
@@ -217,7 +217,7 @@ func TestExamTypeService_Create(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExamTypeRepository{
-				createFn: func(_ context.Context, _ *model.ExamType) error {
+				createFn: func(_ context.Context, _ *model.ExaminationType) error {
 					return tt.repoErr
 				},
 			}
@@ -237,13 +237,13 @@ func TestExamTypeService_Create(t *testing.T) {
 func TestExamTypeService_Update(t *testing.T) {
 	tests := []struct {
 		name    string
-		exType  *model.ExamType
+		exType  *model.ExaminationType
 		repoErr error
 		wantErr bool
 	}{
 		{
 			name: "updates exam type successfully",
-			exType: &model.ExamType{
+			exType: &model.ExaminationType{
 				ID:   1,
 				Name: "更新後検査種別",
 			},
@@ -252,7 +252,7 @@ func TestExamTypeService_Update(t *testing.T) {
 		},
 		{
 			name: "returns not found error when exam type does not exist",
-			exType: &model.ExamType{
+			exType: &model.ExaminationType{
 				ID:   999,
 				Name: "存在しない検査種別",
 			},
@@ -261,7 +261,7 @@ func TestExamTypeService_Update(t *testing.T) {
 		},
 		{
 			name: "returns error on repository failure",
-			exType: &model.ExamType{
+			exType: &model.ExaminationType{
 				ID:   1,
 				Name: "エラーケース",
 			},
@@ -273,7 +273,7 @@ func TestExamTypeService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExamTypeRepository{
-				updateFn: func(_ context.Context, _ *model.ExamType) error {
+				updateFn: func(_ context.Context, _ *model.ExaminationType) error {
 					return tt.repoErr
 				},
 			}

@@ -6,8 +6,8 @@ import "time"
 type createTrimmingRequest struct {
 	Date           *time.Time `json:"date"`
 	PetID          *uint64    `json:"pet_id"`
-	StaffID        uint64     `json:"staff_id"  binding:"required"`
-	CourseID       uint64     `json:"course_id" binding:"required"`
+	StaffID        *uint64    `json:"staff_id"`
+	CourseID       *uint64    `json:"course_id"`
 	Weight         string     `json:"weight"`
 	Status         string     `json:"status"`
 	StyleRequest   string     `json:"style_request"`

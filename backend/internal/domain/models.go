@@ -196,7 +196,7 @@ type MedicalRecord struct {
 	Inquiry       *Inquiry       `gorm:"foreignKey:MedicalRecordID"  json:"inquiry,omitempty"`
 	Treatments    []Treatment    `gorm:"foreignKey:MedicalRecordID"  json:"treatments,omitempty"`
 	Vitals        []Vital        `gorm:"foreignKey:MedicalRecordID"  json:"vitals,omitempty"`
-	Exams         []Exam         `gorm:"foreignKey:MedicalRecordID"  json:"exams,omitempty"`
+	Exams         []Examination         `gorm:"foreignKey:MedicalRecordID"  json:"exams,omitempty"`
 	Vaccinations  []Vaccination  `gorm:"foreignKey:MedicalRecordID"  json:"vaccinations,omitempty"`
 	Checkups      []Checkup      `gorm:"foreignKey:MedicalRecordID"  json:"checkups,omitempty"`
 	Estimates     []Estimate     `gorm:"foreignKey:MedicalRecordID"  json:"estimates,omitempty"`
@@ -287,9 +287,9 @@ const (
 type TreatmentStatus string
 
 const (
-	TreatmentStatusIncomplete TreatmentStatus = "未完了"
-	TreatmentStatusComplete   TreatmentStatus = "完了"
-	TreatmentStatusNA         TreatmentStatus = "-"
+	TreatmentStatusPending       TreatmentStatus = "pending"
+	TreatmentStatusCompleted     TreatmentStatus = "completed"
+	TreatmentStatusNotApplicable TreatmentStatus = "not_applicable"
 )
 
 type Treatment struct {
@@ -303,7 +303,7 @@ type Treatment struct {
 	UnitPrice       float64           `gorm:"type:numeric(10,2);default:0"                      json:"unit_price"`
 	Quantity        int               `gorm:"default:1"                                         json:"quantity"`
 	Selected        bool              `gorm:"default:false"                                     json:"selected"`
-	Status          TreatmentStatus   `gorm:"type:treatment_status;default:'未完了'"               json:"status"`
+	Status          TreatmentStatus   `gorm:"type:treatment_status;default:'pending'"             json:"status"`
 	Content         string            `gorm:"not null;default:''"                               json:"content"`
 	Memo            string            `gorm:"default:''"                                        json:"memo"`
 	Insurance       bool              `gorm:"default:false"                                     json:"insurance"`
@@ -798,8 +798,8 @@ type TrimmingRecord struct {
 	ClinicID       uint64         `gorm:"not null"                                       json:"clinic_id"`
 	Date           time.Time      `gorm:"type:date;not null"                             json:"date"`
 	PetID          *uint64        `                                                      json:"pet_id,omitempty"`
-	StaffID        uint64         `gorm:"not null"                                       json:"staff_id"`
-	CourseID       uint64         `gorm:"not null"                                       json:"course_id"`
+	StaffID        *uint64        `                                                      json:"staff_id,omitempty"`
+	CourseID       *uint64        `                                                      json:"course_id,omitempty"`
 	Weight         string         `gorm:"default:''"                                     json:"weight"`
 	Status         TrimmingStatus `gorm:"type:trimming_status;default:'reserved'"         json:"status"`
 	StyleRequest   string         `gorm:"default:''"                                     json:"style_request"`
@@ -838,9 +838,9 @@ func (TrimmingRecordOption) TableName() string { return "trimming_record_options
 type ExaminationStatus string
 
 const (
-	ExaminationStatusPending    ExaminationStatus = "依頼中"
-	ExaminationStatusInProgress ExaminationStatus = "検査中"
-	ExaminationStatusCompleted  ExaminationStatus = "完了"
+	ExaminationStatusPending    ExaminationStatus = "pending"
+	ExaminationStatusInProgress ExaminationStatus = "in_progress"
+	ExaminationStatusCompleted  ExaminationStatus = "completed"
 )
 
 type ExaminationResultStatus string
@@ -851,7 +851,7 @@ const (
 	ExaminationResultStatusLow    ExaminationResultStatus = "low"
 )
 
-type Exam struct {
+type Examination struct {
 	ID              uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	MedicalRecordID uint64            `gorm:"not null"                                       json:"medical_record_id"`
 	PetID           *uint64           `                                                      json:"pet_id,omitempty"`
@@ -860,7 +860,7 @@ type Exam struct {
 	Date            time.Time         `gorm:"type:date;not null"                             json:"date"`
 	ResultSummary   string            `gorm:"default:''"                                     json:"result_summary"`
 	Machine         string            `gorm:"default:''"                                     json:"machine"`
-	Status          ExaminationStatus `gorm:"type:examination_status;default:'依頼中'"          json:"status"`
+	Status          ExaminationStatus `gorm:"type:examination_status;default:'pending'"        json:"status"`
 	DeletedAt       gorm.DeletedAt    `                                                      json:"-" swaggerignore:"true"`
 	CreatedAt       time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
@@ -868,14 +868,14 @@ type Exam struct {
 	// Relations
 	MedicalRecord *MedicalRecord `gorm:"foreignKey:MedicalRecordID" json:"medical_record,omitempty"`
 	Pet           *Pet           `gorm:"foreignKey:PetID"           json:"pet,omitempty"`
-	ExamType      *ExamType      `gorm:"foreignKey:ExamTypeID"      json:"exam_type,omitempty"`
+	ExaminationType      *ExaminationType      `gorm:"foreignKey:ExamTypeID"      json:"exam_type,omitempty"`
 	Doctor        *Staff         `gorm:"foreignKey:DoctorID"        json:"doctor,omitempty"`
-	Items         []ExamItem     `gorm:"foreignKey:ExamID"          json:"items,omitempty"`
+	Items         []ExaminationItem     `gorm:"foreignKey:ExamID"          json:"items,omitempty"`
 }
 
-func (Exam) TableName() string { return "exams" }
+func (Examination) TableName() string { return "exams" }
 
-type ExamItem struct {
+type ExaminationItem struct {
 	ID              uint64                  `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ExamID          uint64                  `gorm:"not null"                                       json:"exam_id"`
 	Name            string                  `gorm:"not null;default:''"                            json:"name"`
@@ -889,7 +889,7 @@ type ExamItem struct {
 	CreatedAt       time.Time               `gorm:"autoCreateTime"                                 json:"created_at"`
 }
 
-func (ExamItem) TableName() string { return "exam_items" }
+func (ExaminationItem) TableName() string { return "exam_items" }
 
 // ---- Vaccination ----
 
@@ -1187,9 +1187,10 @@ func (Consultation) TableName() string { return "consultations" }
 type AnesthesiaType string
 
 const (
-	AnesthesiaTypeNone    AnesthesiaType = "none"
-	AnesthesiaTypeLocal   AnesthesiaType = "local"
-	AnesthesiaTypeGeneral AnesthesiaType = "general"
+	AnesthesiaTypeNone     AnesthesiaType = "none"
+	AnesthesiaTypeLocal    AnesthesiaType = "local"
+	AnesthesiaTypeSedation AnesthesiaType = "sedation"
+	AnesthesiaTypeGeneral  AnesthesiaType = "general"
 )
 
 type Procedure struct {
@@ -1313,7 +1314,7 @@ type DiagnosisName struct {
 
 func (DiagnosisName) TableName() string { return "diagnosis_names" }
 
-type ExamType struct {
+type ExaminationType struct {
 	ID          uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID    uint64    `gorm:"not null"                                       json:"clinic_id"`
 	Name        string    `gorm:"not null"                                       json:"name"`
@@ -1325,12 +1326,12 @@ type ExamType struct {
 	UpdatedAt   time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
-	Items []ExamTypeItem `gorm:"foreignKey:ExamTypeID" json:"items,omitempty"`
+	Items []ExaminationTypeItem `gorm:"foreignKey:ExamTypeID" json:"items,omitempty"`
 }
 
-func (ExamType) TableName() string { return "exam_types" }
+func (ExaminationType) TableName() string { return "exam_types" }
 
-type ExamTypeItem struct {
+type ExaminationTypeItem struct {
 	ID              uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ExamTypeID      uint64    `gorm:"not null"                                       json:"exam_type_id"`
 	Name            string    `gorm:"not null"                                       json:"name"`
@@ -1340,7 +1341,7 @@ type ExamTypeItem struct {
 	CreatedAt       time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 }
 
-func (ExamTypeItem) TableName() string { return "exam_type_items" }
+func (ExaminationTypeItem) TableName() string { return "exam_type_items" }
 
 type CheckupType struct {
 	ID          uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`

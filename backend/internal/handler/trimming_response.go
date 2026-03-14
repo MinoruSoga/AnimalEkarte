@@ -22,8 +22,8 @@ type trimmingResponse struct {
 	ClinicID       uint64                           `json:"clinic_id"`
 	Date           time.Time                        `json:"date"`
 	PetID          *uint64                          `json:"pet_id,omitempty"`
-	StaffID        uint64                           `json:"staff_id"`
-	CourseID       uint64                           `json:"course_id"`
+	StaffID        *uint64                          `json:"staff_id,omitempty"`
+	CourseID       *uint64                          `json:"course_id,omitempty"`
 	Weight         string                           `json:"weight"`
 	Status         string                           `json:"status"`
 	StyleRequest   string                           `json:"style_request"`
