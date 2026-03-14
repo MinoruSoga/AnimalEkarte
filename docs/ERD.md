@@ -708,6 +708,7 @@ erDiagram
         uuid id PK
         uuid hospitalization_id FK
         care_plan_type type
+        plan_timing timing
         uuid medicine_id FK
         uuid procedure_id FK
         uuid hospitalization_plan_id FK

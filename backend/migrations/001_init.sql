@@ -1070,7 +1070,6 @@ CREATE TABLE billings (
 CREATE TABLE billing_items (
     id                      BIGSERIAL     PRIMARY KEY,
     billing_id              bigint        NOT NULL REFERENCES billings(id) ON DELETE CASCADE,
-    code                    text          NOT NULL DEFAULT '',
     category                item_category NOT NULL,
     name                    text          NOT NULL DEFAULT '',
     unit_price              numeric       NOT NULL DEFAULT 0,
