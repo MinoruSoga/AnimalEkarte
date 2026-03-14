@@ -1,4 +1,5 @@
-import { useGetPets, useGetPet } from "@/features/pets/api";
+import { useGetPets } from "@/features/pets/api/get-pets";
+import { useGetPet } from "@/features/pets/api/get-pet";
 
 export { useGetPet };
 

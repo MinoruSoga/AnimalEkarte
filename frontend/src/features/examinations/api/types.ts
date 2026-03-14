@@ -2,10 +2,10 @@
  * Backend API response types
  * Source: frontend/src/types/generated/models.ts (tygo generated)
  */
-import type { Exam, ExamItem } from "@/types/generated/models";
+import type { Examination, ExaminationItem } from "@/types/generated/models";
 
-export type BackendExaminationItem = ExamItem;
-export type BackendExamination = Exam;
+export type BackendExaminationItem = ExaminationItem;
+export type BackendExamination = Examination;
 
 export interface CreateExaminationRequest {
   medical_record_id: string;

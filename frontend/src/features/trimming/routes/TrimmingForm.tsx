@@ -30,7 +30,8 @@ import { useMasterItems } from "@/hooks/use-master-items";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 
 // Relative (direct file import, no barrel — bundle-barrel-imports)
-import { useTrimmingForm, type TrimmingFormData } from "../hooks/useTrimmingForm";
+import { useTrimmingForm } from "../hooks/useTrimmingForm";
+import type { TrimmingFormData } from "@/types/trimming";
 import { useGetTrimmingsByPetId } from "../api/get-trimming";
 
 // bundle-dynamic-imports: 重いモーダルは lazy() + Suspense で遅延ロード
@@ -252,16 +253,6 @@ const MiddleColumn = memo(function MiddleColumn({
           value={formData.usedRibbon}
           onChange={(e) => onFormChange({ usedRibbon: e.target.value })}
           placeholder="リボン"
-          className="text-sm"
-        />
-      </div>
-
-      <div>
-        <Label className="text-sm text-[#37352F]/60 mb-2 block">トリートメント</Label>
-        <Input
-          value={formData.treatment}
-          onChange={(e) => onFormChange({ treatment: e.target.value })}
-          placeholder="トリートメント"
           className="text-sm"
         />
       </div>

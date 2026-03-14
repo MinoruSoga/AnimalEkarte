@@ -59,6 +59,8 @@ export const transformBackendPetToFrontend = (p: BackendPet) => ({
   ownerId: String(p.owner_id ?? 0),
   ownerNumber: p.owner?.id,
   ownerName: p.owner?.owner_name ?? "",
+  ownerNameKana: p.owner?.owner_name_kana ?? undefined,
+  address: [p.owner?.address1, p.owner?.address2].filter(Boolean).join(" ") || undefined,
   phone: p.owner?.phone ?? "",
   petNumber: p.pet_number,
   name: p.name ?? "",

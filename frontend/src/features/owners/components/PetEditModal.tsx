@@ -253,7 +253,7 @@ export function PetEditModal({
                 </SelectTrigger>
                 <SelectContent>{animalSpeciesSelectItems}</SelectContent>
               </Select>
-              <FormFieldError message={fieldErrors.animalSpeciesId} />
+              <FormFieldError id="animalSpeciesId-error" message={fieldErrors.animalSpeciesId} />
             </div>
 
             <div className="space-y-1">
@@ -276,7 +276,7 @@ export function PetEditModal({
                 </SelectTrigger>
                 <SelectContent>{GENDER_SELECT_ITEMS}</SelectContent>
               </Select>
-              <FormFieldError message={fieldErrors.gender} />
+              <FormFieldError id="gender-error" message={fieldErrors.gender} />
             </div>
 
             <div className="space-y-1">

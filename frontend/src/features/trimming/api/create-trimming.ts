@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { axios } from "@/lib/axios";
 import type { TrimmingRecord } from "@/types";
 import { transformTrimming } from "./transforms";
-import type { BackendTrimming, CreateTrimmingRequest } from "./types";
+import type { BackendTrimming, CreateTrimmingRequest } from "@/types/trimming";
 
 export const createTrimming = async (
   req: CreateTrimmingRequest

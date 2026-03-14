@@ -542,9 +542,9 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
           key={editingPet?.id ?? "new"}
           open={petModalOpen}
           onOpenChange={setPetModalOpen}
-        ownerName={ownerData.ownerName || "新規飼主"}
-        petData={editingPet ?? undefined}
-        onSave={handleSavePet}
+          ownerName={ownerData.ownerName || "新規飼主"}
+          petData={editingPet ?? undefined}
+          onSave={handleSavePet}
         />
       </Suspense>
 

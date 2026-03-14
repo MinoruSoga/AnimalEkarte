@@ -19,25 +19,29 @@ export interface OwnersLoaderData {
 }
 
 export const ownersLoader = async (): Promise<OwnersLoaderData> => {
-  // page 1 で総件数を確認し、残りのページを並列フェッチ
-  const { data: firstPage } = await axios.get<PetsResponse>("/v1/pets", {
-    params: { page: 1, limit: PER_PAGE },
-  });
+  try {
+    // page 1 で総件数を確認し、残りのページを並列フェッチ
+    const { data: firstPage } = await axios.get<PetsResponse>("/v1/pets", {
+      params: { page: 1, limit: PER_PAGE },
+    });
 
-  const totalPages = Math.ceil(firstPage.total / PER_PAGE);
+    const totalPages = Math.ceil(firstPage.total / PER_PAGE);
 
-  const remainingPages = await Promise.all(
-    Array.from({ length: totalPages - 1 }, (_, i) =>
-      axios.get<PetsResponse>("/v1/pets", {
-        params: { page: i + 2, limit: PER_PAGE },
-      }).then(r => r.data)
-    )
-  );
+    const remainingPages = await Promise.all(
+      Array.from({ length: totalPages - 1 }, (_, i) =>
+        axios.get<PetsResponse>("/v1/pets", {
+          params: { page: i + 2, limit: PER_PAGE },
+        }).then(r => r.data)
+      )
+    );
 
-  const allPets: Pet[] = [firstPage, ...remainingPages]
-    .flatMap(page => page.data.map(transformBackendPetToFrontend));
+    const allPets: Pet[] = [firstPage, ...remainingPages]
+      .flatMap(page => page.data.map(transformBackendPetToFrontend));
 
-  return { pets: allPets };
+    return { pets: allPets };
+  } catch {
+    throw new Response("ペット一覧の取得に失敗しました", { status: 500 });
+  }
 };
 
 export interface OwnerLoaderData {

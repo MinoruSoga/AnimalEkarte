@@ -192,6 +192,31 @@ import type { Owner } from "@/types";
 | 型・Interface | PascalCase | `Patient` |
 | hooks | use + camelCase | `usePatientForm` |
 
+### バックエンド型の扱い
+
+> 詳細は `CODING_RULES.md` **Section 3.6** を参照。
+
+```
+backend/internal/model/*.go
+    ↓ make codegen
+src/types/generated/models.ts   ← 自動生成・直接編集禁止
+    ↓ Omit / Partial / ReturnType
+features/xxx/api/types.ts       ← APIリクエスト型（models.tsから導出）
+src/lib/transforms/xxx.ts       ← ドメイン型（ReturnType<typeof transform>）
+features/xxx/types/index.ts     ← フォームデータ型（UI専用）
+```
+
+| 型の種類 | 配置場所 |
+|---------|---------|
+| バックエンドモデル型 | `src/types/generated/models.ts`（自動生成・編集禁止） |
+| APIリクエスト型 | `src/types/xxx.ts`（`Omit`/`Partial`で導出） |
+| フロントエンドドメイン型 | `src/lib/transforms/xxx.ts`（`ReturnType`で導出） |
+| フォームデータ型 | `src/types/xxx.ts`（UI専用・手書きOK） |
+
+**原則**: 型定義はすべて `src/types/` に一元化する。`features/xxx/types/` は re-export のみ許容。
+
+**禁止**: `interface CreateXxxRequest { ... }` の手書き → `models.ts` からの導出に統一
+
 ---
 
 ## 禁止事項
@@ -206,7 +231,11 @@ import type { Owner } from "@/types";
 | `console.log` 放置 | 本番コード汚染 | 削除 |
 | default export | IDE補完が弱い | 名前付きexport |
 | `&&` 条件レンダー | 0/空文字が漏れる | `? ... : null` |
-| barrel index 経由 import | tree-shaking 阻害 | 直接ファイル import |
+| barrel index 経由 import | tree-shaking 阻害 | 直接ファイル import（feature 外からも同様） |
+| `generated/models.ts` 直接編集 | `make codegen` で上書きされる | Goモデルを修正して `make codegen` |
+| APIリクエスト型を `interface` で手書き | Goモデルとの乖離 | `models.ts` から `Omit`/`Partial` で導出 |
+| コメントのみ・空の `index.ts` を残す | 死ファイル、混乱の原因 | 削除する |
+| 実ファイルがあるフォルダの `.gitkeep` を残す | 不要 | 削除する |
 
 ---
 

@@ -1,5 +1,5 @@
 import type { TrimmingRecord } from "@/types";
-import type { BackendTrimming } from "./types";
+import type { BackendTrimming } from "@/types/trimming";
 
 export function transformTrimming(data: BackendTrimming): TrimmingRecord {
   const statusMap: Record<string, TrimmingRecord["status"]> = {

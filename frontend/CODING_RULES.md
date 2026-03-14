@@ -936,6 +936,179 @@ import type { Owner, Pet } from "@/types";
 import type { OwnerFormData } from "../types";
 ```
 
+### 3.6 バックエンド型の扱い（generated models.ts）
+
+#### 概要
+
+```
+backend/internal/model/*.go
+    ↓ make codegen (tygo)
+src/types/generated/models.ts   ← 自動生成・直接編集禁止
+    ↓ Omit / Partial / ReturnType
+features/xxx/api/types.ts       ← APIリクエスト型（導出）
+src/lib/transforms/xxx.ts       ← フロントエンドドメイン型（ReturnType導出）
+features/xxx/types/index.ts     ← フォームデータ型（UI専用）
+```
+
+**重要ルール:**
+- `src/types/generated/models.ts` は **直接編集禁止**。`make codegen` で再生成される
+- Goモデル変更 → `make codegen` → `models.ts` 更新 → 型エラーをフロントエンドで修正
+
+---
+
+#### APIリクエスト型の導出パターン
+
+`interface` を手書きせず、`models.ts` の型から `Omit`/`Partial`/`Required` で導出する。
+参照実装: `src/types/pet.ts`, `src/features/trimming/api/types.ts`
+
+```typescript
+// features/xxx/api/types.ts
+import type { XxxRecord as BackendXxxRecord } from "@/types/generated/models";
+
+export type BackendXxx = BackendXxxRecord;  // alias（transforms.ts で使用）
+
+/**
+ * サーバー側で自動生成されるフィールド（リクエストに含めない）
+ */
+type ServerFields =
+  | "id"
+  | "clinic_id"
+  | "created_at"
+  | "updated_at"
+  | "some_relation";  // リレーション（外部キーで代替）
+
+/**
+ * リクエストで送信可能なフィールド
+ * Goモデル変更 → make codegen → models.ts 更新で自動追従
+ */
+type XxxWritable = Omit<BackendXxxRecord, ServerFields>;
+
+/**
+ * 作成リクエスト: 必須フィールドを Required で明示、残りはoptional
+ */
+export type CreateXxxRequest =
+  Required<Pick<XxxWritable, "required_field_a" | "required_field_b">> &
+  Partial<Omit<XxxWritable, "required_field_a" | "required_field_b">> & {
+    extra_ids?: number[];  // リレーションIDなどmodels.tsに存在しないフィールドは手動追加
+  };
+
+/**
+ * 更新リクエスト（PATCH: 全フィールドoptional）
+ */
+export type UpdateXxxRequest = Partial<XxxWritable> & {
+  extra_ids?: number[];
+};
+```
+
+**禁止パターン:**
+
+```typescript
+// ❌ 手書きinterfaceはGoモデルとの乖離を生む
+export interface CreateXxxRequest {
+  field_a: string;
+  field_b?: number;
+  // Goモデルにfiled_cが追加されても気づかない
+}
+```
+
+---
+
+#### フロントエンドドメイン型の導出パターン（ReturnType）
+
+transform関数の戻り値から型を自動導出する。手動でinterfaceを維持しない。
+参照実装: `src/lib/transforms/pet.ts`
+
+```typescript
+// lib/transforms/xxx.ts
+import type { XxxRecord as BackendXxx } from "@/types/generated/models";
+
+// BackendXxx（snake_case）→ フロントエンド型（camelCase）変換
+export const transformBackendXxxToFrontend = (x: BackendXxx) => ({
+  id: String(x.id ?? 0),
+  // snake_case → camelCase
+  someField: x.some_field ?? "",
+  // enumマッピング（APIの英語値 → 日本語表示値）
+  status: STATUS_MAP[x.status ?? ""] ?? x.status ?? "",
+  // リレーション
+  relatedName: x.related?.name ?? "",
+});
+
+/**
+ * Xxx フロントエンド型 — transformの戻り値から自動導出
+ * 手動管理せず BackendXxx（models.ts）と常に同期
+ */
+export type Xxx = ReturnType<typeof transformBackendXxxToFrontend>;
+```
+
+**禁止パターン:**
+
+```typescript
+// ❌ interfaceを手動管理するとtransformとの乖離が生じる
+export interface Xxx {
+  id: string;
+  someField: string;
+  // transformに追加したフィールドをここにも追加し忘れる
+}
+```
+
+---
+
+#### フォームデータ型（UI専用）
+
+フォームの入力状態はUIに最適化した型として `features/xxx/types/index.ts` に定義する。
+バックエンドモデルと1対1対応しない（File型、UI専用フラグ等を含む）。
+
+```typescript
+// features/xxx/types/index.ts
+
+// UI表示用の定数（as const パターン）
+export const XXX_STATUS_VALUES = ["予約", "施術中", "完了"] as const;
+export type XxxStatus = (typeof XXX_STATUS_VALUES)[number];
+
+// フォーム入力データ（UIに最適化、バックエンド型と必ずしも一致しない）
+export interface XxxFormData {
+  // 文字列で保持（数値もstringで管理してUIの空文字を許容）
+  someField: string;
+  // File型など、バックエンドに存在しないUI専用フィールド
+  imageFile: File | null;
+  // UI専用フラグ
+  isDirty: boolean;
+}
+```
+
+---
+
+#### 型の配置ルール まとめ
+
+| 型の種類 | 配置場所 | 例 |
+|---------|---------|-----|
+| バックエンドモデル型 | `src/types/generated/models.ts`（自動生成・編集禁止） | `TrimmingRecord`, `Pet` |
+| APIリクエスト型 | `src/types/xxx.ts` | `CreateTrimmingRequest`, `CreatePetRequest` |
+| フロントエンドドメイン型 | `src/lib/transforms/xxx.ts`（ReturnType導出） | `Pet = ReturnType<...>` |
+| フォームデータ型 | `src/types/xxx.ts` | `TrimmingFormData`, `PetFormData` |
+| DI用インターフェース型 | `src/types/xxx.ts` | `PetMutations` |
+
+> **原則**: feature をまたぐかどうかに関わらず、全ての型定義は `src/types/` に配置する。
+> `features/xxx/types/index.ts` は `src/types/xxx.ts` への re-export のみ許容（直接型定義を書かない）。
+
+---
+
+#### モデル変更時の手順
+
+```bash
+# 1. Goモデルを編集
+# backend/internal/model/xxx.go
+
+# 2. 型生成
+make codegen  # tygo → src/types/generated/models.ts を更新
+
+# 3. フロントエンドの型エラーを修正
+#    - api/types.ts の ServerFields を必要に応じて更新
+#    - transforms.ts に新フィールドのマッピングを追加
+#    - types/index.ts の FormData を必要に応じて更新
+docker compose exec frontend npm run build
+```
+
 ---
 
 ## 4. コンポーネント設計
@@ -1418,6 +1591,10 @@ describe("Button", () => {
 | default export | IDE補完が弱い | 名前付きexport |
 | インラインスタイル | 一貫性欠如 | Tailwind CSS |
 | `!important` | 詳細度問題 | クラス設計見直し |
+| barrel経由import（`@/features/xxx/api` 等） | tree-shaking阻害 | 直接ファイルimport（feature外からも同様） |
+| コメントのみ・空の index.ts | 死ファイル、混乱の原因 | 削除する |
+| re-exportのみで自身のロジックを持たないファイル | 参照ゼロなら死ファイル | 削除する |
+| 実ファイルが存在するフォルダの `.gitkeep` | 不要 | 削除する |
 
 ---
 
@@ -1437,6 +1614,9 @@ describe("Button", () => {
 - [ ] any型を使用していない
 - [ ] feature間importがない
 - [ ] 不要なconsole.logがない
+- [ ] barrel index 経由の import がない（feature 外からも含む）
+- [ ] コメントのみ・空の index.ts / .gitkeep が残っていない
+- [ ] 参照ゼロの re-export ファイルが残っていない
 
 ---
 
@@ -1617,15 +1797,21 @@ const PetEditModal = lazy(() =>
 
 #### `bundle-barrel-imports` — barrel index ファイル経由の import を避ける
 
+feature 内からの import はもちろん、**feature 外（app層・shared hooks）からの import も直接ファイル指定**。
+
 ```typescript
 // ✅ 直接ファイルから import（tree-shaking が効く）
-import { deleteOwner } from "../api/delete-owner";
+import { deleteOwner } from "../api/delete-owner";          // feature 内
+import { useGetPets } from "@/features/pets/api/get-pets";  // feature 外
 import { formatDate } from "@/utils/format/date";
 
 // ❌ barrel 経由（不要なモジュールも bundle に含まれる）
-import { deleteOwner } from "../api";       // ❌
-import { formatDate } from "@/utils";       // ❌
+import { deleteOwner } from "../api";                  // ❌ feature 内
+import { useGetPets } from "@/features/pets/api";      // ❌ feature 外も同様に禁止
+import { formatDate } from "@/utils";                  // ❌
 ```
+
+**例外**: `features/xxx/api/index.ts` 等の barrel ファイルは **外部公開 API のカタログ** として存在してよいが、import 先としては使わない。
 
 ---
 

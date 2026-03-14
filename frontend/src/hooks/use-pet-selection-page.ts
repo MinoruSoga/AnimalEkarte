@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { useGetPets } from "@/features/pets/api";
+import { useGetPets } from "@/features/pets/api/get-pets";
 import type { Pet } from "@/types";
 import type { PetSelectionSearchParams } from "@/components/shared/PetSelection";
 
@@ -33,14 +33,17 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
     return pets.filter((pet) => {
       if (searchParams.ownerId && !pet.ownerId.includes(searchParams.ownerId))
         return false;
-      if (
-        searchParams.ownerName &&
-        !pet.ownerName.includes(searchParams.ownerName)
-      )
+      if (searchParams.ownerName && !pet.ownerName.includes(searchParams.ownerName))
+        return false;
+      if (searchParams.ownerNameKana && (!pet.ownerNameKana || !pet.ownerNameKana.includes(searchParams.ownerNameKana)))
         return false;
       if (searchParams.phone && (!pet.phone || !pet.phone.includes(searchParams.phone)))
         return false;
+      if (searchParams.address && (!pet.address || !pet.address.includes(searchParams.address)))
+        return false;
       if (searchParams.petName && !pet.name.includes(searchParams.petName))
+        return false;
+      if (searchParams.petNameKana && (!pet.petNameKana || !pet.petNameKana.includes(searchParams.petNameKana)))
         return false;
       if (searchParams.species && !pet.species.includes(searchParams.species))
         return false;
@@ -48,17 +51,16 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
     });
   }, [pets, searchParams]);
 
-  const handleSearch = () => {
-    // Reactive filter — filtering is done in useMemo above
-  };
+  // フィルタはリアクティブ（useMemo）のため、ボタン押下時の追加処理は不要
+  const handleSearch = useCallback(() => {}, []);
 
-  const handleSelect = (pet: Pet) => {
+  const handleSelect = useCallback((pet: Pet) => {
     navigate(`${config.selectPath}?petId=${pet.id}`);
-  };
+  }, [navigate, config.selectPath]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     navigate(config.backPath);
-  };
+  }, [navigate, config.backPath]);
 
   return {
     searchParams,

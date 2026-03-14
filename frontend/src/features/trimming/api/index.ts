@@ -28,4 +28,4 @@ export type {
   BackendTrimming,
   CreateTrimmingRequest,
   UpdateTrimmingRequest,
-} from "./types";
+} from "@/types/trimming";

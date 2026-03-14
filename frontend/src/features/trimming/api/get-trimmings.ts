@@ -2,17 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import type { TrimmingRecord } from "@/types";
 import { transformTrimming } from "./transforms";
-import type { BackendTrimming } from "./types";
-
-interface TrimmingsListResponse {
-  data: BackendTrimming[];
-  total: number;
-  page: number;
-  limit: number;
-}
+import type { BackendTrimming, TrimmingListResponse } from "@/types/trimming";
 
 export const getTrimmings = async (): Promise<TrimmingRecord[]> => {
-  const { data } = await axios.get<TrimmingsListResponse>("/v1/trimmings");
+  const { data } = await axios.get<TrimmingListResponse>("/v1/trimmings");
   return data.data.map(transformTrimming);
 };
 

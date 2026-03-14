@@ -456,14 +456,14 @@ export interface EstimateItem {
 // source: examination_record.go
 
 export type ExaminationStatus = string;
-export const ExaminationStatusPending: ExaminationStatus = "依頼中";
-export const ExaminationStatusInProgress: ExaminationStatus = "検査中";
-export const ExaminationStatusCompleted: ExaminationStatus = "完了";
+export const ExaminationStatusPending: ExaminationStatus = "pending";
+export const ExaminationStatusInProgress: ExaminationStatus = "in_progress";
+export const ExaminationStatusCompleted: ExaminationStatus = "completed";
 export type ExaminationResultStatus = string;
 export const ExaminationResultStatusNormal: ExaminationResultStatus = "normal";
 export const ExaminationResultStatusHigh: ExaminationResultStatus = "high";
 export const ExaminationResultStatusLow: ExaminationResultStatus = "low";
-export interface Exam {
+export interface Examination {
   id: number /* uint64 */;
   medical_record_id: number /* uint64 */;
   pet_id?: number /* uint64 */;
@@ -480,13 +480,14 @@ export interface Exam {
    */
   medical_record?: MedicalRecord;
   pet?: Pet;
-  exam_type?: ExamType;
+  exam_type?: ExaminationType;
   doctor?: Staff;
-  items?: ExamItem[];
+  items?: ExaminationItem[];
 }
-export interface ExamItem {
+export interface ExaminationItem {
   id: number /* uint64 */;
   exam_id: number /* uint64 */;
+  exam_type_item_id?: number /* uint64 */;
   name: string;
   inspection_value: string;
   normal_value: string;
@@ -496,12 +497,17 @@ export interface ExamItem {
   status: ExaminationResultStatus;
   sort_order: number /* int */;
   created_at: string;
+  updated_at: string;
+  /**
+   * Relations
+   */
+  exam_type_item?: ExaminationTypeItem;
 }
 
 //////////
 // source: examination_type.go
 
-export interface ExamType {
+export interface ExaminationType {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
@@ -514,9 +520,9 @@ export interface ExamType {
   /**
    * Relations
    */
-  items?: ExamTypeItem[];
+  items?: ExaminationTypeItem[];
 }
-export interface ExamTypeItem {
+export interface ExaminationTypeItem {
   id: number /* uint64 */;
   exam_type_id: number /* uint64 */;
   name: string;
@@ -788,7 +794,7 @@ export interface Insurance {
   name: string;
   is_active: boolean;
   description: string;
-  coverage_rate?: number /* float64 */;
+  coverage_rate: number /* int */;
   contact_phone: string;
   sort_order: number /* int */;
   created_at: string;
@@ -834,7 +840,6 @@ export interface JobTitle {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  code: string;
   description: string;
   sort_order: number /* int */;
   is_active: boolean;
@@ -870,7 +875,7 @@ export interface MedicalRecord {
   inquiry?: Inquiry;
   treatments?: Treatment[];
   vitals?: Vital[];
-  exams?: Exam[];
+  exams?: Examination[];
   vaccinations?: Vaccination[];
   checkups?: Checkup[];
   estimates?: Estimate[];
@@ -1005,6 +1010,7 @@ export interface Pet {
 export type AnesthesiaType = string;
 export const AnesthesiaTypeNone: AnesthesiaType = "none";
 export const AnesthesiaTypeLocal: AnesthesiaType = "local";
+export const AnesthesiaTypeSedation: AnesthesiaType = "sedation";
 export const AnesthesiaTypeGeneral: AnesthesiaType = "general";
 export interface Procedure {
   id: number /* uint64 */;
@@ -1058,7 +1064,7 @@ export interface RecordImage {
    * Relations
    */
   medical_record?: MedicalRecord;
-  exam?: Exam;
+  exam?: Examination;
   staff?: Staff;
 }
 
@@ -1152,8 +1158,8 @@ export interface ShiftEntry {
   staff_id: number /* uint64 */;
   date: string;
   shift_type: ShiftType;
-  start_time: string;
-  end_time: string;
+  start_time?: string;
+  end_time?: string;
   note: string;
   created_at: string;
   updated_at: string;
@@ -1178,9 +1184,9 @@ export const TreatmentItemTypeOther: TreatmentItemType = "other";
  * TreatmentStatus は治療ステータス
  */
 export type TreatmentStatus = string;
-export const TreatmentStatusIncomplete: TreatmentStatus = "未完了";
-export const TreatmentStatusComplete: TreatmentStatus = "完了";
-export const TreatmentStatusNA: TreatmentStatus = "-";
+export const TreatmentStatusPending: TreatmentStatus = "pending";
+export const TreatmentStatusCompleted: TreatmentStatus = "completed";
+export const TreatmentStatusNotApplicable: TreatmentStatus = "not_applicable";
 /**
  * Treatment は治療項目（外来診療）
  */
@@ -1229,8 +1235,8 @@ export interface TrimmingRecord {
   clinic_id: number /* uint64 */;
   date: string;
   pet_id?: number /* uint64 */;
-  staff_id: number /* uint64 */;
-  course_id: number /* uint64 */;
+  staff_id?: number /* uint64 */;
+  course_id?: number /* uint64 */;
   weight: string;
   status: TrimmingStatus;
   style_request: string;
@@ -1304,6 +1310,7 @@ export const NextScheduleType1Year: NextScheduleType = "1year";
 export const NextScheduleTypeOther: NextScheduleType = "other";
 export interface Vaccination {
   id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
   medical_record_id?: number /* uint64 */;
   pet_id?: number /* uint64 */;
   vaccine_id: number /* uint64 */;
@@ -1344,6 +1351,7 @@ export interface Vaccine {
   description: string;
   species?: VaccineSpecies;
   interval: string;
+  inventory_id?: number /* uint64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;

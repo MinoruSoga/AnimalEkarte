@@ -7,38 +7,8 @@ import { useGetTrimming } from "../api/get-trimming";
 import { useCreateTrimming } from "../api/create-trimming";
 import { useUpdateTrimming } from "../api/update-trimming";
 import { useDeleteTrimming } from "../api/delete-trimming";
-import type { CreateTrimmingRequest, UpdateTrimmingRequest } from "../api/types";
+import type { CreateTrimmingRequest, UpdateTrimmingRequest, TrimmingFormData } from "@/types/trimming";
 import type { Pet } from "@/types";
-
-export interface TrimmingFormData {
-  styleRequest: string;
-  memo: string;
-  eggs: string;
-  parts: {
-    nail: boolean;
-    analGland: boolean;
-    eye: boolean;
-    ear: boolean;
-    skin: boolean;
-    oral: boolean;
-  };
-  styleImage: File | null;
-  bw: string;
-  bwUnit: "Kg" | "g";
-  bt: string;
-  usedShampoo: string;
-  usedRibbon: string;
-  treatment: string;
-  medicine: string;
-  charge: string;
-  finalCheck: string;
-  remarks: string;
-  completedImage: File | null;
-  courseId: string;
-  optionIds: string[];
-  staffId: string;
-  staffName: string;
-}
 
 const defaultFormData: TrimmingFormData = {
   styleRequest: "",
@@ -58,10 +28,6 @@ const defaultFormData: TrimmingFormData = {
   bt: "",
   usedShampoo: "",
   usedRibbon: "",
-  treatment: "",
-  medicine: "",
-  charge: "",
-  finalCheck: "",
   remarks: "",
   completedImage: null,
   courseId: "",
@@ -209,8 +175,6 @@ export function useTrimmingForm(id?: string) {
           bt: formData.bt || undefined,
           used_shampoo: formData.usedShampoo || undefined,
           used_ribbon: formData.usedRibbon || undefined,
-          treatment: formData.treatment || undefined,
-          charge: formData.charge || undefined,
           remarks: formData.remarks || undefined,
           option_ids: formData.optionIds.length > 0 ? formData.optionIds.map(Number) : undefined,
         };
