@@ -84,7 +84,7 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 		return
 	}
 
-	input := service.CreateTrimmingInput{
+	input := &service.CreateTrimmingInput{
 		PetID:          req.PetID,
 		StaffID:        req.StaffID,
 		CourseID:       req.CourseID,
@@ -135,7 +135,7 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 		return
 	}
 
-	input := service.UpdateTrimmingInput{
+	input := &service.UpdateTrimmingInput{
 		Date:           req.Date,
 		PetID:          req.PetID,
 		StaffID:        req.StaffID,
@@ -160,11 +160,12 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 		input.BWUnit = &unit
 	}
 
-	if err := h.svc.Trimming.Update(c.Request.Context(), clinicID, id, input); err != nil {
+	trimming, err := h.svc.Trimming.Update(c.Request.Context(), clinicID, id, input)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "updated"})
+	c.JSON(http.StatusOK, toTrimmingResponse(trimming))
 }
 
 func (h *Handler) DeleteTrimming(c *gin.Context) {
