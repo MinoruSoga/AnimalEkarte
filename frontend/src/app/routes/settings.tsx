@@ -1,7 +1,7 @@
 import type { RouteObject } from "react-router";
 
 type SettingsCategory =
-  | "serviceType" | "examination" | "vaccine" | "medicine"
+  | "serviceType" | "examination" | "vaccine"
   | "insurance" | "consultation" | "procedure"
   | "hospitalization" | "cage" | "trimmingCourse" | "trimmingOption"
   | "diagnosisCategory" | "diagnosisName" | "checkup" | "job_title";
@@ -10,7 +10,7 @@ const SETTINGS_CATEGORY_MAP: Record<string, SettingsCategory> = {
   "service-type": "serviceType",
   examination: "examination",
   vaccine: "vaccine",
-  medicine: "medicine",
+  // medicine は MedicineSettings 専用ルートで処理
   insurance: "insurance",
   consultation: "consultation",
   procedure: "procedure",
@@ -69,6 +69,13 @@ export const settingsRoutes: RouteObject[] = [
     lazy: async () => {
       const { TrimmingSettings } = await import("@/features/master/routes/TrimmingSettings");
       return { Component: TrimmingSettings };
+    },
+  },
+  {
+    path: "/settings/medicine",
+    lazy: async () => {
+      const { MedicineSettings } = await import("@/features/master/routes/MedicineSettings");
+      return { Component: MedicineSettings };
     },
   },
   ...Object.entries(SETTINGS_CATEGORY_MAP).map(([slug, category]) => ({
