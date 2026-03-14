@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 
 // External
-import { Trash2 } from "lucide-react";
+import { HeartPulse, Trash2 } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import { MedicalRecordEstimate } from "../components/MedicalRecordEstimate";
 import { MedicalRecordBillCheck } from "../components/MedicalRecordBillCheck";
 import { MedicalRecordExamination } from "../components/MedicalRecordExamination";
 import { CheckupsTab } from "../components/CheckupsTab";
+import { VitalsModal } from "../components/VitalsModal";
 import { useMedicalRecordForm } from "../hooks/useMedicalRecordForm";
 
 export function MedicalRecordForm() {
@@ -38,7 +39,6 @@ export function MedicalRecordForm() {
     treatmentPlanItems,
     setTreatmentPlanItems,
     treatmentCompletedItems,
-    setTreatmentCompletedItems,
     chiefComplaint,
     setChiefComplaint,
     treatmentPolicy,
@@ -53,6 +53,7 @@ export function MedicalRecordForm() {
   const [staffName, setStaffName] = useState("医師A");
   const [serviceType, setServiceType] = useState("診療");
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isVitalsOpen, setIsVitalsOpen] = useState(false);
   // 一度マウントしたタブを記録してhide/show方式で管理
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(["問診"]));
 
@@ -171,11 +172,8 @@ export function MedicalRecordForm() {
         {mountedTabs.has("治療") && (
           <div style={{ display: activeTab === "治療" ? "block" : "none" }}>
             <MedicalRecordTreatment
+              medicalRecordId={recordId ?? ""}
               isNewRecord={isNewRecord}
-              planItems={treatmentPlanItems}
-              setPlanItems={setTreatmentPlanItems}
-              completedItems={treatmentCompletedItems}
-              setCompletedItems={setTreatmentCompletedItems}
             />
           </div>
         )}
@@ -235,6 +233,16 @@ export function MedicalRecordForm() {
             </Button>
           )}
           <Button
+            variant="outline"
+            onClick={() => setIsVitalsOpen(true)}
+            disabled={isNewRecord}
+            title={isNewRecord ? "カルテを保存してから利用できます" : undefined}
+            className="h-10 text-sm px-4"
+          >
+            <HeartPulse className="h-4 w-4" />
+            バイタル記録
+          </Button>
+          <Button
             onClick={handleSave}
             className={`${STYLE.btnPrimary} px-5`}
           >
@@ -271,6 +279,14 @@ export function MedicalRecordForm() {
           </div>
         </div>
       )}
+      {/* Vitals Modal */}
+      {!isNewRecord && recordId ? (
+        <VitalsModal
+          open={isVitalsOpen}
+          onOpenChange={setIsVitalsOpen}
+          medicalRecordId={recordId}
+        />
+      ) : null}
     </PageLayout>
   );
 }
