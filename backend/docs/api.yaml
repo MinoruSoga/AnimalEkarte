@@ -1143,10 +1143,11 @@ components:
           default: true
         description:
           type: string
-        drug_category:
-          type: string
+        parent_id:
+          type: integer
+          format: int64
           nullable: true
-          description: 薬効分類（例: 抗生剤、消炎剤）
+          description: 親薬剤ID（カテゴリ medicine を参照）。NULL = カテゴリなし or カテゴリ自身
         dosage_form:
           type: string
           enum: [tablet, liquid, injection, topical, powder]
@@ -1185,6 +1186,11 @@ components:
           readOnly: true
         name:
           type: string
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 親ワクチンID（自己参照）。NULL = カテゴリなし or カテゴリ自身
         price:
           type: number
           format: double
@@ -1370,6 +1376,11 @@ components:
           readOnly: true
         name:
           type: string
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 親診察項目ID（自己参照）。NULL = カテゴリなし or カテゴリ自身
         price:
           type: number
           format: double
@@ -1409,6 +1420,11 @@ components:
           readOnly: true
         name:
           type: string
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 親処置項目ID（自己参照）。NULL = カテゴリなし or カテゴリ自身
         price:
           type: number
           format: double
@@ -1567,6 +1583,11 @@ components:
           readOnly: true
         name:
           type: string
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 親検査種別ID（自己参照）。NULL = カテゴリなし or カテゴリ自身
         price:
           type: number
           format: double
@@ -1683,6 +1704,11 @@ components:
           readOnly: true
         name:
           type: string
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 親健診種別ID（自己参照）。NULL = カテゴリなし or カテゴリ自身
         price:
           type: number
           format: double

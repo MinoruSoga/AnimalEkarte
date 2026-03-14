@@ -1,13 +1,19 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v19.0（estimates.clinic_id追加・billings.has_insurance追加・pg_trgm GINインデックス・論理削除部分インデックス・lazy load設計メモ）
-更新日: 2026-03-12
+バージョン: v20.0（medicines.drug_category廃止→parent_id追加・5マスタテーブルにparent_id追加）
+更新日: 2026-03-15
 状態: Production Ready
 
 本ドキュメントは、Animal Ekarteの全55テーブルとそのリレーションを定義します。
 PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 
 ---
+
+## 変更概要（v19.0 → v20.0）
+
+| 変更内容 | 詳細 |
+|---------|------|
+| v20.0 | medicines.drug_category 廃止 → parent_id (FK→medicines.id SET NULL) 追加。consultations / exam_types / procedures / vaccines / checkup_types に parent_id (自己参照 FK SET NULL) 追加。カテゴリ medicine レコードを parent_id=NULL・price=NULL で表現する親子構造に移行 |
 
 ## 変更概要（v18.0 → v19.0）
 
@@ -332,6 +338,7 @@ erDiagram
         uuid id PK
         uuid clinic_id FK
         text name
+        bigint parent_id FK
         boolean is_active
     }
 
@@ -346,6 +353,7 @@ erDiagram
         uuid id PK
         uuid clinic_id FK
         text name
+        bigint parent_id FK
         boolean is_active
         vaccine_species species
         uuid inventory_id FK
@@ -355,7 +363,7 @@ erDiagram
         uuid id PK
         uuid clinic_id FK
         text name
-        varchar drug_category
+        bigint parent_id FK
         boolean is_active
         dosage_form dosage_form
         uuid inventory_id FK
@@ -390,6 +398,7 @@ erDiagram
         uuid id PK
         uuid clinic_id FK
         text name
+        bigint parent_id FK
         boolean is_active
     }
 
@@ -397,6 +406,7 @@ erDiagram
         uuid id PK
         uuid clinic_id FK
         text name
+        bigint parent_id FK
         boolean is_active
         anesthesia_type anesthesia
     }
@@ -449,6 +459,7 @@ erDiagram
         uuid id PK
         uuid clinic_id FK
         text name
+        bigint parent_id FK
         boolean is_active
         text interval
         timestamptz deleted_at
@@ -1338,6 +1349,7 @@ erDiagram
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 検査種別名 |
+| parent_id | bigint | YES | NULL | 親検査種別ID FK → exam_types(id) SET NULL |
 | price | numeric | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
@@ -1347,8 +1359,9 @@ erDiagram
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
+- `parent_id` → `exam_types.id` (SET NULL)
 
-**インデックス:** `(clinic_id)`
+**インデックス:** `(clinic_id)`, `(parent_id)`
 
 ---
 
@@ -1379,6 +1392,7 @@ erDiagram
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | ワクチン名 |
+| parent_id | bigint | YES | NULL | 親ワクチンID FK → vaccines(id) SET NULL |
 | price | numeric | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
@@ -1391,9 +1405,10 @@ erDiagram
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
+- `parent_id` → `vaccines.id` (SET NULL)
 - `inventory_id` → `inventory_items.id` (SET NULL)
 
-**インデックス:** `(clinic_id)`
+**インデックス:** `(clinic_id)`, `(parent_id)`
 
 ---
 
@@ -1406,10 +1421,10 @@ erDiagram
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 薬剤名 |
+| parent_id | bigint | YES | NULL | 親薬剤ID（カテゴリ medicine を参照）FK → medicines(id) SET NULL |
 | price | numeric | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
-| drug_category | varchar(100) | YES | | 薬効分類（抗生剤・消炎剤等） |
 | dosage_form | dosage_form | YES | | 剤形 |
 | medicine_unit | medicine_unit | YES | | 単位 |
 | inventory_id | uuid | YES | | inventory_items.id FK |
@@ -1420,9 +1435,10 @@ erDiagram
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
+- `parent_id` → `medicines.id` (SET NULL)
 - `inventory_id` → `inventory_items.id` (SET NULL)
 
-**インデックス:** `(clinic_id)`
+**インデックス:** `(clinic_id)`, `(parent_id)`
 
 ---
 
@@ -1507,6 +1523,7 @@ erDiagram
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 診察項目名 |
+| parent_id | bigint | YES | NULL | 親診察項目ID FK → consultations(id) SET NULL |
 | price | numeric | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
@@ -1518,8 +1535,9 @@ erDiagram
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
+- `parent_id` → `consultations.id` (SET NULL)
 
-**インデックス:** `(clinic_id)`
+**インデックス:** `(clinic_id)`, `(parent_id)`
 
 ---
 
@@ -1532,6 +1550,7 @@ erDiagram
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 処置項目名 |
+| parent_id | bigint | YES | NULL | 親処置項目ID FK → procedures(id) SET NULL |
 | price | numeric | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
@@ -1543,8 +1562,9 @@ erDiagram
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
+- `parent_id` → `procedures.id` (SET NULL)
 
-**インデックス:** `(clinic_id)`
+**インデックス:** `(clinic_id)`, `(parent_id)`
 
 ---
 
@@ -1678,6 +1698,7 @@ erDiagram
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 健診種別名 |
+| parent_id | bigint | YES | NULL | 親健診種別ID FK → checkup_types(id) SET NULL |
 | price | numeric | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
@@ -1690,8 +1711,9 @@ erDiagram
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
+- `parent_id` → `checkup_types.id` (SET NULL)
 
-**インデックス:** `(clinic_id)`
+**インデックス:** `(clinic_id)`, `(parent_id)`, `(deleted_at)`
 
 ---
 
@@ -2673,6 +2695,7 @@ FK なし（システム共通マスタ）
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
 | clinic_id | clinics.id | RESTRICT |
+| parent_id | medicines.id | SET NULL |
 | inventory_id | inventory_items.id | SET NULL |
 
 ### payments
