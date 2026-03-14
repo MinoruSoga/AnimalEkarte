@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Medicine } from "@/types";
 import type { Medicine as MedicineModel } from "@/types/generated/models";
 
@@ -56,6 +57,8 @@ export const useGetAllMedicines = () => {
   return useQuery({
     queryKey: ["medicines"],
     queryFn: getAllMedicines,
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 };
 
@@ -69,6 +72,8 @@ export const useGetMedicineById = (id: string) => {
     queryKey: ["medicines", id],
     queryFn: () => getMedicineById(id),
     enabled: !!id,
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 };
 

@@ -10,22 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type createExaminationTypeInput struct {
-	Name        string   `json:"name"        binding:"required"`
-	Price       *float64 `json:"price"`
-	IsActive    bool     `json:"is_active"`
-	Description string   `json:"description"`
-	SortOrder   int      `json:"sort_order"`
-}
-
-type updateExaminationTypeInput struct {
-	Name        string   `json:"name"`
-	Price       *float64 `json:"price"`
-	IsActive    *bool    `json:"is_active"`
-	Description string   `json:"description"`
-	SortOrder   int      `json:"sort_order"`
-}
-
 // ---- ExaminationType ----
 
 // ListExaminationTypes godoc
@@ -35,7 +19,7 @@ func (h *Handler) ListExaminationTypes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, exTypes)
+	c.JSON(http.StatusOK, toExamTypeResponseList(exTypes))
 }
 
 // CreateExaminationType godoc
@@ -45,26 +29,26 @@ func (h *Handler) CreateExaminationType(c *gin.Context) {
 		return
 	}
 
-	var input createExaminationTypeInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	var req createExaminationTypeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
 	examType := &model.ExaminationType{
 		ClinicID:    clinicID,
-		Name:        input.Name,
-		Price:       input.Price,
-		IsActive:    input.IsActive,
-		Description: input.Description,
-		SortOrder:   input.SortOrder,
+		Name:        req.Name,
+		Price:       req.Price,
+		IsActive:    req.IsActive,
+		Description: req.Description,
+		SortOrder:   req.SortOrder,
 	}
 
 	if err := h.svc.ExaminationType.Create(c.Request.Context(), examType); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, examType)
+	c.JSON(http.StatusCreated, toExamTypeResponse(examType))
 }
 
 // UpdateExaminationType godoc
@@ -74,28 +58,28 @@ func (h *Handler) UpdateExaminationType(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input updateExaminationTypeInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	var req updateExaminationTypeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
 	examType := &model.ExaminationType{
 		ID:          id,
-		Name:        input.Name,
-		Price:       input.Price,
-		Description: input.Description,
-		SortOrder:   input.SortOrder,
+		Name:        req.Name,
+		Price:       req.Price,
+		Description: req.Description,
+		SortOrder:   req.SortOrder,
 	}
-	if input.IsActive != nil {
-		examType.IsActive = *input.IsActive
+	if req.IsActive != nil {
+		examType.IsActive = *req.IsActive
 	}
 
 	if err := h.svc.ExaminationType.Update(c.Request.Context(), examType); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, examType)
+	c.JSON(http.StatusOK, toExamTypeResponse(examType))
 }
 
 // DeleteExaminationType godoc

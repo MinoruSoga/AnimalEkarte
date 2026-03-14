@@ -1,59 +1,45 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import type {
+  DiagnosisCategory as ModelDiagnosisCategory,
+  DiagnosisName as ModelDiagnosisName,
+} from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
-// Backend types (snake_case) - api.yaml 準拠
+// Transform functions → domain types (camelCase)
 // ─────────────────────────────────────────────────
 
-export interface BackendDiagnosisCategory {
-  id: string;
-  clinic_id: string;
-  name: string;
-  is_active: boolean;
-  description: string;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
+function transformDiagnosisCategory(data: ModelDiagnosisCategory) {
+  return {
+    id: data.id,                        // number (uint64)
+    clinicId: data.clinic_id,
+    name: data.name,
+    isActive: data.is_active,
+    description: data.description,
+    sortOrder: data.sort_order,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
 }
 
-export interface BackendDiagnosisName {
-  id: string;
-  clinic_id: string;
-  name: string;
-  is_active: boolean;
-  description: string;
-  diagnosis_category_id: string;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
+function transformDiagnosisName(data: ModelDiagnosisName) {
+  return {
+    id: data.id,                                // number (uint64)
+    clinicId: data.clinic_id,
+    name: data.name,
+    isActive: data.is_active,
+    description: data.description,
+    diagnosisCategoryId: data.diagnosis_category_id, // number (uint64)
+    sortOrder: data.sort_order,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
 }
 
-// ─────────────────────────────────────────────────
-// Frontend display types (camelCase)
-// ─────────────────────────────────────────────────
-
-export interface DiagnosisCategory {
-  id: string;
-  clinicId: string;
-  name: string;
-  isActive: boolean;
-  description: string;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface DiagnosisName {
-  id: string;
-  clinicId: string;
-  name: string;
-  isActive: boolean;
-  description: string;
-  diagnosisCategoryId: string;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-}
+// Frontend domain types derived from transforms (編集禁止 - ReturnType から自動導出)
+export type DiagnosisCategory = ReturnType<typeof transformDiagnosisCategory>;
+export type DiagnosisName = ReturnType<typeof transformDiagnosisName>;
 
 // ─────────────────────────────────────────────────
 // Request types
@@ -75,7 +61,7 @@ export interface UpdateDiagnosisCategoryRequest {
 
 export interface CreateDiagnosisNameRequest {
   name: string;
-  diagnosis_category_id: string;
+  diagnosis_category_id: number; // uint64 — string で送ると 400 になるため number 必須
   description?: string;
   is_active?: boolean;
   sort_order?: number;
@@ -83,7 +69,7 @@ export interface CreateDiagnosisNameRequest {
 
 export interface UpdateDiagnosisNameRequest {
   name?: string;
-  diagnosis_category_id?: string;
+  diagnosis_category_id?: number; // uint64
   description?: string;
   is_active?: boolean;
   sort_order?: number;
@@ -98,37 +84,6 @@ export interface ReorderDiagnosisNameRequest {
 }
 
 // ─────────────────────────────────────────────────
-// Transform functions
-// ─────────────────────────────────────────────────
-
-function transformDiagnosisCategory(data: BackendDiagnosisCategory): DiagnosisCategory {
-  return {
-    id: data.id,
-    clinicId: data.clinic_id,
-    name: data.name,
-    isActive: data.is_active,
-    description: data.description,
-    sortOrder: data.sort_order,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
-  };
-}
-
-function transformDiagnosisName(data: BackendDiagnosisName): DiagnosisName {
-  return {
-    id: data.id,
-    clinicId: data.clinic_id,
-    name: data.name,
-    isActive: data.is_active,
-    description: data.description,
-    diagnosisCategoryId: data.diagnosis_category_id,
-    sortOrder: data.sort_order,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
-  };
-}
-
-// ─────────────────────────────────────────────────
 // Query keys
 // ─────────────────────────────────────────────────
 
@@ -140,7 +95,7 @@ const DIAGNOSIS_NAMES_KEY = ["masters", "diagnosis-names"] as const;
 // ─────────────────────────────────────────────────
 
 export async function listDiagnosisCategories(): Promise<DiagnosisCategory[]> {
-  const { data } = await axios.get<BackendDiagnosisCategory[]>(
+  const { data } = await axios.get<ModelDiagnosisCategory[]>(
     "/v1/masters/diagnosis-categories",
   );
   return data.map(transformDiagnosisCategory);
@@ -149,7 +104,7 @@ export async function listDiagnosisCategories(): Promise<DiagnosisCategory[]> {
 export async function createDiagnosisCategory(
   req: CreateDiagnosisCategoryRequest,
 ): Promise<DiagnosisCategory> {
-  const { data } = await axios.post<BackendDiagnosisCategory>(
+  const { data } = await axios.post<ModelDiagnosisCategory>(
     "/v1/masters/diagnosis-categories",
     req,
   );
@@ -157,17 +112,17 @@ export async function createDiagnosisCategory(
 }
 
 export async function updateDiagnosisCategory(
-  id: string,
+  id: number,
   req: UpdateDiagnosisCategoryRequest,
 ): Promise<DiagnosisCategory> {
-  const { data } = await axios.patch<BackendDiagnosisCategory>(
+  const { data } = await axios.patch<ModelDiagnosisCategory>(
     `/v1/masters/diagnosis-categories/${id}`,
     req,
   );
   return transformDiagnosisCategory(data);
 }
 
-export async function deleteDiagnosisCategory(id: string): Promise<void> {
+export async function deleteDiagnosisCategory(id: number): Promise<void> {
   await axios.delete(`/v1/masters/diagnosis-categories/${id}`);
 }
 
@@ -182,7 +137,7 @@ export async function reorderDiagnosisCategories(
 // ─────────────────────────────────────────────────
 
 export async function listDiagnosisNames(): Promise<DiagnosisName[]> {
-  const { data } = await axios.get<BackendDiagnosisName[]>(
+  const { data } = await axios.get<ModelDiagnosisName[]>(
     "/v1/masters/diagnosis-names",
   );
   return data.map(transformDiagnosisName);
@@ -191,7 +146,7 @@ export async function listDiagnosisNames(): Promise<DiagnosisName[]> {
 export async function createDiagnosisName(
   req: CreateDiagnosisNameRequest,
 ): Promise<DiagnosisName> {
-  const { data } = await axios.post<BackendDiagnosisName>(
+  const { data } = await axios.post<ModelDiagnosisName>(
     "/v1/masters/diagnosis-names",
     req,
   );
@@ -199,17 +154,17 @@ export async function createDiagnosisName(
 }
 
 export async function updateDiagnosisName(
-  id: string,
+  id: number,
   req: UpdateDiagnosisNameRequest,
 ): Promise<DiagnosisName> {
-  const { data } = await axios.patch<BackendDiagnosisName>(
+  const { data } = await axios.patch<ModelDiagnosisName>(
     `/v1/masters/diagnosis-names/${id}`,
     req,
   );
   return transformDiagnosisName(data);
 }
 
-export async function deleteDiagnosisName(id: string): Promise<void> {
+export async function deleteDiagnosisName(id: number): Promise<void> {
   await axios.delete(`/v1/masters/diagnosis-names/${id}`);
 }
 
@@ -227,6 +182,8 @@ export function useListDiagnosisCategories() {
   return useQuery({
     queryKey: DIAGNOSIS_CATEGORIES_KEY,
     queryFn: listDiagnosisCategories,
+    staleTime: QUERY_STALE_TIMES.STATIC, // マスタデータ: 30分キャッシュ
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 }
 
@@ -243,7 +200,7 @@ export function useCreateDiagnosisCategory() {
 export function useUpdateDiagnosisCategory() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: UpdateDiagnosisCategoryRequest }) =>
+    mutationFn: ({ id, req }: { id: number; req: UpdateDiagnosisCategoryRequest }) =>
       updateDiagnosisCategory(id, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: DIAGNOSIS_CATEGORIES_KEY });
@@ -279,6 +236,8 @@ export function useListDiagnosisNames() {
   return useQuery({
     queryKey: DIAGNOSIS_NAMES_KEY,
     queryFn: listDiagnosisNames,
+    staleTime: QUERY_STALE_TIMES.STATIC, // マスタデータ: 30分キャッシュ
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 }
 
@@ -295,7 +254,7 @@ export function useCreateDiagnosisName() {
 export function useUpdateDiagnosisName() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: UpdateDiagnosisNameRequest }) =>
+    mutationFn: ({ id, req }: { id: number; req: UpdateDiagnosisNameRequest }) =>
       updateDiagnosisName(id, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: DIAGNOSIS_NAMES_KEY });

@@ -23,8 +23,9 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 // External
-import { Plus, ClipboardList, X, Trash2, GripVertical } from "lucide-react";
+import { Plus, ClipboardList, X, GripVertical, MoreHorizontal, Maximize2, Tag, FileText } from "lucide-react";
 import { toast } from "sonner";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
@@ -35,7 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable, DataTableRow } from "@/components/shared/DataTable";
@@ -178,6 +179,328 @@ function AddButton({ onClick }: { onClick: () => void }) {
 }
 
 // ─────────────────────────────────────────────────
+// DiagnosisCategoryModal
+// ─────────────────────────────────────────────────
+
+function DiagnosisCategoryModal({
+  open,
+  item,
+  onClose,
+  onSave,
+  onDeleteRequest,
+}: {
+  open: boolean;
+  item: DiagnosisCategory | null;
+  onClose: () => void;
+  onSave: (data: { name: string; description: string; isActive: boolean }) => void;
+  onDeleteRequest: () => void;
+}) {
+  const [formData, setFormData] = useState({
+    name: item?.name ?? "",
+    description: item?.description ?? "",
+    isActive: item?.isActive ?? true,
+  });
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  return (
+    <DialogPrimitive.Root open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/20" />
+        <DialogPrimitive.Content
+          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[600px] max-h-[85vh] bg-white rounded-[8px] border border-[#E8E8E8] shadow-xl flex flex-col overflow-hidden outline-none"
+          aria-describedby={undefined}
+        >
+          <DialogPrimitive.Title className="sr-only">
+            {item ? "カテゴリ編集" : "カテゴリ新規作成"}
+          </DialogPrimitive.Title>
+
+          {/* ── Header ── */}
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[#E8E8E8]">
+            <span className="text-xs text-[#37352F]/35 pl-1 select-none">
+              {item ? "編集" : "新規作成"}
+            </span>
+            <div className="flex items-center gap-0.5">
+              {item ? (
+                <>
+                  <button
+                    type="button"
+                    className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
+                    onClick={() => {}}
+                  >
+                    <Maximize2 className="size-4" />
+                  </button>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
+                      onClick={() => setShowMoreMenu((v) => !v)}
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </button>
+                    {showMoreMenu ? (
+                      <div className="absolute right-0 top-full mt-1 w-[140px] bg-white border border-[#E8E8E8] rounded-[6px] shadow-md z-10 py-1">
+                        <button
+                          type="button"
+                          className="w-full text-left px-3 py-1.5 text-sm text-[#EB5757] hover:bg-[#F7F6F3] transition-colors"
+                          onClick={() => { setShowMoreMenu(false); onDeleteRequest(); }}
+                        >
+                          削除
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </>
+              ) : null}
+              <DialogPrimitive.Close className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}>
+                <X className="size-4" />
+              </DialogPrimitive.Close>
+            </div>
+          </div>
+
+          {/* ── Body ── */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="px-16 pb-8">
+              <div className="pt-4 pb-2">
+                <div className={STYLE.pageIcon}>
+                  <Tag className={LAYOUT.pageIcon.innerIcon} />
+                </div>
+              </div>
+              <div className="pb-1 mb-4">
+                <input
+                  type="text"
+                  className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
+                  style={{
+                    fontSize: LAYOUT.pageTitle.fontSize,
+                    fontWeight: LAYOUT.pageTitle.fontWeight,
+                    lineHeight: LAYOUT.pageTitle.lineHeight,
+                  }}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="無題"
+                />
+              </div>
+              <div className={`${STYLE.sectionDivider} mb-1`} />
+              <div className="py-1">
+                <PropertyRow label="ステータス">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+                    className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+                  >
+                    <NotionStatusPill isActive={formData.isActive} />
+                  </button>
+                </PropertyRow>
+                <PropertyRow label="備考">
+                  <PropInput
+                    value={formData.description}
+                    onChange={(v) => setFormData({ ...formData, description: v })}
+                    placeholder="空"
+                  />
+                </PropertyRow>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Footer ── */}
+          <div className={STYLE.sidePeekFooter}>
+            <button type="button" onClick={onClose} className={STYLE.sidePeekCancelBtn}>
+              キャンセル
+            </button>
+            <button
+              type="button"
+              onClick={() => onSave(formData)}
+              className={STYLE.sidePeekSaveBtn}
+            >
+              保存
+            </button>
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
+  );
+}
+
+// ─────────────────────────────────────────────────
+// DiagnosisNameModal
+// ─────────────────────────────────────────────────
+
+function DiagnosisNameModal({
+  open,
+  item,
+  categories,
+  onClose,
+  onSave,
+  onDeleteRequest,
+}: {
+  open: boolean;
+  item: DiagnosisName | null;
+  categories: DiagnosisCategory[];
+  onClose: () => void;
+  onSave: (data: { name: string; diagnosisCategoryId: string; description: string; isActive: boolean }) => void;
+  onDeleteRequest: () => void;
+}) {
+  const [formData, setFormData] = useState({
+    name: item?.name ?? "",
+    diagnosisCategoryId: item ? String(item.diagnosisCategoryId) : (categories[0] ? String(categories[0].id) : ""),
+    description: item?.description ?? "",
+    isActive: item?.isActive ?? true,
+  });
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  const selectedCategoryName = useMemo(
+    () => categories.find((c) => String(c.id) === formData.diagnosisCategoryId)?.name ?? "",
+    [categories, formData.diagnosisCategoryId],
+  );
+
+  return (
+    <DialogPrimitive.Root open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/20" />
+        <DialogPrimitive.Content
+          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[600px] max-h-[85vh] bg-white rounded-[8px] border border-[#E8E8E8] shadow-xl flex flex-col overflow-hidden outline-none"
+          aria-describedby={undefined}
+        >
+          <DialogPrimitive.Title className="sr-only">
+            {item ? "診断病名編集" : "診断病名新規作成"}
+          </DialogPrimitive.Title>
+
+          {/* ── Header ── */}
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[#E8E8E8]">
+            <span className="text-xs text-[#37352F]/35 pl-1 select-none">
+              {item ? "編集" : "新規作成"}
+            </span>
+            <div className="flex items-center gap-0.5">
+              {item ? (
+                <>
+                  <button type="button" className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`} onClick={() => {}}>
+                    <Maximize2 className="size-4" />
+                  </button>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
+                      onClick={() => setShowMoreMenu((v) => !v)}
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </button>
+                    {showMoreMenu ? (
+                      <div className="absolute right-0 top-full mt-1 w-[140px] bg-white border border-[#E8E8E8] rounded-[6px] shadow-md z-10 py-1">
+                        <button
+                          type="button"
+                          className="w-full text-left px-3 py-1.5 text-sm text-[#EB5757] hover:bg-[#F7F6F3] transition-colors"
+                          onClick={() => { setShowMoreMenu(false); onDeleteRequest(); }}
+                        >
+                          削除
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </>
+              ) : null}
+              <DialogPrimitive.Close className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}>
+                <X className="size-4" />
+              </DialogPrimitive.Close>
+            </div>
+          </div>
+
+          {/* ── Body ── */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="px-16 pb-8">
+              <div className="pt-4 pb-2">
+                <div className={STYLE.pageIcon}>
+                  <FileText className={LAYOUT.pageIcon.innerIcon} />
+                </div>
+              </div>
+              <div className="pb-1 mb-4">
+                <input
+                  type="text"
+                  className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
+                  style={{
+                    fontSize: LAYOUT.pageTitle.fontSize,
+                    fontWeight: LAYOUT.pageTitle.fontWeight,
+                    lineHeight: LAYOUT.pageTitle.lineHeight,
+                  }}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="無題"
+                />
+              </div>
+
+              <div className={`${STYLE.sectionDivider} mb-1`} />
+
+              <div className="py-1">
+                <PropertyRow label="ステータス">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+                    className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+                  >
+                    <NotionStatusPill isActive={formData.isActive} />
+                  </button>
+                </PropertyRow>
+                <PropertyRow label="備考">
+                  <PropInput
+                    value={formData.description}
+                    onChange={(v) => setFormData({ ...formData, description: v })}
+                    placeholder="空"
+                  />
+                </PropertyRow>
+              </div>
+
+              {/* ── 所属カテゴリセクション ── */}
+              <div className="mt-4 pt-4 border-t border-[#E8E8E8]">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-medium text-[#37352F]/50 uppercase tracking-wide">所属カテゴリ</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-[#37352F]/65 w-[140px] shrink-0">診断病名カテゴリ <span className="text-[#EB5757]">*</span></span>
+                    <Select
+                      value={formData.diagnosisCategoryId}
+                      onValueChange={(v) => setFormData({ ...formData, diagnosisCategoryId: v })}
+                    >
+                      <SelectTrigger className={STYLE.selectCompact}>
+                        <SelectValue placeholder="カテゴリを選択" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((cat) => (
+                          <SelectItem key={cat.id} value={String(cat.id)}>
+                            {cat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {selectedCategoryName ? (
+                    <p className="text-xs text-[#37352F]/40 pl-[152px]">
+                      「{selectedCategoryName}」カテゴリに分類されます
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Footer ── */}
+          <div className={STYLE.sidePeekFooter}>
+            <button type="button" onClick={onClose} className={STYLE.sidePeekCancelBtn}>
+              キャンセル
+            </button>
+            <button
+              type="button"
+              onClick={() => onSave(formData)}
+              className={STYLE.sidePeekSaveBtn}
+            >
+              保存
+            </button>
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
+  );
+}
+
+// ─────────────────────────────────────────────────
 // DiagnosisCategoryTab
 // ─────────────────────────────────────────────────
 
@@ -226,12 +549,11 @@ function SortableCategoryRow({
 }
 
 function DiagnosisCategoryTab() {
-  const [isEditing, setIsEditing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<DiagnosisCategory | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<DiagnosisCategory | null>(null);
-  const [formData, setFormData] = useState({ name: "", description: "", isActive: true });
-  const [overrideOrder, setOverrideOrder] = useState<string[]>([]);
+  const [overrideOrder, setOverrideOrder] = useState<number[]>([]);
 
   const { data: rawCategories } = useListDiagnosisCategories();
   const createMutation = useCreateDiagnosisCategory();
@@ -263,67 +585,57 @@ function DiagnosisCategoryTab() {
     const currentIds = orderedCategories.map((i) => i.id);
     const newOrder = arrayMove(
       currentIds,
-      currentIds.indexOf(String(active.id)),
-      currentIds.indexOf(String(over.id)),
+      currentIds.indexOf(Number(active.id)),
+      currentIds.indexOf(Number(over.id)),
     );
     setOverrideOrder(newOrder);
     reorderMutation.mutate(
-      { ids: newOrder.map((id) => Number(id)) },
+      { ids: newOrder },
       { onSuccess: () => setOverrideOrder([]) },
     );
   };
 
   const handleEdit = (item: DiagnosisCategory) => {
     setSelectedItem(item);
-    setFormData({ name: item.name, description: item.description, isActive: item.isActive });
-    setIsEditing(true);
+    setIsModalOpen(true);
   };
 
   const handleCreate = () => {
     setSelectedItem(null);
-    setFormData({ name: "", description: "", isActive: true });
-    setIsEditing(true);
+    setIsModalOpen(true);
   };
 
-  const handleCloseEdit = () => {
-    setIsEditing(false);
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
     setSelectedItem(null);
-    setFormData({ name: "", description: "", isActive: true });
   };
 
-  const handleSave = () => {
-    if (!formData.name.trim()) {
+  const handleSave = (data: { name: string; description: string; isActive: boolean }) => {
+    if (!data.name.trim()) {
       toast.error("カテゴリ名は必須です");
       return;
     }
-
     if (selectedItem) {
       const req: UpdateDiagnosisCategoryRequest = {
-        name: formData.name,
-        description: formData.description || undefined,
-        is_active: formData.isActive,
+        name: data.name,
+        description: data.description || undefined,
+        is_active: data.isActive,
       };
       updateMutation.mutate(
         { id: selectedItem.id, req },
         {
-          onSuccess: () => {
-            toast.success("更新しました");
-            setIsEditing(false);
-          },
+          onSuccess: () => { toast.success("更新しました"); handleCloseModal(); },
           onError: () => toast.error("更新に失敗しました"),
         },
       );
     } else {
       const req: CreateDiagnosisCategoryRequest = {
-        name: formData.name,
-        description: formData.description || undefined,
+        name: data.name,
+        description: data.description || undefined,
         is_active: true,
       };
       createMutation.mutate(req, {
-        onSuccess: () => {
-          toast.success("登録しました");
-          setIsEditing(false);
-        },
+        onSuccess: () => { toast.success("登録しました"); handleCloseModal(); },
         onError: () => toast.error("登録に失敗しました"),
       });
     }
@@ -334,7 +646,7 @@ function DiagnosisCategoryTab() {
     deleteMutation.mutate(pendingDelete.id, {
       onSuccess: () => {
         setPendingDelete(null);
-        setIsEditing(false);
+        handleCloseModal();
         toast.success("削除しました");
       },
       onError: () => toast.error("削除に失敗しました"),
@@ -343,138 +655,52 @@ function DiagnosisCategoryTab() {
 
   return (
     <>
-      <div className="flex h-full">
-        {/* ── Left: List ── */}
-        <div className="flex-1 min-w-0 flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <SearchFilterBar
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                placeholder="カテゴリ名で検索..."
-                count={filteredItems.length}
-              />
-            </div>
-            <AddButton onClick={handleCreate} />
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <SearchFilterBar
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              placeholder="カテゴリ名で検索..."
+              count={filteredItems.length}
+            />
           </div>
-
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleCategoryDragEnd}
-          >
-            <SortableContext
-              items={filteredItems.map((i) => i.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <DataTable
-                columns={CATEGORY_COLUMNS}
-                data={filteredItems}
-                emptyMessage="診断カテゴリが登録されていません"
-                renderRow={(item) => (
-                  <SortableCategoryRow
-                    key={item.id}
-                    item={item}
-                    onEdit={() => handleEdit(item)}
-                  />
-                )}
-              />
-            </SortableContext>
-          </DndContext>
+          <AddButton onClick={handleCreate} />
         </div>
 
-        {/* ── Right: Side Peek ── */}
-        {isEditing ? (
-          <div
-            className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 flex flex-col`}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleCategoryDragEnd}
+        >
+          <SortableContext
+            items={filteredItems.map((i) => i.id)}
+            strategy={verticalListSortingStrategy}
           >
-            {/* Toolbar */}
-            <div className={STYLE.sidePeekToolbar}>
-              <span className="text-xs text-[#37352F]/35 pl-1 select-none">
-                {selectedItem ? "編集" : "新規作成"}
-              </span>
-              <div className="flex items-center gap-1">
-                {selectedItem ? (
-                  <button
-                    type="button"
-                    onClick={() => setPendingDelete(selectedItem)}
-                    className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={handleCloseEdit}
-                  className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Body */}
-            <div className={STYLE.sidePeekBody}>
-              <div className="px-16 pb-8">
-                <div className="pt-4 pb-2">
-                  <div className={STYLE.pageIcon}>
-                    <ClipboardList className={LAYOUT.pageIcon.innerIcon} />
-                  </div>
-                </div>
-
-                <div className="pb-1 mb-4">
-                  <input
-                    type="text"
-                    className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
-                    style={{
-                      fontSize: LAYOUT.pageTitle.fontSize,
-                      fontWeight: LAYOUT.pageTitle.fontWeight,
-                      lineHeight: LAYOUT.pageTitle.lineHeight,
-                    }}
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="無題"
-                  />
-                </div>
-
-                <div className={`${STYLE.sectionDivider} mb-1`} />
-
-                <div className="py-1">
-                  <PropertyRow label="ステータス">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData({ ...formData, isActive: !formData.isActive })
-                      }
-                      className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-                    >
-                      <NotionStatusPill isActive={formData.isActive} />
-                    </button>
-                  </PropertyRow>
-
-                  <PropertyRow label="備考">
-                    <PropInput
-                      value={formData.description}
-                      onChange={(v) => setFormData({ ...formData, description: v })}
-                      placeholder="補足情報など"
-                    />
-                  </PropertyRow>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className={STYLE.sidePeekFooter}>
-              <button type="button" onClick={handleCloseEdit} className={STYLE.sidePeekCancelBtn}>
-                キャンセル
-              </button>
-              <button type="button" onClick={handleSave} className={STYLE.sidePeekSaveBtn}>
-                保存
-              </button>
-            </div>
-          </div>
-        ) : null}
+            <DataTable
+              columns={CATEGORY_COLUMNS}
+              data={filteredItems}
+              emptyMessage="診断カテゴリが登録されていません"
+              renderRow={(item) => (
+                <SortableCategoryRow
+                  key={item.id}
+                  item={item}
+                  onEdit={() => handleEdit(item)}
+                />
+              )}
+            />
+          </SortableContext>
+        </DndContext>
       </div>
+
+      <DiagnosisCategoryModal
+        key={selectedItem ? String(selectedItem.id) : "new-category"}
+        open={isModalOpen}
+        item={selectedItem}
+        onClose={handleCloseModal}
+        onSave={handleSave}
+        onDeleteRequest={() => setPendingDelete(selectedItem)}
+      />
 
       <ConfirmDialog
         open={pendingDelete !== null}
@@ -499,7 +725,7 @@ function SortableNameRow({
   onEdit,
 }: {
   item: DiagnosisName;
-  categoryMap: Map<string, string>;
+  categoryMap: Map<number, string>;
   onEdit: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -543,16 +769,11 @@ function SortableNameRow({
 }
 
 function DiagnosisNameTab() {
-  const [isEditing, setIsEditing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<DiagnosisName | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<DiagnosisName | null>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    diagnosisCategoryId: "",
-    description: "",
-    isActive: true,
-  });
+  const [overrideOrder, setOverrideOrder] = useState<number[]>([]);
 
   const { data: rawCategories } = useListDiagnosisCategories();
   const { data: rawNames } = useListDiagnosisNames();
@@ -566,8 +787,6 @@ function DiagnosisNameTab() {
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
-
-  const [overrideOrder, setOverrideOrder] = useState<string[]>([]);
 
   const orderedNames = useMemo(() => {
     const base = rawNames ?? [];
@@ -588,89 +807,69 @@ function DiagnosisNameTab() {
     const currentIds = orderedNames.map((i) => i.id);
     const newOrder = arrayMove(
       currentIds,
-      currentIds.indexOf(String(active.id)),
-      currentIds.indexOf(String(over.id)),
+      currentIds.indexOf(Number(active.id)),
+      currentIds.indexOf(Number(over.id)),
     );
     setOverrideOrder(newOrder);
     reorderMutation.mutate(
-      { ids: newOrder.map((id) => Number(id)) },
+      { ids: newOrder },
       { onSuccess: () => setOverrideOrder([]) },
     );
   };
 
   const categoryMap = useMemo(
-    () => new Map((rawCategories ?? []).map((c) => [c.id, c.name])),
+    () => new Map<number, string>((rawCategories ?? []).map((c) => [c.id, c.name])),
     [rawCategories],
   );
 
   const handleEdit = (item: DiagnosisName) => {
     setSelectedItem(item);
-    setFormData({
-      name: item.name,
-      diagnosisCategoryId: item.diagnosisCategoryId,
-      description: item.description,
-      isActive: item.isActive,
-    });
-    setIsEditing(true);
+    setIsModalOpen(true);
   };
 
   const handleCreate = () => {
     setSelectedItem(null);
-    const firstCategoryId = rawCategories?.[0]?.id ?? "";
-    setFormData({
-      name: "",
-      diagnosisCategoryId: firstCategoryId,
-      description: "",
-      isActive: true,
-    });
-    setIsEditing(true);
+    setIsModalOpen(true);
   };
 
-  const handleCloseEdit = () => {
-    setIsEditing(false);
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
     setSelectedItem(null);
-    setFormData({ name: "", diagnosisCategoryId: "", description: "", isActive: true });
   };
 
-  const handleSave = () => {
-    if (!formData.name.trim()) {
+  const handleSave = (data: { name: string; diagnosisCategoryId: string; description: string; isActive: boolean }) => {
+    if (!data.name.trim()) {
       toast.error("診断病名は必須です");
       return;
     }
-    if (!formData.diagnosisCategoryId) {
+    if (!data.diagnosisCategoryId) {
       toast.error("カテゴリは必須です");
       return;
     }
 
     if (selectedItem) {
       const req: UpdateDiagnosisNameRequest = {
-        name: formData.name,
-        diagnosis_category_id: formData.diagnosisCategoryId,
-        description: formData.description || undefined,
-        is_active: formData.isActive,
+        name: data.name,
+        diagnosis_category_id: Number(data.diagnosisCategoryId),
+        description: data.description || undefined,
+        is_active: data.isActive,
       };
       updateMutation.mutate(
         { id: selectedItem.id, req },
         {
-          onSuccess: () => {
-            toast.success("更新しました");
-            setIsEditing(false);
-          },
+          onSuccess: () => { toast.success("更新しました"); handleCloseModal(); },
           onError: () => toast.error("更新に失敗しました"),
         },
       );
     } else {
       const req: CreateDiagnosisNameRequest = {
-        name: formData.name,
-        diagnosis_category_id: formData.diagnosisCategoryId,
-        description: formData.description || undefined,
+        name: data.name,
+        diagnosis_category_id: Number(data.diagnosisCategoryId),
+        description: data.description || undefined,
         is_active: true,
       };
       createMutation.mutate(req, {
-        onSuccess: () => {
-          toast.success("登録しました");
-          setIsEditing(false);
-        },
+        onSuccess: () => { toast.success("登録しました"); handleCloseModal(); },
         onError: () => toast.error("登録に失敗しました"),
       });
     }
@@ -681,7 +880,7 @@ function DiagnosisNameTab() {
     deleteMutation.mutate(pendingDelete.id, {
       onSuccess: () => {
         setPendingDelete(null);
-        setIsEditing(false);
+        handleCloseModal();
         toast.success("削除しました");
       },
       onError: () => toast.error("削除に失敗しました"),
@@ -690,159 +889,54 @@ function DiagnosisNameTab() {
 
   return (
     <>
-      <div className="flex h-full">
-        {/* ── Left: List ── */}
-        <div className="flex-1 min-w-0 flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <SearchFilterBar
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                placeholder="診断病名で検索..."
-                count={filteredItems.length}
-              />
-            </div>
-            <AddButton onClick={handleCreate} />
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <SearchFilterBar
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              placeholder="診断病名で検索..."
+              count={filteredItems.length}
+            />
           </div>
-
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleNameDragEnd}
-          >
-            <SortableContext
-              items={filteredItems.map((i) => i.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <DataTable
-                columns={NAME_COLUMNS}
-                data={filteredItems}
-                emptyMessage="診断病名が登録されていません"
-                renderRow={(item) => (
-                  <SortableNameRow
-                    key={item.id}
-                    item={item}
-                    categoryMap={categoryMap}
-                    onEdit={() => handleEdit(item)}
-                  />
-                )}
-              />
-            </SortableContext>
-          </DndContext>
+          <AddButton onClick={handleCreate} />
         </div>
 
-        {/* ── Right: Side Peek ── */}
-        {isEditing ? (
-          <div
-            className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 flex flex-col`}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleNameDragEnd}
+        >
+          <SortableContext
+            items={filteredItems.map((i) => i.id)}
+            strategy={verticalListSortingStrategy}
           >
-            {/* Toolbar */}
-            <div className={STYLE.sidePeekToolbar}>
-              <span className="text-xs text-[#37352F]/35 pl-1 select-none">
-                {selectedItem ? "編集" : "新規作成"}
-              </span>
-              <div className="flex items-center gap-1">
-                {selectedItem ? (
-                  <button
-                    type="button"
-                    onClick={() => setPendingDelete(selectedItem)}
-                    className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={handleCloseEdit}
-                  className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Body */}
-            <div className={STYLE.sidePeekBody}>
-              <div className="px-16 pb-8">
-                <div className="pt-4 pb-2">
-                  <div className={STYLE.pageIcon}>
-                    <ClipboardList className={LAYOUT.pageIcon.innerIcon} />
-                  </div>
-                </div>
-
-                <div className="pb-1 mb-4">
-                  <input
-                    type="text"
-                    className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
-                    style={{
-                      fontSize: LAYOUT.pageTitle.fontSize,
-                      fontWeight: LAYOUT.pageTitle.fontWeight,
-                      lineHeight: LAYOUT.pageTitle.lineHeight,
-                    }}
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="無題"
-                  />
-                </div>
-
-                <div className={`${STYLE.sectionDivider} mb-1`} />
-
-                <div className="py-1">
-                  <PropertyRow label="ステータス">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData({ ...formData, isActive: !formData.isActive })
-                      }
-                      className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-                    >
-                      <NotionStatusPill isActive={formData.isActive} />
-                    </button>
-                  </PropertyRow>
-
-                  <PropertyRow label="カテゴリ">
-                    <Select
-                      value={formData.diagnosisCategoryId}
-                      onValueChange={(v) =>
-                        setFormData({ ...formData, diagnosisCategoryId: v })
-                      }
-                    >
-                      <SelectTrigger className={STYLE.selectCompact}>
-                        <SelectValue placeholder="カテゴリを選択" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(rawCategories ?? []).map((cat) => (
-                          <SelectItem key={cat.id} value={cat.id}>
-                            {cat.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </PropertyRow>
-
-                  <PropertyRow label="備考">
-                    <PropInput
-                      value={formData.description}
-                      onChange={(v) => setFormData({ ...formData, description: v })}
-                      placeholder="補足情報など"
-                    />
-                  </PropertyRow>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className={STYLE.sidePeekFooter}>
-              <button type="button" onClick={handleCloseEdit} className={STYLE.sidePeekCancelBtn}>
-                キャンセル
-              </button>
-              <button type="button" onClick={handleSave} className={STYLE.sidePeekSaveBtn}>
-                保存
-              </button>
-            </div>
-          </div>
-        ) : null}
+            <DataTable
+              columns={NAME_COLUMNS}
+              data={filteredItems}
+              emptyMessage="診断病名が登録されていません"
+              renderRow={(item) => (
+                <SortableNameRow
+                  key={item.id}
+                  item={item}
+                  categoryMap={categoryMap}
+                  onEdit={() => handleEdit(item)}
+                />
+              )}
+            />
+          </SortableContext>
+        </DndContext>
       </div>
+
+      <DiagnosisNameModal
+        key={selectedItem ? String(selectedItem.id) : "new-name"}
+        open={isModalOpen}
+        item={selectedItem}
+        categories={rawCategories ?? []}
+        onClose={handleCloseModal}
+        onSave={handleSave}
+        onDeleteRequest={() => setPendingDelete(selectedItem)}
+      />
 
       <ConfirmDialog
         open={pendingDelete !== null}
@@ -877,31 +971,32 @@ export function DiagnosisSettings() {
       onBack={() => navigate("/settings")}
       maxWidth="max-w-full"
     >
-      <div className="flex flex-col gap-4">
-        <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList
-            className={`h-9 bg-transparent border-b ${C.borderLight} rounded-none w-full justify-start gap-0 p-0`}
-          >
-            {TABS.map((tab) => (
-              <TabsTrigger
-                key={tab.value}
-                value={tab.value}
-                className={`h-9 rounded-none border-b-2 border-transparent px-4 text-sm ${C.text60}
-                  data-[state=active]:border-[#37352F] data-[state=active]:${C.text}
-                  data-[state=active]:shadow-none data-[state=active]:bg-transparent`}
-              >
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          <TabsContent value="diagnosis_category" className="mt-4">
-            <DiagnosisCategoryTab />
-          </TabsContent>
-          <TabsContent value="diagnosis_name" className="mt-4">
-            <DiagnosisNameTab />
-          </TabsContent>
-        </Tabs>
-      </div>
+      <TabsPrimitive.Root
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="flex flex-col gap-4"
+      >
+        <TabsPrimitive.List
+          className={`flex h-9 border-b ${C.borderLight} gap-0`}
+        >
+          {TABS.map((tab) => (
+            <TabsPrimitive.Trigger
+              key={tab.value}
+              value={tab.value}
+              className={`h-9 border-b-2 border-b-transparent px-4 text-sm ${C.text60} outline-none transition-colors cursor-pointer
+                data-[state=active]:border-b-[#37352F] data-[state=active]:text-[#37352F] data-[state=active]:font-medium`}
+            >
+              {tab.label}
+            </TabsPrimitive.Trigger>
+          ))}
+        </TabsPrimitive.List>
+        <TabsPrimitive.Content value="diagnosis_category" className="mt-0">
+          <DiagnosisCategoryTab />
+        </TabsPrimitive.Content>
+        <TabsPrimitive.Content value="diagnosis_name" className="mt-0">
+          <DiagnosisNameTab />
+        </TabsPrimitive.Content>
+      </TabsPrimitive.Root>
     </PageLayout>
   );
 }
