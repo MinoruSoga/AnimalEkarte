@@ -24,11 +24,11 @@ function transformMedicine(data: MedicineModel): Medicine {
 export interface CreateMedicineRequest {
   name: string;
   drug_category?: string;
-  dosage_form: string;
-  medicine_unit: string;
-  price: number;
+  dosage_form?: string;
+  medicine_unit?: string;
+  price?: number;
   default_quantity?: number;
-  inventory_id?: string;
+  inventory_id?: number;
   description?: string;
   is_active?: boolean;
   sort_order?: number;
@@ -41,7 +41,7 @@ export interface UpdateMedicineRequest {
   medicine_unit?: string;
   price?: number;
   default_quantity?: number;
-  inventory_id?: string;
+  inventory_id?: number | null;
   description?: string;
   is_active?: boolean;
   sort_order?: number;

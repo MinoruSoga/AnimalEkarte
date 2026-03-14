@@ -34,8 +34,8 @@ type CreateMedicineInput struct {
 	Price           *float64
 	IsActive        bool
 	Description     string
-	DosageForm      string // "" means not set
-	MedicineUnit    string // "" means not set
+	DosageForm      *string // nil = 未指定, "tablet" 等 = 値セット
+	MedicineUnit    *string // nil = 未指定, "per_ml" 等 = 値セット
 	InventoryID     *uint64
 	DefaultQuantity int
 	SortOrder       int
@@ -147,12 +147,12 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 		DefaultQuantity: input.DefaultQuantity,
 		SortOrder:       input.SortOrder,
 	}
-	if input.DosageForm != "" {
-		df := model.DosageForm(input.DosageForm)
+	if input.DosageForm != nil && *input.DosageForm != "" {
+		df := model.DosageForm(*input.DosageForm)
 		medicine.DosageForm = &df
 	}
-	if input.MedicineUnit != "" {
-		mu := model.MedicineUnit(input.MedicineUnit)
+	if input.MedicineUnit != nil && *input.MedicineUnit != "" {
+		mu := model.MedicineUnit(*input.MedicineUnit)
 		medicine.MedicineUnit = &mu
 	}
 

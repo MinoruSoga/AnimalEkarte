@@ -7,8 +7,8 @@ type createMedicineRequest struct {
 	Price           *float64 `json:"price"`
 	IsActive        bool     `json:"is_active"`
 	Description     string   `json:"description"`
-	DosageForm      string   `json:"dosage_form"`
-	MedicineUnit    string   `json:"medicine_unit"`
+	DosageForm      *string  `json:"dosage_form"`
+	MedicineUnit    *string  `json:"medicine_unit"`
 	InventoryID     *uint64  `json:"inventory_id"`
 	DefaultQuantity int      `json:"default_quantity"`
 	SortOrder       int      `json:"sort_order"`

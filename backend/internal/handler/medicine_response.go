@@ -7,18 +7,20 @@ import (
 )
 
 type medicineResponse struct {
-	ID           uint64    `json:"id"`
-	ClinicID     uint64    `json:"clinic_id"`
-	Name         string    `json:"name"`
-	DrugCategory *string   `json:"drug_category,omitempty"`
-	Price        *float64  `json:"price,omitempty"`
-	IsActive     bool      `json:"is_active"`
-	Description  string    `json:"description"`
-	DosageForm   *string   `json:"dosage_form,omitempty"`
-	MedicineUnit *string   `json:"medicine_unit,omitempty"`
-	SortOrder    int       `json:"sort_order"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID              uint64    `json:"id"`
+	ClinicID        uint64    `json:"clinic_id"`
+	Name            string    `json:"name"`
+	DrugCategory    *string   `json:"drug_category,omitempty"`
+	Price           *float64  `json:"price,omitempty"`
+	IsActive        bool      `json:"is_active"`
+	Description     string    `json:"description"`
+	DosageForm      *string   `json:"dosage_form,omitempty"`
+	MedicineUnit    *string   `json:"medicine_unit,omitempty"`
+	InventoryID     *uint64   `json:"inventory_id,omitempty"`
+	DefaultQuantity int       `json:"default_quantity"`
+	SortOrder       int       `json:"sort_order"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 func toMedicineResponse(m *model.Medicine) medicineResponse {
@@ -33,18 +35,20 @@ func toMedicineResponse(m *model.Medicine) medicineResponse {
 		medicineUnit = &s
 	}
 	return medicineResponse{
-		ID:           m.ID,
-		ClinicID:     m.ClinicID,
-		Name:         m.Name,
-		DrugCategory: m.DrugCategory,
-		Price:        m.Price,
-		IsActive:     m.IsActive,
-		Description:  m.Description,
-		DosageForm:   dosageForm,
-		MedicineUnit: medicineUnit,
-		SortOrder:    m.SortOrder,
-		CreatedAt:    m.CreatedAt,
-		UpdatedAt:    m.UpdatedAt,
+		ID:              m.ID,
+		ClinicID:        m.ClinicID,
+		Name:            m.Name,
+		DrugCategory:    m.DrugCategory,
+		Price:           m.Price,
+		IsActive:        m.IsActive,
+		Description:     m.Description,
+		DosageForm:      dosageForm,
+		MedicineUnit:    medicineUnit,
+		InventoryID:     m.InventoryID,
+		DefaultQuantity: m.DefaultQuantity,
+		SortOrder:       m.SortOrder,
+		CreatedAt:       m.CreatedAt,
+		UpdatedAt:       m.UpdatedAt,
 	}
 }
 

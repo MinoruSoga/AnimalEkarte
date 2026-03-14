@@ -23,7 +23,7 @@ func (h *Handler) ListMedicines(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, medicines)
+	c.JSON(http.StatusOK, toMedicineResponseList(medicines))
 }
 
 // GetMedicine godoc
@@ -43,7 +43,7 @@ func (h *Handler) GetMedicine(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, medicine)
+	c.JSON(http.StatusOK, toMedicineResponse(medicine))
 }
 
 // CreateMedicine godoc
@@ -78,7 +78,7 @@ func (h *Handler) CreateMedicine(c *gin.Context) {
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/medicines/%d", medicine.ID))
-	c.JSON(http.StatusCreated, medicine)
+	c.JSON(http.StatusCreated, toMedicineResponse(medicine))
 }
 
 // UpdateMedicine godoc
@@ -117,7 +117,7 @@ func (h *Handler) UpdateMedicine(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, medicine)
+	c.JSON(http.StatusOK, toMedicineResponse(medicine))
 }
 
 // DeleteMedicine godoc
