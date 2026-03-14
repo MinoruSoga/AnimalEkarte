@@ -1,0 +1,41 @@
+package handler
+
+import (
+	"time"
+
+	"github.com/animal-ekarte/backend/internal/model"
+)
+
+type checkupTypeResponse struct {
+	ID          uint64    `json:"id"`
+	ClinicID    uint64    `json:"clinic_id"`
+	Name        string    `json:"name"`
+	Price       *float64  `json:"price,omitempty"`
+	IsActive    bool      `json:"is_active"`
+	Description string    `json:"description"`
+	SortOrder   int       `json:"sort_order"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+func toCheckupTypeResponse(ct *model.CheckupType) checkupTypeResponse {
+	return checkupTypeResponse{
+		ID:          ct.ID,
+		ClinicID:    ct.ClinicID,
+		Name:        ct.Name,
+		Price:       ct.Price,
+		IsActive:    ct.IsActive,
+		Description: ct.Description,
+		SortOrder:   ct.SortOrder,
+		CreatedAt:   ct.CreatedAt,
+		UpdatedAt:   ct.UpdatedAt,
+	}
+}
+
+func toCheckupTypeResponseList(items []model.CheckupType) []checkupTypeResponse {
+	list := make([]checkupTypeResponse, 0, len(items))
+	for i := range items {
+		list = append(list, toCheckupTypeResponse(&items[i]))
+	}
+	return list
+}

@@ -4,7 +4,7 @@ import type { Accounting, PaymentMethod } from "../types";
 import { useGetAccountings } from "../api/get-accountings";
 
 function toListAccounting(r: AccountingRecord): Accounting {
-  const isCompleted = r.status === "回収済";
+  const isCompleted = r.status === "会計済";
   const method: PaymentMethod =
     r.method === "現金"
       ? "cash"

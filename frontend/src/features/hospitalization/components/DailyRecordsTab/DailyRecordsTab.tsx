@@ -1,0 +1,162 @@
+// React/Framework
+import { useState, useCallback, useMemo } from "react";
+
+// External
+import { Loader2, PlusCircle } from "lucide-react";
+
+// Internal
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+
+// Relative
+import { DailyDateNav } from "./DailyDateNav";
+import { DailyVitalsSection } from "./DailyVitalsSection";
+import { DailyCareLogsSection } from "./DailyCareLogsSection";
+import { DailyStaffNotesSection } from "./DailyStaffNotesSection";
+import {
+    useDailyRecord,
+    useCreateDailyRecord,
+    useCreateDailyVital,
+    useCreateCareLog,
+    useCreateStaffNote,
+} from "../../api/daily-records";
+
+// Types
+import type { CreateVitalRecordRequest, CreateCareLogRecordRequest, CreateStaffNoteRecordRequest } from "../../api/daily-records-types";
+
+interface DailyRecordsTabProps {
+    hospitalizationId: string;
+    admissionDate: string; // YYYY-MM-DD
+    dischargeDate: string; // YYYY-MM-DD (today if not discharged)
+}
+
+function getTodayStr(): string {
+    return new Date().toISOString().split("T")[0];
+}
+
+function clampDate(date: string, min: string, max: string): string {
+    if (date < min) return min;
+    if (date > max) return max;
+    return date;
+}
+
+export function DailyRecordsTab({
+    hospitalizationId,
+    admissionDate,
+    dischargeDate,
+}: DailyRecordsTabProps) {
+    const today = useMemo(() => getTodayStr(), []);
+    const effectiveMax = useMemo(
+        () => (dischargeDate && dischargeDate < today ? dischargeDate : today),
+        [dischargeDate, today]
+    );
+    const initialDate = useMemo(
+        () => clampDate(today, admissionDate, effectiveMax),
+        [today, admissionDate, effectiveMax]
+    );
+
+    const [selectedDate, setSelectedDate] = useState(initialDate);
+
+    const handleDateChange = useCallback(
+        (date: string) => {
+            setSelectedDate(clampDate(date, admissionDate, effectiveMax));
+        },
+        [admissionDate, effectiveMax]
+    );
+
+    const { data: record, isLoading, isError } = useDailyRecord(hospitalizationId, selectedDate);
+
+    const createDailyRecord = useCreateDailyRecord(hospitalizationId);
+    const createVital = useCreateDailyVital(hospitalizationId, selectedDate);
+    const createCareLog = useCreateCareLog(hospitalizationId, selectedDate);
+    const createStaffNote = useCreateStaffNote(hospitalizationId, selectedDate);
+
+    const handleCreateDailyRecord = useCallback(() => {
+        createDailyRecord.mutate(selectedDate);
+    }, [createDailyRecord, selectedDate]);
+
+    const handleAddVital = useCallback(
+        (payload: CreateVitalRecordRequest) => {
+            createVital.mutate(payload);
+        },
+        [createVital]
+    );
+
+    const handleAddCareLog = useCallback(
+        (payload: CreateCareLogRecordRequest) => {
+            createCareLog.mutate(payload);
+        },
+        [createCareLog]
+    );
+
+    const handleAddStaffNote = useCallback(
+        (payload: CreateStaffNoteRecordRequest) => {
+            createStaffNote.mutate(payload);
+        },
+        [createStaffNote]
+    );
+
+    const vitals = record?.vital_records ?? [];
+    const careLogs = record?.care_log_records ?? [];
+    const staffNotes = record?.staff_note_records ?? [];
+
+    return (
+        <div className="flex flex-col gap-4">
+            <DailyDateNav
+                selectedDate={selectedDate}
+                admissionDate={admissionDate}
+                dischargeDate={effectiveMax}
+                onDateChange={handleDateChange}
+            />
+
+            {isLoading ? (
+                <div className="flex items-center justify-center py-10 text-[#37352F]/40">
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    <span className="text-sm">読み込み中...</span>
+                </div>
+            ) : isError ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-3">
+                    <p className="text-sm text-[#37352F]/50">この日の記録はまだありません</p>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCreateDailyRecord}
+                        disabled={createDailyRecord.isPending}
+                        className="gap-1.5"
+                    >
+                        {createDailyRecord.isPending ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                            <PlusCircle className="h-3.5 w-3.5" />
+                        )}
+                        この日の記録を作成
+                    </Button>
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    <DailyVitalsSection
+                        vitals={vitals}
+                        onAddVital={handleAddVital}
+                        isPending={createVital.isPending}
+                    />
+
+                    <Separator className="opacity-50" />
+
+                    <DailyCareLogsSection
+                        careLogs={careLogs}
+                        onAddCareLog={handleAddCareLog}
+                        isPending={createCareLog.isPending}
+                    />
+
+                    <Separator className="opacity-50" />
+
+                    <DailyStaffNotesSection
+                        staffNotes={staffNotes}
+                        onAddStaffNote={handleAddStaffNote}
+                        isPending={createStaffNote.isPending}
+                    />
+                </div>
+            )}
+        </div>
+    );
+}

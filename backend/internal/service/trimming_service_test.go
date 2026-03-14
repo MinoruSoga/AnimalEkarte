@@ -289,8 +289,12 @@ func TestTrimmingService_Create(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingRepository{
-				createFn: func(_ context.Context, _ uint64, _ *model.TrimmingRecord) error {
+				createFn: func(_ context.Context, _ uint64, r *model.TrimmingRecord) error {
+					r.ID = 1
 					return tt.repoErr
+				},
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.TrimmingRecord, error) {
+					return &model.TrimmingRecord{ID: 1, ClinicID: 1}, nil
 				},
 				setOptionsFn: func(_ context.Context, _ uint64, _ []uint64) error {
 					return tt.setOptionsErr
@@ -298,7 +302,7 @@ func TestTrimmingService_Create(t *testing.T) {
 			}
 			svc := NewTrimmingService(repo)
 
-			record, err := svc.Create(context.Background(), tt.clinicID, tt.input)
+			record, err := svc.Create(context.Background(), tt.clinicID, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -397,6 +401,12 @@ func TestTrimmingService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingRecord, error) {
+					if tt.repoErr != nil && apperrors.IsNotFound(tt.repoErr) {
+						return nil, tt.repoErr
+					}
+					return &model.TrimmingRecord{ID: id, ClinicID: 1}, nil
+				},
 				updateFn: func(_ context.Context, _ uint64, _ *model.TrimmingRecord) error {
 					return tt.repoErr
 				},
@@ -406,15 +416,17 @@ func TestTrimmingService_Update(t *testing.T) {
 			}
 			svc := NewTrimmingService(repo)
 
-			err := svc.Update(context.Background(), tt.clinicID, tt.id, tt.input)
+			record, err := svc.Update(context.Background(), tt.clinicID, tt.id, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, record)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
 				}
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, record)
 			}
 		})
 	}

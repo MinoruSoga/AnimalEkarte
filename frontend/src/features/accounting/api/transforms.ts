@@ -66,12 +66,12 @@ export function transformAccounting(data: BackendAccounting): AccountingRecord {
   const method = methodMap[payment?.method ?? ""] ?? "-";
 
   const statusMap: Record<string, AccountingRecord["status"]> = {
-    waiting: "未収",
-    pending: "未収",
-    completed: "回収済",
+    waiting: "会計待ち",
+    pending: "会計待ち",
+    completed: "会計済",
     cancelled: "キャンセル",
   };
-  const status = statusMap[data.status] ?? "未収";
+  const status = statusMap[data.status] ?? "会計待ち";
 
   return {
     id: String(data.id ?? 0),

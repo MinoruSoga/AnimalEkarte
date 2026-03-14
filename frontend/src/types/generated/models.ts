@@ -42,7 +42,6 @@ export interface Billing {
   scheduled_date: string;
   completed_at?: string;
   memo: string;
-  deleted_at: string | null;
   created_at: string;
   updated_at: string;
   /**
@@ -171,7 +170,6 @@ export interface Checkup {
   doctor_id?: number /* uint64 */;
   result: string;
   next_date?: string;
-  deleted_at: string | null;
   created_at: string;
   updated_at: string;
   /**
@@ -210,6 +208,7 @@ export interface ChiefComplaintCategory {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
+  description: string;
   is_active: boolean;
   sort_order: number /* int */;
   created_at: string;
@@ -267,7 +266,6 @@ export interface UserAccount {
   staff_id?: number /* uint64 */;
   created_at: string;
   updated_at: string;
-  deleted_at: string | null;
   /**
    * Relations
    */
@@ -417,7 +415,6 @@ export interface Estimate {
   comment: string;
   notes: string;
   created_by?: number /* uint64 */;
-  deleted_at: string | null;
   created_at: string;
   updated_at: string;
   /**
@@ -476,7 +473,6 @@ export interface Exam {
   result_summary: string;
   machine: string;
   status: ExaminationStatus;
-  deleted_at: string | null;
   created_at: string;
   updated_at: string;
   /**
@@ -556,7 +552,6 @@ export interface Hospitalization {
   staff_notes: string;
   created_at: string;
   updated_at: string;
-  deleted_at: string | null;
   /**
    * Relations
    */
@@ -619,7 +614,6 @@ export interface TreatmentPlan {
   discount_amount: number /* float64 */;
   subtotal: number /* float64 */;
   sort_order: number /* int */;
-  deleted_at: string | null;
   created_at: string;
   updated_at: string;
   /**
@@ -794,7 +788,7 @@ export interface Insurance {
   name: string;
   is_active: boolean;
   description: string;
-  coverage_rate?: number /* int */;
+  coverage_rate?: number /* float64 */;
   contact_phone: string;
   sort_order: number /* int */;
   created_at: string;
@@ -840,6 +834,8 @@ export interface JobTitle {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
+  code: string;
+  description: string;
   sort_order: number /* int */;
   is_active: boolean;
   created_at: string;
@@ -864,7 +860,6 @@ export interface MedicalRecord {
   status: MedicalRecordStatus;
   created_at: string;
   updated_at: string;
-  deleted_at: string | null;
   /**
    * Relations
    */
@@ -923,7 +918,7 @@ export type MembershipType = string;
 export const MembershipTypeNonMember: MembershipType = "non_member";
 export const MembershipTypeMember: MembershipType = "member";
 export const MembershipTypeDeceased: MembershipType = "deceased";
-export const MembershipTypeOther: MembershipType = "transferred";
+export const MembershipTypeTransferred: MembershipType = "transferred";
 export interface Owner {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -946,7 +941,6 @@ export interface Owner {
   membership_type: MembershipType;
   created_at: string;
   updated_at: string;
-  deleted_at: string | null;
   /**
    * Relations
    */
@@ -997,7 +991,6 @@ export interface Pet {
   remarks: string;
   created_at: string;
   updated_at: string;
-  deleted_at: string | null;
   /**
    * Relations
    */
@@ -1096,7 +1089,6 @@ export interface ReservationAppointment {
   is_designated: boolean;
   status: ReservationStatus;
   notes: string;
-  deleted_at: string | null;
   created_at: string;
   updated_at: string;
   /**
@@ -1141,7 +1133,6 @@ export interface Staff {
   job_title_id?: number /* uint64 */;
   license_number: string;
   sort_order: number /* int */;
-  deleted_at: string | null;
   created_at: string;
   updated_at: string;
   /**
@@ -1211,7 +1202,6 @@ export interface Treatment {
   discount_rate: number /* float64 */;
   discount_amount: number /* float64 */;
   sort_order: number /* int */;
-  deleted_at: string | null;
   created_at: string;
   updated_at: string;
   /**
@@ -1254,7 +1244,6 @@ export interface TrimmingRecord {
   completed_image: string;
   created_at: string;
   updated_at: string;
-  deleted_at: string | null;
   /**
    * Relations
    */
@@ -1286,7 +1275,7 @@ export interface TrimmingCourse {
   is_active: boolean;
   description: string;
   target_size?: TargetSize;
-  duration: string;
+  duration?: number /* int */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -1298,7 +1287,7 @@ export interface TrimmingOption {
   price?: number /* float64 */;
   is_active: boolean;
   description: string;
-  duration: string;
+  duration?: number /* int */;
   combinable: boolean;
   sort_order: number /* int */;
   created_at: string;
@@ -1315,7 +1304,7 @@ export const NextScheduleType1Year: NextScheduleType = "1year";
 export const NextScheduleTypeOther: NextScheduleType = "other";
 export interface Vaccination {
   id: number /* uint64 */;
-  medical_record_id: number /* uint64 */;
+  medical_record_id?: number /* uint64 */;
   pet_id?: number /* uint64 */;
   vaccine_id: number /* uint64 */;
   date: string;
@@ -1328,7 +1317,6 @@ export interface Vaccination {
   lot3: string;
   lot4: string;
   remarks: string;
-  deleted_at: string | null;
   created_at: string;
   updated_at: string;
   /**

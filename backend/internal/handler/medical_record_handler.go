@@ -212,4 +212,12 @@ func (h *Handler) RegisterMedicalRecordRoutes(rg *gin.RouterGroup) {
 	records.GET("/:id", h.GetMedicalRecord)
 	records.PATCH("/:id", h.UpdateMedicalRecord)
 	records.DELETE("/:id", h.DeleteMedicalRecord)
+
+	h.RegisterVitalRoutes(records)
+	h.RegisterTreatmentRoutes(records)
+	h.RegisterBillingReviewRoutes(records)
+	h.RegisterRecordImageRoutes(records)
+	h.RegisterTreatmentPlanMedicalRecordRoutes(records)
+	h.RegisterClinicalPlanRoutes(records)
+	h.RegisterCheckupRoutes(records)
 }

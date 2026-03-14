@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/animal-ekarte/backend/internal/model"
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -28,26 +28,14 @@ func (h *Handler) ListStaffs(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, staffs)
-}
-
-// createStaffRequest はスタッフ登録リクエスト。
-// スタッフ情報とシステムアカウント情報を同時に受け取る。
-type createStaffRequest struct {
-	Name          string          `json:"name"           binding:"required"`
-	StaffRole     model.StaffRole `json:"staff_role"     binding:"required"`
-	Email         string          `json:"email"          binding:"required,email"`
-	Password      string          `json:"password"       binding:"required,min=8"`
-	LicenseNumber string          `json:"license_number"`
-	JobTitleID    *uint64         `json:"job_title_id"`
-	SortOrder     int             `json:"sort_order"`
+	c.JSON(http.StatusOK, toStaffResponseList(staffs))
 }
 
 // CreateStaff godoc
 func (h *Handler) CreateStaff(c *gin.Context) {
 	var req createStaffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
@@ -70,16 +58,7 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, staff)
-}
-
-type updateStaffInput struct {
-	Name          string  `json:"name"`
-	StaffRole     string  `json:"staff_role"`
-	LicenseNumber string  `json:"license_number"`
-	JobTitleID    *uint64 `json:"job_title_id"`
-	SortOrder     int     `json:"sort_order"`
-	IsActive      *bool   `json:"is_active"`
+	c.JSON(http.StatusCreated, toStaffResponse(staff))
 }
 
 // UpdateStaff godoc
@@ -90,35 +69,28 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	var input updateStaffInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	var req updateStaffRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
-	staff := &model.Staff{
-		ID:            id,
-		ClinicID:      clinicID,
-		Name:          input.Name,
-		LicenseNumber: input.LicenseNumber,
-		JobTitleID:    input.JobTitleID,
-		SortOrder:     input.SortOrder,
-	}
-	if input.StaffRole != "" {
-		staff.StaffRole = model.StaffRole(input.StaffRole)
-	}
-	if input.IsActive != nil {
-		staff.IsActive = *input.IsActive
-	}
-
-	if err := h.svc.Staff.Update(c.Request.Context(), staff); err != nil {
+	staff, err := h.svc.Staff.Update(c.Request.Context(), clinicID, id, &service.UpdateStaffInput{
+		Name:          req.Name,
+		StaffRole:     req.StaffRole,
+		LicenseNumber: req.LicenseNumber,
+		JobTitleID:    req.JobTitleID,
+		SortOrder:     req.SortOrder,
+		IsActive:      req.IsActive,
+	})
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, staff)
+	c.JSON(http.StatusOK, toStaffResponse(staff))
 }
 
 // DeleteStaff godoc
@@ -129,7 +101,7 @@ func (h *Handler) DeleteStaff(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.Staff.Delete(c.Request.Context(), clinicID, id); err != nil {
@@ -219,4 +191,19 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.POST("/checkup-types", h.CreateCheckupType)
 	masters.PATCH("/checkup-types/:id", h.UpdateCheckupType)
 	masters.DELETE("/checkup-types/:id", h.DeleteCheckupType)
+
+	masters.GET("/job-titles", h.ListJobTitles)
+	masters.POST("/job-titles", h.CreateJobTitle)
+	masters.PATCH("/job-titles/:id", h.UpdateJobTitle)
+	masters.DELETE("/job-titles/:id", h.DeleteJobTitle)
+
+	masters.GET("/chief-complaints", h.ListChiefComplaints)
+	masters.POST("/chief-complaints", h.CreateChiefComplaint)
+	masters.PATCH("/chief-complaints/:id", h.UpdateChiefComplaint)
+	masters.DELETE("/chief-complaints/:id", h.DeleteChiefComplaint)
+
+	masters.GET("/inquiry-templates", h.ListInquiryTemplates)
+	masters.POST("/inquiry-templates", h.CreateInquiryTemplate)
+	masters.PATCH("/inquiry-templates/:id", h.UpdateInquiryTemplate)
+	masters.DELETE("/inquiry-templates/:id", h.DeleteInquiryTemplate)
 }

@@ -16,7 +16,7 @@ type mockStaffRepository struct {
 	findAllFn           func(ctx context.Context, clinicID uint64, role *string) ([]model.Staff, error)
 	findByIDFn          func(ctx context.Context, id uint64) (*model.Staff, error)
 	createWithAccountFn func(ctx context.Context, staff *model.Staff, account *model.UserAccount, membership *model.UserClinicMembership) error
-	updateFn            func(ctx context.Context, staff *model.Staff) error
+	updateFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn            func(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -32,8 +32,8 @@ func (m *mockStaffRepository) CreateWithAccount(ctx context.Context, staff *mode
 	return m.createWithAccountFn(ctx, staff, account, membership)
 }
 
-func (m *mockStaffRepository) Update(ctx context.Context, staff *model.Staff) error {
-	return m.updateFn(ctx, staff)
+func (m *mockStaffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return m.updateFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockStaffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -265,69 +265,75 @@ func TestStaffService_CreateWithAccount_DuplicateEmail(t *testing.T) {
 }
 
 func TestStaffService_Update(t *testing.T) {
+	role := model.StaffRoleVeterinarian
+	name := "更新後 スタッフ"
 	tests := []struct {
-		name    string
-		staff   *model.Staff
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name     string
+		clinicID uint64
+		id       uint64
+		input    *UpdateStaffInput
+		repoErr  error
+		wantErr  bool
+		wantNF   bool
 	}{
 		{
-			name: "updates staff successfully",
-			staff: &model.Staff{
-				ID:        1,
-				ClinicID:  1,
-				Name:      "更新後 スタッフ",
-				StaffRole: model.StaffRoleVeterinarian,
-			},
-			repoErr: nil,
-			wantErr: false,
-			wantNF:  false,
+			name:     "updates staff successfully",
+			clinicID: 1,
+			id:       1,
+			input:    &UpdateStaffInput{Name: &name, StaffRole: &role},
+			repoErr:  nil,
+			wantErr:  false,
 		},
 		{
-			name: "returns not found error when staff does not exist",
-			staff: &model.Staff{
-				ID:        999,
-				ClinicID:  1,
-				Name:      "存在しないスタッフ",
-				StaffRole: model.StaffRoleNurse,
-			},
-			repoErr: apperrors.WrapNotFound("staff", "999"),
-			wantErr: true,
-			wantNF:  true,
+			name:     "returns not found error when staff does not exist",
+			clinicID: 1,
+			id:       999,
+			input:    &UpdateStaffInput{Name: &name},
+			repoErr:  apperrors.WrapNotFound("staff", "999"),
+			wantErr:  true,
+			wantNF:   true,
 		},
 		{
-			name: "returns error on repository failure",
-			staff: &model.Staff{
-				ID:        1,
-				ClinicID:  1,
-				Name:      "エラーケース",
-				StaffRole: model.StaffRoleTrimmer,
-			},
-			repoErr: errors.New("db error"),
-			wantErr: true,
-			wantNF:  false,
+			name:     "returns error when no field provided",
+			clinicID: 1,
+			id:       1,
+			input:    &UpdateStaffInput{},
+			repoErr:  nil,
+			wantErr:  true,
+		},
+		{
+			name:     "returns error on repository failure",
+			clinicID: 1,
+			id:       1,
+			input:    &UpdateStaffInput{Name: &name},
+			repoErr:  errors.New("db error"),
+			wantErr:  true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockStaffRepository{
-				updateFn: func(_ context.Context, _ *model.Staff) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.repoErr
+				},
+				findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
+					return &model.Staff{ID: id}, nil
 				},
 			}
 			svc := NewStaffService(repo)
 
-			err := svc.Update(context.Background(), tt.staff)
+			staff, err := svc.Update(context.Background(), tt.clinicID, tt.id, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, staff)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
 				}
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, staff)
 			}
 		})
 	}

@@ -18,6 +18,10 @@ export const updateMasterItem = async (
   if (req.price !== undefined && !isInquiry) payload.price = req.price;
   if (req.description !== undefined) payload[isInquiry ? "content" : "description"] = req.description;
   if (req.status !== undefined) payload.is_active = req.status !== "inactive";
+  if (category === "consultation") {
+    if (req.timeCondition !== undefined) payload.time_condition = req.timeCondition;
+    if (req.duration !== undefined) payload.duration = req.duration;
+  }
   const { data } = await axios.patch<GenericMasterBackendItem>(`${endpoint}/${id}`, payload);
   return transformGenericMasterItem(data);
 };

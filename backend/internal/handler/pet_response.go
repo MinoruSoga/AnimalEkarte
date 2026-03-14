@@ -15,7 +15,7 @@ type petAnimalSpeciesNested struct {
 type petInsuranceNested struct {
 	ID           uint64 `json:"id"`
 	Name         string `json:"name"`
-	CoverageRate *int   `json:"coverage_rate,omitempty"`
+	CoverageRate *float64 `json:"coverage_rate,omitempty"`
 	ContactPhone string `json:"contact_phone"`
 }
 
@@ -103,6 +103,23 @@ func toPetListResponse(p *model.Pet) petListResponse {
 		}
 	}
 	return resp
+}
+
+// petSummaryResponse はネストされたレスポンスで使用するペットの要約型
+type petSummaryResponse struct {
+	ID   uint64 `json:"id"`
+	Name string `json:"name"`
+}
+
+// toPetSummary は *model.Pet を *petSummaryResponse に変換する。nilの場合はnilを返す。
+func toPetSummary(p *model.Pet) *petSummaryResponse {
+	if p == nil {
+		return nil
+	}
+	return &petSummaryResponse{
+		ID:   p.ID,
+		Name: p.Name,
+	}
 }
 
 func toPetResponse(p *model.Pet) petResponse {

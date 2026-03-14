@@ -9,6 +9,7 @@ export function transformVaccination(
     ownerName: "",
     petName: data.pet?.name ?? "",
     vaccineName: data.vaccine?.name ?? "",
+    doctor: "",
     date: data.date ?? "",
     nextDate: data.next_date ?? "",
   };

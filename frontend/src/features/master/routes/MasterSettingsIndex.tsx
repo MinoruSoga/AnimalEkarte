@@ -6,6 +6,7 @@ import { useNavigate } from "react-router";
 import {
   Building2,
   ChevronRight,
+  ClipboardList,
   FolderTree,
   Scissors,
   Settings,
@@ -23,7 +24,7 @@ import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 // ─────────────────────────────────────────────────
 
 /** Group keys that are NOT individual MasterSettingsCategory */
-type GroupKey = "clinic" | "treatmentItems" | "diagnosisGroup" | "trimmingGroup";
+type GroupKey = "clinic" | "treatmentItems" | "diagnosisGroup" | "trimmingGroup" | "inquiry_template";
 
 /** All possible card keys in the settings index */
 type MasterCardKey = MasterSettingsCategory | GroupKey;
@@ -73,6 +74,13 @@ const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     IconComponent: Scissors,
     path: "/settings/trimming",
     countCategories: ["trimming_course", "trimming_option"],
+  },
+  inquiry_template: {
+    label: "問診テンプレート",
+    description: "問診票のテンプレートを管理します",
+    IconComponent: ClipboardList,
+    path: "/settings/inquiry-templates",
+    countCategories: [],
   },
 };
 

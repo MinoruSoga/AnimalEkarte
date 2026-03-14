@@ -19,13 +19,14 @@ interface BackendCage {
 }
 
 export interface CreateCageRequest {
-  code: string;
+  code?: string;
   name: string;
   cage_type: string;
   cage_size: string;
   body_size?: string;
-  billing_unit: string;
+  billing_unit?: string;
   price: number;
+  description?: string;
   is_active?: boolean;
   sort_order?: number;
 }
@@ -38,6 +39,7 @@ export interface UpdateCageRequest {
   body_size?: string;
   billing_unit?: string;
   price?: number;
+  description?: string;
   is_active?: boolean;
   sort_order?: number;
 }

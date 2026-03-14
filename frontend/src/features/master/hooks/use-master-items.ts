@@ -37,6 +37,9 @@ export function useMasterItems(category?: string, searchTerm?: string) {
       category: resolvedCategory,
       price: item.price ?? 0,
       description: item.description,
+      // Consultation-specific fields
+      ...(item.timeCondition !== undefined && { timeCondition: item.timeCondition }),
+      ...(item.duration !== undefined && { duration: item.duration }),
     };
     createMutation.mutate(req, {
       onSuccess: callbacks?.onSuccess,
@@ -57,6 +60,9 @@ export function useMasterItems(category?: string, searchTerm?: string) {
       price: updates.price,
       status: updates.status,
       description: updates.description,
+      // Consultation-specific fields
+      ...(updates.timeCondition !== undefined && { timeCondition: updates.timeCondition }),
+      ...(updates.duration !== undefined && { duration: updates.duration }),
     };
     updateMutation.mutate(
       { id, req },

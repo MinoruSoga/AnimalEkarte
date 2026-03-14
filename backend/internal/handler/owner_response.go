@@ -6,6 +6,23 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// ownerSummaryResponse はネストされたレスポンスで使用するオーナーの要約型
+type ownerSummaryResponse struct {
+	ID        uint64 `json:"id"`
+	OwnerName string `json:"owner_name"`
+}
+
+// toOwnerSummary は *model.Owner を *ownerSummaryResponse に変換する。nilの場合はnilを返す。
+func toOwnerSummary(o *model.Owner) *ownerSummaryResponse {
+	if o == nil {
+		return nil
+	}
+	return &ownerSummaryResponse{
+		ID:        o.ID,
+		OwnerName: o.OwnerName,
+	}
+}
+
 type petInOwnerResponse struct {
 	ID              uint64                  `json:"id"`
 	OwnerID         uint64                  `json:"owner_id"`

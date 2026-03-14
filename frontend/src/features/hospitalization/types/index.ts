@@ -49,6 +49,7 @@ export interface HospitalizationFormData {
     nextVisit: string;
     weight: string;
     displayDate: string;
+    endDate: string;
     memo: string;
     ownerRequest: string;
     staffNotes: string;

@@ -233,26 +233,26 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
     try {
       if (isEdit && id) {
         await updateHospitalization(id, {
-          hospitalization_type: formData.hospitalizationType === "入院" ? "hospitalization" : "hotel",
+          type: formData.hospitalizationType === "入院" ? "hospitalization" : "hotel",
           owner_request: formData.ownerRequest,
           staff_notes: formData.staffNotes,
           memo: formData.memo,
-          cage_id: formData.cageId ? Number(formData.cageId) : undefined,
+          cage_id: formData.cageId || undefined,
         });
         toast.success("入院情報を更新しました");
       } else {
         const startISO = (formData.displayDate || today) + "T00:00:00Z";
         const endISO = (formData.endDate || new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0]) + "T00:00:00Z";
         await createHospitalization({
-          pet_id: Number(pet.id),
-          owner_id: Number(pet.ownerId),
-          hospitalization_type: formData.hospitalizationType === "入院" ? "hospitalization" : "hotel",
+          pet_id: pet.id,
+          owner_id: pet.ownerId || "",
+          type: formData.hospitalizationType === "入院" ? "hospitalization" : "hotel",
           start_date: startISO,
           end_date: endISO,
           owner_request: formData.ownerRequest,
           staff_notes: formData.staffNotes,
           memo: formData.memo,
-          cage_id: formData.cageId ? Number(formData.cageId) : undefined,
+          cage_id: formData.cageId || undefined,
         });
         toast.success("入院情報を登録しました");
       }

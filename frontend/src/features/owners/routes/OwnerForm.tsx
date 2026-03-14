@@ -471,7 +471,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
         </Button>
       }
     >
-      <NavigationBlocker when={isDirty} />
+      <NavigationBlocker when={isDirty && !isLoading} />
 
       {/* Owner Information Form */}
       {/* rerender-memo: OwnerInfoSection はペット操作・モーダル開閉では再レンダーしない */}

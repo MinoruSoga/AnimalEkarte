@@ -1,0 +1,100 @@
+package service
+
+import (
+	"context"
+	"log/slog"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
+)
+
+// UpdateClinicalPlanInput は診察所見・診断・治療方針更新の入力DTO（nil = 未送信フィールド）
+type UpdateClinicalPlanInput struct {
+	PhysicalExam        *string
+	DiagnosisCategoryID *uint64
+	DiagnosisNameID     *uint64
+	DiagnosisDetails    *string
+	TreatmentPolicy     *string
+}
+
+// ClinicalPlanService は診察所見・診断・治療方針のビジネスロジックインターフェース
+type ClinicalPlanService interface {
+	GetOrCreate(ctx context.Context, medicalRecordID uint64) (*model.ClinicalPlan, error)
+	Update(ctx context.Context, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error)
+	Delete(ctx context.Context, medicalRecordID uint64) error
+}
+
+type clinicalPlanService struct {
+	repo repository.ClinicalPlanRepository
+}
+
+// NewClinicalPlanService はClinicalPlanServiceを初期化して返す
+func NewClinicalPlanService(repo repository.ClinicalPlanRepository) ClinicalPlanService {
+	return &clinicalPlanService{repo: repo}
+}
+
+func (s *clinicalPlanService) GetOrCreate(ctx context.Context, medicalRecordID uint64) (*model.ClinicalPlan, error) {
+	plan, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+	if err != nil {
+		if !apperrors.IsNotFound(err) {
+			return nil, err
+		}
+		// 存在しない場合は空レコードを自動作成
+		plan = &model.ClinicalPlan{
+			MedicalRecordID: medicalRecordID,
+		}
+		if err := s.repo.Create(ctx, plan); err != nil {
+			return nil, err
+		}
+		slog.InfoContext(ctx, "clinical_plan created",
+			slog.Uint64("clinical_plan_id", plan.ID),
+			slog.Uint64("medical_record_id", medicalRecordID))
+		return plan, nil
+	}
+	return plan, nil
+}
+
+func (s *clinicalPlanService) Update(ctx context.Context, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+	plan, err := s.GetOrCreate(ctx, medicalRecordID)
+	if err != nil {
+		return nil, err
+	}
+	fields := buildClinicalPlanUpdateFields(input)
+	if len(fields) == 0 {
+		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+	}
+	if err := s.repo.Update(ctx, plan.ID, fields); err != nil {
+		return nil, err
+	}
+	slog.InfoContext(ctx, "clinical_plan updated",
+		slog.Uint64("clinical_plan_id", plan.ID),
+		slog.Uint64("medical_record_id", medicalRecordID))
+	return s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+}
+
+func (s *clinicalPlanService) Delete(ctx context.Context, medicalRecordID uint64) error {
+	plan, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
+	if err != nil {
+		return err
+	}
+	if err := s.repo.Delete(ctx, plan.ID); err != nil {
+		return err
+	}
+	slog.InfoContext(ctx, "clinical_plan deleted",
+		slog.Uint64("clinical_plan_id", plan.ID),
+		slog.Uint64("medical_record_id", medicalRecordID))
+	return nil
+}
+
+func buildClinicalPlanUpdateFields(input *UpdateClinicalPlanInput) map[string]any {
+	fields := map[string]any{}
+	if input.PhysicalExam != nil        { fields["physical_exam"] = *input.PhysicalExam }
+	if input.DiagnosisCategoryID != nil { fields["diagnosis_category_id"] = *input.DiagnosisCategoryID }
+	if input.DiagnosisNameID != nil     { fields["diagnosis_name_id"] = *input.DiagnosisNameID }
+	if input.DiagnosisDetails != nil    { fields["diagnosis_details"] = *input.DiagnosisDetails }
+	if input.TreatmentPolicy != nil     { fields["treatment_policy"] = *input.TreatmentPolicy }
+	return fields
+}
+
+var _ ClinicalPlanService = (*clinicalPlanService)(nil)

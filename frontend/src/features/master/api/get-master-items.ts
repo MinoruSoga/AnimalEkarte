@@ -42,6 +42,9 @@ export function transformGenericMasterItem(data: GenericMasterBackendItem): Mast
     price: data.price != null ? Number(data.price) : 0,
     status: data.is_active ? "active" : "inactive",
     description: data.description ?? "",
+    // Consultation-specific fields
+    timeCondition: data.time_condition != null ? String(data.time_condition) : undefined,
+    duration: data.duration != null ? Number(data.duration) : null,
   };
 }
 

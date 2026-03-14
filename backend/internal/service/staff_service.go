@@ -4,9 +4,11 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"golang.org/x/crypto/bcrypt"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -28,12 +30,22 @@ type CreateStaffInput struct {
 	Password string
 }
 
+// UpdateStaffInput はスタッフ部分更新の入力DTO。nil = 未送信フィールド。
+type UpdateStaffInput struct {
+	Name          *string
+	StaffRole     *model.StaffRole
+	LicenseNumber *string
+	JobTitleID    *uint64
+	SortOrder     *int
+	IsActive      *bool
+}
+
 type StaffService interface {
 	List(ctx context.Context, clinicID uint64, role *string) ([]model.Staff, error)
 	GetByID(ctx context.Context, id uint64) (*model.Staff, error)
 	// CreateWithAccount はスタッフとシステムアカウントをアトミックに作成する。
 	CreateWithAccount(ctx context.Context, input *CreateStaffInput) (*model.Staff, error)
-	Update(ctx context.Context, staff *model.Staff) error
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateStaffInput) (*model.Staff, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -87,8 +99,44 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 	return staff, nil
 }
 
-func (s *staffService) Update(ctx context.Context, staff *model.Staff) error {
-	return s.repo.Update(ctx, staff)
+func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *UpdateStaffInput) (*model.Staff, error) {
+	if input.StaffRole != nil {
+		if err := validateStaffRole(*input.StaffRole); err != nil {
+			return nil, err
+		}
+	}
+	fields := buildStaffUpdateFields(input)
+	if len(fields) == 0 {
+		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+	}
+	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+		return nil, err
+	}
+	slog.InfoContext(ctx, "staff updated", slog.Uint64("staff_id", id))
+	return s.repo.FindByID(ctx, id)
+}
+
+func buildStaffUpdateFields(input *UpdateStaffInput) map[string]any {
+	fields := map[string]any{}
+	if input.Name != nil {
+		fields["name"] = *input.Name
+	}
+	if input.StaffRole != nil {
+		fields["staff_role"] = *input.StaffRole
+	}
+	if input.LicenseNumber != nil {
+		fields["license_number"] = *input.LicenseNumber
+	}
+	if input.JobTitleID != nil {
+		fields["job_title_id"] = *input.JobTitleID
+	}
+	if input.SortOrder != nil {
+		fields["sort_order"] = *input.SortOrder
+	}
+	if input.IsActive != nil {
+		fields["is_active"] = *input.IsActive
+	}
+	return fields
 }
 
 func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {

@@ -267,6 +267,9 @@ export interface MasterItem {
   description?: string;
   inventoryId?: string;
   defaultQuantity?: number;
+  // Consultation-specific fields
+  timeCondition?: string;
+  duration?: number | null;
 }
 
 // MasterCategory: master_items テーブルに残るカテゴリのみ
@@ -303,12 +306,15 @@ export const STAFF_ROLE_LABELS: Record<StaffRole, string> = {
 // Cage Types
 export interface Cage {
   id: string;
+  code?: string;
   name: string;
   cageType: CageType;
   cageSize: CageSize;
+  bodySize?: string;
+  billingUnit?: string;
   price: number;
   isActive: boolean;
-  description: string;
+  description?: string;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;

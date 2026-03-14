@@ -1,0 +1,42 @@
+package handler
+
+import (
+	"strconv"
+	"time"
+
+	"github.com/animal-ekarte/backend/internal/model"
+)
+
+type companyResponse struct {
+	ID                 string    `json:"id"`
+	Name               string    `json:"name"`
+	PostalCode         string    `json:"postal_code"`
+	Address            string    `json:"address"`
+	PhoneNumber        string    `json:"phone_number"`
+	FaxNumber          string    `json:"fax_number"`
+	Email              string    `json:"email"`
+	Website            string    `json:"website"`
+	DirectorName       string    `json:"director_name"`
+	RegistrationNumber string    `json:"registration_number"`
+	LogoURL            string    `json:"logo_url"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+func toCompanyResponse(c *model.Company) companyResponse {
+	return companyResponse{
+		ID:                 strconv.FormatUint(c.ID, 10),
+		Name:               c.Name,
+		PostalCode:         c.PostalCode,
+		Address:            c.Address,
+		PhoneNumber:        c.PhoneNumber,
+		FaxNumber:          c.FaxNumber,
+		Email:              c.Email,
+		Website:            c.Website,
+		DirectorName:       c.DirectorName,
+		RegistrationNumber: c.RegistrationNumber,
+		LogoURL:            c.LogoURL,
+		CreatedAt:          c.CreatedAt,
+		UpdatedAt:          c.UpdatedAt,
+	}
+}

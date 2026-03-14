@@ -1,0 +1,226 @@
+package handler
+
+import (
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/gin-gonic/gin"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/service"
+)
+
+// ListDailyRecords godoc
+// GET /hospitalizations/:id/daily-records
+func (h *Handler) ListDailyRecords(c *gin.Context) {
+	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+
+	records, err := h.svc.DailyRecord.List(c.Request.Context(), hospitalizationID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	items := make([]dailyRecordResponse, 0, len(records))
+	for i := range records {
+		items = append(items, toDailyRecordResponse(&records[i]))
+	}
+	c.JSON(http.StatusOK, items)
+}
+
+// GetDailyRecord godoc
+// GET /hospitalizations/:id/daily-records/:date
+func (h *Handler) GetDailyRecord(c *gin.Context) {
+	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+
+	dateStr := c.Param("date")
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD"))
+		return
+	}
+
+	record, err := h.svc.DailyRecord.GetOrCreateByDate(c.Request.Context(), hospitalizationID, date)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toDailyRecordResponse(record))
+}
+
+// CreateDailyRecord godoc
+// POST /hospitalizations/:id/daily-records
+func (h *Handler) CreateDailyRecord(c *gin.Context) {
+	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+
+	var req struct {
+		Date string `json:"date" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+
+	date, err := time.Parse("2006-01-02", req.Date)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD"))
+		return
+	}
+
+	record, err := h.svc.DailyRecord.GetOrCreateByDate(c.Request.Context(), hospitalizationID, date)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, toDailyRecordResponse(record))
+}
+
+// AddVitalRecord godoc
+// POST /hospitalizations/:id/daily-records/:date/vitals
+func (h *Handler) AddVitalRecord(c *gin.Context) {
+	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+
+	dateStr := c.Param("date")
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD"))
+		return
+	}
+
+	var req addVitalRecordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+
+	parsedVitalTime, err := time.Parse("15:04:05", req.Time)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid time format, expected HH:MM:SS"))
+		return
+	}
+
+	input := &service.CreateVitalRecordInput{
+		Time:            parsedVitalTime,
+		Temperature:     req.Temperature,
+		HeartRate:       req.HeartRate,
+		RespirationRate: req.RespirationRate,
+		Weight:          req.Weight,
+		Notes:           req.Notes,
+		StaffID:         req.StaffID,
+	}
+
+	record, err := h.svc.DailyRecord.AddVitalRecord(c.Request.Context(), hospitalizationID, date, input)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, toDailyRecordResponse(record))
+}
+
+// AddCareLogRecord godoc
+// POST /hospitalizations/:id/daily-records/:date/care-logs
+func (h *Handler) AddCareLogRecord(c *gin.Context) {
+	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+
+	dateStr := c.Param("date")
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD"))
+		return
+	}
+
+	var req addCareLogRecordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+
+	parsedCareLogTime, err := time.Parse("15:04:05", req.Time)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid time format, expected HH:MM:SS"))
+		return
+	}
+
+	input := &service.CreateCareLogRecordInput{
+		Time:    parsedCareLogTime,
+		Type:    req.Type,
+		Status:  req.Status,
+		Value:   req.Value,
+		StaffID: req.StaffID,
+		Notes:   req.Notes,
+	}
+
+	record, err := h.svc.DailyRecord.AddCareLogRecord(c.Request.Context(), hospitalizationID, date, input)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, toDailyRecordResponse(record))
+}
+
+// AddStaffNoteRecord godoc
+// POST /hospitalizations/:id/daily-records/:date/staff-notes
+func (h *Handler) AddStaffNoteRecord(c *gin.Context) {
+	hospitalizationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+
+	dateStr := c.Param("date")
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD"))
+		return
+	}
+
+	var req addStaffNoteRecordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+
+	input := &service.CreateStaffNoteRecordInput{
+		Time:    req.Time,
+		Content: req.Content,
+		StaffID: req.StaffID,
+	}
+
+	record, err := h.svc.DailyRecord.AddStaffNoteRecord(c.Request.Context(), hospitalizationID, date, input)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, toDailyRecordResponse(record))
+}
+
+// RegisterDailyRecordRoutes は日次記録関連のルートを登録する
+func (h *Handler) RegisterDailyRecordRoutes(rg *gin.RouterGroup) {
+	rg.GET("/:id/daily-records", h.ListDailyRecords)
+	rg.POST("/:id/daily-records", h.CreateDailyRecord)
+	rg.GET("/:id/daily-records/:date", h.GetDailyRecord)
+	rg.POST("/:id/daily-records/:date/vitals", h.AddVitalRecord)
+	rg.POST("/:id/daily-records/:date/care-logs", h.AddCareLogRecord)
+	rg.POST("/:id/daily-records/:date/staff-notes", h.AddStaffNoteRecord)
+}

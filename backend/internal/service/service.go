@@ -39,6 +39,18 @@ type Services struct {
 	JobTitle               JobTitleService
 	ChiefComplaintCategory ChiefComplaintCategoryService
 	InquiryTemplate        InquiryTemplateService
+	Company                CompanyService
+	BillingReview          BillingReviewService
+	CarePlanItem           CarePlanItemService
+	ShiftEntry             ShiftEntryService
+	TreatmentPlan          TreatmentPlanService
+	Vital                  VitalService
+	Treatment              TreatmentService
+	DailyRecord            DailyRecordService
+	RecordImage            RecordImageService
+	ClinicalPlan           ClinicalPlanService
+	Checkup                CheckupService
+	Estimate               EstimateService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す
@@ -75,5 +87,17 @@ func NewServices(repos *repository.Repositories) *Services {
 		JobTitle:               NewJobTitleService(repos.JobTitle),
 		ChiefComplaintCategory: NewChiefComplaintCategoryService(repos.ChiefComplaintCategory),
 		InquiryTemplate:        NewInquiryTemplateService(repos.InquiryTemplate),
+		Company:                NewCompanyService(repos.Company),
+		BillingReview:          NewBillingReviewService(repos.BillingReview),
+		CarePlanItem:           NewCarePlanItemService(repos.CarePlanItem),
+		ShiftEntry:             NewShiftEntryService(repos.ShiftEntry),
+		TreatmentPlan:          NewTreatmentPlanService(repos.TreatmentPlan),
+		Vital:                  NewVitalService(repos.Vital),
+		Treatment:              NewTreatmentService(repos.Treatment),
+		DailyRecord:            NewDailyRecordService(repos.DailyRecord),
+		RecordImage:            NewRecordImageService(repos.RecordImage),
+		ClinicalPlan:           NewClinicalPlanService(repos.ClinicalPlan),
+		Checkup:                NewCheckupService(repos.Checkup),
+		Estimate:               NewEstimateService(repos.Estimate),
 	}
 }

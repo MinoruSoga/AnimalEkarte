@@ -12,6 +12,13 @@ import X from "lucide-react/dist/esm/icons/x";
 // Internal
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { TableCell } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable } from "@/components/shared/DataTable";
@@ -411,6 +418,46 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
                 placeholder="空"
               />
             </PropertyRow>
+
+            {/* Consultation-specific: time_condition */}
+            {resolvedCategory === "consultation" ? (
+              <PropertyRow label="適用区分">
+                <Select
+                  value={formData.timeCondition ?? "anytime"}
+                  onValueChange={(v) => setFormData({ ...formData, timeCondition: v })}
+                >
+                  <SelectTrigger className={STYLE.selectCompact}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="anytime">常時</SelectItem>
+                    <SelectItem value="first_visit">初診</SelectItem>
+                    <SelectItem value="revisit">再診</SelectItem>
+                    <SelectItem value="after_hours">時間外</SelectItem>
+                    <SelectItem value="emergency">緊急</SelectItem>
+                  </SelectContent>
+                </Select>
+              </PropertyRow>
+            ) : null}
+
+            {/* Consultation-specific: duration */}
+            {resolvedCategory === "consultation" ? (
+              <PropertyRow label="標準診察時間 (分)">
+                <input
+                  type="number"
+                  min={0}
+                  value={formData.duration ?? ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      duration: e.target.value === "" ? null : Number(e.target.value),
+                    })
+                  }
+                  placeholder="例: 15"
+                  className={`${STYLE.propertyInput} w-28`}
+                />
+              </PropertyRow>
+            ) : null}
           </div>
         </div>
       </div>

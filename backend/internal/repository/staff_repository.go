@@ -19,7 +19,7 @@ type StaffRepository interface {
 	FindByID(ctx context.Context, id uint64) (*model.Staff, error)
 	// CreateWithAccount はスタッフ・ユーザーアカウント・クリニック所属を単一トランザクションで作成する。
 	CreateWithAccount(ctx context.Context, staff *model.Staff, account *model.UserAccount, membership *model.UserClinicMembership) error
-	Update(ctx context.Context, staff *model.Staff) error
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -79,16 +79,16 @@ func (r *staffRepository) CreateWithAccount(ctx context.Context, staff *model.St
 	return nil
 }
 
-func (r *staffRepository) Update(ctx context.Context, staff *model.Staff) error {
+func (r *staffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Staff{}).
-		Where("id = ? AND clinic_id = ?", staff.ID, staff.ClinicID).
-		Updates(staff)
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "update staff")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", staff.ID))
+		return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

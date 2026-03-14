@@ -40,6 +40,10 @@ func (m *mockExamTypeRepository) Delete(ctx context.Context, id uint64) error {
 	return m.deleteFn(ctx, id)
 }
 
+func (m *mockExamTypeRepository) ReplaceItems(ctx context.Context, examTypeID uint64, items []model.ExamTypeItem) error {
+	return nil
+}
+
 func TestExamTypeService_List(t *testing.T) {
 	tests := []struct {
 		name     string

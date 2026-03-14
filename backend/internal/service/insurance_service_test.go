@@ -96,7 +96,7 @@ func TestInsuranceService_List(t *testing.T) {
 }
 
 func TestInsuranceService_GetByID(t *testing.T) {
-	coverageRate := 70
+	coverageRate := 70.0
 	tests := []struct {
 		name          string
 		id            uint64
@@ -159,7 +159,7 @@ func TestInsuranceService_GetByID(t *testing.T) {
 }
 
 func TestInsuranceService_Create(t *testing.T) {
-	coverageRate := 70
+	coverageRate := 70.0
 	tests := []struct {
 		name      string
 		insurance *model.Insurance
@@ -218,7 +218,7 @@ func TestInsuranceService_Create(t *testing.T) {
 }
 
 func TestInsuranceService_Update(t *testing.T) {
-	coverageRate := 80
+	coverageRate := 80.0
 	tests := []struct {
 		name      string
 		insurance *model.Insurance

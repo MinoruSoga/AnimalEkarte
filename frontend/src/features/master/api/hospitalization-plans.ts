@@ -1,0 +1,191 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { axios } from "@/lib/axios";
+import type { BodySize, BillingUnit } from "@/types/generated/models";
+import {
+  BodySizeSmall,
+  BodySizeMedium,
+  BodySizeLarge,
+  BillingUnitPerDay,
+  BillingUnitPerNight,
+} from "@/types/generated/models";
+
+// Re-export enum constants for use in components
+export {
+  BodySizeSmall,
+  BodySizeMedium,
+  BodySizeLarge,
+  BillingUnitPerDay,
+  BillingUnitPerNight,
+};
+
+// ─────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────
+
+export interface HospitalizationPlan {
+  id: string;
+  name: string;
+  price: number;
+  isActive: boolean;
+  description: string;
+  bodySize: BodySize | null;
+  billingUnit: BillingUnit | null;
+  sortOrder: number;
+}
+
+interface BackendHospitalizationPlan {
+  id: number;
+  clinic_id: number;
+  name: string;
+  price?: number;
+  is_active: boolean;
+  description: string;
+  body_size?: BodySize;
+  billing_unit?: BillingUnit;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateHospitalizationPlanRequest {
+  name: string;
+  price?: number;
+  description?: string;
+  is_active?: boolean;
+  body_size?: BodySize;
+  billing_unit?: BillingUnit;
+}
+
+export interface UpdateHospitalizationPlanRequest {
+  name?: string;
+  price?: number;
+  description?: string;
+  is_active?: boolean;
+  body_size?: BodySize | null;
+  billing_unit?: BillingUnit | null;
+}
+
+export const BODY_SIZE_OPTIONS: { value: BodySize; label: string }[] = [
+  { value: BodySizeSmall, label: "小型" },
+  { value: BodySizeMedium, label: "中型" },
+  { value: BodySizeLarge, label: "大型" },
+];
+
+export const BODY_SIZE_LABELS: Record<string, string> = {
+  [BodySizeSmall]: "小型",
+  [BodySizeMedium]: "中型",
+  [BodySizeLarge]: "大型",
+};
+
+export const BILLING_UNIT_OPTIONS: { value: BillingUnit; label: string }[] = [
+  { value: BillingUnitPerDay, label: "1日あたり" },
+  { value: BillingUnitPerNight, label: "1泊あたり" },
+];
+
+export const BILLING_UNIT_LABELS: Record<string, string> = {
+  [BillingUnitPerDay]: "1日あたり",
+  [BillingUnitPerNight]: "1泊あたり",
+};
+
+// ─────────────────────────────────────────────────
+// Transform
+// ─────────────────────────────────────────────────
+
+function transformHospitalizationPlan(
+  data: BackendHospitalizationPlan,
+): HospitalizationPlan {
+  return {
+    id: String(data.id),
+    name: data.name,
+    price: data.price ?? 0,
+    isActive: data.is_active,
+    description: data.description ?? "",
+    bodySize: data.body_size ?? null,
+    billingUnit: data.billing_unit ?? null,
+    sortOrder: data.sort_order,
+  };
+}
+
+// ─────────────────────────────────────────────────
+// API Functions
+// ─────────────────────────────────────────────────
+
+const ENDPOINT = "/v1/masters/hospitalization-plans";
+
+export const getAllHospitalizationPlans = async (): Promise<
+  HospitalizationPlan[]
+> => {
+  const { data } = await axios.get<BackendHospitalizationPlan[]>(ENDPOINT);
+  return data.map(transformHospitalizationPlan);
+};
+
+export const createHospitalizationPlan = async (
+  req: CreateHospitalizationPlanRequest,
+): Promise<HospitalizationPlan> => {
+  const { data } = await axios.post<BackendHospitalizationPlan>(ENDPOINT, req);
+  return transformHospitalizationPlan(data);
+};
+
+export const updateHospitalizationPlan = async (
+  id: string,
+  req: UpdateHospitalizationPlanRequest,
+): Promise<HospitalizationPlan> => {
+  const { data } = await axios.patch<BackendHospitalizationPlan>(
+    `${ENDPOINT}/${id}`,
+    req,
+  );
+  return transformHospitalizationPlan(data);
+};
+
+export const deleteHospitalizationPlan = async (id: string): Promise<void> => {
+  await axios.delete(`${ENDPOINT}/${id}`);
+};
+
+// ─────────────────────────────────────────────────
+// React Query Hooks
+// ─────────────────────────────────────────────────
+
+const QUERY_KEY = "hospitalizationPlans";
+
+export const useGetAllHospitalizationPlans = () => {
+  return useQuery({
+    queryKey: [QUERY_KEY],
+    queryFn: getAllHospitalizationPlans,
+  });
+};
+
+export const useCreateHospitalizationPlan = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createHospitalizationPlan,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+    },
+  });
+};
+
+export const useUpdateHospitalizationPlan = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      req,
+    }: {
+      id: string;
+      req: UpdateHospitalizationPlanRequest;
+    }) => updateHospitalizationPlan(id, req),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+    },
+  });
+};
+
+export const useDeleteHospitalizationPlan = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteHospitalizationPlan,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+    },
+  });
+};

@@ -1,0 +1,89 @@
+package repository
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"gorm.io/gorm"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+)
+
+// CarePlanItemRepository はケアプランアイテムのデータアクセスインターフェース
+type CarePlanItemRepository interface {
+	ListByHospitalizationID(ctx context.Context, hospitalizationID uint64) ([]model.CarePlanItem, error)
+	FindByID(ctx context.Context, id uint64) (*model.CarePlanItem, error)
+	Create(ctx context.Context, item *model.CarePlanItem) error
+	Update(ctx context.Context, id uint64, fields map[string]any) error
+	Delete(ctx context.Context, id uint64) error
+}
+
+type carePlanItemRepository struct {
+	db *gorm.DB
+}
+
+// NewCarePlanItemRepository は CarePlanItemRepository を初期化して返す
+func NewCarePlanItemRepository(db *gorm.DB) CarePlanItemRepository {
+	return &carePlanItemRepository{db: db}
+}
+
+func (r *carePlanItemRepository) ListByHospitalizationID(ctx context.Context, hospitalizationID uint64) ([]model.CarePlanItem, error) {
+	items := make([]model.CarePlanItem, 0)
+	if err := r.db.WithContext(ctx).
+		Where("hospitalization_id = ?", hospitalizationID).
+		Order("sort_order ASC").
+		Preload("Medicine").
+		Preload("Procedure").
+		Find(&items).Error; err != nil {
+		return nil, apperrors.Wrap(err, "list care plan items")
+	}
+	return items, nil
+}
+
+func (r *carePlanItemRepository) FindByID(ctx context.Context, id uint64) (*model.CarePlanItem, error) {
+	var item model.CarePlanItem
+	if err := r.db.WithContext(ctx).
+		Preload("Medicine").
+		Preload("Procedure").
+		First(&item, "id = ?", id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperrors.WrapNotFound("care_plan_item", fmt.Sprintf("%d", id))
+		}
+		return nil, apperrors.Wrap(err, "find care plan item by id")
+	}
+	return &item, nil
+}
+
+func (r *carePlanItemRepository) Create(ctx context.Context, item *model.CarePlanItem) error {
+	if err := r.db.WithContext(ctx).Create(item).Error; err != nil {
+		return apperrors.Wrap(err, "create care plan item")
+	}
+	return nil
+}
+
+func (r *carePlanItemRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
+	result := r.db.WithContext(ctx).
+		Model(&model.CarePlanItem{}).
+		Where("id = ?", id).
+		Updates(fields)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "update care plan item")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("care_plan_item", fmt.Sprintf("%d", id))
+	}
+	return nil
+}
+
+func (r *carePlanItemRepository) Delete(ctx context.Context, id uint64) error {
+	result := r.db.WithContext(ctx).Unscoped().Delete(&model.CarePlanItem{}, "id = ?", id)
+	if result.Error != nil {
+		return apperrors.Wrap(result.Error, "delete care plan item")
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("care_plan_item", fmt.Sprintf("%d", id))
+	}
+	return nil
+}

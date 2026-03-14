@@ -1,0 +1,1 @@
+export { CheckupsTab } from "./CheckupsTab";

@@ -229,8 +229,8 @@ export function useTrimmingForm(id?: string) {
       const pet = selectedPets[0];
       if (!pet) return false;
       const req: CreateTrimmingRequest = {
-        pet_id: Number(pet.id),
-        date: new Date().toISOString(),
+        pet_id: pet.id,
+        appointment_date: new Date().toISOString(),
         course_id: formData.courseId ? Number(formData.courseId) : null,
         style_request: formData.styleRequest || undefined,
         remarks: formData.remarks || undefined,

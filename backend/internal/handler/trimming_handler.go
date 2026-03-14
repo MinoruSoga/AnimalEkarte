@@ -3,48 +3,12 @@ package handler
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
-
-type createTrimmingInput struct {
-	Date           time.Time `json:"date"            binding:"required"`
-	PetID          *uint64   `json:"pet_id"`
-	StaffID        uint64    `json:"staff_id"        binding:"required"`
-	CourseID       uint64    `json:"course_id"       binding:"required"`
-	Weight         string    `json:"weight"`
-	Status         string    `json:"status"`
-	StyleRequest   string    `json:"style_request"`
-	BW             string    `json:"bw"`
-	BWUnit         string    `json:"bw_unit"`
-	BT             string    `json:"bt"`
-	UsedShampoo    string    `json:"used_shampoo"`
-	UsedRibbon     string    `json:"used_ribbon"`
-	Remarks        string    `json:"remarks"`
-	StyleImage     string    `json:"style_image"`
-	CompletedImage string    `json:"completed_image"`
-}
-
-type updateTrimmingInput struct {
-	Date           *time.Time `json:"date"`
-	PetID          *uint64    `json:"pet_id"`
-	StaffID        uint64     `json:"staff_id"`
-	CourseID       uint64     `json:"course_id"`
-	Weight         string     `json:"weight"`
-	Status         string     `json:"status"`
-	StyleRequest   string     `json:"style_request"`
-	BW             string     `json:"bw"`
-	BWUnit         string     `json:"bw_unit"`
-	BT             string     `json:"bt"`
-	UsedShampoo    string     `json:"used_shampoo"`
-	UsedRibbon     string     `json:"used_ribbon"`
-	Remarks        string     `json:"remarks"`
-	StyleImage     string     `json:"style_image"`
-	CompletedImage string     `json:"completed_image"`
-}
 
 // ListTrimmings godoc
 func (h *Handler) ListTrimmings(c *gin.Context) {
@@ -104,7 +68,7 @@ func (h *Handler) GetTrimming(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, trimming)
+	c.JSON(http.StatusOK, toTrimmingResponse(trimming))
 }
 
 // CreateTrimming godoc
@@ -114,40 +78,43 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 		return
 	}
 
-	var input createTrimmingInput
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req createTrimmingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	trimming := &model.TrimmingRecord{
-		ClinicID:       clinicID,
-		Date:           input.Date,
-		PetID:          input.PetID,
-		StaffID:        input.StaffID,
-		CourseID:       input.CourseID,
-		Weight:         input.Weight,
-		StyleRequest:   input.StyleRequest,
-		BW:             input.BW,
-		BT:             input.BT,
-		UsedShampoo:    input.UsedShampoo,
-		UsedRibbon:     input.UsedRibbon,
-		Remarks:        input.Remarks,
-		StyleImage:     input.StyleImage,
-		CompletedImage: input.CompletedImage,
+	input := service.CreateTrimmingInput{
+		PetID:          req.PetID,
+		StaffID:        req.StaffID,
+		CourseID:       req.CourseID,
+		Weight:         req.Weight,
+		StyleRequest:   req.StyleRequest,
+		BW:             req.BW,
+		BT:             req.BT,
+		UsedShampoo:    req.UsedShampoo,
+		UsedRibbon:     req.UsedRibbon,
+		Remarks:        req.Remarks,
+		StyleImage:     req.StyleImage,
+		CompletedImage: req.CompletedImage,
+		OptionIDs:      req.OptionIDs,
 	}
-	if input.Status != "" {
-		trimming.Status = model.TrimmingStatus(input.Status)
+	if req.Date != nil {
+		input.Date = *req.Date
 	}
-	if input.BWUnit != "" {
-		trimming.BWUnit = model.BodyWeightUnit(input.BWUnit)
+	if req.Status != "" {
+		input.Status = model.TrimmingStatus(req.Status)
+	}
+	if req.BWUnit != "" {
+		input.BWUnit = model.BodyWeightUnit(req.BWUnit)
 	}
 
-	if err := h.svc.Trimming.Create(c.Request.Context(), clinicID, trimming); err != nil {
+	record, err := h.svc.Trimming.Create(c.Request.Context(), clinicID, input)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, trimming)
+	c.JSON(http.StatusCreated, toTrimmingResponse(record))
 }
 
 // UpdateTrimming godoc
@@ -162,43 +129,42 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input updateTrimmingInput
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req updateTrimmingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	trimming := &model.TrimmingRecord{
-		ID:             id,
-		ClinicID:       clinicID,
-		PetID:          input.PetID,
-		StaffID:        input.StaffID,
-		CourseID:       input.CourseID,
-		Weight:         input.Weight,
-		StyleRequest:   input.StyleRequest,
-		BW:             input.BW,
-		BT:             input.BT,
-		UsedShampoo:    input.UsedShampoo,
-		UsedRibbon:     input.UsedRibbon,
-		Remarks:        input.Remarks,
-		StyleImage:     input.StyleImage,
-		CompletedImage: input.CompletedImage,
+	input := service.UpdateTrimmingInput{
+		Date:           req.Date,
+		PetID:          req.PetID,
+		StaffID:        req.StaffID,
+		CourseID:       req.CourseID,
+		Weight:         req.Weight,
+		StyleRequest:   req.StyleRequest,
+		BW:             req.BW,
+		BT:             req.BT,
+		UsedShampoo:    req.UsedShampoo,
+		UsedRibbon:     req.UsedRibbon,
+		Remarks:        req.Remarks,
+		StyleImage:     req.StyleImage,
+		CompletedImage: req.CompletedImage,
+		OptionIDs:      req.OptionIDs,
 	}
-	if input.Date != nil {
-		trimming.Date = *input.Date
+	if req.Status != nil {
+		status := model.TrimmingStatus(*req.Status)
+		input.Status = &status
 	}
-	if input.Status != "" {
-		trimming.Status = model.TrimmingStatus(input.Status)
-	}
-	if input.BWUnit != "" {
-		trimming.BWUnit = model.BodyWeightUnit(input.BWUnit)
+	if req.BWUnit != nil {
+		unit := model.BodyWeightUnit(*req.BWUnit)
+		input.BWUnit = &unit
 	}
 
-	if err := h.svc.Trimming.Update(c.Request.Context(), clinicID, trimming); err != nil {
+	if err := h.svc.Trimming.Update(c.Request.Context(), clinicID, id, input); err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, trimming)
+	c.JSON(http.StatusOK, gin.H{"message": "updated"})
 }
 
 func (h *Handler) DeleteTrimming(c *gin.Context) {

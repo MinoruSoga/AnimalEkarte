@@ -146,7 +146,7 @@ func (DailyRecord) TableName() string { return "daily_records" }
 type VitalRecord struct {
 	ID              uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	DailyRecordID   uint64    `gorm:"not null"                                       json:"daily_record_id"`
-	Time            string    `gorm:"not null;default:''"                            json:"time"`
+	Time            time.Time `gorm:"type:time;not null"                             json:"time"`
 	Temperature     *float64  `gorm:"type:numeric(4,1)"                              json:"temperature,omitempty"`
 	HeartRate       *int      `gorm:"column:heart_rate"                              json:"heart_rate,omitempty"`
 	RespirationRate *int      `gorm:"column:respiration_rate"                        json:"respiration_rate,omitempty"`
@@ -182,7 +182,7 @@ const (
 type CareLogRecord struct {
 	ID            uint64        `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	DailyRecordID uint64        `gorm:"not null"                                       json:"daily_record_id"`
-	Time          string        `gorm:"not null;default:''"                            json:"time"`
+	Time          time.Time     `gorm:"type:time;not null"                             json:"time"`
 	Type          CareLogType   `gorm:"type:care_log_type;not null"                    json:"type"`
 	Status        CareLogStatus `gorm:"type:care_log_status;not null;default:'completed'" json:"status"`
 	Value         string        `gorm:"default:''"                                     json:"value"`

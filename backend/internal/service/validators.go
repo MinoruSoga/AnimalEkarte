@@ -68,6 +68,32 @@ func validateDiscountRate(rate float64) error {
 	return nil
 }
 
+// validateMedicalImageType は診療画像種別がドメイン上有効かを検証する
+func validateMedicalImageType(t string) error {
+	if t == "" {
+		return nil
+	}
+	switch model.MedicalImageType(t) {
+	case model.MedicalImageTypeXray, model.MedicalImageTypeEcho, model.MedicalImageTypePhoto,
+		model.MedicalImageTypeEndoscope, model.MedicalImageTypeCT, model.MedicalImageTypeMRI,
+		model.MedicalImageTypeMicroscope, model.MedicalImageTypeOther:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid image_type: %s", t))
+	}
+}
+
+// validateStaffRole はスタッフ役職がドメイン上有効かを検証する
+func validateStaffRole(role model.StaffRole) error {
+	switch role {
+	case model.StaffRoleVeterinarian, model.StaffRoleNurse, model.StaffRoleTrimmer,
+		model.StaffRoleReception, model.StaffRoleManager:
+		return nil
+	default:
+		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid staff_role: %s", role))
+	}
+}
+
 // validateMembershipType は会員種別がドメイン上有効かを検証する
 func validateMembershipType(t model.MembershipType) error {
 	if t == "" {

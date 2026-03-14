@@ -65,8 +65,8 @@ func TestVaccinationService_List(t *testing.T) {
 			page:     1,
 			limit:    20,
 			repoVaccinations: []model.Vaccination{
-				{ID: 1, MedicalRecordID: 1, VaccineID: 1, Date: now},
-				{ID: 2, MedicalRecordID: 2, VaccineID: 2, Date: now},
+				{ID: 1, MedicalRecordID: ptrUint64(1), VaccineID: 1, Date: now},
+				{ID: 2, MedicalRecordID: ptrUint64(2), VaccineID: 2, Date: now},
 			},
 			repoTotal: 2,
 			repoErr:   nil,
@@ -82,7 +82,7 @@ func TestVaccinationService_List(t *testing.T) {
 			page:     1,
 			limit:    20,
 			repoVaccinations: []model.Vaccination{
-				{ID: 1, MedicalRecordID: 1, VaccineID: 1, Date: now},
+				{ID: 1, MedicalRecordID: ptrUint64(1), VaccineID: 1, Date: now},
 			},
 			repoTotal: 1,
 			repoErr:   nil,
@@ -98,7 +98,7 @@ func TestVaccinationService_List(t *testing.T) {
 			page:     1,
 			limit:    20,
 			repoVaccinations: []model.Vaccination{
-				{ID: 2, MedicalRecordID: 2, VaccineID: 2, Date: now},
+				{ID: 2, MedicalRecordID: ptrUint64(2), VaccineID: 2, Date: now},
 			},
 			repoTotal: 1,
 			repoErr:   nil,
@@ -179,9 +179,9 @@ func TestVaccinationService_GetByID(t *testing.T) {
 			name:            "returns vaccination when found",
 			clinicID:        1,
 			id:              10,
-			repoVaccination: &model.Vaccination{ID: 10, MedicalRecordID: 1, VaccineID: 1, Date: now},
+			repoVaccination: &model.Vaccination{ID: 10, MedicalRecordID: ptrUint64(1), VaccineID: 1, Date: now},
 			repoErr:         nil,
-			wantVaccination: &model.Vaccination{ID: 10, MedicalRecordID: 1, VaccineID: 1, Date: now},
+			wantVaccination: &model.Vaccination{ID: 10, MedicalRecordID: ptrUint64(1), VaccineID: 1, Date: now},
 			wantErr:         nil,
 		},
 		{
@@ -254,7 +254,7 @@ func TestVaccinationService_Create(t *testing.T) {
 		{
 			name: "creates vaccination successfully",
 			vaccination: &model.Vaccination{
-				MedicalRecordID: 1,
+				MedicalRecordID: ptrUint64(1),
 				VaccineID:       1,
 				Date:            now,
 			},
@@ -264,7 +264,7 @@ func TestVaccinationService_Create(t *testing.T) {
 		{
 			name: "returns error on repository failure",
 			vaccination: &model.Vaccination{
-				MedicalRecordID: 1,
+				MedicalRecordID: ptrUint64(1),
 				VaccineID:       2,
 				Date:            now,
 			},
@@ -308,7 +308,7 @@ func TestVaccinationService_Update(t *testing.T) {
 			clinicID: 1,
 			vaccination: &model.Vaccination{
 				ID:              1,
-				MedicalRecordID: 1,
+				MedicalRecordID: ptrUint64(1),
 				VaccineID:       1,
 				Date:            now,
 				Supplemental:    "追記情報",
@@ -322,7 +322,7 @@ func TestVaccinationService_Update(t *testing.T) {
 			clinicID: 1,
 			vaccination: &model.Vaccination{
 				ID:              999,
-				MedicalRecordID: 1,
+				MedicalRecordID: ptrUint64(1),
 				VaccineID:       1,
 				Date:            now,
 			},
@@ -335,7 +335,7 @@ func TestVaccinationService_Update(t *testing.T) {
 			clinicID: 1,
 			vaccination: &model.Vaccination{
 				ID:              1,
-				MedicalRecordID: 1,
+				MedicalRecordID: ptrUint64(1),
 				VaccineID:       1,
 				Date:            now,
 			},

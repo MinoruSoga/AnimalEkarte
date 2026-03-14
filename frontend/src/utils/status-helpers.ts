@@ -270,3 +270,20 @@ export const getReservationStatusLabel = (status: ReservationStatus): string => 
 export function getSortOrderLabel(order: SortOrder): string {
   return order === "desc" ? "新→古" : "古→新";
 }
+
+export const getEstimateStatusColor = (status: string) => {
+  switch (status) {
+    case "draft":
+      return badge(N.grayBg, N.grayText, N.grayBorder);
+    case "sent":
+      return badge(N.blueBg, N.blueText, N.blueBorder);
+    case "accepted":
+      return badge(N.greenBg, N.greenText, N.greenBorder);
+    case "rejected":
+      return badge(N.redBg, N.redText, N.redBorder);
+    case "expired":
+      return badge(N.orangeBg, N.orangeText, N.orangeBorder);
+    default:
+      return badge(N.grayBg, N.grayText, N.grayBorder);
+  }
+};

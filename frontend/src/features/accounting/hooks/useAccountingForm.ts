@@ -29,7 +29,7 @@ export function useAccountingForm(id?: string) {
   // 新規作成時のデフォルト値
   const newRecordDefault = useMemo<Partial<AccountingRecord>>(() => {
     const base: Partial<AccountingRecord> = {
-      status: "未収",
+      status: "会計待ち",
       method: "-",
       ownerName: "",
       petName: "",

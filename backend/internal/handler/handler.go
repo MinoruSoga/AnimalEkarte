@@ -63,4 +63,8 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	h.RegisterInventoryRoutes(protected)
 	h.RegisterMasterRoutes(protected)
 	h.RegisterClinicRoutes(protected)
+	h.RegisterUserRoutes(protected)
+	h.RegisterEstimateRoutes(protected)
+	h.RegisterShiftRoutes(protected)
+	h.RegisterCompanyRoutes(protected)
 }
