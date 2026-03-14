@@ -1143,6 +1143,10 @@ components:
           default: true
         description:
           type: string
+        drug_category:
+          type: string
+          nullable: true
+          description: 薬効分類（例: 抗生剤、消炎剤）
         dosage_form:
           type: string
           enum: [tablet, liquid, injection, topical, powder]
@@ -1643,6 +1647,28 @@ components:
           type: string
           format: date-time
           readOnly: true
+    DiagnosisCategoriesReorderRequest:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+          minItems: 1
+          description: カテゴリIDを並べ替え後の順序で指定
+    DiagnosisNamesReorderRequest:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+          minItems: 1
+          description: 診断名IDを並べ替え後の順序で指定
     CheckupType:
       type: object
       required: [name]
@@ -1912,6 +1938,43 @@ components:
           format: date-time
           nullable: true
           description: 削除日時（ソフトデリート）
+    Company:
+      type: object
+      description: 法人情報
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        name:
+          type: string
+        postal_code:
+          type: string
+        address:
+          type: string
+        phone_number:
+          type: string
+        fax_number:
+          type: string
+        registration_number:
+          type: string
+        director_name:
+          type: string
+        email:
+          type: string
+          format: email
+        website:
+          type: string
+        logo_url:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     Clinic:
       type: object
       properties:
@@ -3888,7 +3951,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Clinic'
+                $ref: '#/components/schemas/Company'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3907,14 +3970,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Clinic'
+              $ref: '#/components/schemas/Company'
       responses:
         '200':
           description: 更新成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Clinic'
+                $ref: '#/components/schemas/Company'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -5340,6 +5403,42 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /masters/diagnosis-categories/reorder:
+    patch:
+      operationId: reorderDiagnosisCategories
+      summary: 診断カテゴリ一括並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiagnosisCategoriesReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reordered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/diagnosis-categories/{id}:
     patch:
       operationId: updateDiagnosisCategory
@@ -5426,6 +5525,8 @@ paths:
     post:
       operationId: createDiagnosisName
       summary: 診断名登録
+      description: |
+        `diagnosis_category_id` に指定したカテゴリが同クリニックに存在しない場合は 400 を返す（FK validation）。
       tags: [Masters]
       requestBody:
         required: true
@@ -5455,6 +5556,42 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/diagnosis-names/reorder:
+    patch:
+      operationId: reorderDiagnosisNames
+      summary: 診断名一括並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiagnosisNamesReorderRequest'
+            example:
+              ids: [5, 2, 8, 1]
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reordered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/diagnosis-names/{id}:

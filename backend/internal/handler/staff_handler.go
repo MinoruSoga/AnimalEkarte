@@ -180,11 +180,13 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 
 	masters.GET("/diagnosis-categories", h.ListDiagnosisCategories)
 	masters.POST("/diagnosis-categories", h.CreateDiagnosisCategory)
+	masters.PATCH("/diagnosis-categories/reorder", h.ReorderDiagnosisCategories) // 静的パスを /:id より前に登録
 	masters.PATCH("/diagnosis-categories/:id", h.UpdateDiagnosisCategory)
 	masters.DELETE("/diagnosis-categories/:id", h.DeleteDiagnosisCategory)
 
 	masters.GET("/diagnosis-names", h.ListDiagnosisNames)
 	masters.POST("/diagnosis-names", h.CreateDiagnosisName)
+	masters.PATCH("/diagnosis-names/reorder", h.ReorderDiagnosisNames) // 静的パスを /:id より前に登録
 	masters.PATCH("/diagnosis-names/:id", h.UpdateDiagnosisName)
 	masters.DELETE("/diagnosis-names/:id", h.DeleteDiagnosisName)
 

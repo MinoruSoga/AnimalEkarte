@@ -355,6 +355,7 @@ erDiagram
         uuid id PK
         uuid clinic_id FK
         text name
+        varchar drug_category
         boolean is_active
         dosage_form dosage_form
         uuid inventory_id FK
@@ -430,6 +431,8 @@ erDiagram
         uuid clinic_id FK
         text name
         boolean is_active
+        text description
+        integer sort_order
     }
 
     diagnosis_names {
@@ -437,7 +440,9 @@ erDiagram
         uuid clinic_id FK
         text name
         boolean is_active
+        text description
         uuid diagnosis_category_id FK
+        integer sort_order
     }
 
     checkup_types {
@@ -1404,6 +1409,7 @@ erDiagram
 | price | numeric | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
+| drug_category | varchar(100) | YES | | 薬効分類（抗生剤・消炎剤等） |
 | dosage_form | dosage_form | YES | | 剤形 |
 | medicine_unit | medicine_unit | YES | | 単位 |
 | inventory_id | uuid | YES | | inventory_items.id FK |

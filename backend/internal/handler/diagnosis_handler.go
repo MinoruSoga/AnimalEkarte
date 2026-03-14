@@ -7,49 +7,23 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
-
-type createDiagnosisCategoryInput struct {
-	Name        string `json:"name"        binding:"required"`
-	IsActive    bool   `json:"is_active"`
-	Description string `json:"description"`
-	SortOrder   int    `json:"sort_order"`
-}
-
-type updateDiagnosisCategoryInput struct {
-	Name        string `json:"name"`
-	IsActive    *bool  `json:"is_active"`
-	Description string `json:"description"`
-	SortOrder   int    `json:"sort_order"`
-}
-
-type createDiagnosisNameInput struct {
-	Name                string `json:"name"                  binding:"required"`
-	DiagnosisCategoryID uint64 `json:"diagnosis_category_id" binding:"required"`
-	IsActive            bool   `json:"is_active"`
-	Description         string `json:"description"`
-	SortOrder           int    `json:"sort_order"`
-}
-
-type updateDiagnosisNameInput struct {
-	Name                string `json:"name"`
-	DiagnosisCategoryID uint64 `json:"diagnosis_category_id"`
-	IsActive            *bool  `json:"is_active"`
-	Description         string `json:"description"`
-	SortOrder           int    `json:"sort_order"`
-}
 
 // ---- DiagnosisCategory ----
 
 // ListDiagnosisCategories godoc
 func (h *Handler) ListDiagnosisCategories(c *gin.Context) {
-	categories, err := h.svc.DiagnosisCategory.List(c.Request.Context())
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	categories, err := h.svc.DiagnosisCategory.List(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, categories)
+	c.JSON(http.StatusOK, toDiagnosisCategoryResponseList(categories))
 }
 
 // CreateDiagnosisCategory godoc
@@ -59,77 +33,103 @@ func (h *Handler) CreateDiagnosisCategory(c *gin.Context) {
 		return
 	}
 
-	var input createDiagnosisCategoryInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	var req createDiagnosisCategoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
-	category := &model.DiagnosisCategory{
-		ClinicID:    clinicID,
-		Name:        input.Name,
-		IsActive:    input.IsActive,
-		Description: input.Description,
-		SortOrder:   input.SortOrder,
-	}
-
-	if err := h.svc.DiagnosisCategory.Create(c.Request.Context(), category); err != nil {
+	category, err := h.svc.DiagnosisCategory.Create(c.Request.Context(), clinicID, &service.CreateDiagnosisCategoryInput{
+		Name:        req.Name,
+		IsActive:    req.IsActive,
+		Description: req.Description,
+		SortOrder:   req.SortOrder,
+	})
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, category)
+	c.JSON(http.StatusCreated, toDiagnosisCategoryResponse(category))
 }
 
 // UpdateDiagnosisCategory godoc
 func (h *Handler) UpdateDiagnosisCategory(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input updateDiagnosisCategoryInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+
+	var req updateDiagnosisCategoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
-	category := &model.DiagnosisCategory{
-		ID:          id,
-		Name:        input.Name,
-		Description: input.Description,
-		SortOrder:   input.SortOrder,
-	}
-	if input.IsActive != nil {
-		category.IsActive = *input.IsActive
-	}
-
-	if err := h.svc.DiagnosisCategory.Update(c.Request.Context(), category); err != nil {
+	category, err := h.svc.DiagnosisCategory.Update(c.Request.Context(), clinicID, id, &service.UpdateDiagnosisCategoryInput{
+		Name:        req.Name,
+		IsActive:    req.IsActive,
+		Description: req.Description,
+		SortOrder:   req.SortOrder,
+	})
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, category)
+	c.JSON(http.StatusOK, toDiagnosisCategoryResponse(category))
 }
 
 // DeleteDiagnosisCategory godoc
 func (h *Handler) DeleteDiagnosisCategory(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	if err := h.svc.DiagnosisCategory.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.DiagnosisCategory.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
 }
 
+// ReorderDiagnosisCategories godoc (#019)
+func (h *Handler) ReorderDiagnosisCategories(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderDiagnosisCategoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+	if err := h.svc.DiagnosisCategory.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+}
+
 // ---- DiagnosisName ----
 
 // ListDiagnosisNames godoc
 func (h *Handler) ListDiagnosisNames(c *gin.Context) {
-	var names []model.DiagnosisName
-	var err error
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
+	var names any
+	var svcErr error
 
 	if catIDStr := c.Query("category_id"); catIDStr != "" {
 		catID, parseErr := strconv.ParseUint(catIDStr, 10, 64)
@@ -137,13 +137,17 @@ func (h *Handler) ListDiagnosisNames(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid category_id"})
 			return
 		}
-		names, err = h.svc.DiagnosisName.ListByCategoryID(c.Request.Context(), catID)
+		result, err := h.svc.DiagnosisName.ListByCategoryID(c.Request.Context(), clinicID, catID)
+		names = toDiagnosisNameResponseList(result)
+		svcErr = err
 	} else {
-		names, err = h.svc.DiagnosisName.List(c.Request.Context())
+		result, err := h.svc.DiagnosisName.List(c.Request.Context(), clinicID)
+		names = toDiagnosisNameResponseList(result)
+		svcErr = err
 	}
 
-	if err != nil {
-		RespondError(c, err)
+	if svcErr != nil {
+		RespondError(c, svcErr)
 		return
 	}
 	c.JSON(http.StatusOK, names)
@@ -156,69 +160,90 @@ func (h *Handler) CreateDiagnosisName(c *gin.Context) {
 		return
 	}
 
-	var input createDiagnosisNameInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	var req createDiagnosisNameRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
-	diagnosisName := &model.DiagnosisName{
-		ClinicID:            clinicID,
-		Name:                input.Name,
-		DiagnosisCategoryID: input.DiagnosisCategoryID,
-		IsActive:            input.IsActive,
-		Description:         input.Description,
-		SortOrder:           input.SortOrder,
-	}
-
-	if err := h.svc.DiagnosisName.Create(c.Request.Context(), diagnosisName); err != nil {
+	diagnosisName, err := h.svc.DiagnosisName.Create(c.Request.Context(), clinicID, &service.CreateDiagnosisNameInput{
+		Name:                req.Name,
+		DiagnosisCategoryID: req.DiagnosisCategoryID,
+		IsActive:            req.IsActive,
+		Description:         req.Description,
+		SortOrder:           req.SortOrder,
+	})
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, diagnosisName)
+	c.JSON(http.StatusCreated, toDiagnosisNameResponse(diagnosisName))
 }
 
 // UpdateDiagnosisName godoc
 func (h *Handler) UpdateDiagnosisName(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input updateDiagnosisNameInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+
+	var req updateDiagnosisNameRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
-	diagnosisName := &model.DiagnosisName{
-		ID:                  id,
-		Name:                input.Name,
-		DiagnosisCategoryID: input.DiagnosisCategoryID,
-		Description:         input.Description,
-		SortOrder:           input.SortOrder,
-	}
-	if input.IsActive != nil {
-		diagnosisName.IsActive = *input.IsActive
-	}
-
-	if err := h.svc.DiagnosisName.Update(c.Request.Context(), diagnosisName); err != nil {
+	diagnosisName, err := h.svc.DiagnosisName.Update(c.Request.Context(), clinicID, id, &service.UpdateDiagnosisNameInput{
+		Name:                req.Name,
+		DiagnosisCategoryID: req.DiagnosisCategoryID,
+		IsActive:            req.IsActive,
+		Description:         req.Description,
+		SortOrder:           req.SortOrder,
+	})
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, diagnosisName)
+	c.JSON(http.StatusOK, toDiagnosisNameResponse(diagnosisName))
 }
 
 // DeleteDiagnosisName godoc
 func (h *Handler) DeleteDiagnosisName(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	if err := h.svc.DiagnosisName.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.DiagnosisName.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// ReorderDiagnosisNames godoc (#019)
+func (h *Handler) ReorderDiagnosisNames(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderDiagnosisNameRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+	if err := h.svc.DiagnosisName.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
 }
