@@ -27,7 +27,7 @@ import {
 import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useClinicInfo } from "@/hooks/use-clinic-info";
-import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import type { MenuItem } from "@/types";
 
 /* ================================================================== */

@@ -208,6 +208,15 @@ export interface TrimmingRecord {
   styleRequest: string;
   staff: string;
   status: "完了" | "予約" | "進行中";
+  // Form fields
+  courseId?: string;
+  optionIds?: string[];
+  bw?: string;
+  bwUnit?: "Kg" | "g";
+  bt?: string;
+  usedShampoo?: string;
+  usedRibbon?: string;
+  remarks?: string;
 }
 
 // Examination Types

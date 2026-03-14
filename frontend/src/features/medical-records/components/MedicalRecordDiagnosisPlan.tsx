@@ -3,6 +3,7 @@ import { TreatmentSearchDialog } from "@/components/shared/TreatmentSearchDialog
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { DiagnosisHeader } from "./DiagnosisHeader";
+import { ClinicalPlanSection } from "./ClinicalPlanSection";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 
 export interface DiagnosisPlanProps {
@@ -14,6 +15,7 @@ export interface DiagnosisPlanProps {
   setPlan?: (value: string) => void;
   assessment?: string;
   setAssessment?: (value: string) => void;
+  medicalRecordId?: string;
 }
 
 export function MedicalRecordDiagnosisPlan({
@@ -22,6 +24,7 @@ export function MedicalRecordDiagnosisPlan({
   setPlan: setPlanProp,
   assessment: assessmentProp,
   setAssessment: setAssessmentProp,
+  medicalRecordId,
 }: DiagnosisPlanProps) {
   // 制御型propsが渡された場合はそれを使用し、渡されない場合は内部stateにフォールバック
   const [internalPolicy, setInternalPolicy] = useState("# 治療方針");
@@ -117,12 +120,16 @@ export function MedicalRecordDiagnosisPlan({
 
   return (
     <div className="flex flex-col gap-3 h-[calc(100vh-220px)] min-h-[500px]">
-      <DiagnosisHeader 
+      <DiagnosisHeader
         policy={policy}
         setPolicy={setPolicy}
         diagnosisDetails={diagnosisDetails}
         setDiagnosisDetails={setDiagnosisDetails}
       />
+
+      {!isNewRecord && medicalRecordId ? (
+        <ClinicalPlanSection medicalRecordId={medicalRecordId} />
+      ) : null}
 
       {/* Bottom Section: Treatment Plan */}
       <div className="flex-1 flex flex-col min-h-0">

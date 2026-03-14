@@ -1,5 +1,5 @@
 // React/Framework
-import { useState } from "react";
+import { useState, useCallback, useDeferredValue } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -23,7 +23,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { useStaffValidation } from "@/hooks/useStaffValidation";
 import type { TrimmingRecord } from "@/types";
 
-// Relative
+// Relative (direct file import, no barrel)
 import { useTrimmingRecords } from "../hooks/useTrimmingRecords";
 
 // ─── 静的データはモジュールレベルに配置 (rendering-hoist-jsx) ───────────────
@@ -39,15 +39,20 @@ const COLUMNS = [
   { header: "操作", className: "w-[100px]", align: "right" as const },
 ];
 
-// ✅ React 19: function宣言を使用 (CLAUDE.md準拠)
 export function TrimmingList() {
   const navigate = useNavigate();
   const [searchDate, setSearchDate] = useState({ from: "", to: "" });
   const [searchKeyword, setSearchKeyword] = useState("");
-  const { data: filteredRecords, isLoading, error, deleteRecord } = useTrimmingRecords(searchKeyword, searchDate);
+
+  // rerender-transitions: 検索は useDeferredValue で遅延
+  const deferredKeyword = useDeferredValue(searchKeyword);
+  const deferredFrom = useDeferredValue(searchDate.from);
+  const deferredTo = useDeferredValue(searchDate.to);
+  const deferredDate = { from: deferredFrom, to: deferredTo };
+
+  const { data: filteredRecords, isLoading, error, deleteRecord } = useTrimmingRecords(deferredKeyword, deferredDate);
   const { isValidStaff } = useStaffValidation();
 
-  // Pagination
   const {
     currentPage,
     paginatedData,
@@ -59,8 +64,44 @@ export function TrimmingList() {
     nextPage,
   } = usePagination(filteredRecords, { pageSize: 10 });
 
-  // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+
+  // rerender-functional-setstate: useCallback + functional setstate
+  const handleClear = useCallback(() => {
+    setSearchDate({ from: "", to: "" });
+    setSearchKeyword("");
+  }, []);
+
+  const handleEdit = useCallback((id: string) => {
+    navigate(`/trimming/${id}`, { state: { from: "/trimming" } });
+  }, [navigate]);
+
+  const handleDeleteClick = useCallback((record: TrimmingRecord) => {
+    setDeleteTarget({
+      id: record.id,
+      label: `${record.ownerName} - ${record.petName}`,
+    });
+  }, []);
+
+  const handleDeleteConfirm = useCallback(() => {
+    if (deleteTarget) {
+      deleteRecord(deleteTarget.id);
+      toast.success("削除しました", { description: deleteTarget.label });
+      setDeleteTarget(null);
+    }
+  }, [deleteTarget, deleteRecord]);
+
+  const handleNew = useCallback(() => {
+    navigate("/trimming/select-pet");
+  }, [navigate]);
+
+  const handleDateFromChange = useCallback((val: string) => {
+    setSearchDate((prev) => ({ ...prev, from: val }));
+  }, []);
+
+  const handleDateToChange = useCallback((val: string) => {
+    setSearchDate((prev) => ({ ...prev, to: val }));
+  }, []);
 
   if (isLoading) return (
     <div className="flex justify-center items-center p-8">
@@ -68,34 +109,6 @@ export function TrimmingList() {
     </div>
   );
   if (error) return <div className="p-4 text-red-600">データの取得に失敗しました</div>;
-
-  const handleClear = () => {
-    setSearchDate({ from: "", to: "" });
-    setSearchKeyword("");
-  };
-
-  const handleEdit = (id: string) => {
-    navigate(`/trimming/${id}`, { state: { from: "/trimming" } });
-  };
-
-  const handleDeleteClick = (record: TrimmingRecord) => {
-    setDeleteTarget({
-      id: record.id,
-      label: `${record.ownerName} - ${record.petName}`,
-    });
-  };
-
-  const handleDeleteConfirm = () => {
-    if (deleteTarget) {
-      deleteRecord(deleteTarget.id);
-      toast.success("削除しました", { description: deleteTarget.label });
-      setDeleteTarget(null);
-    }
-  };
-
-  const handleNew = () => {
-    navigate("/trimming/select-pet");
-  };
 
   return (
     <PageLayout
@@ -121,7 +134,7 @@ export function TrimmingList() {
             <div className="flex-1 lg:flex-none">
               <NotionDatePicker
                 value={searchDate.from}
-                onChange={(val) => setSearchDate({ ...searchDate, from: val })}
+                onChange={handleDateFromChange}
                 placeholder="開始日"
               />
             </div>
@@ -129,7 +142,7 @@ export function TrimmingList() {
             <div className="flex-1 lg:flex-none">
               <NotionDatePicker
                 value={searchDate.to}
-                onChange={(val) => setSearchDate({ ...searchDate, to: val })}
+                onChange={handleDateToChange}
                 placeholder="終了日"
               />
             </div>
@@ -169,9 +182,10 @@ export function TrimmingList() {
               </TableCell>
               <TableCell className="text-sm text-[#37352F] py-2">
                 <div className="flex items-center gap-1.5">
-                  {!isValidStaff(record.staff) && (
+                  {/* rendering-conditional-render: && → ? ... : null */}
+                  {!isValidStaff(record.staff) ? (
                     <AlertTriangle className="size-4 text-amber-500" />
-                  )}
+                  ) : null}
                   {record.staff}
                 </div>
               </TableCell>
@@ -216,7 +230,7 @@ export function TrimmingList() {
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
-        open={!!deleteTarget}
+        open={deleteTarget !== null}
         onClose={() => setDeleteTarget(null)}
         title="削除確認"
         description={`${deleteTarget?.label} を削除してもよろしいですか？`}

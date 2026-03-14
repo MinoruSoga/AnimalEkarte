@@ -21,5 +21,14 @@ export function transformTrimming(data: BackendTrimming): TrimmingRecord {
     styleRequest: data.style_request ?? "",
     staff: data.staff?.name ?? "",
     status: statusMap[data.status] ?? "予約",
+    // Form fields
+    courseId: data.course?.id != null ? String(data.course.id) : "",
+    optionIds: data.options?.map((o) => String(o.id)) ?? [],
+    bw: data.bw ?? "",
+    bwUnit: (data.bw_unit as "Kg" | "g") || "Kg",
+    bt: data.bt ?? "",
+    usedShampoo: data.used_shampoo ?? "",
+    usedRibbon: data.used_ribbon ?? "",
+    remarks: data.remarks ?? "",
   };
 }

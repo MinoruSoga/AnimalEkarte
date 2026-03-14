@@ -20,6 +20,7 @@ import { MedicalRecordImage } from "../components/MedicalRecordImage";
 import { MedicalRecordEstimate } from "../components/MedicalRecordEstimate";
 import { MedicalRecordBillCheck } from "../components/MedicalRecordBillCheck";
 import { MedicalRecordExamination } from "../components/MedicalRecordExamination";
+import { CheckupsTab } from "../components/CheckupsTab";
 import { useMedicalRecordForm } from "../hooks/useMedicalRecordForm";
 
 export function MedicalRecordForm() {
@@ -163,6 +164,7 @@ export function MedicalRecordForm() {
               setPlan={setPlan}
               assessment={assessment}
               setAssessment={setAssessment}
+              medicalRecordId={recordId}
             />
           </div>
         )}
@@ -184,9 +186,13 @@ export function MedicalRecordForm() {
         )}
         {mountedTabs.has("定期健診") && (
           <div style={{ display: activeTab === "定期健診" ? "block" : "none" }}>
-            <div className={`flex items-center justify-center h-48 text-sm ${C.text40}`}>
-              準備中
-            </div>
+            {isNewRecord || !recordId ? (
+              <div className={`flex items-center justify-center h-48 text-sm ${C.text40}`}>
+                カルテを保存してから使用できます
+              </div>
+            ) : (
+              <CheckupsTab medicalRecordId={recordId} />
+            )}
           </div>
         )}
         {mountedTabs.has("検査") && (
