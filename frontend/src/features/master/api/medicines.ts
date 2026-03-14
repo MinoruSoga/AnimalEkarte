@@ -7,6 +7,7 @@ function transformMedicine(data: MedicineModel): Medicine {
   return {
     id: String(data.id ?? 0),
     name: data.name,
+    drugCategory: data.drug_category,
     dosageForm: data.dosage_form as Medicine["dosageForm"],
     medicineUnit: data.medicine_unit as Medicine["medicineUnit"],
     price: data.price ?? 0,
@@ -22,6 +23,7 @@ function transformMedicine(data: MedicineModel): Medicine {
 
 export interface CreateMedicineRequest {
   name: string;
+  drug_category?: string;
   dosage_form: string;
   medicine_unit: string;
   price: number;
@@ -34,6 +36,7 @@ export interface CreateMedicineRequest {
 
 export interface UpdateMedicineRequest {
   name?: string;
+  drug_category?: string;
   dosage_form?: string;
   medicine_unit?: string;
   price?: number;

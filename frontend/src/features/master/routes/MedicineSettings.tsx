@@ -15,7 +15,6 @@ import GripVertical from "lucide-react/dist/esm/icons/grip-vertical";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import {
   Table,
   TableBody,
@@ -49,14 +48,6 @@ import type { Medicine } from "@/types";
 // Module-level constants (hoisted — never recreated)
 // ─────────────────────────────────────────────────
 
-const DOSAGE_FORM_LABEL: Record<string, string> = {
-  tablet: "錠剤",
-  liquid: "液剤",
-  injection: "注射剤",
-  topical: "外用剤",
-  powder: "散剤",
-};
-
 // Static JSX hoisted outside component (rendering-hoist-jsx)
 const DOSAGE_FORM_SELECT_ITEMS = (
   <>
@@ -83,6 +74,7 @@ const MEDICINE_UNIT_SELECT_ITEMS = (
 
 interface MedicineFormData {
   name: string;
+  drugCategory: string;
   dosageForm: string;
   medicineUnit: string;
   price: number;
@@ -93,6 +85,7 @@ interface MedicineFormData {
 
 const INITIAL_FORM: MedicineFormData = {
   name: "",
+  drugCategory: "",
   dosageForm: "tablet",
   medicineUnit: "per_tablet",
   price: 0,
@@ -185,7 +178,7 @@ export function MedicineSettings() {
 
     const groups = new Map<string, Medicine[]>();
     for (const m of filtered) {
-      const key = m.dosageForm ?? "other";
+      const key = m.drugCategory ?? "uncategorized";
       const existing = groups.get(key);
       if (existing) {
         existing.push(m);
@@ -221,6 +214,7 @@ export function MedicineSettings() {
     setSelectedMedicine(medicine);
     setFormData({
       name: medicine.name,
+      drugCategory: medicine.drugCategory ?? "",
       dosageForm: medicine.dosageForm,
       medicineUnit: medicine.medicineUnit,
       price: medicine.price,
@@ -231,9 +225,9 @@ export function MedicineSettings() {
     setIsEditing(true);
   }, []);
 
-  const handleCreate = useCallback((dosageForm?: string) => {
+  const handleCreate = useCallback((drugCategory?: string) => {
     setSelectedMedicine(null);
-    setFormData({ ...INITIAL_FORM, dosageForm: dosageForm ?? "tablet" });
+    setFormData({ ...INITIAL_FORM, drugCategory: drugCategory !== "uncategorized" ? (drugCategory ?? "") : "" });
     setIsEditing(true);
   }, []);
 
@@ -250,6 +244,7 @@ export function MedicineSettings() {
     if (selectedMedicine) {
       const req: UpdateMedicineRequest = {
         name: formData.name,
+        drug_category: formData.drugCategory || undefined,
         dosage_form: formData.dosageForm,
         medicine_unit: formData.medicineUnit,
         price: formData.price,
@@ -270,6 +265,7 @@ export function MedicineSettings() {
     } else {
       const req: CreateMedicineRequest = {
         name: formData.name,
+        drug_category: formData.drugCategory || undefined,
         dosage_form: formData.dosageForm,
         medicine_unit: formData.medicineUnit,
         price: formData.price,
@@ -316,7 +312,7 @@ export function MedicineSettings() {
               <TableHead className={`${STYLE.tableHeaderCell} w-[130px] text-right pr-4`}>
                 単価(税込)
               </TableHead>
-              <TableHead className={`${STYLE.tableHeaderCell} w-[110px] text-right pr-4`}>
+              <TableHead className={`${STYLE.tableHeaderCell} w-[110px] text-center`}>
                 ステータス
               </TableHead>
             </TableRow>
@@ -332,7 +328,7 @@ export function MedicineSettings() {
 
             {Array.from(groupedMedicines.entries()).map(([key, items]) => {
               const isCollapsed = collapsedGroups.has(key);
-              const label = DOSAGE_FORM_LABEL[key] ?? key;
+              const label = key === "uncategorized" ? "未分類" : key;
 
               return (
                 <>
@@ -391,7 +387,7 @@ export function MedicineSettings() {
                           <TableCell className={`${STYLE.tableCell} w-[130px] text-right pr-4 font-mono`}>
                             {medicine.price > 0 ? `¥${medicine.price.toLocaleString()}` : "-"}
                           </TableCell>
-                          <TableCell className="w-[110px] py-2 text-right pr-4">
+                          <TableCell className="w-[110px] py-2 text-center">
                             <StatusDot active={medicine.isActive} />
                           </TableCell>
                         </TableRow>
@@ -475,6 +471,21 @@ export function MedicineSettings() {
 
           {/* Properties */}
           <div className="py-1">
+            {/* Price */}
+            <PropertyRow label="単価(税込)">
+              <div className="flex items-center gap-1">
+                <span className={`text-sm ${C.text40}`}>¥</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={formData.price}
+                  onChange={(e) => updateForm({ price: Number(e.target.value) })}
+                  placeholder="0"
+                  className={`${STYLE.propertyInput} w-28`}
+                />
+              </div>
+            </PropertyRow>
+
             {/* Status */}
             <PropertyRow label="ステータス">
               <button
@@ -485,6 +496,39 @@ export function MedicineSettings() {
                 <NotionStatusPill active={formData.isActive} />
               </button>
             </PropertyRow>
+
+            {/* Drug category */}
+            <PropertyRow label="薬効分類">
+              <input
+                type="text"
+                value={formData.drugCategory}
+                onChange={(e) => updateForm({ drugCategory: e.target.value })}
+                placeholder="例: 抗生剤、消炎剤"
+                className={STYLE.propertyInput}
+              />
+            </PropertyRow>
+
+            {/* Description */}
+            <PropertyRow label="備考">
+              <input
+                type="text"
+                value={formData.description}
+                onChange={(e) => updateForm({ description: e.target.value })}
+                placeholder="空"
+                className={STYLE.propertyInput}
+              />
+            </PropertyRow>
+          </div>
+
+          {/* ── 薬剤詳細 section ── */}
+          <div className={`${STYLE.sectionDivider} mt-3 mb-1`} />
+          <div className="py-1">
+            <div className={`flex items-center gap-1.5 py-2 mb-1`}>
+              <Pill className={`size-3.5 ${C.text40}`} />
+              <span className={`text-xs font-medium ${C.text50} uppercase tracking-wide select-none`}>
+                薬剤詳細
+              </span>
+            </div>
 
             {/* Dosage form */}
             <PropertyRow label="剤形" required>
@@ -512,21 +556,6 @@ export function MedicineSettings() {
               </Select>
             </PropertyRow>
 
-            {/* Price */}
-            <PropertyRow label="単価(税込)">
-              <div className="flex items-center gap-1">
-                <span className={`text-sm ${C.text40}`}>¥</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={formData.price}
-                  onChange={(e) => updateForm({ price: Number(e.target.value) })}
-                  placeholder="0"
-                  className={`${STYLE.propertyInput} w-28`}
-                />
-              </div>
-            </PropertyRow>
-
             {/* Default quantity */}
             <PropertyRow label="デフォルト数量">
               <input
@@ -536,17 +565,6 @@ export function MedicineSettings() {
                 onChange={(e) => updateForm({ defaultQuantity: e.target.value })}
                 placeholder="空"
                 className={`${STYLE.propertyInput} w-28`}
-              />
-            </PropertyRow>
-
-            {/* Description */}
-            <PropertyRow label="備考">
-              <input
-                type="text"
-                value={formData.description}
-                onChange={(e) => updateForm({ description: e.target.value })}
-                placeholder="空"
-                className={STYLE.propertyInput}
               />
             </PropertyRow>
           </div>
@@ -573,21 +591,27 @@ export function MedicineSettings() {
             title="薬剤マスタ"
             icon={<Pill className="size-5 text-[#37352F]" />}
             onBack={() => navigate("/settings")}
-            headerAction={
-              <PrimaryButton onClick={() => handleCreate()}>
-                <Plus className="mr-1.5 size-4" />
-                新規登録
-              </PrimaryButton>
-            }
             maxWidth="max-w-full"
           >
             <div className="flex flex-col gap-4">
-              <SearchFilterBar
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                placeholder="薬品名で検索..."
-                count={totalCount}
-              />
+              <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <SearchFilterBar
+                    searchTerm={searchTerm}
+                    onSearchChange={setSearchTerm}
+                    placeholder="薬品名で検索..."
+                    count={totalCount}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCreate()}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-[4px] ${C.accent} ${C.hoverBgAccent5} transition-colors whitespace-nowrap`}
+                >
+                  <Plus className="size-3.5" />
+                  新規登録
+                </button>
+              </div>
               {tableContent}
             </div>
           </PageLayout>

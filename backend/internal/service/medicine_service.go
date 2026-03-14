@@ -14,6 +14,7 @@ import (
 
 const (
 	colMedicineName            = "name"
+	colMedicineDrugCategory    = "drug_category"
 	colMedicinePrice           = "price"
 	colMedicineIsActive        = "is_active"
 	colMedicineDescription     = "description"
@@ -29,6 +30,7 @@ const (
 // CreateMedicineInput は薬剤作成の入力DTO
 type CreateMedicineInput struct {
 	Name            string
+	DrugCategory    *string
 	Price           *float64
 	IsActive        bool
 	Description     string
@@ -42,6 +44,7 @@ type CreateMedicineInput struct {
 // UpdateMedicineInput は薬剤更新の入力DTO（nil = 未指定）
 type UpdateMedicineInput struct {
 	Name            *string
+	DrugCategory    *string  // nil = 未指定, "" = NULL クリア, "抗生剤" = 値セット
 	Price           *float64
 	IsActive        *bool
 	Description     *string
@@ -58,6 +61,13 @@ func buildMedicineUpdateFields(input *UpdateMedicineInput) map[string]any {
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colMedicineName] = *input.Name
+	}
+	if input.DrugCategory != nil {
+		if *input.DrugCategory == "" {
+			fields[colMedicineDrugCategory] = nil
+		} else {
+			fields[colMedicineDrugCategory] = *input.DrugCategory
+		}
 	}
 	if input.Price != nil {
 		fields[colMedicinePrice] = *input.Price
@@ -129,6 +139,7 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 	medicine := &model.Medicine{
 		ClinicID:        clinicID,
 		Name:            input.Name,
+		DrugCategory:    input.DrugCategory,
 		Price:           input.Price,
 		IsActive:        input.IsActive,
 		Description:     input.Description,

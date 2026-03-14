@@ -27,6 +27,7 @@ type Medicine struct {
 	ID              uint64        `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID        uint64        `gorm:"not null"                                       json:"clinic_id"`
 	Name            string        `gorm:"not null"                                       json:"name"`
+	DrugCategory    *string       `gorm:"column:drug_category"                           json:"drug_category,omitempty"`
 	Price           *float64      `gorm:"type:numeric(10,2)"                             json:"price,omitempty"`
 	IsActive        bool          `gorm:"default:true"                                   json:"is_active"`
 	Description     string        `gorm:"default:''"                                     json:"description"`

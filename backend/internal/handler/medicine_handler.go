@@ -61,6 +61,7 @@ func (h *Handler) CreateMedicine(c *gin.Context) {
 
 	input := service.CreateMedicineInput{
 		Name:            req.Name,
+		DrugCategory:    req.DrugCategory,
 		Price:           req.Price,
 		IsActive:        req.IsActive,
 		Description:     req.Description,
@@ -100,6 +101,7 @@ func (h *Handler) UpdateMedicine(c *gin.Context) {
 
 	input := service.UpdateMedicineInput{
 		Name:            req.Name,
+		DrugCategory:    req.DrugCategory,
 		Price:           req.Price,
 		IsActive:        req.IsActive,
 		Description:     req.Description,

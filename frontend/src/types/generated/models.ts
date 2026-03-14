@@ -900,6 +900,7 @@ export interface Medicine {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
+  drug_category?: string;
   price?: number /* float64 */;
   is_active: boolean;
   description: string;
