@@ -40,14 +40,14 @@ CREATE TYPE cage_size AS ENUM ('small', 'medium', 'large');
 CREATE TYPE body_size AS ENUM ('small', 'medium', 'large');
 CREATE TYPE billing_unit AS ENUM ('per_day', 'per_night');
 CREATE TYPE target_size AS ENUM ('small', 'medium', 'large', 'cat');
-CREATE TYPE anesthesia_type AS ENUM ('none', 'local', 'general');
+CREATE TYPE anesthesia_type AS ENUM ('none', 'local', 'sedation', 'general');
 CREATE TYPE vaccine_species AS ENUM ('dog', 'cat', 'both');
 
 -- 電子カルテ関連
 CREATE TYPE medical_record_status AS ENUM ('draft', 'finalized');
 CREATE TYPE treatment_item_type AS ENUM ('consultation', 'procedure', 'medicine', 'other');
-CREATE TYPE treatment_status AS ENUM ('未完了', '完了', '-');
-CREATE TYPE examination_status AS ENUM ('依頼中', '検査中', '完了');
+CREATE TYPE treatment_status AS ENUM ('pending', 'completed', 'not_applicable');
+CREATE TYPE examination_status AS ENUM ('pending', 'in_progress', 'completed');
 CREATE TYPE examination_result_status AS ENUM ('normal', 'high', 'low');
 CREATE TYPE next_schedule_type AS ENUM ('3weeks', '4weeks', '1year', 'other');
 CREATE TYPE appetite_level AS ENUM ('normal', 'increased', 'decreased', 'none');
@@ -147,13 +147,14 @@ CREATE TABLE animal_species (
 -- 4. job_titles（職種マスタ）
 -- ------------------------------------
 CREATE TABLE job_titles (
-    id         BIGSERIAL   PRIMARY KEY,
-    clinic_id  bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    name       text        NOT NULL DEFAULT '',
-    sort_order integer     NOT NULL DEFAULT 0,
-    is_active  boolean     NOT NULL DEFAULT true,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now()
+    id          BIGSERIAL   PRIMARY KEY,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name        text        NOT NULL DEFAULT '',
+    description text        NOT NULL DEFAULT '',
+    sort_order  integer     NOT NULL DEFAULT 0,
+    is_active   boolean     NOT NULL DEFAULT true,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
@@ -481,20 +482,22 @@ CREATE TABLE checkup_types (
     target_age  text        NOT NULL DEFAULT '',
     sort_order  integer              DEFAULT 0,
     created_at  timestamptz NOT NULL DEFAULT now(),
-    updated_at  timestamptz NOT NULL DEFAULT now()
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    deleted_at  timestamptz
 );
 
 -- ------------------------------------
 -- 24. chief_complaint_categories（主訴区分マスタ）
 -- ------------------------------------
 CREATE TABLE chief_complaint_categories (
-    id         BIGSERIAL   PRIMARY KEY,
-    clinic_id  bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    name       text        NOT NULL,
-    is_active  boolean     NOT NULL DEFAULT true,
-    sort_order integer              DEFAULT 0,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now()
+    id          BIGSERIAL   PRIMARY KEY,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name        text        NOT NULL,
+    description text        NOT NULL DEFAULT '',
+    is_active   boolean     NOT NULL DEFAULT true,
+    sort_order  integer              DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
@@ -627,9 +630,9 @@ CREATE TABLE trimming_records (
     pet_id          bigint                    REFERENCES pets(id) ON DELETE SET NULL,
     weight          text             NOT NULL DEFAULT '',
     style_request   text             NOT NULL DEFAULT '',
-    staff_id        bigint           NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+    staff_id        bigint                    REFERENCES staffs(id) ON DELETE SET NULL,
     status          trimming_status           DEFAULT 'reserved',
-    course_id       bigint           NOT NULL REFERENCES trimming_courses(id) ON DELETE RESTRICT,
+    course_id       bigint                    REFERENCES trimming_courses(id) ON DELETE SET NULL,
     bw              text             NOT NULL DEFAULT '',
     bw_unit         body_weight_unit          DEFAULT 'Kg',
     bt              text             NOT NULL DEFAULT '',
@@ -666,7 +669,8 @@ CREATE TABLE medical_records (
 -- ------------------------------------
 CREATE TABLE vaccinations (
     id                 BIGSERIAL          PRIMARY KEY,
-    medical_record_id  bigint             NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
+    clinic_id          bigint             NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    medical_record_id  bigint                      REFERENCES medical_records(id) ON DELETE CASCADE,
     pet_id             bigint                      REFERENCES pets(id) ON DELETE SET NULL,
     vaccine_id         bigint             NOT NULL REFERENCES vaccines(id) ON DELETE RESTRICT,
     date               date               NOT NULL,
@@ -711,7 +715,7 @@ CREATE TABLE exams (
     date              date               NOT NULL,
     exam_type_id      bigint             NOT NULL REFERENCES exam_types(id) ON DELETE RESTRICT,
     doctor_id         bigint                      REFERENCES staffs(id) ON DELETE SET NULL,
-    status            examination_status          DEFAULT '依頼中',
+    status            examination_status          DEFAULT 'pending',
     result_summary    text               NOT NULL DEFAULT '',
     machine           text               NOT NULL DEFAULT '',
     created_at        timestamptz        NOT NULL DEFAULT now(),
@@ -788,7 +792,7 @@ CREATE TABLE treatments (
     procedure_id      bigint                       REFERENCES procedures(id) ON DELETE SET NULL,
     medicine_id       bigint                       REFERENCES medicines(id) ON DELETE SET NULL,
     selected          boolean                      DEFAULT false,
-    status            treatment_status             DEFAULT '未完了',
+    status            treatment_status             DEFAULT 'pending',
     content           text                NOT NULL DEFAULT '',
     memo              text                NOT NULL DEFAULT '',
     insurance         boolean                      DEFAULT false,
@@ -912,7 +916,8 @@ CREATE TABLE exam_items (
     ref               text                       NOT NULL DEFAULT '',
     status            examination_result_status           DEFAULT 'normal',
     sort_order        integer                             DEFAULT 0,
-    created_at        timestamptz                NOT NULL DEFAULT now()
+    created_at        timestamptz                NOT NULL DEFAULT now(),
+    updated_at        timestamptz                NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
@@ -1074,7 +1079,8 @@ CREATE TABLE billing_items (
     is_insurance_applicable boolean                DEFAULT false,
     source                  item_source            DEFAULT 'manual',
     sort_order              integer                DEFAULT 0,
-    created_at              timestamptz   NOT NULL DEFAULT now()
+    created_at              timestamptz   NOT NULL DEFAULT now(),
+    deleted_at              timestamptz
 );
 
 -- ------------------------------------
@@ -1168,6 +1174,7 @@ CREATE INDEX idx_trimming_options_clinic_id ON trimming_options(clinic_id);
 CREATE INDEX idx_diagnosis_categories_clinic_id ON diagnosis_categories(clinic_id);
 CREATE INDEX idx_diagnosis_names_clinic_id ON diagnosis_names(clinic_id);
 CREATE INDEX idx_checkup_types_clinic_id ON checkup_types(clinic_id);
+CREATE INDEX idx_checkup_types_deleted_at ON checkup_types(deleted_at);
 CREATE INDEX idx_chief_complaint_categories_clinic_id ON chief_complaint_categories(clinic_id);
 CREATE INDEX idx_inquiry_templates_clinic_id ON inquiry_templates(clinic_id);
 CREATE INDEX idx_inquiry_templates_clinic_category ON inquiry_templates(clinic_id, category);
@@ -1196,6 +1203,7 @@ CREATE INDEX idx_treatments_medical_record_id ON treatments(medical_record_id);
 CREATE INDEX idx_vitals_medical_record_id ON vitals(medical_record_id);
 CREATE INDEX idx_exams_medical_record_id ON exams(medical_record_id);
 CREATE INDEX idx_exams_pet_id ON exams(pet_id);
+CREATE INDEX idx_vaccinations_clinic_id ON vaccinations(clinic_id);
 CREATE INDEX idx_vaccinations_medical_record_id ON vaccinations(medical_record_id);
 CREATE INDEX idx_vaccinations_pet_id ON vaccinations(pet_id);
 CREATE INDEX idx_checkups_medical_record_id ON checkups(medical_record_id);
@@ -1215,6 +1223,7 @@ CREATE INDEX idx_daily_records_hospitalization_id ON daily_records(hospitalizati
 
 -- billing 子テーブル FK インデックス
 CREATE INDEX idx_billing_items_billing_id ON billing_items(billing_id);
+CREATE INDEX idx_billing_items_deleted_at ON billing_items(deleted_at);
 CREATE INDEX idx_billings_pet_id ON billings(pet_id);
 CREATE INDEX idx_billings_owner_id ON billings(owner_id);
 CREATE INDEX idx_billings_medical_record_id ON billings(medical_record_id);
