@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Vercel
+.vercel/
+
+# Test
+coverage/
+.nyc_output/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Docker
+Dockerfile
+
+# Issues / Docs (not needed in deployment)
+issues/
+CODING_RULES.md
+README.md
+CLAUDE.md

@@ -1,1 +1,15 @@
+# Vercel
 .vercel
+
+# Build outputs
+dist/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Environment (production secrets are managed separately)
+.env.production.local
+
+# OS
+.DS_Store
