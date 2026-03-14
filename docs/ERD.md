@@ -313,6 +313,7 @@ erDiagram
         uuid id PK
         uuid clinic_id FK
         text name
+        text description
         int sort_order
         boolean is_active
         timestamptz created_at
@@ -452,6 +453,7 @@ erDiagram
         uuid id PK
         uuid clinic_id FK
         text name
+        text description
         boolean is_active
         integer sort_order
     }
@@ -1261,6 +1263,7 @@ erDiagram
 | id | uuid | NO | gen_random_uuid() | PK |
 | clinic_id | uuid | NO | - | clinics.id FK（所属医院） |
 | name | text | NO | '' | 職種名（例: 獣医師, 看護師） |
+| description | text | YES | '' | 説明 |
 | sort_order | int | NO | 0 | 表示順 |
 | is_active | boolean | NO | true | 有効フラグ |
 | created_at | timestamptz | NO | now() | 作成日時 |
@@ -1672,6 +1675,7 @@ erDiagram
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 区分名 |
+| description | text | YES | '' | 説明 |
 | is_active | boolean | YES | true | 状態 |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |

@@ -21,6 +21,7 @@ type Vaccine struct {
 	Description string          `gorm:"default:''"                                     json:"description"`
 	Species     *VaccineSpecies `gorm:"type:vaccine_species"                           json:"species,omitempty"`
 	Interval    string          `gorm:"default:''"                                     json:"interval"`
+	InventoryID *uint64         `                                                      json:"inventory_id,omitempty"`
 	SortOrder   int             `gorm:"default:0"                                      json:"sort_order"`
 	CreatedAt   time.Time       `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt   time.Time       `gorm:"autoUpdateTime"                                 json:"updated_at"`

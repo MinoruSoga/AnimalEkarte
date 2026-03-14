@@ -74,7 +74,6 @@ func (h *Handler) UpdateJobTitle(c *gin.Context) {
 
 	input := &service.UpdateJobTitleInput{
 		Name:        req.Name,
-		Code:        req.Code,
 		Description: req.Description,
 		SortOrder:   req.SortOrder,
 		IsActive:    req.IsActive,

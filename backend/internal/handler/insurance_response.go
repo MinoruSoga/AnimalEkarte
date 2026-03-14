@@ -12,7 +12,7 @@ type insuranceResponse struct {
 	Name         string    `json:"name"`
 	IsActive     bool      `json:"is_active"`
 	Description  string    `json:"description"`
-	CoverageRate *float64  `json:"coverage_rate,omitempty"`
+	CoverageRate int       `json:"coverage_rate"`
 	ContactPhone string    `json:"contact_phone"`
 	SortOrder    int       `json:"sort_order"`
 	CreatedAt    time.Time `json:"created_at"`

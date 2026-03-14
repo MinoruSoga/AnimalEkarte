@@ -9,7 +9,6 @@ type JobTitle struct {
 	ID          uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID    uint64    `gorm:"not null"                                       json:"clinic_id"`
 	Name        string    `gorm:"not null"                                       json:"name"`
-	Code        string    `gorm:"default:''"                                     json:"code"`
 	Description string    `gorm:"default:''"                                     json:"description"`
 	SortOrder   int       `gorm:"default:0"                                      json:"sort_order"`
 	IsActive    bool      `gorm:"default:true"                                   json:"is_active"`

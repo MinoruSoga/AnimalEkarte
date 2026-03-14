@@ -17,8 +17,8 @@ type CreateShiftEntryInput struct {
 	StaffID   uint64
 	Date      time.Time
 	ShiftType model.ShiftType
-	StartTime string
-	EndTime   string
+	StartTime *string
+	EndTime   *string
 	Note      string
 }
 

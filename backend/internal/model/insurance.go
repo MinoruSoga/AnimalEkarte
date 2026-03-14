@@ -10,7 +10,7 @@ type Insurance struct {
 	Name         string    `gorm:"not null"                                       json:"name"`
 	IsActive     bool      `gorm:"default:true"                                   json:"is_active"`
 	Description  string    `gorm:"default:''"                                     json:"description"`
-	CoverageRate *float64  `gorm:"type:numeric(5,2);column:coverage_rate"         json:"coverage_rate,omitempty"`
+	CoverageRate int       `gorm:"not null;default:0"                             json:"coverage_rate"`
 	ContactPhone string    `gorm:"default:''"                                     json:"contact_phone"`
 	SortOrder    int       `gorm:"default:0"                                      json:"sort_order"`
 	CreatedAt    time.Time `gorm:"autoCreateTime"                                 json:"created_at"`

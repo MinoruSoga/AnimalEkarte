@@ -15,7 +15,7 @@ type petAnimalSpeciesNested struct {
 type petInsuranceNested struct {
 	ID           uint64 `json:"id"`
 	Name         string `json:"name"`
-	CoverageRate *float64 `json:"coverage_rate,omitempty"`
+	CoverageRate int `json:"coverage_rate"`
 	ContactPhone string `json:"contact_phone"`
 }
 

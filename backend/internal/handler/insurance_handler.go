@@ -36,7 +36,7 @@ func (h *Handler) CreateInsurance(c *gin.Context) {
 		return
 	}
 
-	coverageRate := 0.0
+	coverageRate := 0
 	if req.CoverageRate != nil {
 		coverageRate = *req.CoverageRate
 	}
@@ -45,7 +45,7 @@ func (h *Handler) CreateInsurance(c *gin.Context) {
 		Name:         req.Name,
 		IsActive:     req.IsActive,
 		Description:  req.Description,
-		CoverageRate: &coverageRate,
+		CoverageRate: coverageRate,
 		ContactPhone: req.ContactPhone,
 		SortOrder:    req.SortOrder,
 	}
@@ -74,12 +74,16 @@ func (h *Handler) UpdateInsurance(c *gin.Context) {
 		return
 	}
 
+	coverageRate := 0
+	if req.CoverageRate != nil {
+		coverageRate = *req.CoverageRate
+	}
 	insurance := &model.Insurance{
 		ID:           id,
 		ClinicID:     clinicID,
 		Name:         req.Name,
 		Description:  req.Description,
-		CoverageRate: req.CoverageRate,
+		CoverageRate: coverageRate,
 		ContactPhone: req.ContactPhone,
 		SortOrder:    req.SortOrder,
 	}

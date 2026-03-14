@@ -96,7 +96,7 @@ func TestInsuranceService_List(t *testing.T) {
 }
 
 func TestInsuranceService_GetByID(t *testing.T) {
-	coverageRate := 70.0
+	coverageRate := 70
 	tests := []struct {
 		name          string
 		id            uint64
@@ -112,7 +112,7 @@ func TestInsuranceService_GetByID(t *testing.T) {
 				ID:           1,
 				Name:         "アニコム損保",
 				IsActive:     true,
-				CoverageRate: &coverageRate,
+				CoverageRate: coverageRate,
 			},
 			repoErr: nil,
 			wantErr: false,
@@ -159,7 +159,7 @@ func TestInsuranceService_GetByID(t *testing.T) {
 }
 
 func TestInsuranceService_Create(t *testing.T) {
-	coverageRate := 70.0
+	coverageRate := 70
 	tests := []struct {
 		name      string
 		insurance *model.Insurance
@@ -171,7 +171,7 @@ func TestInsuranceService_Create(t *testing.T) {
 			insurance: &model.Insurance{
 				Name:         "新規保険",
 				IsActive:     true,
-				CoverageRate: &coverageRate,
+				CoverageRate: coverageRate,
 				ContactPhone: "03-1234-5678",
 			},
 			repoErr: nil,
@@ -218,7 +218,7 @@ func TestInsuranceService_Create(t *testing.T) {
 }
 
 func TestInsuranceService_Update(t *testing.T) {
-	coverageRate := 80.0
+	coverageRate := 80
 	tests := []struct {
 		name      string
 		insurance *model.Insurance
@@ -231,7 +231,7 @@ func TestInsuranceService_Update(t *testing.T) {
 				ID:           1,
 				Name:         "更新後保険",
 				IsActive:     true,
-				CoverageRate: &coverageRate,
+				CoverageRate: coverageRate,
 			},
 			repoErr: nil,
 			wantErr: false,

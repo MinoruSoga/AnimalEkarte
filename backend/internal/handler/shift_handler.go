@@ -58,12 +58,19 @@ func (h *Handler) CreateShiftEntry(c *gin.Context) {
 		return
 	}
 
+	var startTime, endTime *string
+	if req.StartTime != "" {
+		startTime = &req.StartTime
+	}
+	if req.EndTime != "" {
+		endTime = &req.EndTime
+	}
 	shift, err := h.svc.ShiftEntry.Create(c.Request.Context(), clinicID, &service.CreateShiftEntryInput{
 		StaffID:   req.StaffID,
 		Date:      date,
 		ShiftType: model.ShiftType(req.ShiftType),
-		StartTime: req.StartTime,
-		EndTime:   req.EndTime,
+		StartTime: startTime,
+		EndTime:   endTime,
 		Note:      req.Note,
 	})
 	if err != nil {

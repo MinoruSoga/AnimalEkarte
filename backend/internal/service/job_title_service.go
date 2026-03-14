@@ -16,7 +16,6 @@ import (
 // All fields are pointers: nil means "not provided / skip".
 type UpdateJobTitleInput struct {
 	Name        *string
-	Code        *string
 	Description *string
 	SortOrder   *int
 	IsActive    *bool
@@ -78,9 +77,6 @@ func buildJobTitleUpdateFields(input *UpdateJobTitleInput) map[string]any {
 	fields := map[string]any{}
 	if input.Name != nil {
 		fields["name"] = *input.Name
-	}
-	if input.Code != nil {
-		fields["code"] = *input.Code
 	}
 	if input.Description != nil {
 		fields["description"] = *input.Description
