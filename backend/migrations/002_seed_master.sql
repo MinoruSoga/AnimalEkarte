@@ -611,14 +611,14 @@ SELECT setval(pg_get_serial_sequence('vitals', 'id'), (SELECT MAX(id) FROM vital
 -- H. treatments（治療明細: 8件）
 -- =============================================================================
 INSERT INTO treatments (id, medical_record_id, item_type, consultation_id, procedure_id, medicine_id, selected, status, content, unit_price, quantity, sort_order) VALUES
-    (1, 3, 'consultation', 2,    NULL, NULL, true, '完了', '再診料',                    800,  1, 1),
-    (2, 1, 'medicine',     NULL, NULL, 1,    true, '完了', 'アモキシシリン 50mg x 7日分', 500,  7, 2),
-    (3, 2, 'consultation', 2,    NULL, NULL, true, '完了', '再診料',                    800,  1, 1),
-    (4, 3, 'consultation', 2,    NULL, NULL, true, '完了', '再診料',                    800,  1, 1),
-    (5, 3, 'procedure',    NULL, 4,    NULL, true, '完了', '耳道洗浄（左耳）',          2500, 1, 2),
-    (6, 4, 'consultation', 1,    NULL, NULL, true, '完了', '初診料',                    2000, 1, 1),
-    (7, 4, 'medicine',     NULL, NULL, 1,    true, '完了', 'アモキシシリン 50mg x 5日分', 500,  5, 2),
-    (8, 5, 'consultation', 2,    NULL, NULL, true, '完了', '再診料',                    800,  1, 1)
+    (1, 3, 'consultation', 2,    NULL, NULL, true, 'completed', '再診料',                    800,  1, 1),
+    (2, 1, 'medicine',     NULL, NULL, 1,    true, 'completed', 'アモキシシリン 50mg x 7日分', 500,  7, 2),
+    (3, 2, 'consultation', 2,    NULL, NULL, true, 'completed', '再診料',                    800,  1, 1),
+    (4, 3, 'consultation', 2,    NULL, NULL, true, 'completed', '再診料',                    800,  1, 1),
+    (5, 3, 'procedure',    NULL, 4,    NULL, true, 'completed', '耳道洗浄（左耳）',          2500, 1, 2),
+    (6, 4, 'consultation', 1,    NULL, NULL, true, 'completed', '初診料',                    2000, 1, 1),
+    (7, 4, 'medicine',     NULL, NULL, 1,    true, 'completed', 'アモキシシリン 50mg x 5日分', 500,  5, 2),
+    (8, 5, 'consultation', 2,    NULL, NULL, true, 'completed', '再診料',                    800,  1, 1)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('treatments', 'id'), (SELECT MAX(id) FROM treatments));
@@ -626,10 +626,10 @@ SELECT setval(pg_get_serial_sequence('treatments', 'id'), (SELECT MAX(id) FROM t
 -- =============================================================================
 -- I. vaccinations（ワクチン接種記録: 3件）
 -- =============================================================================
-INSERT INTO vaccinations (id, medical_record_id, pet_id, vaccine_id, date, next_date, next_schedule_type, doctor_id, remarks) VALUES
-    (1, 3, 1,  1, '2026-02-15', '2027-02-15', '1year', 1, '接種後30分経過観察。異常なし。'),
-    (2, 4, 6,  7, '2026-03-05', '2027-03-05', '1year', 1, '狂犬病予防法に基づく接種。済票発行。'),
-    (3, 5, 14, 6, '2026-03-10', '2027-03-10', '1year', 2, '接種後の副反応なし。')
+INSERT INTO vaccinations (id, clinic_id, medical_record_id, pet_id, vaccine_id, date, next_date, next_schedule_type, doctor_id, remarks) VALUES
+    (1, 3, 3, 1,  1, '2026-02-15', '2027-02-15', '1year', 1, '接種後30分経過観察。異常なし。'),
+    (2, 3, 4, 6,  7, '2026-03-05', '2027-03-05', '1year', 1, '狂犬病予防法に基づく接種。済票発行。'),
+    (3, 3, 5, 14, 6, '2026-03-10', '2027-03-10', '1year', 2, '接種後の副反応なし。')
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('vaccinations', 'id'), (SELECT MAX(id) FROM vaccinations));
@@ -671,12 +671,12 @@ SELECT setval(pg_get_serial_sequence('billings', 'id'), (SELECT MAX(id) FROM bil
 -- =============================================================================
 -- M. billing_items（会計明細: 5件）
 -- =============================================================================
-INSERT INTO billing_items (id, billing_id, code, category, name, unit_price, quantity, tax_rate, is_insurance_applicable, source, sort_order) VALUES
-    (1, 3, 'C-002', 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1),
-    (2, 3, 'M-001', 'medicine', 'アモキシシリン 50mg x 7日分', 500,  7, 0.10, true, 'medical_record', 2),
-    (3, 2, 'C-002', 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1),
-    (4, 2, 'P-004', 'procedure','耳道洗浄',                  2500, 1, 0.10, true, 'medical_record', 2),
-    (5, 3, 'C-002', 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1)
+INSERT INTO billing_items (id, billing_id, category, name, unit_price, quantity, tax_rate, is_insurance_applicable, source, sort_order) VALUES
+    (1, 3, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1),
+    (2, 3, 'medicine', 'アモキシシリン 50mg x 7日分', 500,  7, 0.10, true, 'medical_record', 2),
+    (3, 2, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1),
+    (4, 2, 'procedure','耳道洗浄',                  2500, 1, 0.10, true, 'medical_record', 2),
+    (5, 3, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('billing_items', 'id'), (SELECT MAX(id) FROM billing_items));

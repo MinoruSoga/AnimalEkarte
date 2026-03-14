@@ -297,6 +297,7 @@ CREATE TABLE medicines (
     price            numeric,
     is_active        boolean       NOT NULL DEFAULT true,
     description      text          NOT NULL DEFAULT '',
+    drug_category    varchar(100),
     dosage_form      dosage_form,
     medicine_unit    medicine_unit,
     inventory_id     bigint                 REFERENCES inventory_items(id) ON DELETE SET NULL,
