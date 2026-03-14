@@ -28,6 +28,7 @@ export const MASTER_CATEGORY_ENDPOINT: Record<string, string> = {
   hospitalization: "/v1/masters/hospitalization-plans",
   insurance: "/v1/masters/insurances",
   cage: "/v1/masters/cages",
+  staff: "/v1/masters/staffs",
   trimmingCourse: "/v1/masters/trimming-courses",
   trimmingOption: "/v1/masters/trimming-options",
   diagnosisCategory: "/v1/masters/diagnosis-categories",
@@ -37,7 +38,7 @@ export const MASTER_CATEGORY_ENDPOINT: Record<string, string> = {
 
 export function transformGenericMasterItem(data: GenericMasterBackendItem): MasterItem {
   return {
-    id: data.id,
+    id: String(data.id),
     name: data.name,
     price: data.price != null ? Number(data.price) : 0,
     status: data.is_active ? "active" : "inactive",

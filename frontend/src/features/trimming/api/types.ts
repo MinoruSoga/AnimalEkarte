@@ -3,12 +3,12 @@ import type { TrimmingRecord as ApiTrimmingRecord } from "@/types/generated/mode
 export type BackendTrimming = ApiTrimmingRecord;
 
 export interface CreateTrimmingRequest {
-  pet_id: string;
-  owner_id?: string;
-  staff_id?: string | null;
+  pet_id: number;
+  owner_id?: number;
+  staff_id: number;
   appointment_date: string;
   course?: string;
-  course_id?: number | null;
+  course_id: number;
   options?: string;
   style_request?: string;
   notes?: string;

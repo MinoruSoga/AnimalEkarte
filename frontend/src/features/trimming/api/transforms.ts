@@ -22,6 +22,7 @@ export function transformTrimming(data: BackendTrimming): TrimmingRecord {
     staff: data.staff?.name ?? "",
     status: statusMap[data.status] ?? "予約",
     // Form fields
+    staffId: data.staff?.id != null ? String(data.staff.id) : "",
     courseId: data.course?.id != null ? String(data.course.id) : "",
     optionIds: data.options?.map((o) => String(o.id)) ?? [],
     bw: data.bw ?? "",

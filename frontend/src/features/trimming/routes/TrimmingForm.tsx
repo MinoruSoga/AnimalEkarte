@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback, memo } from "react";
+import { useState, useMemo, useCallback, memo, lazy, Suspense } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
@@ -21,9 +21,8 @@ import {
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { MasterLink } from "@/components/shared/MasterLink";
-import { MasterSelectModal, MasterSelectTrigger } from "@/components/shared/MasterSelectModal";
+import { MasterSelectTrigger } from "@/components/shared/MasterSelectModal";
 import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import type { SortOrder } from "@/types";
@@ -33,6 +32,14 @@ import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 // Relative (direct file import, no barrel — bundle-barrel-imports)
 import { useTrimmingForm, type TrimmingFormData } from "../hooks/useTrimmingForm";
 import { useGetTrimmingsByPetId } from "../api/get-trimming";
+
+// bundle-dynamic-imports: 重いモーダルは lazy() + Suspense で遅延ロード
+const MasterSelectModal = lazy(() =>
+  import("@/components/shared/MasterSelectModal").then((m) => ({ default: m.MasterSelectModal }))
+);
+const ConfirmDialog = lazy(() =>
+  import("@/components/shared/ConfirmDialog/ConfirmDialog").then((m) => ({ default: m.ConfirmDialog }))
+);
 
 // ─── 静的JSXはモジュール定数に巻き上げ (rendering-hoist-jsx) ────────────────
 const BW_UNIT_ITEMS = (
@@ -420,7 +427,9 @@ export function TrimmingForm() {
 
   const [historySearchTerm, setHistorySearchTerm] = useState("");
   const [historySortOrder, setHistorySortOrder] = useState<SortOrder>("desc");
-  const [historyDateRange, setHistoryDateRange] = useState({ from: "", to: "" });
+  // rerender-dependencies: object state を 2 つの primitive state に分割
+  const [historyDateRangeFrom, setHistoryDateRangeFrom] = useState("");
+  const [historyDateRangeTo, setHistoryDateRangeTo] = useState("");
 
   const { data: petTrimmings = [] } = useGetTrimmingsByPetId(selectedPet?.id ?? "");
 
@@ -430,8 +439,8 @@ export function TrimmingForm() {
         return false;
       }
       const recordDate = t.date.slice(0, 10);
-      if (historyDateRange.from && recordDate < historyDateRange.from) return false;
-      if (historyDateRange.to && recordDate > historyDateRange.to) return false;
+      if (historyDateRangeFrom && recordDate < historyDateRangeFrom) return false;
+      if (historyDateRangeTo && recordDate > historyDateRangeTo) return false;
       return true;
     });
     return filtered.toSorted((a, b) => {
@@ -439,7 +448,7 @@ export function TrimmingForm() {
       const dateB = new Date(b.date).getTime();
       return historySortOrder === "desc" ? dateB - dateA : dateA - dateB;
     });
-  }, [petTrimmings, historySearchTerm, historyDateRange, historySortOrder]);
+  }, [petTrimmings, historySearchTerm, historyDateRangeFrom, historyDateRangeTo, historySortOrder]);
 
   // rerender-functional-setstate: useCallback でハンドラを安定化
   // ※ React hooks はコンポーネントのトップレベルで呼ぶ（ガード節の前に定義）
@@ -459,13 +468,11 @@ export function TrimmingForm() {
     });
   }, [handleDelete, markClean, navigate]);
 
+  // rerender-dependencies: location.state (object) から primitive を抽出して deps を安定化
+  const fromPath = location.state?.from as string | undefined;
   const handleBack = useCallback(() => {
-    if (location.state?.from) {
-      navigate(location.state.from as string);
-    } else {
-      navigate("/trimming");
-    }
-  }, [location.state, navigate]);
+    navigate(fromPath ?? "/trimming");
+  }, [fromPath, navigate]);
 
   const handleOpenCourseModal = useCallback(() => setCourseModalOpen(true), []);
   const handleOpenStaffModal = useCallback(() => setStaffModalOpen(true), []);
@@ -477,20 +484,27 @@ export function TrimmingForm() {
   const handleHistoryClear = useCallback(() => {
     setHistorySearchTerm("");
     setHistorySortOrder("desc");
-    setHistoryDateRange({ from: "", to: "" });
+    setHistoryDateRangeFrom("");
+    setHistoryDateRangeTo("");
   }, []);
 
   const handleHistoryStartDateChange = useCallback((val: string) => {
-    setHistoryDateRange((prev) => ({ ...prev, from: val }));
+    setHistoryDateRangeFrom(val);
   }, []);
 
   const handleHistoryEndDateChange = useCallback((val: string) => {
-    setHistoryDateRange((prev) => ({ ...prev, to: val }));
+    setHistoryDateRangeTo(val);
   }, []);
 
   const activeStaffItems = useMemo(
     () => staffItems.filter((s) => s.status === "active"),
     [staffItems]
+  );
+
+  // rerender-dependencies: primitive から object を再構築して RightColumn に渡す (安定参照)
+  const historyDateRange = useMemo(
+    () => ({ from: historyDateRangeFrom, to: historyDateRangeTo }),
+    [historyDateRangeFrom, historyDateRangeTo]
   );
 
   if (!selectedPet && mode === "new" && petId) return null;
@@ -577,42 +591,44 @@ export function TrimmingForm() {
         </div>
       ) : null}
 
-      {/* Course Modal */}
-      <MasterSelectModal
-        open={courseModalOpen}
-        onOpenChange={setCourseModalOpen}
-        title="コース選択"
-        description="施術するコースを選択してください"
-        items={courses}
-        selectedValue={formData.courseId}
-        matchBy="id"
-        onSelect={(item) => handleFormChange({ courseId: item.id })}
-        masterCategory="trimming_course"
-      />
+      <Suspense fallback={null}>
+        {/* Course Modal */}
+        <MasterSelectModal
+          open={courseModalOpen}
+          onOpenChange={setCourseModalOpen}
+          title="コース選択"
+          description="施術するコースを選択してください"
+          items={courses}
+          selectedValue={formData.courseId}
+          matchBy="id"
+          onSelect={(item) => handleFormChange({ courseId: item.id })}
+          masterCategory="trimming_course"
+        />
 
-      {/* Staff Modal */}
-      <MasterSelectModal
-        open={staffModalOpen}
-        onOpenChange={setStaffModalOpen}
-        title="担当スタッフ選択"
-        description="担当するスタッフを選択してください"
-        items={activeStaffItems}
-        selectedValue={formData.staffName}
-        matchBy="name"
-        onSelect={(item) => handleFormChange({ staffName: item.name })}
-        masterCategory="staff"
-      />
+        {/* Staff Modal */}
+        <MasterSelectModal
+          open={staffModalOpen}
+          onOpenChange={setStaffModalOpen}
+          title="担当スタッフ選択"
+          description="担当するスタッフを選択してください"
+          items={activeStaffItems}
+          selectedValue={formData.staffName}
+          matchBy="name"
+          onSelect={(item) => handleFormChange({ staffName: item.name, staffId: item.id })}
+          masterCategory="staff"
+        />
 
-      {/* Delete Confirmation Dialog */}
-      <ConfirmDialog
-        open={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
-        title="削除確認"
-        description="このトリミング情報を削除してもよろしいですか？"
-        confirmLabel="削除"
-        variant="destructive"
-        onConfirm={handleDeleteClick}
-      />
+        {/* Delete Confirmation Dialog */}
+        <ConfirmDialog
+          open={deleteConfirmOpen}
+          onClose={() => setDeleteConfirmOpen(false)}
+          title="削除確認"
+          description="このトリミング情報を削除してもよろしいですか？"
+          confirmLabel="削除"
+          variant="destructive"
+          onConfirm={handleDeleteClick}
+        />
+      </Suspense>
     </PageLayout>
   );
 }

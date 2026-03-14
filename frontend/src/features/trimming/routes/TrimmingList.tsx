@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useCallback, useDeferredValue } from "react";
+import { useState, useCallback, useDeferredValue, memo } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -38,6 +38,71 @@ const COLUMNS = [
   { header: "ステータス", className: "w-[100px]" },
   { header: "操作", className: "w-[100px]", align: "right" as const },
 ];
+
+// rerender-memo + js-cache-function-results: renderRow インライン closure を memo コンポーネントに抽出
+interface TrimmingTableRowProps {
+  record: TrimmingRecord;
+  isValidStaff: (staff: string) => boolean;
+  onEdit: (id: string) => void;
+  onDeleteClick: (record: TrimmingRecord) => void;
+}
+
+const TrimmingTableRow = memo(function TrimmingTableRow({
+  record,
+  isValidStaff,
+  onEdit,
+  onDeleteClick,
+}: TrimmingTableRowProps) {
+  return (
+    <DataTableRow onClick={() => onEdit(record.id)}>
+      <TableCell className="font-mono text-sm text-[#37352F] py-2">
+        {record.date}
+      </TableCell>
+      <TableCell className="text-sm text-[#37352F] py-2">{record.ownerName}</TableCell>
+      <TableCell className="py-2">
+        <div className="flex flex-col">
+          <span className="text-sm text-[#37352F]">{record.petName}</span>
+          <span className="text-sm text-[#37352F]/60">{record.petNumber}</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-sm text-[#37352F] py-2">{record.species}</TableCell>
+      <TableCell className="text-sm text-[#37352F] py-2">{record.weight}</TableCell>
+      <TableCell className="text-sm text-[#37352F] truncate max-w-[200px] py-2">
+        {record.styleRequest}
+      </TableCell>
+      <TableCell className="text-sm text-[#37352F] py-2">
+        <div className="flex items-center gap-1.5">
+          {!isValidStaff(record.staff) ? (
+            <AlertTriangle className="size-4 text-amber-500" />
+          ) : null}
+          {record.staff}
+        </div>
+      </TableCell>
+      <TableCell className="py-2">
+        <StatusBadge colorClass={getTrimmingStatusColor(record.status)}>
+          {record.status}
+        </StatusBadge>
+      </TableCell>
+      <TableCell className="text-right py-2">
+        <RowActionDropdown
+          actions={[
+            {
+              label: "編集",
+              icon: Edit,
+              onClick: () => onEdit(record.id),
+            },
+            {
+              label: "削除",
+              icon: Trash2,
+              variant: "destructive",
+              onClick: () => onDeleteClick(record),
+            },
+          ]}
+        />
+      </TableCell>
+    </DataTableRow>
+  );
+});
 
 export function TrimmingList() {
   const navigate = useNavigate();
@@ -83,13 +148,17 @@ export function TrimmingList() {
     });
   }, []);
 
+  // rerender-dependencies: deleteTarget (object) から primitive を抽出して deps を安定化
+  const deleteTargetId = deleteTarget?.id;
+  const deleteTargetLabel = deleteTarget?.label;
+
   const handleDeleteConfirm = useCallback(() => {
-    if (deleteTarget) {
-      deleteRecord(deleteTarget.id);
-      toast.success("削除しました", { description: deleteTarget.label });
+    if (deleteTargetId && deleteTargetLabel) {
+      deleteRecord(deleteTargetId);
+      toast.success("削除しました", { description: deleteTargetLabel });
       setDeleteTarget(null);
     }
-  }, [deleteTarget, deleteRecord]);
+  }, [deleteTargetId, deleteTargetLabel, deleteRecord]);
 
   const handleNew = useCallback(() => {
     navigate("/trimming/select-pet");
@@ -101,6 +170,11 @@ export function TrimmingList() {
 
   const handleDateToChange = useCallback((val: string) => {
     setSearchDate((prev) => ({ ...prev, to: val }));
+  }, []);
+
+  // rerender-functional-setstate: setSearchKeyword を useCallback でラップして安定化
+  const handleSearchChange = useCallback((v: string) => {
+    setSearchKeyword(v);
   }, []);
 
   if (isLoading) return (
@@ -126,7 +200,7 @@ export function TrimmingList() {
         {/* Filters */}
         <SearchFilterBar
           searchTerm={searchKeyword}
-          onSearchChange={setSearchKeyword}
+          onSearchChange={handleSearchChange}
           placeholder="飼主名、ペット名..."
           count={filteredRecords.length}
         >
@@ -161,57 +235,13 @@ export function TrimmingList() {
           columns={COLUMNS}
           data={paginatedData}
           renderRow={(record) => (
-            <DataTableRow
+            <TrimmingTableRow
               key={record.id}
-              onClick={() => handleEdit(record.id)}
-            >
-              <TableCell className="font-mono text-sm text-[#37352F] py-2">
-                {record.date}
-              </TableCell>
-              <TableCell className="text-sm text-[#37352F] py-2">{record.ownerName}</TableCell>
-              <TableCell className="py-2">
-                <div className="flex flex-col">
-                  <span className="text-sm text-[#37352F]">{record.petName}</span>
-                  <span className="text-sm text-[#37352F]/60">{record.petNumber}</span>
-                </div>
-              </TableCell>
-              <TableCell className="text-sm text-[#37352F] py-2">{record.species}</TableCell>
-              <TableCell className="text-sm text-[#37352F] py-2">{record.weight}</TableCell>
-              <TableCell className="text-sm text-[#37352F] truncate max-w-[200px] py-2">
-                {record.styleRequest}
-              </TableCell>
-              <TableCell className="text-sm text-[#37352F] py-2">
-                <div className="flex items-center gap-1.5">
-                  {/* rendering-conditional-render: && → ? ... : null */}
-                  {!isValidStaff(record.staff) ? (
-                    <AlertTriangle className="size-4 text-amber-500" />
-                  ) : null}
-                  {record.staff}
-                </div>
-              </TableCell>
-              <TableCell className="py-2">
-                <StatusBadge colorClass={getTrimmingStatusColor(record.status)}>
-                  {record.status}
-                </StatusBadge>
-              </TableCell>
-              <TableCell className="text-right py-2">
-                <RowActionDropdown
-                  actions={[
-                    {
-                      label: "編集",
-                      icon: Edit,
-                      onClick: () => handleEdit(record.id),
-                    },
-                    {
-                      label: "削除",
-                      icon: Trash2,
-                      variant: "destructive",
-                      onClick: () => handleDeleteClick(record),
-                    },
-                  ]}
-                />
-              </TableCell>
-            </DataTableRow>
+              record={record}
+              isValidStaff={isValidStaff}
+              onEdit={handleEdit}
+              onDeleteClick={handleDeleteClick}
+            />
           )}
         />
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useTransition, useCallback } from "react";
+import { useState, useEffect, useTransition, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
 import { usePetSelection } from "@/hooks/use-pet-selection";
@@ -36,6 +36,7 @@ export interface TrimmingFormData {
   completedImage: File | null;
   courseId: string;
   optionIds: string[];
+  staffId: string;
   staffName: string;
 }
 
@@ -65,6 +66,7 @@ const defaultFormData: TrimmingFormData = {
   completedImage: null,
   courseId: "",
   optionIds: [],
+  staffId: "",
   staffName: "",
 };
 
@@ -104,13 +106,18 @@ export function useTrimmingForm(id?: string) {
         usedShampoo: existingTrimming.usedShampoo ?? "",
         usedRibbon: existingTrimming.usedRibbon ?? "",
         remarks: existingTrimming.remarks ?? "",
+        staffId: existingTrimming.staffId ?? "",
         staffName: existingTrimming.staff ?? "",
       });
       setServerDataLoaded(true);
     }
   }, [isEdit, existingTrimming, serverDataLoaded]);
 
-  const formData: TrimmingFormData = { ...defaultFormData, ...localOverrides };
+  // useMemo: formData の参照を安定化して handleSave 等の deps を最小化 (rerender-dependencies)
+  const formData = useMemo<TrimmingFormData>(
+    () => ({ ...defaultFormData, ...localOverrides }),
+    [localOverrides]
+  );
 
   const setFormData = useCallback((next: Partial<TrimmingFormData>) => {
     setLocalOverrides((prev) => ({ ...prev, ...next }));
@@ -220,10 +227,20 @@ export function useTrimmingForm(id?: string) {
       } else {
         const pet = selectedPets[0];
         if (!pet) return;
+        // バリデーション: staff と course は必須
+        if (!formData.staffId) {
+          toast.error("担当スタッフを選択してください");
+          return;
+        }
+        if (!formData.courseId) {
+          toast.error("コースを選択してください");
+          return;
+        }
         const req: CreateTrimmingRequest = {
-          pet_id: pet.id,
+          pet_id: Number(pet.id),
+          staff_id: Number(formData.staffId),
+          course_id: Number(formData.courseId),
           appointment_date: new Date().toISOString(),
-          course_id: formData.courseId ? Number(formData.courseId) : null,
           style_request: formData.styleRequest || undefined,
           remarks: formData.remarks || undefined,
         };

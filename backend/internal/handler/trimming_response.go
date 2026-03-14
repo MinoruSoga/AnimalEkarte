@@ -11,6 +11,12 @@ type trimmingOptionSummaryResponse struct {
 	Name string `json:"name"`
 }
 
+type trimmingCourseSummaryResponse struct {
+	ID    uint64  `json:"id"`
+	Name  string  `json:"name"`
+	Price float64 `json:"price"`
+}
+
 type trimmingResponse struct {
 	ID             uint64                           `json:"id"`
 	ClinicID       uint64                           `json:"clinic_id"`
@@ -33,6 +39,7 @@ type trimmingResponse struct {
 	UpdatedAt      time.Time                        `json:"updated_at"`
 	Pet            *petSummaryResponse              `json:"pet,omitempty"`
 	Staff          *staffSummaryResponse            `json:"staff,omitempty"`
+	Course         *trimmingCourseSummaryResponse   `json:"course,omitempty"`
 	Options        []trimmingOptionSummaryResponse  `json:"options"`
 }
 
@@ -43,6 +50,19 @@ func toTrimmingResponse(t *model.TrimmingRecord) trimmingResponse {
 			ID:   o.ID,
 			Name: o.Name,
 		})
+	}
+
+	var course *trimmingCourseSummaryResponse
+	if t.Course != nil {
+		price := 0.0
+		if t.Course.Price != nil {
+			price = *t.Course.Price
+		}
+		course = &trimmingCourseSummaryResponse{
+			ID:    t.Course.ID,
+			Name:  t.Course.Name,
+			Price: price,
+		}
 	}
 
 	return trimmingResponse{
@@ -67,6 +87,7 @@ func toTrimmingResponse(t *model.TrimmingRecord) trimmingResponse {
 		UpdatedAt:      t.UpdatedAt,
 		Pet:            toPetSummary(t.Pet),
 		Staff:          toStaffSummary(t.Staff),
+		Course:         course,
 		Options:        options,
 	}
 }
