@@ -61,9 +61,8 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 func (r *vaccinationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error) {
 	var vaccination model.Vaccination
 	if err := r.db.WithContext(ctx).
-		Joins("JOIN medical_records ON medical_records.id = vaccinations.medical_record_id").
-		Where("vaccinations.id = ? AND medical_records.clinic_id = ?", id, clinicID).
-		Preload("Vaccine").Preload("Pet").Preload("Doctor").
+		Where("vaccinations.id = ? AND vaccinations.clinic_id = ?", id, clinicID).
+		Preload("Vaccine").Preload("Pet").Preload("Pet.Owner").Preload("Doctor").
 		First(&vaccination).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", id))
@@ -83,7 +82,7 @@ func (r *vaccinationRepository) Create(ctx context.Context, vaccination *model.V
 func (r *vaccinationRepository) Update(ctx context.Context, clinicID uint64, vaccination *model.Vaccination) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Vaccination{}).
-		Where("id = ? AND medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ?)", vaccination.ID, clinicID).
+		Where("id = ? AND clinic_id = ?", vaccination.ID, clinicID).
 		Updates(vaccination)
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "update vaccination")
@@ -96,7 +95,7 @@ func (r *vaccinationRepository) Update(ctx context.Context, clinicID uint64, vac
 
 func (r *vaccinationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).
-		Where("id = ? AND medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ?)", id, clinicID).
+		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Delete(&model.Vaccination{})
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete vaccination")

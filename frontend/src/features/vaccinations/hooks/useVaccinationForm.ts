@@ -95,9 +95,10 @@ export function useVaccinationForm(id?: string) {
   const handleSave = () => {
     startSaveTransition(() => {
       if (isEdit && id) {
+        const toRFC3339 = (d: string) => d ? `${d}T00:00:00Z` : undefined;
         const req: UpdateVaccinationRequest = {
-          date: formData.date || undefined,
-          next_date: formData.nextDate || null,
+          date: toRFC3339(formData.date),
+          next_date: formData.nextDate ? `${formData.nextDate}T00:00:00Z` : null,
           lot1: formData.lot1 || undefined,
           remarks: formData.remarks || undefined,
         };
@@ -112,8 +113,8 @@ export function useVaccinationForm(id?: string) {
           medical_record_id: null,
           pet_id: Number(pet.id),
           vaccine_id: Number(formData.vaccineId),
-          date: formData.date || new Date().toISOString(),
-          next_date: formData.nextDate || null,
+          date: formData.date ? `${formData.date}T00:00:00Z` : new Date().toISOString(),
+          next_date: formData.nextDate ? `${formData.nextDate}T00:00:00Z` : null,
           lot1: formData.lot1 || undefined,
           remarks: formData.remarks || undefined,
         };
