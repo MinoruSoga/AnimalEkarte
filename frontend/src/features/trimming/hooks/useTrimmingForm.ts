@@ -240,7 +240,7 @@ export function useTrimmingForm(id?: string) {
           pet_id: Number(pet.id),
           staff_id: Number(formData.staffId),
           course_id: Number(formData.courseId),
-          appointment_date: new Date().toISOString(),
+          date: new Date().toISOString(),
           style_request: formData.styleRequest || undefined,
           remarks: formData.remarks || undefined,
         };

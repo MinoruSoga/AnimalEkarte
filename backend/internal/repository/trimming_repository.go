@@ -42,7 +42,15 @@ func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count trimming records")
 	}
-	if err := q.Offset((page - 1) * limit).Limit(limit).Order("date DESC, created_at DESC").Find(&trimmings).Error; err != nil {
+	if err := q.
+		Preload("Pet").
+		Preload("Pet.Owner").
+		Preload("Pet.AnimalSpecies").
+		Preload("Staff").
+		Preload("Course").
+		Preload("Options").
+		Offset((page-1)*limit).Limit(limit).Order("date DESC, created_at DESC").
+		Find(&trimmings).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find trimming records")
 	}
 	return trimmings, total, nil

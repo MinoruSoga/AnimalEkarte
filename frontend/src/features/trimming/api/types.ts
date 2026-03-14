@@ -4,25 +4,18 @@ export type BackendTrimming = ApiTrimmingRecord;
 
 export interface CreateTrimmingRequest {
   pet_id: number;
-  owner_id?: number;
   staff_id: number;
-  appointment_date: string;
-  course?: string;
   course_id: number;
-  options?: string;
+  date?: string;
   style_request?: string;
-  notes?: string;
   remarks?: string;
+  option_ids?: number[];
 }
 
 export interface UpdateTrimmingRequest {
   status?: string;
-  appointment_date?: string;
-  course?: string;
-  options?: string;
+  date?: string;
   style_request?: string;
-  total_price?: number | null;
-  notes?: string;
   bw?: string;
   bw_unit?: string;
   bt?: string;
