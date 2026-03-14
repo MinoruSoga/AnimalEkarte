@@ -20,7 +20,6 @@ docker compose exec backend go test ./...
 | カバレッジ | `docker compose exec backend go test ./... -cover` |
 | Lint | `docker compose exec backend golangci-lint run ./...` |
 | モジュール更新 | `docker compose exec backend go mod tidy` |
-| Swagger生成 | `docker compose exec backend swag init -g cmd/api/main.go` |
 
 ---
 
