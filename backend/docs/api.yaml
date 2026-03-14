@@ -2019,6 +2019,24 @@ components:
                 type: string
               is_main:
                 type: boolean
+        clinic:
+          type: object
+          nullable: true
+          description: メイン医院の詳細情報
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+            logo_url:
+              type: string
+              format: uri
+              nullable: true
+            phone_number:
+              type: string
+            address:
+              type: string
         permissions:
           type: object
           additionalProperties:

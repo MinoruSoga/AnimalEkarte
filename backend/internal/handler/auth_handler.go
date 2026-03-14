@@ -12,6 +12,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/middleware"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
@@ -20,6 +21,15 @@ type MeClinicMembership struct {
 	ClinicID   string `json:"clinic_id"`
 	ClinicName string `json:"clinic_name"`
 	IsMain     bool   `json:"is_main"`
+}
+
+// MeClinicInfo は GET /me のメイン医院詳細情報
+type MeClinicInfo struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	LogoURL     *string `json:"logo_url"`
+	PhoneNumber string  `json:"phone_number"`
+	Address     string  `json:"address"`
 }
 
 // MeResponse は GET /me のレスポンス（フロントエンド AuthUser と対応）
@@ -32,6 +42,7 @@ type MeResponse struct {
 	JobTitle     *string              `json:"job_title"`
 	AvatarURL    *string              `json:"avatar_url"`
 	MainClinicID string               `json:"main_clinic_id"`
+	Clinic       *MeClinicInfo        `json:"clinic"`
 	Clinics      []MeClinicMembership `json:"clinics"`
 	Permissions  map[string][]string  `json:"permissions"`
 }
@@ -52,7 +63,7 @@ type LoginResponse struct {
 // buildMeResponse はユーザーデータと補助情報からMeResponseを構築する。
 // clinicNameMap はクリニックID（string）→クリニック名のマップ。
 // mainClinicID はJWTクレームまたはログイン時のメインクリニックID（string）。
-func buildMeResponse(data *repository.UserAccountWithMemberships, mainClinicID string, clinicNameMap map[string]string) *MeResponse {
+func buildMeResponse(data *repository.UserAccountWithMemberships, mainClinicID string, clinicNameMap map[string]string, allClinics []model.Clinic) *MeResponse {
 	meClinicList := make([]MeClinicMembership, 0, len(data.Memberships))
 	for _, m := range data.Memberships {
 		clIDStr := strconv.FormatUint(m.ClinicID, 10)
@@ -67,6 +78,25 @@ func buildMeResponse(data *repository.UserAccountWithMemberships, mainClinicID s
 	for _, p := range data.Permissions {
 		clIDStr := strconv.FormatUint(p.ClinicID, 10)
 		permMap[clIDStr] = append(permMap[clIDStr], string(p.Permission))
+	}
+
+	var meClinic *MeClinicInfo
+	for i := range allClinics {
+		if strconv.FormatUint(allClinics[i].ID, 10) == mainClinicID {
+			cl := &allClinics[i]
+			var logoURL *string
+			if cl.LogoURL != "" {
+				logoURL = &cl.LogoURL
+			}
+			meClinic = &MeClinicInfo{
+				ID:          strconv.FormatUint(cl.ID, 10),
+				Name:        cl.Name,
+				LogoURL:     logoURL,
+				PhoneNumber: cl.PhoneNumber,
+				Address:     cl.Address,
+			}
+			break
+		}
 	}
 
 	var jobTitle *string
@@ -94,6 +124,7 @@ func buildMeResponse(data *repository.UserAccountWithMemberships, mainClinicID s
 		JobTitle:     jobTitle,
 		AvatarURL:    avatarURL,
 		MainClinicID: mainClinicID,
+		Clinic:       meClinic,
 		Clinics:      meClinicList,
 		Permissions:  permMap,
 	}
@@ -209,7 +240,7 @@ func (h *Handler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, LoginResponse{
 		ExpiresAt: expiresAt.Unix(),
 		UserType:  claims.UserType,
-		User:      buildMeResponse(userData, mainClinicID, clinicNameMap),
+		User:      buildMeResponse(userData, mainClinicID, clinicNameMap, allClinics),
 	})
 }
 
@@ -265,5 +296,5 @@ func (h *Handler) GetMe(c *gin.Context) {
 		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
 	}
 
-	c.JSON(http.StatusOK, buildMeResponse(data, mainClinicIDStr, clinicNameMap))
+	c.JSON(http.StatusOK, buildMeResponse(data, mainClinicIDStr, clinicNameMap, allClinics))
 }
