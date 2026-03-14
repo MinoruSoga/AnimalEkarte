@@ -17,6 +17,7 @@ type TrimmingRepository interface {
 	Create(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
 	Update(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
 	Delete(ctx context.Context, clinicID, id uint64) error
+	SetOptions(ctx context.Context, recordID uint64, optionIDs []uint64) error
 }
 
 type trimmingRepository struct {
@@ -98,4 +99,24 @@ func (r *trimmingRepository) Delete(ctx context.Context, clinicID, id uint64) er
 		return apperrors.WrapNotFound("trimming_record", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *trimmingRepository) SetOptions(ctx context.Context, recordID uint64, optionIDs []uint64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		record := &model.TrimmingRecord{ID: recordID}
+		if err := tx.Model(record).Association("Options").Unscoped().Clear(); err != nil {
+			return apperrors.Wrap(err, "failed to clear trimming options")
+		}
+		if len(optionIDs) == 0 {
+			return nil
+		}
+		options := make([]model.TrimmingOption, 0, len(optionIDs))
+		for _, id := range optionIDs {
+			options = append(options, model.TrimmingOption{ID: id})
+		}
+		if err := tx.Model(record).Association("Options").Replace(options); err != nil {
+			return apperrors.Wrap(err, "failed to set trimming options")
+		}
+		return nil
+	})
 }

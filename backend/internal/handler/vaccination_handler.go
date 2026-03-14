@@ -11,7 +11,7 @@ import (
 )
 
 type createVaccinationInput struct {
-	MedicalRecordID  uint64     `json:"medical_record_id"   binding:"required"`
+	MedicalRecordID  *uint64    `json:"medical_record_id"`
 	PetID            *uint64    `json:"pet_id"`
 	VaccineID        uint64     `json:"vaccine_id"          binding:"required"`
 	Date             time.Time  `json:"date"                binding:"required"`
@@ -27,7 +27,7 @@ type createVaccinationInput struct {
 }
 
 type updateVaccinationInput struct {
-	MedicalRecordID  uint64     `json:"medical_record_id"`
+	MedicalRecordID  *uint64    `json:"medical_record_id"`
 	PetID            *uint64    `json:"pet_id"`
 	VaccineID        uint64     `json:"vaccine_id"`
 	Date             *time.Time `json:"date"`

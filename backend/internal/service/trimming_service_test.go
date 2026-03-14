@@ -14,11 +14,12 @@ import (
 
 // mockTrimmingRepository は TrimmingRepository のテスト用モック実装
 type mockTrimmingRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error)
-	createFn   func(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
-	updateFn   func(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
+	findAllFn    func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error)
+	findByIDFn   func(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error)
+	createFn     func(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
+	updateFn     func(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
+	deleteFn     func(ctx context.Context, clinicID, id uint64) error
+	setOptionsFn func(ctx context.Context, recordID uint64, optionIDs []uint64) error
 }
 
 func (m *mockTrimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error) {
@@ -39,6 +40,13 @@ func (m *mockTrimmingRepository) Update(ctx context.Context, clinicID uint64, tr
 
 func (m *mockTrimmingRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockTrimmingRepository) SetOptions(ctx context.Context, recordID uint64, optionIDs []uint64) error {
+	if m.setOptionsFn != nil {
+		return m.setOptionsFn(ctx, recordID, optionIDs)
+	}
+	return nil
 }
 
 func TestTrimmingService_List(t *testing.T) {
@@ -222,16 +230,17 @@ func TestTrimmingService_GetByID(t *testing.T) {
 
 func TestTrimmingService_Create(t *testing.T) {
 	tests := []struct {
-		name     string
-		clinicID uint64
-		trimming *model.TrimmingRecord
-		repoErr  error
-		wantErr  bool
+		name          string
+		clinicID      uint64
+		input         CreateTrimmingInput
+		repoErr       error
+		setOptionsErr error
+		wantErr       bool
 	}{
 		{
-			name:     "creates trimming record successfully",
+			name:     "creates trimming record successfully without options",
 			clinicID: 1,
-			trimming: &model.TrimmingRecord{
+			input: CreateTrimmingInput{
 				Date:     time.Now(),
 				StaffID:  1,
 				CourseID: 1,
@@ -240,15 +249,40 @@ func TestTrimmingService_Create(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:     "returns error on repository failure",
+			name:     "creates trimming record successfully with options",
 			clinicID: 1,
-			trimming: &model.TrimmingRecord{
+			input: CreateTrimmingInput{
+				Date:      time.Now(),
+				StaffID:   1,
+				CourseID:  1,
+				OptionIDs: []uint64{10, 20},
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name:     "returns error on repository create failure",
+			clinicID: 1,
+			input: CreateTrimmingInput{
 				Date:     time.Now(),
 				StaffID:  1,
 				CourseID: 1,
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
+		},
+		{
+			name:     "returns error when SetOptions fails",
+			clinicID: 1,
+			input: CreateTrimmingInput{
+				Date:      time.Now(),
+				StaffID:   1,
+				CourseID:  1,
+				OptionIDs: []uint64{10},
+			},
+			repoErr:       nil,
+			setOptionsErr: errors.New("set options error"),
+			wantErr:       true,
 		},
 	}
 
@@ -258,64 +292,105 @@ func TestTrimmingService_Create(t *testing.T) {
 				createFn: func(_ context.Context, _ uint64, _ *model.TrimmingRecord) error {
 					return tt.repoErr
 				},
+				setOptionsFn: func(_ context.Context, _ uint64, _ []uint64) error {
+					return tt.setOptionsErr
+				},
 			}
 			svc := NewTrimmingService(repo)
 
-			err := svc.Create(context.Background(), tt.clinicID, tt.trimming)
+			record, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, record)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, record)
 			}
 		})
 	}
 }
 
 func TestTrimmingService_Update(t *testing.T) {
+	staffID := uint64(2)
+	courseID := uint64(1)
+	optionIDs := []uint64{10, 20}
+	emptyOptions := []uint64{}
+
 	tests := []struct {
-		name     string
-		clinicID uint64
-		trimming *model.TrimmingRecord
-		repoErr  error
-		wantErr  bool
-		wantNF   bool
+		name          string
+		clinicID      uint64
+		id            uint64
+		input         UpdateTrimmingInput
+		repoErr       error
+		setOptionsErr error
+		wantErr       bool
+		wantNF        bool
 	}{
 		{
-			name:     "updates trimming record successfully",
+			name:     "updates trimming record successfully without changing options",
 			clinicID: 1,
-			trimming: &model.TrimmingRecord{
-				ID:       1,
-				StaffID:  2,
-				CourseID: 1,
+			id:       1,
+			input: UpdateTrimmingInput{
+				StaffID:  &staffID,
+				CourseID: &courseID,
 			},
 			repoErr: nil,
 			wantErr: false,
-			wantNF:  false,
+		},
+		{
+			name:     "updates trimming record successfully with new options",
+			clinicID: 1,
+			id:       1,
+			input: UpdateTrimmingInput{
+				StaffID:   &staffID,
+				OptionIDs: &optionIDs,
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name:     "clears options when empty slice provided",
+			clinicID: 1,
+			id:       1,
+			input: UpdateTrimmingInput{
+				OptionIDs: &emptyOptions,
+			},
+			repoErr: nil,
+			wantErr: false,
 		},
 		{
 			name:     "returns not found error when record does not exist",
 			clinicID: 1,
-			trimming: &model.TrimmingRecord{
-				ID:       999,
-				StaffID:  1,
-				CourseID: 1,
+			id:       999,
+			input: UpdateTrimmingInput{
+				StaffID: &staffID,
 			},
 			repoErr: apperrors.WrapNotFound("trimming_record", "999"),
 			wantErr: true,
 			wantNF:  true,
 		},
 		{
-			name:     "returns error on repository failure",
+			name:     "returns error on repository update failure",
 			clinicID: 1,
-			trimming: &model.TrimmingRecord{
-				ID:       1,
-				StaffID:  1,
-				CourseID: 1,
+			id:       1,
+			input: UpdateTrimmingInput{
+				StaffID: &staffID,
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
 			wantNF:  false,
+		},
+		{
+			name:     "returns error when SetOptions fails",
+			clinicID: 1,
+			id:       1,
+			input: UpdateTrimmingInput{
+				OptionIDs: &optionIDs,
+			},
+			repoErr:       nil,
+			setOptionsErr: errors.New("set options error"),
+			wantErr:       true,
 		},
 	}
 
@@ -325,10 +400,13 @@ func TestTrimmingService_Update(t *testing.T) {
 				updateFn: func(_ context.Context, _ uint64, _ *model.TrimmingRecord) error {
 					return tt.repoErr
 				},
+				setOptionsFn: func(_ context.Context, _ uint64, _ []uint64) error {
+					return tt.setOptionsErr
+				},
 			}
 			svc := NewTrimmingService(repo)
 
-			err := svc.Update(context.Background(), tt.clinicID, tt.trimming)
+			err := svc.Update(context.Background(), tt.clinicID, tt.id, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
