@@ -79,7 +79,7 @@
 }
 
 @theme inline {
-  --font-sans: 'Inter', 'Noto Sans JP', sans-serif;
+  --font-sans: 'Noto Sans JP', sans-serif;
   /* Notion text scale: matches Figma's custom text sizes (xs=13px, sm=15px at 16px base) */
   --text-xs: 0.8125rem;  /* 13px */
   --text-sm: 0.9375rem;  /* 15px */
@@ -133,12 +133,12 @@
   }
 
   html {
-    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-family: 'Noto Sans JP', sans-serif;
   }
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-family: 'Noto Sans JP', sans-serif;
   }
 
   html, body {
@@ -216,5 +216,5 @@ html {
 
 /* Override Tailwind preflight font-family */
 html, body {
-  font-family: 'Inter', 'Noto Sans JP', sans-serif !important;
+  font-family: 'Noto Sans JP', sans-serif !important;
 }

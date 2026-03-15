@@ -625,11 +625,11 @@ export const STYLE = {
   tableRow:
     `border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors cursor-pointer h-16`,
   tableCell:
-    `text-sm ${C.text} py-2.5`,
+    `text-base ${C.text} py-2.5`,
   tableCellMono:
-    `font-mono text-sm ${C.text} py-2.5`,
+    `font-mono text-base ${C.text} py-2.5`,
   tableCellMuted:
-    `text-sm ${C.text70} py-2.5`,
+    `text-base ${C.text70} py-2.5`,
   tableEmpty:
     `text-center py-12 ${C.text70} text-sm`,
   tableActionBtn:
