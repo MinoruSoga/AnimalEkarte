@@ -10,26 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type createCageInput struct {
-	Name        string   `json:"name"        binding:"required"`
-	CageType    string   `json:"cage_type"   binding:"required"`
-	CageSize    string   `json:"cage_size"   binding:"required"`
-	Price       *float64 `json:"price"`
-	IsActive    bool     `json:"is_active"`
-	Description string   `json:"description"`
-	SortOrder   int      `json:"sort_order"`
-}
-
-type updateCageInput struct {
-	Name        string   `json:"name"`
-	CageType    string   `json:"cage_type"`
-	CageSize    string   `json:"cage_size"`
-	Price       *float64 `json:"price"`
-	IsActive    *bool    `json:"is_active"`
-	Description string   `json:"description"`
-	SortOrder   int      `json:"sort_order"`
-}
-
 // ---- Cage ----
 
 // ListCages godoc
@@ -48,9 +28,9 @@ func (h *Handler) ListCages(c *gin.Context) {
 
 // CreateCage godoc
 func (h *Handler) CreateCage(c *gin.Context) {
-	var input createCageInput
+	var input createCageRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
@@ -78,9 +58,9 @@ func (h *Handler) UpdateCage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input updateCageInput
+	var input updateCageRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 

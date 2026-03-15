@@ -19,7 +19,7 @@ func (h *Handler) ListHospitalizationPlans(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, plans)
+	c.JSON(http.StatusOK, toHospitalizationPlanResponseList(plans))
 }
 
 // CreateHospitalizationPlan godoc
@@ -56,7 +56,7 @@ func (h *Handler) CreateHospitalizationPlan(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, plan)
+	c.JSON(http.StatusCreated, toHospitalizationPlanResponse(plan))
 }
 
 // UpdateHospitalizationPlan godoc
@@ -100,7 +100,7 @@ func (h *Handler) UpdateHospitalizationPlan(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, plan)
+	c.JSON(http.StatusOK, toHospitalizationPlanResponse(plan))
 }
 
 // DeleteHospitalizationPlan godoc

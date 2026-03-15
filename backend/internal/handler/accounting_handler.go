@@ -4,42 +4,11 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
-
-type createAccountingInput struct {
-	MedicalRecordID   *uint64    `json:"medical_record_id"`
-	HospitalizationID *uint64    `json:"hospitalization_id"`
-	OwnerID           *uint64    `json:"owner_id"`
-	PetID             *uint64    `json:"pet_id"`
-	Subtotal          int        `json:"subtotal"`
-	TaxTotal          int        `json:"tax_total"`
-	TotalAmount       int        `json:"total_amount"`
-	HasInsurance      bool       `json:"has_insurance"`
-	Status            string     `json:"status"`
-	ScheduledDate     time.Time  `json:"scheduled_date" binding:"required"`
-	CompletedAt       *time.Time `json:"completed_at"`
-	Memo              string     `json:"memo"`
-}
-
-type updateAccountingInput struct {
-	MedicalRecordID   *uint64    `json:"medical_record_id"`
-	HospitalizationID *uint64    `json:"hospitalization_id"`
-	OwnerID           *uint64    `json:"owner_id"`
-	PetID             *uint64    `json:"pet_id"`
-	Subtotal          int        `json:"subtotal"`
-	TaxTotal          int        `json:"tax_total"`
-	TotalAmount       int        `json:"total_amount"`
-	HasInsurance      bool       `json:"has_insurance"`
-	Status            string     `json:"status"`
-	ScheduledDate     *time.Time `json:"scheduled_date"`
-	CompletedAt       *time.Time `json:"completed_at"`
-	Memo              string     `json:"memo"`
-}
 
 // ListAccountings godoc
 func (h *Handler) ListAccountings(c *gin.Context) {
@@ -83,7 +52,7 @@ func (h *Handler) ListAccountings(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, newPaginatedResponse(accountings, total, page, limit))
+	c.JSON(http.StatusOK, newPaginatedResponse(toAccountingResponseList(accountings), total, page, limit))
 }
 
 // GetAccounting godoc
@@ -103,7 +72,7 @@ func (h *Handler) GetAccounting(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, accounting)
+	c.JSON(http.StatusOK, toAccountingResponse(accounting))
 }
 
 // CreateAccounting godoc
@@ -113,9 +82,9 @@ func (h *Handler) CreateAccounting(c *gin.Context) {
 		return
 	}
 
-	var input createAccountingInput
+	var input createAccountingRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
@@ -145,7 +114,7 @@ func (h *Handler) CreateAccounting(c *gin.Context) {
 	slog.InfoContext(ctx, "accounting created",
 		slog.Uint64("billing_id", billing.ID),
 		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
-	c.JSON(http.StatusCreated, billing)
+	c.JSON(http.StatusCreated, toAccountingResponse(billing))
 }
 
 // UpdateAccounting godoc
@@ -160,9 +129,9 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input updateAccountingInput
+	var input updateAccountingRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
@@ -195,7 +164,7 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 	slog.InfoContext(ctx, "accounting updated",
 		slog.Uint64("billing_id", billing.ID),
 		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
-	c.JSON(http.StatusOK, billing)
+	c.JSON(http.StatusOK, toAccountingResponse(billing))
 }
 
 func (h *Handler) DeleteAccounting(c *gin.Context) {

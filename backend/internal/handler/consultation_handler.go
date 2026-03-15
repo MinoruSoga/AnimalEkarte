@@ -10,29 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type createConsultationInput struct {
-	Name          string   `json:"name"           binding:"required"`
-	Price         *float64 `json:"price"`
-	IsActive      bool     `json:"is_active"`
-	Description   string   `json:"description"`
-	TimeCondition string   `json:"time_condition"`
-	Duration      *int     `json:"duration"`
-	ParentID      *uint64  `json:"parent_id"`
-	SortOrder     int      `json:"sort_order"`
-}
-
-type updateConsultationInput struct {
-	Name          string   `json:"name"`
-	Price         *float64 `json:"price"`
-	IsActive      *bool    `json:"is_active"`
-	Description   string   `json:"description"`
-	TimeCondition string   `json:"time_condition"`
-	Duration      *int     `json:"duration"`
-	ParentID      *uint64  `json:"parent_id"`
-	ClearParentID bool     `json:"clear_parent_id"`
-	SortOrder     int      `json:"sort_order"`
-}
-
 // ---- Consultation ----
 
 // ListConsultations godoc
@@ -52,9 +29,9 @@ func (h *Handler) CreateConsultation(c *gin.Context) {
 		return
 	}
 
-	var input createConsultationInput
+	var input createConsultationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
@@ -84,9 +61,9 @@ func (h *Handler) UpdateConsultation(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input updateConsultationInput
+	var input updateConsultationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
