@@ -1,5 +1,5 @@
 // React/Framework
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 
 // External
@@ -22,7 +22,9 @@ import { MedicalRecordEstimate } from "../components/MedicalRecordEstimate";
 import { MedicalRecordBillCheck } from "../components/MedicalRecordBillCheck";
 import { MedicalRecordExamination } from "../components/MedicalRecordExamination";
 import { CheckupsTab } from "../components/CheckupsTab";
-import { VitalsModal } from "../components/VitalsModal";
+const VitalsModal = lazy(() =>
+  import("../components/VitalsModal").then((m) => ({ default: m.VitalsModal }))
+);
 import { useMedicalRecordForm } from "../hooks/useMedicalRecordForm";
 import { useAuth } from "@/features/auth";
 
@@ -284,13 +286,15 @@ export function MedicalRecordForm() {
         </div>
       ) : null}
       {/* Vitals Modal */}
-      {!isNewRecord && recordId ? (
-        <VitalsModal
-          open={isVitalsOpen}
-          onOpenChange={setIsVitalsOpen}
-          medicalRecordId={recordId}
-        />
-      ) : null}
+      <Suspense fallback={null}>
+        {!isNewRecord && recordId ? (
+          <VitalsModal
+            open={isVitalsOpen}
+            onOpenChange={setIsVitalsOpen}
+            medicalRecordId={recordId}
+          />
+        ) : null}
+      </Suspense>
     </PageLayout>
   );
 }

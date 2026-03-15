@@ -61,7 +61,7 @@ export function TreatmentTable({
           gridColsClass
         )}
       >
-        {showStatus && <HeaderCell align="center">ステータス</HeaderCell>}
+        {showStatus ? <HeaderCell align="center">ステータス</HeaderCell> : null}
         <HeaderCell>治療内容</HeaderCell>
         <HeaderCell>メモ</HeaderCell>
         <HeaderCell align="center">保険</HeaderCell>
