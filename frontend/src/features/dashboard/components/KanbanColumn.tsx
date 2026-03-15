@@ -59,7 +59,7 @@ export function KanbanColumn({
           <div className="flex-1 min-h-[2rem]" />
         </div>
       </SortableContext>
-      {onAddClick && (
+      {onAddClick ? (
         <Button
           variant="ghost"
           size="sm"
@@ -69,7 +69,7 @@ export function KanbanColumn({
           <Plus className="size-5" />
           <span className="text-sm">新規追加</span>
         </Button>
-      )}
+      ) : null}
     </div>
   );
 }

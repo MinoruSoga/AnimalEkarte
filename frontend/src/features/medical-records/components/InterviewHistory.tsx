@@ -86,11 +86,11 @@ export const InterviewHistory = memo(function InterviewHistory({
               </div>
             </div>
           ))}
-          {filteredItems.length === 0 && (
+          {filteredItems.length === 0 ? (
             <div className={`p-4 text-center text-sm ${C.text60}`}>
               該当するカルテはありません
             </div>
-          )}
+          ) : null}
         </div>
       </ScrollArea>
     </Card>

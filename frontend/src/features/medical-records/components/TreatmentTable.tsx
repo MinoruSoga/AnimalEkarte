@@ -85,7 +85,7 @@ export function TreatmentTable({
                 gridColsClass
               )}
             >
-              {showStatus && (
+              {showStatus ? (
                 <Cell align="center">
                   <Select
                     value={item.status || "未完了"}
@@ -101,7 +101,7 @@ export function TreatmentTable({
                     </SelectContent>
                   </Select>
                 </Cell>
-              )}
+              ) : null}
               <Cell>
                 <TableInput
                   value={item.content}

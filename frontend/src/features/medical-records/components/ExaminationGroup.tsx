@@ -98,25 +98,25 @@ export const ExaminationGroup = React.memo(function ExaminationGroup({
               {item.ref}
             </div>
             <div className="p-2 flex justify-center items-center">
-              {item.status === "high" && (
+              {item.status === "high" ? (
                 <Badge
                   variant="destructive"
                   className="h-10 px-3 text-sm bg-red-500 hover:bg-red-600"
                 >
                   HIGH
                 </Badge>
-              )}
-              {item.status === "low" && (
+              ) : null}
+              {item.status === "low" ? (
                 <Badge
                   variant="outline"
                   className="h-10 px-3 text-sm text-blue-600 border-blue-600 bg-blue-50"
                 >
                   LOW
                 </Badge>
-              )}
-              {item.status === "normal" && (
+              ) : null}
+              {item.status === "normal" ? (
                 <CheckCircle className="size-5 text-green-500/50" />
-              )}
+              ) : null}
             </div>
           </div>
         ))}

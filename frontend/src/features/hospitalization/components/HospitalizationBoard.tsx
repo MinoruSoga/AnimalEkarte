@@ -67,18 +67,18 @@ const CageCard = ({ cage, occupant, onNavigateToForm }: CageCardProps) => {
             >
                 <CardHeader className={`${H_STYLES.padding.card} pb-0 flex flex-row items-center justify-between space-y-0`}>
                   <div className="flex items-center gap-1">
-                      {occupant && (
+                      {occupant ? (
                           <div className="cursor-grab active:cursor-grabbing text-[#37352F]/20 hover:text-[#37352F]/60">
                               <GripVertical className="h-3 w-3" />
                           </div>
-                      )}
+                      ) : null}
                       <span className={`${H_STYLES.text.sm} font-mono text-[#37352F]/60 font-bold`}>{cage.name}</span>
                   </div>
-                  {occupant && (
+                  {occupant ? (
                       <Badge variant="outline" className={`${getHospitalizationTypeColor(occupant.hospitalizationType)} ${H_STYLES.text.xs} px-1.5 py-0 h-5 border-none`}>
                           {occupant.hospitalizationType}
                       </Badge>
-                  )}
+                  ) : null}
                 </CardHeader>
                 <CardContent className={`${H_STYLES.padding.card} flex-1 flex flex-col justify-center items-center text-center`}>
                   {occupant ? (

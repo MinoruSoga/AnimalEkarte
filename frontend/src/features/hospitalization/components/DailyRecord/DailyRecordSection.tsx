@@ -60,11 +60,11 @@ export function DailyRecordSection({ records, plans = [], onAddVital, onAddLog }
 
             <div className="pr-4">
                 <div className="space-y-3">
-                    {tasks.length === 0 && (
+                    {tasks.length === 0 ? (
                         <div className="text-center py-6 text-xs text-[#37352F]/40 bg-[#F7F6F3] rounded border border-dashed border-[rgba(55,53,47,0.16)]">
                             予定なし
                         </div>
-                    )}
+                    ) : null}
                     
                     <TimingSection 
                         title="朝の予定" 

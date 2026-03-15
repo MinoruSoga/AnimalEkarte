@@ -320,7 +320,7 @@ export function ClinicMasterSettings() {
         </div>
 
         {/* Right: Side Peek Panel */}
-        {isEditing && (
+        {isEditing ? (
           <div
             className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 flex flex-col`}
           >
@@ -540,7 +540,7 @@ export function ClinicMasterSettings() {
               </button>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       <ConfirmDialog

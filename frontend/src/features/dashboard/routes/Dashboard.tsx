@@ -275,7 +275,7 @@ export function Dashboard() {
                 }
             />
 
-            {isFilterOpen && (
+            {isFilterOpen ? (
                 <div className="bg-white border-b border-border px-6 py-4 animate-in slide-in-from-top-1 fade-in duration-200">
                     <div className="flex flex-wrap gap-8">
                         {/* Visit Type */}
@@ -328,7 +328,7 @@ export function Dashboard() {
                         </div>
                     </div>
                 </div>
-            )}
+            ) : null}
 
             <div className="flex-1 overflow-hidden p-5 pt-4">
                 <DndContext sensors={sensors} collisionDetection={closestCorners} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
@@ -346,7 +346,7 @@ export function Dashboard() {
                 </DndContext>
             </div>
 
-            {modalOpen && (
+            {modalOpen ? (
               <Suspense fallback={null}>
                 <DashboardDetailModal
                     isOpen={modalOpen}
@@ -358,9 +358,9 @@ export function Dashboard() {
                     currentStatus={selectedAppointment ? filteredColumns.find(c => c.appointments.some(a => a.id === selectedAppointment.id))?.title : undefined}
                 />
               </Suspense>
-            )}
+            ) : null}
 
-            {isEditModalOpen && (
+            {isEditModalOpen ? (
               <Suspense fallback={null}>
                 <ReservationFormModal
                     isOpen={isEditModalOpen}
@@ -372,7 +372,7 @@ export function Dashboard() {
                     initialData={editingAppointment}
                 />
               </Suspense>
-            )}
+            ) : null}
 
             <ConfirmDialog
                 open={cancelConfirmOpen}

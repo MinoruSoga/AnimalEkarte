@@ -149,14 +149,14 @@ export function CarePlanDialog({
                         </div>
                     </div>
 
-                    {formData.unitPrice !== undefined && (
+                    {formData.unitPrice !== undefined ? (
                             <div className={`flex items-center gap-2 ${H_STYLES.text.base} text-[#37352F]/60 px-1`}>
                             <Badge variant="outline" className="font-mono bg-purple-50 text-purple-700 border-purple-200">
                                 マスタ連動中
                             </Badge>
                             <span>単価: ¥{formData.unitPrice.toLocaleString()} / カテゴリ: {formData.category}</span>
                             </div>
-                    )}
+                    ) : null}
 
                     <div className="space-y-2">
                         <Label>詳細・指示量</Label>

@@ -56,20 +56,20 @@ export function ExaminationCard({
             <Calendar className="size-3 shrink-0" />
             {examination.date}
           </span>
-          {examination.doctor && (
+          {examination.doctor ? (
             <span className="flex items-center gap-1">
               <User className="size-3 shrink-0" />
               {examination.doctor}
             </span>
-          )}
+          ) : null}
         </div>
 
         {/* Result summary */}
-        {examination.resultSummary && (
+        {examination.resultSummary ? (
           <p className={`mt-2 text-sm ${C.text70} line-clamp-2`}>
             {examination.resultSummary}
           </p>
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );

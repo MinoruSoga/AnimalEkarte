@@ -199,7 +199,7 @@ export function MedicalRecords() {
           )}
         />
 
-        {totalPages > 1 && (
+        {totalPages > 1 ? (
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
@@ -210,7 +210,7 @@ export function MedicalRecords() {
             onPrev={prevPage}
             onNext={nextPage}
           />
-        )}
+        ) : null}
       </div>
 
       <ConfirmDialog

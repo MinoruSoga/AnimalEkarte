@@ -23,16 +23,16 @@ export function HospitalizationDetailActions({ hospitalization, onDischargeClick
 
     return (
         <div className={`flex ${H_STYLES.gap.default}`}>
-            {hospitalization.status !== "退院済" && (
-                <Button 
-                    variant="outline" 
+            {hospitalization.status !== "退院済" ? (
+                <Button
+                    variant="outline"
                     className={`gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 ${H_STYLES.button.action}`}
                     onClick={onDischargeClick}
                 >
                     <LogOut className={H_STYLES.button.icon} />
                     退院処理
                 </Button>
-            )}
+            ) : null}
             <Button 
                 variant="outline" 
                 onClick={() => navigate(`/hospitalization/${hospitalization.id}/edit`)}

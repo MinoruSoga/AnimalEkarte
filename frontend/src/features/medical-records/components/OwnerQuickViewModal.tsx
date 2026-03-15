@@ -104,13 +104,13 @@ export function OwnerQuickViewModal({
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-5 py-3">
-          {isLoading && (
+          {isLoading ? (
             <div className={`flex items-center justify-center h-32 text-sm ${C.text40}`}>
               読み込み中...
             </div>
-          )}
+          ) : null}
 
-          {!isLoading && owner && (
+          {!isLoading && owner ? (
             <div className={`divide-y ${C.divideDivider}`}>
               <FieldRow label="飼主No" value={owner.id} />
               <FieldRow label="飼主名" value={owner.ownerName} />
@@ -122,16 +122,16 @@ export function OwnerQuickViewModal({
               <FieldRow label="会員区分" value={owner.membershipType} />
               <FieldRow label="備考" value={owner.remarks} />
             </div>
-          )}
+          ) : null}
 
-          {!isLoading && !owner && (
+          {!isLoading && !owner ? (
             <div className={`flex items-center justify-center h-32 text-sm ${C.text40}`}>
               飼い主情報が見つかりません
             </div>
-          )}
+          ) : null}
         </div>
 
-        {owner && (
+        {owner ? (
           <div className={`shrink-0 px-5 py-4 border-t ${C.borderLight}`}>
             <Link
               to={paths.owners.detail.getHref(ownerId)}
@@ -142,7 +142,7 @@ export function OwnerQuickViewModal({
               <ExternalLink className="size-3.5" />
             </Link>
           </div>
-        )}
+        ) : null}
       </SheetContent>
     </Sheet>
   );

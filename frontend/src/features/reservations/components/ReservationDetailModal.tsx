@@ -125,7 +125,7 @@ export function ReservationDetailModal({
 
         <div className="px-5 pt-3 pb-4 space-y-4">
           {/* Status Selector */}
-          {onStatusChange && currentStatus && (
+          {onStatusChange && currentStatus ? (
             <div className={`flex items-center justify-between rounded-lg border px-3 py-2 ${currentStatus.bgColor} ${currentStatus.textColor} border-transparent`}>
               <div className="flex items-center gap-2 text-sm">
                 <span className={`w-2 h-2 rounded-full ${currentStatus.dotColor}`} />
@@ -153,7 +153,7 @@ export function ReservationDetailModal({
                 </SelectContent>
               </Select>
             </div>
-          )}
+          ) : null}
 
           {/* Date & Time Card */}
           <div className="rounded-lg border border-[rgba(55,53,47,0.09)] bg-[#FAFAF8] p-3">
@@ -186,11 +186,11 @@ export function ReservationDetailModal({
               <InfoRow label="飼い主名">
                 {appointment.ownerName}
               </InfoRow>
-              {appointment.petId && (
+              {appointment.petId ? (
                 <InfoRow label="カルテNo.">
                   <span className="font-mono text-[#37352F]/70">{appointment.petId}</span>
                 </InfoRow>
-              )}
+              ) : null}
             </div>
           </div>
 
@@ -204,11 +204,11 @@ export function ReservationDetailModal({
               <InfoRow label="担当医">
                 <div className="flex items-center gap-1.5">
                   {appointment.doctor}
-                  {appointment.isDesignated && (
+                  {appointment.isDesignated ? (
                     <Badge variant="outline" className="text-[11px] h-5 px-1.5 bg-amber-50 text-amber-700 border-amber-200">
                       指名
                     </Badge>
-                  )}
+                  ) : null}
                 </div>
               </InfoRow>
               <InfoRow label="予約区分">
@@ -222,7 +222,7 @@ export function ReservationDetailModal({
           </div>
 
           {/* Notes */}
-          {appointment.notes && (
+          {appointment.notes ? (
             <div className="rounded-lg border border-amber-100 bg-amber-50/50 p-3">
               <div className="flex items-center gap-1.5 text-sm text-amber-700 mb-1.5">
                 <FileText className="size-3.5" />
@@ -230,12 +230,12 @@ export function ReservationDetailModal({
               </div>
               <p className="text-sm text-[#37352F]/80 whitespace-pre-wrap leading-relaxed">{appointment.notes}</p>
             </div>
-          )}
+          ) : null}
         </div>
 
         <DialogFooter className="px-5 py-3 bg-[#FAFAF8] flex flex-row items-center border-t border-[rgba(55,53,47,0.06)]">
           <div className="flex-1">
-            {onDelete && (
+            {onDelete ? (
               <Button
                 variant="ghost"
                 size="sm"
@@ -244,7 +244,7 @@ export function ReservationDetailModal({
               >
                 <Trash2 className="size-4" />
               </Button>
-            )}
+            ) : null}
           </div>
           <div className="flex gap-2">
             <Button
@@ -256,7 +256,7 @@ export function ReservationDetailModal({
               <Pencil className="size-3.5" />
               編集
             </Button>
-            {onCreateRecord && (
+            {onCreateRecord ? (
               <Button
                 size="sm"
                 className="bg-[#37352F] text-white hover:bg-[#37352F]/90 h-9 text-sm gap-1.5 shadow-sm"
@@ -265,7 +265,7 @@ export function ReservationDetailModal({
                 <actionConfig.Icon className="size-4" />
                 {actionConfig.label}
               </Button>
-            )}
+            ) : null}
           </div>
         </DialogFooter>
       </DialogContent>

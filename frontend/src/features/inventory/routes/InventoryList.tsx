@@ -98,23 +98,23 @@ export function InventoryList() {
     >
       <div className="flex flex-col gap-4">
         {/* Alert summary */}
-        {(summary.lowStock > 0 || summary.outOfStock > 0) && (
+        {(summary.lowStock > 0 || summary.outOfStock > 0) ? (
           <div className="flex items-center gap-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <AlertTriangle className="size-5 text-amber-600" />
             <div className="flex gap-4 text-sm">
-              {summary.outOfStock > 0 && (
+              {summary.outOfStock > 0 ? (
                 <span className="text-red-600 font-medium">
                   在庫切れ: {summary.outOfStock}件
                 </span>
-              )}
-              {summary.lowStock > 0 && (
+              ) : null}
+              {summary.lowStock > 0 ? (
                 <span className="text-amber-600 font-medium">
                   残少: {summary.lowStock}件
                 </span>
-              )}
+              ) : null}
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Search & Filters */}
         <div className="flex items-center gap-3">

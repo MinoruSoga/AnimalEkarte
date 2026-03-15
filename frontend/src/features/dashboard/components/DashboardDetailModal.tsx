@@ -150,24 +150,24 @@ function ActionButtons({
   if (currentStatus === "受付予約") {
     return (
       <>
-        {onCancel && (
+        {onCancel ? (
           <Button variant="ghost" onClick={() => onCancel(appointment)} className={`h-10 text-sm ${C.danger} ${C.hoverBgDanger5}`}>
             <Trash2 className="size-4" />
             取消
           </Button>
-        )}
-        {onEdit && (
+        ) : null}
+        {onEdit ? (
           <Button variant="outline" onClick={() => onEdit(appointment)} className={`h-10 text-sm ${C.text} ${C.borderMedium}`}>
             <Pencil className="size-4" />
             編集
           </Button>
-        )}
+        ) : null}
         {ownerDetailBtn}
-        {onConfirm && (
+        {onConfirm ? (
           <Button onClick={onConfirm} className={STYLE.confirmPrimary}>
             受付済にする
           </Button>
-        )}
+        ) : null}
       </>
     );
   }
@@ -188,11 +188,11 @@ function ActionButtons({
             <span className="text-[10px] text-muted-foreground">※カルテ作成と同時に「診療中」へ移動します</span>
           </div>
         ) : (
-          onConfirm && (
+          onConfirm ? (
             <Button onClick={onConfirm} className={STYLE.confirmPrimary}>
               診察を開始する
             </Button>
-          )
+          ) : null
         )}
       </>
     );
@@ -202,12 +202,12 @@ function ActionButtons({
     return (
       <>
         {ownerDetailBtn}
-        {onConfirm && (
+        {onConfirm ? (
           <Button variant="outline" onClick={onConfirm} className={`h-10 text-sm ${C.danger} ${C.borderDanger} ${C.hoverBgDanger5}`}>
             診察を終了する
           </Button>
-        )}
-        {isMedical && (
+        ) : null}
+        {isMedical ? (
           <>
             <Button onClick={() => onCreateMedicalRecord()} className={STYLE.confirmPrimary}>
               <FileText className="size-4" />
@@ -218,13 +218,13 @@ function ActionButtons({
               検査
             </Button>
           </>
-        )}
-        {isTrimming && (
+        ) : null}
+        {isTrimming ? (
           <Button onClick={onCreateTrimming} className={`h-10 text-sm ${C.bgDiscount} ${C.bgDiscountHover} text-white rounded-[4px] transition-colors shadow-none border-transparent`}>
             <Scissors className="size-4" />
             施術記録
           </Button>
-        )}
+        ) : null}
       </>
     );
   }
@@ -248,11 +248,11 @@ function ActionButtons({
     return (
       <>
         {ownerDetailBtn}
-        {onConfirm && (
+        {onConfirm ? (
           <Button onClick={onConfirm} className={STYLE.confirmPrimary}>
             完了/リストから削除
           </Button>
-        )}
+        ) : null}
       </>
     );
   }
@@ -261,29 +261,29 @@ function ActionButtons({
   return (
     <>
       {ownerDetailBtn}
-      {isMedical && (
+      {isMedical ? (
         <Button onClick={() => onCreateMedicalRecord()} className={STYLE.confirmPrimary}>
           <FileText className="size-4" />
           カルテ確認
         </Button>
-      )}
-      {isTrimming && (
+      ) : null}
+      {isTrimming ? (
         <Button onClick={onCreateTrimming} className={STYLE.confirmPrimary}>
           <Scissors className="size-4" />
           トリミング
         </Button>
-      )}
-      {isHospitalization && (
+      ) : null}
+      {isHospitalization ? (
         <Button onClick={onCreateHospitalization} className={STYLE.confirmPrimary}>
           <BedDouble className="size-4" />
           入院登録
         </Button>
-      )}
-      {onConfirm && (
+      ) : null}
+      {onConfirm ? (
         <Button onClick={onConfirm} className={STYLE.confirmPrimary}>
           ステータス変更
         </Button>
-      )}
+      ) : null}
     </>
   );
 }
@@ -364,11 +364,11 @@ export function DashboardDetailModal({
                 {appointment.serviceType}
               </DialogTitle>
             </div>
-            {currentStatus && (
+            {currentStatus ? (
               <Badge variant="outline" className={`${STATUS_COLOR[currentStatus] ?? "bg-gray-100 text-gray-600 border-gray-200"} px-3 py-1 text-sm font-medium border shrink-0`}>
                 {currentStatus}
               </Badge>
-            )}
+            ) : null}
           </div>
           <DialogDescription className="sr-only">予約の詳細情報</DialogDescription>
         </DialogHeader>
@@ -379,15 +379,15 @@ export function DashboardDetailModal({
           <div className={`flex items-center gap-3 p-3 ${C.bgPage} rounded-lg`}>
             <Clock className={`size-5 ${C.text60} shrink-0`} />
             <span className={`font-mono text-xl font-medium ${C.text}`}>{appointment.time}</span>
-            {appointment.nextAppointment && (
+            {appointment.nextAppointment ? (
               <Badge
                 variant={appointment.nextAppointment === "精算未確認" ? "destructive" : "secondary"}
                 className="ml-auto flex items-center gap-1"
               >
-                {appointment.nextAppointment === "精算未確認" && <AlertCircle className="size-3" />}
+                {appointment.nextAppointment === "精算未確認" ? <AlertCircle className="size-3" /> : null}
                 {appointment.nextAppointment}
               </Badge>
-            )}
+            ) : null}
           </div>
 
           {/* 患者情報 */}
@@ -422,9 +422,9 @@ export function DashboardDetailModal({
               </div>
               <div className="flex items-center gap-2">
                 <span className={`font-medium ${C.text}`}>{appointment.doctor || "未定"}</span>
-                {appointment.isDesignated && (
+                {appointment.isDesignated ? (
                   <Badge variant="outline" className={`text-xs h-6 ${C.bgDiscountLight} ${C.textDiscount} ${C.borderDiscount20}`}>指名</Badge>
-                )}
+                ) : null}
               </div>
             </div>
           </div>

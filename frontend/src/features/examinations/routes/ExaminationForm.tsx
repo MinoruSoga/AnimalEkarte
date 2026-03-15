@@ -66,7 +66,7 @@ export function ExaminationForm() {
     >
       <div className="flex flex-col gap-4">
           {/* Patient Info Card */}
-          {selectedPet && (
+          {selectedPet ? (
               <PatientInfoCard
                 ownerName={selectedPet.ownerName}
                 petName={`${selectedPet.name}${selectedPet.species ? `(${selectedPet.species})` : ""}`}
@@ -80,7 +80,7 @@ export function ExaminationForm() {
                 nextVisitDate="-"
                 nextVisitContent="-"
               />
-          )}
+          ) : null}
 
           <div className="bg-white p-4 rounded-lg border border-[rgba(55,53,47,0.16)] space-y-4 shadow-sm">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -150,12 +150,12 @@ export function ExaminationForm() {
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              {isEdit && (
+              {isEdit ? (
                 <Button variant="ghost" className="h-10 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 mr-auto">
                     <Trash2 className="mr-1.5 size-4" />
                     削除
                 </Button>
-              )}
+              ) : null}
               <Button variant="outline" onClick={handleBack} className="h-10 text-sm">キャンセル</Button>
               <Button className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white h-10 text-sm" onClick={handleSave} disabled={isSaving}>{isSaving ? "保存中..." : "保存"}</Button>
             </div>

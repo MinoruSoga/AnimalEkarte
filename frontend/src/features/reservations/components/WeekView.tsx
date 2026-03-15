@@ -243,7 +243,7 @@ function AppointmentCard({
       whileDrag={whileDragProps}
     >
       {/* Status dot */}
-      {dotInfo && (
+      {dotInfo ? (
         <div
           className={`rounded-full ${dotInfo.color} border border-white absolute shadow-sm z-20 ${
             isCompact
@@ -252,37 +252,37 @@ function AppointmentCard({
           }`}
           title={dotInfo.label}
         />
-      )}
+      ) : null}
 
       {/* Compact: 15min — single horizontal line */}
-      {isCompact && (
+      {isCompact ? (
         <div className="flex items-center gap-1 h-full pointer-events-none relative z-10 pr-2">
           <span className="font-bold text-xs whitespace-nowrap leading-none">
             {format(appointment.start, "H:mm")}
           </span>
-          {appointment.visitType === "first" && (
+          {appointment.visitType === "first" ? (
             <span className={`${C.bgRedLight} ${C.textNotionRed} px-0.5 rounded text-xs flex-shrink-0 no-underline leading-none`}>
               初
             </span>
-          )}
+          ) : null}
           <span className="truncate text-xs font-medium leading-none">
             {appointment.petName}
           </span>
         </div>
-      )}
+      ) : null}
 
       {/* Narrow: 30min — compact 3-line layout */}
-      {isNarrow && (
+      {isNarrow ? (
         <div className="flex flex-col h-full pointer-events-none relative z-10">
           <div className="flex items-center gap-1 pr-3 leading-none">
             <span className="font-bold text-xs whitespace-nowrap">
               {format(appointment.start, "H:mm")}
             </span>
-            {appointment.visitType === "first" && (
+            {appointment.visitType === "first" ? (
               <span className={`${C.bgRedLight} ${C.textNotionRed} px-0.5 rounded text-xs flex-shrink-0 no-underline`}>
                 初
               </span>
-            )}
+            ) : null}
           </div>
           <div className="font-medium truncate text-xs leading-none mt-0.5">
             {appointment.petName}
@@ -291,41 +291,41 @@ function AppointmentCard({
             {appointment.ownerName}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Full: 60min+ — detailed multi-line layout */}
-      {!isCompact && !isNarrow && (
+      {!isCompact && !isNarrow ? (
         <div className="flex flex-col h-full pointer-events-none relative z-10">
           <div className="flex items-center gap-1 font-bold text-sm leading-none mb-1 pr-3">
             <span className="truncate">
               {format(appointment.start, "H:mm")}
             </span>
-            {appointment.visitType === "first" && (
+            {appointment.visitType === "first" ? (
               <span className={`${C.bgRedLight} ${C.textNotionRed} px-1.5 rounded text-sm flex-shrink-0 no-underline`}>
                 初
               </span>
-            )}
+            ) : null}
           </div>
           <div className="font-medium truncate text-sm leading-none">
             {appointment.petName}
           </div>
-          {height > 36 && (
+          {height > 36 ? (
             <div className="truncate text-sm opacity-70 leading-none mt-0.5">
               {appointment.ownerName}
             </div>
-          )}
-          {height > 52 && appointment.doctor && (
+          ) : null}
+          {height > 52 && appointment.doctor ? (
             <div className="truncate text-sm opacity-70 leading-none mt-0.5">
               {appointment.doctor}
             </div>
-          )}
-          {height > 68 && (
+          ) : null}
+          {height > 68 ? (
             <div className="truncate text-sm opacity-80 mt-auto leading-none pb-0.5">
               {getReservationTypeName(appointment.type)}
             </div>
-          )}
+          ) : null}
         </div>
-      )}
+      ) : null}
     </motion.div>
   );
 }
@@ -429,14 +429,14 @@ function DayColumn({
       </div>
 
       {/* Current Time Indicator */}
-      {isToday && (
+      {isToday ? (
         <div
           className={`absolute w-full border-t-2 border-red-400 z-20 pointer-events-none`}
           style={{ top: `${currentTimeTop}px` }}
         >
           <div className={`absolute -left-1 -top-1.5 w-3 h-3 rounded-full ${C.bgNotionRed}`} />
         </div>
-      )}
+      ) : null}
 
       {/* Appointments */}
       {appointments.map((app) => (

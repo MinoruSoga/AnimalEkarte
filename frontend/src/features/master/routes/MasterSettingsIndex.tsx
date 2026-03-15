@@ -118,11 +118,11 @@ function CardRow({ label, description, icon, count, onClick }: CardRowProps) {
         <div className={`text-sm font-medium ${C.text} leading-tight`}>{label}</div>
         <div className={`text-xs ${C.text45} mt-0.5 truncate`}>{description}</div>
       </div>
-      {count !== undefined && (
+      {count !== undefined ? (
         <span className={`text-xs ${C.text40} tabular-nums shrink-0`}>
           {count}件
         </span>
-      )}
+      ) : null}
       <ChevronRight className={`size-4 ${C.text35} shrink-0`} />
     </button>
   );

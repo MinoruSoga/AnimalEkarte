@@ -59,9 +59,9 @@ export function CarePlanItemRow({ plan, onEdit, onDelete }: CarePlanItemProps) {
                     <span className={`${H_STYLES.text.sm} text-[#37352F]/60 px-2 border-l border-r border-gray-200`}>{getTypeLabel(plan.type)}</span>
                     <span className={`${H_STYLES.text.sm} bg-gray-50 px-2 py-0.5 rounded`}>{plan.description}</span>
                     
-                    {plan.unitPrice && (
+                    {plan.unitPrice ? (
                         <span className={`${H_STYLES.text.sm} text-[#37352F]/60 font-mono`}>¥{plan.unitPrice.toLocaleString()}</span>
-                    )}
+                    ) : null}
                     
                     <div className="flex gap-1 ml-1">
                         {plan.timing.map(t => (

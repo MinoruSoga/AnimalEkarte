@@ -117,16 +117,16 @@ export function AppointmentCard({
               <Clock className="size-3.5 flex-shrink-0" />
               <span className="text-base font-medium font-mono tracking-[var(--tracking-notion)]">{appointment.time}</span>
             </div>
-            {appointment.nextAppointment && (
+            {appointment.nextAppointment ? (
               <Badge
                 variant={appointment.nextAppointment === "精算未確認" ? "destructive" : "secondary"}
                 className="text-sm px-[7.5px] h-[22px] flex items-center gap-0.5 flex-shrink-0 tracking-[var(--tracking-notion-sm)]"
               >
-                {appointment.nextAppointment === "精算未確認" && <AlertCircle className="size-3" />}
-                {appointment.nextAppointment === "次回予約済" && <Calendar className="size-3" />}
+                {appointment.nextAppointment === "精算未確認" ? <AlertCircle className="size-3" /> : null}
+                {appointment.nextAppointment === "次回予約済" ? <Calendar className="size-3" /> : null}
                 {appointment.nextAppointment}
               </Badge>
-            )}
+            ) : null}
           </div>
 
           <div className="space-y-0.5">
@@ -149,12 +149,12 @@ export function AppointmentCard({
               <span className="truncate max-w-[80px]">{appointment.serviceType}</span>
             </Badge>
 
-            {(appointment.doctor || appointment.isDesignated) && (
+            {(appointment.doctor || appointment.isDesignated) ? (
                  <Badge variant="outline" className={`flex items-center gap-1 text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-notion-sm)] ${appointment.isDesignated ? `bg-[#FAEBDD] text-[#D9730D] border-[#D9730D]/20` : `bg-white text-[#37352F]/60`}`}>
                     <span className="truncate max-w-[80px]">{appointment.doctor || "指名あり"}</span>
-                    {appointment.isDesignated && <span className="text-[10px] ml-0.5 font-bold tracking-[0.12em]">指</span>}
+                    {appointment.isDesignated ? <span className="text-[10px] ml-0.5 font-bold tracking-[0.12em]">指</span> : null}
                  </Badge>
-            )}
+            ) : null}
           </div>
 
           {/* ミニアクションボタン */}
@@ -168,7 +168,7 @@ export function AppointmentCard({
               {isTrimming ? <Scissors className="size-3 shrink-0" /> : <FileText className="size-3 shrink-0" />}
               <span>{isTrimming ? "施術" : "カルテ"}</span>
             </button>
-            {columnTitle !== "診療中" && (
+            {columnTitle !== "診療中" ? (
               <button
                 type="button"
                 aria-label={`${appointment.petName}の会計`}
@@ -178,8 +178,8 @@ export function AppointmentCard({
                 <CreditCard className="size-3 shrink-0" />
                 <span>会計</span>
               </button>
-            )}
-            {columnTitle !== "診療中" && isHospitalization && (
+            ) : null}
+            {columnTitle !== "診療中" && isHospitalization ? (
               <button
                 type="button"
                 aria-label={`${appointment.petName}の入院登録`}
@@ -189,7 +189,7 @@ export function AppointmentCard({
                 <BedDouble className="size-3 shrink-0" />
                 <span>入院</span>
               </button>
-            )}
+            ) : null}
           </div>
         </CardContent>
       </Card>
