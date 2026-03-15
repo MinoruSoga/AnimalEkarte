@@ -88,7 +88,7 @@ src/
 │       ├── StatusPill/         # ステータスピル
 │       └── TreatmentSearchDialog/ # 処置検索ダイアログ
 │
-├── features/               # 機能別モジュール（18 features）
+├── features/               # 機能別モジュール（16 features）
 │   ├── auth/               # 認証（ログイン・セッション管理）
 │   ├── dashboard/          # ダッシュボード
 │   ├── owners/             # ★ ベストプラクティス参照実装
@@ -107,13 +107,13 @@ src/
 │   └── hospital-settings/  # 病院設定（クリニックマスタ）
 │
 │   └── [feature-name]/     # 各featureの構造
-│       ├── api/            # React Query hooks（get/create/update/delete）
-│       │   ├── get-xxx.ts      # useQuery + queryOptions factory
-│       │   ├── create-xxx.ts   # useMutation + Zod schema
-│       │   ├── update-xxx.ts
-│       │   ├── delete-xxx.ts
-│       │   ├── types.ts        # APIリクエスト/レスポンス型
-│       │   ├── transforms.ts   # Backend ↔ Frontend 変換
+│       ├── api/            # フェッチ関数 + React Query hooks
+│       │   ├── get-xxx.ts      # getXxx() 生関数 + useGetXxx() hook
+│       │   ├── create-xxx.ts   # createXxx() 生関数（+ useCreateXxx() hook）
+│       │   ├── update-xxx.ts   # updateXxx() 生関数（+ useUpdateXxx() hook）
+│       │   ├── delete-xxx.ts   # deleteXxx() 生関数（+ useDeleteXxx() hook）
+│       │   ├── types.ts        # APIリクエスト/レスポンス型（models.tsから導出）
+│       │   ├── transforms.ts   # BackendXxx → Xxx 型変換
 │       │   └── index.ts
 │       ├── components/     # feature固有UI
 │       ├── hooks/          # useXxxForm, useXxxFilters 等
@@ -201,7 +201,8 @@ app/          ← ルーター定義 + cross-feature合成（app/pages/）
 |--------|------|
 | Feature間import禁止 | `features/A` から `features/B` を直接importしない |
 | cross-feature合成は `app/pages/` | 複数featureのAPIを組み合わせる必要がある場合は `app/pages/XxxPage.tsx` を作成し、router.tsx から lazy import する |
-| Routesは `features/` に置く | bulletproof-reactの `app/routes/` パターンは採用しない。各featureの `routes/` にページコンポーネントを配置する |
+| Routesは `features/` に置く | bulletproof-reactの `app/routes/` パターンは採用しない。単一featureのルートは `features/[feature]/routes/`、cross-featureは `app/pages/` で合成 |
+| cross-featureは props注入 | feature コンポーネントが外部依存を props で受け取り、`app/pages/` で実装を注入する（依存逆転） |
 | `export *` 禁止 | `export * from "./xxx"` はtree-shaking阻害。明示的named exportは可 |
 | 絶対パスimport | `@/` エイリアスを使用 |
 | api/にデータフェッチ | React Query hooks (useQuery, useMutation) は api/ に配置 |
@@ -211,12 +212,12 @@ app/          ← ルーター定義 + cross-feature合成（app/pages/）
 
 ### Routerパターン（プロジェクト固有）
 
-bulletproof-reactの `clientLoader`/`clientAction`/`convert()` パターンは使用しない。以下の inline lazy パターンを使う：
+bulletproof-reactの `clientLoader`/`clientAction`/`convert(queryClient)` パターンは使用しない。inline lazy パターンを使う：
 
 ```typescript
-// ✅ このプロジェクトの標準パターン
+// ✅ 単一 feature のみ: features/[feature]/routes/ から直接 import
 {
-  path: "/owners",
+  index: true,
   lazy: async () => {
     const [{ OwnersList }, { ownersLoader }] = await Promise.all([
       import("@/features/owners/routes/OwnersList"),
@@ -226,7 +227,7 @@ bulletproof-reactの `clientLoader`/`clientAction`/`convert()` パターンは�
   },
 },
 
-// cross-feature合成が必要な場合は app/pages/ を使う
+// ✅ cross-feature合成が必要な場合: app/pages/ の合成ページを import
 {
   path: "new",
   lazy: async () => {
@@ -234,6 +235,32 @@ bulletproof-reactの `clientLoader`/`clientAction`/`convert()` パターンは�
     return { Component: OwnerFormPage };
   },
 },
+```
+
+**loader パターン（直接 axios / React Query 非経由）:**
+
+```typescript
+// features/owners/loaders.ts — queryClient.prefetchQuery は使わない
+export const ownersLoader = async (): Promise<OwnersLoaderData> => {
+  const { data } = await axios.get<PetsResponse>("/v1/pets", { params: { page: 1, limit: 100 } });
+  return { pets: data.data.map(transformBackendPetToFrontend) };
+};
+// ルートコンポーネントは useLoaderData() で受け取る（useQuery ではない）
+```
+
+**cross-feature合成の実装パターン（依存逆転）:**
+
+```typescript
+// ✅ features/owners/routes/OwnerForm.tsx — pets を直接 import しない
+export function OwnerForm({ petMutations }: { petMutations: PetMutations }) { ... }
+
+// ✅ app/pages/OwnerFormPage.tsx — app 層で両 feature を合成して注入
+import { OwnerForm } from "@/features/owners/routes/OwnerForm";
+import { createPet, useCreatePet } from "@/features/pets/api/create-pet";
+export function OwnerFormPage() {
+  const petMutations = { createPetFn: createPet, ... }; // pets API を実装して注入
+  return <OwnerForm petMutations={petMutations} />;
+}
 ```
 
 ---
@@ -326,6 +353,8 @@ features/xxx/types/index.ts     ← feature固有型（UI専用・手書きOK）
 | APIリクエスト型を `interface` で手書き | Goモデルとの乖離 | `models.ts` から `Omit`/`Partial` で導出 |
 | コメントのみ・空の `index.ts` を残す | 死ファイル、混乱の原因 | 削除する |
 | 実ファイルがあるフォルダの `.gitkeep` を残す | 不要 | 削除する |
+| API フックを `useOwners` と命名（動詞省略） | 規則違反 | `useGetOwners`（動詞 + エンティティ） |
+| `queryClient.prefetchQuery` を loader で使う | このプロジェクトは直接 axios / useLoaderData パターン | `axios.get()` で直接フェッチ |
 
 ---
 

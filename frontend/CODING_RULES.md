@@ -26,7 +26,7 @@ src/
 │
 ├── assets/                                # 静的アセット
 │
-├── features/                              # 機能別モジュール（18 features）
+├── features/                              # 機能別モジュール（16 features）
 │   ├── auth/                              # 認証（ログイン・セッション管理）
 │   ├── dashboard/                         # ダッシュボード
 │   ├── owners/                            # ★ ベストプラクティス参照実装
@@ -176,6 +176,60 @@ src/
 | `clientLoader`/`clientAction`/`convert()` パターン | inline `lazy()` + 直接 `loader` 設定 | シンプルで読みやすい |
 | AuthLoader を AppProvider 内に配置 | AuthProvider を router の保護ルートに配置 | /login で不要な GET /v1/me を防ぐ |
 | `config/env.ts`（Zod検証） | なし（Vite env をそのまま使用） | 現時点では不要 |
+| cross-feature合成なし（features は独立） | `app/pages/` で cross-feature 合成 | 複数 feature を使うページ専用の合成層 |
+
+**cross-feature合成パターン（props注入による依存逆転）:**
+
+複数の feature を組み合わせるページは `app/pages/XxxPage.tsx` で合成する。
+feature コンポーネントは外部依存を props として受け取り、`app/pages/` で実装を注入する。
+
+```
+パターン: feature コンポーネントが props 型を定義 → app/pages/ が実装を注入
+```
+
+```typescript
+// ✅ features/owners/routes/OwnerForm.tsx
+// pets への直接依存を持たず、props 経由で受け取る（依存逆転）
+interface OwnerFormProps {
+  petMutations: PetMutations; // types/pet.ts に定義
+}
+export function OwnerForm({ petMutations }: OwnerFormProps) { ... }
+
+// ✅ app/pages/OwnerFormPage.tsx
+// app 層なので両 feature を import 可能。実装を注入する。
+import { OwnerForm } from "@/features/owners/routes/OwnerForm";
+import { createPet, useCreatePet } from "@/features/pets/api/create-pet";
+import { useUpdatePet } from "@/features/pets/api/update-pet";
+import { useDeletePet } from "@/features/pets/api/delete-pet";
+
+export function OwnerFormPage() {
+  const { mutate: createPetMutate } = useCreatePet();
+  const { mutate: updatePetMutate } = useUpdatePet();
+  const { mutate: deletePetMutate } = useDeletePet();
+
+  const petMutations: PetMutations = { createPetFn: createPet, createPetMutate, ... };
+  return <OwnerForm petMutations={petMutations} />;
+}
+
+// ✅ router.tsx からは app/pages/ を参照
+{
+  path: "new",
+  lazy: async () => {
+    const { OwnerFormPage } = await import("@/app/pages/OwnerFormPage");
+    return { Component: OwnerFormPage };
+  },
+},
+
+// ❌ NG: feature 内から別 feature を直接 import
+// features/owners/routes/OwnerForm.tsx で useCreatePet() を直接 import するのは禁止
+```
+
+**判断基準:**
+
+| ケース | 配置 |
+|--------|------|
+| 単一 feature のみ使うページ | `features/[feature]/routes/` から直接 import |
+| 複数 feature を組み合わせるページ | `app/pages/XxxPage.tsx` で合成 |
 
 ### 1.3 Feature モジュール構成
 
@@ -202,8 +256,10 @@ features/[feature-name]/
 │   ├── use[Entity]Form.ts      # フォーム状態（useTransitionでAPI書き込み管理）
 │   └── ...
 ├── routes/                     # ★ ページコンポーネント（app/routes/ではなくここに配置）
-│   ├── [Entity]List.tsx        # 一覧ページ
+│   ├── [Entity]List.tsx        # 一覧ページ（router から直接 import）
 │   ├── [Entity]Form.tsx        # 作成/編集フォーム
+│   │                           #   単一 feature → router から直接 import
+│   │                           #   cross-feature必要 → props で受け取り app/pages/ から注入
 │   ├── [Entity]Detail.tsx      # 詳細ページ
 │   └── [Entity]PetSelection.tsx # ペット選択（必要な場合のみ）
 ├── types/                      # feature固有型定義
@@ -267,11 +323,12 @@ features/owners/
 │   │                           # rerender-lazy-state-init / rerender-transitions
 │   └── index.ts
 ├── routes/
-│   ├── OwnerForm.tsx           # 新規登録・編集ページ
+│   ├── OwnerForm.tsx           # feature コンポーネント（router から直接 import しない）
+│   │                           # props: petMutations（依存逆転 - pets feature を直接 import しない）
 │   │                           # rerender-memo: OwnerInfoSection, PetTableRow, MembershipTypeButtons
 │   │                           # bundle-dynamic-imports: lazy(PetEditModal)
 │   │                           # rendering-hoist-jsx: PET_TABLE_HEADER
-│   ├── OwnersList.tsx          # 一覧ページ
+│   ├── OwnersList.tsx          # 一覧ページ（router から直接 import）
 │   │                           # rerender-transitions: useDeferredValue(searchTerm)
 │   │                           # rendering-conditional-render: ? null パターン
 │   └── index.ts
@@ -283,6 +340,8 @@ features/owners/
                                 # export { OwnerForm, OwnersList } from "./routes/..."
                                 # export { useOwnerForm } from "./hooks/..."
                                 # export { PetEditModal } from "./components/..."
+# ★ OwnerForm は app/pages/OwnerFormPage.tsx で pets と合成されてから router に登録される
+# ★ OwnersList は単一 feature のため router から直接 import される
 ```
 
 ### 1.4 主要ファイル実装例
@@ -290,32 +349,54 @@ features/owners/
 #### app/router.tsx（React Router Data Mode）
 
 ```typescript
+import { lazy, Suspense } from "react";
 import { createBrowserRouter } from "react-router";
-import { MainLayout } from "@/components/shared/Layout/MainLayout";
-import { AuthLayout } from "@/components/shared/Layout/AuthLayout";
-import ErrorBoundary from "./ErrorBoundary";
 
-// Data Mode: createBrowserRouterを使用
+import { Layout } from "@/components/shared/Layout";
+import { RootErrorBoundary, RouteErrorBoundary } from "@/components/errors/RouteErrorBoundary";
+import { AuthProvider } from "@/features/auth";
+
+/* bundle-dynamic-imports: ログインページは未認証ユーザー専用。認証済みバンドルに含めない */
+const Login = lazy(() =>
+  import("@/features/auth/routes/Login").then((m) => ({ default: m.Login })),
+);
+
 export const router = createBrowserRouter([
+  // ── 未認証ルート ─────────────────────────────────────────────────
   {
-    path: "/",
-    element: <MainLayout />,
-    errorElement: <ErrorBoundary />,
+    path: "/login",
+    element: (
+      <Suspense fallback={null}>
+        <Login />
+      </Suspense>
+    ),
+  },
+
+  // ── 認証済みルート ───────────────────────────────────────────────
+  // AuthProvider を保護ルート側にのみ配置。/login では GET /v1/me を実行しない。
+  {
+    element: (
+      <AuthProvider>
+        <Layout />
+      </AuthProvider>
+    ),
+    errorElement: <RootErrorBoundary />,
     children: [
-      // ダッシュボード
+      // ── Dashboard ────────────────────────────────────────────────
       {
-        index: true,
-        lazy: () =>
-          import("@/features/dashboard").then((m) => ({
-            Component: m.Dashboard,
-          })),
+        path: "/",
+        lazy: async () => {
+          const { Dashboard } = await import("@/features/dashboard/routes");
+          return { Component: Dashboard };
+        },
       },
 
-      // 飼い主管理
-      // ★ barrel index 経由ではなく直接ファイル import（bundle-barrel-imports）
-      // ★ Component + loader を Promise.all で並列 import（async-parallel）
+      // ── Owners ───────────────────────────────────────────────────
+      // ★ barrel index 経由でなく直接ファイル import（bundle-barrel-imports）
+      // ★ 単一 feature: features/[feature]/routes/ から直接 import
+      // ★ cross-feature合成: app/pages/ の合成ページを import
       {
-        path: "owners",
+        path: "/owners",
         errorElement: <RouteErrorBoundary />,
         children: [
           {
@@ -330,58 +411,56 @@ export const router = createBrowserRouter([
           },
           {
             path: "new",
+            // cross-feature合成（owners + pets）→ app/pages/ を経由
             lazy: async () => {
-              const { OwnerForm } = await import("@/features/owners/routes/OwnerForm");
-              return { Component: OwnerForm };
+              const { OwnerFormPage } = await import("@/app/pages/OwnerFormPage");
+              return { Component: OwnerFormPage };
             },
           },
           {
             path: ":id",
             lazy: async () => {
-              const [{ OwnerForm }, { ownerLoader }] = await Promise.all([
-                import("@/features/owners/routes/OwnerForm"),
+              const [{ OwnerFormPage }, { ownerLoader }] = await Promise.all([
+                import("@/app/pages/OwnerFormPage"),
                 import("@/features/owners/loaders"),
               ]);
-              return { Component: OwnerForm, loader: ownerLoader };
+              return { Component: OwnerFormPage, loader: ownerLoader };
             },
           },
         ],
       },
 
-      // 電子カルテ
+      // ── Medical Records ──────────────────────────────────────────
       {
-        path: "medical-records",
+        path: "/medical-records",
+        errorElement: <RouteErrorBoundary />,
         children: [
           {
             index: true,
-            lazy: () =>
-              import("@/features/medical-records").then((m) => ({
-                Component: m.MedicalRecordList,
-              })),
+            lazy: async () => {
+              const { MedicalRecords } = await import(
+                "@/features/medical-records/routes/MedicalRecords"
+              );
+              return { Component: MedicalRecords };
+            },
           },
-          // ...
+          // ... 他のサブルート
         ],
       },
       // ... 他のルート
     ],
   },
-
-  // 認証
-  {
-    path: "/login",
-    element: <AuthLayout />,
-    children: [
-      {
-        index: true,
-        lazy: () =>
-          import("@/features/auth").then((m) => ({
-            Component: m.Login,
-          })),
-      },
-    ],
-  },
 ]);
 ```
+
+**bulletproof-react との Router差分:**
+
+| bulletproof-react | このプロジェクト |
+|---|---|
+| `convert(queryClient)` HOF でルートモジュールを変換 | `lazy: async () => { ... return { Component, loader } }` のインライン形式 |
+| `clientLoader(queryClient)` をルートファイル内に定義 | `loaders.ts` を features/ 内の別ファイルに分離 |
+| loader が `queryClient.getQueryData ?? fetchQuery` でキャッシュ統合 | loader が直接 axios 呼び出し → `useLoaderData()` で受け取る（React Query 非経由） |
+| Default export でルートコンポーネントを export | Named export（`export function XxxList()`） |
 
 #### app/index.tsx
 
@@ -390,75 +469,72 @@ import { RouterProvider } from "react-router";
 import { AppProvider } from "./provider";
 import { router } from "./router";
 
-export const App = () => {
+export function App() {
   return (
     <AppProvider>
       <RouterProvider router={router} />
     </AppProvider>
   );
-};
+}
 ```
 
 #### app/provider.tsx
 
 ```typescript
 import { QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { Toaster } from "@/components/ui/sonner";
 import { queryClient } from "@/lib/react-query";
-import { Toaster } from "@/components/ui/toaster";
 
+// AuthProvider はここに置かない。
+// /login でも GET /v1/me が実行され 401 が発生するため router.tsx の保護ルートに配置する。
 interface AppProviderProps {
   children: React.ReactNode;
 }
 
-export const AppProvider = ({ children }: AppProviderProps) => {
+export function AppProvider({ children }: AppProviderProps) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
       <Toaster />
-      <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );
-};
+}
 ```
 
 #### lib/axios.ts（Golangバックエンド接続）
 
+**認証方式: httpOnly Cookie（`withCredentials: true`）**
+localStorage への token 保存は禁止。httpOnly Cookie はブラウザが自動送信する。
+
 ```typescript
-import Axios, { InternalAxiosRequestConfig } from "axios";
+import Axios, { type InternalAxiosRequestConfig } from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
-const authRequestInterceptor = (config: InternalAxiosRequestConfig) => {
-  const token = localStorage.getItem("token");
-
-  if (token) {
-    config.headers = config.headers || {};
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
+function authRequestInterceptor(config: InternalAxiosRequestConfig) {
+  // httpOnly Cookie は withCredentials: true でブラウザが自動送信するため
+  // Authorization ヘッダへの手動注入は不要
   config.headers = config.headers || {};
   config.headers.Accept = "application/json";
-  config.headers["X-Request-ID"] = crypto.randomUUID();
-
+  config.headers["X-Request-ID"] = crypto.randomUUID(); // トレーシング用
   return config;
-};
+}
 
 export const axios = Axios.create({
   baseURL: API_URL,
-  timeout: 10000,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  timeout: 60000,
+  withCredentials: true, // ★ httpOnly Cookie を cross-origin リクエストで送信するために必須
+  headers: { "Content-Type": "application/json" },
 });
 
 axios.interceptors.request.use(authRequestInterceptor);
-
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem("token");
+    if (
+      error.response?.status === 401 &&
+      window.location.pathname !== "/login" // 無限リダイレクトループ防止
+    ) {
       window.location.href = "/login";
     }
     return Promise.reject(error);
@@ -466,15 +542,23 @@ axios.interceptors.response.use(
 );
 ```
 
+**禁止パターン:**
+```typescript
+// ❌ localStorage に token を保存（XSS で盗まれる）
+const token = localStorage.getItem("token");
+config.headers.Authorization = `Bearer ${token}`;
+```
+
 #### lib/react-query.ts
 
 ```typescript
-import { QueryClient, DefaultOptions } from "@tanstack/react-query";
+import { QueryClient, type DefaultOptions } from "@tanstack/react-query";
 
 const queryConfig: DefaultOptions = {
   queries: {
-    staleTime: 5 * 60 * 1000, // 5分
-    gcTime: 10 * 60 * 1000, // 10分（React Query v5からcacheTimeはgcTime）
+    // デフォルト: 中程度の変更頻度（医療記録、検査等）
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 1,
   },
@@ -483,24 +567,46 @@ const queryConfig: DefaultOptions = {
 export const queryClient = new QueryClient({
   defaultOptions: queryConfig,
 });
+
+// リソース別キャッシング戦略（useQuery の staleTime/gcTime に渡す）
+export const QUERY_STALE_TIMES = {
+  STATIC: 30 * 60 * 1000,  // 30分: 飼主・ペット・マスタ等（低頻度変更）
+  MEDIUM: 5 * 60 * 1000,   // 5分: 医療記録、検査、会計等（デフォルト）
+  REALTIME: 2 * 60 * 1000, // 2分: 予約、Kanban等（高頻度）
+};
+
+export const QUERY_GC_TIMES = {
+  LONG: 30 * 60 * 1000,     // 30分: マスタデータ等
+  STANDARD: 15 * 60 * 1000, // 15分: ほとんどのデータ
+  SHORT: 5 * 60 * 1000,     // 5分: 一時的なUI状態
+};
 ```
 
 #### React Query パターン
 
 ##### Query パターン（データ取得）
 
+ファイル名は **kebab-case + verb-noun**: `get-xxx.ts`, `get-xxxs.ts`
+フック名は **`useGet` + PascalCase**: `useGetXxx`, `useGetXxxs`
+
 ```typescript
-// features/xxx/api/getXxx.ts
+// features/xxx/api/get-xxx.ts
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import type { Xxx } from "../types";
+import type { Xxx } from "@/types/xxx";            // 共有型
+import type { Xxx as BackendXxx } from "@/types/generated/models"; // 自動生成型
+import { transformXxx } from "./transforms";        // Backend → Frontend 変換
+
+interface XxxResponse {
+  data: BackendXxx;
+}
 
 export const getXxx = async (id: string): Promise<Xxx> => {
-  const response = await axios.get(`/xxx/${id}`);
-  return response.data;
+  const { data } = await axios.get<XxxResponse>(`/v1/xxx/${id}`);
+  return transformXxx(data.data);
 };
 
-export const useXxx = (id: string) => {
+export const useGetXxx = (id: string) => {
   return useQuery({
     queryKey: ["xxx", id],
     queryFn: () => getXxx(id),
@@ -509,99 +615,166 @@ export const useXxx = (id: string) => {
 };
 ```
 
-##### Mutation パターン（データ作成・更新・削除）
+**一覧取得パターン:**
 
 ```typescript
-// features/xxx/api/createXxx.ts
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+// features/xxx/api/get-xxxs.ts
+import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import { toast } from "sonner";
-import type { Xxx, CreateXxxDTO } from "../types";
+import type { Xxx } from "@/types/xxx";
+import type { Xxx as BackendXxx } from "@/types/generated/models";
+import { transformXxx } from "./transforms";
 
-export const createXxx = async (data: CreateXxxDTO): Promise<Xxx> => {
-  const response = await axios.post("/xxx", data);
-  return response.data;
+interface XxxsResponse {
+  data: BackendXxx[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export const getXxxs = async (): Promise<Xxx[]> => {
+  const { data } = await axios.get<XxxsResponse>("/v1/xxx");
+  return data.data.map(transformXxx);
 };
 
-export const useCreateXxx = () => {
-  const queryClient = useQueryClient();
+export const useGetXxxs = () => {
+  return useQuery({
+    queryKey: ["xxxs"],
+    queryFn: getXxxs,
+  });
+};
+```
 
+##### Mutation パターン（データ作成・更新・削除）
+
+**パターン A（シンプル）**: hooks が浅い場合は API ファイルに `useMutation` hook を置く
+
+```typescript
+// features/pets/api/create-pet.ts
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { axios } from "@/lib/axios";
+import type { Pet as BackendPet } from "@/types/generated/models";
+import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
+import type { Pet } from "@/types";
+
+export const createPet = async (data: CreatePetRequest): Promise<Pet> => {
+  const { data: responseData } = await axios.post<BackendPet>("/v1/pets", data);
+  return transformBackendPetToFrontend(responseData);
+};
+
+export const useCreatePet = () => {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: createXxx,
+    mutationFn: createPet,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["xxx"] });
-      toast.success("作成しました");
-    },
-    onError: () => {
-      toast.error("作成に失敗しました");
+      queryClient.invalidateQueries({ queryKey: ["pets"] });
     },
   });
 };
 ```
+
+**パターン B（複雑なフォーム）**: `useTransition` と組み合わせる場合は API ファイルに生関数のみ、mutation は hooks/ に集約
+
+```typescript
+// features/owners/api/create-owner.ts — 生関数のみ export
+import { axios } from "@/lib/axios";
+import type { Owner as BackendOwner } from "@/types/generated/models";
+import { transformOwner } from "./transforms";
+
+export const createOwner = async (data: CreateOwnerRequest): Promise<Owner> => {
+  const { data: responseData } = await axios.post<BackendOwner>("/v1/owners", data);
+  return transformOwner(responseData);
+};
+// ※ useMutation は hooks/useOwnerForm.ts が useTransition 内で管理する
+```
+
+##### loaders.ts パターン（React Router Data Mode）
+
+loader は **直接 axios を呼び出す**（`queryClient.prefetchQuery` は使わない）。
+返したデータはルートコンポーネントが `useLoaderData()` で受け取る。
+
+```typescript
+// features/owners/loaders.ts
+import { axios } from "@/lib/axios";
+
+export interface OwnersLoaderData {
+  pets: Pet[];
+}
+
+export const ownersLoader = async (): Promise<OwnersLoaderData> => {
+  try {
+    // 総件数確認 → 残りページを並列フェッチ（async-parallel）
+    const { data: firstPage } = await axios.get<PetsResponse>("/v1/pets", {
+      params: { page: 1, limit: PER_PAGE },
+    });
+    const totalPages = Math.ceil(firstPage.total / PER_PAGE);
+    const remainingPages = await Promise.all(
+      Array.from({ length: totalPages - 1 }, (_, i) =>
+        axios.get<PetsResponse>("/v1/pets", { params: { page: i + 2, limit: PER_PAGE } })
+          .then(r => r.data)
+      )
+    );
+    const allPets = [firstPage, ...remainingPages]
+      .flatMap(page => page.data.map(transformBackendPetToFrontend));
+    return { pets: allPets };
+  } catch {
+    throw new Response("データの取得に失敗しました", { status: 500 });
+  }
+};
+```
+
+**bulletproof-react との loader 差分:**
+
+| bulletproof-react | このプロジェクト |
+|---|---|
+| `queryClient.getQueryData(key) ?? queryClient.fetchQuery(queryOptions)` | `axios.get()` で直接フェッチ |
+| React Query キャッシュに載る（コンポーネントは `useQuery` で取得） | React Router の `useLoaderData()` で取得（React Query を経由しない） |
+| loader と hook が `queryOptions` factory を共有 | loader と hook は独立（二重フェッチを避けるため loader のデータは `useLoaderData`） |
 
 ##### api/ vs hooks/ の区別
 
 | 配置場所 | 用途 | 例 |
 |---------|------|-----|
-| `api/` | React Query hooks (useQuery, useMutation) | `useOwners()`, `useCreateOwner()` |
-| `hooks/` | ビジネスロジック・UI状態管理 | `useOwnerForm()`, `useOwnerFilters()` |
+| `api/get-xxx.ts` | React Query の useQuery hook + 生フェッチ関数 | `getOwners`, `useGetOwners` |
+| `api/create-xxx.ts` | 生 mutation 関数（+ 簡単な場合は useMutation hook） | `createOwner`, `useCreatePet` |
+| `hooks/useXxxForm.ts` | フォーム状態・useTransition・ビジネスロジック | `useOwnerForm`, `useHospitalizationForm` |
 
-#### Feature API関数例（features/owners/api/getOwners.ts）
+#### Feature API実装例（features/owners/api/get-owners.ts）
 
 ```typescript
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import type { Owner } from "../types";
+import type { Owner } from "@/types/owner";
+import { transformOwner } from "./transforms";
+import type { Owner as BackendOwner } from "@/types/generated/models";
+
+interface OwnersResponse {
+  data: BackendOwner[];
+  total: number;
+  page: number;
+  limit: number;
+}
 
 export const getOwners = async (): Promise<Owner[]> => {
-  const response = await axios.get("/owners");
-  return response.data;
+  const { data } = await axios.get<OwnersResponse>("/v1/owners");
+  return data.data.map(transformOwner);
 };
 
-export const useOwners = () => {
+export const useGetOwners = () => {
   return useQuery({
     queryKey: ["owners"],
     queryFn: getOwners,
   });
 };
-
-// React 19 use()用のPromise生成
-export const getOwnersPromise = (): Promise<Owner[]> => {
-  return getOwners();
-};
-```
-
-#### Feature Public API パターン（features/xxx/index.ts）
-
-Feature の公開APIは以下の順序で整理する：
-
-```typescript
-// features/xxx/index.ts
-
-// 1. Routes（ページコンポーネント）
-export { XxxList } from "./routes/XxxList";
-export { XxxDetail } from "./routes/XxxDetail";
-export { XxxCreate } from "./routes/XxxCreate";
-
-// 2. API（React Query hooks）
-export { useXxx } from "./api/getXxx";
-export { useXxxList } from "./api/getXxxList";
-export { useCreateXxx } from "./api/createXxx";
-export { useUpdateXxx } from "./api/updateXxx";
-export { useDeleteXxx } from "./api/deleteXxx";
-
-// 3. Components（外部公開が必要なもののみ）
-export { XxxCard } from "./components/XxxCard";
-export { XxxForm } from "./components/XxxForm";
-
-// 4. Types
-export type { Xxx, CreateXxxDTO, UpdateXxxDTO } from "./types";
 ```
 
 #### Feature公開API例（features/owners/index.ts）
 
 ```typescript
 // Routes（ページコンポーネント）
+// ★ このindex.ts は存在するが、外部からのimportは index.ts 経由でなく直接ファイルを参照する
+//    import { OwnersList } from "@/features/owners/routes/OwnersList"  ← 正しい
+//    import { OwnersList } from "@/features/owners"                     ← 禁止（barrel import）
 export { OwnerForm } from "./routes/OwnerForm";
 export { OwnersList } from "./routes/OwnersList";
 
@@ -611,7 +784,7 @@ export { useOwnerForm } from "./hooks/useOwnerForm";
 // Components（外部公開が必要なもののみ）
 export { PetEditModal } from "./components/PetEditModal";
 
-// ※ ローダーは app/router.tsx から直接 import（公開API経由不要）
+// ※ loaders は router.tsx から直接 import する
 // import { ownersLoader, ownerLoader } from "@/features/owners/loaders";
 ```
 
@@ -1427,7 +1600,7 @@ useEffect(() => {
 ### 6.2 条件付きクラス
 
 ```typescript
-import { cn } from "@/components/ui/utils";
+import { cn } from "@/lib/utils";
 
 interface ButtonProps {
   variant?: "primary" | "secondary";
@@ -1574,8 +1747,8 @@ src/
 ├── features/
 │   └── owners/
 │       ├── api/
-│       │   ├── getOwners.ts
-│       │   └── getOwners.test.ts    # 同階層に配置
+│       │   ├── get-owners.ts
+│       │   └── get-owners.test.ts    # 同階層に配置
 │       ├── components/
 │       │   └── OwnerCard/
 │       │       ├── OwnerCard.tsx
@@ -1672,6 +1845,8 @@ describe("Button", () => {
 | コメントのみ・空の index.ts | 死ファイル、混乱の原因 | 削除する |
 | re-exportのみで自身のロジックを持たないファイル | 参照ゼロなら死ファイル | 削除する |
 | 実ファイルが存在するフォルダの `.gitkeep` | 不要 | 削除する |
+| API query hook を `useOwners` と命名（動詞省略） | 命名規則違反 | `useGetOwners`（`useGet` + エンティティ名） |
+| loader 内で `queryClient.prefetchQuery` を使う | このプロジェクトは直接 axios + `useLoaderData` パターン | `axios.get()` で直接フェッチして返す |
 
 ---
 
@@ -1716,10 +1891,10 @@ describe("Button", () => {
 | Document Metadata | ブラウザタブタイトル（UX向上） |
 
 ### Feature-Based Architecture
-- 各機能が完全に独立
-- 公開API (`index.ts`) で依存関係管理
-- スケーラブルで保守性が高い
-- `shared → features → app` の単方向依存
+- 各機能が `api/`, `components/`, `hooks/`, `routes/`, `types/` に完結
+- `index.ts` は公開 API のカタログ（import 先には使わない — 直接ファイルを参照）
+- cross-feature 合成は `app/pages/` + props 注入（依存逆転）
+- `shared → features → app` の単方向依存（feature 間の直接 import 禁止）
 
 ### 認証システム向け最適化
 - SEO機能は不要
@@ -1923,6 +2098,38 @@ const animalSpeciesSelectItems = useMemo(() =>
 );
 ```
 
+#### `js-cache-function-results` — API 由来の JSX リストは `useMemo` でキャッシュ
+
+静的な定数（`rendering-hoist-jsx`）と異なり、API から取得したデータ由来の JSX リストは
+`useMemo` でキャッシュする。これにより不要な JSX ノードの再生成を防ぐ。
+
+```typescript
+// ✅ API データ由来の JSX リスト（PetEditModal.tsx の参照実装）
+// animalSpeciesList が変わらない限り SelectItem を再生成しない
+const animalSpeciesSelectItems = useMemo(() =>
+  animalSpeciesList.map((s) => (
+    <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+  )),
+  [animalSpeciesList]
+);
+
+// ❌ レンダーのたびに SelectItem を再生成する
+return (
+  <SelectContent>
+    {animalSpeciesList.map((s) => (           // ← レンダーごとに新しいノード
+      <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+    ))}
+  </SelectContent>
+);
+```
+
+**静的定数 vs useMemo の使い分け:**
+
+| データ元 | 手法 |
+|---------|------|
+| コンパイル時に確定する定数（enum 値等） | モジュールレベル定数 `const FOO = [...]` |
+| API / React Query から取得するリスト | `useMemo([list])` |
+
 #### `rendering-conditional-render` — 条件付きレンダリングは必ず三項演算子
 
 ```typescript
@@ -1986,8 +2193,8 @@ const failedCount = results.filter(r => r.status === "rejected").length;
 - [ ] 検索/フィルタは `useDeferredValue` で UI ブロッキングを防いでいるか
 - [ ] API ミューテーションは `useTransition` で pending 状態を管理しているか
 - [ ] 重いモーダル/ダイアログは `lazy()` + `Suspense` で遅延ロードしているか
-- [ ] static な JSX (SelectItem 一覧など) はモジュール定数に巻き上げているか
-- [ ] API 由来の JSX リストは `useMemo([list])` でキャッシュしているか
+- [ ] static な JSX（enum 由来の SelectItem 一覧等）はモジュール定数に巻き上げているか（`rendering-hoist-jsx`）
+- [ ] API 由来の JSX リストは `useMemo([list])` でキャッシュしているか（`js-cache-function-results`）
 - [ ] 条件付きレンダリングはすべて `? (...) : null` 形式か（`&&` は使わない）
 - [ ] barrel index 経由ではなく直接ファイルから import しているか
 - [ ] loader 内で独立したフェッチは `Promise.all` で並列化しているか

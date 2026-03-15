@@ -114,16 +114,27 @@ AnimalEkarte/
 │       │   ├── shared/   # 共有UI
 │       │   ├── layouts/  # Layout, Sidebar
 │       │   └── errors/   # ErrorBoundary
-│       ├── features/     # 機能別モジュール
+│       ├── app/          # ルーター、プロバイダ
+│       │   ├── index.tsx
+│       │   ├── provider.tsx
+│       │   ├── router.tsx
+│       │   └── pages/    # ★ cross-feature合成ページ（複数featureが必要な場合のみ）
+│       ├── features/     # 機能別モジュール（16 features）
 │       │   └── [feature]/
 │       │       ├── api/
 │       │       ├── components/
 │       │       ├── hooks/
 │       │       ├── types/
-│       │       └── routes/
+│       │       ├── routes/    # 単一featureのページコンポーネント
+│       │       ├── loaders.ts # React Router loader（必要時のみ）
+│       │       └── index.ts   # 公開API
+│       ├── components/   # ui/, shared/, errors/
 │       ├── hooks/        # 共有hooks
 │       ├── lib/          # ユーティリティ
-│       ├── types/        # 共有型定義
+│       ├── config/       # paths.ts（型安全URLマップ）
+│       ├── stores/       # Zustand（sidebar状態のみ）
+│       ├── types/        # 共有型定義（generated/models.ts含む）
+│       ├── utils/        # 純粋ユーティリティ関数
 │       └── testing/      # テスト設定
 ├── docs/                 # 技術ドキュメント
 ├── CODING_RULES.md       # コーディング規約
@@ -195,10 +206,12 @@ const { pending } = useFormStatus();
 ### アーキテクチャルール
 
 ```
-1. Feature間の直接importは禁止 → app層で合成
+1. Feature間の直接importは禁止 → app/pages/ で合成
 2. 単方向コードフロー: shared → features → app
 3. `export *` 禁止 → 明示的named exportは可
 4. 絶対パスimport: @/ エイリアス使用
+5. routes は features/[feature]/routes/ に置く（bulletproof-react の app/routes/ は採用しない）
+6. cross-feature合成は app/pages/ + props注入（依存逆転）
 ```
 
 ### Feature構成パターン
@@ -213,8 +226,11 @@ features/[feature]/
 │   └── index.ts        # 明示的named export
 ├── components/         # Feature固有UI
 ├── hooks/              # ビジネスロジック・UI状態
-├── routes/             # ページコンポーネント
+├── routes/             # 単一featureのページコンポーネント
+│                       # ★ 複数featureが必要な場合は props で受け取り
+│                       #   app/pages/ から実装を注入する（依存逆転）
 ├── types/              # ドメイン型定義
+├── loaders.ts          # React Router loader（必要時のみ）
 └── index.ts            # Public API（外部公開のみ）
 ```
 

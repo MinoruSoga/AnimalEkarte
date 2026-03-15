@@ -1668,6 +1668,17 @@ components:
           type: string
           format: date-time
           readOnly: true
+    MasterReorderRequest:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+          minItems: 1
+          description: IDを並べ替え後の順序で指定（ids[0] が sort_order=1）
     DiagnosisCategoriesReorderRequest:
       type: object
       required: [ids]
@@ -4083,6 +4094,42 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /masters/staffs/reorder:
+    patch:
+      operationId: reorderStaffs
+      summary: スタッフ一括並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reordered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/staffs/{id}:
     patch:
       operationId: updateStaff
@@ -4201,6 +4248,42 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /masters/cages/reorder:
+    patch:
+      operationId: reorderCages
+      summary: ケージマスタ一括並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reordered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/cages/{id}:
     patch:
       operationId: updateCage
@@ -4310,6 +4393,42 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/medicines/reorder:
+    patch:
+      operationId: reorderMedicines
+      summary: 薬剤マスタ一括並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reordered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/medicines/{id}:
@@ -4430,6 +4549,42 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /masters/vaccines/reorder:
+    patch:
+      operationId: reorderVaccines
+      summary: ワクチンマスタ一括並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reordered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/vaccines/{id}:
     patch:
       operationId: updateVaccine
@@ -4539,6 +4694,42 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/insurances/reorder:
+    patch:
+      operationId: reorderInsurances
+      summary: 保険マスタ一括並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reordered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/insurances/{id}:
@@ -4652,6 +4843,42 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /masters/service-types/reorder:
+    patch:
+      operationId: reorderServiceTypes
+      summary: 予約区分マスタ一括並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reordered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/service-types/{id}:
     patch:
       operationId: updateServiceType
@@ -4761,6 +4988,42 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/consultations/reorder:
+    patch:
+      operationId: reorderConsultations
+      summary: 診療メニューマスタ一括並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reordered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/consultations/{id}:
@@ -4874,6 +5137,42 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /masters/procedures/reorder:
+    patch:
+      operationId: reorderProcedures
+      summary: 手術・処置マスタ一括並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reordered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/procedures/{id}:
     patch:
       operationId: updateProcedure
@@ -4983,6 +5282,42 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/hospitalization-plans/reorder:
+    patch:
+      operationId: reorderHospitalizationPlans
+      summary: 入院プランマスタ一括並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reordered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/hospitalization-plans/{id}:
@@ -5096,6 +5431,42 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /masters/trimming-courses/reorder:
+    patch:
+      operationId: reorderTrimmingCourses
+      summary: トリミングコースマスタ一括並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reordered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/trimming-courses/{id}:
     patch:
       operationId: updateTrimmingCourse
@@ -5207,6 +5578,42 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /masters/trimming-options/reorder:
+    patch:
+      operationId: reorderTrimmingOptions
+      summary: トリミングオプションマスタ一括並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reordered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/trimming-options/{id}:
     patch:
       operationId: updateTrimmingOption
@@ -5316,6 +5723,42 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/examination-types/reorder:
+    patch:
+      operationId: reorderExaminationTypes
+      summary: 検査種別マスタ一括並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reordered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/examination-types/{id}:
@@ -5731,6 +6174,42 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /masters/checkup-types/reorder:
+    patch:
+      operationId: reorderCheckupTypes
+      summary: 健診種別マスタ一括並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reordered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/checkup-types/{id}:
     patch:
       operationId: updateCheckupType
@@ -5840,6 +6319,42 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/job-titles/reorder:
+    patch:
+      operationId: reorderJobTitles
+      summary: 役職マスタ一括並び替え
+      description: |
+        指定した順序で `sort_order` を一括更新する。
+        リクエスト内の `ids` の並び順が表示順に対応する（`ids[0]` が `sort_order=1`）。
+        存在しない ID または他クリニックの ID を含む場合は 400 を返す。
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+            example:
+              ids: [3, 1, 2]
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: reordered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/job-titles/{id}:
