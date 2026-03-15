@@ -88,7 +88,7 @@ export function ExaminationForm() {
                 <Label className="text-sm text-[#37352F]/60">検査種別</Label>
                 <Select 
                     value={formData.testType} 
-                    onValueChange={(v) => setFormData({...formData, testType: v})}
+                    onValueChange={(v) => setFormData((prev) => ({...prev, testType: v}))}
                 >
                   <SelectTrigger className="h-10 text-sm text-[#37352F] bg-white border-[rgba(55,53,47,0.16)]">
                     <SelectValue placeholder="選択してください" />
@@ -106,7 +106,7 @@ export function ExaminationForm() {
                 <Label className="text-sm text-[#37352F]/60">担当医</Label>
                 <Select 
                     value={formData.doctor} 
-                    onValueChange={(v) => setFormData({...formData, doctor: v})}
+                    onValueChange={(v) => setFormData((prev) => ({...prev, doctor: v}))}
                 >
                   <SelectTrigger className="h-10 text-sm text-[#37352F] bg-white border-[rgba(55,53,47,0.16)]">
                     <SelectValue placeholder="選択してください" />
@@ -126,7 +126,7 @@ export function ExaminationForm() {
               <Label className="text-sm text-[#37352F]/60">ステータス</Label>
               <Select 
                 value={formData.status} 
-                onValueChange={(v: "依頼中" | "検査中" | "完了") => setFormData({...formData, status: v})}
+                onValueChange={(v: "依頼中" | "検査中" | "完了") => setFormData((prev) => ({...prev, status: v}))}
               >
                 <SelectTrigger className="h-10 text-sm text-[#37352F] bg-white border-[rgba(55,53,47,0.16)]">
                   <SelectValue placeholder="選択してください" />
@@ -145,7 +145,7 @@ export function ExaminationForm() {
                 className="h-24 text-sm text-[#37352F] bg-white border-[rgba(55,53,47,0.16)] resize-none" 
                 placeholder="検査結果や備考を入力" 
                 value={formData.resultSummary || ""} 
-                onChange={(e) => setFormData({...formData, resultSummary: e.target.value})}
+                onChange={(e) => setFormData((prev) => ({...prev, resultSummary: e.target.value}))}
               />
             </div>
 

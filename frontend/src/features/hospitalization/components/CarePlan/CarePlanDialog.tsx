@@ -125,7 +125,7 @@ export function CarePlanDialog({
                             <Label>種類</Label>
                             <Select 
                                 value={formData.type} 
-                                onValueChange={(val: "food" | "medicine" | "treatment" | "instruction" | "item") => setFormData({...formData, type: val})}
+                                onValueChange={(val: "food" | "medicine" | "treatment" | "instruction" | "item") => setFormData((prev) => ({...prev, type: val}))}
                             >
                                 <SelectTrigger>
                                     <SelectValue />
@@ -144,7 +144,7 @@ export function CarePlanDialog({
                             <Input 
                                 placeholder="例: ロイヤルカナン消化器サポート" 
                                 value={formData.name || ""}
-                                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                onChange={(e) => setFormData((prev) => ({...prev, name: e.target.value}))}
                             />
                         </div>
                     </div>
@@ -163,7 +163,7 @@ export function CarePlanDialog({
                         <Input 
                             placeholder="例: 30g / 1錠 / 左前��" 
                             value={formData.description || ""}
-                            onChange={(e) => setFormData({...formData, description: e.target.value})}
+                            onChange={(e) => setFormData((prev) => ({...prev, description: e.target.value}))}
                         />
                     </div>
 
@@ -192,7 +192,7 @@ export function CarePlanDialog({
                         <Textarea 
                             placeholder="例: ふやかして与える" 
                             value={formData.notes || ""}
-                            onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                            onChange={(e) => setFormData((prev) => ({...prev, notes: e.target.value}))}
                         />
                     </div>
 
@@ -200,7 +200,7 @@ export function CarePlanDialog({
                         <Label>ステータス</Label>
                         <Select 
                             value={formData.status} 
-                            onValueChange={(val: "active" | "completed" | "discontinued") => setFormData({...formData, status: val})}
+                            onValueChange={(val: "active" | "completed" | "discontinued") => setFormData((prev) => ({...prev, status: val}))}
                         >
                             <SelectTrigger>
                                 <SelectValue />

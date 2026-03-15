@@ -1,5 +1,5 @@
 // React/Framework
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router";
 
 // External
@@ -55,11 +55,11 @@ export function InventoryForm() {
     existingItem?.category ?? "medicine"
   );
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     navigate(paths.inventory.getHref());
-  };
+  }, [navigate]);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
@@ -67,7 +67,7 @@ export function InventoryForm() {
     const minStockLevelStr = formData.get("minStockLevel") as string;
     const expiryDateStr = formData.get("expiryDate") as string;
     const lastRestockedStr = formData.get("lastRestocked") as string;
-    const resolvedCategory = category || (existingItem?.category ?? "medicine");
+    const resolvedCategory = category || "medicine";
 
     if (isEdit && id) {
       const req: UpdateInventoryItemRequest = {
@@ -102,7 +102,7 @@ export function InventoryForm() {
         onSuccess: () => navigate(paths.inventory.getHref()),
       });
     }
-  };
+  }, [navigate, isEdit, id, category, createMutation, updateMutation]);
 
   if (isEdit && isLoading) {
     return (

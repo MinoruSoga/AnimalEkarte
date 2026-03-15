@@ -1,5 +1,5 @@
 // React/Framework
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router";
 
 // Internal
@@ -34,17 +34,17 @@ export function HospitalizationDetail() {
 
     const [showDischargeDialog, setShowDischargeDialog] = useState(false);
 
-    if (isLoading || !hospitalization) {
-        return <div className="p-8 text-center text-gray-500">読み込み中...</div>;
-    }
-
-    const handleDischargeConfirm = async () => {
+    const handleDischargeConfirm = useCallback(async () => {
         const success = await dischargeHospitalization();
         if (success) {
             setShowDischargeDialog(false);
             navigate(paths.hospitalization.getHref());
         }
-    };
+    }, [dischargeHospitalization, navigate]);
+
+    if (isLoading || !hospitalization) {
+        return <div className="p-8 text-center text-gray-500">読み込み中...</div>;
+    }
 
     const commonProps = {
         hospitalization,
