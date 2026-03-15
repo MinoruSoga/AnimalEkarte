@@ -2,6 +2,7 @@
 import type { ReactNode } from "react";
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
+import { paths } from "@/config/paths";
 
 // External
 import { Plus, Building2, X, Trash2 } from "lucide-react";
@@ -263,7 +264,7 @@ export function ClinicMasterSettings() {
           <PageLayout
             title="医院マスタ"
             icon={<Building2 className="size-5 text-[#37352F]" />}
-            onBack={() => navigate("/settings")}
+            onBack={() => navigate(paths.settings.getHref())}
             headerAction={
               <PrimaryButton onClick={handleCreate}>
                 <Plus className="mr-1.5 size-4" />

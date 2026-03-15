@@ -6,6 +6,7 @@ import { useParams, useNavigate } from "react-router";
 import { HeartPulse, Trash2 } from "lucide-react";
 
 // Internal
+import { paths } from "@/config/paths";
 import { Button } from "@/components/ui/button";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout";
@@ -59,7 +60,7 @@ export function MedicalRecordForm() {
 
   useEffect(() => {
     if (shouldRedirectToSelectPet) {
-      navigate("/medical-records/select-pet");
+      navigate(paths.medicalRecords.selectPet.getHref());
     }
   }, [shouldRedirectToSelectPet, navigate]);
 

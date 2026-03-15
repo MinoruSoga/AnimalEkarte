@@ -1,5 +1,6 @@
 import { useState, useEffect, useTransition, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { paths } from "@/config/paths";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetVaccination } from "../api/get-vaccination";
@@ -87,7 +88,7 @@ export function useVaccinationForm(id?: string) {
       if (petFromQuery) {
         setSelectedPets([petFromQuery]);
       } else if (!petId && !isPetLoading) {
-        navigate("/vaccinations/select-pet");
+        navigate(paths.vaccinations.selectPet.getHref());
       }
     }
   }, [isEdit, petId, petFromQuery, isPetLoading, setSelectedPets, navigate]);
@@ -104,7 +105,7 @@ export function useVaccinationForm(id?: string) {
         };
         updateMutation.mutate(
           { id, req },
-          { onSuccess: () => navigate("/vaccinations") }
+          { onSuccess: () => navigate(paths.vaccinations.getHref()) }
         );
       } else {
         const pet = selectedPets[0];
@@ -119,7 +120,7 @@ export function useVaccinationForm(id?: string) {
           remarks: formData.remarks || undefined,
         };
         createMutation.mutate(req, {
-          onSuccess: () => navigate("/vaccinations"),
+          onSuccess: () => navigate(paths.vaccinations.getHref()),
         });
       }
     });

@@ -28,6 +28,7 @@ import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import type { SortOrder } from "@/types";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { paths } from "@/config/paths";
 
 // Relative (direct file import, no barrel — bundle-barrel-imports)
 import { useTrimmingForm } from "../hooks/useTrimmingForm";
@@ -455,7 +456,7 @@ export function TrimmingForm() {
   const handleDeleteClick = useCallback(() => {
     handleDelete(() => {
       markClean();
-      navigate("/trimming");
+      navigate(paths.trimming.getHref());
     });
   }, [handleDelete, markClean, navigate]);
 

@@ -18,6 +18,7 @@ import { getExaminationStatusColor } from "@/utils/status-helpers";
 
 // Relative
 import { useExaminationRecords } from "../hooks/useExaminationRecords";
+import { paths } from "@/config/paths";
 
 export function Examinations() {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export function Examinations() {
   const { data: filteredRecords, isLoading } = useExaminationRecords(searchTerm);
 
   const handleCreate = () => {
-    navigate("/examinations/select-pet");
+    navigate(paths.examinations.selectPet.getHref());
   };
 
   const handleEdit = (id: string) => {

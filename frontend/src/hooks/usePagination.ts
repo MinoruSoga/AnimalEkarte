@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState, useCallback } from "react";
 
 interface UsePaginationOptions {
   /** Items per page (default: 20) */
@@ -39,10 +39,12 @@ export function usePagination<T>(
   const { pageSize = 20, resetKey } = options;
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Reset to page 1 when resetKey changes
-  useEffect(() => {
+  // rerender-derived-state-no-effect: useEffect の代わりにレンダー中に derived state で処理
+  const [prevResetKey, setPrevResetKey] = useState(resetKey);
+  if (prevResetKey !== resetKey) {
+    setPrevResetKey(resetKey);
     setCurrentPage(1);
-  }, [resetKey]);
+  }
 
   const totalCount = data.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));

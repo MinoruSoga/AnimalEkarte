@@ -6,6 +6,7 @@ import { useNavigate } from "react-router";
 import { FileText, Settings } from "lucide-react";
 
 // Internal
+import { paths } from "@/config/paths";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -47,7 +48,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
           <div className="flex items-center justify-between">
             <Label className={`text-sm ${C.text60}`}>主訴区分</Label>
             <button
-              onClick={() => navigate("/settings/interview?tab=chief_complaint")}
+              onClick={() => navigate(paths.settings.interview.chiefComplaint.getHref())}
               className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors flex items-center gap-1`}
               type="button"
             >
@@ -71,7 +72,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
           <div className="flex items-center justify-between">
             <Label className={`text-sm ${C.text60}`}>定型文挿入</Label>
             <button
-              onClick={() => navigate("/settings/interview?tab=interview_template")}
+              onClick={() => navigate(paths.settings.interview.interviewTemplate.getHref())}
               className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors flex items-center gap-1`}
               type="button"
             >

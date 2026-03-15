@@ -10,6 +10,7 @@ import { format, addHours } from "date-fns";
 import { ja } from "date-fns/locale";
 
 // Internal
+import { paths } from "@/config/paths";
 import { C, STYLE } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -153,13 +154,13 @@ export function Dashboard() {
 
     const handleAddClick = useCallback((columnTitle: string) => {
         if (columnTitle === "受付予約") {
-            navigate("/reservations");
+            navigate(paths.reservations.getHref());
         } else {
             toast.info("新規登録", {
                 description: "新規予約・受付画面へ移動します。",
                 duration: 2000
             });
-            navigate("/reservations");
+            navigate(paths.reservations.getHref());
         }
     }, [navigate]);
 
@@ -266,7 +267,7 @@ export function Dashboard() {
                         </Button>
                         <Button
                             className={`${STYLE.confirmPrimary} h-11 text-base tracking-[var(--tracking-notion)]`}
-                            onClick={() => navigate("/reservations")}
+                            onClick={() => navigate(paths.reservations.getHref())}
                         >
                             新規予約
                         </Button>

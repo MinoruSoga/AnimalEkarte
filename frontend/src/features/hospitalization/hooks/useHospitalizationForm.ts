@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
+import { paths } from "@/config/paths";
 import type { TreatmentPlan } from "@/types";
 import type { Pet } from "@/types";
 import type { HospitalizationFormData } from "../types";
@@ -25,7 +26,8 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
   // petId が URL にある場合は React Query でフェッチ（cross-feature 直接呼び出しを回避）
   const { pet: petFromQuery, isLoading: isPetLoading } = usePetInfo(petId ?? "");
 
-  const [formData, setFormData] = useState<HospitalizationFormData>({
+  // rerender-lazy-state-init: Date.now() は impure。lazy init で初回レンダーのみ実行
+  const [formData, setFormData] = useState<HospitalizationFormData>(() => ({
     hospitalizationType: "入院",
     ownerName: "",
     species: "",
@@ -42,7 +44,7 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
     ownerRequest: "",
     staffNotes: "",
     cageId: "",
-  });
+  }));
 
   const handleFormDataChange = (updates: Partial<HospitalizationFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
@@ -84,7 +86,6 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
 
   useEffect(() => {
     if (!hospitalizationData) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 非同期データからのフォーム初期化。React 18が自動バッチするため実害なし
     setFormData((prev) => ({
       ...prev,
       hospitalizationType:
@@ -132,7 +133,7 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
       setSelectedPets([petFromQuery]);
     } else {
       toast.error("ペット情報の取得に失敗しました");
-      navigate("/hospitalization/select-pet");
+      navigate(paths.hospitalization.selectPet.getHref());
     }
   }, [petId, id, petFromQuery, isPetLoading, setSelectedPets, navigate]);
 
@@ -264,7 +265,7 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
           if (location.state?.from) {
             navigate(location.state.from);
           } else {
-            navigate("/hospitalization");
+            navigate(paths.hospitalization.getHref());
           }
         }, 500);
       }

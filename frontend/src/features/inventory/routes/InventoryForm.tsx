@@ -6,6 +6,7 @@ import { useNavigate, useParams } from "react-router";
 import { Package, ArrowLeft, Save } from "lucide-react";
 
 // Internal
+import { paths } from "@/config/paths";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,7 +56,7 @@ export function InventoryForm() {
   );
 
   const handleBack = () => {
-    navigate("/inventory");
+    navigate(paths.inventory.getHref());
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -84,7 +85,7 @@ export function InventoryForm() {
       };
       updateMutation.mutate(
         { id, req },
-        { onSuccess: () => navigate("/inventory") }
+        { onSuccess: () => navigate(paths.inventory.getHref()) }
       );
     } else {
       const req: CreateInventoryItemRequest = {
@@ -98,7 +99,7 @@ export function InventoryForm() {
         supplier: (formData.get("supplier") as string) || undefined,
       };
       createMutation.mutate(req, {
-        onSuccess: () => navigate("/inventory"),
+        onSuccess: () => navigate(paths.inventory.getHref()),
       });
     }
   };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useTransition, useCallback, useMemo } from "react";
+import { useState, useEffect, useTransition, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
 import { usePetSelection } from "@/hooks/use-pet-selection";
@@ -9,6 +9,7 @@ import { useUpdateTrimming } from "../api/update-trimming";
 import { useDeleteTrimming } from "../api/delete-trimming";
 import type { CreateTrimmingRequest, UpdateTrimmingRequest, TrimmingFormData } from "@/types/trimming";
 import type { Pet } from "@/types";
+import { paths } from "@/config/paths";
 
 const defaultFormData: TrimmingFormData = {
   styleRequest: "",
@@ -59,9 +60,11 @@ export function useTrimmingForm(id?: string) {
   const [localOverrides, setLocalOverrides] = useState<Partial<TrimmingFormData>>({});
 
   // 編集モード: サーバーデータを全フィールド復元（初回のみ）
-  const [serverDataLoaded, setServerDataLoaded] = useState(false);
+  // rerender-use-ref-transient-values: フラグを useState → useRef に変更して setState-in-effect を排除
+  const serverDataLoadedRef = useRef(false);
   useEffect(() => {
-    if (isEdit && existingTrimming && !serverDataLoaded) {
+    if (isEdit && existingTrimming && !serverDataLoadedRef.current) {
+      serverDataLoadedRef.current = true;
       setLocalOverrides({
         styleRequest: existingTrimming.styleRequest,
         courseId: existingTrimming.courseId ?? "",
@@ -75,9 +78,8 @@ export function useTrimmingForm(id?: string) {
         staffId: existingTrimming.staffId ?? "",
         staffName: existingTrimming.staff ?? "",
       });
-      setServerDataLoaded(true);
     }
-  }, [isEdit, existingTrimming, serverDataLoaded]);
+  }, [isEdit, existingTrimming]);
 
   // useMemo: formData の参照を安定化して handleSave 等の deps を最小化 (rerender-dependencies)
   const formData = useMemo<TrimmingFormData>(
@@ -115,7 +117,7 @@ export function useTrimmingForm(id?: string) {
       if (petFromQuery) {
         setSelectedPets([petFromQuery]);
       } else if (!petId && !isPetLoading) {
-        navigate("/trimming/select-pet");
+        navigate(paths.trimming.selectPet.getHref());
       }
     }
   }, [isEdit, petId, petFromQuery, isPetLoading, setSelectedPets, navigate]);

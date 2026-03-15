@@ -6,6 +6,7 @@ import { useNavigate } from "react-router";
 import { Plus, Syringe, FileSpreadsheet } from "lucide-react";
 
 // Internal
+import { paths } from "@/config/paths";
 import { Button } from "@/components/ui/button";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout";
@@ -34,7 +35,7 @@ export function VaccinationList() {
   const { data: filteredRecords } = useVaccinations(deferredSearchTerm);
 
   const handleCreate = useCallback(() => {
-    navigate("/vaccinations/select-pet");
+    navigate(paths.vaccinations.selectPet.getHref());
   }, [navigate]);
 
   const handleEdit = useCallback((id: string) => {

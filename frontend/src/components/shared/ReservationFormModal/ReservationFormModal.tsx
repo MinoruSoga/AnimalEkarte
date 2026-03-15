@@ -94,6 +94,7 @@ export function ReservationFormModal({
 
   useEffect(() => {
     if (loadedPet && pendingPetId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 非同期ペットデータのロード完了後に選択状態を設定するパターン
       setSelectedPets([loadedPet]);
       setPendingPetId(null);
     }
@@ -101,6 +102,7 @@ export function ReservationFormModal({
 
   useEffect(() => {
     if (!isOpen) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- モーダル open 時にフォームをリセット。key prop パターンの代替
     setValidationErrors({});
     setMobilePanel("search");
     if (initialData) {

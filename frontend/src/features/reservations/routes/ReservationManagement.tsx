@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Stethoscope } from "lucide-react";
+import { CalendarIcon, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -24,13 +24,15 @@ import { useReservationManagement } from "../hooks/useReservationManagement";
 import { useServiceTypeColorMap } from "@/hooks/use-service-type-color-map";
 
 const MonthView = lazy(() =>
-  import("../components/MonthView").then((m) => ({ default: m.MonthView }))
+  import("../components/MonthView").then((m) => ({ default: m.MonthView })),
 );
 const WeekView = lazy(() =>
-  import("../components/WeekView").then((m) => ({ default: m.WeekView }))
+  import("../components/WeekView").then((m) => ({ default: m.WeekView })),
 );
 const ReservationDetailModal = lazy(() =>
-  import("../components/ReservationDetailModal").then((m) => ({ default: m.ReservationDetailModal }))
+  import("../components/ReservationDetailModal").then((m) => ({
+    default: m.ReservationDetailModal,
+  })),
 );
 
 /** Navigation step per calendar view */
@@ -51,10 +53,14 @@ export function ReservationManagement() {
   const { activeEntries } = useServiceTypeColorMap();
 
   const dynamicColorMap = useMemo(
-    () => new Map(
-      activeEntries.map((e) => [e.name, `${e.color.bg} ${e.color.text} ${e.color.border}`])
-    ),
-    [activeEntries]
+    () =>
+      new Map(
+        activeEntries.map((e) => [
+          e.name,
+          `${e.color.bg} ${e.color.text} ${e.color.border}`,
+        ]),
+      ),
+    [activeEntries],
   );
 
   const {
@@ -83,23 +89,29 @@ export function ReservationManagement() {
   } = useReservationManagement();
 
   const doctorNames = useMemo(
-    () => Array.from(new Set(appointments.map((a) => a.doctor).filter(Boolean))).sort(),
-    [appointments]
+    () =>
+      Array.from(
+        new Set(appointments.map((a) => a.doctor).filter(Boolean)),
+      ).sort(),
+    [appointments],
   );
 
   const filteredAppointments = useMemo(
-    () => doctorFilter === "all" ? appointments : appointments.filter((a) => a.doctor === doctorFilter),
-    [appointments, doctorFilter]
+    () =>
+      doctorFilter === "all"
+        ? appointments
+        : appointments.filter((a) => a.doctor === doctorFilter),
+    [appointments, doctorFilter],
   );
 
   const navigateToday = useCallback(() => setCurrentDate(new Date()), []);
   const navigatePrevious = useCallback(
     () => setCurrentDate((prev) => VIEW_NAV_PREV[view](prev)),
-    [view]
+    [view],
   );
   const navigateNext = useCallback(
     () => setCurrentDate((prev) => VIEW_NAV_NEXT[view](prev)),
-    [view]
+    [view],
   );
 
   return (
@@ -123,36 +135,40 @@ export function ReservationManagement() {
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-4">
             <div className="flex items-center bg-white rounded-md border border-[rgba(55,53,47,0.16)] p-1 shadow-sm">
-              <Button variant="ghost" size="icon" className="h-10 w-10" onClick={navigatePrevious}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10"
+                onClick={navigatePrevious}
+              >
                 <ChevronLeft className="size-5" />
               </Button>
-              <Button variant="ghost" size="sm" className="h-10 px-4 text-sm font-medium" onClick={navigateToday}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-10 px-4 text-sm font-medium"
+                onClick={navigateToday}
+              >
                 今日
               </Button>
-              <Button variant="ghost" size="icon" className="h-10 w-10" onClick={navigateNext}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10"
+                onClick={navigateNext}
+              >
                 <ChevronRight className="size-5" />
               </Button>
             </div>
             <h2 className="text-xl font-bold text-[#37352F] flex items-center gap-2">
               {format(currentDate, "yyyy年 M月", { locale: ja })}
             </h2>
-
-            {/* Reservation Type Legend */}
-            <div className="hidden xl:flex items-center gap-3 ml-4">
-              {activeEntries.map((entry) => (
-                <div key={entry.name} className="flex items-center gap-1.5">
-                  <span className={`w-2.5 h-2.5 rounded-full ${entry.color.dot}`} />
-                  <span className="text-xs text-[#37352F]/60">{entry.name}</span>
-                </div>
-              ))}
-            </div>
           </div>
 
           <div className="flex items-center gap-2">
             {/* Doctor Filter */}
             <Select value={doctorFilter} onValueChange={setDoctorFilter}>
               <SelectTrigger className="w-[160px] bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
-                <Stethoscope className="size-3.5 text-[#37352F]/40 flex-shrink-0" />
                 <SelectValue placeholder="担当医で絞込" />
               </SelectTrigger>
               <SelectContent>
@@ -165,7 +181,10 @@ export function ReservationManagement() {
               </SelectContent>
             </Select>
 
-            <Select value={view} onValueChange={typedSetter(setView, CALENDAR_VIEW_VALUES)}>
+            <Select
+              value={view}
+              onValueChange={typedSetter(setView, CALENDAR_VIEW_VALUES)}
+            >
               <SelectTrigger className="w-[140px] bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
                 <SelectValue placeholder="表示切替" />
               </SelectTrigger>
@@ -180,8 +199,8 @@ export function ReservationManagement() {
           </div>
         </div>
 
-        {/* Legend row for narrow screens (< xl) */}
-        <div className="flex xl:hidden items-center gap-3 mb-3 flex-wrap">
+        {/* Legend row */}
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
           {activeEntries.map((entry) => (
             <div key={entry.name} className="flex items-center gap-1.5">
               <span className={`w-2.5 h-2.5 rounded-full ${entry.color.dot}`} />
@@ -192,14 +211,18 @@ export function ReservationManagement() {
 
         {/* Calendar View */}
         <div className="flex-1 overflow-hidden flex flex-col">
-          <Suspense fallback={
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
-                <p className="mt-2 text-[#37352F]/60 text-sm">読み込み中...</p>
+          <Suspense
+            fallback={
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
+                  <p className="mt-2 text-[#37352F]/60 text-sm">
+                    読み込み中...
+                  </p>
+                </div>
               </div>
-            </div>
-          }>
+            }
+          >
             {view === "month" ? (
               <MonthView
                 currentDate={currentDate}

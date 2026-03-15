@@ -17,6 +17,7 @@ import { getAccountingStatusColor } from "@/utils/status-helpers";
 
 // Relative
 import { useAccountingRecords } from "../hooks/useAccountingRecords";
+import { paths } from "@/config/paths";
 
 // Types
 import type { Accounting as AccountingType } from "../types";
@@ -51,7 +52,7 @@ export function Accounting() {
   };
 
   const handleCreate = () => {
-    navigate("/accounting/select-pet");
+    navigate(paths.accounting.selectPet.getHref());
   };
 
   const handleEdit = (id: string) => {

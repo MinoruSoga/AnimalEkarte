@@ -22,6 +22,7 @@ import { getTrimmingStatusColor } from "@/utils/status-helpers";
 import { usePagination } from "@/hooks/usePagination";
 import { useStaffValidation } from "@/hooks/useStaffValidation";
 import type { TrimmingRecord } from "@/types";
+import { paths } from "@/config/paths";
 
 // Relative (direct file import, no barrel)
 import { useTrimmingRecords } from "../hooks/useTrimmingRecords";
@@ -161,7 +162,7 @@ export function TrimmingList() {
   }, [deleteTargetId, deleteTargetLabel, deleteRecord]);
 
   const handleNew = useCallback(() => {
-    navigate("/trimming/select-pet");
+    navigate(paths.trimming.selectPet.getHref());
   }, [navigate]);
 
   const handleDateFromChange = useCallback((val: string) => {

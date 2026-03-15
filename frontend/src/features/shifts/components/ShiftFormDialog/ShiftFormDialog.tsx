@@ -66,6 +66,7 @@ export function ShiftFormDialog({
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- ダイアログ open 時にフォームをリセット。key prop パターンの代替
       setForm({
         shiftType: editShift?.shift_type ?? "full",
         startTime: editShift?.start_time ?? "",

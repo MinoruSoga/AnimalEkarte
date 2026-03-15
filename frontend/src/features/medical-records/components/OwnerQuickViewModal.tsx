@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ExternalLink } from "lucide-react";
 
 // Internal
+import { paths } from "@/config/paths";
 import { axios } from "@/lib/axios";
 import { C } from "@/lib/design-tokens";
 import {
@@ -133,7 +134,7 @@ export function OwnerQuickViewModal({
         {owner && (
           <div className={`shrink-0 px-5 py-4 border-t ${C.borderLight}`}>
             <Link
-              to={`/owners/${ownerId}`}
+              to={paths.owners.detail.getHref(ownerId)}
               onClick={onClose}
               className={`inline-flex items-center gap-1.5 text-sm ${C.accent} hover:underline underline-offset-2 decoration-[#2383E2]/50`}
             >

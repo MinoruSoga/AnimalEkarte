@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import type { ExaminationRecord } from "@/types";
+import { paths } from "@/config/paths";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
 import {
@@ -46,7 +47,7 @@ export function useExaminationForm(id?: string) {
         setSelectedPets([petFromQuery]);
       } else if (!petId && !isPetLoading) {
         // No petId provided and not loading — redirect to pet selection
-        navigate("/examinations/select-pet");
+        navigate(paths.examinations.selectPet.getHref());
       }
       // If petId is provided but petFromQuery is not yet resolved, wait
     }
@@ -72,7 +73,7 @@ export function useExaminationForm(id?: string) {
       };
       updateMutation.mutate(
         { id, req },
-        { onSuccess: () => navigate("/examinations") }
+        { onSuccess: () => navigate(paths.examinations.getHref()) }
       );
     } else {
       const pet = selectedPets[0];
@@ -86,7 +87,7 @@ export function useExaminationForm(id?: string) {
         machine: formDataWithPet.machine,
       };
       createMutation.mutate(req, {
-        onSuccess: () => navigate("/examinations"),
+        onSuccess: () => navigate(paths.examinations.getHref()),
       });
     }
   };

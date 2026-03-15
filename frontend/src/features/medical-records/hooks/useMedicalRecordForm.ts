@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
+import { paths } from "@/config/paths";
 import { usePetInfo } from "@/hooks/use-pet";
 import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useCreateMedicalRecord } from "../api/create-medical-record";
@@ -38,6 +39,7 @@ export function useMedicalRecordForm(recordId?: string) {
   // 既存カルテデータをフォームに反映
   useEffect(() => {
     if (!existingRecord) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 非同期サーバーデータでフォームを初期化するパターン。React 18 が自動バッチするため実害なし
     if (existingRecord.chiefComplaint) setChiefComplaint(existingRecord.chiefComplaint);
     if (existingRecord.plan) setPlan(existingRecord.plan);
     if (existingRecord.assessment) setAssessment(existingRecord.assessment);
@@ -60,9 +62,9 @@ export function useMedicalRecordForm(recordId?: string) {
     }
 
     if (!recordId) {
-      navigate("/medical-records/select-pet");
+      navigate(paths.medicalRecords.selectPet.getHref());
     } else {
-      navigate("/medical-records");
+      navigate(paths.medicalRecords.getHref());
     }
   };
 
@@ -87,7 +89,7 @@ export function useMedicalRecordForm(recordId?: string) {
       try {
         await createMutation.mutateAsync(req);
         toast.success("カルテを作成しました");
-        navigate(location.state?.from ?? "/medical-records");
+        navigate(location.state?.from ?? paths.medicalRecords.getHref());
       } catch {
         toast.error("カルテの作成に失敗しました");
       }
@@ -103,7 +105,7 @@ export function useMedicalRecordForm(recordId?: string) {
       try {
         await updateMutation.mutateAsync({ id: recordId, req });
         toast.success("カルテを更新しました");
-        navigate(location.state?.from ?? "/medical-records");
+        navigate(location.state?.from ?? paths.medicalRecords.getHref());
       } catch {
         toast.error("カルテの更新に失敗しました");
       }

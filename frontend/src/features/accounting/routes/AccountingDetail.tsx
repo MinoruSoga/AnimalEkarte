@@ -44,6 +44,7 @@ import { Separator } from "@/components/ui/separator";
 import { useGetAccountingDetail } from "../api/get-accounting";
 import { useUpdateAccounting } from "../api/update-accounting";
 import { AccountingDocument } from "../components/AccountingDocument";
+import { paths } from "@/config/paths";
 
 // Types
 import type { Accounting, AccountingItem, PaymentInfo, ItemCategory, PaymentMethod } from "../types";
@@ -265,7 +266,7 @@ export function AccountingDetail() {
         className="print:hidden"
         title="会計精算"
         description={`受付No: ${accounting.id} | ${accounting.ownerName}様 - ${accounting.petName}ちゃん`}
-        onBack={() => navigate("/accounting")}
+        onBack={() => navigate(paths.accounting.getHref())}
         headerAction={
           accounting.status === "completed" ? (
             <div className="flex gap-2">

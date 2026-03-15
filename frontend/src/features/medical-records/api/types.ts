@@ -1,6 +1,9 @@
 import type { MedicalRecord as ApiMedicalRecord } from "@/types/generated/models";
 
-export type BackendMedicalRecord = ApiMedicalRecord;
+// APIレスポンス (medicalRecordResponse) は Go モデルと異なり accounting_id を直接返す
+export type BackendMedicalRecord = ApiMedicalRecord & {
+  accounting_id?: number;
+};
 
 export interface CreateMedicalRecordRequest {
   pet_id: string;

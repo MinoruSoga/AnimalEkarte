@@ -1,4 +1,5 @@
 import type { MedicalRecord } from "@/types";
+import { formatDate } from "@/utils/format/date";
 import type { BackendMedicalRecord } from "./types";
 
 export const transformMedicalRecord = (
@@ -12,7 +13,7 @@ export const transformMedicalRecord = (
   return {
     id: String(record.id ?? 0),
     recordNo: record.record_no,
-    date: record.date,
+    date: formatDate(record.date),
     ownerId: record.owner_id ? String(record.owner_id) : undefined,
     ownerName: record.owner?.owner_name ?? "",
     petId: record.pet_id ? String(record.pet_id) : undefined,
@@ -31,6 +32,6 @@ export const transformMedicalRecord = (
     treatment: record.clinical_plan?.treatment_policy,
     prescription: undefined,
     notes: record.inquiry?.notes,
-    accountingId: undefined,
+    accountingId: record.accounting_id ? String(record.accounting_id) : undefined,
   };
 };

@@ -6,6 +6,7 @@ import { useNavigate, useParams, useLocation, useSearchParams } from "react-rout
 import { Trash2 } from "lucide-react";
 
 // Internal
+import { paths } from "@/config/paths";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -360,7 +361,7 @@ export function VaccinationForm() {
     // 2. Not in edit mode
     // 3. No petId in URL (if petId exists, we wait for it to load)
     if (!selectedPet && !isEdit && !petId) {
-        navigate("/vaccinations/select-pet");
+        navigate(paths.vaccinations.selectPet.getHref());
     }
   }, [selectedPet, isEdit, navigate, petId]);
 
@@ -388,7 +389,7 @@ export function VaccinationForm() {
   // rerender-dependencies: location.state (object) から primitive を抽出
   const fromPath = location.state?.from as string | undefined;
   const handleBack = useCallback(() => {
-    navigate(fromPath ?? "/vaccinations");
+    navigate(fromPath ?? paths.vaccinations.getHref());
   }, [fromPath, navigate]);
 
   // Stable event handler callbacks for memo components

@@ -16,6 +16,7 @@ import { PageLayout } from "@/components/shared/PageLayout";
 // Relative
 import { useExaminationForm } from "../hooks/useExaminationForm";
 import { useMasterItems } from "@/hooks/use-master-items";
+import { paths } from "@/config/paths";
 
 export function ExaminationForm() {
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ export function ExaminationForm() {
 
   useEffect(() => {
     if (!selectedPet && !isEdit && !petId) {
-        navigate("/examinations/select-pet");
+        navigate(paths.examinations.selectPet.getHref());
     }
   }, [selectedPet, isEdit, navigate, petId]);
 
@@ -52,7 +53,7 @@ export function ExaminationForm() {
     if (location.state?.from) {
         navigate(location.state.from);
     } else {
-        navigate("/examinations");
+        navigate(paths.examinations.getHref());
     }
   };
 

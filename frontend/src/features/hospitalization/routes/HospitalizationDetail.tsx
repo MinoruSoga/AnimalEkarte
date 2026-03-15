@@ -13,6 +13,7 @@ import {
     HospitalizationMobileLayout
 } from "../components";
 import { useHospitalizationDetail } from "../hooks/useHospitalizationDetail";
+import { paths } from "@/config/paths";
 
 export function HospitalizationDetail() {
     const { id } = useParams();
@@ -41,7 +42,7 @@ export function HospitalizationDetail() {
         const success = await dischargeHospitalization();
         if (success) {
             setShowDischargeDialog(false);
-            navigate("/hospitalization");
+            navigate(paths.hospitalization.getHref());
         }
     };
 
@@ -59,7 +60,7 @@ export function HospitalizationDetail() {
     return (
         <PageLayout
             title="入院詳細・カルテ"
-            onBack={() => navigate("/hospitalization")}
+            onBack={() => navigate(paths.hospitalization.getHref())}
             headerAction={
                 <HospitalizationDetailActions 
                     hospitalization={hospitalization} 

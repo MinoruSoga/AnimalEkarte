@@ -109,6 +109,7 @@ export function useReservationManagement() {
         isDesignated: false,
         petId,
       };
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- URLパラメータに応じてフォームを自動オープン。間接的なsetStateだが意図的
       handleOpenForm(stub);
     }
   }, [location.search, handleOpenForm]);

@@ -6,6 +6,7 @@ import type { AccountingRecord } from "@/types";
 import type { AccountingItem } from "../types";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetAccounting } from "../api/get-accounting";
+import { paths } from "@/config/paths";
 
 // Helper to calculate amount from accounting items
 function calculateAmountFromItems(items: AccountingItem[]): number {
@@ -58,7 +59,7 @@ export function useAccountingForm(id?: string) {
     if (!isEdit && petId && !initializedRef.current) {
       initializedRef.current = true;
       if (petSelection.selectedPets.length === 0) {
-        navigate("/accounting/select-pet");
+        navigate(paths.accounting.selectPet.getHref());
       }
     }
   }, [isEdit, petId, petSelection.selectedPets.length, navigate, setSelectedPets]);
@@ -83,7 +84,7 @@ export function useAccountingForm(id?: string) {
       if (fromPath) {
         navigate(fromPath);
       } else {
-        navigate("/accounting");
+        navigate(paths.accounting.getHref());
       }
     }, 500);
   };

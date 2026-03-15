@@ -46,6 +46,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { C, STYLE } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 
 // Relative
 import { useOwnerForm } from "../hooks/useOwnerForm";
@@ -421,7 +422,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
   } = useOwnerForm(ownerId, initialOwner, petMutations);
 
   const handleBack = () => {
-    navigate("/owners");
+    navigate(paths.owners.getHref());
   };
 
   // rerender-functional-setstate: setOwnerData・markDirty は両方安定した参照なので
@@ -434,7 +435,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
   const handleSubmit = () => {
     handleSave(() => {
       markClean();
-      navigate("/owners");
+      navigate(paths.owners.getHref());
     });
   };
 

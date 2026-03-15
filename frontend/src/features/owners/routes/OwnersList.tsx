@@ -23,6 +23,7 @@ import { formatWeight } from "@/utils/format/number";
 import { usePagination } from "@/hooks/usePagination";
 import { useTableSort } from "@/hooks/useTableSort";
 import { STYLE } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 // bundle-barrel-imports: バレルindex経由ではなく直接ファイルからimport
 import { deleteOwner } from "../api/delete-owner";
 
@@ -79,7 +80,7 @@ export function OwnersList() {
   const isFiltering = searchTerm !== deferredSearchTerm;
 
   const handleCreate = useCallback(() => {
-    navigate("/owners/new");
+    navigate(paths.owners.new.getHref());
   }, [navigate]);
 
   // rerender-functional-setstate: useCallback で安定した関数参照を維持

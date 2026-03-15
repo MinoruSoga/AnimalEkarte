@@ -27,6 +27,7 @@ import {
 import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { paths } from "@/config/paths";
 import type { MenuItem } from "@/types";
 
 /* ================================================================== */
@@ -169,39 +170,39 @@ export function Sidebar() {
   }, []);
 
   const menuItems: MenuItem[] = useMemo(() => [
-    { icon: <LayoutDashboard className="size-[18px]" />, label: "当日の受付",  path: "/" },
-    { icon: <Users         className="size-[18px]" />, label: "飼主・ペット", path: "/owners" },
-    { icon: <Calendar      className="size-[18px]" />, label: "予約管理",     path: "/reservations" },
-    { icon: <FileText      className="size-[18px]" />, label: "カルテ",       path: "/medical-records" },
-    { icon: <TestTube      className="size-[18px]" />, label: "検査管理",     path: "/examinations" },
-    { icon: <CreditCard    className="size-[18px]" />, label: "会計管理",     path: "/accounting" },
-    { icon: <Bed           className="size-[18px]" />, label: "入院・ホテル", path: "/hospitalization" },
-    { icon: <Syringe       className="size-[18px]" />, label: "予防接種",     path: "/vaccinations" },
+    { icon: <LayoutDashboard className="size-[18px]" />, label: "当日の受付",  path: paths.home.getHref() },
+    { icon: <Users         className="size-[18px]" />, label: "飼主・ペット", path: paths.owners.getHref() },
+    { icon: <Calendar      className="size-[18px]" />, label: "予約管理",     path: paths.reservations.getHref() },
+    { icon: <FileText      className="size-[18px]" />, label: "カルテ",       path: paths.medicalRecords.getHref() },
+    { icon: <TestTube      className="size-[18px]" />, label: "検査管理",     path: paths.examinations.getHref() },
+    { icon: <CreditCard    className="size-[18px]" />, label: "会計管理",     path: paths.accounting.getHref() },
+    { icon: <Bed           className="size-[18px]" />, label: "入院・ホテル", path: paths.hospitalization.getHref() },
+    { icon: <Syringe       className="size-[18px]" />, label: "予防接種",     path: paths.vaccinations.getHref() },
     { icon: <ClipboardCheck className="size-[18px]" />, label: "定期健診",    path: "/checkups" },
-    { icon: <Package       className="size-[18px]" />, label: "在庫管理",     path: "/inventory" },
-    { icon: <CalendarDays  className="size-[18px]" />, label: "シフト管理",   path: "/shifts" },
-    { icon: <Scissors      className="size-[18px]" />, label: "トリミング",   path: "/trimming" },
+    { icon: <Package       className="size-[18px]" />, label: "在庫管理",     path: paths.inventory.getHref() },
+    { icon: <CalendarDays  className="size-[18px]" />, label: "シフト管理",   path: paths.shifts.getHref() },
+    { icon: <Scissors      className="size-[18px]" />, label: "トリミング",   path: paths.trimming.getHref() },
     {
       icon: <Settings className="size-[18px]" />,
       label: "マスタ設定",
-      path: "/settings",
+      path: paths.settings.getHref(),
       subItems: [
-        { icon: <Activity      className="size-[18px]" />, label: "予約区分マスタ",   path: "/settings/service-type" },
+        { icon: <Activity      className="size-[18px]" />, label: "予約区分マスタ",   path: paths.settings.serviceType.getHref() },
         {
           icon: <FileText className="size-[18px]" />,
           label: "カルテ",
           subItems: [
-            { icon: <ClipboardList className="size-[18px]" />, label: "治療プランマスタ", path: "/settings/treatment-items" },
-            { icon: <Pill          className="size-[18px]" />, label: "薬剤マスタ",       path: "/settings/medicine" },
-            { icon: <Clipboard     className="size-[18px]" />, label: "診断病名マスタ",   path: "/settings/diagnosis" },
-            { icon: <ClipboardCheck className="size-[18px]" />, label: "問診マスタ",      path: "/settings/inquiry-template" },
+            { icon: <ClipboardList className="size-[18px]" />, label: "治療プランマスタ", path: paths.settings.treatmentItems.getHref() },
+            { icon: <Pill          className="size-[18px]" />, label: "薬剤マスタ",       path: paths.settings.medicine.getHref() },
+            { icon: <Clipboard     className="size-[18px]" />, label: "診断病名マスタ",   path: paths.settings.diagnosis.getHref() },
+            { icon: <ClipboardCheck className="size-[18px]" />, label: "問診マスタ",      path: paths.settings.inquiryTemplates.getHref() },
           ],
         },
-        { icon: <Bed          className="size-[18px]" />, label: "入院マスタ",       path: "/settings/hospitalization" },
-        { icon: <Building2    className="size-[18px]" />, label: "ケージマスタ",     path: "/settings/cage" },
-        { icon: <Scissors     className="size-[18px]" />, label: "トリミングマスタ", path: "/settings/trimming" },
-        { icon: <Users        className="size-[18px]" />, label: "スタッフマスタ",   path: "/settings/staff" },
-        { icon: <ShieldCheck  className="size-[18px]" />, label: "保険マスタ",       path: "/settings/insurance" },
+        { icon: <Bed          className="size-[18px]" />, label: "入院マスタ",       path: paths.settings.hospitalization.getHref() },
+        { icon: <Building2    className="size-[18px]" />, label: "ケージマスタ",     path: paths.settings.cage.getHref() },
+        { icon: <Scissors     className="size-[18px]" />, label: "トリミングマスタ", path: paths.settings.trimming.getHref() },
+        { icon: <Users        className="size-[18px]" />, label: "スタッフマスタ",   path: paths.settings.staff.getHref() },
+        { icon: <ShieldCheck  className="size-[18px]" />, label: "保険マスタ",       path: paths.settings.insurance.getHref() },
       ],
     },
   ], []);

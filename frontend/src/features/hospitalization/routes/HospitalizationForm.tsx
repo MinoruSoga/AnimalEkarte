@@ -12,6 +12,7 @@ import { PageLayout } from "@/components/shared/PageLayout";
 
 // Relative
 import { useHospitalizationForm } from "../hooks/useHospitalizationForm";
+import { paths } from "@/config/paths";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { HospitalizationBasicInfo } from "../components/HospitalizationBasicInfo";
 import { HospitalizationNoteCard } from "../components/HospitalizationNoteCard";
@@ -52,13 +53,13 @@ export function HospitalizationForm() {
     if (location.state?.from) {
         navigate(location.state.from);
     } else {
-        navigate("/hospitalization");
+        navigate(paths.hospitalization.getHref());
     }
   };
 
   useEffect(() => {
     if (!selectedPet && !isEdit && !petId) {
-        navigate("/hospitalization/select-pet");
+        navigate(paths.hospitalization.selectPet.getHref());
     }
   }, [selectedPet, isEdit, navigate, petId]);
 

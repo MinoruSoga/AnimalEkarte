@@ -6,6 +6,7 @@ import { useNavigate } from "react-router";
 import { Plus, Package, FileSpreadsheet, AlertTriangle } from "lucide-react";
 
 // Internal
+import { paths } from "@/config/paths";
 import { Button } from "@/components/ui/button";
 import { TableCell } from "@/components/ui/table";
 import {
@@ -55,7 +56,7 @@ export function InventoryList() {
   });
 
   const handleCreate = () => {
-    navigate("/inventory/new");
+    navigate(paths.inventory.new.getHref());
   };
 
   const handleEdit = (id: string) => {
