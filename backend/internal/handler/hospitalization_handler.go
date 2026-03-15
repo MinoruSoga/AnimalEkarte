@@ -4,40 +4,11 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
-
-type createHospitalizationInput struct {
-	OwnerID             uint64    `json:"owner_id"              binding:"required"`
-	PetID               uint64    `json:"pet_id"                binding:"required"`
-	HospitalizationType string    `json:"hospitalization_type"  binding:"required"`
-	StartDate           time.Time `json:"start_date"            binding:"required"`
-	EndDate             time.Time `json:"end_date"              binding:"required"`
-	Status              string    `json:"status"`
-	CageID              *uint64   `json:"cage_id"`
-	DoctorID            *uint64   `json:"doctor_id"`
-	Memo                string    `json:"memo"`
-	OwnerRequest        string    `json:"owner_request"`
-	StaffNotes          string    `json:"staff_notes"`
-}
-
-type updateHospitalizationInput struct {
-	OwnerID             *uint64    `json:"owner_id"`
-	PetID               *uint64    `json:"pet_id"`
-	HospitalizationType string     `json:"hospitalization_type"`
-	StartDate           *time.Time `json:"start_date"`
-	EndDate             *time.Time `json:"end_date"`
-	Status              string     `json:"status"`
-	CageID              *uint64    `json:"cage_id"`
-	DoctorID            *uint64    `json:"doctor_id"`
-	Memo                string     `json:"memo"`
-	OwnerRequest        string     `json:"owner_request"`
-	StaffNotes          string     `json:"staff_notes"`
-}
 
 // ListHospitalizations godoc
 func (h *Handler) ListHospitalizations(c *gin.Context) {
@@ -108,9 +79,9 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var input createHospitalizationInput
+	var input createHospitalizationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
@@ -171,9 +142,9 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input updateHospitalizationInput
+	var input updateHospitalizationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
