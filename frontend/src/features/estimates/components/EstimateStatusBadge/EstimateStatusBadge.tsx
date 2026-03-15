@@ -1,4 +1,4 @@
-import { StatusBadge } from '@/components/shared/StatusBadge';
+import { StatusBadge } from '@/components/shared/StatusBadge/StatusBadge';
 import { getEstimateStatusColor } from '@/utils/status-helpers';
 import type { EstimateStatus } from '../../types';
 

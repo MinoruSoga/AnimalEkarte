@@ -1,1 +1,0 @@
-export { VaccinationCard } from "./VaccinationCard";

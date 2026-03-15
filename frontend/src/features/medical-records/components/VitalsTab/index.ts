@@ -1,1 +1,0 @@
-export { VitalsTab } from "./VitalsTab";

@@ -1,1 +1,0 @@
-export { AccountingDocument } from "./AccountingDocument";
