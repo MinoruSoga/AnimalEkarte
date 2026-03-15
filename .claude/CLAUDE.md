@@ -71,7 +71,7 @@ docker compose exec backend go test ./...
 | Frontend テスト | `docker compose exec frontend npm run test:run` |
 | Backend テスト | `docker compose exec backend go test ./... -v` |
 | Backend Lint | `docker compose exec backend golangci-lint run ./...` |
-| Swagger生成 | `docker compose exec backend swag init -g cmd/api/main.go` |
+| 型生成（tygo） | `make codegen`（Goモデル → `models.ts` 自動生成） |
 
 ### ポート
 
@@ -93,7 +93,7 @@ AnimalEkarte/
 │   │   ├── handler/      # HTTPハンドラ + *_request.go + *_response.go
 │   │   ├── service/      # ビジネスロジック + service input DTO + validators.go
 │   │   ├── repository/   # データアクセス（GORM）
-│   │   ├── model/        # GORMモデル（DBスキーマ対応）
+│   │   ├── model/        # GORMモデル（DBスキーマ対応）★ tygo codegen の入力
 │   │   ├── errors/       # センチネルエラー定義
 │   │   ├── middleware/   # 認証・CORS・ログ
 │   │   ├── config/       # 設定
@@ -102,40 +102,44 @@ AnimalEkarte/
 │   └── migrations/       # DBマイグレーション
 ├── frontend/
 │   └── src/
-│       ├── main.tsx      # Viteエントリーポイント
-│       ├── index.css     # グローバルCSS
-│       ├── app/          # アプリケーション層
-│       │   ├── index.tsx     # Appコンポーネント
-│       │   ├── provider.tsx  # プロバイダー統合
-│       │   ├── router.tsx    # ルーター設定
-│       │   └── routes/       # ルート定義
+│       ├── main.tsx          # Viteエントリーポイント
+│       ├── index.css         # グローバルCSS
+│       ├── app/              # アプリケーション層
+│       │   ├── index.tsx     # Appコンポーネント（AppProvider → RouterProvider）
+│       │   ├── provider.tsx  # QueryClientProvider + Toaster（AuthProvider はここに置かない）
+│       │   ├── router.tsx    # createBrowserRouter（inline lazy パターン）
+│       │   └── pages/        # ★ cross-feature合成ページ（複数featureが必要な場合のみ）
+│       ├── assets/           # 静的アセット
 │       ├── components/
-│       │   ├── ui/       # shadcn/ui
-│       │   ├── shared/   # 共有UI
-│       │   ├── layouts/  # Layout, Sidebar
-│       │   └── errors/   # ErrorBoundary
-│       ├── app/          # ルーター、プロバイダ
-│       │   ├── index.tsx
-│       │   ├── provider.tsx
-│       │   ├── router.tsx
-│       │   └── pages/    # ★ cross-feature合成ページ（複数featureが必要な場合のみ）
-│       ├── features/     # 機能別モジュール（16 features）
+│       │   ├── ui/           # shadcn/ui（変更禁止）
+│       │   ├── shared/       # アプリ固有共有UI（Layout含む）
+│       │   └── errors/       # RouteErrorBoundary, RootErrorBoundary
+│       ├── features/         # 機能別モジュール（16 features）
 │       │   └── [feature]/
-│       │       ├── api/
-│       │       ├── components/
-│       │       ├── hooks/
-│       │       ├── types/
-│       │       ├── routes/    # 単一featureのページコンポーネント
-│       │       ├── loaders.ts # React Router loader（必要時のみ）
-│       │       └── index.ts   # 公開API
-│       ├── components/   # ui/, shared/, errors/
-│       ├── hooks/        # 共有hooks
-│       ├── lib/          # ユーティリティ
-│       ├── config/       # paths.ts（型安全URLマップ）
-│       ├── stores/       # Zustand（sidebar状態のみ）
-│       ├── types/        # 共有型定義（generated/models.ts含む）
-│       ├── utils/        # 純粋ユーティリティ関数
-│       └── testing/      # テスト設定
+│       │       ├── api/          # フェッチ関数 + React Query hooks
+│       │       │   ├── get-xxx.ts    # getXxx() 生関数 + useGetXxx() hook
+│       │       │   ├── create-xxx.ts # createXxx() 生関数（複雑フォームは hook なし）
+│       │       │   ├── types.ts      # APIリクエスト/レスポンス型（models.tsから導出）
+│       │       │   ├── transforms.ts # BackendXxx → Xxx 型変換
+│       │       │   └── index.ts      # 明示的named export
+│       │       ├── components/   # feature固有UI
+│       │       ├── hooks/        # useXxxForm, useXxxFilters 等
+│       │       ├── routes/       # 単一featureのページコンポーネント
+│       │       │               # ★ cross-featureが必要な場合は props で受け取り
+│       │       │               #   app/pages/ から実装を注入する（依存逆転）
+│       │       ├── types/        # feature固有型（UI専用・手書きOK）
+│       │       ├── loaders.ts    # React Router loader（必要時のみ）
+│       │       └── index.ts      # Public API（外部公開のみ）
+│       ├── hooks/            # 共有hooks（全feature横断）
+│       ├── lib/              # axios.ts, react-query.ts, utils.ts 等
+│       ├── config/           # paths.ts（型安全URLマップ）
+│       ├── stores/           # Zustand（sidebar状態のみ）
+│       ├── types/
+│       │   ├── generated/    # ★ 自動生成（直接編集禁止）
+│       │   │   └── models.ts # make codegen（tygo）で生成
+│       │   └── ...           # 共有ドメイン型
+│       ├── utils/            # 純粋ユーティリティ関数（format/, constants/ 等）
+│       └── testing/          # テスト設定
 ├── docs/                 # 技術ドキュメント
 ├── CODING_RULES.md       # コーディング規約
 └── docker-compose.yml
@@ -153,13 +157,14 @@ AnimalEkarte/
 | `useCallback` でハンドラを安定化（memo の前提条件） | `OwnerForm.tsx` — `handleInputChange`, `handleDeletePetRequest` |
 | `useState(() => ...)` lazy init | `useOwnerForm.ts` |
 | `useDeferredValue` で検索フィルタを遅延 | `OwnersList.tsx` |
-| `useTransition` で API 書き込みの pending 管理 | `useOwnerForm.ts` |
+| `useTransition` で API 書き込みの pending 管理 | `useOwnerForm.ts` — `startSaveTransition` |
 | `lazy()` + `Suspense` で重いモーダルを遅延ロード | `OwnerForm.tsx` — `PetEditModal` |
 | 静的 JSX はモジュール定数に巻き上げ | `OwnerForm.tsx` — `PET_TABLE_HEADER` |
 | API 由来 JSX リストは `useMemo` でキャッシュ | `PetEditModal.tsx` — `animalSpeciesSelectItems` |
 | loader 内独立フェッチは `Promise.all` で並列化 | `loaders.ts` — `ownersLoader` |
 | 条件レンダーは `? (...) : null`（`&&` 禁止） | `OwnersList.tsx` |
 | barrel index 経由でなく直接ファイル import | `OwnersList.tsx` — `../api/delete-owner` |
+| cross-feature は props 注入（依存逆転） | `app/pages/OwnerFormPage.tsx` — `petMutations` を `OwnerForm` に注入 |
 
 詳細コード例: `frontend/CODING_RULES.md` **Section 12**
 
@@ -186,10 +191,14 @@ export const PatientCard: FC<Props> = () => {};  // ❌
 export const PatientCard = forwardRef(() => {});  // ❌
 ```
 
-### React 19 新hooks
+### React 19 hooks（プロジェクト標準）
 
 ```typescript
-// useActionState: フォームアクション管理
+// ★ useTransition: 複雑フォームの pending 管理（プロジェクト標準）
+const [isSavePending, startSaveTransition] = useTransition();
+startSaveTransition(async () => { await saveOwner(formData); });
+
+// useActionState: シンプルな非制御フォームのみ（FormData を使う場合）
 const [state, formAction, isPending] = useActionState(submitAction, initialState);
 
 // useOptimistic: 楽観的UI更新
@@ -197,55 +206,74 @@ const [optimisticItems, addOptimisticItem] = useOptimistic(items, updateFn);
 
 // use(): Promise/Context直接読み取り
 const data = use(fetchPromise);
-const theme = use(ThemeContext);
 
-// useFormStatus: フォーム送信状態
+// useFormStatus: フォームの子コンポーネント内でのサブミット状態
 const { pending } = useFormStatus();
 ```
 
 ### アーキテクチャルール
 
 ```
-1. Feature間の直接importは禁止 → app/pages/ で合成
+1. Feature間の直接importは禁止 → app/pages/ で合成（依存逆転）
 2. 単方向コードフロー: shared → features → app
-3. `export *` 禁止 → 明示的named exportは可
+3. `export *` 禁止 → 明示的named exportのみ
 4. 絶対パスimport: @/ エイリアス使用
 5. routes は features/[feature]/routes/ に置く（bulletproof-react の app/routes/ は採用しない）
 6. cross-feature合成は app/pages/ + props注入（依存逆転）
+7. AuthProvider は router.tsx 内の保護ルートにのみ配置（provider.tsx には置かない）
+8. loader は直接 axios.get()（queryClient.prefetchQuery は使わない）
 ```
 
-### Feature構成パターン
+### Routerパターン（inline lazy）
+
+```typescript
+// 単一 feature のみ: features/ から直接 import
+{ index: true, lazy: async () => {
+    const [{ OwnersList }, { ownersLoader }] = await Promise.all([
+      import("@/features/owners/routes/OwnersList"),
+      import("@/features/owners/loaders"),
+    ]);
+    return { Component: OwnersList, loader: ownersLoader };
+}},
+
+// cross-feature合成: app/pages/ の合成ページを import
+{ path: "new", lazy: async () => {
+    const { OwnerFormPage } = await import("@/app/pages/OwnerFormPage");
+    return { Component: OwnerFormPage };
+}},
+```
+
+### 型管理フロー
 
 ```
-features/[feature]/
-├── api/                # API呼び出し + React Query hooks
-│   ├── get-xxx.ts      # useQuery hooks
-│   ├── create-xxx.ts   # useMutation hooks
-│   ├── types.ts        # APIリクエスト/レスポンス型
-│   ├── transforms.ts   # Backend ↔ Frontend 変換
-│   └── index.ts        # 明示的named export
-├── components/         # Feature固有UI
-├── hooks/              # ビジネスロジック・UI状態
-├── routes/             # 単一featureのページコンポーネント
-│                       # ★ 複数featureが必要な場合は props で受け取り
-│                       #   app/pages/ から実装を注入する（依存逆転）
-├── types/              # ドメイン型定義
-├── loaders.ts          # React Router loader（必要時のみ）
-└── index.ts            # Public API（外部公開のみ）
+backend/internal/model/*.go
+    ↓ make codegen（tygo）
+src/types/generated/models.ts   ← 自動生成・直接編集禁止
+    ↓
+features/xxx/api/transforms.ts  ← BackendXxx → transformXxx() → Xxx（ReturnType で推論）
+features/xxx/api/types.ts       ← Omit/Partial で導出（手書き interface 禁止）
 ```
 
 **詳細は [Frontend規約](../frontend/CLAUDE.md) を参照**
 
 ### 禁止事項
 
-| 禁止 | 理由 |
-|------|------|
-| `any` 型 | 型安全性の破壊 |
-| `FC` / `React.FC` | React 19では不要 |
-| `forwardRef` | React 19ではref as prop |
-| feature間import | アーキテクチャ違反 |
-| `export *` | tree-shaking阻害 |
-| `console.log` 放置 | 本番コード汚染 |
+| 禁止 | 理由 | 代替 |
+|------|------|------|
+| `any` 型 | 型安全性の破壊 | `unknown` + 型ガード |
+| `FC` / `React.FC` | React 19では不要 | 関数宣言 |
+| `forwardRef` | React 19ではref as prop | ref を prop として受け取る |
+| feature間import | アーキテクチャ違反 | app/pages/ で合成 |
+| `export *` | tree-shaking阻害 | 明示的named export |
+| `console.log` 放置 | 本番コード汚染 | 削除 |
+| `&&` 条件レンダー | 0/空文字が漏れる | `? (...) : null` |
+| barrel index 経由 import | tree-shaking阻害 | 直接ファイル import |
+| `useOwners` 等（動詞省略） | 命名規則違反 | `useGetOwners`（動詞 + エンティティ） |
+| `queryClient.prefetchQuery` in loader | このプロジェクトは直接 axios パターン | `axios.get()` で直接フェッチ |
+| `localStorage` に token 保存 | XSS で盗まれる | httpOnly Cookie + `withCredentials: true` |
+| `useState(false)` + `setIsPending` | try-finally でリセット漏れ | `useTransition` |
+| `useActionState` を複雑フォームに使う | 制御コンポーネントと相性が悪い | `useTransition` + `hooks/useXxxForm.ts` |
+| `generated/models.ts` 直接編集 | `make codegen` で上書きされる | Goモデルを修正して `make codegen` |
 
 ---
 
@@ -285,6 +313,8 @@ features/[feature]/
 | 定数 | UPPER_SNAKE_CASE | `API_BASE_URL` |
 | ファイル | kebab-case | `patient-card.tsx` |
 | 型・Interface | PascalCase | `Patient`, `ApiResponse` |
+| API query hook | `useGet` + エンティティ | `useGetOwners`, `useGetOwner` |
+| フォーム hook | `use` + エンティティ + `Form` | `useOwnerForm` |
 
 ---
 
@@ -311,6 +341,7 @@ features/[feature]/
 | User | `ekarte_user` |
 
 マイグレーションは `backend/migrations/` に配置。Docker起動時に自動実行。
+リリース前はDBリセット運用のため `001_init.sql` を直接編集してよい（incremental migration 不要）。
 
 ---
 
@@ -321,6 +352,7 @@ features/[feature]/
 | [コーディング規約](../CODING_RULES.md) | 全体ルール |
 | [Backend Claude設定](../backend/CLAUDE.md) | Backend実装パターン・禁止事項 |
 | [Frontend Claude設定](../frontend/CLAUDE.md) | Frontend実装パターン・禁止事項 |
+| [Frontend詳細規約](../frontend/CODING_RULES.md) | React 19 / TS 完全ルール集 |
 | [アーキテクチャ設計](../docs/architecture.md) | Backendアーキテクチャ詳細 |
 | [データフロー](../docs/data-flow.md) | リクエスト〜レスポンスのデータフロー |
 | [ERD](../docs/ERD.md) | データベース設計 |
