@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { useShifts } from "../api/get-shifts";
+import { useGetShifts } from "../api/get-shifts";
 import { useStaffsForShift } from "../api/get-staffs";
 import { ShiftCalendar as ShiftCalendarGrid } from "../components/ShiftCalendar/ShiftCalendar";
 
@@ -15,7 +15,7 @@ export function ShiftCalendarPage() {
   const [yearMonth, setYearMonth] = useState<string>(getInitialYearMonth);
   const [selectedStaffId, setSelectedStaffId] = useState<string>("all");
 
-  const shiftsQuery = useShifts({
+  const shiftsQuery = useGetShifts({
     date: yearMonth,
     staff_id: selectedStaffId !== "all" ? selectedStaffId : undefined,
   });

@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PageLayout } from '@/components/shared/PageLayout/PageLayout';
-import { useEstimate } from '../api/get-estimate';
+import { useGetEstimate } from '../api/get-estimate';
 import { useEstimateForm } from '../hooks/useEstimateForm';
 import type { EstimateStatus } from '../types';
 
@@ -24,7 +24,7 @@ const STATUS_OPTIONS: { value: EstimateStatus; label: string }[] = [
 ];
 
 function EstimateFormContent({ id }: { id?: string }) {
-  const { data: estimate, isLoading } = useEstimate(id);
+  const { data: estimate, isLoading } = useGetEstimate(id);
   const { form, handleChange, handleSubmit, handleCancel, isPending } = useEstimateForm(
     id ? estimate : undefined
   );

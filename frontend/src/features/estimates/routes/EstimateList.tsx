@@ -10,7 +10,7 @@ import { PrimaryButton } from '@/components/shared/Form/PrimaryButton';
 import { RowActionDropdown } from '@/components/shared/RowActionDropdown';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog/ConfirmDialog';
 import { EstimateStatusBadge } from '../components/EstimateStatusBadge/EstimateStatusBadge';
-import { useEstimates } from '../api/get-estimates';
+import { useGetEstimates } from '../api/get-estimates';
 import { useDeleteEstimate } from '../api/delete-estimate';
 import type { Estimate, EstimateStatus } from '../types';
 
@@ -43,7 +43,7 @@ export function EstimateList() {
 
   const deferredSearch = useDeferredValue(searchTerm);
 
-  const { data: result, isLoading, isError } = useEstimates(
+  const { data: result, isLoading, isError } = useGetEstimates(
     statusFilter !== 'all' ? { status: statusFilter } : undefined
   );
   const { mutate: deleteEstimate } = useDeleteEstimate();

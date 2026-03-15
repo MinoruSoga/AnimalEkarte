@@ -86,7 +86,7 @@ export async function updateCompany(req: UpdateCompanyRequest): Promise<Company>
 // TanStack Query hooks
 // ─────────────────────────────────────────────────
 
-export function useCompany() {
+export function useGetCompany() {
   return useQuery({
     queryKey: COMPANY_QUERY_KEY,
     queryFn: getCompany,

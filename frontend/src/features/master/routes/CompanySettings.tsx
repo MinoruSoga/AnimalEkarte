@@ -11,7 +11,7 @@ import { toast } from "sonner";
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
-import { useCompany, useUpdateCompany } from "@/features/master/api/company";
+import { useGetCompany, useUpdateCompany } from "@/features/master/api/company";
 import type { UpdateCompanyRequest } from "@/features/master/api/company";
 
 // ─────────────────────────────────────────────────
@@ -72,7 +72,7 @@ export function CompanySettings() {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<CompanyFormData>(DEFAULT_FORM_DATA);
 
-  const { data: company, isLoading } = useCompany();
+  const { data: company, isLoading } = useGetCompany();
   const updateMutation = useUpdateCompany();
 
   useEffect(() => {

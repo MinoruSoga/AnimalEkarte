@@ -6,7 +6,7 @@ import { PageLayout } from '@/components/shared/PageLayout/PageLayout';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog/ConfirmDialog';
 import { EstimateStatusBadge } from '../components/EstimateStatusBadge/EstimateStatusBadge';
 import { EstimateLineItems } from '../components/EstimateLineItems/EstimateLineItems';
-import { useEstimate } from '../api/get-estimate';
+import { useGetEstimate } from '../api/get-estimate';
 import { useDeleteEstimate } from '../api/delete-estimate';
 
 export function EstimateDetail() {
@@ -14,7 +14,7 @@ export function EstimateDetail() {
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  const { data: estimate, isLoading, isError } = useEstimate(id);
+  const { data: estimate, isLoading, isError } = useGetEstimate(id);
   const { mutate: deleteEstimate, isPending: isDeleting } = useDeleteEstimate();
 
   const handleDelete = () => {

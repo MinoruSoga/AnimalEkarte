@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import type { Appointment, ColumnData } from "@/types";
 // bundle-barrel-imports: barrel経由ではなく各ファイルから直接import
 import { useDashboardData, todayISO } from "../api/get-dashboard";
-import { useStaffs, buildStaffMap } from "../api/get-staffs";
+import { useGetStaffs, buildStaffMap } from "../api/get-staffs";
 import { useUpdateAppointmentStatus } from "../api/update-appointment-status";
 import { COLUMN_TITLE_TO_STATUS, DASHBOARD_COLUMNS } from "../api/transforms";
 import type { DashboardColumn, DashboardAppointment } from "../api/types";
@@ -38,7 +38,7 @@ function toColumnData(col: DashboardColumn, staffMap: Map<string, string>): Colu
 export function useDashboardKanban() {
   const today = useMemo(() => todayISO(), []);
   const { data: apiColumns, isLoading } = useDashboardData(today);
-  const { data: staffs } = useStaffs();
+  const { data: staffs } = useGetStaffs();
   const updateStatusMutation = useUpdateAppointmentStatus();
 
   // staffId → スタッフ名のMap（APIレスポンス変換で使用）

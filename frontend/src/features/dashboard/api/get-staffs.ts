@@ -10,7 +10,7 @@ export interface BackendStaff {
 }
 
 /** マスタのスタッフ一覧を取得する */
-export function useStaffs() {
+export function useGetStaffs() {
   return useQuery({
     queryKey: ["masters", "staffs"],
     queryFn: async () => {

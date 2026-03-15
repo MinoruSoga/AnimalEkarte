@@ -29,7 +29,7 @@ export async function getEstimates(params?: GetEstimatesParams): Promise<Estimat
   };
 }
 
-export function useEstimates(params?: GetEstimatesParams) {
+export function useGetEstimates(params?: GetEstimatesParams) {
   return useQuery({
     queryKey: ['estimates', params],
     queryFn: () => getEstimates(params),

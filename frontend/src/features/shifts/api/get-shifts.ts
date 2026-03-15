@@ -18,7 +18,7 @@ export async function getShifts(params: GetShiftsParams): Promise<Shift[]> {
   return (data ?? []).map(transformShift);
 }
 
-export function useShifts(params: GetShiftsParams) {
+export function useGetShifts(params: GetShiftsParams) {
   return useQuery({
     queryKey: ["shifts", params.date, params.staff_id],
     queryFn: () => getShifts(params),

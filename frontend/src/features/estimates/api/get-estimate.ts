@@ -9,7 +9,7 @@ export async function getEstimate(id: string): Promise<Estimate> {
   return transformEstimate(data);
 }
 
-export function useEstimate(id: string | undefined) {
+export function useGetEstimate(id: string | undefined) {
   return useQuery({
     queryKey: ['estimates', id],
     queryFn: () => getEstimate(id!),
