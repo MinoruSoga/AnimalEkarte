@@ -246,6 +246,10 @@ function ChildTreatmentRow({
 interface TreatmentTabContentProps extends TreatmentTabConfig {
   editTarget: TreatmentItem | "new" | null;
   onEditTargetChange: (v: TreatmentItem | "new" | null) => void;
+  onSave: (data: TreatmentFormData) => void;
+  onDeleteRequest: () => void;
+  pendingDelete: TreatmentItem | null;
+  onPendingDeleteChange: (item: TreatmentItem | null) => void;
 }
 
 function TreatmentTabContent({
@@ -253,17 +257,14 @@ function TreatmentTabContent({
   entityLabel,
   emptyMessage,
   searchPlaceholder,
-  onCreate,
-  onUpdate,
   onDelete,
   onReorder,
-  editTarget,
   onEditTargetChange,
+  pendingDelete,
+  onPendingDeleteChange,
 }: TreatmentTabContentProps) {
-  const selectedItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
   const [searchTerm, setSearchTerm] = useState("");
   const deferredSearch = useDeferredValue(searchTerm);
-  const [pendingDelete, setPendingDelete] = useState<TreatmentItem | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const treeItems = useMemo(() => buildTree(rawData ?? []), [rawData]);
@@ -319,147 +320,105 @@ function TreatmentTabContent({
     onEditTargetChange(null);
   }, [onEditTargetChange]);
 
-  const handleDeleteRequest = useCallback(() => {
-    setPendingDelete(selectedItem);
-  }, [selectedItem]);
-
-  const handleSave = useCallback((data: TreatmentFormData) => {
-    if (!data.name.trim()) {
-      toast.error("名称は必須です");
-      return;
-    }
-    if (selectedItem) {
-      onUpdate(selectedItem.id, data, {
-        onSuccess: () => {
-          toast.success("更新しました");
-          handleClose();
-        },
-        onError: () => toast.error("更新に失敗しました"),
-      });
-    } else {
-      onCreate(data, {
-        onSuccess: () => {
-          toast.success("登録しました");
-          handleClose();
-        },
-        onError: () => toast.error("登録に失敗しました"),
-      });
-    }
-  }, [selectedItem, onUpdate, onCreate, handleClose]);
-
   const handleDeleteConfirm = useCallback(() => {
     if (!pendingDelete) return;
     onDelete(pendingDelete.id, {
       onSuccess: () => {
-        setPendingDelete(null);
+        onPendingDeleteChange(null);
         handleClose();
         toast.success("削除しました");
       },
       onError: () => toast.error("削除に失敗しました"),
     });
-  }, [pendingDelete, onDelete, handleClose]);
+  }, [pendingDelete, onDelete, handleClose, onPendingDeleteChange]);
 
   return (
     <>
-      <div className="flex h-full">
-        {/* Table area */}
-        <div className="flex flex-col gap-4 flex-1 min-w-0">
-          <SearchFilterBar
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            placeholder={searchPlaceholder}
-            count={totalCount}
-          />
+      <div className="flex flex-col gap-4">
+        <SearchFilterBar
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          placeholder={searchPlaceholder}
+          count={totalCount}
+        />
 
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={filteredRoots.map((r) => r.id)}
+            strategy={verticalListSortingStrategy}
           >
-            <SortableContext
-              items={filteredRoots.map((r) => r.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <DataTable
-                columns={TREATMENT_COLUMNS}
-                data={flatRows}
-                emptyMessage={emptyMessage}
-                renderRow={(row) => {
-                  if (row.type === "root") {
-                    return (
-                      <SortableDataTableRow
-                        key={row.item.id}
-                        id={row.item.id}
-                        onClick={() => handleEdit(row.item)}
-                      >
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            {row.item.children.length > 0 ? (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleExpanded(row.item.id);
-                                }}
-                                className={`size-[22px] flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} transition-colors shrink-0`}
-                              >
-                                {row.isExpanded ? (
-                                  <ChevronDown className="size-3.5" />
-                                ) : (
-                                  <ChevronRight className="size-3.5" />
-                                )}
-                              </button>
-                            ) : (
-                              <span className="size-[22px] shrink-0" />
-                            )}
-                            <span className={`text-sm font-medium ${C.text}`}>{row.item.name}</span>
-                            {row.item.children.length > 0 ? (
-                              <span className={`text-xs ${C.text25} ml-0.5`}>{row.item.children.length}</span>
-                            ) : null}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <span className={`text-sm ${C.text70} font-mono`}>
-                            {row.item.price > 0 ? `¥${row.item.price.toLocaleString()}` : "-"}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <NotionStatusPill isActive={row.item.isActive} />
-                        </TableCell>
-                        <TableCell className="p-0 text-right">
-                          <RowActionButton onClick={() => handleEdit(row.item)} />
-                        </TableCell>
-                      </SortableDataTableRow>
-                    );
-                  }
+            <DataTable
+              columns={TREATMENT_COLUMNS}
+              data={flatRows}
+              emptyMessage={emptyMessage}
+              renderRow={(row) => {
+                if (row.type === "root") {
                   return (
-                    <ChildTreatmentRow
+                    <SortableDataTableRow
                       key={row.item.id}
-                      item={row.item}
-                      onEdit={() => handleEdit(row.item)}
-                    />
+                      id={row.item.id}
+                      onClick={() => handleEdit(row.item)}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {row.item.children.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleExpanded(row.item.id);
+                              }}
+                              className={`size-[22px] flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} transition-colors shrink-0`}
+                            >
+                              {row.isExpanded ? (
+                                <ChevronDown className="size-3.5" />
+                              ) : (
+                                <ChevronRight className="size-3.5" />
+                              )}
+                            </button>
+                          ) : (
+                            <span className="size-[22px] shrink-0" />
+                          )}
+                          <span className={`text-sm font-medium ${C.text}`}>{row.item.name}</span>
+                          {row.item.children.length > 0 ? (
+                            <span className={`text-xs ${C.text25} ml-0.5`}>{row.item.children.length}</span>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className={`text-sm ${C.text70} font-mono`}>
+                          {row.item.price > 0 ? `¥${row.item.price.toLocaleString()}` : "-"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <NotionStatusPill isActive={row.item.isActive} />
+                      </TableCell>
+                      <TableCell className="p-0 text-right">
+                        <RowActionButton onClick={() => handleEdit(row.item)} />
+                      </TableCell>
+                    </SortableDataTableRow>
                   );
-                }}
-              />
-            </SortableContext>
-          </DndContext>
-        </div>
-
-        {/* Side peek */}
-        {editTarget !== null ? (
-          <TreatmentItemSidePanel
-            key={selectedItem ? String(selectedItem.id) : "new-item"}
-            item={selectedItem}
-            onClose={handleClose}
-            onSave={handleSave}
-            onDeleteRequest={handleDeleteRequest}
-          />
-        ) : null}
+                }
+                return (
+                  <ChildTreatmentRow
+                    key={row.item.id}
+                    item={row.item}
+                    onEdit={() => handleEdit(row.item)}
+                  />
+                );
+              }}
+            />
+          </SortableContext>
+        </DndContext>
       </div>
 
       <ConfirmDialog
         open={pendingDelete !== null}
-        onClose={() => setPendingDelete(null)}
+        onClose={() => onPendingDeleteChange(null)}
         title={`${entityLabel}を削除しますか？`}
         description={`「${pendingDelete?.name}」を削除します。この操作は取り消せません。`}
         confirmLabel="削除"
@@ -479,10 +438,12 @@ export function TreatmentPlanMaster() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") ?? "consultation";
   const [editTarget, setEditTarget] = useState<TreatmentItem | "new" | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<TreatmentItem | null>(null);
 
   const handleTabChange = useCallback((tab: string) => {
     setSearchParams({ tab });
     setEditTarget(null);
+    setPendingDelete(null);
   }, [setSearchParams]);
 
   // ── Consultations ──────────────────────────────────
@@ -710,52 +671,100 @@ export function TreatmentPlanMaster() {
     checkupData, createCheckup, updateCheckup, deleteCheckup, reorderCheckups,
   ]);
 
-  return (
-    <PageLayout
-      title="治療プランマスタ"
-      icon={<Stethoscope className="size-5 text-[#37352F]" />}
-      onBack={() => navigate(paths.settings.getHref())}
-      maxWidth="max-w-full"
-      headerAction={
-        <PrimaryButton onClick={() => setEditTarget("new")}>
-          <Plus className="mr-1.5 size-4" />
-          新規登録
-        </PrimaryButton>
-      }
-    >
-      <TabsPrimitive.Root
-        value={activeTab}
-        onValueChange={handleTabChange}
-        className="flex flex-col gap-4"
-      >
-        <TabsPrimitive.List
-          className={`flex h-9 border-b ${C.borderLight} gap-0`}
-        >
-          {TABS.map((tab) => (
-            <TabsPrimitive.Trigger
-              key={tab.value}
-              value={tab.value}
-              className={`h-9 border-b-2 border-b-transparent px-4 text-sm ${C.text60} outline-none transition-colors cursor-pointer
-                data-[state=active]:border-b-[#37352F] data-[state=active]:text-[#37352F] data-[state=active]:font-medium`}
-            >
-              {tab.label}
-            </TabsPrimitive.Trigger>
-          ))}
-        </TabsPrimitive.List>
+  const selectedItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
+  const currentConfig = tabConfigs[activeTab];
 
-        {TABS.map((tab) => {
-          const config = tabConfigs[tab.value];
-          return (
-            <TabsPrimitive.Content key={tab.value} value={tab.value} className="mt-4">
-              <TreatmentTabContent
-                {...config}
-                editTarget={editTarget}
-                onEditTargetChange={setEditTarget}
-              />
-            </TabsPrimitive.Content>
-          );
-        })}
-      </TabsPrimitive.Root>
-    </PageLayout>
+  const handleClose = useCallback(() => setEditTarget(null), []);
+
+  const handleSave = useCallback((data: TreatmentFormData) => {
+    if (!data.name.trim()) {
+      toast.error("名称は必須です");
+      return;
+    }
+    if (!currentConfig) return;
+    if (selectedItem) {
+      currentConfig.onUpdate(selectedItem.id, data, {
+        onSuccess: () => { toast.success("更新しました"); handleClose(); },
+        onError: () => toast.error("更新に失敗しました"),
+      });
+    } else {
+      currentConfig.onCreate(data, {
+        onSuccess: () => { toast.success("登録しました"); handleClose(); },
+        onError: () => toast.error("登録に失敗しました"),
+      });
+    }
+  }, [currentConfig, selectedItem, handleClose]);
+
+  const handleDeleteRequest = useCallback(() => {
+    setPendingDelete(selectedItem);
+  }, [selectedItem]);
+
+  return (
+    <>
+      <div className="flex h-full">
+        <div className="flex-1 min-w-0">
+          <PageLayout
+            title="治療プランマスタ"
+            icon={<Stethoscope className="size-5 text-[#37352F]" />}
+            onBack={() => navigate(paths.settings.getHref())}
+            maxWidth="max-w-full"
+            headerAction={
+              <PrimaryButton onClick={() => setEditTarget("new")}>
+                <Plus className="mr-1.5 size-4" />
+                新規登録
+              </PrimaryButton>
+            }
+          >
+            <TabsPrimitive.Root
+              value={activeTab}
+              onValueChange={handleTabChange}
+              className="flex flex-col gap-4"
+            >
+              <TabsPrimitive.List
+                className={`flex h-9 border-b ${C.borderLight} gap-0`}
+              >
+                {TABS.map((tab) => (
+                  <TabsPrimitive.Trigger
+                    key={tab.value}
+                    value={tab.value}
+                    className={`h-9 border-b-2 border-b-transparent px-4 text-sm ${C.text60} outline-none transition-colors cursor-pointer
+                      data-[state=active]:border-b-[#37352F] data-[state=active]:text-[#37352F] data-[state=active]:font-medium`}
+                  >
+                    {tab.label}
+                  </TabsPrimitive.Trigger>
+                ))}
+              </TabsPrimitive.List>
+
+              {TABS.map((tab) => {
+                const config = tabConfigs[tab.value];
+                return (
+                  <TabsPrimitive.Content key={tab.value} value={tab.value} className="mt-4">
+                    <TreatmentTabContent
+                      {...config}
+                      editTarget={editTarget}
+                      onEditTargetChange={setEditTarget}
+                      onSave={handleSave}
+                      onDeleteRequest={handleDeleteRequest}
+                      pendingDelete={pendingDelete}
+                      onPendingDeleteChange={setPendingDelete}
+                    />
+                  </TabsPrimitive.Content>
+                );
+              })}
+            </TabsPrimitive.Root>
+          </PageLayout>
+        </div>
+
+        {editTarget !== null ? (
+          <TreatmentItemSidePanel
+            key={selectedItem ? String(selectedItem.id) : "new-item"}
+            item={selectedItem}
+            onClose={handleClose}
+            onSave={handleSave}
+            onDeleteRequest={handleDeleteRequest}
+          />
+        ) : null}
+      </div>
+    </>
   );
 }

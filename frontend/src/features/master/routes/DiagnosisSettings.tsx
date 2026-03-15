@@ -242,15 +242,10 @@ interface DiagnosisCategoryTabProps {
   onEditTargetChange: (v: DiagnosisCategory | "new" | null) => void;
 }
 
-function DiagnosisCategoryTab({ editTarget, onEditTargetChange }: DiagnosisCategoryTabProps) {
+function DiagnosisCategoryTab({ editTarget: _editTarget, onEditTargetChange }: DiagnosisCategoryTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [pendingDelete, setPendingDelete] = useState<DiagnosisCategory | null>(null);
-  const [, startSaveTransition] = useTransition();
 
   const { data: rawCategories } = useGetDiagnosisCategories();
-  const createMutation = useCreateDiagnosisCategory();
-  const updateMutation = useUpdateDiagnosisCategory();
-  const deleteMutation = useDeleteDiagnosisCategory();
   const reorderMutation = useReorderDiagnosisCategories();
 
   const { orderedItems: orderedCategories, sensors, handleDragEnd: handleCategoryDragEnd } =
@@ -270,132 +265,52 @@ function DiagnosisCategoryTab({ editTarget, onEditTargetChange }: DiagnosisCateg
     return orderedCategories.filter((c) => c.name.toLowerCase().includes(lower));
   }, [orderedCategories, deferredSearch]);
 
-  const handleClose = useCallback(() => onEditTargetChange(null), [onEditTargetChange]);
-
-  const handleSave = useCallback(
-    (data: DiagnosisCategoryFormData) => {
-      if (!data.name.trim()) {
-        toast.error("カテゴリ名は必須です");
-        return;
-      }
-
-      // rerender-transitions: API書き込みを非緊急マーク
-      startSaveTransition(() => {
-        if (editTarget !== null && editTarget !== "new") {
-          const req: UpdateDiagnosisCategoryRequest = {
-            name: data.name,
-            description: data.description || undefined,
-            is_active: data.isActive,
-          };
-          updateMutation.mutate(
-            { id: editTarget.id, req },
-            {
-              onSuccess: () => { toast.success("更新しました"); handleClose(); },
-              onError: () => toast.error("更新に失敗しました"),
-            },
-          );
-        } else {
-          const req: CreateDiagnosisCategoryRequest = {
-            name: data.name,
-            description: data.description || undefined,
-            is_active: true,
-          };
-          createMutation.mutate(req, {
-            onSuccess: () => { toast.success("登録しました"); handleClose(); },
-            onError: () => toast.error("登録に失敗しました"),
-          });
-        }
-      });
-    },
-    [editTarget, updateMutation, createMutation, handleClose],
-  );
-
-  const handleDeleteConfirm = useCallback(() => {
-    if (!pendingDelete) return;
-    deleteMutation.mutate(pendingDelete.id, {
-      onSuccess: () => {
-        setPendingDelete(null);
-        handleClose();
-        toast.success("削除しました");
-      },
-      onError: () => toast.error("削除に失敗しました"),
-    });
-  }, [pendingDelete, deleteMutation, handleClose]);
-
-  const panelItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
-
   return (
-    <>
-      <div className="flex h-full">
-        {/* Table area */}
-        <div className="flex flex-col gap-4 flex-1 min-w-0">
-          <SearchFilterBar
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            placeholder="カテゴリ名で検索..."
-            count={filteredItems.length}
-          />
-
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleCategoryDragEnd}
-          >
-            <SortableContext
-              items={filteredItems.map((i) => i.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <DataTable
-                columns={CATEGORY_COLUMNS}
-                data={filteredItems}
-                emptyMessage="診断カテゴリが登録されていません"
-                renderRow={(item) => (
-                  <SortableDataTableRow
-                    key={item.id}
-                    id={item.id}
-                    onClick={() => onEditTargetChange(item)}
-                  >
-                    <TableCell className={`font-medium text-sm ${C.text}`}>
-                      {item.name}
-                    </TableCell>
-                    <TableCell className={`text-sm ${C.text70} truncate max-w-[240px]`}>
-                      {item.description || "-"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <NotionStatusPill isActive={item.isActive} />
-                    </TableCell>
-                    <TableCell className="p-0 text-right">
-                      <RowActionButton onClick={() => onEditTargetChange(item)} />
-                    </TableCell>
-                  </SortableDataTableRow>
-                )}
-              />
-            </SortableContext>
-          </DndContext>
-        </div>
-
-        {/* Side peek */}
-        {editTarget !== null ? (
-          <DiagnosisCategorySidePanel
-            key={panelItem ? String(panelItem.id) : "new-category"}
-            item={panelItem}
-            onClose={handleClose}
-            onSave={handleSave}
-            onDeleteRequest={setPendingDelete}
-          />
-        ) : null}
-      </div>
-
-      <ConfirmDialog
-        open={pendingDelete !== null}
-        onClose={() => setPendingDelete(null)}
-        title="診断カテゴリを削除しますか？"
-        description={`「${pendingDelete?.name}」を削除します。このカテゴリに属する診断名も影響を受けます。この操作は取り消せません。`}
-        confirmLabel="削除"
-        variant="destructive"
-        onConfirm={handleDeleteConfirm}
+    <div className="flex flex-col gap-4">
+      <SearchFilterBar
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        placeholder="カテゴリ名で検索..."
+        count={filteredItems.length}
       />
-    </>
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleCategoryDragEnd}
+      >
+        <SortableContext
+          items={filteredItems.map((i) => i.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <DataTable
+            columns={CATEGORY_COLUMNS}
+            data={filteredItems}
+            emptyMessage="診断カテゴリが登録されていません"
+            renderRow={(item) => (
+              <SortableDataTableRow
+                key={item.id}
+                id={item.id}
+                onClick={() => onEditTargetChange(item)}
+              >
+                <TableCell className={`font-medium text-sm ${C.text}`}>
+                  {item.name}
+                </TableCell>
+                <TableCell className={`text-sm ${C.text70} truncate max-w-[240px]`}>
+                  {item.description || "-"}
+                </TableCell>
+                <TableCell className="text-center">
+                  <NotionStatusPill isActive={item.isActive} />
+                </TableCell>
+                <TableCell className="p-0 text-right">
+                  <RowActionButton onClick={() => onEditTargetChange(item)} />
+                </TableCell>
+              </SortableDataTableRow>
+            )}
+          />
+        </SortableContext>
+      </DndContext>
+    </div>
   );
 }
 
@@ -408,17 +323,12 @@ interface DiagnosisNameTabProps {
   onEditTargetChange: (v: DiagnosisName | "new" | null) => void;
 }
 
-function DiagnosisNameTab({ editTarget, onEditTargetChange }: DiagnosisNameTabProps) {
+function DiagnosisNameTab({ editTarget: _editTarget, onEditTargetChange }: DiagnosisNameTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [pendingDelete, setPendingDelete] = useState<DiagnosisName | null>(null);
-  const [, startSaveTransition] = useTransition();
 
   const { data: rawCategories } = useGetDiagnosisCategories();
   const { data: rawNames } = useGetDiagnosisNames();
 
-  const createMutation = useCreateDiagnosisName();
-  const updateMutation = useUpdateDiagnosisName();
-  const deleteMutation = useDeleteDiagnosisName();
   const reorderMutation = useReorderDiagnosisNames();
 
   const { orderedItems: orderedNames, sensors, handleDragEnd: handleNameDragEnd } =
@@ -443,139 +353,52 @@ function DiagnosisNameTab({ editTarget, onEditTargetChange }: DiagnosisNameTabPr
     [rawCategories],
   );
 
-  const handleClose = useCallback(() => onEditTargetChange(null), [onEditTargetChange]);
-
-  const handleSave = useCallback(
-    (data: DiagnosisNameFormData) => {
-      if (!data.name.trim()) {
-        toast.error("診断病名は必須です");
-        return;
-      }
-      if (!data.diagnosisCategoryId) {
-        toast.error("カテゴリは必須です");
-        return;
-      }
-
-      // rerender-transitions: API書き込みを非緊急マーク
-      startSaveTransition(() => {
-        if (editTarget !== null && editTarget !== "new") {
-          const req: UpdateDiagnosisNameRequest = {
-            name: data.name,
-            diagnosis_category_id: Number(data.diagnosisCategoryId),
-            description: data.description || undefined,
-            is_active: data.isActive,
-          };
-          updateMutation.mutate(
-            { id: editTarget.id, req },
-            {
-              onSuccess: () => { toast.success("更新しました"); handleClose(); },
-              onError: () => toast.error("更新に失敗しました"),
-            },
-          );
-        } else {
-          const req: CreateDiagnosisNameRequest = {
-            name: data.name,
-            diagnosis_category_id: Number(data.diagnosisCategoryId),
-            description: data.description || undefined,
-            is_active: true,
-          };
-          createMutation.mutate(req, {
-            onSuccess: () => { toast.success("登録しました"); handleClose(); },
-            onError: () => toast.error("登録に失敗しました"),
-          });
-        }
-      });
-    },
-    [editTarget, updateMutation, createMutation, handleClose],
-  );
-
-  const handleDeleteConfirm = useCallback(() => {
-    if (!pendingDelete) return;
-    deleteMutation.mutate(pendingDelete.id, {
-      onSuccess: () => {
-        setPendingDelete(null);
-        handleClose();
-        toast.success("削除しました");
-      },
-      onError: () => toast.error("削除に失敗しました"),
-    });
-  }, [pendingDelete, deleteMutation, handleClose]);
-
-  const panelItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
-
   return (
-    <>
-      <div className="flex h-full">
-        {/* Table area */}
-        <div className="flex flex-col gap-4 flex-1 min-w-0">
-          <SearchFilterBar
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            placeholder="診断病名で検索..."
-            count={filteredItems.length}
-          />
-
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleNameDragEnd}
-          >
-            <SortableContext
-              items={filteredItems.map((i) => i.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <DataTable
-                columns={NAME_COLUMNS}
-                data={filteredItems}
-                emptyMessage="診断病名が登録されていません"
-                renderRow={(item) => (
-                  <SortableDataTableRow
-                    key={item.id}
-                    id={item.id}
-                    onClick={() => onEditTargetChange(item)}
-                  >
-                    <TableCell className={`text-sm ${C.text70}`}>
-                      {categoryMap.get(item.diagnosisCategoryId) ?? "-"}
-                    </TableCell>
-                    <TableCell className={`font-medium text-sm ${C.text}`}>
-                      {item.name}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <NotionStatusPill isActive={item.isActive} />
-                    </TableCell>
-                    <TableCell className="p-0 text-right">
-                      <RowActionButton onClick={() => onEditTargetChange(item)} />
-                    </TableCell>
-                  </SortableDataTableRow>
-                )}
-              />
-            </SortableContext>
-          </DndContext>
-        </div>
-
-        {/* Side peek */}
-        {editTarget !== null ? (
-          <DiagnosisNameSidePanel
-            key={panelItem ? String(panelItem.id) : "new-name"}
-            item={panelItem}
-            categories={rawCategories ?? []}
-            onClose={handleClose}
-            onSave={handleSave}
-            onDeleteRequest={setPendingDelete}
-          />
-        ) : null}
-      </div>
-
-      <ConfirmDialog
-        open={pendingDelete !== null}
-        onClose={() => setPendingDelete(null)}
-        title="診断病名を削除しますか？"
-        description={`「${pendingDelete?.name}」を削除します。この操作は取り消せません。`}
-        confirmLabel="削除"
-        variant="destructive"
-        onConfirm={handleDeleteConfirm}
+    <div className="flex flex-col gap-4">
+      <SearchFilterBar
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        placeholder="診断病名で検索..."
+        count={filteredItems.length}
       />
-    </>
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleNameDragEnd}
+      >
+        <SortableContext
+          items={filteredItems.map((i) => i.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <DataTable
+            columns={NAME_COLUMNS}
+            data={filteredItems}
+            emptyMessage="診断病名が登録されていません"
+            renderRow={(item) => (
+              <SortableDataTableRow
+                key={item.id}
+                id={item.id}
+                onClick={() => onEditTargetChange(item)}
+              >
+                <TableCell className={`text-sm ${C.text70}`}>
+                  {categoryMap.get(item.diagnosisCategoryId) ?? "-"}
+                </TableCell>
+                <TableCell className={`font-medium text-sm ${C.text}`}>
+                  {item.name}
+                </TableCell>
+                <TableCell className="text-center">
+                  <NotionStatusPill isActive={item.isActive} />
+                </TableCell>
+                <TableCell className="p-0 text-right">
+                  <RowActionButton onClick={() => onEditTargetChange(item)} />
+                </TableCell>
+              </SortableDataTableRow>
+            )}
+          />
+        </SortableContext>
+      </DndContext>
+    </div>
   );
 }
 
@@ -590,6 +413,18 @@ export function DiagnosisSettings() {
 
   const [categoryEditTarget, setCategoryEditTarget] = useState<DiagnosisCategory | "new" | null>(null);
   const [nameEditTarget, setNameEditTarget] = useState<DiagnosisName | "new" | null>(null);
+  const [categoryPendingDelete, setCategoryPendingDelete] = useState<DiagnosisCategory | null>(null);
+  const [namePendingDelete, setNamePendingDelete] = useState<DiagnosisName | null>(null);
+  const [, startSaveTransition] = useTransition();
+
+  const { data: rawCategories } = useGetDiagnosisCategories();
+  const createCategoryMutation = useCreateDiagnosisCategory();
+  const updateCategoryMutation = useUpdateDiagnosisCategory();
+  const deleteCategoryMutation = useDeleteDiagnosisCategory();
+
+  const createNameMutation = useCreateDiagnosisName();
+  const updateNameMutation = useUpdateDiagnosisName();
+  const deleteNameMutation = useDeleteDiagnosisName();
 
   const handleTabChange = useCallback((tab: string) => {
     setSearchParams({ tab });
@@ -597,54 +432,207 @@ export function DiagnosisSettings() {
     setNameEditTarget(null);
   }, [setSearchParams]);
 
-  return (
-    <PageLayout
-      title="診断病名マスタ"
-      icon={<ClipboardList className="size-5 text-[#37352F]" />}
-      onBack={() => navigate(paths.settings.getHref())}
-      maxWidth="max-w-full"
-      headerAction={
-        <PrimaryButton onClick={() => {
-          if (activeTab === "diagnosis_category") setCategoryEditTarget("new");
-          else setNameEditTarget("new");
-        }}>
-          <Plus className="mr-1.5 size-4" />
-          新規登録
-        </PrimaryButton>
+  const handleCategoryClose = useCallback(() => setCategoryEditTarget(null), []);
+  const handleNameClose = useCallback(() => setNameEditTarget(null), []);
+
+  const handleCategorySave = useCallback(
+    (data: DiagnosisCategoryFormData) => {
+      if (!data.name.trim()) {
+        toast.error("カテゴリ名は必須です");
+        return;
       }
-    >
-      <Tabs
-        value={activeTab}
-        onValueChange={handleTabChange}
-        className="flex flex-col gap-4"
-      >
-        <TabsList
-          className={`flex h-9 border-b ${C.borderLight} gap-0`}
-        >
-          {TABS.map((tab) => (
-            <TabsTrigger
-              key={tab.value}
-              value={tab.value}
-              className={`h-9 border-b-2 border-b-transparent px-4 text-sm ${C.text60} outline-none transition-colors cursor-pointer
-                data-[state=active]:border-b-[#37352F] data-[state=active]:text-[#37352F] data-[state=active]:font-medium`}
+      startSaveTransition(() => {
+        if (categoryEditTarget !== null && categoryEditTarget !== "new") {
+          const req: UpdateDiagnosisCategoryRequest = {
+            name: data.name,
+            description: data.description || undefined,
+            is_active: data.isActive,
+          };
+          updateCategoryMutation.mutate(
+            { id: categoryEditTarget.id, req },
+            {
+              onSuccess: () => { toast.success("更新しました"); handleCategoryClose(); },
+              onError: () => toast.error("更新に失敗しました"),
+            },
+          );
+        } else {
+          const req: CreateDiagnosisCategoryRequest = {
+            name: data.name,
+            description: data.description || undefined,
+            is_active: true,
+          };
+          createCategoryMutation.mutate(req, {
+            onSuccess: () => { toast.success("登録しました"); handleCategoryClose(); },
+            onError: () => toast.error("登録に失敗しました"),
+          });
+        }
+      });
+    },
+    [categoryEditTarget, updateCategoryMutation, createCategoryMutation, handleCategoryClose],
+  );
+
+  const handleCategoryDeleteConfirm = useCallback(() => {
+    if (!categoryPendingDelete) return;
+    deleteCategoryMutation.mutate(categoryPendingDelete.id, {
+      onSuccess: () => {
+        setCategoryPendingDelete(null);
+        handleCategoryClose();
+        toast.success("削除しました");
+      },
+      onError: () => toast.error("削除に失敗しました"),
+    });
+  }, [categoryPendingDelete, deleteCategoryMutation, handleCategoryClose]);
+
+  const handleNameSave = useCallback(
+    (data: DiagnosisNameFormData) => {
+      if (!data.name.trim()) {
+        toast.error("診断病名は必須です");
+        return;
+      }
+      if (!data.diagnosisCategoryId) {
+        toast.error("カテゴリは必須です");
+        return;
+      }
+      startSaveTransition(() => {
+        if (nameEditTarget !== null && nameEditTarget !== "new") {
+          const req: UpdateDiagnosisNameRequest = {
+            name: data.name,
+            diagnosis_category_id: Number(data.diagnosisCategoryId),
+            description: data.description || undefined,
+            is_active: data.isActive,
+          };
+          updateNameMutation.mutate(
+            { id: nameEditTarget.id, req },
+            {
+              onSuccess: () => { toast.success("更新しました"); handleNameClose(); },
+              onError: () => toast.error("更新に失敗しました"),
+            },
+          );
+        } else {
+          const req: CreateDiagnosisNameRequest = {
+            name: data.name,
+            diagnosis_category_id: Number(data.diagnosisCategoryId),
+            description: data.description || undefined,
+            is_active: true,
+          };
+          createNameMutation.mutate(req, {
+            onSuccess: () => { toast.success("登録しました"); handleNameClose(); },
+            onError: () => toast.error("登録に失敗しました"),
+          });
+        }
+      });
+    },
+    [nameEditTarget, updateNameMutation, createNameMutation, handleNameClose],
+  );
+
+  const handleNameDeleteConfirm = useCallback(() => {
+    if (!namePendingDelete) return;
+    deleteNameMutation.mutate(namePendingDelete.id, {
+      onSuccess: () => {
+        setNamePendingDelete(null);
+        handleNameClose();
+        toast.success("削除しました");
+      },
+      onError: () => toast.error("削除に失敗しました"),
+    });
+  }, [namePendingDelete, deleteNameMutation, handleNameClose]);
+
+  const categoryPanelItem = categoryEditTarget !== null && categoryEditTarget !== "new" ? categoryEditTarget : null;
+  const namePanelItem = nameEditTarget !== null && nameEditTarget !== "new" ? nameEditTarget : null;
+
+  return (
+    <>
+      <div className="flex h-full">
+        <div className="flex-1 min-w-0">
+          <PageLayout
+            title="診断病名マスタ"
+            icon={<ClipboardList className="size-5 text-[#37352F]" />}
+            onBack={() => navigate(paths.settings.getHref())}
+            maxWidth="max-w-full"
+            headerAction={
+              <PrimaryButton onClick={() => {
+                if (activeTab === "diagnosis_category") setCategoryEditTarget("new");
+                else setNameEditTarget("new");
+              }}>
+                <Plus className="mr-1.5 size-4" />
+                新規登録
+              </PrimaryButton>
+            }
+          >
+            <Tabs
+              value={activeTab}
+              onValueChange={handleTabChange}
+              className="flex flex-col gap-4"
             >
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        <TabsContent value="diagnosis_category" className="mt-4">
-          <DiagnosisCategoryTab
-            editTarget={categoryEditTarget}
-            onEditTargetChange={setCategoryEditTarget}
+              <TabsList
+                className={`flex h-9 border-b ${C.borderLight} gap-0`}
+              >
+                {TABS.map((tab) => (
+                  <TabsTrigger
+                    key={tab.value}
+                    value={tab.value}
+                    className={`h-9 border-b-2 border-b-transparent px-4 text-sm ${C.text60} outline-none transition-colors cursor-pointer
+                      data-[state=active]:border-b-[#37352F] data-[state=active]:text-[#37352F] data-[state=active]:font-medium`}
+                  >
+                    {tab.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              <TabsContent value="diagnosis_category" className="mt-4">
+                <DiagnosisCategoryTab
+                  editTarget={categoryEditTarget}
+                  onEditTargetChange={setCategoryEditTarget}
+                />
+              </TabsContent>
+              <TabsContent value="diagnosis_name" className="mt-4">
+                <DiagnosisNameTab
+                  editTarget={nameEditTarget}
+                  onEditTargetChange={setNameEditTarget}
+                />
+              </TabsContent>
+            </Tabs>
+          </PageLayout>
+        </div>
+
+        {activeTab === "diagnosis_category" && categoryEditTarget !== null ? (
+          <DiagnosisCategorySidePanel
+            key={categoryPanelItem ? String(categoryPanelItem.id) : "new-category"}
+            item={categoryPanelItem}
+            onClose={handleCategoryClose}
+            onSave={handleCategorySave}
+            onDeleteRequest={setCategoryPendingDelete}
           />
-        </TabsContent>
-        <TabsContent value="diagnosis_name" className="mt-4">
-          <DiagnosisNameTab
-            editTarget={nameEditTarget}
-            onEditTargetChange={setNameEditTarget}
+        ) : null}
+        {activeTab === "diagnosis_name" && nameEditTarget !== null ? (
+          <DiagnosisNameSidePanel
+            key={namePanelItem ? String(namePanelItem.id) : "new-name"}
+            item={namePanelItem}
+            categories={rawCategories ?? []}
+            onClose={handleNameClose}
+            onSave={handleNameSave}
+            onDeleteRequest={setNamePendingDelete}
           />
-        </TabsContent>
-      </Tabs>
-    </PageLayout>
+        ) : null}
+      </div>
+
+      <ConfirmDialog
+        open={categoryPendingDelete !== null}
+        onClose={() => setCategoryPendingDelete(null)}
+        title="診断カテゴリを削除しますか？"
+        description={`「${categoryPendingDelete?.name}」を削除します。このカテゴリに属する診断名も影響を受けます。この操作は取り消せません。`}
+        confirmLabel="削除"
+        variant="destructive"
+        onConfirm={handleCategoryDeleteConfirm}
+      />
+      <ConfirmDialog
+        open={namePendingDelete !== null}
+        onClose={() => setNamePendingDelete(null)}
+        title="診断病名を削除しますか？"
+        description={`「${namePendingDelete?.name}」を削除します。この操作は取り消せません。`}
+        confirmLabel="削除"
+        variant="destructive"
+        onConfirm={handleNameDeleteConfirm}
+      />
+    </>
   );
 }

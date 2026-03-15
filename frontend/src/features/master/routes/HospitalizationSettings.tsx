@@ -275,62 +275,64 @@ export function HospitalizationSettings() {
   const panelItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
 
   return (
-    <PageLayout
-      title="入院マスタ"
-      icon={<Bed className="size-5 text-[#37352F]" />}
-      onBack={() => navigate(paths.settings.getHref())}
-      maxWidth="max-w-full"
-      headerAction={
-        <PrimaryButton onClick={() => setEditTarget("new")}>
-          <Plus className="mr-1.5 size-4" />
-          新規登録
-        </PrimaryButton>
-      }
-    >
+    <>
       <div className="flex h-full">
-        {/* Table area */}
-        <div className="flex flex-col gap-4 flex-1 min-w-0">
-          <SearchFilterBar
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            placeholder="名称で検索..."
-            count={filteredItems.length}
-          />
+        <div className="flex-1 min-w-0">
+          <PageLayout
+            title="入院マスタ"
+            icon={<Bed className="size-5 text-[#37352F]" />}
+            onBack={() => navigate(paths.settings.getHref())}
+            maxWidth="max-w-full"
+            headerAction={
+              <PrimaryButton onClick={() => setEditTarget("new")}>
+                <Plus className="mr-1.5 size-4" />
+                新規登録
+              </PrimaryButton>
+            }
+          >
+            <div className="flex flex-col gap-4">
+              <SearchFilterBar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                placeholder="名称で検索..."
+                count={filteredItems.length}
+              />
 
-          <DataTable
-            columns={COLUMNS}
-            data={filteredItems}
-            emptyMessage="入院プランが登録されていません"
-            renderRow={(item) => (
-              <DataTableRow key={item.id} onClick={() => setEditTarget(item)}>
-                <TableCell className={`font-medium text-sm ${C.text}`}>
-                  {item.name}
-                </TableCell>
-                <TableCell className={`text-sm ${C.text70}`}>
-                  {item.bodySize
-                    ? (BODY_SIZE_LABELS[item.bodySize] ?? item.bodySize)
-                    : "-"}
-                </TableCell>
-                <TableCell className={`text-sm ${C.text70}`}>
-                  {item.billingUnit
-                    ? (BILLING_UNIT_LABELS[item.billingUnit] ?? item.billingUnit)
-                    : "-"}
-                </TableCell>
-                <TableCell className={`text-right font-mono text-sm ${C.text}`}>
-                  {item.price > 0 ? `¥${item.price.toLocaleString()}` : "-"}
-                </TableCell>
-                <TableCell className="text-center">
-                  <NotionStatusPill isActive={item.isActive} />
-                </TableCell>
-                <TableCell className="p-0 text-right">
-                  <RowActionButton onClick={() => setEditTarget(item)} />
-                </TableCell>
-              </DataTableRow>
-            )}
-          />
+              <DataTable
+                columns={COLUMNS}
+                data={filteredItems}
+                emptyMessage="入院プランが登録されていません"
+                renderRow={(item) => (
+                  <DataTableRow key={item.id} onClick={() => setEditTarget(item)}>
+                    <TableCell className={`font-medium text-sm ${C.text}`}>
+                      {item.name}
+                    </TableCell>
+                    <TableCell className={`text-sm ${C.text70}`}>
+                      {item.bodySize
+                        ? (BODY_SIZE_LABELS[item.bodySize] ?? item.bodySize)
+                        : "-"}
+                    </TableCell>
+                    <TableCell className={`text-sm ${C.text70}`}>
+                      {item.billingUnit
+                        ? (BILLING_UNIT_LABELS[item.billingUnit] ?? item.billingUnit)
+                        : "-"}
+                    </TableCell>
+                    <TableCell className={`text-right font-mono text-sm ${C.text}`}>
+                      {item.price > 0 ? `¥${item.price.toLocaleString()}` : "-"}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <NotionStatusPill isActive={item.isActive} />
+                    </TableCell>
+                    <TableCell className="p-0 text-right">
+                      <RowActionButton onClick={() => setEditTarget(item)} />
+                    </TableCell>
+                  </DataTableRow>
+                )}
+              />
+            </div>
+          </PageLayout>
         </div>
 
-        {/* Side peek */}
         {editTarget !== null ? (
           <HospitalizationSidePanel
             key={panelItem ? String(panelItem.id) : "new-hospitalization"}
@@ -351,6 +353,6 @@ export function HospitalizationSettings() {
         variant="destructive"
         onConfirm={handleDeleteConfirm}
       />
-    </PageLayout>
+    </>
   );
 }

@@ -259,75 +259,77 @@ export function ServiceTypeSettings() {
   const panelItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
 
   return (
-    <PageLayout
-      title="予約区分マスタ"
-      icon={<Activity className="size-5 text-[#37352F]" />}
-      onBack={() => navigate(paths.settings.getHref())}
-      maxWidth="max-w-full"
-      headerAction={
-        <PrimaryButton onClick={() => setEditTarget("new")}>
-          <Plus className="mr-1.5 size-4" />
-          新規登録
-        </PrimaryButton>
-      }
-    >
+    <>
       <div className="flex h-full">
-        {/* Table area */}
-        <div className="flex flex-col gap-4 flex-1 min-w-0">
-          <SearchFilterBar
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            placeholder="予約区分名で検索..."
-            count={filteredItems.length}
-          />
-
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            onDragCancel={handleDragCancel}
+        <div className="flex-1 min-w-0">
+          <PageLayout
+            title="予約区分マスタ"
+            icon={<Activity className="size-5 text-[#37352F]" />}
+            onBack={() => navigate(paths.settings.getHref())}
+            maxWidth="max-w-full"
+            headerAction={
+              <PrimaryButton onClick={() => setEditTarget("new")}>
+                <Plus className="mr-1.5 size-4" />
+                新規登録
+              </PrimaryButton>
+            }
           >
-            <SortableContext
-              items={filteredItems.map((i) => i.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <DataTable
-                columns={COLUMNS}
-                data={filteredItems}
-                emptyMessage="予約区分が登録されていません"
-                renderRow={(item) => (
-                  <SortableDataTableRow
-                    key={item.id}
-                    id={item.id}
-                    onClick={() => setEditTarget(item)}
-                  >
-                    <TableCell className={`font-medium text-sm ${C.text}`}>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="size-3 rounded-full shrink-0"
-                          style={{ backgroundColor: item.color }}
-                        />
-                        {item.name}
-                      </div>
-                    </TableCell>
-                    <TableCell className={`text-sm ${C.text70} truncate max-w-[240px]`}>
-                      {item.description || "-"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <NotionStatusPill isActive={item.isActive} />
-                    </TableCell>
-                    <TableCell className="p-0 text-right">
-                      <RowActionButton onClick={() => setEditTarget(item)} />
-                    </TableCell>
-                  </SortableDataTableRow>
-                )}
+            <div className="flex flex-col gap-4">
+              <SearchFilterBar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                placeholder="予約区分名で検索..."
+                count={filteredItems.length}
               />
-            </SortableContext>
-          </DndContext>
+
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDragCancel={handleDragCancel}
+              >
+                <SortableContext
+                  items={filteredItems.map((i) => i.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <DataTable
+                    columns={COLUMNS}
+                    data={filteredItems}
+                    emptyMessage="予約区分が登録されていません"
+                    renderRow={(item) => (
+                      <SortableDataTableRow
+                        key={item.id}
+                        id={item.id}
+                        onClick={() => setEditTarget(item)}
+                      >
+                        <TableCell className={`font-medium text-sm ${C.text}`}>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="size-3 rounded-full shrink-0"
+                              style={{ backgroundColor: item.color }}
+                            />
+                            {item.name}
+                          </div>
+                        </TableCell>
+                        <TableCell className={`text-sm ${C.text70} truncate max-w-[240px]`}>
+                          {item.description || "-"}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <NotionStatusPill isActive={item.isActive} />
+                        </TableCell>
+                        <TableCell className="p-0 text-right">
+                          <RowActionButton onClick={() => setEditTarget(item)} />
+                        </TableCell>
+                      </SortableDataTableRow>
+                    )}
+                  />
+                </SortableContext>
+              </DndContext>
+            </div>
+          </PageLayout>
         </div>
 
-        {/* Side peek */}
         {editTarget !== null ? (
           <ServiceTypeSidePanel
             key={panelItem ? String(panelItem.id) : "new-service-type"}
@@ -348,6 +350,6 @@ export function ServiceTypeSettings() {
         variant="destructive"
         onConfirm={handleDeleteConfirm}
       />
-    </PageLayout>
+    </>
   );
 }
