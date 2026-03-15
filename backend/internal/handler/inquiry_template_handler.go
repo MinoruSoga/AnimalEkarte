@@ -28,6 +28,21 @@ func (h *Handler) ListInquiryTemplates(c *gin.Context) {
 	c.JSON(http.StatusOK, toInquiryTemplateResponseList(templates))
 }
 
+// GetInquiryTemplate godoc
+func (h *Handler) GetInquiryTemplate(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	tmpl, err := h.svc.InquiryTemplate.GetByID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toInquiryTemplateResponse(tmpl))
+}
+
 // CreateInquiryTemplate godoc
 func (h *Handler) CreateInquiryTemplate(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)

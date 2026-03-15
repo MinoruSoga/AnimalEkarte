@@ -239,6 +239,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 
 	masters.GET("/inquiry-templates", h.ListInquiryTemplates)
 	masters.POST("/inquiry-templates", h.CreateInquiryTemplate)
+	masters.GET("/inquiry-templates/:id", h.GetInquiryTemplate)
 	masters.PATCH("/inquiry-templates/:id", h.UpdateInquiryTemplate)
 	masters.DELETE("/inquiry-templates/:id", h.DeleteInquiryTemplate)
 }
