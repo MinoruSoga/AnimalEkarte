@@ -1,5 +1,5 @@
 // React/Framework
-import { memo, useState } from "react";
+import { memo, useDeferredValue, useState } from "react";
 
 // External
 import { Search, History, Plus } from "lucide-react";
@@ -21,11 +21,12 @@ export const InterviewHistory = memo(function InterviewHistory({
   historyItems,
 }: InterviewHistoryProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const deferredSearch = useDeferredValue(searchTerm);
 
   const filteredItems = historyItems.filter(item =>
-    item.title.includes(searchTerm) ||
-    item.content.includes(searchTerm) ||
-    item.type.includes(searchTerm)
+    item.title.includes(deferredSearch) ||
+    item.content.includes(deferredSearch) ||
+    item.type.includes(deferredSearch)
   );
 
   return (

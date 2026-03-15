@@ -1,5 +1,5 @@
 // React/Framework
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -22,10 +22,21 @@ import { paths } from "@/config/paths";
 // Types
 import type { Accounting as AccountingType } from "../types";
 
+const COLUMNS = [
+  { header: "日時", className: "w-[140px]" },
+  { header: "飼主名" },
+  { header: "ペット名" },
+  { header: "請求金額", align: "right" as const },
+  { header: "支払方法", align: "center" as const },
+  { header: "ステータス", className: "w-[100px]" },
+  { header: "操作", className: "w-[100px]", align: "right" as const },
+];
+
 export function Accounting() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const { data: filteredRecords, isLoading, isError } = useAccountingRecords(searchTerm);
+  const deferredSearch = useDeferredValue(searchTerm);
+  const { data: filteredRecords, isLoading, isError } = useAccountingRecords(deferredSearch);
 
   if (isLoading) return (
     <div className="flex justify-center items-center p-8">
@@ -59,16 +70,6 @@ export function Accounting() {
     navigate(paths.accounting.detail.getHref(id));
   };
 
-  const columns = [
-    { header: "日時", className: "w-[140px]" },
-    { header: "飼主名" },
-    { header: "ペット名" },
-    { header: "請求金額", align: "right" as const },
-    { header: "支払方法", align: "center" as const },
-    { header: "ステータス", className: "w-[100px]" },
-    { header: "操作", className: "w-[100px]", align: "right" as const },
-  ];
-
   return (
     <PageLayout
       title="会計管理"
@@ -92,7 +93,7 @@ export function Accounting() {
 
         {/* Table */}
         <DataTable
-            columns={columns}
+            columns={COLUMNS}
             data={filteredRecords}
             emptyMessage="会計データが見つかりません"
             renderRow={(r) => (

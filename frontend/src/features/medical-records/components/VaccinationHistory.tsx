@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useDeferredValue, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,10 +28,11 @@ export const VaccinationHistory = React.memo(function VaccinationHistory({
   const [filterEndDate, setFilterEndDate] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState("desc");
+  const deferredSearch = useDeferredValue(searchTerm);
 
   const filteredItems = historyItems
     .filter((item) => {
-      const matchesSearch = item.name.includes(searchTerm);
+      const matchesSearch = item.name.includes(deferredSearch);
       // Simplify date filtering for mock
       return matchesSearch;
     })
