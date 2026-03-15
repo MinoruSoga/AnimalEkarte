@@ -17,3 +17,8 @@ type updateInsuranceRequest struct {
 	ContactPhone string `json:"contact_phone"`
 	SortOrder    int    `json:"sort_order"`
 }
+
+// reorderInsuranceRequest は保険並び替えリクエスト。
+type reorderInsuranceRequest struct {
+	IDs []uint64 `json:"ids" binding:"required,min=1"`
+}

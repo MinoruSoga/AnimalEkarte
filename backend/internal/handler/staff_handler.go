@@ -111,6 +111,24 @@ func (h *Handler) DeleteStaff(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// ReorderStaffs godoc
+func (h *Handler) ReorderStaffs(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderStaffRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+	if err := h.svc.Staff.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+}
+
 // RegisterMasterRoutes はマスタ関連の全ルートを登録する
 func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters := rg.Group("/masters")
@@ -119,6 +137,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 
 	masters.GET("/staffs", h.ListStaffs)
 	masters.POST("/staffs", h.CreateStaff)
+	masters.PATCH("/staffs/reorder", h.ReorderStaffs) // 静的パスを /:id より前に登録
 	masters.PATCH("/staffs/:id", h.UpdateStaff)
 	masters.DELETE("/staffs/:id", h.DeleteStaff)
 
@@ -143,6 +162,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 
 	masters.GET("/insurances", h.ListInsurances)
 	masters.POST("/insurances", h.CreateInsurance)
+	masters.PATCH("/insurances/reorder", h.ReorderInsurances) // 静的パスを /:id より前に登録
 	masters.PATCH("/insurances/:id", h.UpdateInsurance)
 	masters.DELETE("/insurances/:id", h.DeleteInsurance)
 
@@ -166,16 +186,19 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 
 	masters.GET("/hospitalization-plans", h.ListHospitalizationPlans)
 	masters.POST("/hospitalization-plans", h.CreateHospitalizationPlan)
+	masters.PATCH("/hospitalization-plans/reorder", h.ReorderHospitalizationPlans) // 静的パスを /:id より前に登録
 	masters.PATCH("/hospitalization-plans/:id", h.UpdateHospitalizationPlan)
 	masters.DELETE("/hospitalization-plans/:id", h.DeleteHospitalizationPlan)
 
 	masters.GET("/trimming-courses", h.ListTrimmingCourses)
 	masters.POST("/trimming-courses", h.CreateTrimmingCourse)
+	masters.PATCH("/trimming-courses/reorder", h.ReorderTrimmingCourses) // 静的パスを /:id より前に登録
 	masters.PATCH("/trimming-courses/:id", h.UpdateTrimmingCourse)
 	masters.DELETE("/trimming-courses/:id", h.DeleteTrimmingCourse)
 
 	masters.GET("/trimming-options", h.ListTrimmingOptions)
 	masters.POST("/trimming-options", h.CreateTrimmingOption)
+	masters.PATCH("/trimming-options/reorder", h.ReorderTrimmingOptions) // 静的パスを /:id より前に登録
 	masters.PATCH("/trimming-options/:id", h.UpdateTrimmingOption)
 	masters.DELETE("/trimming-options/:id", h.DeleteTrimmingOption)
 
@@ -205,6 +228,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 
 	masters.GET("/job-titles", h.ListJobTitles)
 	masters.POST("/job-titles", h.CreateJobTitle)
+	masters.PATCH("/job-titles/reorder", h.ReorderJobTitles) // 静的パスを /:id より前に登録
 	masters.PATCH("/job-titles/:id", h.UpdateJobTitle)
 	masters.DELETE("/job-titles/:id", h.DeleteJobTitle)
 

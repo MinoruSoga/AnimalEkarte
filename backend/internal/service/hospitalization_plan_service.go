@@ -16,6 +16,7 @@ type HospitalizationPlanService interface {
 	Create(ctx context.Context, plan *model.HospitalizationPlan) error
 	Update(ctx context.Context, plan *model.HospitalizationPlan) error
 	Delete(ctx context.Context, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type hospitalizationPlanService struct {
@@ -40,4 +41,8 @@ func (s *hospitalizationPlanService) Update(ctx context.Context, plan *model.Hos
 }
 func (s *hospitalizationPlanService) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
+}
+
+func (s *hospitalizationPlanService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return s.repo.Reorder(ctx, clinicID, ids)
 }

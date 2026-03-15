@@ -100,3 +100,21 @@ func (h *Handler) DeleteJobTitle(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
+
+// ReorderJobTitles godoc
+func (h *Handler) ReorderJobTitles(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderJobTitleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+	if err := h.svc.JobTitle.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+}

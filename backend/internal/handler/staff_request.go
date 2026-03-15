@@ -23,3 +23,8 @@ type updateStaffRequest struct {
 	SortOrder     *int             `json:"sort_order"`
 	IsActive      *bool            `json:"is_active"`
 }
+
+// reorderStaffRequest はスタッフ並び替えリクエスト。
+type reorderStaffRequest struct {
+	IDs []uint64 `json:"ids" binding:"required,min=1"`
+}

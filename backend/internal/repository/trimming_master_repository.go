@@ -20,6 +20,7 @@ type TrimmingCourseRepository interface {
 	Create(ctx context.Context, course *model.TrimmingCourse) error
 	Update(ctx context.Context, course *model.TrimmingCourse) error
 	Delete(ctx context.Context, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type trimmingCourseRepository struct{ db *gorm.DB }
@@ -82,6 +83,23 @@ func (r *trimmingCourseRepository) Delete(ctx context.Context, id uint64) error 
 	return nil
 }
 
+func (r *trimmingCourseRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for i, id := range ids {
+			result := tx.Model(&model.TrimmingCourse{}).
+				Where("id = ? AND clinic_id = ?", id, clinicID).
+				Update("sort_order", i+1)
+			if result.Error != nil {
+				return apperrors.Wrap(result.Error, "reorder trimming course")
+			}
+			if result.RowsAffected == 0 {
+				return apperrors.WrapInvalidInput(fmt.Sprintf("trimming_course id %d not found in this clinic", id))
+			}
+		}
+		return nil
+	})
+}
+
 // ---- TrimmingOption ----
 
 type TrimmingOptionRepository interface {
@@ -90,6 +108,7 @@ type TrimmingOptionRepository interface {
 	Create(ctx context.Context, option *model.TrimmingOption) error
 	Update(ctx context.Context, option *model.TrimmingOption) error
 	Delete(ctx context.Context, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type trimmingOptionRepository struct{ db *gorm.DB }
@@ -150,4 +169,21 @@ func (r *trimmingOptionRepository) Delete(ctx context.Context, id uint64) error 
 		return apperrors.WrapNotFound("trimming_option", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *trimmingOptionRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for i, id := range ids {
+			result := tx.Model(&model.TrimmingOption{}).
+				Where("id = ? AND clinic_id = ?", id, clinicID).
+				Update("sort_order", i+1)
+			if result.Error != nil {
+				return apperrors.Wrap(result.Error, "reorder trimming option")
+			}
+			if result.RowsAffected == 0 {
+				return apperrors.WrapInvalidInput(fmt.Sprintf("trimming_option id %d not found in this clinic", id))
+			}
+		}
+		return nil
+	})
 }

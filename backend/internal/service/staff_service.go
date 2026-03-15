@@ -47,6 +47,7 @@ type StaffService interface {
 	CreateWithAccount(ctx context.Context, input *CreateStaffInput) (*model.Staff, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateStaffInput) (*model.Staff, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type staffService struct{ repo repository.StaffRepository }
@@ -141,4 +142,11 @@ func buildStaffUpdateFields(input *UpdateStaffInput) map[string]any {
 
 func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {
 	return s.repo.Delete(ctx, clinicID, id)
+}
+
+func (s *staffService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if len(ids) == 0 {
+		return apperrors.WrapInvalidInput("ids must not be empty")
+	}
+	return s.repo.Reorder(ctx, clinicID, ids)
 }

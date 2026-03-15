@@ -20,6 +20,7 @@ type HospitalizationPlanRepository interface {
 	Create(ctx context.Context, plan *model.HospitalizationPlan) error
 	Update(ctx context.Context, plan *model.HospitalizationPlan) error
 	Delete(ctx context.Context, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type hospitalizationPlanRepository struct{ db *gorm.DB }
@@ -80,4 +81,21 @@ func (r *hospitalizationPlanRepository) Delete(ctx context.Context, id uint64) e
 		return apperrors.WrapNotFound("hospitalization_plan", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *hospitalizationPlanRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for i, id := range ids {
+			result := tx.Model(&model.HospitalizationPlan{}).
+				Where("id = ? AND clinic_id = ?", id, clinicID).
+				Update("sort_order", i+1)
+			if result.Error != nil {
+				return apperrors.Wrap(result.Error, "reorder hospitalization plan")
+			}
+			if result.RowsAffected == 0 {
+				return apperrors.WrapInvalidInput(fmt.Sprintf("hospitalization_plan id %d not found in this clinic", id))
+			}
+		}
+		return nil
+	})
 }

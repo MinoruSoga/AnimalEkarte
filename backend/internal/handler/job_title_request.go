@@ -13,3 +13,8 @@ type updateJobTitleRequest struct {
 	IsActive    *bool   `json:"is_active"`
 	SortOrder   *int    `json:"sort_order"`
 }
+
+// reorderJobTitleRequest は役職並び替えリクエスト。
+type reorderJobTitleRequest struct {
+	IDs []uint64 `json:"ids" binding:"required,min=1"`
+}

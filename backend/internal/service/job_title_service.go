@@ -27,6 +27,7 @@ type JobTitleService interface {
 	Create(ctx context.Context, jobTitle *model.JobTitle) error
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateJobTitleInput) (*model.JobTitle, error)
 	Delete(ctx context.Context, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type jobTitleService struct {
@@ -71,6 +72,10 @@ func (s *jobTitleService) Update(ctx context.Context, clinicID, id uint64, input
 
 func (s *jobTitleService) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
+}
+
+func (s *jobTitleService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return s.repo.Reorder(ctx, clinicID, ids)
 }
 
 func buildJobTitleUpdateFields(input *UpdateJobTitleInput) map[string]any {

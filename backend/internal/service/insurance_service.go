@@ -16,6 +16,7 @@ type InsuranceService interface {
 	Create(ctx context.Context, insurance *model.Insurance) error
 	Update(ctx context.Context, insurance *model.Insurance) error
 	Delete(ctx context.Context, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type insuranceService struct {
@@ -40,4 +41,8 @@ func (s *insuranceService) Update(ctx context.Context, insurance *model.Insuranc
 }
 func (s *insuranceService) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
+}
+
+func (s *insuranceService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return s.repo.Reorder(ctx, clinicID, ids)
 }

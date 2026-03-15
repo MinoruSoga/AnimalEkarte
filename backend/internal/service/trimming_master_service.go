@@ -16,6 +16,7 @@ type TrimmingCourseService interface {
 	Create(ctx context.Context, course *model.TrimmingCourse) error
 	Update(ctx context.Context, course *model.TrimmingCourse) error
 	Delete(ctx context.Context, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type trimmingCourseService struct {
@@ -42,6 +43,10 @@ func (s *trimmingCourseService) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
 }
 
+func (s *trimmingCourseService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return s.repo.Reorder(ctx, clinicID, ids)
+}
+
 // ---- TrimmingOptionService ----
 
 type TrimmingOptionService interface {
@@ -50,6 +55,7 @@ type TrimmingOptionService interface {
 	Create(ctx context.Context, option *model.TrimmingOption) error
 	Update(ctx context.Context, option *model.TrimmingOption) error
 	Delete(ctx context.Context, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type trimmingOptionService struct {
@@ -74,4 +80,8 @@ func (s *trimmingOptionService) Update(ctx context.Context, option *model.Trimmi
 }
 func (s *trimmingOptionService) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
+}
+
+func (s *trimmingOptionService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return s.repo.Reorder(ctx, clinicID, ids)
 }

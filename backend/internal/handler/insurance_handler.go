@@ -111,3 +111,21 @@ func (h *Handler) DeleteInsurance(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
+
+// ReorderInsurances godoc
+func (h *Handler) ReorderInsurances(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderInsuranceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+	if err := h.svc.Insurance.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+}

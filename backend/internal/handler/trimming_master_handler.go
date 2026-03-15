@@ -112,6 +112,24 @@ func (h *Handler) DeleteTrimmingCourse(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// ReorderTrimmingCourses godoc
+func (h *Handler) ReorderTrimmingCourses(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderTrimmingCourseRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+	if err := h.svc.TrimmingCourse.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+}
+
 // ---- TrimmingOption ----
 
 // ListTrimmingOptions godoc
@@ -207,4 +225,22 @@ func (h *Handler) DeleteTrimmingOption(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// ReorderTrimmingOptions godoc
+func (h *Handler) ReorderTrimmingOptions(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderTrimmingOptionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+	if err := h.svc.TrimmingOption.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
 }

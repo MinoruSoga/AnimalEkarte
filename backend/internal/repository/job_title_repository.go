@@ -20,6 +20,7 @@ type JobTitleRepository interface {
 	Create(ctx context.Context, jobTitle *model.JobTitle) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type jobTitleRepository struct{ db *gorm.DB }
@@ -83,4 +84,21 @@ func (r *jobTitleRepository) Delete(ctx context.Context, id uint64) error {
 		return apperrors.WrapNotFound("job_title", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *jobTitleRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for i, id := range ids {
+			result := tx.Model(&model.JobTitle{}).
+				Where("id = ? AND clinic_id = ?", id, clinicID).
+				Update("sort_order", i+1)
+			if result.Error != nil {
+				return apperrors.Wrap(result.Error, "reorder job title")
+			}
+			if result.RowsAffected == 0 {
+				return apperrors.WrapInvalidInput(fmt.Sprintf("job_title id %d not found in this clinic", id))
+			}
+		}
+		return nil
+	})
 }

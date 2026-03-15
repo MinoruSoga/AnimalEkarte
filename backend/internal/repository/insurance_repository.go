@@ -20,6 +20,7 @@ type InsuranceRepository interface {
 	Create(ctx context.Context, insurance *model.Insurance) error
 	Update(ctx context.Context, insurance *model.Insurance) error
 	Delete(ctx context.Context, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type insuranceRepository struct{ db *gorm.DB }
@@ -78,4 +79,21 @@ func (r *insuranceRepository) Delete(ctx context.Context, id uint64) error {
 		return apperrors.WrapNotFound("insurance", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *insuranceRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for i, id := range ids {
+			result := tx.Model(&model.Insurance{}).
+				Where("id = ? AND clinic_id = ?", id, clinicID).
+				Update("sort_order", i+1)
+			if result.Error != nil {
+				return apperrors.Wrap(result.Error, "reorder insurance")
+			}
+			if result.RowsAffected == 0 {
+				return apperrors.WrapInvalidInput(fmt.Sprintf("insurance id %d not found in this clinic", id))
+			}
+		}
+		return nil
+	})
 }
