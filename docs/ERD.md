@@ -1,6 +1,6 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v20.0（medicines.drug_category廃止→parent_id追加・5マスタテーブルにparent_id追加）
+バージョン: v21.0（全テーブルのMermaidダイアグラムを完全版に更新）
 更新日: 2026-03-15
 状態: Production Ready
 
@@ -8,6 +8,12 @@
 PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 
 ---
+
+## 変更概要（v20.0 → v21.0）
+
+| 変更内容 | 詳細 |
+|---------|------|
+| v21.0 | Mermaidダイアグラムの全テーブルをGoモデル・SQLと完全一致させた（省略カラムを追記） |
 
 ## 変更概要（v19.0 → v20.0）
 
@@ -236,6 +242,17 @@ erDiagram
     company {
         integer id PK
         text name
+        text postal_code
+        text address
+        text phone_number
+        text fax_number
+        text registration_number
+        text director_name
+        text email
+        text website
+        text logo_url
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     clinics {
@@ -243,6 +260,17 @@ erDiagram
         bigint company_id FK
         text name
         boolean is_active
+        text postal_code
+        text address
+        text phone_number
+        text fax_number
+        text registration_number
+        text director_name
+        text email
+        text website
+        text logo_url
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     %% ===== 認証 =====
@@ -254,6 +282,11 @@ erDiagram
         uuid job_title_id FK
         account_status status
         uuid staff_id FK
+        text display_name_kana
+        text avatar_url
+        text password_hash
+        timestamptz created_at
+        timestamptz updated_at
         timestamptz deleted_at
     }
 
@@ -262,6 +295,7 @@ erDiagram
         uuid user_id FK
         uuid clinic_id FK
         boolean is_main
+        timestamptz joined_at
     }
 
     user_permissions {
@@ -270,6 +304,7 @@ erDiagram
         uuid clinic_id FK
         permission_type permission
         uuid granted_by FK
+        timestamptz granted_at
     }
 
     %% ===== コア =====
@@ -281,6 +316,19 @@ erDiagram
         text email
         date birth_date
         membership_type membership_type
+        text owner_name_kana
+        text company
+        text postal_code
+        text address1
+        text address2
+        text home_postal_code
+        text home_address1
+        text home_address2
+        text company_phone
+        boolean is_dangerous
+        numeric discount_rate
+        timestamptz created_at
+        timestamptz updated_at
         timestamptz deleted_at
     }
 
@@ -293,6 +341,22 @@ erDiagram
         pet_gender gender
         pet_status status
         uuid insurance_id FK
+        text pet_number
+        text pet_name_kana
+        date birth_date
+        text breed
+        text color
+        numeric weight
+        date neutered_date
+        acquisition_type acquisition_type
+        danger_level danger_level
+        text food
+        text environment
+        text phone
+        date last_visit
+        text remarks
+        timestamptz created_at
+        timestamptz updated_at
         timestamptz deleted_at
     }
 
@@ -302,6 +366,8 @@ erDiagram
         text name
         boolean is_active
         integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     staffs {
@@ -311,6 +377,10 @@ erDiagram
         boolean is_active
         staff_role staff_role
         uuid job_title_id FK
+        text license_number
+        integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
         timestamptz deleted_at
     }
 
@@ -332,6 +402,14 @@ erDiagram
         inventory_category category
         integer quantity
         inventory_status status
+        text unit
+        integer min_stock_level
+        text location
+        date expiry_date
+        text supplier
+        date last_restocked
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     exam_types {
@@ -340,6 +418,11 @@ erDiagram
         text name
         bigint parent_id FK
         boolean is_active
+        numeric price
+        text description
+        integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     exam_type_items {
@@ -347,6 +430,9 @@ erDiagram
         uuid exam_type_id FK
         text name
         integer sort_order
+        text inspection_value
+        text normal_value
+        timestamptz created_at
     }
 
     vaccines {
@@ -357,6 +443,12 @@ erDiagram
         boolean is_active
         vaccine_species species
         uuid inventory_id FK
+        numeric price
+        text description
+        text interval
+        integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     medicines {
@@ -367,6 +459,13 @@ erDiagram
         boolean is_active
         dosage_form dosage_form
         uuid inventory_id FK
+        numeric price
+        text description
+        medicine_unit medicine_unit
+        integer default_quantity
+        integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     insurances {
@@ -375,6 +474,11 @@ erDiagram
         text name
         boolean is_active
         integer coverage_rate
+        text description
+        text contact_phone
+        integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     cages {
@@ -384,6 +488,11 @@ erDiagram
         boolean is_active
         cage_type cage_type
         cage_size cage_size
+        numeric price
+        text description
+        integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     service_types {
@@ -392,6 +501,10 @@ erDiagram
         text name
         boolean is_active
         text color
+        text description
+        integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     consultations {
@@ -400,6 +513,13 @@ erDiagram
         text name
         bigint parent_id FK
         boolean is_active
+        numeric price
+        text description
+        text time_condition
+        integer duration
+        integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     procedures {
@@ -409,6 +529,12 @@ erDiagram
         bigint parent_id FK
         boolean is_active
         anesthesia_type anesthesia
+        numeric price
+        text description
+        integer duration
+        integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     hospitalization_plans {
@@ -418,6 +544,11 @@ erDiagram
         boolean is_active
         body_size body_size
         billing_unit billing_unit
+        numeric price
+        text description
+        integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     trimming_courses {
@@ -426,6 +557,12 @@ erDiagram
         text name
         boolean is_active
         target_size target_size
+        numeric price
+        text description
+        integer duration
+        integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     trimming_options {
@@ -434,6 +571,12 @@ erDiagram
         text name
         boolean is_active
         boolean combinable
+        numeric price
+        text description
+        integer duration
+        integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     diagnosis_categories {
@@ -443,6 +586,8 @@ erDiagram
         boolean is_active
         text description
         integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     diagnosis_names {
@@ -453,6 +598,8 @@ erDiagram
         text description
         uuid diagnosis_category_id FK
         integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     checkup_types {
@@ -462,6 +609,12 @@ erDiagram
         bigint parent_id FK
         boolean is_active
         text interval
+        numeric price
+        text description
+        text target_age
+        integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
         timestamptz deleted_at
     }
 
@@ -472,6 +625,8 @@ erDiagram
         text description
         boolean is_active
         integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     inquiry_templates {
@@ -482,6 +637,8 @@ erDiagram
         text content
         boolean is_active
         integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     %% ===== 診療 =====
@@ -543,6 +700,7 @@ erDiagram
         numeric weight
         integer respiration_rate
         text notes
+        timestamptz created_at
     }
 
     exams {
@@ -552,6 +710,11 @@ erDiagram
         uuid exam_type_id FK
         uuid doctor_id FK
         examination_status status
+        date date
+        text result_summary
+        text machine
+        timestamptz created_at
+        timestamptz updated_at
         timestamptz deleted_at
     }
 
@@ -562,6 +725,12 @@ erDiagram
         text name
         text inspection_value
         examination_result_status status
+        text normal_value
+        text result
+        text unit
+        text ref
+        integer sort_order
+        timestamptz created_at
         timestamptz updated_at
     }
 
@@ -581,6 +750,8 @@ erDiagram
         text lot3
         text lot4
         text remarks
+        timestamptz created_at
+        timestamptz updated_at
         timestamptz deleted_at
     }
 
@@ -591,6 +762,10 @@ erDiagram
         uuid checkup_type_id FK
         date date
         uuid doctor_id FK
+        text result
+        date next_date
+        timestamptz created_at
+        timestamptz updated_at
         timestamptz deleted_at
     }
 
@@ -696,6 +871,12 @@ erDiagram
         uuid service_type_id FK
         uuid doctor_id FK
         reservation_status status
+        uuid owner_id FK
+        visit_type visit_type
+        boolean is_designated
+        text notes
+        timestamptz created_at
+        timestamptz updated_at
         timestamptz deleted_at
     }
 
@@ -711,6 +892,11 @@ erDiagram
         uuid cage_id FK
         uuid doctor_id FK
         hospitalization_status status
+        text memo
+        text owner_request
+        text staff_notes
+        timestamptz created_at
+        timestamptz updated_at
         timestamptz deleted_at
     }
 
@@ -718,6 +904,8 @@ erDiagram
         uuid id PK
         uuid hospitalization_id FK
         date date
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     care_plan_items {
@@ -729,6 +917,14 @@ erDiagram
         uuid procedure_id FK
         uuid hospitalization_plan_id FK
         care_plan_status status
+        text name
+        text description
+        text notes
+        numeric unit_price
+        item_category category
+        integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     care_log_records {
@@ -736,6 +932,11 @@ erDiagram
         uuid daily_record_id FK
         care_log_type type
         uuid staff_id FK
+        time time
+        care_log_status status
+        text value
+        text notes
+        timestamptz created_at
     }
 
     vital_records {
@@ -744,6 +945,11 @@ erDiagram
         time time
         uuid staff_id FK
         numeric temperature
+        integer heart_rate
+        integer respiration_rate
+        numeric weight
+        text notes
+        timestamptz created_at
     }
 
     staff_note_records {
@@ -761,6 +967,14 @@ erDiagram
         text treatment_content
         numeric unit_price
         integer quantity
+        text memo
+        boolean insurance
+        numeric discount_rate
+        numeric discount_amount
+        numeric subtotal
+        integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
         timestamptz deleted_at
     }
 
@@ -773,6 +987,18 @@ erDiagram
         uuid staff_id FK
         uuid course_id FK
         trimming_status status
+        numeric weight
+        text style_request
+        text bw
+        text bw_unit
+        numeric bt
+        boolean used_shampoo
+        boolean used_ribbon
+        text remarks
+        text style_image
+        text completed_image
+        timestamptz created_at
+        timestamptz updated_at
         timestamptz deleted_at
     }
 
@@ -780,6 +1006,7 @@ erDiagram
         uuid id PK
         uuid trimming_record_id FK
         uuid option_id FK
+        integer sort_order
     }
 
     %% ===== 会計 =====
@@ -796,6 +1023,10 @@ erDiagram
         boolean has_insurance
         billing_status status
         date scheduled_date
+        timestamptz completed_at
+        text memo
+        timestamptz created_at
+        timestamptz updated_at
         timestamptz deleted_at
     }
 
@@ -806,6 +1037,11 @@ erDiagram
         text name
         numeric unit_price
         integer quantity
+        numeric tax_rate
+        boolean is_insurance_applicable
+        item_source source
+        integer sort_order
+        timestamptz created_at
         timestamptz deleted_at
     }
 
@@ -815,6 +1051,16 @@ erDiagram
         numeric total_amount
         numeric billing_amount
         payment_method method
+        numeric subtotal
+        numeric tax_total
+        text insurance_name
+        numeric insurance_ratio
+        numeric insurance_amount
+        numeric discount_amount
+        numeric received_amount
+        numeric change_amount
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     %% ===== シフト =====
@@ -826,6 +1072,9 @@ erDiagram
         shift_type shift_type
         time start_time
         time end_time
+        text note
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     %% ===== リレーション =====
@@ -910,6 +1159,7 @@ erDiagram
     pets ||--o{ reservation_appointments : "pet_id"
     service_types ||--o{ reservation_appointments : "service_type_id"
     staffs ||--o{ reservation_appointments : "doctor_id"
+    owners ||--o{ reservation_appointments : "owner_id"
 
     %% 入院
     owners ||--o{ hospitalizations : "owner_id"
