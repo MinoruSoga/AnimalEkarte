@@ -1,30 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { ServiceType as ModelServiceType } from "@/types/generated/models";
-
-// ─────────────────────────────────────────────────
-// Frontend display type
-// ─────────────────────────────────────────────────
-
-export interface ServiceType {
-  id: string;
-  clinicId: string;
-  name: string;
-  /** HEX color code (e.g. "#3B82F6") stored in DB */
-  color: string;
-  isActive: boolean;
-  description: string;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-}
+import type {
+  CreateServiceTypeRequest,
+  UpdateServiceTypeRequest,
+  ReorderServiceTypeRequest,
+} from "@/types/service-type";
 
 // ─────────────────────────────────────────────────
 // Transform
 // ─────────────────────────────────────────────────
 
-function transformServiceType(data: ModelServiceType): ServiceType {
+function transformServiceType(data: ModelServiceType) {
   return {
     id: String(data.id ?? 0),
     clinicId: String(data.clinic_id ?? 0),
@@ -37,6 +25,16 @@ function transformServiceType(data: ModelServiceType): ServiceType {
     updatedAt: data.updated_at,
   };
 }
+
+// Frontend domain type (ReturnType から自動導出)
+export type ServiceType = ReturnType<typeof transformServiceType>;
+
+// Re-export request types
+export type {
+  CreateServiceTypeRequest,
+  UpdateServiceTypeRequest,
+  ReorderServiceTypeRequest,
+} from "@/types/service-type";
 
 // ─────────────────────────────────────────────────
 // Query keys
@@ -53,6 +51,34 @@ export async function listServiceTypes(): Promise<ServiceType[]> {
   return data.map(transformServiceType);
 }
 
+export async function createServiceType(
+  req: CreateServiceTypeRequest,
+): Promise<ServiceType> {
+  const { data } = await axios.post<ModelServiceType>("/v1/masters/service-types", req);
+  return transformServiceType(data);
+}
+
+export async function updateServiceType(
+  id: string,
+  req: UpdateServiceTypeRequest,
+): Promise<ServiceType> {
+  const { data } = await axios.patch<ModelServiceType>(
+    `/v1/masters/service-types/${id}`,
+    req,
+  );
+  return transformServiceType(data);
+}
+
+export async function deleteServiceType(id: string): Promise<void> {
+  await axios.delete(`/v1/masters/service-types/${id}`);
+}
+
+export async function reorderServiceTypes(
+  req: ReorderServiceTypeRequest,
+): Promise<void> {
+  await axios.patch("/v1/masters/service-types/reorder", req);
+}
+
 // ─────────────────────────────────────────────────
 // TanStack Query hooks
 // ─────────────────────────────────────────────────
@@ -63,5 +89,46 @@ export function useListServiceTypes() {
     queryFn: listServiceTypes,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
+  });
+}
+
+export function useCreateServiceType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createServiceType,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SERVICE_TYPES_QUERY_KEY });
+    },
+  });
+}
+
+export function useUpdateServiceType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, req }: { id: string; req: UpdateServiceTypeRequest }) =>
+      updateServiceType(id, req),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SERVICE_TYPES_QUERY_KEY });
+    },
+  });
+}
+
+export function useDeleteServiceType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteServiceType,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SERVICE_TYPES_QUERY_KEY });
+    },
+  });
+}
+
+export function useReorderServiceTypes() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: reorderServiceTypes,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SERVICE_TYPES_QUERY_KEY });
+    },
   });
 }
