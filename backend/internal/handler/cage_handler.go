@@ -108,6 +108,24 @@ func (h *Handler) UpdateCage(c *gin.Context) {
 	c.JSON(http.StatusOK, cage)
 }
 
+// ReorderCages godoc
+func (h *Handler) ReorderCages(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderCageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+	if err := h.svc.Cage.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 // DeleteCage godoc
 func (h *Handler) DeleteCage(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)

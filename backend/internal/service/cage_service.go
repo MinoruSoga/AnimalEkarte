@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -16,6 +17,7 @@ type CageService interface {
 	Create(ctx context.Context, cage *model.Cage) error
 	Update(ctx context.Context, cage *model.Cage) error
 	Delete(ctx context.Context, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type cageService struct{ repo repository.CageRepository }
@@ -38,4 +40,11 @@ func (s *cageService) Update(ctx context.Context, cage *model.Cage) error {
 }
 func (s *cageService) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
+}
+
+func (s *cageService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if len(ids) == 0 {
+		return apperrors.WrapInvalidInput("ids must not be empty")
+	}
+	return s.repo.Reorder(ctx, clinicID, ids)
 }

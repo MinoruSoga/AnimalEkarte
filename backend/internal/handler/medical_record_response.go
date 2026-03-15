@@ -16,6 +16,7 @@ type medicalRecordResponse struct {
 	DoctorID                 *uint64               `json:"doctor_id,omitempty"`
 	ReservationAppointmentID *uint64               `json:"reservation_appointment_id,omitempty"`
 	Status                   string                `json:"status"`
+	AccountingID             *uint64               `json:"accounting_id,omitempty"`
 	CreatedAt                time.Time             `json:"created_at"`
 	UpdatedAt                time.Time             `json:"updated_at"`
 	Owner                    *ownerSummaryResponse `json:"owner,omitempty"`
@@ -23,8 +24,16 @@ type medicalRecordResponse struct {
 	Doctor                   *staffSummaryResponse `json:"doctor,omitempty"`
 }
 
+func toMedicalRecordResponseList(records []model.MedicalRecord) []medicalRecordResponse {
+	list := make([]medicalRecordResponse, 0, len(records))
+	for i := range records {
+		list = append(list, toMedicalRecordResponse(&records[i]))
+	}
+	return list
+}
+
 func toMedicalRecordResponse(r *model.MedicalRecord) medicalRecordResponse {
-	return medicalRecordResponse{
+	resp := medicalRecordResponse{
 		ID:                       r.ID,
 		ClinicID:                 r.ClinicID,
 		RecordNo:                 r.RecordNo,
@@ -40,4 +49,8 @@ func toMedicalRecordResponse(r *model.MedicalRecord) medicalRecordResponse {
 		Pet:                      toPetSummary(r.Pet),
 		Doctor:                   toStaffSummary(r.Doctor),
 	}
+	if r.Billing != nil {
+		resp.AccountingID = &r.Billing.ID
+	}
+	return resp
 }

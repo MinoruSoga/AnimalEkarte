@@ -18,6 +18,7 @@ type mockCageRepository struct {
 	createFn   func(ctx context.Context, cage *model.Cage) error
 	updateFn   func(ctx context.Context, cage *model.Cage) error
 	deleteFn   func(ctx context.Context, id uint64) error
+	reorderFn  func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 func (m *mockCageRepository) FindAll(ctx context.Context, cageType *string) ([]model.Cage, error) {
@@ -38,6 +39,13 @@ func (m *mockCageRepository) Update(ctx context.Context, cage *model.Cage) error
 
 func (m *mockCageRepository) Delete(ctx context.Context, id uint64) error {
 	return m.deleteFn(ctx, id)
+}
+
+func (m *mockCageRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if m.reorderFn != nil {
+		return m.reorderFn(ctx, clinicID, ids)
+	}
+	return nil
 }
 
 func TestCageService_List(t *testing.T) {

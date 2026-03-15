@@ -883,6 +883,7 @@ export interface MedicalRecord {
   checkups?: Checkup[];
   estimates?: Estimate[];
   billing_review?: BillingReview;
+  billing?: Billing;
 }
 
 //////////

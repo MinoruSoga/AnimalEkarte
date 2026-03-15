@@ -124,6 +124,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 
 	masters.GET("/cages", h.ListCages)
 	masters.POST("/cages", h.CreateCage)
+	masters.PATCH("/cages/reorder", h.ReorderCages) // 静的パスを /:id より前に登録
 	masters.PATCH("/cages/:id", h.UpdateCage)
 	masters.DELETE("/cages/:id", h.DeleteCage)
 

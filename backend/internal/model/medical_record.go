@@ -35,11 +35,12 @@ type MedicalRecord struct {
 	Inquiry       *Inquiry       `gorm:"foreignKey:MedicalRecordID"  json:"inquiry,omitempty"`
 	Treatments    []Treatment    `gorm:"foreignKey:MedicalRecordID"  json:"treatments,omitempty"`
 	Vitals        []Vital        `gorm:"foreignKey:MedicalRecordID"  json:"vitals,omitempty"`
-	Exams         []Examination         `gorm:"foreignKey:MedicalRecordID"  json:"exams,omitempty"`
+	Exams         []Examination  `gorm:"foreignKey:MedicalRecordID"  json:"exams,omitempty"`
 	Vaccinations  []Vaccination  `gorm:"foreignKey:MedicalRecordID"  json:"vaccinations,omitempty"`
 	Checkups      []Checkup      `gorm:"foreignKey:MedicalRecordID"  json:"checkups,omitempty"`
 	Estimates     []Estimate     `gorm:"foreignKey:MedicalRecordID"  json:"estimates,omitempty"`
 	BillingReview *BillingReview `gorm:"foreignKey:MedicalRecordID"  json:"billing_review,omitempty"`
+	Billing       *Billing       `gorm:"foreignKey:MedicalRecordID"  json:"billing,omitempty"`
 }
 
 func (MedicalRecord) TableName() string { return "medical_records" }
