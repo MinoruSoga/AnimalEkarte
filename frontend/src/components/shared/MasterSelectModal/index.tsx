@@ -86,14 +86,14 @@ export function MasterSelectModal({
             placeholder={searchPlaceholder}
             className="pl-9 h-11 text-sm bg-white border-[rgba(55,53,47,0.16)]"
           />
-          {searchTerm && (
+          {searchTerm ? (
             <button
               onClick={() => setSearchTerm("")}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#37352F]/40 hover:text-[#37352F]/70"
             >
               <X className="size-3.5" />
             </button>
-          )}
+          ) : null}
         </div>
 
         {/* Item List */}
@@ -121,33 +121,33 @@ export function MasterSelectModal({
                   <div className="text-sm text-[#37352F]">{item.name}</div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-3">
-                  {item.price != null && (
+                  {item.price != null ? (
                     <div className="text-sm text-[#37352F]/70">
                       ¥{item.price.toLocaleString()}
                     </div>
-                  )}
-                  {isSelected && (
+                  ) : null}
+                  {isSelected ? (
                     <div className="size-5 rounded-full bg-[#37352F] flex items-center justify-center">
                       <Check className="size-3 text-white" />
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
             );
           })}
-          {filtered.length === 0 && (
+          {filtered.length === 0 ? (
             <div className="text-center py-8 text-sm text-[#37352F]/40">
               {searchTerm ? emptySearchMessage : emptyMessage}
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Master Settings Link */}
-        {masterCategory && (
+        {masterCategory ? (
           <div className="pt-2 border-t border-[rgba(55,53,47,0.09)] flex justify-end">
             <MasterLink category={masterCategory} label="マスタ設定を編集" />
           </div>
-        )}
+        ) : null}
       </DialogContent>
     </Dialog>
   );
@@ -191,11 +191,11 @@ export function MasterSelectTrigger({
               <div className="text-sm text-[#37352F]">
                 {selectedItem.name}
               </div>
-              {selectedItem.price != null && (
+              {selectedItem.price != null ? (
                 <div className="text-xs text-[#37352F]/60 mt-0.5">
                   ¥{selectedItem.price.toLocaleString()}
                 </div>
-              )}
+              ) : null}
             </div>
             <div className="flex items-center gap-1.5 text-xs text-[#37352F]/50">
               <span>変更</span>
@@ -216,11 +216,11 @@ export function MasterSelectTrigger({
           <span className="text-sm text-[#37352F] truncate">
             {selectedItem.name}
           </span>
-          {selectedItem.price != null && (
+          {selectedItem.price != null ? (
             <span className="text-xs text-[#37352F]/50 shrink-0">
               ¥{selectedItem.price.toLocaleString()}
             </span>
-          )}
+          ) : null}
         </div>
         <div className="flex items-center gap-1 text-xs text-[#37352F]/50 shrink-0 ml-2">
           <span>変更</span>

@@ -48,7 +48,7 @@ export const HistoryFilterPanel = React.memo(function HistoryFilterPanel({
 }: HistoryFilterPanelProps) {
   return (
     <div className="space-y-3 bg-white p-3 rounded-lg border border-[rgba(55,53,47,0.16)] shadow-sm">
-      {showDateRange && (
+      {showDateRange ? (
         <div className="flex flex-col gap-1.5">
           <Label className="text-sm text-[#37352F]/60">実施日</Label>
           <div className="flex items-center gap-2">
@@ -67,7 +67,7 @@ export const HistoryFilterPanel = React.memo(function HistoryFilterPanel({
             />
           </div>
         </div>
-      )}
+      ) : null}
       <div className="flex flex-col gap-1.5">
         <Label className="text-sm text-[#37352F]/60">検索単語</Label>
         <div className="flex gap-2">

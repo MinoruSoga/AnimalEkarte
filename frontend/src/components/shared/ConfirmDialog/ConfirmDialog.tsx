@@ -35,9 +35,9 @@ export function ConfirmDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
-          {description && (
+          {description ? (
             <AlertDialogDescription>{description}</AlertDialogDescription>
-          )}
+          ) : null}
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onClose}>{cancelLabel}</AlertDialogCancel>

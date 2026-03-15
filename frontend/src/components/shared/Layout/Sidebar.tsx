@@ -91,10 +91,10 @@ const SidebarItem = ({ item, collapsed = false, level = 0 }: SidebarItemProps) =
       <div className={`size-[18px] flex items-center justify-center shrink-0${level > 0 && !item.icon ? " invisible" : ""}`}>
         {item.icon}
       </div>
-      {!collapsed && (
+      {!collapsed ? (
         <>
           <span className="truncate flex-1 text-left">{item.label}</span>
-          {hasSubItems && (
+          {hasSubItems ? (
             <span
               role="button"
               tabIndex={0}
@@ -111,9 +111,9 @@ const SidebarItem = ({ item, collapsed = false, level = 0 }: SidebarItemProps) =
             >
               <ChevronDown className={`size-3 transition-transform${isExpanded ? " rotate-180" : ""}`} />
             </span>
-          )}
+          ) : null}
         </>
-      )}
+      ) : null}
     </div>
   );
 
@@ -140,13 +140,13 @@ const SidebarItem = ({ item, collapsed = false, level = 0 }: SidebarItemProps) =
         </Link>
       )}
 
-      {hasSubItems && isExpanded && !collapsed && (
+      {hasSubItems && isExpanded && !collapsed ? (
         <div className="space-y-0.5 mt-0.5 mb-1">
           {item.subItems?.map(sub => (
             <SidebarItem key={sub.label} item={sub} collapsed={collapsed} level={level + 1} />
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 };
