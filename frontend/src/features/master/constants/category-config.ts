@@ -178,7 +178,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
   checkup: {
     label: "定期健診マスタ",
     description: "年次健康診断、シニア健診などの健診種別を管理します",
-    settingsPath: "/settings/checkup",
+    settingsPath: "/settings/treatment-items",
     IconComponent: ClipboardCheck,
     labels: { code: "コード", name: "健診種別名", category: "分類" },
     showPrice: true, showCode: false, showCategory: false, showParentItem: true,

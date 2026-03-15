@@ -1,9 +1,10 @@
 // React/Framework
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, memo, useDeferredValue, useTransition } from "react";
 import { useNavigate } from "react-router";
+import { paths } from "@/config/paths";
 
 // External
-import { Plus, Bed, X, Trash2 } from "lucide-react";
+import { Plus, Bed } from "lucide-react";
 import { toast } from "sonner";
 
 // Shared
@@ -21,7 +22,15 @@ import { DataTable, DataTableRow } from "@/components/shared/DataTable";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import { PropertyRow, PropInput } from "@/components/shared/SidePeek";
+import {
+  PropertyRow,
+  PropInput,
+  SidePeekPanel,
+  SidePeekToolbar,
+  SidePeekBody,
+  SidePeekTitleInput,
+  SidePeekFooter,
+} from "@/components/shared/SidePeek";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
   useGetAllHospitalizationPlans,
@@ -35,8 +44,8 @@ import {
 } from "@/features/master/api/hospitalization-plans";
 
 // Types
-import type { HospitalizationPlan } from "@/features/master/api/hospitalization-plans";
 import type {
+  HospitalizationPlan,
   CreateHospitalizationPlanRequest,
   UpdateHospitalizationPlanRequest,
 } from "@/features/master/api/hospitalization-plans";
@@ -55,6 +64,19 @@ const COLUMNS = [
   { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
+// Hoisted static JSX (rendering-hoist-jsx)
+const BODY_SIZE_SELECT_ITEMS = BODY_SIZE_OPTIONS.map((opt) => (
+  <SelectItem key={opt.value} value={opt.value}>
+    {opt.label}
+  </SelectItem>
+));
+
+const BILLING_UNIT_SELECT_ITEMS = BILLING_UNIT_OPTIONS.map((opt) => (
+  <SelectItem key={opt.value} value={opt.value}>
+    {opt.label}
+  </SelectItem>
+));
+
 // ─────────────────────────────────────────────────
 // Form state
 // ─────────────────────────────────────────────────
@@ -72,17 +94,19 @@ interface HospitalizationFormData {
 // HospitalizationSidePanel
 // ─────────────────────────────────────────────────
 
-function HospitalizationSidePanel({
-  item,
-  onClose,
-  onSave,
-  onDeleteRequest,
-}: {
+interface HospitalizationSidePanelProps {
   item: HospitalizationPlan | null;
   onClose: () => void;
   onSave: (data: HospitalizationFormData) => void;
   onDeleteRequest: (item: HospitalizationPlan) => void;
-}) {
+}
+
+const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
+  item,
+  onClose,
+  onSave,
+  onDeleteRequest,
+}: HospitalizationSidePanelProps) {
   const [formData, setFormData] = useState<HospitalizationFormData>(() => ({
     name: item?.name ?? "",
     price: item?.price ?? 0,
@@ -93,172 +117,107 @@ function HospitalizationSidePanel({
   }));
 
   return (
-    <div className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0`}>
-      {/* Toolbar */}
-      <div className={STYLE.sidePeekToolbar}>
-        <span className={`text-xs ${C.text35} pl-1 select-none`}>
-          {item !== null ? "編集" : "新規作成"}
-        </span>
-        <div className="flex items-center gap-1">
-          {item !== null ? (
+    <SidePeekPanel>
+      <SidePeekToolbar
+        isNew={item === null}
+        onClose={onClose}
+        onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      />
+      <SidePeekBody>
+        <div className="pt-4 pb-2">
+          <div className={STYLE.pageIcon}>
+            <Bed className={LAYOUT.pageIcon.innerIcon} />
+          </div>
+        </div>
+        <SidePeekTitleInput
+          value={formData.name}
+          onChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+        />
+        <div className={`${STYLE.sectionDivider} mb-1`} />
+        <div className="py-1">
+          {/* Status */}
+          <PropertyRow label="ステータス">
             <button
               type="button"
-              onClick={() => onDeleteRequest(item)}
-              className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
-            >
-              <Trash2 className="size-4" />
-            </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={onClose}
-            className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-            aria-label="閉じる"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className={STYLE.sidePeekBody}>
-        <div className="px-16 pb-8">
-          <div className="pt-4 pb-2">
-            <div className={STYLE.pageIcon}>
-              <Bed className={LAYOUT.pageIcon.innerIcon} />
-            </div>
-          </div>
-          <div className="pb-1 mb-4">
-            <input
-              type="text"
-              className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
-              style={{
-                fontSize: LAYOUT.pageTitle.fontSize,
-                fontWeight: LAYOUT.pageTitle.fontWeight,
-                lineHeight: LAYOUT.pageTitle.lineHeight,
-              }}
-              value={formData.name}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, name: e.target.value }))
+              onClick={() =>
+                setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))
               }
-              placeholder="無題"
-              autoFocus
-            />
-          </div>
-          <div className={`${STYLE.sectionDivider} mb-1`} />
-          <div className="py-1">
-            {/* Status */}
-            <PropertyRow label="ステータス">
-              <button
-                type="button"
-                onClick={() =>
-                  setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))
-                }
-                className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-              >
-                <NotionStatusPill isActive={formData.isActive} />
-              </button>
-            </PropertyRow>
+              className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+            >
+              <NotionStatusPill isActive={formData.isActive} />
+            </button>
+          </PropertyRow>
 
-            {/* Body Size */}
-            <PropertyRow label="対象体格">
-              <Select
-                value={formData.bodySize}
-                onValueChange={(v) =>
-                  setFormData((prev) => ({ ...prev, bodySize: v as BodySize }))
-                }
-              >
-                <SelectTrigger className={STYLE.selectCompact}>
-                  <SelectValue placeholder="選択" />
-                </SelectTrigger>
-                <SelectContent>
-                  {BODY_SIZE_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </PropertyRow>
+          {/* Body Size */}
+          <PropertyRow label="対象体格">
+            <Select
+              value={formData.bodySize}
+              onValueChange={(v) =>
+                setFormData((prev) => ({ ...prev, bodySize: v as BodySize }))
+              }
+            >
+              <SelectTrigger className={STYLE.selectCompact}>
+                <SelectValue placeholder="選択" />
+              </SelectTrigger>
+              <SelectContent>{BODY_SIZE_SELECT_ITEMS}</SelectContent>
+            </Select>
+          </PropertyRow>
 
-            {/* Billing Unit */}
-            <PropertyRow label="料金単位">
-              <Select
-                value={formData.billingUnit}
-                onValueChange={(v) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    billingUnit: v as BillingUnit,
-                  }))
-                }
-              >
-                <SelectTrigger className={STYLE.selectCompact}>
-                  <SelectValue placeholder="選択" />
-                </SelectTrigger>
-                <SelectContent>
-                  {BILLING_UNIT_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </PropertyRow>
+          {/* Billing Unit */}
+          <PropertyRow label="料金単位">
+            <Select
+              value={formData.billingUnit}
+              onValueChange={(v) =>
+                setFormData((prev) => ({ ...prev, billingUnit: v as BillingUnit }))
+              }
+            >
+              <SelectTrigger className={STYLE.selectCompact}>
+                <SelectValue placeholder="選択" />
+              </SelectTrigger>
+              <SelectContent>{BILLING_UNIT_SELECT_ITEMS}</SelectContent>
+            </Select>
+          </PropertyRow>
 
-            {/* Price */}
-            <PropertyRow label="単価(税込)">
-              <div className="flex items-center gap-1">
-                <span className={`text-sm ${C.text65} select-none`}>¥</span>
-                <input
-                  type="number"
-                  min={0}
-                  className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
-                  value={formData.price === 0 ? "" : String(formData.price)}
-                  onChange={(e) => {
-                    if (e.target.value === "") {
-                      setFormData((prev) => ({ ...prev, price: 0 }));
-                      return;
-                    }
-                    const parsed = Number(e.target.value);
-                    if (!Number.isNaN(parsed) && parsed >= 0) {
-                      setFormData((prev) => ({ ...prev, price: parsed }));
-                    }
-                  }}
-                  placeholder="0"
-                />
-              </div>
-            </PropertyRow>
-
-            {/* Description */}
-            <PropertyRow label="備考">
-              <PropInput
-                value={formData.description}
-                onChange={(v) =>
-                  setFormData((prev) => ({ ...prev, description: v }))
-                }
-                placeholder="補足情報など"
+          {/* Price */}
+          <PropertyRow label="単価(税込)">
+            <div className="flex items-center gap-1">
+              <span className={`text-sm ${C.text65} select-none`}>¥</span>
+              <input
+                type="number"
+                min={0}
+                className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
+                value={formData.price === 0 ? "" : String(formData.price)}
+                onChange={(e) => {
+                  if (e.target.value === "") {
+                    setFormData((prev) => ({ ...prev, price: 0 }));
+                    return;
+                  }
+                  const parsed = Number(e.target.value);
+                  if (!Number.isNaN(parsed) && parsed >= 0) {
+                    setFormData((prev) => ({ ...prev, price: parsed }));
+                  }
+                }}
+                placeholder="0"
               />
-            </PropertyRow>
-          </div>
-        </div>
-      </div>
+            </div>
+          </PropertyRow>
 
-      {/* Footer */}
-      <div className={STYLE.sidePeekFooter}>
-        <button type="button" onClick={onClose} className={STYLE.sidePeekCancelBtn}>
-          キャンセル
-        </button>
-        <button
-          type="button"
-          onClick={() => onSave(formData)}
-          className={STYLE.sidePeekSaveBtn}
-        >
-          保存
-        </button>
-      </div>
-    </div>
+          {/* Description */}
+          <PropertyRow label="備考">
+            <PropInput
+              value={formData.description}
+              onChange={(v) =>
+                setFormData((prev) => ({ ...prev, description: v }))
+              }
+              placeholder="補足情報など"
+            />
+          </PropertyRow>
+        </div>
+      </SidePeekBody>
+      <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
+    </SidePeekPanel>
   );
-}
+});
 
 // ─────────────────────────────────────────────────
 // HospitalizationSettings (main page)
@@ -267,37 +226,28 @@ function HospitalizationSidePanel({
 export function HospitalizationSettings() {
   const navigate = useNavigate();
 
-  const [selectedItem, setSelectedItem] = useState<HospitalizationPlan | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  // null=closed, "new"=create mode, HospitalizationPlan=edit mode
+  const [editTarget, setEditTarget] = useState<HospitalizationPlan | "new" | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<HospitalizationPlan | null>(null);
+  const [, startSaveTransition] = useTransition();
 
   const { data: rawPlans } = useGetAllHospitalizationPlans();
   const createMutation = useCreateHospitalizationPlan();
   const updateMutation = useUpdateHospitalizationPlan();
   const deleteMutation = useDeleteHospitalizationPlan();
 
+  // rerender-transitions: 検索フィルタを低優先度に遅延
+  const deferredSearch = useDeferredValue(searchTerm);
+
   const filteredItems = useMemo(() => {
     const plans = rawPlans ?? [];
-    if (!searchTerm) return plans;
-    const lower = searchTerm.toLowerCase();
+    if (!deferredSearch) return plans;
+    const lower = deferredSearch.toLowerCase();
     return plans.filter((p) => p.name.toLowerCase().includes(lower));
-  }, [rawPlans, searchTerm]);
+  }, [rawPlans, deferredSearch]);
 
-  const handleEdit = useCallback((item: HospitalizationPlan) => {
-    setSelectedItem(item);
-    setIsEditing(true);
-  }, []);
-
-  const handleCreate = useCallback(() => {
-    setSelectedItem(null);
-    setIsEditing(true);
-  }, []);
-
-  const handleClose = useCallback(() => {
-    setIsEditing(false);
-    setSelectedItem(null);
-  }, []);
+  const handleClose = useCallback(() => setEditTarget(null), []);
 
   const handleSave = useCallback(
     (data: HospitalizationFormData) => {
@@ -306,49 +256,48 @@ export function HospitalizationSettings() {
         return;
       }
 
-      if (selectedItem) {
-        const req: UpdateHospitalizationPlanRequest = {
-          name: data.name,
-          price: data.price,
-          description: data.description || undefined,
-          is_active: data.isActive,
-          body_size: data.bodySize !== "" ? data.bodySize : null,
-          billing_unit: data.billingUnit !== "" ? data.billingUnit : null,
-        };
-        updateMutation.mutate(
-          { id: selectedItem.id, req },
-          {
+      // rerender-transitions: API書き込みを非緊急マーク
+      startSaveTransition(() => {
+        if (editTarget !== null && editTarget !== "new") {
+          const req: UpdateHospitalizationPlanRequest = {
+            name: data.name,
+            price: data.price,
+            description: data.description || undefined,
+            is_active: data.isActive,
+            body_size: data.bodySize !== "" ? data.bodySize : null,
+            billing_unit: data.billingUnit !== "" ? data.billingUnit : null,
+          };
+          updateMutation.mutate(
+            { id: editTarget.id, req },
+            {
+              onSuccess: () => {
+                toast.success("更新しました");
+                handleClose();
+              },
+              onError: () => toast.error("更新に失敗しました"),
+            },
+          );
+        } else {
+          const req: CreateHospitalizationPlanRequest = {
+            name: data.name,
+            price: data.price || undefined,
+            description: data.description || undefined,
+            is_active: data.isActive,
+            body_size: data.bodySize !== "" ? data.bodySize : undefined,
+            billing_unit: data.billingUnit !== "" ? data.billingUnit : undefined,
+          };
+          createMutation.mutate(req, {
             onSuccess: () => {
-              toast.success("更新しました");
+              toast.success("登録しました");
               handleClose();
             },
-            onError: () => toast.error("更新に失敗しました"),
-          },
-        );
-      } else {
-        const req: CreateHospitalizationPlanRequest = {
-          name: data.name,
-          price: data.price || undefined,
-          description: data.description || undefined,
-          is_active: data.isActive,
-          body_size: data.bodySize !== "" ? data.bodySize : undefined,
-          billing_unit: data.billingUnit !== "" ? data.billingUnit : undefined,
-        };
-        createMutation.mutate(req, {
-          onSuccess: () => {
-            toast.success("登録しました");
-            handleClose();
-          },
-          onError: () => toast.error("登録に失敗しました"),
-        });
-      }
+            onError: () => toast.error("登録に失敗しました"),
+          });
+        }
+      });
     },
-    [selectedItem, updateMutation, createMutation, handleClose],
+    [editTarget, updateMutation, createMutation, handleClose],
   );
-
-  const handleDeleteRequest = useCallback((item: HospitalizationPlan) => {
-    setPendingDelete(item);
-  }, []);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!pendingDelete) return;
@@ -362,11 +311,13 @@ export function HospitalizationSettings() {
     });
   }, [pendingDelete, deleteMutation, handleClose]);
 
+  const panelItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
+
   return (
     <PageLayout
       title="入院マスタ"
       icon={<Bed className="size-5 text-[#37352F]" />}
-      onBack={() => navigate("/settings")}
+      onBack={() => navigate(paths.settings.getHref())}
       maxWidth="max-w-full"
     >
       <div className="flex h-full">
@@ -383,7 +334,7 @@ export function HospitalizationSettings() {
             </div>
             <button
               type="button"
-              onClick={handleCreate}
+              onClick={() => setEditTarget("new")}
               className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1B6EC2] cursor-pointer transition-colors"
             >
               <Plus className="size-4" />
@@ -396,7 +347,7 @@ export function HospitalizationSettings() {
             data={filteredItems}
             emptyMessage="入院プランが登録されていません"
             renderRow={(item) => (
-              <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
+              <DataTableRow key={item.id} onClick={() => setEditTarget(item)}>
                 <TableCell className={`font-medium text-sm ${C.text}`}>
                   {item.name}
                 </TableCell>
@@ -416,8 +367,8 @@ export function HospitalizationSettings() {
                 <TableCell className="text-center">
                   <NotionStatusPill isActive={item.isActive} />
                 </TableCell>
-                <TableCell className="text-right">
-                  <RowActionButton onClick={() => handleEdit(item)} />
+                <TableCell className="p-0 text-right">
+                  <RowActionButton onClick={() => setEditTarget(item)} />
                 </TableCell>
               </DataTableRow>
             )}
@@ -425,13 +376,13 @@ export function HospitalizationSettings() {
         </div>
 
         {/* Side peek */}
-        {isEditing ? (
+        {editTarget !== null ? (
           <HospitalizationSidePanel
-            key={selectedItem ? String(selectedItem.id) : "new-hospitalization"}
-            item={selectedItem}
+            key={panelItem ? String(panelItem.id) : "new-hospitalization"}
+            item={panelItem}
             onClose={handleClose}
             onSave={handleSave}
-            onDeleteRequest={handleDeleteRequest}
+            onDeleteRequest={setPendingDelete}
           />
         ) : null}
       </div>

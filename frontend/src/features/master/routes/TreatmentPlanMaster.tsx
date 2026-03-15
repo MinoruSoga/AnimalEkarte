@@ -1,12 +1,11 @@
 // React/Framework
-import type { ReactNode } from "react";
 import { useState, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { paths } from "@/config/paths";
 
 // DnD
 import { DndContext, closestCenter } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 // Shared hooks
 import { useSortableList } from "@/hooks/useSortableList";
@@ -16,9 +15,6 @@ import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import Plus from "lucide-react/dist/esm/icons/plus";
-import GripVertical from "lucide-react/dist/esm/icons/grip-vertical";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
-import X from "lucide-react/dist/esm/icons/x";
 import { toast } from "sonner";
 
 // Radix UI Tabs (primitive — same as DiagnosisSettings)
@@ -29,8 +25,19 @@ import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable, DataTableRow } from "@/components/shared/DataTable";
+import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
+import { PropInput } from "@/components/shared/SidePeek/PropInput";
+import {
+  SidePeekPanel,
+  SidePeekToolbar,
+  SidePeekBody,
+  SidePeekTitleInput,
+  SidePeekFooter,
+} from "@/components/shared/SidePeek";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 
 // API hooks
@@ -146,78 +153,6 @@ function buildTree(items: TreatmentItem[]): TreeItem[] {
 }
 
 // ─────────────────────────────────────────────────
-// NotionStatusPill
-// ─────────────────────────────────────────────────
-
-const STATUS_CONFIG = {
-  active: {
-    dot: "bg-[#2383E2]",
-    label: "有効",
-    bg: "bg-[#D3E5EF]",
-    text: "text-[#183B56]",
-  },
-  inactive: {
-    dot: "bg-[#37352F]/10",
-    label: "無効",
-    bg: "bg-[#E3E2E0]",
-    text: "text-[#37352F]/60",
-  },
-} as const;
-
-function NotionStatusPill({ isActive }: { isActive: boolean }) {
-  const cfg = STATUS_CONFIG[isActive ? "active" : "inactive"];
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-xs ${cfg.bg} ${cfg.text}`}
-    >
-      <span className={`size-[7px] rounded-full ${cfg.dot}`} />
-      {cfg.label}
-    </span>
-  );
-}
-
-// ─────────────────────────────────────────────────
-// PropertyRow (Notion-style)
-// ─────────────────────────────────────────────────
-
-function PropertyRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div
-      className={`flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px]`}
-    >
-      <div className="w-[140px] shrink-0 text-sm text-[#37352F]/65 select-none truncate flex items-center">
-        {label}
-      </div>
-      <div className="flex-1 flex items-center">{children}</div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────
-// PropInput
-// ─────────────────────────────────────────────────
-
-function PropInput({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <input
-      type="text"
-      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder ?? "空"}
-    />
-  );
-}
-
-// ─────────────────────────────────────────────────
 // TreatmentItemSidePanel
 // ─────────────────────────────────────────────────
 
@@ -240,177 +175,56 @@ function TreatmentItemSidePanel({
   });
 
   return (
-    <div className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0`}>
-      {/* Toolbar */}
-      <div className={STYLE.sidePeekToolbar}>
-        <span className={`text-xs ${C.text35} pl-1 select-none`}>
-          {item !== null ? "編集" : "新規作成"}
-        </span>
-        <div className="flex items-center gap-1">
-          {item !== null ? (
+    <SidePeekPanel>
+      <SidePeekToolbar
+        isNew={item === null}
+        onClose={onClose}
+        onDelete={item !== null ? onDeleteRequest : undefined}
+      />
+      <SidePeekBody>
+        <div className="pt-4 pb-2">
+          <div className={STYLE.pageIcon}>
+            <Stethoscope className={LAYOUT.pageIcon.innerIcon} />
+          </div>
+        </div>
+        <SidePeekTitleInput
+          value={formData.name}
+          onChange={(v) => setFormData({ ...formData, name: v })}
+        />
+        <div className={`${STYLE.sectionDivider} mb-1`} />
+        <div className="py-1">
+          <PropertyRow label="ステータス">
             <button
               type="button"
-              onClick={onDeleteRequest}
-              className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
+              onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+              className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
             >
-              <Trash2 className="size-4" />
+              <NotionStatusPill isActive={formData.isActive} />
             </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={onClose}
-            className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-            aria-label="閉じる"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className={STYLE.sidePeekBody}>
-        <div className="px-16 pb-8">
-          <div className="pt-4 pb-2">
-            <div className={STYLE.pageIcon}>
-              <Stethoscope className={LAYOUT.pageIcon.innerIcon} />
-            </div>
-          </div>
-          <div className="pb-1 mb-4">
+          </PropertyRow>
+          <PropertyRow label="単価(税込)">
             <input
-              type="text"
-              className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
-              style={{
-                fontSize: LAYOUT.pageTitle.fontSize,
-                fontWeight: LAYOUT.pageTitle.fontWeight,
-                lineHeight: LAYOUT.pageTitle.lineHeight,
-              }}
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="無題"
-              autoFocus
+              type="number"
+              min={0}
+              className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder} font-mono`}
+              value={formData.price === 0 ? "" : formData.price}
+              onChange={(e) =>
+                setFormData({ ...formData, price: Number(e.target.value) || 0 })
+              }
+              placeholder="0"
             />
-          </div>
-          <div className={`${STYLE.sectionDivider} mb-1`} />
-          <div className="py-1">
-            <PropertyRow label="ステータス">
-              <button
-                type="button"
-                onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-              >
-                <NotionStatusPill isActive={formData.isActive} />
-              </button>
-            </PropertyRow>
-            <PropertyRow label="単価(税込)">
-              <input
-                type="number"
-                min={0}
-                className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder} font-mono`}
-                value={formData.price === 0 ? "" : formData.price}
-                onChange={(e) =>
-                  setFormData({ ...formData, price: Number(e.target.value) || 0 })
-                }
-                placeholder="0"
-              />
-            </PropertyRow>
-            <PropertyRow label="備考">
-              <PropInput
-                value={formData.description}
-                onChange={(v) => setFormData({ ...formData, description: v })}
-                placeholder="補足情報など"
-              />
-            </PropertyRow>
-          </div>
+          </PropertyRow>
+          <PropertyRow label="備考">
+            <PropInput
+              value={formData.description}
+              onChange={(v) => setFormData({ ...formData, description: v })}
+              placeholder="補足情報など"
+            />
+          </PropertyRow>
         </div>
-      </div>
-
-      {/* Footer */}
-      <div className={STYLE.sidePeekFooter}>
-        <button type="button" onClick={onClose} className={STYLE.sidePeekCancelBtn}>
-          キャンセル
-        </button>
-        <button
-          type="button"
-          onClick={() => onSave(formData)}
-          className={STYLE.sidePeekSaveBtn}
-        >
-          保存
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────
-// SortableTreatmentRow (root items with DnD)
-// ─────────────────────────────────────────────────
-
-function SortableTreatmentRow({
-  item,
-  isExpanded,
-  onToggle,
-  onEdit,
-}: {
-  item: TreeItem;
-  isExpanded: boolean;
-  onToggle: (id: string) => void;
-  onEdit: () => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: item.id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-  const hasChildren = item.children.length > 0;
-
-  return (
-    <DataTableRow ref={setNodeRef} style={style} {...attributes} onClick={onEdit}>
-      <TableCell
-        className="w-[32px] text-[#37352F]/20 cursor-grab"
-        {...listeners}
-      >
-        <GripVertical className="size-4" />
-      </TableCell>
-      <TableCell>
-        <div className="flex items-center gap-1">
-          {hasChildren ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggle(item.id);
-              }}
-              className={`size-[22px] flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} transition-colors shrink-0`}
-            >
-              {isExpanded ? (
-                <ChevronDown className="size-3.5" />
-              ) : (
-                <ChevronRight className="size-3.5" />
-              )}
-            </button>
-          ) : (
-            <span className="size-[22px] shrink-0" />
-          )}
-          <span className={`text-sm font-medium ${C.text}`}>{item.name}</span>
-          {hasChildren ? (
-            <span className={`text-xs ${C.text25} ml-0.5`}>{item.children.length}</span>
-          ) : null}
-        </div>
-      </TableCell>
-      <TableCell className="text-right">
-        <span className={`text-sm ${C.text70} font-mono`}>
-          {item.price > 0 ? `¥${item.price.toLocaleString()}` : "-"}
-        </span>
-      </TableCell>
-      <TableCell className="text-center">
-        <NotionStatusPill isActive={item.isActive} />
-      </TableCell>
-      <TableCell className="text-right">
-        <RowActionButton onClick={onEdit} />
-      </TableCell>
-    </DataTableRow>
+      </SidePeekBody>
+      <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
+    </SidePeekPanel>
   );
 }
 
@@ -442,7 +256,7 @@ function ChildTreatmentRow({
       <TableCell className="text-center">
         <NotionStatusPill isActive={item.isActive} />
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className="p-0 text-right">
         <RowActionButton onClick={onEdit} />
       </TableCell>
     </DataTableRow>
@@ -605,13 +419,49 @@ function TreatmentTabContent({
                 renderRow={(row) => {
                   if (row.type === "root") {
                     return (
-                      <SortableTreatmentRow
+                      <SortableDataTableRow
                         key={row.item.id}
-                        item={row.item}
-                        isExpanded={row.isExpanded}
-                        onToggle={toggleExpanded}
-                        onEdit={() => handleEdit(row.item)}
-                      />
+                        id={row.item.id}
+                        onClick={() => handleEdit(row.item)}
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            {row.item.children.length > 0 ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleExpanded(row.item.id);
+                                }}
+                                className={`size-[22px] flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} transition-colors shrink-0`}
+                              >
+                                {row.isExpanded ? (
+                                  <ChevronDown className="size-3.5" />
+                                ) : (
+                                  <ChevronRight className="size-3.5" />
+                                )}
+                              </button>
+                            ) : (
+                              <span className="size-[22px] shrink-0" />
+                            )}
+                            <span className={`text-sm font-medium ${C.text}`}>{row.item.name}</span>
+                            {row.item.children.length > 0 ? (
+                              <span className={`text-xs ${C.text25} ml-0.5`}>{row.item.children.length}</span>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className={`text-sm ${C.text70} font-mono`}>
+                            {row.item.price > 0 ? `¥${row.item.price.toLocaleString()}` : "-"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <NotionStatusPill isActive={row.item.isActive} />
+                        </TableCell>
+                        <TableCell className="p-0 text-right">
+                          <RowActionButton onClick={() => handleEdit(row.item)} />
+                        </TableCell>
+                      </SortableDataTableRow>
                     );
                   }
                   return (
@@ -888,7 +738,7 @@ export function TreatmentPlanMaster() {
     <PageLayout
       title="治療プランマスタ"
       icon={<Stethoscope className="size-5 text-[#37352F]" />}
-      onBack={() => navigate("/settings")}
+      onBack={() => navigate(paths.settings.getHref())}
       maxWidth="max-w-full"
     >
       <TabsPrimitive.Root

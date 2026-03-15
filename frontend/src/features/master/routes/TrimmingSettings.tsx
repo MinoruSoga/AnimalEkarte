@@ -1,9 +1,10 @@
 // React/Framework
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
+import { paths } from "@/config/paths";
 
 // External
-import { Plus, Scissors, X, Trash2 } from "lucide-react";
+import { Plus, Scissors } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
@@ -23,7 +24,15 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import { PropertyRow, PropInput } from "@/components/shared/SidePeek";
+import {
+  PropertyRow,
+  PropInput,
+  SidePeekPanel,
+  SidePeekToolbar,
+  SidePeekBody,
+  SidePeekTitleInput,
+  SidePeekFooter,
+} from "@/components/shared/SidePeek";
 import {
   useListTrimmingCourses,
   useCreateTrimmingCourse,
@@ -268,140 +277,93 @@ function TrimmingCourseTab() {
         </div>
 
         {/* ── Right: Side Peek ── */}
-        {isEditing && (
-          <div
-            className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 flex flex-col`}
-          >
-            {/* Toolbar */}
-            <div className={STYLE.sidePeekToolbar}>
-              <span className="text-xs text-[#37352F]/35 pl-1 select-none">
-                {selectedItem ? "編集" : "新規作成"}
-              </span>
-              <div className="flex items-center gap-1">
-                {selectedItem ? (
+        {isEditing ? (
+          <SidePeekPanel>
+            <SidePeekToolbar
+              isNew={selectedItem === null}
+              onClose={handleCloseEdit}
+              onDelete={selectedItem !== null ? () => setPendingDelete(selectedItem) : undefined}
+            />
+            <SidePeekBody>
+              <div className="pt-4 pb-2">
+                <div className={STYLE.pageIcon}>
+                  <Scissors className={LAYOUT.pageIcon.innerIcon} />
+                </div>
+              </div>
+              <SidePeekTitleInput
+                value={formData.name}
+                onChange={(v) => setFormData({ ...formData, name: v })}
+              />
+              <div className={`${STYLE.sectionDivider} mb-1`} />
+              <div className="py-1">
+                <PropertyRow label="ステータス">
                   <button
                     type="button"
-                    onClick={() => setPendingDelete(selectedItem)}
-                    className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
+                    onClick={() =>
+                      setFormData({ ...formData, isActive: !formData.isActive })
+                    }
+                    className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
                   >
-                    <Trash2 className="size-4" />
+                    <NotionStatusPill isActive={formData.isActive} />
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={handleCloseEdit}
-                  className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
-            </div>
+                </PropertyRow>
 
-            {/* Body */}
-            <div className={STYLE.sidePeekBody}>
-              <div className="px-16 pb-8">
-                <div className="pt-4 pb-2">
-                  <div className={STYLE.pageIcon}>
-                    <Scissors className={LAYOUT.pageIcon.innerIcon} />
-                  </div>
-                </div>
+                <PropertyRow label="対象サイズ">
+                  <Select
+                    value={formData.targetSize || "__none__"}
+                    onValueChange={(v) =>
+                      setFormData({ ...formData, targetSize: v === "__none__" ? "" : v as TargetSize })
+                    }
+                  >
+                    <SelectTrigger className={STYLE.selectCompact}>
+                      <SelectValue placeholder="選択" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">指定なし</SelectItem>
+                      {TARGET_SIZE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </PropertyRow>
 
-                <div className="pb-1 mb-4">
-                  <input
-                    type="text"
-                    className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
-                    style={{
-                      fontSize: LAYOUT.pageTitle.fontSize,
-                      fontWeight: LAYOUT.pageTitle.fontWeight,
-                      lineHeight: LAYOUT.pageTitle.lineHeight,
-                    }}
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="無題"
+                <PropertyRow label="所要時間(分)">
+                  <PropInput
+                    type="number"
+                    value={formData.duration}
+                    onChange={(v) => setFormData({ ...formData, duration: v })}
+                    placeholder="90"
                   />
-                </div>
+                </PropertyRow>
 
-                <div className={`${STYLE.sectionDivider} mb-1`} />
-
-                <div className="py-1">
-                  <PropertyRow label="ステータス">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData({ ...formData, isActive: !formData.isActive })
-                      }
-                      className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-                    >
-                      <NotionStatusPill isActive={formData.isActive} />
-                    </button>
-                  </PropertyRow>
-
-                  <PropertyRow label="対象サイズ">
-                    <Select
-                      value={formData.targetSize || "__none__"}
-                      onValueChange={(v) =>
-                        setFormData({ ...formData, targetSize: v === "__none__" ? "" : v as TargetSize })
-                      }
-                    >
-                      <SelectTrigger className={STYLE.selectCompact}>
-                        <SelectValue placeholder="選択" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">指定なし</SelectItem>
-                        {TARGET_SIZE_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </PropertyRow>
-
-                  <PropertyRow label="所要時間(分)">
-                    <PropInput
+                <PropertyRow label="単価(税込)">
+                  <div className="flex items-center gap-1">
+                    <span className={`text-sm ${C.text65} select-none`}>¥</span>
+                    <input
                       type="number"
-                      value={formData.duration}
-                      onChange={(v) => setFormData({ ...formData, duration: v })}
-                      placeholder="90"
+                      min={0}
+                      className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                      placeholder="0"
                     />
-                  </PropertyRow>
+                  </div>
+                </PropertyRow>
 
-                  <PropertyRow label="単価(税込)">
-                    <div className="flex items-center gap-1">
-                      <span className={`text-sm ${C.text65} select-none`}>¥</span>
-                      <input
-                        type="number"
-                        min={0}
-                        className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
-                        value={formData.price}
-                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                        placeholder="0"
-                      />
-                    </div>
-                  </PropertyRow>
-
-                  <PropertyRow label="備考">
-                    <PropInput
-                      value={formData.description}
-                      onChange={(v) => setFormData({ ...formData, description: v })}
-                      placeholder="補足情報など"
-                    />
-                  </PropertyRow>
-                </div>
+                <PropertyRow label="備考">
+                  <PropInput
+                    value={formData.description}
+                    onChange={(v) => setFormData({ ...formData, description: v })}
+                    placeholder="補足情報など"
+                  />
+                </PropertyRow>
               </div>
-            </div>
-
-            {/* Footer */}
-            <div className={STYLE.sidePeekFooter}>
-              <button type="button" onClick={handleCloseEdit} className={STYLE.sidePeekCancelBtn}>
-                キャンセル
-              </button>
-              <button type="button" onClick={handleSave} className={STYLE.sidePeekSaveBtn}>
-                保存
-              </button>
-            </div>
-          </div>
-        )}
+            </SidePeekBody>
+            <SidePeekFooter onCancel={handleCloseEdit} onSave={handleSave} />
+          </SidePeekPanel>
+        ) : null}
       </div>
 
       <ConfirmDialog
@@ -601,131 +563,84 @@ function TrimmingOptionTab() {
         </div>
 
         {/* ── Right: Side Peek ── */}
-        {isEditing && (
-          <div
-            className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 flex flex-col`}
-          >
-            {/* Toolbar */}
-            <div className={STYLE.sidePeekToolbar}>
-              <span className="text-xs text-[#37352F]/35 pl-1 select-none">
-                {selectedItem ? "編集" : "新規作成"}
-              </span>
-              <div className="flex items-center gap-1">
-                {selectedItem ? (
+        {isEditing ? (
+          <SidePeekPanel>
+            <SidePeekToolbar
+              isNew={selectedItem === null}
+              onClose={handleCloseEdit}
+              onDelete={selectedItem !== null ? () => setPendingDelete(selectedItem) : undefined}
+            />
+            <SidePeekBody>
+              <div className="pt-4 pb-2">
+                <div className={STYLE.pageIcon}>
+                  <Scissors className={LAYOUT.pageIcon.innerIcon} />
+                </div>
+              </div>
+              <SidePeekTitleInput
+                value={formData.name}
+                onChange={(v) => setFormData({ ...formData, name: v })}
+              />
+              <div className={`${STYLE.sectionDivider} mb-1`} />
+              <div className="py-1">
+                <PropertyRow label="ステータス">
                   <button
                     type="button"
-                    onClick={() => setPendingDelete(selectedItem)}
-                    className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
+                    onClick={() =>
+                      setFormData({ ...formData, isActive: !formData.isActive })
+                    }
+                    className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
                   >
-                    <Trash2 className="size-4" />
+                    <NotionStatusPill isActive={formData.isActive} />
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={handleCloseEdit}
-                  className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
-            </div>
+                </PropertyRow>
 
-            {/* Body */}
-            <div className={STYLE.sidePeekBody}>
-              <div className="px-16 pb-8">
-                <div className="pt-4 pb-2">
-                  <div className={STYLE.pageIcon}>
-                    <Scissors className={LAYOUT.pageIcon.innerIcon} />
-                  </div>
-                </div>
-
-                <div className="pb-1 mb-4">
-                  <input
-                    type="text"
-                    className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
-                    style={{
-                      fontSize: LAYOUT.pageTitle.fontSize,
-                      fontWeight: LAYOUT.pageTitle.fontWeight,
-                      lineHeight: LAYOUT.pageTitle.lineHeight,
-                    }}
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="無題"
+                <PropertyRow label="所要時間(分)">
+                  <PropInput
+                    type="number"
+                    value={formData.duration}
+                    onChange={(v) => setFormData({ ...formData, duration: v })}
+                    placeholder="30"
                   />
-                </div>
+                </PropertyRow>
 
-                <div className={`${STYLE.sectionDivider} mb-1`} />
+                <PropertyRow label="組合せ可否">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData({ ...formData, combinable: !formData.combinable })
+                    }
+                    className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+                  >
+                    <CombinablePill combinable={formData.combinable} />
+                  </button>
+                </PropertyRow>
 
-                <div className="py-1">
-                  <PropertyRow label="ステータス">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData({ ...formData, isActive: !formData.isActive })
-                      }
-                      className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-                    >
-                      <NotionStatusPill isActive={formData.isActive} />
-                    </button>
-                  </PropertyRow>
-
-                  <PropertyRow label="所要時間(分)">
-                    <PropInput
+                <PropertyRow label="単価(税込)">
+                  <div className="flex items-center gap-1">
+                    <span className={`text-sm ${C.text65} select-none`}>¥</span>
+                    <input
                       type="number"
-                      value={formData.duration}
-                      onChange={(v) => setFormData({ ...formData, duration: v })}
-                      placeholder="30"
+                      min={0}
+                      className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                      placeholder="0"
                     />
-                  </PropertyRow>
+                  </div>
+                </PropertyRow>
 
-                  <PropertyRow label="組合せ可否">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData({ ...formData, combinable: !formData.combinable })
-                      }
-                      className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-                    >
-                      <CombinablePill combinable={formData.combinable} />
-                    </button>
-                  </PropertyRow>
-
-                  <PropertyRow label="単価(税込)">
-                    <div className="flex items-center gap-1">
-                      <span className={`text-sm ${C.text65} select-none`}>¥</span>
-                      <input
-                        type="number"
-                        min={0}
-                        className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
-                        value={formData.price}
-                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                        placeholder="0"
-                      />
-                    </div>
-                  </PropertyRow>
-
-                  <PropertyRow label="備考">
-                    <PropInput
-                      value={formData.description}
-                      onChange={(v) => setFormData({ ...formData, description: v })}
-                      placeholder="補足情報など"
-                    />
-                  </PropertyRow>
-                </div>
+                <PropertyRow label="備考">
+                  <PropInput
+                    value={formData.description}
+                    onChange={(v) => setFormData({ ...formData, description: v })}
+                    placeholder="補足情報など"
+                  />
+                </PropertyRow>
               </div>
-            </div>
-
-            {/* Footer */}
-            <div className={STYLE.sidePeekFooter}>
-              <button type="button" onClick={handleCloseEdit} className={STYLE.sidePeekCancelBtn}>
-                キャンセル
-              </button>
-              <button type="button" onClick={handleSave} className={STYLE.sidePeekSaveBtn}>
-                保存
-              </button>
-            </div>
-          </div>
-        )}
+            </SidePeekBody>
+            <SidePeekFooter onCancel={handleCloseEdit} onSave={handleSave} />
+          </SidePeekPanel>
+        ) : null}
       </div>
 
       <ConfirmDialog
@@ -758,7 +673,7 @@ export function TrimmingSettings() {
     <PageLayout
       title="トリミングマスタ"
       icon={<Scissors className="size-5 text-[#37352F]" />}
-      onBack={() => navigate("/settings")}
+      onBack={() => navigate(paths.settings.getHref())}
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">

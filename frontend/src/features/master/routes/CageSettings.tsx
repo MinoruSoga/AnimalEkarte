@@ -1,9 +1,10 @@
 // React/Framework
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
+import { paths } from "@/config/paths";
 
 // External
-import { Plus, Building2, X, Trash2 } from "lucide-react";
+import { Plus, Building2 } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
@@ -16,7 +17,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import { PropertyRow, PropInput } from "@/components/shared/SidePeek";
+import {
+  PropertyRow,
+  PropInput,
+  SidePeekPanel,
+  SidePeekToolbar,
+  SidePeekBody,
+  SidePeekTitleInput,
+  SidePeekFooter,
+} from "@/components/shared/SidePeek";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable, DataTableRow } from "@/components/shared/DataTable";
@@ -209,7 +218,7 @@ export function CageSettings() {
           <PageLayout
             title="ケージマスタ"
             icon={<Building2 className="size-5 text-[#37352F]" />}
-            onBack={() => navigate("/settings")}
+            onBack={() => navigate(paths.settings.getHref())}
             headerAction={
               <PrimaryButton onClick={handleCreate}>
                 <Plus className="mr-1.5 size-4" />
@@ -232,19 +241,19 @@ export function CageSettings() {
                 emptyMessage="ケージが登録されていません"
                 renderRow={(item) => (
                   <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
-                    <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
+                    <TableCell className={`font-medium text-sm ${C.text}`}>
                       {item.name}
                     </TableCell>
-                    <TableCell className={`text-sm ${C.text70} py-2.5`}>
+                    <TableCell className={`text-sm ${C.text70}`}>
                       {CAGE_TYPE_LABELS[item.cageType]}
                     </TableCell>
-                    <TableCell className={`text-sm ${C.text70} py-2.5`}>
+                    <TableCell className={`text-sm ${C.text70}`}>
                       {CAGE_SIZE_LABELS[item.cageSize]}
                     </TableCell>
-                    <TableCell className={`text-right font-mono text-sm ${C.text} py-2.5`}>
+                    <TableCell className={`text-right font-mono text-sm ${C.text}`}>
                       {item.price != null ? `¥${item.price.toLocaleString()}` : "-"}
                     </TableCell>
-                    <TableCell className="text-right py-2.5">
+                    <TableCell className="text-right">
                       <NotionStatusPill isActive={item.isActive} />
                     </TableCell>
                   </DataTableRow>
@@ -264,142 +273,97 @@ export function CageSettings() {
         </div>
 
         {/* ── Right: Side Peek ── */}
-        {isEditing && (
-          <div className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 flex flex-col`}>
-            {/* Toolbar */}
-            <div className={STYLE.sidePeekToolbar}>
-              <span className="text-xs text-[#37352F]/35 pl-1 select-none">
-                {selectedItem ? "編集" : "新規作成"}
-              </span>
-              <div className="flex items-center gap-1">
-                {selectedItem && (
+        {isEditing ? (
+          <SidePeekPanel>
+            <SidePeekToolbar
+              isNew={selectedItem === null}
+              onClose={handleCloseEdit}
+              onDelete={selectedItem !== null ? () => setPendingDelete(selectedItem) : undefined}
+            />
+            <SidePeekBody>
+              <div className="pt-4 pb-2">
+                <div className={STYLE.pageIcon}>
+                  <Building2 className={LAYOUT.pageIcon.innerIcon} />
+                </div>
+              </div>
+              <SidePeekTitleInput
+                value={formData.name}
+                onChange={(v) => setFormData({ ...formData, name: v })}
+              />
+              <div className={`${STYLE.sectionDivider} mb-1`} />
+              <div className="py-1">
+                <PropertyRow label="ステータス">
                   <button
                     type="button"
-                    onClick={() => setPendingDelete(selectedItem)}
-                    className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
+                    onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+                    className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
                   >
-                    <Trash2 className="size-4" />
+                    <NotionStatusPill isActive={formData.isActive} />
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={handleCloseEdit}
-                  className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
-            </div>
+                </PropertyRow>
 
-            {/* Body */}
-            <div className={STYLE.sidePeekBody}>
-              <div className="px-16 pb-8">
-                <div className="pt-4 pb-2">
-                  <div className={STYLE.pageIcon}>
-                    <Building2 className={LAYOUT.pageIcon.innerIcon} />
-                  </div>
-                </div>
+                <PropertyRow label="エリア">
+                  <Select
+                    value={formData.cageType}
+                    onValueChange={(v) => setFormData({ ...formData, cageType: v as CageType })}
+                  >
+                    <SelectTrigger className={STYLE.selectCompact}>
+                      <SelectValue placeholder="選択" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CAGE_TYPE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </PropertyRow>
 
-                <div className="pb-1 mb-4">
-                  <input
-                    type="text"
-                    className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
-                    style={{
-                      fontSize: LAYOUT.pageTitle.fontSize,
-                      fontWeight: LAYOUT.pageTitle.fontWeight,
-                      lineHeight: LAYOUT.pageTitle.lineHeight,
-                    }}
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="無題"
-                  />
-                </div>
+                <PropertyRow label="サイズ">
+                  <Select
+                    value={formData.cageSize}
+                    onValueChange={(v) => setFormData({ ...formData, cageSize: v as CageSize })}
+                  >
+                    <SelectTrigger className={STYLE.selectCompact}>
+                      <SelectValue placeholder="選択" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CAGE_SIZE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </PropertyRow>
 
-                <div className={`${STYLE.sectionDivider} mb-1`} />
-
-                <div className="py-1">
-                  <PropertyRow label="ステータス">
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                      className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-                    >
-                      <NotionStatusPill isActive={formData.isActive} />
-                    </button>
-                  </PropertyRow>
-
-                  <PropertyRow label="エリア">
-                    <Select
-                      value={formData.cageType}
-                      onValueChange={(v) => setFormData({ ...formData, cageType: v as CageType })}
-                    >
-                      <SelectTrigger className={STYLE.selectCompact}>
-                        <SelectValue placeholder="選択" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CAGE_TYPE_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </PropertyRow>
-
-                  <PropertyRow label="サイズ">
-                    <Select
-                      value={formData.cageSize}
-                      onValueChange={(v) => setFormData({ ...formData, cageSize: v as CageSize })}
-                    >
-                      <SelectTrigger className={STYLE.selectCompact}>
-                        <SelectValue placeholder="選択" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CAGE_SIZE_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </PropertyRow>
-
-                  <PropertyRow label="単価(税込)">
-                    <div className="flex items-center gap-1">
-                      <span className={`text-sm ${C.text65} select-none`}>¥</span>
-                      <input
-                        type="number"
-                        min={0}
-                        className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
-                        value={formData.price}
-                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                        placeholder="0"
-                      />
-                    </div>
-                  </PropertyRow>
-
-                  <PropertyRow label="備考">
-                    <PropInput
-                      value={formData.description}
-                      onChange={(v) => setFormData({ ...formData, description: v })}
-                      placeholder="補足情報など"
+                <PropertyRow label="単価(税込)">
+                  <div className="flex items-center gap-1">
+                    <span className={`text-sm ${C.text65} select-none`}>¥</span>
+                    <input
+                      type="number"
+                      min={0}
+                      className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                      placeholder="0"
                     />
-                  </PropertyRow>
-                </div>
-              </div>
-            </div>
+                  </div>
+                </PropertyRow>
 
-            {/* Footer */}
-            <div className={STYLE.sidePeekFooter}>
-              <button type="button" onClick={handleCloseEdit} className={STYLE.sidePeekCancelBtn}>
-                キャンセル
-              </button>
-              <button type="button" onClick={handleSave} className={STYLE.sidePeekSaveBtn}>
-                保存
-              </button>
-            </div>
-          </div>
-        )}
+                <PropertyRow label="備考">
+                  <PropInput
+                    value={formData.description}
+                    onChange={(v) => setFormData({ ...formData, description: v })}
+                    placeholder="補足情報など"
+                  />
+                </PropertyRow>
+              </div>
+            </SidePeekBody>
+            <SidePeekFooter onCancel={handleCloseEdit} onSave={handleSave} />
+          </SidePeekPanel>
+        ) : null}
       </div>
 
       <ConfirmDialog

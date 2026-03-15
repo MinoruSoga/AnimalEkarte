@@ -1,6 +1,7 @@
 // React/Framework
 import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { paths } from "@/config/paths";
 
 // DnD
 import {
@@ -10,9 +11,7 @@ import {
 import {
   SortableContext,
   verticalListSortingStrategy,
-  useSortable,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 
 // Shared hooks
 import { useSortableList } from "@/hooks/useSortableList";
@@ -21,9 +20,6 @@ import { useSortableList } from "@/hooks/useSortableList";
 import {
   Plus,
   FolderTree,
-  X,
-  GripVertical,
-  Trash2,
   ClipboardList,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -40,12 +36,20 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
-import { DataTable, DataTableRow } from "@/components/shared/DataTable";
+import { DataTable } from "@/components/shared/DataTable";
+import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
-import { PropInput } from "@/components/shared/SidePeek/PropInput";
+import {
+  PropertyRow,
+  PropInput,
+  SidePeekPanel,
+  SidePeekToolbar,
+  SidePeekBody,
+  SidePeekTitleInput,
+  SidePeekFooter,
+} from "@/components/shared/SidePeek";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
   useListDiagnosisCategories,
@@ -116,92 +120,44 @@ function DiagnosisCategorySidePanel({
   });
 
   return (
-    <div className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0`}>
-      {/* Toolbar */}
-      <div className={STYLE.sidePeekToolbar}>
-        <span className={`text-xs ${C.text35} pl-1 select-none`}>
-          {item !== null ? "編集" : "新規作成"}
-        </span>
-        <div className="flex items-center gap-1">
-          {item !== null ? (
+    <SidePeekPanel>
+      <SidePeekToolbar
+        isNew={item === null}
+        onClose={onClose}
+        onDelete={item !== null ? onDeleteRequest : undefined}
+      />
+      <SidePeekBody>
+        <div className="pt-4 pb-2">
+          <div className={STYLE.pageIcon}>
+            <FolderTree className={LAYOUT.pageIcon.innerIcon} />
+          </div>
+        </div>
+        <SidePeekTitleInput
+          value={formData.name}
+          onChange={(v) => setFormData({ ...formData, name: v })}
+        />
+        <div className={`${STYLE.sectionDivider} mb-1`} />
+        <div className="py-1">
+          <PropertyRow label="ステータス">
             <button
               type="button"
-              onClick={onDeleteRequest}
-              className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
+              onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+              className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
             >
-              <Trash2 className="size-4" />
+              <NotionStatusPill isActive={formData.isActive} />
             </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={onClose}
-            className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-            aria-label="閉じる"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className={STYLE.sidePeekBody}>
-        <div className="px-16 pb-8">
-          <div className="pt-4 pb-2">
-            <div className={STYLE.pageIcon}>
-              <FolderTree className={LAYOUT.pageIcon.innerIcon} />
-            </div>
-          </div>
-          <div className="pb-1 mb-4">
-            <input
-              type="text"
-              className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
-              style={{
-                fontSize: LAYOUT.pageTitle.fontSize,
-                fontWeight: LAYOUT.pageTitle.fontWeight,
-                lineHeight: LAYOUT.pageTitle.lineHeight,
-              }}
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="無題"
-              autoFocus
+          </PropertyRow>
+          <PropertyRow label="備考">
+            <PropInput
+              value={formData.description}
+              onChange={(v) => setFormData({ ...formData, description: v })}
+              placeholder="補足情報など"
             />
-          </div>
-          <div className={`${STYLE.sectionDivider} mb-1`} />
-          <div className="py-1">
-            <PropertyRow label="ステータス">
-              <button
-                type="button"
-                onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-              >
-                <NotionStatusPill isActive={formData.isActive} />
-              </button>
-            </PropertyRow>
-            <PropertyRow label="備考">
-              <PropInput
-                value={formData.description}
-                onChange={(v) => setFormData({ ...formData, description: v })}
-                placeholder="補足情報など"
-              />
-            </PropertyRow>
-          </div>
+          </PropertyRow>
         </div>
-      </div>
-
-      {/* Footer */}
-      <div className={STYLE.sidePeekFooter}>
-        <button type="button" onClick={onClose} className={STYLE.sidePeekCancelBtn}>
-          キャンセル
-        </button>
-        <button
-          type="button"
-          onClick={() => onSave(formData)}
-          className={STYLE.sidePeekSaveBtn}
-        >
-          保存
-        </button>
-      </div>
-    </div>
+      </SidePeekBody>
+      <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
+    </SidePeekPanel>
   );
 }
 
@@ -234,155 +190,61 @@ function DiagnosisNameSidePanel({
   });
 
   return (
-    <div className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0`}>
-      {/* Toolbar */}
-      <div className={STYLE.sidePeekToolbar}>
-        <span className={`text-xs ${C.text35} pl-1 select-none`}>
-          {item !== null ? "編集" : "新規作成"}
-        </span>
-        <div className="flex items-center gap-1">
-          {item !== null ? (
+    <SidePeekPanel>
+      <SidePeekToolbar
+        isNew={item === null}
+        onClose={onClose}
+        onDelete={item !== null ? onDeleteRequest : undefined}
+      />
+      <SidePeekBody>
+        <div className="pt-4 pb-2">
+          <div className={STYLE.pageIcon}>
+            <FolderTree className={LAYOUT.pageIcon.innerIcon} />
+          </div>
+        </div>
+        <SidePeekTitleInput
+          value={formData.name}
+          onChange={(v) => setFormData({ ...formData, name: v })}
+        />
+        <div className={`${STYLE.sectionDivider} mb-1`} />
+        <div className="py-1">
+          <PropertyRow label="ステータス">
             <button
               type="button"
-              onClick={onDeleteRequest}
-              className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
+              onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+              className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
             >
-              <Trash2 className="size-4" />
+              <NotionStatusPill isActive={formData.isActive} />
             </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={onClose}
-            className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-            aria-label="閉じる"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className={STYLE.sidePeekBody}>
-        <div className="px-16 pb-8">
-          <div className="pt-4 pb-2">
-            <div className={STYLE.pageIcon}>
-              <FolderTree className={LAYOUT.pageIcon.innerIcon} />
-            </div>
-          </div>
-          <div className="pb-1 mb-4">
-            <input
-              type="text"
-              className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
-              style={{
-                fontSize: LAYOUT.pageTitle.fontSize,
-                fontWeight: LAYOUT.pageTitle.fontWeight,
-                lineHeight: LAYOUT.pageTitle.lineHeight,
-              }}
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="無題"
-              autoFocus
+          </PropertyRow>
+          <PropertyRow label="カテゴリ">
+            <Select
+              value={formData.diagnosisCategoryId}
+              onValueChange={(v) => setFormData({ ...formData, diagnosisCategoryId: v })}
+            >
+              <SelectTrigger className={STYLE.selectCompact}>
+                <SelectValue placeholder="カテゴリを選択" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={String(cat.id)}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </PropertyRow>
+          <PropertyRow label="備考">
+            <PropInput
+              value={formData.description}
+              onChange={(v) => setFormData({ ...formData, description: v })}
+              placeholder="補足情報など"
             />
-          </div>
-
-          <div className={`${STYLE.sectionDivider} mb-1`} />
-
-          <div className="py-1">
-            <PropertyRow label="ステータス">
-              <button
-                type="button"
-                onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-              >
-                <NotionStatusPill isActive={formData.isActive} />
-              </button>
-            </PropertyRow>
-
-            <PropertyRow label="カテゴリ">
-              <Select
-                value={formData.diagnosisCategoryId}
-                onValueChange={(v) => setFormData({ ...formData, diagnosisCategoryId: v })}
-              >
-                <SelectTrigger className={STYLE.selectCompact}>
-                  <SelectValue placeholder="カテゴリを選択" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={String(cat.id)}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </PropertyRow>
-
-            <PropertyRow label="備考">
-              <PropInput
-                value={formData.description}
-                onChange={(v) => setFormData({ ...formData, description: v })}
-                placeholder="補足情報など"
-              />
-            </PropertyRow>
-          </div>
+          </PropertyRow>
         </div>
-      </div>
-
-      {/* Footer */}
-      <div className={STYLE.sidePeekFooter}>
-        <button type="button" onClick={onClose} className={STYLE.sidePeekCancelBtn}>
-          キャンセル
-        </button>
-        <button
-          type="button"
-          onClick={() => onSave(formData)}
-          className={STYLE.sidePeekSaveBtn}
-        >
-          保存
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────
-// SortableCategoryRow
-// ─────────────────────────────────────────────────
-
-function SortableCategoryRow({
-  item,
-  onEdit,
-}: {
-  item: DiagnosisCategory;
-  onEdit: () => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: item.id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-  return (
-    <DataTableRow ref={setNodeRef} style={style} {...attributes} onClick={onEdit}>
-      <TableCell
-        className="w-[32px] text-[#37352F]/20 cursor-grab"
-        {...listeners}
-      >
-        <GripVertical className="size-4" />
-      </TableCell>
-      <TableCell className={`font-medium text-sm ${C.text}`}>
-        {item.name}
-      </TableCell>
-      <TableCell className={`text-sm ${C.text70} truncate max-w-[240px]`}>
-        {item.description || "-"}
-      </TableCell>
-      <TableCell className="text-center">
-        <NotionStatusPill isActive={item.isActive} />
-      </TableCell>
-      <TableCell className="text-right">
-        <RowActionButton onClick={onEdit} />
-      </TableCell>
-    </DataTableRow>
+      </SidePeekBody>
+      <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
+    </SidePeekPanel>
   );
 }
 
@@ -512,11 +374,24 @@ function DiagnosisCategoryTab() {
                 data={filteredItems}
                 emptyMessage="診断カテゴリが登録されていません"
                 renderRow={(item) => (
-                  <SortableCategoryRow
+                  <SortableDataTableRow
                     key={item.id}
-                    item={item}
-                    onEdit={() => handleEdit(item)}
-                  />
+                    id={item.id}
+                    onClick={() => handleEdit(item)}
+                  >
+                    <TableCell className={`font-medium text-sm ${C.text}`}>
+                      {item.name}
+                    </TableCell>
+                    <TableCell className={`text-sm ${C.text70} truncate max-w-[240px]`}>
+                      {item.description || "-"}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <NotionStatusPill isActive={item.isActive} />
+                    </TableCell>
+                    <TableCell className="p-0 text-right">
+                      <RowActionButton onClick={() => handleEdit(item)} />
+                    </TableCell>
+                  </SortableDataTableRow>
                 )}
               />
             </SortableContext>
@@ -545,50 +420,6 @@ function DiagnosisCategoryTab() {
         onConfirm={handleDeleteConfirm}
       />
     </>
-  );
-}
-
-// ─────────────────────────────────────────────────
-// SortableNameRow
-// ─────────────────────────────────────────────────
-
-function SortableNameRow({
-  item,
-  categoryMap,
-  onEdit,
-}: {
-  item: DiagnosisName;
-  categoryMap: Map<string, string>;
-  onEdit: () => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: item.id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-  return (
-    <DataTableRow ref={setNodeRef} style={style} {...attributes} onClick={onEdit}>
-      <TableCell
-        className="w-[32px] text-[#37352F]/20 cursor-grab"
-        {...listeners}
-      >
-        <GripVertical className="size-4" />
-      </TableCell>
-      <TableCell className={`text-sm ${C.text70}`}>
-        {categoryMap.get(item.diagnosisCategoryId) ?? "-"}
-      </TableCell>
-      <TableCell className={`font-medium text-sm ${C.text}`}>
-        {item.name}
-      </TableCell>
-      <TableCell className="text-center">
-        <NotionStatusPill isActive={item.isActive} />
-      </TableCell>
-      <TableCell className="text-right">
-        <RowActionButton onClick={onEdit} />
-      </TableCell>
-    </DataTableRow>
   );
 }
 
@@ -737,12 +568,24 @@ function DiagnosisNameTab() {
                 data={filteredItems}
                 emptyMessage="診断病名が登録されていません"
                 renderRow={(item) => (
-                  <SortableNameRow
+                  <SortableDataTableRow
                     key={item.id}
-                    item={item}
-                    categoryMap={categoryMap}
-                    onEdit={() => handleEdit(item)}
-                  />
+                    id={item.id}
+                    onClick={() => handleEdit(item)}
+                  >
+                    <TableCell className={`text-sm ${C.text70}`}>
+                      {categoryMap.get(item.diagnosisCategoryId) ?? "-"}
+                    </TableCell>
+                    <TableCell className={`font-medium text-sm ${C.text}`}>
+                      {item.name}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <NotionStatusPill isActive={item.isActive} />
+                    </TableCell>
+                    <TableCell className="p-0 text-right">
+                      <RowActionButton onClick={() => handleEdit(item)} />
+                    </TableCell>
+                  </SortableDataTableRow>
                 )}
               />
             </SortableContext>
@@ -792,7 +635,7 @@ export function DiagnosisSettings() {
     <PageLayout
       title="診断病名マスタ"
       icon={<ClipboardList className="size-5 text-[#37352F]" />}
-      onBack={() => navigate("/settings")}
+      onBack={() => navigate(paths.settings.getHref())}
       maxWidth="max-w-full"
     >
       <Tabs

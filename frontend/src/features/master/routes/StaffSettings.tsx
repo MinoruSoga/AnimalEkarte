@@ -1,9 +1,10 @@
 // React/Framework
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
+import { paths } from "@/config/paths";
 
 // External
-import { Plus, UserRound, X, Trash2 } from "lucide-react";
+import { Plus, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
@@ -15,7 +16,14 @@ import { DataTable, DataTableRow } from "@/components/shared/DataTable";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import { PropertyRow } from "@/components/shared/SidePeek";
+import {
+  PropertyRow,
+  SidePeekPanel,
+  SidePeekToolbar,
+  SidePeekBody,
+  SidePeekTitleInput,
+  SidePeekFooter,
+} from "@/components/shared/SidePeek";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
   useListStaffs,
@@ -84,12 +92,13 @@ export function StaffSettings() {
   const [pendingDelete, setPendingDelete] = useState<Staff | null>(null);
 
   const { data: rawStaffs } = useListStaffs();
-  const staffs = rawStaffs ?? [];
   const createMutation = useCreateStaff();
   const updateMutation = useUpdateStaff();
   const deleteMutation = useDeleteStaff();
 
+  // rerender-dependencies: rawStaffs ?? [] は毎回新参照を生成するため useMemo 内に移動
   const filteredItems = useMemo(() => {
+    const staffs = rawStaffs ?? [];
     if (!searchTerm) return staffs;
     const lower = searchTerm.toLowerCase();
     return staffs.filter(
@@ -97,7 +106,7 @@ export function StaffSettings() {
         s.name.toLowerCase().includes(lower) ||
         STAFF_ROLE_LABELS[s.staffRole].toLowerCase().includes(lower),
     );
-  }, [staffs, searchTerm]);
+  }, [rawStaffs, searchTerm]);
 
   const handleEdit = (item: Staff) => {
     setSelectedItem(item);
@@ -202,7 +211,7 @@ export function StaffSettings() {
           <PageLayout
             title="スタッフマスタ"
             icon={<UserRound className="size-5 text-[#37352F]" />}
-            onBack={() => navigate("/settings")}
+            onBack={() => navigate(paths.settings.getHref())}
             headerAction={
               <PrimaryButton onClick={handleCreate}>
                 <Plus className="mr-1.5 size-4" />
@@ -253,178 +262,119 @@ export function StaffSettings() {
         </div>
 
         {/* ── Right: Side Peek Panel ── */}
-        {isEditing && (
-          <div
-            className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 flex flex-col`}
-          >
-            {/* Toolbar */}
-            <div className={STYLE.sidePeekToolbar}>
-              <span className="text-xs text-[#37352F]/35 pl-1 select-none">
-                {selectedItem ? "編集" : "新規作成"}
-              </span>
-              <div className="flex items-center gap-1">
-                {selectedItem ? (
+        {isEditing ? (
+          <SidePeekPanel>
+            <SidePeekToolbar
+              isNew={selectedItem === null}
+              onClose={handleCloseEdit}
+              onDelete={selectedItem !== null ? () => setPendingDelete(selectedItem) : undefined}
+            />
+            <SidePeekBody>
+              <div className="pt-4 pb-2">
+                <div className={STYLE.pageIcon}>
+                  <UserRound className={LAYOUT.pageIcon.innerIcon} />
+                </div>
+              </div>
+              <SidePeekTitleInput
+                value={formData.name}
+                onChange={(v) => setFormData({ ...formData, name: v })}
+              />
+              <div className={`${STYLE.sectionDivider} mb-1`} />
+              <div className="py-1">
+                {/* Status */}
+                <PropertyRow label="ステータス">
                   <button
                     type="button"
-                    onClick={() => setPendingDelete(selectedItem)}
-                    className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        is_active: !formData.is_active,
+                      })
+                    }
+                    className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
                   >
-                    <Trash2 className="size-4" />
+                    <NotionStatusPill isActive={formData.is_active} />
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={handleCloseEdit}
-                  className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
-            </div>
+                </PropertyRow>
 
-            {/* Body */}
-            <div className={STYLE.sidePeekBody}>
-              <div className="px-16 pb-8">
-                {/* Page icon */}
-                <div className="pt-4 pb-2">
-                  <div className={STYLE.pageIcon}>
-                    <UserRound className={LAYOUT.pageIcon.innerIcon} />
-                  </div>
-                </div>
-
-                {/* Title input (name) */}
-                <div className="pb-1 mb-4">
+                {/* 社員番号 */}
+                <PropertyRow label="社員番号">
                   <input
                     type="text"
-                    className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
-                    style={{
-                      fontSize: LAYOUT.pageTitle.fontSize,
-                      fontWeight: LAYOUT.pageTitle.fontWeight,
-                      lineHeight: LAYOUT.pageTitle.lineHeight,
-                    }}
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="無題"
+                    className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`}
+                    value={formData.code}
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                    placeholder="例: ST-001"
                   />
-                </div>
+                </PropertyRow>
 
-                {/* Separator */}
-                <div className={`${STYLE.sectionDivider} mb-1`} />
+                {/* 職種 */}
+                <PropertyRow label="職種">
+                  <Select
+                    value={formData.staff_role}
+                    onValueChange={(val) =>
+                      setFormData({ ...formData, staff_role: val as StaffRoleValue })
+                    }
+                  >
+                    <SelectTrigger className={STYLE.selectCompact}>
+                      <SelectValue placeholder="選択" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STAFF_ROLE_OPTIONS.map((r) => (
+                        <SelectItem key={r.value} value={r.value}>
+                          {r.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </PropertyRow>
 
-                {/* Properties */}
-                <div className="py-1">
-                  {/* Status */}
-                  <PropertyRow label="ステータス">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData({
-                          ...formData,
-                          is_active: !formData.is_active,
-                        })
-                      }
-                      className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
-                    >
-                      <NotionStatusPill isActive={formData.is_active} />
-                    </button>
-                  </PropertyRow>
+                {/* 資格番号 */}
+                <PropertyRow label="資格番号">
+                  <input
+                    type="text"
+                    className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`}
+                    value={formData.license_number}
+                    onChange={(e) =>
+                      setFormData({ ...formData, license_number: e.target.value })
+                    }
+                    placeholder="空"
+                  />
+                </PropertyRow>
 
-                  {/* 社員番号 */}
-                  <PropertyRow label="社員番号">
-                    <input
-                      type="text"
-                      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`}
-                      value={formData.code}
-                      onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                      placeholder="例: ST-001"
-                    />
-                  </PropertyRow>
+                {/* 新規作成時のみ: email / password */}
+                {selectedItem === null ? (
+                  <>
+                    <PropertyRow label="メールアドレス">
+                      <input
+                        type="email"
+                        className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`}
+                        value={formData.email}
+                        onChange={(e) =>
+                          setFormData({ ...formData, email: e.target.value })
+                        }
+                        placeholder="例: staff@clinic.com"
+                      />
+                    </PropertyRow>
 
-                  {/* 職種 */}
-                  <PropertyRow label="職種">
-                    <Select
-                      value={formData.staff_role}
-                      onValueChange={(val) =>
-                        setFormData({ ...formData, staff_role: val as StaffRoleValue })
-                      }
-                    >
-                      <SelectTrigger className={STYLE.selectCompact}>
-                        <SelectValue placeholder="選択" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STAFF_ROLE_OPTIONS.map((r) => (
-                          <SelectItem key={r.value} value={r.value}>
-                            {r.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </PropertyRow>
-
-                  {/* 資格番号 */}
-                  <PropertyRow label="資格番号">
-                    <input
-                      type="text"
-                      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`}
-                      value={formData.license_number}
-                      onChange={(e) =>
-                        setFormData({ ...formData, license_number: e.target.value })
-                      }
-                      placeholder="空"
-                    />
-                  </PropertyRow>
-
-                  {/* 新規作成時のみ: email / password */}
-                  {!selectedItem && (
-                    <>
-                      <PropertyRow label="メールアドレス">
-                        <input
-                          type="email"
-                          className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`}
-                          value={formData.email}
-                          onChange={(e) =>
-                            setFormData({ ...formData, email: e.target.value })
-                          }
-                          placeholder="例: staff@clinic.com"
-                        />
-                      </PropertyRow>
-
-                      <PropertyRow label="パスワード">
-                        <input
-                          type="password"
-                          className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`}
-                          value={formData.password}
-                          onChange={(e) =>
-                            setFormData({ ...formData, password: e.target.value })
-                          }
-                          placeholder="8文字以上"
-                        />
-                      </PropertyRow>
-                    </>
-                  )}
-                </div>
+                    <PropertyRow label="パスワード">
+                      <input
+                        type="password"
+                        className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`}
+                        value={formData.password}
+                        onChange={(e) =>
+                          setFormData({ ...formData, password: e.target.value })
+                        }
+                        placeholder="8文字以上"
+                      />
+                    </PropertyRow>
+                  </>
+                ) : null}
               </div>
-            </div>
-
-            {/* Footer */}
-            <div className={STYLE.sidePeekFooter}>
-              <button
-                type="button"
-                onClick={handleCloseEdit}
-                className={STYLE.sidePeekCancelBtn}
-              >
-                キャンセル
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                className={STYLE.sidePeekSaveBtn}
-              >
-                保存
-              </button>
-            </div>
-          </div>
-        )}
+            </SidePeekBody>
+            <SidePeekFooter onCancel={handleCloseEdit} onSave={handleSave} />
+          </SidePeekPanel>
+        ) : null}
       </div>
 
       <ConfirmDialog

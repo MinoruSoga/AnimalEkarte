@@ -2,6 +2,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate } from "react-router";
+import { paths } from "@/config/paths";
 
 // DnD
 import {
@@ -13,27 +14,31 @@ import {
 import {
   SortableContext,
   verticalListSortingStrategy,
-  useSortable,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 
 // External
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
 import Pill from "lucide-react/dist/esm/icons/pill";
 import Plus from "lucide-react/dist/esm/icons/plus";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
-import X from "lucide-react/dist/esm/icons/x";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import GripVertical from "lucide-react/dist/esm/icons/grip-vertical";
-import MoreHorizontal from "lucide-react/dist/esm/icons/more-horizontal";
-import Maximize2 from "lucide-react/dist/esm/icons/maximize-2";
 
 // Internal – shared
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
+import {
+  PropertyRow,
+  PropInput,
+  SidePeekPanel,
+  SidePeekToolbar,
+  SidePeekBody,
+  SidePeekTitleInput,
+  SidePeekFooter,
+} from "@/components/shared/SidePeek";
+import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import {
   Table,
   TableBody,
@@ -49,12 +54,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useSortableList } from "@/hooks/useSortableList";
@@ -127,43 +126,6 @@ const INITIAL_FORM: MedicineFormData = {
 // Sub-components
 // ─────────────────────────────────────────────────
 
-function PropertyRow({
-  label,
-  required,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      className={`flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px] items-center`}
-    >
-      <div className={`w-[140px] shrink-0 text-sm ${C.text65} select-none`}>
-        {label}
-        {required ? <span className={`${C.textRequired} ml-0.5`}>*</span> : null}
-      </div>
-      <div className="flex-1 min-w-0">{children}</div>
-    </div>
-  );
-}
-
-function NotionStatusPill({ active }: { active: boolean }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-xs ${
-        active ? "bg-[#D3E5EF] text-[#183B56]" : "bg-[#E3E2E0] text-[#37352F]/60"
-      }`}
-    >
-      <span
-        className={`size-[7px] rounded-full ${active ? "bg-[#2383E2]" : "bg-[#37352F]/10"}`}
-      />
-      {active ? "有効" : "無効"}
-    </span>
-  );
-}
-
 function StatusDot({ active }: { active: boolean }) {
   return (
     <span className="inline-flex items-center gap-1.5">
@@ -190,28 +152,8 @@ function SortableMedicineRow({
   onEdit: (medicine: Medicine) => void;
   grouped: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: medicine.id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    // ドラッグ中は完全透明でプレースホルダーとして高さを維持
-    opacity: isDragging ? 0 : 1,
-  };
   return (
-    <DataTableRow
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      onClick={() => onEdit(medicine)}
-      className="group/row"
-    >
-      <TableCell
-        className="w-8 px-0 py-2.5 pl-1 text-[#37352F]/20 group-hover/row:text-[#37352F]/50 transition-colors cursor-grab"
-        {...listeners}
-      >
-        <GripVertical className="size-4" />
-      </TableCell>
+    <SortableDataTableRow id={medicine.id} onClick={() => onEdit(medicine)}>
       <TableCell className={`${STYLE.tableCell} font-medium ${grouped ? "pl-12!" : "pl-2"}`}>
         {medicine.name}
       </TableCell>
@@ -221,7 +163,7 @@ function SortableMedicineRow({
       <TableCell className="w-[110px] py-2.5 text-center">
         <StatusDot active={medicine.isActive} />
       </TableCell>
-    </DataTableRow>
+    </SortableDataTableRow>
   );
 }
 
@@ -713,64 +655,14 @@ export function MedicineSettings() {
           transition={{ duration: panelDuration, ease: [0.25, 0.1, 0.25, 1] }}
           className="shrink-0 min-h-0 overflow-hidden"
         >
-        <div
-          className={`flex flex-col h-full w-[680px] bg-white border-l ${C.borderLight} shadow-[-1px_0_5px_rgba(0,0,0,0.02)]`}
-        >
-          {/* Toolbar */}
-          <div className="flex items-center justify-between h-[48px] px-3 shrink-0">
-            <span className={`text-xs ${C.text35} pl-1 select-none`}>
-              {selectedMedicine ? "編集" : "新規作成"}
-            </span>
-            <div className="flex items-center gap-1">
-              {/* Expand button */}
-              <button
-                type="button"
-                onClick={() => {}}
-                className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-                aria-label="全画面で開く"
-              >
-                <Maximize2 className="size-4" />
-              </button>
+          <SidePeekPanel>
+            <SidePeekToolbar
+              isNew={!selectedMedicine}
+              onClose={handleCloseEdit}
+              onDelete={selectedMedicine ? handleDeleteRequest : undefined}
+            />
 
-              {/* 3-dots dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-                    aria-label="その他の操作"
-                  >
-                    <MoreHorizontal className="size-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {selectedMedicine ? (
-                    <DropdownMenuItem
-                      onClick={handleDeleteRequest}
-                      className="text-red-600 focus:text-red-600"
-                    >
-                      <Trash2 className="size-4 mr-2" />
-                      削除
-                    </DropdownMenuItem>
-                  ) : null}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Close button */}
-              <button
-                type="button"
-                onClick={handleCloseEdit}
-                className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-                aria-label="閉じる"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Body */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="px-16 pb-8">
+            <SidePeekBody>
               {/* Page icon */}
               <div className="pt-4 pb-2">
                 <div className={STYLE.pageIcon}>
@@ -779,20 +671,11 @@ export function MedicineSettings() {
               </div>
 
               {/* Title input (薬品名) */}
-              <div className="pb-1 mb-4">
-                <input
-                  type="text"
-                  className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
-                  style={{
-                    fontSize: LAYOUT.pageTitle.fontSize,
-                    fontWeight: LAYOUT.pageTitle.fontWeight,
-                    lineHeight: LAYOUT.pageTitle.lineHeight,
-                  }}
-                  value={formData.name}
-                  onChange={(e) => updateForm({ name: e.target.value })}
-                  placeholder="薬品名"
-                />
-              </div>
+              <SidePeekTitleInput
+                value={formData.name}
+                onChange={(v) => updateForm({ name: v })}
+                placeholder="薬品名"
+              />
 
               <div className={`${STYLE.sectionDivider} mb-1`} />
 
@@ -843,18 +726,16 @@ export function MedicineSettings() {
                     onClick={() => updateForm({ isActive: !formData.isActive })}
                     className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
                   >
-                    <NotionStatusPill active={formData.isActive} />
+                    <NotionStatusPill isActive={formData.isActive} />
                   </button>
                 </PropertyRow>
 
                 {/* Description */}
                 <PropertyRow label="備考">
-                  <input
-                    type="text"
+                  <PropInput
                     value={formData.description}
-                    onChange={(e) => updateForm({ description: e.target.value })}
+                    onChange={(v) => updateForm({ description: v })}
                     placeholder="空"
-                    className={STYLE.propertyInput}
                   />
                 </PropertyRow>
               </div>
@@ -872,7 +753,7 @@ export function MedicineSettings() {
                 </div>
 
                 {/* Dosage form — full-width */}
-                <PropertyRow label="剤形" required>
+                <PropertyRow label="剤形">
                   <Select
                     value={formData.dosageForm}
                     onValueChange={(v) => updateForm({ dosageForm: v })}
@@ -897,23 +778,10 @@ export function MedicineSettings() {
                   </Select>
                 </PropertyRow>
               </div>
-            </div>
-          </div>
+            </SidePeekBody>
 
-          {/* Footer */}
-          <div className={STYLE.sidePeekFooter}>
-            <button
-              type="button"
-              onClick={handleCloseEdit}
-              className={STYLE.sidePeekCancelBtn}
-            >
-              キャンセル
-            </button>
-            <button type="button" onClick={handleSave} className={STYLE.sidePeekSaveBtn}>
-              保存
-            </button>
-          </div>
-        </div>
+            <SidePeekFooter onCancel={handleCloseEdit} onSave={handleSave} />
+          </SidePeekPanel>
         </motion.div>
       ) : null}
     </AnimatePresence>
@@ -926,7 +794,7 @@ export function MedicineSettings() {
           <PageLayout
             title="薬剤マスタ"
             icon={<Pill className="size-5 text-[#37352F]" />}
-            onBack={() => navigate("/settings")}
+            onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
           >
             <div className="flex flex-col gap-4">

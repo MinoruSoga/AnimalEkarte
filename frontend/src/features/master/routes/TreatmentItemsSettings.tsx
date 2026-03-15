@@ -2,6 +2,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate } from "react-router";
+import { paths } from "@/config/paths";
 
 // DnD
 import {
@@ -13,9 +14,7 @@ import {
 import {
   SortableContext,
   verticalListSortingStrategy,
-  useSortable,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 
 // External
 import { AnimatePresence, motion } from "motion/react";
@@ -33,6 +32,13 @@ import Maximize2 from "lucide-react/dist/esm/icons/maximize-2";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
+import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
+import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
+import { SidePeekBody } from "@/components/shared/SidePeek/SidePeekBody";
+import { SidePeekTitleInput } from "@/components/shared/SidePeek/SidePeekTitleInput";
+import { SidePeekFooter } from "@/components/shared/SidePeek/SidePeekFooter";
+import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import {
   Table,
   TableBody,
@@ -182,43 +188,6 @@ interface TreatmentTabContentProps {
 // Sub-components
 // ─────────────────────────────────────────────────
 
-function PropertyRow({
-  label,
-  required,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      className={`flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px] items-center`}
-    >
-      <div className={`w-[140px] shrink-0 text-sm ${C.text65} select-none`}>
-        {label}
-        {required ? <span className={`${C.textRequired} ml-0.5`}>*</span> : null}
-      </div>
-      <div className="flex-1 min-w-0">{children}</div>
-    </div>
-  );
-}
-
-function NotionStatusPill({ active }: { active: boolean }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-xs ${
-        active ? "bg-[#D3E5EF] text-[#183B56]" : "bg-[#E3E2E0] text-[#37352F]/60"
-      }`}
-    >
-      <span
-        className={`size-[7px] rounded-full ${active ? "bg-[#2383E2]" : "bg-[#37352F]/10"}`}
-      />
-      {active ? "有効" : "無効"}
-    </span>
-  );
-}
-
 function StatusDot({ active }: { active: boolean }) {
   return (
     <span className="inline-flex items-center gap-1.5">
@@ -233,10 +202,10 @@ function StatusDot({ active }: { active: boolean }) {
 }
 
 // ─────────────────────────────────────────────────
-// SortableTreatmentRow
+// TreatmentItemRow
 // ─────────────────────────────────────────────────
 
-function SortableTreatmentRow({
+function TreatmentItemRow({
   item,
   onEdit,
   grouped,
@@ -245,37 +214,24 @@ function SortableTreatmentRow({
   onEdit: (item: TreatmentItem) => void;
   grouped: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: item.id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0 : 1,
-  };
   return (
-    <TableRow
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
+    <SortableDataTableRow
+      id={item.id}
       onClick={() => onEdit(item)}
-      className={`${STYLE.tableRow} group/row`}
+      className="group/row"
+      gripClassName="w-8 px-0 py-0 pl-1 text-[#37352F]/20 group-hover/row:text-[#37352F]/50 transition-colors cursor-grab"
+      isDraggingOpacity={0}
     >
-      <TableCell
-        className="w-8 px-0 py-0 pl-1 text-[#37352F]/20 group-hover/row:text-[#37352F]/50 transition-colors cursor-grab"
-        {...listeners}
-      >
-        <GripVertical className="size-4" />
-      </TableCell>
       <TableCell className={`${STYLE.tableCell} font-medium ${grouped ? "pl-12!" : "pl-2"}`}>
         {item.name}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} w-[130px] text-right pr-4 font-mono`}>
         {item.price > 0 ? `¥${item.price.toLocaleString()}` : "-"}
       </TableCell>
-      <TableCell className="w-[110px] py-2 text-center">
+      <TableCell className="w-[110px] py-2.5 text-center">
         <StatusDot active={item.isActive} />
       </TableCell>
-    </TableRow>
+    </SortableDataTableRow>
   );
 }
 
@@ -326,8 +282,8 @@ function TreatmentTabContent({
   onDelete,
   onReorder,
   onCrossGroupUpdate,
-  isCreatePending,
-  isUpdatePending,
+  isCreatePending: _isCreatePending,
+  isUpdatePending: _isUpdatePending,
   isDeletePending: _isDeletePending,
 }: TreatmentTabContentProps) {
   const reduced = useReducedMotion();
@@ -610,7 +566,7 @@ function TreatmentTabContent({
                     {/* Group header row */}
                     <TableRow
                       key={`h-${parentId}`}
-                      className={`border-b ${C.borderLight} bg-[#F7F6F3]/30 h-[49px] group/header hover:bg-[#F7F6F3]/60`}
+                      className={`border-b ${C.borderLight} bg-[#F7F6F3]/30 h-12 group/header hover:bg-[#F7F6F3]/60`}
                     >
                       <TableCell className="w-8 px-0 py-0">
                         <button
@@ -667,7 +623,7 @@ function TreatmentTabContent({
                         strategy={verticalListSortingStrategy}
                       >
                         {groupRows.map((item) => (
-                          <SortableTreatmentRow
+                          <TreatmentItemRow
                             key={item.id}
                             item={item}
                             onEdit={handleEdit}
@@ -686,7 +642,7 @@ function TreatmentTabContent({
                 strategy={verticalListSortingStrategy}
               >
                 {ungroupedItems.map((item) => (
-                  <SortableTreatmentRow
+                  <TreatmentItemRow
                     key={item.id}
                     item={item}
                     onEdit={handleEdit}
@@ -731,9 +687,7 @@ function TreatmentTabContent({
           transition={{ duration: panelDuration, ease: [0.25, 0.1, 0.25, 1] }}
           className="shrink-0 min-h-0 overflow-hidden"
         >
-          <div
-            className={`flex flex-col h-full w-[680px] bg-white border-l ${C.borderLight} shadow-[-1px_0_5px_rgba(0,0,0,0.02)]`}
-          >
+          <SidePeekPanel>
             {/* Toolbar */}
             <div className="flex items-center justify-between h-[48px] px-3 shrink-0">
               <span className={`text-xs ${C.text35} pl-1 select-none`}>
@@ -783,111 +737,85 @@ function TreatmentTabContent({
               </div>
             </div>
 
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="px-16 pb-8">
-                {/* Page icon */}
-                <div className="pt-4 pb-2">
-                  <div className={STYLE.pageIcon}>
-                    <span className={LAYOUT.pageIcon.innerIcon}>{entityIcon}</span>
-                  </div>
-                </div>
-
-                {/* Title input */}
-                <div className="pb-1 mb-4">
-                  <input
-                    type="text"
-                    className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
-                    style={{
-                      fontSize: LAYOUT.pageTitle.fontSize,
-                      fontWeight: LAYOUT.pageTitle.fontWeight,
-                      lineHeight: LAYOUT.pageTitle.lineHeight,
-                    }}
-                    value={formData.name}
-                    onChange={(e) => updateForm({ name: e.target.value })}
-                    placeholder={`${entityLabel}名`}
-                  />
-                </div>
-
-                <div className={`${STYLE.sectionDivider} mb-1`} />
-
-                {/* Properties */}
-                <div className="py-1">
-                  {/* Parent category select */}
-                  <PropertyRow label="親カテゴリ">
-                    <select
-                      value={formData.parentId}
-                      onChange={(e) => updateForm({ parentId: e.target.value })}
-                      className={SELECT_TRIGGER_FULL}
-                    >
-                      <option value="">なし（未分類）</option>
-                      {categoryItems.map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.name}
-                        </option>
-                      ))}
-                    </select>
-                  </PropertyRow>
-
-                  {/* Price */}
-                  <PropertyRow label="単価(税込)">
-                    <div className="flex items-center gap-1">
-                      <span className={`text-sm ${C.text40}`}>¥</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={formData.price}
-                        onChange={(e) => updateForm({ price: Number(e.target.value) })}
-                        placeholder="0"
-                        className={`${STYLE.propertyInput} w-28`}
-                      />
-                    </div>
-                  </PropertyRow>
-
-                  {/* Status */}
-                  <PropertyRow label="ステータス">
-                    <button
-                      type="button"
-                      onClick={() => updateForm({ isActive: !formData.isActive })}
-                      className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
-                    >
-                      <NotionStatusPill active={formData.isActive} />
-                    </button>
-                  </PropertyRow>
-
-                  {/* Description */}
-                  <PropertyRow label="備考">
-                    <input
-                      type="text"
-                      value={formData.description}
-                      onChange={(e) => updateForm({ description: e.target.value })}
-                      placeholder="空"
-                      className={STYLE.propertyInput}
-                    />
-                  </PropertyRow>
+            <SidePeekBody>
+              {/* Page icon */}
+              <div className="pt-4 pb-2">
+                <div className={STYLE.pageIcon}>
+                  <span className={LAYOUT.pageIcon.innerIcon}>{entityIcon}</span>
                 </div>
               </div>
-            </div>
 
-            {/* Footer */}
-            <div className={STYLE.sidePeekFooter}>
-              <button
-                type="button"
-                onClick={handleCloseEdit}
-                className={STYLE.sidePeekCancelBtn}
-              >
-                キャンセル
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={isCreatePending || isUpdatePending}
-                className={STYLE.sidePeekSaveBtn}
-              >
-                保存
-              </button>
-            </div>
-          </div>
+              <SidePeekTitleInput
+                value={formData.name}
+                onChange={(v) => updateForm({ name: v })}
+                placeholder={`${entityLabel}名`}
+                autoFocus={false}
+              />
+
+              <div className={`${STYLE.sectionDivider} mb-1`} />
+
+              {/* Properties */}
+              <div className="py-1">
+                {/* Parent category select */}
+                <PropertyRow label="親カテゴリ">
+                  <select
+                    value={formData.parentId}
+                    onChange={(e) => updateForm({ parentId: e.target.value })}
+                    className={SELECT_TRIGGER_FULL}
+                  >
+                    <option value="">なし（未分類）</option>
+                    {categoryItems.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </PropertyRow>
+
+                {/* Price */}
+                <PropertyRow label="単価(税込)">
+                  <div className="flex items-center gap-1">
+                    <span className={`text-sm ${C.text40}`}>¥</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={formData.price}
+                      onChange={(e) => updateForm({ price: Number(e.target.value) })}
+                      placeholder="0"
+                      className={`${STYLE.propertyInput} w-28`}
+                    />
+                  </div>
+                </PropertyRow>
+
+                {/* Status */}
+                <PropertyRow label="ステータス">
+                  <button
+                    type="button"
+                    onClick={() => updateForm({ isActive: !formData.isActive })}
+                    className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
+                  >
+                    <NotionStatusPill isActive={formData.isActive} />
+                  </button>
+                </PropertyRow>
+
+                {/* Description */}
+                <PropertyRow label="備考">
+                  <input
+                    type="text"
+                    value={formData.description}
+                    onChange={(e) => updateForm({ description: e.target.value })}
+                    placeholder="空"
+                    className={STYLE.propertyInput}
+                  />
+                </PropertyRow>
+              </div>
+            </SidePeekBody>
+
+            <SidePeekFooter
+              onCancel={handleCloseEdit}
+              onSave={handleSave}
+            />
+          </SidePeekPanel>
         </motion.div>
       ) : null}
     </AnimatePresence>
@@ -1312,7 +1240,7 @@ export function TreatmentItemsSettings() {
     <PageLayout
       title="診療項目マスタ"
       icon={<Stethoscope className="size-5 text-[#37352F]" />}
-      onBack={() => navigate("/settings")}
+      onBack={() => navigate(paths.settings.getHref())}
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">

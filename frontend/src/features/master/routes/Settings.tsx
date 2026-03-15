@@ -1,12 +1,11 @@
 // React/Framework
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
+import { paths } from "@/config/paths";
 
 // External
 import { toast } from "sonner";
 import Plus from "lucide-react/dist/esm/icons/plus";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
-import X from "lucide-react/dist/esm/icons/x";
 
 // Internal
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -31,7 +30,15 @@ import {
 import type { MasterSettingsCategory } from "@/features/master/constants/category-config";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import { PropertyRow, PropInput } from "@/components/shared/SidePeek";
+import {
+  PropertyRow,
+  PropInput,
+  SidePeekPanel,
+  SidePeekToolbar,
+  SidePeekBody,
+  SidePeekTitleInput,
+  SidePeekFooter,
+} from "@/components/shared/SidePeek";
 
 // Types
 import type { MasterItem } from "@/types";
@@ -180,12 +187,12 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
           />
         </div>
         {/* New button shown here only in embedded mode; standalone uses headerAction */}
-        {embedded && (
+        {embedded ? (
           <PrimaryButton onClick={handleCreate}>
             <Plus className="mr-1.5 size-4" />
             新規登録
           </PrimaryButton>
-        )}
+        ) : null}
       </div>
 
       <DataTable
@@ -197,16 +204,16 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
             <TableCell className={`font-medium text-sm ${C.text}`}>
               {item.name}
             </TableCell>
-            {showCategory && (
+            {showCategory ? (
               <TableCell className={`text-sm ${C.text}`}>
                 {item.category ?? "-"}
               </TableCell>
-            )}
-            {showPrice && (
+            ) : null}
+            {showPrice ? (
               <TableCell className={`text-right font-mono text-sm ${C.text}`}>
                 {item.price ? `¥${item.price.toLocaleString()}` : "-"}
               </TableCell>
-            )}
+            ) : null}
             <TableCell className="text-right">
               <NotionStatusPill isActive={item.status !== "inactive"} />
             </TableCell>
@@ -227,180 +234,122 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
 
   // ── Side peek panel ────────────────────────────────
   const sidePeekPanel = isEditing ? (
-    <div
-      className={`flex flex-col self-stretch bg-white border-l ${C.borderLight} shadow-[-1px_0_5px_rgba(0,0,0,0.02)] ${LAYOUT.sidePeek.width} shrink-0`}
-    >
-      {/* Toolbar */}
-      <div className={STYLE.sidePeekToolbar}>
-        <span className="text-xs text-[#37352F]/35 pl-1 select-none">
-          {selectedItem ? "編集" : "新規作成"}
-        </span>
-        <div className="flex items-center gap-1">
-          {selectedItem && (
+    <SidePeekPanel>
+      <SidePeekToolbar
+        isNew={selectedItem === null}
+        onClose={handleCloseEdit}
+        onDelete={selectedItem !== null ? handleDelete : undefined}
+      />
+      <SidePeekBody>
+        <div className="pt-4 pb-2">
+          <div className={STYLE.pageIcon}>
+            {config ? <config.IconComponent className={LAYOUT.pageIcon.innerIcon} /> : null}
+          </div>
+        </div>
+        <SidePeekTitleInput
+          value={formData.name ?? ""}
+          onChange={(v) => setFormData({ ...formData, name: v })}
+          placeholder={config?.namePlaceholder ?? "無題"}
+        />
+        <div className={`${STYLE.sectionDivider} mb-1`} />
+        <div className="py-1">
+          {/* Status */}
+          <PropertyRow label="ステータス">
             <button
               type="button"
-              onClick={handleDelete}
-              className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
+              onClick={() =>
+                setFormData({
+                  ...formData,
+                  status: formData.status === "inactive" ? "active" : "inactive",
+                })
+              }
+              className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
             >
-              <Trash2 className="size-4" />
+              <NotionStatusPill isActive={formData.status !== "inactive"} />
             </button>
-          )}
-          <button
-            type="button"
-            onClick={handleCloseEdit}
-            className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      </div>
+          </PropertyRow>
 
-      {/* Body */}
-      <div className={STYLE.sidePeekBody}>
-        <div className="px-16 pb-8">
-          {/* Page icon */}
-          <div className="pt-4 pb-2">
-            <div className={STYLE.pageIcon}>
-              {config && <config.IconComponent className={LAYOUT.pageIcon.innerIcon} />}
-            </div>
-          </div>
-
-          {/* Title input (name) */}
-          <div className="pb-1 mb-4">
-            <input
-              type="text"
-              className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
-              style={{
-                fontSize: LAYOUT.pageTitle.fontSize,
-                fontWeight: LAYOUT.pageTitle.fontWeight,
-                lineHeight: LAYOUT.pageTitle.lineHeight,
-              }}
-              value={formData.name ?? ""}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder={config?.namePlaceholder ?? "無題"}
-            />
-          </div>
-
-          {/* Separator */}
-          <div className={`${STYLE.sectionDivider} mb-1`} />
-
-          {/* Properties */}
-          <div className="py-1">
-            {/* Status */}
-            <PropertyRow label="ステータス">
-              <button
-                type="button"
-                onClick={() =>
-                  setFormData({
-                    ...formData,
-                    status: formData.status === "inactive" ? "active" : "inactive",
-                  })
-                }
-                className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
-              >
-                <NotionStatusPill isActive={formData.status !== "inactive"} />
-              </button>
-            </PropertyRow>
-
-            {/* Price */}
-            {showPrice && (
-              <PropertyRow label="単価(税込)">
-                <div className="flex items-center gap-1">
-                  <span className={`text-sm ${C.text40}`}>¥</span>
-                  <input
-                    type="number"
-                    value={formData.price ?? 0}
-                    onChange={(e) =>
-                      setFormData({ ...formData, price: Number(e.target.value) })
-                    }
-                    placeholder="0"
-                    className={`${STYLE.propertyInput} w-28`}
-                  />
-                </div>
-              </PropertyRow>
-            )}
-
-            {/* Category */}
-            {showCategory && (
-              <PropertyRow label={labels.category}>
-                <PropInput
-                  value={formData.category ?? ""}
-                  onChange={(v) => setFormData({ ...formData, category: v })}
-                  placeholder="分類"
-                />
-              </PropertyRow>
-            )}
-
-            {/* Description / remarks */}
-            <PropertyRow label="備考">
-              <PropInput
-                value={formData.description ?? ""}
-                onChange={(v) => setFormData({ ...formData, description: v })}
-                placeholder="空"
-              />
-            </PropertyRow>
-
-            {/* Consultation-specific: time_condition */}
-            {resolvedCategory === "consultation" ? (
-              <PropertyRow label="適用区分">
-                <Select
-                  value={formData.timeCondition ?? "anytime"}
-                  onValueChange={(v) => setFormData({ ...formData, timeCondition: v })}
-                >
-                  <SelectTrigger className={STYLE.selectCompact}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="anytime">常時</SelectItem>
-                    <SelectItem value="first_visit">初診</SelectItem>
-                    <SelectItem value="revisit">再診</SelectItem>
-                    <SelectItem value="after_hours">時間外</SelectItem>
-                    <SelectItem value="emergency">緊急</SelectItem>
-                  </SelectContent>
-                </Select>
-              </PropertyRow>
-            ) : null}
-
-            {/* Consultation-specific: duration */}
-            {resolvedCategory === "consultation" ? (
-              <PropertyRow label="標準診察時間 (分)">
+          {/* Price */}
+          {showPrice ? (
+            <PropertyRow label="単価(税込)">
+              <div className="flex items-center gap-1">
+                <span className={`text-sm ${C.text40}`}>¥</span>
                 <input
                   type="number"
-                  min={0}
-                  value={formData.duration ?? ""}
+                  value={formData.price ?? 0}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      duration: e.target.value === "" ? null : Number(e.target.value),
-                    })
+                    setFormData({ ...formData, price: Number(e.target.value) })
                   }
-                  placeholder="例: 15"
+                  placeholder="0"
                   className={`${STYLE.propertyInput} w-28`}
                 />
-              </PropertyRow>
-            ) : null}
-          </div>
-        </div>
-      </div>
+              </div>
+            </PropertyRow>
+          ) : null}
 
-      {/* Footer */}
-      <div className={STYLE.sidePeekFooter}>
-        <button
-          type="button"
-          onClick={handleCloseEdit}
-          className={STYLE.sidePeekCancelBtn}
-        >
-          キャンセル
-        </button>
-        <button
-          type="button"
-          onClick={handleSave}
-          className={STYLE.sidePeekSaveBtn}
-        >
-          保存
-        </button>
-      </div>
-    </div>
+          {/* Category */}
+          {showCategory ? (
+            <PropertyRow label={labels.category}>
+              <PropInput
+                value={formData.category ?? ""}
+                onChange={(v) => setFormData({ ...formData, category: v })}
+                placeholder="分類"
+              />
+            </PropertyRow>
+          ) : null}
+
+          {/* Description / remarks */}
+          <PropertyRow label="備考">
+            <PropInput
+              value={formData.description ?? ""}
+              onChange={(v) => setFormData({ ...formData, description: v })}
+              placeholder="空"
+            />
+          </PropertyRow>
+
+          {/* Consultation-specific: time_condition */}
+          {resolvedCategory === "consultation" ? (
+            <PropertyRow label="適用区分">
+              <Select
+                value={formData.timeCondition ?? "anytime"}
+                onValueChange={(v) => setFormData({ ...formData, timeCondition: v })}
+              >
+                <SelectTrigger className={STYLE.selectCompact}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="anytime">常時</SelectItem>
+                  <SelectItem value="first_visit">初診</SelectItem>
+                  <SelectItem value="revisit">再診</SelectItem>
+                  <SelectItem value="after_hours">時間外</SelectItem>
+                  <SelectItem value="emergency">緊急</SelectItem>
+                </SelectContent>
+              </Select>
+            </PropertyRow>
+          ) : null}
+
+          {/* Consultation-specific: duration */}
+          {resolvedCategory === "consultation" ? (
+            <PropertyRow label="標準診察時間 (分)">
+              <input
+                type="number"
+                min={0}
+                value={formData.duration ?? ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    duration: e.target.value === "" ? null : Number(e.target.value),
+                  })
+                }
+                placeholder="例: 15"
+                className={`${STYLE.propertyInput} w-28`}
+              />
+            </PropertyRow>
+          ) : null}
+        </div>
+      </SidePeekBody>
+      <SidePeekFooter onCancel={handleCloseEdit} onSave={handleSave} />
+    </SidePeekPanel>
   ) : null;
 
   // ── Confirm dialog ─────────────────────────────────
@@ -442,7 +391,7 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
                 <config.IconComponent className="size-5 text-[#37352F]" />
               ) : undefined
             }
-            onBack={() => navigate("/settings")}
+            onBack={() => navigate(paths.settings.getHref())}
             headerAction={
               <PrimaryButton onClick={handleCreate}>
                 <Plus className="mr-1.5 size-4" />

@@ -1,6 +1,7 @@
 // React/Framework
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
+import { paths } from "@/config/paths";
 
 // DnD
 import {
@@ -10,9 +11,7 @@ import {
 import {
   SortableContext,
   verticalListSortingStrategy,
-  useSortable,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 
 // Shared hooks
 import { useSortableList } from "@/hooks/useSortableList";
@@ -21,9 +20,6 @@ import { useSortableList } from "@/hooks/useSortableList";
 import {
   Plus,
   Activity,
-  X,
-  GripVertical,
-  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -31,11 +27,19 @@ import { toast } from "sonner";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
-import { DataTable, DataTableRow } from "@/components/shared/DataTable";
+import { DataTable, SortableDataTableRow } from "@/components/shared/DataTable";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import { PropertyRow, PropInput } from "@/components/shared/SidePeek";
+import {
+  PropertyRow,
+  PropInput,
+  SidePeekPanel,
+  SidePeekToolbar,
+  SidePeekBody,
+  SidePeekTitleInput,
+  SidePeekFooter,
+} from "@/components/shared/SidePeek";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
   useListServiceTypes,
@@ -98,155 +102,59 @@ function ServiceTypeSidePanel({
   }));
 
   return (
-    <div className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0`}>
-      {/* Toolbar */}
-      <div className={STYLE.sidePeekToolbar}>
-        <span className={`text-xs ${C.text35} pl-1 select-none`}>
-          {item !== null ? "編集" : "新規作成"}
-        </span>
-        <div className="flex items-center gap-1">
-          {item !== null ? (
+    <SidePeekPanel>
+      <SidePeekToolbar
+        isNew={item === null}
+        onClose={onClose}
+        onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      />
+      <SidePeekBody>
+        <div className="pt-4 pb-2">
+          <div className={STYLE.pageIcon}>
+            <Activity className={LAYOUT.pageIcon.innerIcon} />
+          </div>
+        </div>
+        <SidePeekTitleInput
+          value={formData.name}
+          onChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+        />
+        <div className={`${STYLE.sectionDivider} mb-1`} />
+        <div className="py-1">
+          <PropertyRow label="ステータス">
             <button
               type="button"
-              onClick={() => onDeleteRequest(item)}
-              className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
+              onClick={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
+              className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
             >
-              <Trash2 className="size-4" />
+              <NotionStatusPill isActive={formData.isActive} />
             </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={onClose}
-            className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-            aria-label="閉じる"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className={STYLE.sidePeekBody}>
-        <div className="px-16 pb-8">
-          <div className="pt-4 pb-2">
-            <div className={STYLE.pageIcon}>
-              <Activity className={LAYOUT.pageIcon.innerIcon} />
-            </div>
-          </div>
-          <div className="pb-1 mb-4">
-            <input
-              type="text"
-              className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
-              style={{
-                fontSize: LAYOUT.pageTitle.fontSize,
-                fontWeight: LAYOUT.pageTitle.fontWeight,
-                lineHeight: LAYOUT.pageTitle.lineHeight,
-              }}
-              value={formData.name}
-              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-              placeholder="無題"
-              autoFocus
-            />
-          </div>
-          <div className={`${STYLE.sectionDivider} mb-1`} />
-          <div className="py-1">
-            <PropertyRow label="ステータス">
-              <button
-                type="button"
-                onClick={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
-                className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-              >
-                <NotionStatusPill isActive={formData.isActive} />
-              </button>
-            </PropertyRow>
-            <PropertyRow label="カラー">
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={formData.color}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, color: e.target.value }))}
-                  className="w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0"
-                />
-                <PropInput
-                  value={formData.color}
-                  onChange={(v) => setFormData((prev) => ({ ...prev, color: v }))}
-                  placeholder="#3B82F6"
-                />
-              </div>
-            </PropertyRow>
-            <PropertyRow label="備考">
-              <PropInput
-                value={formData.description}
-                onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
-                placeholder="補足情報など"
+          </PropertyRow>
+          <PropertyRow label="カラー">
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={formData.color}
+                onChange={(e) => setFormData((prev) => ({ ...prev, color: e.target.value }))}
+                className="w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0"
               />
-            </PropertyRow>
-          </div>
+              <PropInput
+                value={formData.color}
+                onChange={(v) => setFormData((prev) => ({ ...prev, color: v }))}
+                placeholder="#3B82F6"
+              />
+            </div>
+          </PropertyRow>
+          <PropertyRow label="備考">
+            <PropInput
+              value={formData.description}
+              onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
+              placeholder="補足情報など"
+            />
+          </PropertyRow>
         </div>
-      </div>
-
-      {/* Footer */}
-      <div className={STYLE.sidePeekFooter}>
-        <button type="button" onClick={onClose} className={STYLE.sidePeekCancelBtn}>
-          キャンセル
-        </button>
-        <button
-          type="button"
-          onClick={() => onSave(formData)}
-          className={STYLE.sidePeekSaveBtn}
-        >
-          保存
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────
-// SortableServiceTypeRow
-// ─────────────────────────────────────────────────
-
-function SortableServiceTypeRow({
-  item,
-  onEdit,
-}: {
-  item: ServiceType;
-  onEdit: () => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: item.id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-  return (
-    <DataTableRow ref={setNodeRef} style={style} {...attributes} onClick={onEdit}>
-      <TableCell
-        className="w-[32px] text-[#37352F]/20 cursor-grab"
-        {...listeners}
-      >
-        <GripVertical className="size-4" />
-      </TableCell>
-      <TableCell className={`font-medium text-sm ${C.text}`}>
-        <div className="flex items-center gap-2">
-          <span
-            className="size-3 rounded-full shrink-0"
-            style={{ backgroundColor: item.color }}
-          />
-          {item.name}
-        </div>
-      </TableCell>
-      <TableCell className={`text-sm ${C.text70} truncate max-w-[240px]`}>
-        {item.description || "-"}
-      </TableCell>
-      <TableCell className="text-center">
-        <NotionStatusPill isActive={item.isActive} />
-      </TableCell>
-      <TableCell className="text-right">
-        <RowActionButton onClick={onEdit} />
-      </TableCell>
-    </DataTableRow>
+      </SidePeekBody>
+      <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
+    </SidePeekPanel>
   );
 }
 
@@ -374,7 +282,7 @@ export function ServiceTypeSettings() {
     <PageLayout
       title="予約区分マスタ"
       icon={<Activity className="size-5 text-[#37352F]" />}
-      onBack={() => navigate("/settings")}
+      onBack={() => navigate(paths.settings.getHref())}
       maxWidth="max-w-full"
     >
       <div className="flex h-full">
@@ -415,11 +323,30 @@ export function ServiceTypeSettings() {
                 data={filteredItems}
                 emptyMessage="予約区分が登録されていません"
                 renderRow={(item) => (
-                  <SortableServiceTypeRow
+                  <SortableDataTableRow
                     key={item.id}
-                    item={item}
-                    onEdit={() => handleEdit(item)}
-                  />
+                    id={item.id}
+                    onClick={() => handleEdit(item)}
+                  >
+                    <TableCell className={`font-medium text-sm ${C.text}`}>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="size-3 rounded-full shrink-0"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        {item.name}
+                      </div>
+                    </TableCell>
+                    <TableCell className={`text-sm ${C.text70} truncate max-w-[240px]`}>
+                      {item.description || "-"}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <NotionStatusPill isActive={item.isActive} />
+                    </TableCell>
+                    <TableCell className="p-0 text-right">
+                      <RowActionButton onClick={() => handleEdit(item)} />
+                    </TableCell>
+                  </SortableDataTableRow>
                 )}
               />
             </SortableContext>

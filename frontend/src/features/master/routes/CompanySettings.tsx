@@ -2,6 +2,7 @@
 import type { ReactNode } from "react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
+import { paths } from "@/config/paths";
 
 // External
 import { Building2, X } from "lucide-react";
@@ -76,6 +77,7 @@ export function CompanySettings() {
 
   useEffect(() => {
     if (company) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 非同期サーバーデータでフォームを初期化するパターン。React 18 が自動バッチするため実害なし
       setFormData({
         name: company.name,
         postal_code: company.postalCode,
@@ -147,7 +149,7 @@ export function CompanySettings() {
         <PageLayout
           title="法人情報"
           icon={<Building2 className="size-5 text-[#37352F]" />}
-          onBack={() => navigate("/settings")}
+          onBack={() => navigate(paths.settings.getHref())}
           headerAction={
             isLoading ? null : (
               <button
