@@ -314,26 +314,6 @@ export const STAFF_ROLE_LABELS: Record<StaffRole, string> = {
   manager: '管理職',
 };
 
-// Cage Types
-export interface Cage {
-  id: string;
-  code?: string;
-  name: string;
-  cageType: CageType;
-  cageSize: CageSize;
-  bodySize?: string;
-  billingUnit?: string;
-  price: number;
-  isActive: boolean;
-  description?: string;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export type CageType = 'icu' | 'dog' | 'cat' | 'general';
-export type CageSize = 'small' | 'medium' | 'large';
-
 // Medicine Types
 export type { Medicine } from "@/lib/transforms/medicine";
 

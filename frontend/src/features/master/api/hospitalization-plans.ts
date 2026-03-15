@@ -23,17 +23,6 @@ export {
 // Types
 // ─────────────────────────────────────────────────
 
-export interface HospitalizationPlan {
-  id: string;
-  name: string;
-  price: number;
-  isActive: boolean;
-  description: string;
-  bodySize: BodySize | null;
-  billingUnit: BillingUnit | null;
-  sortOrder: number;
-}
-
 export interface CreateHospitalizationPlanRequest {
   name: string;
   price?: number;
@@ -80,7 +69,7 @@ export const BILLING_UNIT_LABELS: Record<string, string> = {
 
 function transformHospitalizationPlan(
   data: ModelHospitalizationPlan,
-): HospitalizationPlan {
+) {
   return {
     id: String(data.id ?? 0),
     name: data.name,
@@ -92,6 +81,8 @@ function transformHospitalizationPlan(
     sortOrder: data.sort_order,
   };
 }
+
+export type HospitalizationPlan = ReturnType<typeof transformHospitalizationPlan>;
 
 // ─────────────────────────────────────────────────
 // API Functions

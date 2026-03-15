@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import type { Staff as ModelStaff } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
-// Backend types (snake_case) - api.yaml Staff schema 準拠
+// Strict role union (models.ts uses string, but we keep this for form safety)
 // ─────────────────────────────────────────────────
 
 export type StaffRoleValue =
@@ -12,19 +13,6 @@ export type StaffRoleValue =
   | "trimmer"
   | "reception"
   | "manager";
-
-export interface BackendStaff {
-  id: string;
-  clinic_id: string;
-  name: string;
-  is_active: boolean;
-  staff_role: StaffRoleValue;
-  job_title_id: string | null;
-  license_number: string;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-}
 
 // ─────────────────────────────────────────────────
 // Request types - api.yaml StaffRegistrationRequest 準拠
@@ -50,23 +38,6 @@ export interface UpdateStaffRequest {
 }
 
 // ─────────────────────────────────────────────────
-// Frontend display type
-// ─────────────────────────────────────────────────
-
-export interface Staff {
-  id: string;
-  clinicId: string;
-  name: string;
-  isActive: boolean;
-  staffRole: StaffRoleValue;
-  jobTitleId: string | null;
-  licenseNumber: string;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// ─────────────────────────────────────────────────
 // Role label mapping
 // ─────────────────────────────────────────────────
 
@@ -82,20 +53,22 @@ export const STAFF_ROLE_LABELS: Record<StaffRoleValue, string> = {
 // Transform
 // ─────────────────────────────────────────────────
 
-function transformStaff(data: BackendStaff): Staff {
+function transformStaff(data: ModelStaff) {
   return {
-    id: data.id,
-    clinicId: data.clinic_id,
+    id: String(data.id ?? 0),
+    clinicId: String(data.clinic_id ?? 0),
     name: data.name,
     isActive: data.is_active,
-    staffRole: data.staff_role,
-    jobTitleId: data.job_title_id,
+    staffRole: data.staff_role as StaffRoleValue,
+    jobTitleId: data.job_title_id ? String(data.job_title_id) : null,
     licenseNumber: data.license_number,
     sortOrder: data.sort_order,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };
 }
+
+export type Staff = ReturnType<typeof transformStaff>;
 
 // ─────────────────────────────────────────────────
 // Query keys
@@ -108,12 +81,12 @@ const STAFFS_QUERY_KEY = ["masters", "staffs"] as const;
 // ─────────────────────────────────────────────────
 
 export async function listStaffs(): Promise<Staff[]> {
-  const { data } = await axios.get<BackendStaff[]>("/v1/masters/staffs");
+  const { data } = await axios.get<ModelStaff[]>("/v1/masters/staffs");
   return data.map(transformStaff);
 }
 
 export async function createStaff(req: CreateStaffRequest): Promise<Staff> {
-  const { data } = await axios.post<BackendStaff>("/v1/masters/staffs", req);
+  const { data } = await axios.post<ModelStaff>("/v1/masters/staffs", req);
   return transformStaff(data);
 }
 
@@ -121,7 +94,7 @@ export async function updateStaff(
   id: string,
   req: UpdateStaffRequest,
 ): Promise<Staff> {
-  const { data } = await axios.patch<BackendStaff>(
+  const { data } = await axios.patch<ModelStaff>(
     `/v1/masters/staffs/${id}`,
     req,
   );

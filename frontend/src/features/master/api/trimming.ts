@@ -4,59 +4,28 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type {
   TrimmingCourse as ModelTrimmingCourse,
   TrimmingOption as ModelTrimmingOption,
+  TargetSize,
 } from "@/types/generated/models";
+
+export type { TargetSize };
 
 // ─────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────
 
-export type TargetSize = "small" | "medium" | "large" | "cat";
-
-export const TARGET_SIZE_LABELS: Record<TargetSize, string> = {
+export const TARGET_SIZE_LABELS: Record<string, string> = {
   small: "小型",
   medium: "中型",
   large: "大型",
   cat: "猫",
 };
 
-export const TARGET_SIZE_OPTIONS: { value: TargetSize; label: string }[] = [
+export const TARGET_SIZE_OPTIONS: { value: string; label: string }[] = [
   { value: "small", label: "小型" },
   { value: "medium", label: "中型" },
   { value: "large", label: "大型" },
   { value: "cat", label: "猫" },
 ];
-
-// ─────────────────────────────────────────────────
-// Frontend display types (camelCase)
-// ─────────────────────────────────────────────────
-
-export interface TrimmingCourse {
-  id: string;
-  clinicId: string;
-  name: string;
-  price: number | null;
-  isActive: boolean;
-  description: string;
-  targetSize: TargetSize | null;
-  duration: number | null;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface TrimmingOption {
-  id: string;
-  clinicId: string;
-  name: string;
-  price: number | null;
-  isActive: boolean;
-  description: string;
-  duration: number | null;
-  combinable: boolean;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-}
 
 // ─────────────────────────────────────────────────
 // Request types
@@ -106,7 +75,7 @@ export interface UpdateTrimmingOptionRequest {
 // Transform functions
 // ─────────────────────────────────────────────────
 
-function transformTrimmingCourse(data: ModelTrimmingCourse): TrimmingCourse {
+function transformTrimmingCourse(data: ModelTrimmingCourse) {
   return {
     id: String(data.id ?? 0),
     clinicId: String(data.clinic_id ?? 0),
@@ -122,7 +91,9 @@ function transformTrimmingCourse(data: ModelTrimmingCourse): TrimmingCourse {
   };
 }
 
-function transformTrimmingOption(data: ModelTrimmingOption): TrimmingOption {
+export type TrimmingCourse = ReturnType<typeof transformTrimmingCourse>;
+
+function transformTrimmingOption(data: ModelTrimmingOption) {
   return {
     id: String(data.id ?? 0),
     clinicId: String(data.clinic_id ?? 0),
@@ -137,6 +108,8 @@ function transformTrimmingOption(data: ModelTrimmingOption): TrimmingOption {
     updatedAt: data.updated_at,
   };
 }
+
+export type TrimmingOption = ReturnType<typeof transformTrimmingOption>;
 
 // ─────────────────────────────────────────────────
 // Query keys

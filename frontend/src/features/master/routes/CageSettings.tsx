@@ -38,8 +38,7 @@ import {
 } from "@/features/master/api/cages";
 
 // Types
-import type { Cage, CageType, CageSize } from "@/types/index";
-import type { CreateCageRequest, UpdateCageRequest } from "@/features/master/api/cages";
+import type { Cage, CageType, CageSize, CreateCageRequest, UpdateCageRequest } from "@/features/master/api/cages";
 
 // ─────────────────────────────────────────────────
 // Constants

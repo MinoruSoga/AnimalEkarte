@@ -21,30 +21,10 @@ export interface UpdateCompanyRequest {
 }
 
 // ─────────────────────────────────────────────────
-// Frontend display type (camelCase)
-// ─────────────────────────────────────────────────
-
-export interface Company {
-  id: string;
-  name: string;
-  postalCode: string;
-  address: string;
-  phoneNumber: string;
-  faxNumber: string;
-  email: string;
-  website: string;
-  directorName: string;
-  registrationNumber: string;
-  logoUrl: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// ─────────────────────────────────────────────────
 // Transform
 // ─────────────────────────────────────────────────
 
-function transformCompany(data: ModelCompany): Company {
+function transformCompany(data: ModelCompany) {
   return {
     id: String(data.id ?? 0),
     name: data.name,
@@ -61,6 +41,8 @@ function transformCompany(data: ModelCompany): Company {
     updatedAt: data.updated_at,
   };
 }
+
+export type Company = ReturnType<typeof transformCompany>;
 
 // ─────────────────────────────────────────────────
 // Query keys

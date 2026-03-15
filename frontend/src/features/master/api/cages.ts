@@ -1,69 +1,51 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { Cage } from "@/types";
+import type { Cage as ModelCage } from "@/types/generated/models";
 
-// Backend types (snake_case)
-interface BackendCage {
-  id: string;
-  code: string;
-  name: string;
-  cage_type: string;
-  cage_size: string;
-  body_size?: string;
-  billing_unit: string;
-  price: number;
-  is_active: boolean;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-}
+// Strict union types (models.ts uses string, but we keep these for form safety)
+export type CageType = "icu" | "dog" | "cat" | "general";
+export type CageSize = "small" | "medium" | "large";
 
 export interface CreateCageRequest {
-  code?: string;
   name: string;
-  cage_type: string;
-  cage_size: string;
-  body_size?: string;
-  billing_unit?: string;
-  price: number;
-  description?: string;
-  is_active?: boolean;
-  sort_order?: number;
-}
-
-export interface UpdateCageRequest {
-  code?: string;
-  name?: string;
-  cage_type?: string;
-  cage_size?: string;
-  body_size?: string;
-  billing_unit?: string;
+  cage_type: CageType;
+  cage_size: CageSize;
   price?: number;
   description?: string;
   is_active?: boolean;
   sort_order?: number;
 }
 
-function transformCage(data: BackendCage): Cage {
+export interface UpdateCageRequest {
+  name?: string;
+  cage_type?: CageType;
+  cage_size?: CageSize;
+  price?: number;
+  description?: string;
+  is_active?: boolean;
+  sort_order?: number;
+}
+
+function transformCage(data: ModelCage) {
   return {
-    id: data.id,
-    code: data.code,
+    id: String(data.id ?? 0),
     name: data.name,
-    cageType: data.cage_type as Cage["cageType"],
-    cageSize: data.cage_size as Cage["cageSize"],
-    bodySize: data.body_size as Cage["bodySize"],
-    billingUnit: data.billing_unit as Cage["billingUnit"],
-    price: data.price,
+    cageType: data.cage_type as CageType,
+    cageSize: data.cage_size as CageSize,
+    price: data.price ?? 0,
     isActive: data.is_active,
+    description: data.description,
     sortOrder: data.sort_order,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };
 }
 
+export type Cage = ReturnType<typeof transformCage>;
+
 export const getAllCages = async (): Promise<Cage[]> => {
-  const { data } = await axios.get<BackendCage[]>("/v1/masters/cages");
+  const { data } = await axios.get<ModelCage[]>("/v1/masters/cages");
   return data.map(transformCage);
 };
 
@@ -77,7 +59,7 @@ export const useGetAllCages = () => {
 };
 
 export const getCageById = async (id: string): Promise<Cage> => {
-  const { data } = await axios.get<BackendCage>(`/v1/masters/cages/${id}`);
+  const { data } = await axios.get<ModelCage>(`/v1/masters/cages/${id}`);
   return transformCage(data);
 };
 
@@ -92,7 +74,7 @@ export const useGetCageById = (id: string) => {
 };
 
 export const createCage = async (req: CreateCageRequest): Promise<Cage> => {
-  const { data } = await axios.post<BackendCage>("/v1/masters/cages", req);
+  const { data } = await axios.post<ModelCage>("/v1/masters/cages", req);
   return transformCage(data);
 };
 
@@ -107,7 +89,7 @@ export const useCreateCage = () => {
 };
 
 export const updateCage = async (id: string, req: UpdateCageRequest): Promise<Cage> => {
-  const { data } = await axios.patch<BackendCage>(`/v1/masters/cages/${id}`, req);
+  const { data } = await axios.patch<ModelCage>(`/v1/masters/cages/${id}`, req);
   return transformCage(data);
 };
 

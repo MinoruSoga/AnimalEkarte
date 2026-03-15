@@ -33,7 +33,6 @@ export {
   STAFF_ROLE_LABELS,
 } from "./staffs";
 export type {
-  BackendStaff,
   CreateStaffRequest,
   UpdateStaffRequest,
   Staff,
