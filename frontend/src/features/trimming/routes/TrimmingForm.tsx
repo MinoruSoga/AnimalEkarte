@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback, memo, lazy, Suspense } from "react";
+import { useDeferredValue, lazy, memo, Suspense, useCallback, useMemo, useState } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
@@ -422,12 +422,13 @@ export function TrimmingForm() {
   // rerender-dependencies: object state を 2 つの primitive state に分割
   const [historyDateRangeFrom, setHistoryDateRangeFrom] = useState("");
   const [historyDateRangeTo, setHistoryDateRangeTo] = useState("");
+  const deferredHistorySearch = useDeferredValue(historySearchTerm);
 
   const { data: petTrimmings = [] } = useGetTrimmingsByPetId(selectedPet?.id ?? "");
 
   const sortedHistory = useMemo(() => {
     const filtered = petTrimmings.filter((t) => {
-      if (historySearchTerm && !t.styleRequest.toLowerCase().includes(historySearchTerm.toLowerCase())) {
+      if (deferredHistorySearch && !t.styleRequest.toLowerCase().includes(deferredHistorySearch.toLowerCase())) {
         return false;
       }
       const recordDate = t.date.slice(0, 10);
@@ -440,7 +441,7 @@ export function TrimmingForm() {
       const dateB = new Date(b.date).getTime();
       return historySortOrder === "desc" ? dateB - dateA : dateA - dateB;
     });
-  }, [petTrimmings, historySearchTerm, historyDateRangeFrom, historyDateRangeTo, historySortOrder]);
+  }, [petTrimmings, deferredHistorySearch, historyDateRangeFrom, historyDateRangeTo, historySortOrder]);
 
   // rerender-functional-setstate: useCallback でハンドラを安定化
   // ※ React hooks はコンポーネントのトップレベルで呼ぶ（ガード節の前に定義）
