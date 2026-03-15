@@ -2143,6 +2143,1309 @@ components:
             type: array
             items:
               type: string
+
+    # ─── ShiftEntry ───────────────────────────────────────────────────────────
+    ShiftEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        staff_id:
+          type: integer
+          format: int64
+        date:
+          type: string
+          format: date
+          example: "2026-03-16"
+        shift_type:
+          type: string
+          enum: [full, morning, afternoon, off, paid_leave]
+        start_time:
+          type: string
+          nullable: true
+          example: "09:00"
+        end_time:
+          type: string
+          nullable: true
+          example: "18:00"
+        note:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        staff:
+          $ref: '#/components/schemas/StaffSummary'
+
+    CreateShiftRequest:
+      type: object
+      required: [staff_id, date, shift_type]
+      properties:
+        staff_id:
+          type: integer
+          format: int64
+        date:
+          type: string
+          format: date
+          example: "2026-03-16"
+        shift_type:
+          type: string
+          enum: [full, morning, afternoon, off, paid_leave]
+        start_time:
+          type: string
+          example: "09:00"
+        end_time:
+          type: string
+          example: "18:00"
+        note:
+          type: string
+
+    UpdateShiftRequest:
+      type: object
+      properties:
+        shift_type:
+          type: string
+          enum: [full, morning, afternoon, off, paid_leave]
+          nullable: true
+        start_time:
+          type: string
+          nullable: true
+        end_time:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+
+    # ─── Estimate ─────────────────────────────────────────────────────────────
+    Estimate:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        estimate_no:
+          type: string
+        medical_record_id:
+          type: integer
+          format: int64
+          nullable: true
+        title:
+          type: string
+        owner_id:
+          type: integer
+          format: int64
+          nullable: true
+        status:
+          type: string
+          enum: [draft, sent, approved, rejected]
+        subtotal:
+          type: number
+          format: double
+        tax_total:
+          type: number
+          format: double
+        total_amount:
+          type: number
+          format: double
+        insurance_amount:
+          type: number
+          format: double
+        discount_amount:
+          type: number
+          format: double
+        valid_until:
+          type: string
+          format: date
+          nullable: true
+        comment:
+          type: string
+        notes:
+          type: string
+        created_by:
+          type: integer
+          format: int64
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateEstimateRequest:
+      type: object
+      required: [title]
+      properties:
+        medical_record_id:
+          type: integer
+          format: int64
+          nullable: true
+        title:
+          type: string
+        owner_id:
+          type: integer
+          format: int64
+          nullable: true
+        status:
+          type: string
+          enum: [draft, sent, approved, rejected]
+        subtotal:
+          type: number
+          format: double
+        tax_total:
+          type: number
+          format: double
+        total_amount:
+          type: number
+          format: double
+        insurance_amount:
+          type: number
+          format: double
+        discount_amount:
+          type: number
+          format: double
+        valid_until:
+          type: string
+          format: date
+          nullable: true
+        comment:
+          type: string
+        notes:
+          type: string
+        created_by:
+          type: integer
+          format: int64
+          nullable: true
+
+    UpdateEstimateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [draft, sent, approved, rejected]
+          nullable: true
+        subtotal:
+          type: number
+          format: double
+          nullable: true
+        tax_total:
+          type: number
+          format: double
+          nullable: true
+        total_amount:
+          type: number
+          format: double
+          nullable: true
+        insurance_amount:
+          type: number
+          format: double
+          nullable: true
+        discount_amount:
+          type: number
+          format: double
+          nullable: true
+        valid_until:
+          type: string
+          format: date
+          nullable: true
+        clear_valid_until:
+          type: boolean
+        comment:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    # ─── UserAccount ──────────────────────────────────────────────────────────
+    UserResponse:
+      type: object
+      description: ユーザーアカウントレスポンス（パスワードハッシュ除外）
+      properties:
+        id:
+          type: string
+          description: uint64をstring変換した値
+        email:
+          type: string
+          format: email
+        display_name:
+          type: string
+        user_type:
+          type: string
+        staff_id:
+          type: string
+          nullable: true
+        avatar_url:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UserDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/UserResponse'
+        - type: object
+          properties:
+            memberships:
+              type: array
+              items:
+                type: object
+                properties:
+                  clinic_id:
+                    type: string
+                  is_main:
+                    type: boolean
+
+    CreateUserRequest:
+      type: object
+      required: [email, password, display_name, user_type]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        display_name:
+          type: string
+        user_type:
+          type: string
+        staff_id:
+          type: integer
+          format: int64
+          nullable: true
+        is_main:
+          type: boolean
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+          nullable: true
+        user_type:
+          type: string
+          nullable: true
+        staff_id:
+          type: integer
+          format: int64
+          nullable: true
+        avatar_url:
+          type: string
+          nullable: true
+        status:
+          type: string
+          nullable: true
+
+    # ─── Vital (外来バイタル) ──────────────────────────────────────────────────
+    Vital:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        medical_record_id:
+          type: integer
+          format: int64
+        recorded_at:
+          type: string
+          format: date-time
+        staff_id:
+          type: integer
+          format: int64
+          nullable: true
+        temperature:
+          type: number
+          format: double
+          nullable: true
+        heart_rate:
+          type: integer
+          nullable: true
+        respiration_rate:
+          type: integer
+          nullable: true
+        weight:
+          type: number
+          format: double
+          nullable: true
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        staff:
+          $ref: '#/components/schemas/StaffSummary'
+
+    CreateVitalRequest:
+      type: object
+      required: [recorded_at]
+      properties:
+        recorded_at:
+          type: string
+          format: date-time
+        staff_id:
+          type: integer
+          format: int64
+          nullable: true
+        temperature:
+          type: number
+          format: double
+          nullable: true
+        heart_rate:
+          type: integer
+          nullable: true
+        respiration_rate:
+          type: integer
+          nullable: true
+        weight:
+          type: number
+          format: double
+          nullable: true
+        notes:
+          type: string
+
+    UpdateVitalRequest:
+      type: object
+      properties:
+        recorded_at:
+          type: string
+          format: date-time
+          nullable: true
+        staff_id:
+          type: integer
+          format: int64
+          nullable: true
+        temperature:
+          type: number
+          format: double
+          nullable: true
+        heart_rate:
+          type: integer
+          nullable: true
+        respiration_rate:
+          type: integer
+          nullable: true
+        weight:
+          type: number
+          format: double
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    # ─── Treatment (治療項目) ─────────────────────────────────────────────────
+    Treatment:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        medical_record_id:
+          type: integer
+          format: int64
+        item_type:
+          type: string
+          enum: [consultation, procedure, medicine, other]
+        consultation_id:
+          type: integer
+          format: int64
+          nullable: true
+        procedure_id:
+          type: integer
+          format: int64
+          nullable: true
+        medicine_id:
+          type: integer
+          format: int64
+          nullable: true
+        inventory_id:
+          type: integer
+          format: int64
+          nullable: true
+        unit_price:
+          type: number
+          format: double
+        quantity:
+          type: integer
+        selected:
+          type: boolean
+        status:
+          type: string
+          enum: [pending, completed, not_applicable]
+        content:
+          type: string
+        memo:
+          type: string
+        insurance:
+          type: boolean
+        discount_rate:
+          type: number
+          format: double
+        discount_amount:
+          type: number
+          format: double
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateTreatmentRequest:
+      type: object
+      required: [item_type]
+      properties:
+        item_type:
+          type: string
+          enum: [consultation, procedure, medicine, other]
+        consultation_id:
+          type: integer
+          format: int64
+          nullable: true
+        procedure_id:
+          type: integer
+          format: int64
+          nullable: true
+        medicine_id:
+          type: integer
+          format: int64
+          nullable: true
+        inventory_id:
+          type: integer
+          format: int64
+          nullable: true
+        unit_price:
+          type: number
+          format: double
+        quantity:
+          type: integer
+        selected:
+          type: boolean
+        status:
+          type: string
+        content:
+          type: string
+        memo:
+          type: string
+        insurance:
+          type: boolean
+        discount_rate:
+          type: number
+          format: double
+        discount_amount:
+          type: number
+          format: double
+        sort_order:
+          type: integer
+
+    UpdateTreatmentRequest:
+      type: object
+      properties:
+        item_type:
+          type: string
+          nullable: true
+        consultation_id:
+          type: integer
+          format: int64
+          nullable: true
+        procedure_id:
+          type: integer
+          format: int64
+          nullable: true
+        medicine_id:
+          type: integer
+          format: int64
+          nullable: true
+        inventory_id:
+          type: integer
+          format: int64
+          nullable: true
+        unit_price:
+          type: number
+          format: double
+          nullable: true
+        quantity:
+          type: integer
+          nullable: true
+        selected:
+          type: boolean
+          nullable: true
+        status:
+          type: string
+          nullable: true
+        content:
+          type: string
+          nullable: true
+        memo:
+          type: string
+          nullable: true
+        insurance:
+          type: boolean
+          nullable: true
+        discount_rate:
+          type: number
+          format: double
+          nullable: true
+        discount_amount:
+          type: number
+          format: double
+          nullable: true
+        sort_order:
+          type: integer
+          nullable: true
+
+    # ─── BillingReview ────────────────────────────────────────────────────────
+    BillingReview:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        medical_record_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [pending, confirmed, returned]
+        confirmed_by:
+          type: integer
+          format: int64
+          nullable: true
+        confirmed_at:
+          type: string
+          format: date-time
+          nullable: true
+        returned_by:
+          type: integer
+          format: int64
+          nullable: true
+        returned_at:
+          type: string
+          format: date-time
+          nullable: true
+        return_reason:
+          type: string
+        memo:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ─── RecordImage (診療画像) ───────────────────────────────────────────────
+    RecordImage:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        medical_record_id:
+          type: integer
+          format: int64
+        image_url:
+          type: string
+          format: uri
+        thumbnail_url:
+          type: string
+        file_name:
+          type: string
+        file_size:
+          type: integer
+          format: int64
+        mime_type:
+          type: string
+        image_type:
+          type: string
+          enum: [xray, echo, photo, endoscope, ct, mri, microscope, other]
+        description:
+          type: string
+        taken_at:
+          type: string
+          format: date-time
+          nullable: true
+        exam_id:
+          type: integer
+          format: int64
+          nullable: true
+        staff_id:
+          type: integer
+          format: int64
+          nullable: true
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateRecordImageRequest:
+      type: object
+      required: [image_url]
+      properties:
+        image_url:
+          type: string
+          format: uri
+        thumbnail_url:
+          type: string
+        file_name:
+          type: string
+        file_size:
+          type: integer
+          format: int64
+        mime_type:
+          type: string
+        image_type:
+          type: string
+          enum: [xray, echo, photo, endoscope, ct, mri, microscope, other]
+        description:
+          type: string
+        taken_at:
+          type: string
+          format: date-time
+          nullable: true
+        exam_id:
+          type: integer
+          format: int64
+          nullable: true
+        staff_id:
+          type: integer
+          format: int64
+          nullable: true
+        sort_order:
+          type: integer
+
+    # ─── TreatmentPlan (治療計画) ─────────────────────────────────────────────
+    TreatmentPlan:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        medical_record_id:
+          type: integer
+          format: int64
+          nullable: true
+        hospitalization_id:
+          type: integer
+          format: int64
+          nullable: true
+        treatment_content:
+          type: string
+        memo:
+          type: string
+        insurance:
+          type: boolean
+        unit_price:
+          type: number
+          format: double
+        quantity:
+          type: integer
+        discount_rate:
+          type: number
+          format: double
+        discount_amount:
+          type: number
+          format: double
+        subtotal:
+          type: number
+          format: double
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateTreatmentPlanRequest:
+      type: object
+      required: [treatment_content]
+      properties:
+        treatment_content:
+          type: string
+        memo:
+          type: string
+        insurance:
+          type: boolean
+        unit_price:
+          type: number
+          format: double
+        quantity:
+          type: integer
+        discount_rate:
+          type: number
+          format: double
+        discount_amount:
+          type: number
+          format: double
+        subtotal:
+          type: number
+          format: double
+        sort_order:
+          type: integer
+
+    UpdateTreatmentPlanRequest:
+      type: object
+      properties:
+        treatment_content:
+          type: string
+          nullable: true
+        memo:
+          type: string
+          nullable: true
+        insurance:
+          type: boolean
+          nullable: true
+        unit_price:
+          type: number
+          format: double
+          nullable: true
+        quantity:
+          type: integer
+          nullable: true
+        discount_rate:
+          type: number
+          format: double
+          nullable: true
+        discount_amount:
+          type: number
+          format: double
+          nullable: true
+        subtotal:
+          type: number
+          format: double
+          nullable: true
+        sort_order:
+          type: integer
+          nullable: true
+
+    # ─── ClinicalPlan (診察所見・診断・治療方針) ──────────────────────────────
+    ClinicalPlan:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        medical_record_id:
+          type: integer
+          format: int64
+        physical_exam:
+          type: string
+        diagnosis_category_id:
+          type: integer
+          format: int64
+          nullable: true
+        diagnosis_name_id:
+          type: integer
+          format: int64
+          nullable: true
+        diagnosis_details:
+          type: string
+        treatment_policy:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UpdateClinicalPlanRequest:
+      type: object
+      properties:
+        physical_exam:
+          type: string
+          nullable: true
+        diagnosis_category_id:
+          type: integer
+          format: int64
+          nullable: true
+        diagnosis_name_id:
+          type: integer
+          format: int64
+          nullable: true
+        diagnosis_details:
+          type: string
+          nullable: true
+        treatment_policy:
+          type: string
+          nullable: true
+
+    # ─── Checkup (健診記録) ───────────────────────────────────────────────────
+    Checkup:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        medical_record_id:
+          type: integer
+          format: int64
+        pet_id:
+          type: integer
+          format: int64
+          nullable: true
+        checkup_type_id:
+          type: integer
+          format: int64
+        date:
+          type: string
+          format: date
+        next_date:
+          type: string
+          format: date
+          nullable: true
+        doctor_id:
+          type: integer
+          format: int64
+          nullable: true
+        result:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateCheckupRequest:
+      type: object
+      required: [checkup_type_id, date]
+      properties:
+        checkup_type_id:
+          type: integer
+          format: int64
+        pet_id:
+          type: integer
+          format: int64
+          nullable: true
+        date:
+          type: string
+          format: date
+        next_date:
+          type: string
+          format: date
+          nullable: true
+        doctor_id:
+          type: integer
+          format: int64
+          nullable: true
+        result:
+          type: string
+
+    UpdateCheckupRequest:
+      type: object
+      properties:
+        checkup_type_id:
+          type: integer
+          format: int64
+          nullable: true
+        pet_id:
+          type: integer
+          format: int64
+          nullable: true
+        date:
+          type: string
+          format: date
+          nullable: true
+        next_date:
+          type: string
+          format: date
+          nullable: true
+        doctor_id:
+          type: integer
+          format: int64
+          nullable: true
+        result:
+          type: string
+          nullable: true
+
+    # ─── DailyRecord (入院日次記録) ───────────────────────────────────────────
+    DailyRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        hospitalization_id:
+          type: integer
+          format: int64
+        date:
+          type: string
+          format: date
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        vital_records:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                format: int64
+              daily_record_id:
+                type: integer
+                format: int64
+              time:
+                type: string
+              temperature:
+                type: number
+                nullable: true
+              heart_rate:
+                type: integer
+                nullable: true
+              respiration_rate:
+                type: integer
+                nullable: true
+              weight:
+                type: number
+                nullable: true
+              notes:
+                type: string
+              staff_id:
+                type: integer
+                format: int64
+                nullable: true
+              created_at:
+                type: string
+                format: date-time
+        care_log_records:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                format: int64
+              daily_record_id:
+                type: integer
+                format: int64
+              time:
+                type: string
+              type:
+                type: string
+                enum: [food, excretion, medicine, treatment, other]
+              status:
+                type: string
+                enum: [completed, partial, skipped]
+              value:
+                type: string
+              staff_id:
+                type: integer
+                format: int64
+                nullable: true
+              notes:
+                type: string
+              created_at:
+                type: string
+                format: date-time
+        staff_note_records:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                format: int64
+              daily_record_id:
+                type: integer
+                format: int64
+              time:
+                type: string
+              content:
+                type: string
+              staff_id:
+                type: integer
+                format: int64
+                nullable: true
+              created_at:
+                type: string
+                format: date-time
+
+    AddVitalRecordRequest:
+      type: object
+      required: [time]
+      properties:
+        time:
+          type: string
+          description: HH:MM 形式
+          example: "09:00"
+        temperature:
+          type: number
+          format: double
+          nullable: true
+        heart_rate:
+          type: integer
+          nullable: true
+        respiration_rate:
+          type: integer
+          nullable: true
+        weight:
+          type: number
+          format: double
+          nullable: true
+        notes:
+          type: string
+        staff_id:
+          type: integer
+          format: int64
+          nullable: true
+
+    AddCareLogRecordRequest:
+      type: object
+      required: [time, type]
+      properties:
+        time:
+          type: string
+          example: "09:00"
+        type:
+          type: string
+          enum: [food, excretion, medicine, treatment, other]
+        status:
+          type: string
+          enum: [completed, partial, skipped]
+        value:
+          type: string
+        staff_id:
+          type: integer
+          format: int64
+          nullable: true
+        notes:
+          type: string
+
+    AddStaffNoteRecordRequest:
+      type: object
+      required: [time, content]
+      properties:
+        time:
+          type: string
+          example: "09:00"
+        content:
+          type: string
+        staff_id:
+          type: integer
+          format: int64
+          nullable: true
+
+    # ─── CarePlanItem (ケアプランアイテム) ───────────────────────────────────
+    CarePlanItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        hospitalization_id:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum: [food, medicine, treatment, instruction, item]
+        name:
+          type: string
+        description:
+          type: string
+        timing:
+          type: array
+          items:
+            type: string
+            enum: [morning, noon, night]
+        status:
+          type: string
+          enum: [active, completed, discontinued]
+        notes:
+          type: string
+        medicine_id:
+          type: integer
+          format: int64
+          nullable: true
+        procedure_id:
+          type: integer
+          format: int64
+          nullable: true
+        hospitalization_plan_id:
+          type: integer
+          format: int64
+          nullable: true
+        unit_price:
+          type: number
+          format: double
+        category:
+          type: string
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateCarePlanItemRequest:
+      type: object
+      required: [type, name]
+      properties:
+        type:
+          type: string
+          enum: [food, medicine, treatment, instruction, item]
+        name:
+          type: string
+        description:
+          type: string
+        timing:
+          type: array
+          items:
+            type: string
+            enum: [morning, noon, night]
+        status:
+          type: string
+        notes:
+          type: string
+        medicine_id:
+          type: integer
+          format: int64
+          nullable: true
+        procedure_id:
+          type: integer
+          format: int64
+          nullable: true
+        hospitalization_plan_id:
+          type: integer
+          format: int64
+          nullable: true
+        unit_price:
+          type: number
+          format: double
+        category:
+          type: string
+        sort_order:
+          type: integer
+
+    UpdateCarePlanItemRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          nullable: true
+        name:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        timing:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        medicine_id:
+          type: integer
+          format: int64
+          nullable: true
+        procedure_id:
+          type: integer
+          format: int64
+          nullable: true
+        hospitalization_plan_id:
+          type: integer
+          format: int64
+          nullable: true
+        unit_price:
+          type: number
+          format: double
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        sort_order:
+          type: integer
+          nullable: true
+
+    # ─── ChiefComplaint (主訴区分マスタ) ──────────────────────────────────────
+    ChiefComplaint:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+        is_active:
+          type: boolean
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ─── InquiryTemplate (問診定型文マスタ) ───────────────────────────────────
+    InquiryTemplate:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        category:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        is_active:
+          type: boolean
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
   responses:
     BadRequest:
       description: バリデーションエラー
@@ -6410,6 +7713,1976 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Health ──────────────────────────────────────────────────
+  /health:
+    get:
+      operationId: health
+      summary: ヘルスチェック
+      description: サーバーの稼働状態を返す
+      tags: [Health]
+      security: []
+      responses:
+        '200':
+          description: サーバー正常
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  # ─── Shifts ──────────────────────────────────────────────────
+  /shifts:
+    get:
+      operationId: listShifts
+      summary: シフト一覧
+      tags: [Shifts]
+      parameters:
+        - name: date
+          in: query
+          description: 年月フィルタ（YYYY-MM）
+          schema:
+            type: string
+            example: "2026-03"
+        - name: staff_id
+          in: query
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: シフト一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ShiftEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createShift
+      summary: シフト作成
+      tags: [Shifts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateShiftRequest'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /shifts/{id}:
+    patch:
+      operationId: updateShift
+      summary: シフト更新
+      tags: [Shifts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateShiftRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteShift
+      summary: シフト削除
+      tags: [Shifts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Estimates ───────────────────────────────────────────────
+  /estimates:
+    get:
+      operationId: listEstimates
+      summary: 見積書一覧
+      tags: [Estimates]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: owner_id
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: medical_record_id
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, sent, approved, rejected, expired]
+      responses:
+        '200':
+          description: 見積書一覧
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Estimate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createEstimate
+      summary: 見積書作成
+      tags: [Estimates]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEstimateRequest'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Estimate'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /estimates/{id}:
+    get:
+      operationId: getEstimate
+      summary: 見積書取得
+      tags: [Estimates]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Estimate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: updateEstimate
+      summary: 見積書更新
+      tags: [Estimates]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEstimateRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Estimate'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteEstimate
+      summary: 見積書削除
+      tags: [Estimates]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Users ───────────────────────────────────────────────────
+  /users:
+    get:
+      operationId: listUsers
+      summary: ユーザー一覧
+      description: クリニックに所属するユーザーアカウント一覧
+      tags: [Users]
+      parameters:
+        - name: clinic_id
+          in: query
+          description: クリニックIDで絞り込み（省略時はJWTのclinic_idを使用）
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: ユーザー一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createUser
+      summary: ユーザー作成
+      tags: [Users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /users/{id}:
+    get:
+      operationId: getUser
+      summary: ユーザー取得
+      tags: [Users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: updateUser
+      summary: ユーザー更新
+      tags: [Users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '204':
+          description: 更新成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteUser
+      summary: ユーザー削除
+      tags: [Users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /users/{id}/permissions:
+    get:
+      operationId: getUserPermissions
+      summary: ユーザー権限取得
+      tags: [Users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 権限一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    permission:
+                      type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: setUserPermissions
+      summary: ユーザー権限設定（一括置換）
+      tags: [Users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                permissions:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '204':
+          description: 設定成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Masters: animal-species ─────────────────────────────────
+  /masters/animal-species:
+    get:
+      operationId: listAnimalSpecies
+      summary: 動物種一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: 動物種一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AnimalSpeciesSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Masters: chief-complaints ───────────────────────────────
+  /masters/chief-complaints:
+    get:
+      operationId: listChiefComplaints
+      summary: 主訴カテゴリ一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: 主訴カテゴリ一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChiefComplaint'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createChiefComplaint
+      summary: 主訴カテゴリ作成
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChiefComplaint'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChiefComplaint'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/chief-complaints/{id}:
+    get:
+      operationId: getChiefComplaint
+      summary: 主訴カテゴリ取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChiefComplaint'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: updateChiefComplaint
+      summary: 主訴カテゴリ更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChiefComplaint'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChiefComplaint'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteChiefComplaint
+      summary: 主訴カテゴリ削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Masters: inquiry-templates ──────────────────────────────
+  /masters/inquiry-templates:
+    get:
+      operationId: listInquiryTemplates
+      summary: 問診テンプレート一覧
+      tags: [Masters]
+      responses:
+        '200':
+          description: 問診テンプレート一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InquiryTemplate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createInquiryTemplate
+      summary: 問診テンプレート作成
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InquiryTemplate'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryTemplate'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/inquiry-templates/{id}:
+    get:
+      operationId: getInquiryTemplate
+      summary: 問診テンプレート取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryTemplate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: updateInquiryTemplate
+      summary: 問診テンプレート更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InquiryTemplate'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryTemplate'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteInquiryTemplate
+      summary: 問診テンプレート削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Medical Records nested: vitals ──────────────────────────
+  /medical-records/{id}/vitals:
+    get:
+      operationId: listVitals
+      summary: バイタル一覧
+      description: 指定カルテIDのバイタル一覧を返す
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: カルテID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: バイタル一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Vital'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createVital
+      summary: バイタル追加
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVitalRequest'
+      responses:
+        '201':
+          description: 追加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vital'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /medical-records/{id}/vitals/{vitalId}:
+    patch:
+      operationId: updateVital
+      summary: バイタル更新
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: vitalId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVitalRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vital'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteVital
+      summary: バイタル削除
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: vitalId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Medical Records nested: treatments ──────────────────────
+  /medical-records/{id}/treatments:
+    get:
+      operationId: listTreatments
+      summary: 治療項目一覧
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 治療項目一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Treatment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createTreatment
+      summary: 治療項目追加
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTreatmentRequest'
+      responses:
+        '201':
+          description: 追加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Treatment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: bulkUpdateTreatments
+      summary: 治療項目並び順一括更新
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                treatments:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        format: int64
+                      sort_order:
+                        type: integer
+      responses:
+        '204':
+          description: 更新成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /medical-records/{id}/treatments/{treatmentId}:
+    patch:
+      operationId: updateTreatment
+      summary: 治療項目更新
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: treatmentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTreatmentRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Treatment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteTreatment
+      summary: 治療項目削除
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: treatmentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Medical Records nested: billing-review ──────────────────
+  /medical-records/{id}/billing-review:
+    get:
+      operationId: getBillingReview
+      summary: 会計医師確認取得
+      description: 指定カルテの会計医師確認を取得または初期化して返す
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingReview'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /medical-records/{id}/billing-review/confirm:
+    post:
+      operationId: confirmBillingReview
+      summary: 会計医師確認
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirmed_by:
+                  type: integer
+                  format: int64
+                memo:
+                  type: string
+      responses:
+        '200':
+          description: 確認成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingReview'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /medical-records/{id}/billing-review/return:
+    post:
+      operationId: returnBillingReview
+      summary: 会計差し戻し
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                returned_by:
+                  type: integer
+                  format: int64
+                return_reason:
+                  type: string
+                memo:
+                  type: string
+      responses:
+        '200':
+          description: 差し戻し成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingReview'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Medical Records nested: images ──────────────────────────
+  /medical-records/{id}/images:
+    get:
+      operationId: listRecordImages
+      summary: 診療画像一覧
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 画像一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecordImage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createRecordImage
+      summary: 診療画像追加
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRecordImageRequest'
+      responses:
+        '201':
+          description: 追加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordImage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /medical-records/{id}/images/{imageId}:
+    delete:
+      operationId: deleteRecordImage
+      summary: 診療画像削除
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: imageId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Medical Records nested: treatment-plans ─────────────────
+  /medical-records/{id}/treatment-plans:
+    get:
+      operationId: listTreatmentPlansByMedicalRecord
+      summary: 治療計画一覧（カルテ）
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 治療計画一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TreatmentPlan'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createTreatmentPlanForMedicalRecord
+      summary: 治療計画作成（カルテ）
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTreatmentPlanRequest'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TreatmentPlan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /medical-records/{id}/treatment-plans/{planId}:
+    patch:
+      operationId: updateTreatmentPlanFromMedicalRecord
+      summary: 治療計画更新（カルテ）
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: planId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTreatmentPlanRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TreatmentPlan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteTreatmentPlanFromMedicalRecord
+      summary: 治療計画削除（カルテ）
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: planId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Medical Records nested: clinical-plan ───────────────────
+  /medical-records/{id}/clinical-plan:
+    get:
+      operationId: getClinicalPlan
+      summary: 診療計画取得
+      description: 指定カルテの診療計画を取得（なければ自動作成）
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicalPlan'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: updateClinicalPlan
+      summary: 診療計画更新
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateClinicalPlanRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicalPlan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteClinicalPlan
+      summary: 診療計画削除
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Medical Records nested: checkups ────────────────────────
+  /medical-records/{id}/checkups:
+    get:
+      operationId: listCheckups
+      summary: 健診記録一覧
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 健診記録一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Checkup'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createCheckup
+      summary: 健診記録作成
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCheckupRequest'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Checkup'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /medical-records/{id}/checkups/{checkupId}:
+    patch:
+      operationId: updateCheckup
+      summary: 健診記録更新
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: checkupId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCheckupRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Checkup'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteCheckup
+      summary: 健診記録削除
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: checkupId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Hospitalizations nested: daily-records ──────────────────
+  /hospitalizations/{id}/daily-records:
+    get:
+      operationId: listDailyRecords
+      summary: 日次記録一覧
+      tags: [Hospitalizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 入院ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 日次記録一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailyRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createDailyRecord
+      summary: 日次記録作成
+      description: 指定日の日次記録を作成（すでに存在する場合は既存を返す）
+      tags: [Hospitalizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date]
+              properties:
+                date:
+                  type: string
+                  format: date
+                  example: "2026-03-16"
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /hospitalizations/{id}/daily-records/{date}:
+    get:
+      operationId: getDailyRecord
+      summary: 日次記録取得
+      description: 指定日の日次記録を取得（なければ自動作成）
+      tags: [Hospitalizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: date
+          in: path
+          required: true
+          description: 日付（YYYY-MM-DD）
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /hospitalizations/{id}/daily-records/{date}/vitals:
+    post:
+      operationId: addVitalRecord
+      summary: 日次バイタル追加
+      tags: [Hospitalizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddVitalRecordRequest'
+      responses:
+        '201':
+          description: 追加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /hospitalizations/{id}/daily-records/{date}/care-logs:
+    post:
+      operationId: addCareLogRecord
+      summary: ケアログ追加
+      tags: [Hospitalizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCareLogRecordRequest'
+      responses:
+        '201':
+          description: 追加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /hospitalizations/{id}/daily-records/{date}/staff-notes:
+    post:
+      operationId: addStaffNoteRecord
+      summary: スタッフノート追加
+      tags: [Hospitalizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddStaffNoteRecordRequest'
+      responses:
+        '201':
+          description: 追加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Hospitalizations nested: care-plan-items ────────────────
+  /hospitalizations/{id}/care-plan-items:
+    get:
+      operationId: listCarePlanItems
+      summary: ケアプランアイテム一覧
+      tags: [Hospitalizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: ケアプランアイテム一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CarePlanItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createCarePlanItem
+      summary: ケアプランアイテム作成
+      tags: [Hospitalizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCarePlanItemRequest'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarePlanItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /hospitalizations/{id}/care-plan-items/{itemId}:
+    patch:
+      operationId: updateCarePlanItem
+      summary: ケアプランアイテム更新
+      tags: [Hospitalizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCarePlanItemRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarePlanItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteCarePlanItem
+      summary: ケアプランアイテム削除
+      tags: [Hospitalizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Hospitalizations nested: treatment-plans ────────────────
+  /hospitalizations/{id}/treatment-plans:
+    get:
+      operationId: listTreatmentPlansByHospitalization
+      summary: 治療計画一覧（入院）
+      tags: [Hospitalizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 治療計画一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TreatmentPlan'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createTreatmentPlanForHospitalization
+      summary: 治療計画作成（入院）
+      tags: [Hospitalizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTreatmentPlanRequest'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TreatmentPlan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /hospitalizations/{id}/treatment-plans/{planId}:
+    patch:
+      operationId: updateTreatmentPlanFromHospitalization
+      summary: 治療計画更新（入院）
+      tags: [Hospitalizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: planId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTreatmentPlanRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TreatmentPlan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteTreatmentPlanFromHospitalization
+      summary: 治療計画削除（入院）
+      tags: [Hospitalizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: planId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
