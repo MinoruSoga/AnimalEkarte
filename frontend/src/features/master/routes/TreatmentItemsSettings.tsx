@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback, useDeferredValue } from "react";
+import { useState, useMemo, useCallback, useDeferredValue, memo } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
@@ -268,6 +268,183 @@ function TreatmentRowOverlay({
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────
+// TreatmentItemsSidePanel
+// ─────────────────────────────────────────────────
+
+interface TreatmentItemsSidePanelProps {
+  editTarget: TreatmentItem | "new" | null;
+  selectedItem: TreatmentItem | null;
+  formData: TreatmentFormData;
+  entityLabel: string;
+  entityIcon: React.ReactNode;
+  categoryItems: TreatmentItem[];
+  panelDuration: number;
+  updateForm: (updates: Partial<TreatmentFormData>) => void;
+  handleCloseEdit: () => void;
+  handleSave: () => void;
+  handleDeleteRequest: () => void;
+}
+
+const TreatmentItemsSidePanel = memo(function TreatmentItemsSidePanel({
+  editTarget,
+  selectedItem,
+  formData,
+  entityLabel,
+  entityIcon,
+  categoryItems,
+  panelDuration,
+  updateForm,
+  handleCloseEdit,
+  handleSave,
+  handleDeleteRequest,
+}: TreatmentItemsSidePanelProps) {
+  return (
+    <AnimatePresence>
+      {editTarget !== null ? (
+        <motion.div
+          key="side-peek"
+          initial={{ width: 0, opacity: 0 }}
+          animate={{ width: 680, opacity: 1 }}
+          exit={{ width: 0, opacity: 0 }}
+          transition={{ duration: panelDuration, ease: [0.25, 0.1, 0.25, 1] }}
+          className="shrink-0 min-h-0 overflow-hidden"
+        >
+          <SidePeekPanel>
+            {/* Toolbar */}
+            <div className="flex items-center justify-between h-[48px] px-3 shrink-0">
+              <span className={`text-xs ${C.text35} pl-1 select-none`}>
+                {selectedItem ? "編集" : "新規作成"}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => {}}
+                  className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
+                  aria-label="全画面で開く"
+                >
+                  <Maximize2 className="size-4" />
+                </button>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
+                      aria-label="その他の操作"
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {selectedItem ? (
+                      <DropdownMenuItem
+                        onClick={handleDeleteRequest}
+                        className="text-red-600 focus:text-red-600"
+                      >
+                        <Trash2 className="size-4 mr-2" />
+                        削除
+                      </DropdownMenuItem>
+                    ) : null}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <button
+                  type="button"
+                  onClick={handleCloseEdit}
+                  className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
+                  aria-label="閉じる"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            </div>
+
+            <SidePeekBody>
+              {/* Page icon */}
+              <div className="pt-4 pb-2">
+                <div className={STYLE.pageIcon}>
+                  <span className={LAYOUT.pageIcon.innerIcon}>{entityIcon}</span>
+                </div>
+              </div>
+
+              <SidePeekTitleInput
+                value={formData.name}
+                onChange={(v) => updateForm({ name: v })}
+                placeholder={`${entityLabel}名`}
+                autoFocus={false}
+              />
+
+              <div className={`${STYLE.sectionDivider} mb-1`} />
+
+              {/* Properties */}
+              <div className="py-1">
+                {/* Parent category select */}
+                <PropertyRow label="親カテゴリ">
+                  <select
+                    value={formData.parentId}
+                    onChange={(e) => updateForm({ parentId: e.target.value })}
+                    className={SELECT_TRIGGER_FULL}
+                  >
+                    <option value="">なし（未分類）</option>
+                    {categoryItems.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </PropertyRow>
+
+                {/* Price */}
+                <PropertyRow label="単価(税込)">
+                  <div className="flex items-center gap-1">
+                    <span className={`text-sm ${C.text40}`}>¥</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={formData.price}
+                      onChange={(e) => updateForm({ price: Number(e.target.value) })}
+                      placeholder="0"
+                      className={`${STYLE.propertyInput} w-28`}
+                    />
+                  </div>
+                </PropertyRow>
+
+                {/* Status */}
+                <PropertyRow label="ステータス">
+                  <button
+                    type="button"
+                    onClick={() => updateForm({ isActive: !formData.isActive })}
+                    className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
+                  >
+                    <NotionStatusPill isActive={formData.isActive} />
+                  </button>
+                </PropertyRow>
+
+                {/* Description */}
+                <PropertyRow label="備考">
+                  <input
+                    type="text"
+                    value={formData.description}
+                    onChange={(e) => updateForm({ description: e.target.value })}
+                    placeholder="空"
+                    className={STYLE.propertyInput}
+                  />
+                </PropertyRow>
+              </div>
+            </SidePeekBody>
+
+            <SidePeekFooter
+              onCancel={handleCloseEdit}
+              onSave={handleSave}
+            />
+          </SidePeekPanel>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
+});
 
 // ─────────────────────────────────────────────────
 // TreatmentTabContent — 各タブの共通UI
@@ -673,152 +850,6 @@ function TreatmentTabContent({
     </div>
   );
 
-  // ── Side peek panel ──
-  const sidePeekPanel = (
-    <AnimatePresence>
-      {editTarget !== null ? (
-        <motion.div
-          key="side-peek"
-          initial={{ width: 0, opacity: 0 }}
-          animate={{ width: 680, opacity: 1 }}
-          exit={{ width: 0, opacity: 0 }}
-          transition={{ duration: panelDuration, ease: [0.25, 0.1, 0.25, 1] }}
-          className="shrink-0 min-h-0 overflow-hidden"
-        >
-          <SidePeekPanel>
-            {/* Toolbar */}
-            <div className="flex items-center justify-between h-[48px] px-3 shrink-0">
-              <span className={`text-xs ${C.text35} pl-1 select-none`}>
-                {selectedItem ? "編集" : "新規作成"}
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => {}}
-                  className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-                  aria-label="全画面で開く"
-                >
-                  <Maximize2 className="size-4" />
-                </button>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-                      aria-label="その他の操作"
-                    >
-                      <MoreHorizontal className="size-4" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {selectedItem ? (
-                      <DropdownMenuItem
-                        onClick={handleDeleteRequest}
-                        className="text-red-600 focus:text-red-600"
-                      >
-                        <Trash2 className="size-4 mr-2" />
-                        削除
-                      </DropdownMenuItem>
-                    ) : null}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                <button
-                  type="button"
-                  onClick={handleCloseEdit}
-                  className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
-                  aria-label="閉じる"
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
-            </div>
-
-            <SidePeekBody>
-              {/* Page icon */}
-              <div className="pt-4 pb-2">
-                <div className={STYLE.pageIcon}>
-                  <span className={LAYOUT.pageIcon.innerIcon}>{entityIcon}</span>
-                </div>
-              </div>
-
-              <SidePeekTitleInput
-                value={formData.name}
-                onChange={(v) => updateForm({ name: v })}
-                placeholder={`${entityLabel}名`}
-                autoFocus={false}
-              />
-
-              <div className={`${STYLE.sectionDivider} mb-1`} />
-
-              {/* Properties */}
-              <div className="py-1">
-                {/* Parent category select */}
-                <PropertyRow label="親カテゴリ">
-                  <select
-                    value={formData.parentId}
-                    onChange={(e) => updateForm({ parentId: e.target.value })}
-                    className={SELECT_TRIGGER_FULL}
-                  >
-                    <option value="">なし（未分類）</option>
-                    {categoryItems.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                </PropertyRow>
-
-                {/* Price */}
-                <PropertyRow label="単価(税込)">
-                  <div className="flex items-center gap-1">
-                    <span className={`text-sm ${C.text40}`}>¥</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={formData.price}
-                      onChange={(e) => updateForm({ price: Number(e.target.value) })}
-                      placeholder="0"
-                      className={`${STYLE.propertyInput} w-28`}
-                    />
-                  </div>
-                </PropertyRow>
-
-                {/* Status */}
-                <PropertyRow label="ステータス">
-                  <button
-                    type="button"
-                    onClick={() => updateForm({ isActive: !formData.isActive })}
-                    className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
-                  >
-                    <NotionStatusPill isActive={formData.isActive} />
-                  </button>
-                </PropertyRow>
-
-                {/* Description */}
-                <PropertyRow label="備考">
-                  <input
-                    type="text"
-                    value={formData.description}
-                    onChange={(e) => updateForm({ description: e.target.value })}
-                    placeholder="空"
-                    className={STYLE.propertyInput}
-                  />
-                </PropertyRow>
-              </div>
-            </SidePeekBody>
-
-            <SidePeekFooter
-              onCancel={handleCloseEdit}
-              onSave={handleSave}
-            />
-          </SidePeekPanel>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
-  );
-
   return (
     <>
       <div className="flex h-full">
@@ -845,7 +876,19 @@ function TreatmentTabContent({
             {tableContent}
           </div>
         </div>
-        {sidePeekPanel}
+        <TreatmentItemsSidePanel
+          editTarget={editTarget}
+          selectedItem={selectedItem}
+          formData={formData}
+          entityLabel={entityLabel}
+          entityIcon={entityIcon}
+          categoryItems={categoryItems}
+          panelDuration={panelDuration}
+          updateForm={updateForm}
+          handleCloseEdit={handleCloseEdit}
+          handleSave={handleSave}
+          handleDeleteRequest={handleDeleteRequest}
+        />
       </div>
 
       <ConfirmDialog

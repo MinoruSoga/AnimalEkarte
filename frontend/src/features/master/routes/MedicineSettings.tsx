@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback, useDeferredValue, useTransition } from "react";
+import { useState, useMemo, useCallback, useDeferredValue, useTransition, memo } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
@@ -198,6 +198,179 @@ function MedicineRowOverlay({
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────
+// MedicineSidePanel
+// ─────────────────────────────────────────────────
+
+interface MedicineSidePanelProps {
+  isEditing: boolean;
+  selectedMedicine: Medicine | null;
+  isCategory: boolean;
+  formData: MedicineFormData;
+  categoryMedicines: Medicine[];
+  panelDuration: number;
+  updateForm: (updates: Partial<MedicineFormData>) => void;
+  handleCloseEdit: () => void;
+  handleSave: () => void;
+  handleDeleteRequest: () => void;
+}
+
+const MedicineSidePanel = memo(function MedicineSidePanel({
+  isEditing,
+  selectedMedicine,
+  isCategory,
+  formData,
+  categoryMedicines,
+  panelDuration,
+  updateForm,
+  handleCloseEdit,
+  handleSave,
+  handleDeleteRequest,
+}: MedicineSidePanelProps) {
+  return (
+    <AnimatePresence>
+      {isEditing ? (
+        <motion.div
+          key="side-peek"
+          initial={{ width: 0, opacity: 0 }}
+          animate={{ width: 680, opacity: 1 }}
+          exit={{ width: 0, opacity: 0 }}
+          transition={{ duration: panelDuration, ease: [0.25, 0.1, 0.25, 1] }}
+          className="shrink-0 min-h-0 overflow-hidden"
+        >
+          <SidePeekPanel>
+            <SidePeekToolbar
+              isNew={!selectedMedicine}
+              onClose={handleCloseEdit}
+              onDelete={selectedMedicine ? handleDeleteRequest : undefined}
+            />
+
+            <SidePeekBody>
+              {/* Page icon */}
+              <div className="pt-4 pb-2">
+                <div className={STYLE.pageIcon}>
+                  <Pill className={LAYOUT.pageIcon.innerIcon} />
+                </div>
+              </div>
+
+              {/* Title input (薬品名) */}
+              <SidePeekTitleInput
+                value={formData.name}
+                onChange={(v) => updateForm({ name: v })}
+                placeholder="薬品名"
+              />
+
+              <div className={`${STYLE.sectionDivider} mb-1`} />
+
+              {/* Properties */}
+              <div className="py-1">
+                {/* Parent category select */}
+                <PropertyRow label="親カテゴリ">
+                  {isCategory ? (
+                    // カテゴリはルート固定 — 変更不可
+                    <span className={`text-sm ${C.text}`}>なし（ルート）</span>
+                  ) : (
+                    <select
+                      value={formData.parentId}
+                      onChange={(e) => updateForm({ parentId: e.target.value })}
+                      className={SELECT_TRIGGER_FULL}
+                    >
+                      <option value="">なし（未分類）</option>
+                      {categoryMedicines.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </PropertyRow>
+
+                {/* Price — カテゴリは子項目に設定するため disabled */}
+                <PropertyRow label="単価(税込)">
+                  {isCategory ? (
+                    <span className={`text-sm ${C.text35} select-none`}>子項目に金額を設定</span>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <span className={`text-sm ${C.text40}`}>¥</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={formData.price}
+                        onChange={(e) => updateForm({ price: Number(e.target.value) })}
+                        placeholder="0"
+                        className={`${STYLE.propertyInput} w-28`}
+                      />
+                    </div>
+                  )}
+                </PropertyRow>
+
+                {/* Status */}
+                <PropertyRow label="ステータス">
+                  <button
+                    type="button"
+                    onClick={() => updateForm({ isActive: !formData.isActive })}
+                    className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
+                  >
+                    <NotionStatusPill isActive={formData.isActive} />
+                  </button>
+                </PropertyRow>
+
+                {/* Description */}
+                <PropertyRow label="備考">
+                  <PropInput
+                    value={formData.description}
+                    onChange={(v) => updateForm({ description: v })}
+                    placeholder="空"
+                  />
+                </PropertyRow>
+              </div>
+
+              {/* ── 薬剤詳細 section ── */}
+              <div className={`${STYLE.sectionDivider} mt-3 mb-1`} />
+              <div className="py-1">
+                <div className="flex items-center gap-1.5 py-2 mb-1">
+                  <Pill className={`size-3.5 ${C.text40}`} />
+                  <span
+                    className={`text-xs font-medium ${C.text50} uppercase tracking-wide select-none`}
+                  >
+                    薬剤詳細
+                  </span>
+                </div>
+
+                {/* Dosage form — full-width */}
+                <PropertyRow label="剤形">
+                  <Select
+                    value={formData.dosageForm}
+                    onValueChange={(v) => updateForm({ dosageForm: v })}
+                  >
+                    <SelectTrigger className={SELECT_TRIGGER_FULL}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>{DOSAGE_FORM_SELECT_ITEMS}</SelectContent>
+                  </Select>
+                </PropertyRow>
+
+                {/* Unit — full-width */}
+                <PropertyRow label="単位">
+                  <Select
+                    value={formData.medicineUnit}
+                    onValueChange={(v) => updateForm({ medicineUnit: v })}
+                  >
+                    <SelectTrigger className={SELECT_TRIGGER_FULL}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>{MEDICINE_UNIT_SELECT_ITEMS}</SelectContent>
+                  </Select>
+                </PropertyRow>
+              </div>
+            </SidePeekBody>
+
+            <SidePeekFooter onCancel={handleCloseEdit} onSave={handleSave} />
+          </SidePeekPanel>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
+});
 
 // ─────────────────────────────────────────────────
 // Main component
@@ -650,150 +823,6 @@ export function MedicineSettings() {
     </div>
   );
 
-  // ── Side peek panel ──
-  const sidePeekPanel = (
-    <AnimatePresence>
-      {isEditing ? (
-        <motion.div
-          key="side-peek"
-          initial={{ width: 0, opacity: 0 }}
-          animate={{ width: 680, opacity: 1 }}
-          exit={{ width: 0, opacity: 0 }}
-          transition={{ duration: panelDuration, ease: [0.25, 0.1, 0.25, 1] }}
-          className="shrink-0 min-h-0 overflow-hidden"
-        >
-          <SidePeekPanel>
-            <SidePeekToolbar
-              isNew={!selectedMedicine}
-              onClose={handleCloseEdit}
-              onDelete={selectedMedicine ? handleDeleteRequest : undefined}
-            />
-
-            <SidePeekBody>
-              {/* Page icon */}
-              <div className="pt-4 pb-2">
-                <div className={STYLE.pageIcon}>
-                  <Pill className={LAYOUT.pageIcon.innerIcon} />
-                </div>
-              </div>
-
-              {/* Title input (薬品名) */}
-              <SidePeekTitleInput
-                value={formData.name}
-                onChange={(v) => updateForm({ name: v })}
-                placeholder="薬品名"
-              />
-
-              <div className={`${STYLE.sectionDivider} mb-1`} />
-
-              {/* Properties */}
-              <div className="py-1">
-                {/* Parent category select */}
-                <PropertyRow label="親カテゴリ">
-                  {isCategory ? (
-                    // カテゴリはルート固定 — 変更不可
-                    <span className={`text-sm ${C.text}`}>なし（ルート）</span>
-                  ) : (
-                    <select
-                      value={formData.parentId}
-                      onChange={(e) => updateForm({ parentId: e.target.value })}
-                      className={SELECT_TRIGGER_FULL}
-                    >
-                      <option value="">なし（未分類）</option>
-                      {categoryMedicines.map((cat) => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
-                    </select>
-                  )}
-                </PropertyRow>
-
-                {/* Price — カテゴリは子項目に設定するため disabled */}
-                <PropertyRow label="単価(税込)">
-                  {isCategory ? (
-                    <span className={`text-sm ${C.text35} select-none`}>子項目に金額を設定</span>
-                  ) : (
-                    <div className="flex items-center gap-1">
-                      <span className={`text-sm ${C.text40}`}>¥</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={formData.price}
-                        onChange={(e) => updateForm({ price: Number(e.target.value) })}
-                        placeholder="0"
-                        className={`${STYLE.propertyInput} w-28`}
-                      />
-                    </div>
-                  )}
-                </PropertyRow>
-
-                {/* Status */}
-                <PropertyRow label="ステータス">
-                  <button
-                    type="button"
-                    onClick={() => updateForm({ isActive: !formData.isActive })}
-                    className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
-                  >
-                    <NotionStatusPill isActive={formData.isActive} />
-                  </button>
-                </PropertyRow>
-
-                {/* Description */}
-                <PropertyRow label="備考">
-                  <PropInput
-                    value={formData.description}
-                    onChange={(v) => updateForm({ description: v })}
-                    placeholder="空"
-                  />
-                </PropertyRow>
-              </div>
-
-              {/* ── 薬剤詳細 section ── */}
-              <div className={`${STYLE.sectionDivider} mt-3 mb-1`} />
-              <div className="py-1">
-                <div className="flex items-center gap-1.5 py-2 mb-1">
-                  <Pill className={`size-3.5 ${C.text40}`} />
-                  <span
-                    className={`text-xs font-medium ${C.text50} uppercase tracking-wide select-none`}
-                  >
-                    薬剤詳細
-                  </span>
-                </div>
-
-                {/* Dosage form — full-width */}
-                <PropertyRow label="剤形">
-                  <Select
-                    value={formData.dosageForm}
-                    onValueChange={(v) => updateForm({ dosageForm: v })}
-                  >
-                    <SelectTrigger className={SELECT_TRIGGER_FULL}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>{DOSAGE_FORM_SELECT_ITEMS}</SelectContent>
-                  </Select>
-                </PropertyRow>
-
-                {/* Unit — full-width */}
-                <PropertyRow label="単位">
-                  <Select
-                    value={formData.medicineUnit}
-                    onValueChange={(v) => updateForm({ medicineUnit: v })}
-                  >
-                    <SelectTrigger className={SELECT_TRIGGER_FULL}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>{MEDICINE_UNIT_SELECT_ITEMS}</SelectContent>
-                  </Select>
-                </PropertyRow>
-              </div>
-            </SidePeekBody>
-
-            <SidePeekFooter onCancel={handleCloseEdit} onSave={handleSave} />
-          </SidePeekPanel>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
-  );
-
   return (
     <>
       <div className="flex h-full">
@@ -827,7 +856,18 @@ export function MedicineSettings() {
             </div>
           </PageLayout>
         </div>
-        {sidePeekPanel}
+        <MedicineSidePanel
+          isEditing={isEditing}
+          selectedMedicine={selectedMedicine}
+          isCategory={isCategory}
+          formData={formData}
+          categoryMedicines={categoryMedicines}
+          panelDuration={panelDuration}
+          updateForm={updateForm}
+          handleCloseEdit={handleCloseEdit}
+          handleSave={handleSave}
+          handleDeleteRequest={handleDeleteRequest}
+        />
       </div>
 
       <ConfirmDialog
