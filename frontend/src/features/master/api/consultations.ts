@@ -19,7 +19,7 @@ export const getAllConsultations = async (): Promise<ConsultationItem[]> => {
 
 export const useGetAllConsultations = () =>
   useQuery({
-    queryKey: ["consultations"],
+    queryKey: ["masters", "consultations"],
     queryFn: getAllConsultations,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -32,7 +32,7 @@ export const useCreateConsultation = () => {
       const { data } = await axios.post<Consultation>("/v1/masters/consultations", req);
       return transformConsultation(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["consultations"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "consultations"] }),
   });
 };
 
@@ -52,7 +52,7 @@ export const useUpdateConsultation = () => {
       );
       return transformConsultation(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["consultations"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "consultations"] }),
   });
 };
 
@@ -60,7 +60,7 @@ export const useDeleteConsultation = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => axios.delete(`/v1/masters/consultations/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["consultations"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "consultations"] }),
   });
 };
 
@@ -69,6 +69,6 @@ export const useReorderConsultations = () => {
   return useMutation({
     mutationFn: (req: ReorderTreatmentRequest) =>
       axios.patch("/v1/masters/consultations/reorder", req),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["consultations"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "consultations"] }),
   });
 };

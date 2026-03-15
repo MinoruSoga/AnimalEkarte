@@ -157,7 +157,7 @@ export async function reorderDiagnosisNames(
 // TanStack Query hooks - DiagnosisCategory
 // ─────────────────────────────────────────────────
 
-export function useListDiagnosisCategories() {
+export function useGetDiagnosisCategories() {
   return useQuery({
     queryKey: DIAGNOSIS_CATEGORIES_KEY,
     queryFn: listDiagnosisCategories,
@@ -211,7 +211,7 @@ export function useReorderDiagnosisCategories() {
 // TanStack Query hooks - DiagnosisName
 // ─────────────────────────────────────────────────
 
-export function useListDiagnosisNames() {
+export function useGetDiagnosisNames() {
   return useQuery({
     queryKey: DIAGNOSIS_NAMES_KEY,
     queryFn: listDiagnosisNames,

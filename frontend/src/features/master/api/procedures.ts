@@ -19,7 +19,7 @@ export const getAllProcedures = async (): Promise<ProcedureItem[]> => {
 
 export const useGetAllProcedures = () =>
   useQuery({
-    queryKey: ["procedures"],
+    queryKey: ["masters", "procedures"],
     queryFn: getAllProcedures,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -32,7 +32,7 @@ export const useCreateProcedure = () => {
       const { data } = await axios.post<Procedure>("/v1/masters/procedures", req);
       return transformProcedure(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["procedures"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "procedures"] }),
   });
 };
 
@@ -49,7 +49,7 @@ export const useUpdateProcedure = () => {
       const { data } = await axios.patch<Procedure>(`/v1/masters/procedures/${id}`, req);
       return transformProcedure(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["procedures"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "procedures"] }),
   });
 };
 
@@ -57,7 +57,7 @@ export const useDeleteProcedure = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => axios.delete(`/v1/masters/procedures/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["procedures"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "procedures"] }),
   });
 };
 
@@ -66,6 +66,6 @@ export const useReorderProcedures = () => {
   return useMutation({
     mutationFn: (req: ReorderTreatmentRequest) =>
       axios.patch("/v1/masters/procedures/reorder", req),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["procedures"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "procedures"] }),
   });
 };

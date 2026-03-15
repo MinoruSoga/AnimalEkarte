@@ -19,7 +19,7 @@ export const getAllExaminationTypes = async (): Promise<ExaminationTypeItem[]> =
 
 export const useGetAllExaminationTypes = () =>
   useQuery({
-    queryKey: ["examinationTypesMaster"],
+    queryKey: ["masters", "examination-types"],
     queryFn: getAllExaminationTypes,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -35,7 +35,7 @@ export const useCreateExaminationType = () => {
       );
       return transformExaminationType(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["examinationTypesMaster"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "examination-types"] }),
   });
 };
 
@@ -55,7 +55,7 @@ export const useUpdateExaminationType = () => {
       );
       return transformExaminationType(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["examinationTypesMaster"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "examination-types"] }),
   });
 };
 
@@ -63,7 +63,7 @@ export const useDeleteExaminationType = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => axios.delete(`/v1/masters/examination-types/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["examinationTypesMaster"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "examination-types"] }),
   });
 };
 
@@ -72,6 +72,6 @@ export const useReorderExaminationTypes = () => {
   return useMutation({
     mutationFn: (req: ReorderTreatmentRequest) =>
       axios.patch("/v1/masters/examination-types/reorder", req),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["examinationTypesMaster"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "examination-types"] }),
   });
 };

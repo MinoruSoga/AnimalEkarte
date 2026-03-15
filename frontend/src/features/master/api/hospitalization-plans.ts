@@ -132,11 +132,11 @@ export const deleteHospitalizationPlan = async (id: string): Promise<void> => {
 // React Query Hooks
 // ─────────────────────────────────────────────────
 
-const QUERY_KEY = "hospitalizationPlans";
+const QUERY_KEY = ["masters", "hospitalization-plans"] as const;
 
 export const useGetAllHospitalizationPlans = () => {
   return useQuery({
-    queryKey: [QUERY_KEY],
+    queryKey: QUERY_KEY,
     queryFn: getAllHospitalizationPlans,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -148,7 +148,7 @@ export const useCreateHospitalizationPlan = () => {
   return useMutation({
     mutationFn: createHospitalizationPlan,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
   });
 };
@@ -164,7 +164,7 @@ export const useUpdateHospitalizationPlan = () => {
       req: UpdateHospitalizationPlanRequest;
     }) => updateHospitalizationPlan(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
   });
 };
@@ -174,7 +174,7 @@ export const useDeleteHospitalizationPlan = () => {
   return useMutation({
     mutationFn: deleteHospitalizationPlan,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
   });
 };

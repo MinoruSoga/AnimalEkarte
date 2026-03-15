@@ -19,7 +19,7 @@ export const getAllVaccinesMaster = async (): Promise<VaccineItem[]> => {
 
 export const useGetAllVaccinesMaster = () =>
   useQuery({
-    queryKey: ["vaccinesMaster"],
+    queryKey: ["masters", "vaccines"],
     queryFn: getAllVaccinesMaster,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -32,7 +32,7 @@ export const useCreateVaccineMaster = () => {
       const { data } = await axios.post<Vaccine>("/v1/masters/vaccines", req);
       return transformVaccine(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["vaccinesMaster"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "vaccines"] }),
   });
 };
 
@@ -49,7 +49,7 @@ export const useUpdateVaccineMaster = () => {
       const { data } = await axios.patch<Vaccine>(`/v1/masters/vaccines/${id}`, req);
       return transformVaccine(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["vaccinesMaster"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "vaccines"] }),
   });
 };
 
@@ -57,7 +57,7 @@ export const useDeleteVaccineMaster = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => axios.delete(`/v1/masters/vaccines/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["vaccinesMaster"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "vaccines"] }),
   });
 };
 
@@ -66,6 +66,6 @@ export const useReorderVaccinesMaster = () => {
   return useMutation({
     mutationFn: (req: ReorderTreatmentRequest) =>
       axios.patch("/v1/masters/vaccines/reorder", req),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["vaccinesMaster"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["masters", "vaccines"] }),
   });
 };

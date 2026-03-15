@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/select";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
+import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
+import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
 import { PropInput } from "@/components/shared/SidePeek/PropInput";
 import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
 import { SidePeekToolbar } from "@/components/shared/SidePeek/SidePeekToolbar";
@@ -102,7 +104,7 @@ interface CageFormData {
   name: string;
   cageType: CageType;
   cageSize: CageSize;
-  price: string;
+  price: number;
   description: string;
   isActive: boolean;
 }
@@ -129,7 +131,7 @@ const CageSidePanel = memo(function CageSidePanel({
     name: item?.name ?? "",
     cageType: item?.cageType ?? "general",
     cageSize: item?.cageSize ?? "medium",
-    price: item?.price != null ? String(item.price) : "",
+    price: item?.price ?? 0,
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,
   }));
@@ -153,15 +155,10 @@ const CageSidePanel = memo(function CageSidePanel({
         />
         <div className={`${STYLE.sectionDivider} mb-1`} />
         <div className="py-1">
-          <PropertyRow label="ステータス">
-            <button
-              type="button"
-              onClick={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
-              className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-            >
-              <NotionStatusPill isActive={formData.isActive} />
-            </button>
-          </PropertyRow>
+          <StatusToggleButton
+            isActive={formData.isActive}
+            onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
+          />
 
           <PropertyRow label="エリア">
             <Select
@@ -187,19 +184,10 @@ const CageSidePanel = memo(function CageSidePanel({
             </Select>
           </PropertyRow>
 
-          <PropertyRow label="単価(税込)">
-            <div className="flex items-center gap-1">
-              <span className={`text-sm ${C.text65} select-none`}>¥</span>
-              <input
-                type="number"
-                min={0}
-                className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
-                value={formData.price}
-                onChange={(e) => setFormData((prev) => ({ ...prev, price: e.target.value }))}
-                placeholder="0"
-              />
-            </div>
-          </PropertyRow>
+          <MoneyInput
+            value={formData.price}
+            onChange={(v) => setFormData((prev) => ({ ...prev, price: v }))}
+          />
 
           <PropertyRow label="備考">
             <PropInput
@@ -252,8 +240,6 @@ export function CageSettings() {
         return;
       }
 
-      const priceValue = data.price !== "" ? Number(data.price) : 0;
-
       // rerender-transitions: API書き込みを非緊急マーク
       startSaveTransition(() => {
         if (editTarget !== null && editTarget !== "new") {
@@ -261,7 +247,7 @@ export function CageSettings() {
             name: data.name,
             cage_type: data.cageType,
             cage_size: data.cageSize,
-            price: priceValue,
+            price: data.price,
             description: data.description || undefined,
             is_active: data.isActive,
           };
@@ -280,9 +266,9 @@ export function CageSettings() {
             name: data.name,
             cage_type: data.cageType,
             cage_size: data.cageSize,
-            price: priceValue,
+            price: data.price,
             description: data.description || undefined,
-            is_active: true,
+            is_active: data.isActive,
           };
           createMutation.mutate(req, {
             onSuccess: () => {

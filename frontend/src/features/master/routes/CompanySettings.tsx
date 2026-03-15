@@ -1,5 +1,4 @@
 // React/Framework
-import type { ReactNode } from "react";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
@@ -10,6 +9,7 @@ import { toast } from "sonner";
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { useGetCompany, useUpdateCompany } from "@/features/master/api/company";
 import type { UpdateCompanyRequest } from "@/features/master/api/company";
@@ -19,21 +19,6 @@ import type { UpdateCompanyRequest } from "@/features/master/api/company";
 // ─────────────────────────────────────────────────
 
 const PROP_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`;
-
-// ─────────────────────────────────────────────────
-// PropertyRow (Notion-style)
-// ─────────────────────────────────────────────────
-
-function PropertyRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex gap-2 py-2 px-2 -mx-2 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors min-h-[40px]">
-      <div className="w-[140px] shrink-0 text-sm text-[#37352F]/65 select-none truncate flex items-center">
-        {label}
-      </div>
-      <div className="flex-1 flex items-center">{children}</div>
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────
 // Form state

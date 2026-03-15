@@ -69,7 +69,7 @@ export const getAllCages = async (): Promise<Cage[]> => {
 
 export const useGetAllCages = () => {
   return useQuery({
-    queryKey: ["cages"],
+    queryKey: ["masters", "cages"],
     queryFn: getAllCages,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -83,7 +83,7 @@ export const getCageById = async (id: string): Promise<Cage> => {
 
 export const useGetCageById = (id: string) => {
   return useQuery({
-    queryKey: ["cages", id],
+    queryKey: ["masters", "cages", id],
     queryFn: () => getCageById(id),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.STATIC,
@@ -101,7 +101,7 @@ export const useCreateCage = () => {
   return useMutation({
     mutationFn: createCage,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cages"] });
+      queryClient.invalidateQueries({ queryKey: ["masters", "cages"] });
     },
   });
 };
@@ -117,7 +117,7 @@ export const useUpdateCage = () => {
     mutationFn: ({ id, req }: { id: string; req: UpdateCageRequest }) =>
       updateCage(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cages"] });
+      queryClient.invalidateQueries({ queryKey: ["masters", "cages"] });
     },
   });
 };
@@ -131,7 +131,7 @@ export const useDeleteCage = () => {
   return useMutation({
     mutationFn: deleteCage,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cages"] });
+      queryClient.invalidateQueries({ queryKey: ["masters", "cages"] });
     },
   });
 };

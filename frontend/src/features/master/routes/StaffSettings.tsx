@@ -18,6 +18,7 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
+import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
 import { SidePeekToolbar } from "@/components/shared/SidePeek/SidePeekToolbar";
 import { SidePeekBody } from "@/components/shared/SidePeek/SidePeekBody";
@@ -25,7 +26,7 @@ import { SidePeekTitleInput } from "@/components/shared/SidePeek/SidePeekTitleIn
 import { SidePeekFooter } from "@/components/shared/SidePeek/SidePeekFooter";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
-  useListStaffs,
+  useGetStaffs,
   useCreateStaff,
   useUpdateStaff,
   useDeleteStaff,
@@ -70,10 +71,10 @@ const STAFF_ROLE_SELECT_ITEMS = (
 
 interface StaffFormData {
   name: string;
-  staff_role: StaffRoleValue;
+  staffRole: StaffRoleValue;
   code: string;
-  license_number: string;
-  is_active: boolean;
+  licenseNumber: string;
+  isActive: boolean;
   email: string;
   password: string;
 }
@@ -98,10 +99,10 @@ const StaffSidePanel = memo(function StaffSidePanel({
   // rerender-lazy-state-init: 初回マウント時のみ item から初期化
   const [formData, setFormData] = useState<StaffFormData>(() => ({
     name: item?.name ?? "",
-    staff_role: item?.staffRole ?? "veterinarian",
+    staffRole: item?.staffRole ?? "veterinarian",
     code: item?.code ?? "",
-    license_number: item?.licenseNumber ?? "",
-    is_active: item?.isActive ?? true,
+    licenseNumber: item?.licenseNumber ?? "",
+    isActive: item?.isActive ?? true,
     email: "",
     password: "",
   }));
@@ -125,15 +126,10 @@ const StaffSidePanel = memo(function StaffSidePanel({
         />
         <div className={`${STYLE.sectionDivider} mb-1`} />
         <div className="py-1">
-          <PropertyRow label="ステータス">
-            <button
-              type="button"
-              onClick={() => setFormData((prev) => ({ ...prev, is_active: !prev.is_active }))}
-              className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-            >
-              <NotionStatusPill isActive={formData.is_active} />
-            </button>
-          </PropertyRow>
+          <StatusToggleButton
+            isActive={formData.isActive}
+            onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
+          />
 
           <PropertyRow label="社員番号">
             <input
@@ -147,8 +143,8 @@ const StaffSidePanel = memo(function StaffSidePanel({
 
           <PropertyRow label="職種">
             <Select
-              value={formData.staff_role}
-              onValueChange={(v) => setFormData((prev) => ({ ...prev, staff_role: v as StaffRoleValue }))}
+              value={formData.staffRole}
+              onValueChange={(v) => setFormData((prev) => ({ ...prev, staffRole: v as StaffRoleValue }))}
             >
               <SelectTrigger className={STYLE.selectCompact}>
                 <SelectValue placeholder="選択" />
@@ -161,8 +157,8 @@ const StaffSidePanel = memo(function StaffSidePanel({
             <input
               type="text"
               className={INPUT_CLASS}
-              value={formData.license_number}
-              onChange={(e) => setFormData((prev) => ({ ...prev, license_number: e.target.value }))}
+              value={formData.licenseNumber}
+              onChange={(e) => setFormData((prev) => ({ ...prev, licenseNumber: e.target.value }))}
               placeholder="空"
             />
           </PropertyRow>
@@ -211,7 +207,7 @@ export function StaffSettings() {
   const [pendingDelete, setPendingDelete] = useState<Staff | null>(null);
   const [, startSaveTransition] = useTransition();
 
-  const { data: rawStaffs } = useListStaffs();
+  const { data: rawStaffs } = useGetStaffs();
   const createMutation = useCreateStaff();
   const updateMutation = useUpdateStaff();
   const deleteMutation = useDeleteStaff();
@@ -235,9 +231,20 @@ export function StaffSettings() {
 
   const handleSave = useCallback(
     (data: StaffFormData) => {
+      // バリデーションは startSaveTransition の外で実施
       if (!data.name.trim()) {
         toast.error("氏名は必須です");
         return;
+      }
+      if (editTarget === null || editTarget === "new") {
+        if (!data.email) {
+          toast.error("メールアドレスは必須です");
+          return;
+        }
+        if (!data.password || data.password.length < 8) {
+          toast.error("パスワードは8文字以上で入力してください");
+          return;
+        }
       }
 
       // rerender-transitions: API書き込みを非緊急マーク
@@ -245,10 +252,10 @@ export function StaffSettings() {
         if (editTarget !== null && editTarget !== "new") {
           const req: UpdateStaffRequest = {
             name: data.name,
-            staff_role: data.staff_role,
+            staff_role: data.staffRole,
             code: data.code || undefined,
-            license_number: data.license_number || undefined,
-            is_active: data.is_active,
+            license_number: data.licenseNumber || undefined,
+            is_active: data.isActive,
           };
           updateMutation.mutate(
             { id: editTarget.id, req },
@@ -261,21 +268,13 @@ export function StaffSettings() {
             },
           );
         } else {
-          if (!data.email) {
-            toast.error("メールアドレスは必須です");
-            return;
-          }
-          if (!data.password) {
-            toast.error("パスワードは必須です");
-            return;
-          }
           const req: CreateStaffRequest = {
             name: data.name,
-            staff_role: data.staff_role,
+            staff_role: data.staffRole,
             email: data.email,
             password: data.password,
             code: data.code || undefined,
-            license_number: data.license_number || undefined,
+            license_number: data.licenseNumber || undefined,
           };
           createMutation.mutate(req, {
             onSuccess: () => {

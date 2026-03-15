@@ -141,7 +141,7 @@ export async function deleteStaff(id: string): Promise<void> {
 // TanStack Query hooks
 // ─────────────────────────────────────────────────
 
-export function useListStaffs() {
+export function useGetStaffs() {
   return useQuery({
     queryKey: STAFFS_QUERY_KEY,
     queryFn: listStaffs,

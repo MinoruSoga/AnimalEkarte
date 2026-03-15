@@ -32,7 +32,7 @@ export const useReplaceExamTypeItems = () => {
     mutationFn: ({ examTypeId, items }: ReplaceExamTypeItemsVariables) =>
       replaceExamTypeItems(examTypeId, items),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masterItems", "examination"] });
+      queryClient.invalidateQueries({ queryKey: ["masters", "examination-types"] });
     },
   });
 };

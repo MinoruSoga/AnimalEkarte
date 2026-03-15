@@ -17,11 +17,9 @@ import {
 import { useSortableList } from "@/hooks/useSortableList";
 
 // External
-import {
-  Plus,
-  FolderTree,
-  ClipboardList,
-} from "lucide-react";
+import Plus from "lucide-react/dist/esm/icons/plus";
+import FolderTree from "lucide-react/dist/esm/icons/folder-tree";
+import ClipboardList from "lucide-react/dist/esm/icons/clipboard-list";
 import { toast } from "sonner";
 
 // Internal
@@ -42,6 +40,7 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
+import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { PropInput } from "@/components/shared/SidePeek/PropInput";
 import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
 import { SidePeekToolbar } from "@/components/shared/SidePeek/SidePeekToolbar";
@@ -50,12 +49,12 @@ import { SidePeekTitleInput } from "@/components/shared/SidePeek/SidePeekTitleIn
 import { SidePeekFooter } from "@/components/shared/SidePeek/SidePeekFooter";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
-  useListDiagnosisCategories,
+  useGetDiagnosisCategories,
   useCreateDiagnosisCategory,
   useUpdateDiagnosisCategory,
   useDeleteDiagnosisCategory,
   useReorderDiagnosisCategories,
-  useListDiagnosisNames,
+  useGetDiagnosisNames,
   useCreateDiagnosisName,
   useUpdateDiagnosisName,
   useDeleteDiagnosisName,
@@ -155,15 +154,10 @@ const DiagnosisCategorySidePanel = memo(function DiagnosisCategorySidePanel({
         />
         <div className={`${STYLE.sectionDivider} mb-1`} />
         <div className="py-1">
-          <PropertyRow label="ステータス">
-            <button
-              type="button"
-              onClick={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
-              className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-            >
-              <NotionStatusPill isActive={formData.isActive} />
-            </button>
-          </PropertyRow>
+          <StatusToggleButton
+            isActive={formData.isActive}
+            onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
+          />
           <PropertyRow label="備考">
             <PropInput
               value={formData.description}
@@ -235,15 +229,10 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
         />
         <div className={`${STYLE.sectionDivider} mb-1`} />
         <div className="py-1">
-          <PropertyRow label="ステータス">
-            <button
-              type="button"
-              onClick={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
-              className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-            >
-              <NotionStatusPill isActive={formData.isActive} />
-            </button>
-          </PropertyRow>
+          <StatusToggleButton
+            isActive={formData.isActive}
+            onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
+          />
           <PropertyRow label="カテゴリ">
             <Select
               value={formData.diagnosisCategoryId}
@@ -282,7 +271,7 @@ function DiagnosisCategoryTab() {
   const [pendingDelete, setPendingDelete] = useState<DiagnosisCategory | null>(null);
   const [, startSaveTransition] = useTransition();
 
-  const { data: rawCategories } = useListDiagnosisCategories();
+  const { data: rawCategories } = useGetDiagnosisCategories();
   const createMutation = useCreateDiagnosisCategory();
   const updateMutation = useUpdateDiagnosisCategory();
   const deleteMutation = useDeleteDiagnosisCategory();
@@ -457,8 +446,8 @@ function DiagnosisNameTab() {
   const [pendingDelete, setPendingDelete] = useState<DiagnosisName | null>(null);
   const [, startSaveTransition] = useTransition();
 
-  const { data: rawCategories } = useListDiagnosisCategories();
-  const { data: rawNames } = useListDiagnosisNames();
+  const { data: rawCategories } = useGetDiagnosisCategories();
+  const { data: rawNames } = useGetDiagnosisNames();
 
   const createMutation = useCreateDiagnosisName();
   const updateMutation = useUpdateDiagnosisName();

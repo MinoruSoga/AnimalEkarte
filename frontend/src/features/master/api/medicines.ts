@@ -13,7 +13,7 @@ export const getAllMedicines = async (): Promise<Medicine[]> => {
 
 export const useGetAllMedicines = () => {
   return useQuery({
-    queryKey: ["medicines"],
+    queryKey: ["masters", "medicines"],
     queryFn: getAllMedicines,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -27,7 +27,7 @@ export const getMedicineById = async (id: string): Promise<Medicine> => {
 
 export const useGetMedicineById = (id: string) => {
   return useQuery({
-    queryKey: ["medicines", id],
+    queryKey: ["masters", "medicines", id],
     queryFn: () => getMedicineById(id),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.STATIC,
@@ -45,7 +45,7 @@ export const useCreateMedicine = () => {
   return useMutation({
     mutationFn: createMedicine,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["medicines"] });
+      queryClient.invalidateQueries({ queryKey: ["masters", "medicines"] });
     },
   });
 };
@@ -61,7 +61,7 @@ export const useUpdateMedicine = () => {
     mutationFn: ({ id, req }: { id: string; req: UpdateMedicineRequest }) =>
       updateMedicine(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["medicines"] });
+      queryClient.invalidateQueries({ queryKey: ["masters", "medicines"] });
     },
   });
 };
@@ -75,7 +75,7 @@ export const useDeleteMedicine = () => {
   return useMutation({
     mutationFn: deleteMedicine,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["medicines"] });
+      queryClient.invalidateQueries({ queryKey: ["masters", "medicines"] });
     },
   });
 };
@@ -89,7 +89,7 @@ export const useReorderMedicines = () => {
   return useMutation({
     mutationFn: reorderMedicines,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["medicines"] });
+      queryClient.invalidateQueries({ queryKey: ["masters", "medicines"] });
     },
   });
 };

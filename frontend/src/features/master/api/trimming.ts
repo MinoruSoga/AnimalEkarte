@@ -221,7 +221,7 @@ export async function deleteTrimmingOption(id: string): Promise<void> {
 // TanStack Query hooks - TrimmingCourse
 // ─────────────────────────────────────────────────
 
-export function useListTrimmingCourses() {
+export function useGetTrimmingCourses() {
   return useQuery({
     queryKey: TRIMMING_COURSES_KEY,
     queryFn: listTrimmingCourses,
@@ -265,7 +265,7 @@ export function useDeleteTrimmingCourse() {
 // TanStack Query hooks - TrimmingOption
 // ─────────────────────────────────────────────────
 
-export function useListTrimmingOptions() {
+export function useGetTrimmingOptions() {
   return useQuery({
     queryKey: TRIMMING_OPTIONS_KEY,
     queryFn: listTrimmingOptions,

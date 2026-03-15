@@ -1,20 +1,10 @@
 export {
-  getMasterItems,
-  useGetMasterItems,
-  useGetMasterItemsByCategory as useGetMasterItemsByCategoryNew,
   getMasterItemsByEndpoint,
   MASTER_CATEGORY_ENDPOINT,
   transformGenericMasterItem,
+  useGetMasterItemsByCategory,
 } from "./get-master-items";
 export type { GenericMasterBackendItem } from "./get-master-items";
-export {
-  getMasterItem,
-  useGetMasterItem,
-  getMasterItemsByCategory,
-  useGetMasterItemsByCategory,
-  getMasterItemsByStatus,
-  useGetMasterItemsByStatus,
-} from "./get-master-item";
 export {
   createMasterItem,
   useCreateMasterItem,
@@ -36,7 +26,7 @@ export {
   createStaff,
   updateStaff,
   deleteStaff,
-  useListStaffs,
+  useGetStaffs,
   useCreateStaff,
   useUpdateStaff,
   useDeleteStaff,

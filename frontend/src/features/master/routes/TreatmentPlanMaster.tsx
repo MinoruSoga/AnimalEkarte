@@ -37,6 +37,8 @@ import { SidePeekToolbar } from "@/components/shared/SidePeek/SidePeekToolbar";
 import { SidePeekBody } from "@/components/shared/SidePeek/SidePeekBody";
 import { SidePeekTitleInput } from "@/components/shared/SidePeek/SidePeekTitleInput";
 import { SidePeekFooter } from "@/components/shared/SidePeek/SidePeekFooter";
+import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
+import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 
 // API hooks
@@ -195,27 +197,14 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
         />
         <div className={`${STYLE.sectionDivider} mb-1`} />
         <div className="py-1">
-          <PropertyRow label="ステータス">
-            <button
-              type="button"
-              onClick={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
-              className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-            >
-              <NotionStatusPill isActive={formData.isActive} />
-            </button>
-          </PropertyRow>
-          <PropertyRow label="単価(税込)">
-            <input
-              type="number"
-              min={0}
-              className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder} font-mono`}
-              value={formData.price === 0 ? "" : formData.price}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, price: Number(e.target.value) || 0 }))
-              }
-              placeholder="0"
-            />
-          </PropertyRow>
+          <StatusToggleButton
+            isActive={formData.isActive}
+            onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
+          />
+          <MoneyInput
+            value={formData.price}
+            onChange={(v) => setFormData((prev) => ({ ...prev, price: v }))}
+          />
           <PropertyRow label="備考">
             <PropInput
               value={formData.description}
@@ -556,7 +545,7 @@ export function TreatmentPlanMaster() {
 
   // ── Tab configs ────────────────────────────────────
 
-  const tabConfigs: Record<string, TreatmentTabConfig> = {
+  const tabConfigs = useMemo<Record<string, TreatmentTabConfig>>(() => ({
     consultation: {
       data: consultationData,
       entityLabel: "診察",
@@ -736,7 +725,13 @@ export function TreatmentPlanMaster() {
         }),
       onReorder: (ids) => reorderCheckups.mutate({ ids }),
     },
-  };
+  }), [
+    consultationData, createConsultation, updateConsultation, deleteConsultation, reorderConsultations,
+    examinationData, createExamination, updateExamination, deleteExamination, reorderExaminations,
+    procedureData, createProcedure, updateProcedure, deleteProcedure, reorderProcedures,
+    vaccineData, createVaccine, updateVaccine, deleteVaccine, reorderVaccines,
+    checkupData, createCheckup, updateCheckup, deleteCheckup, reorderCheckups,
+  ]);
 
   return (
     <PageLayout

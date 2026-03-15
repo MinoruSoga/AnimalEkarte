@@ -21,7 +21,6 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
-import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
@@ -33,11 +32,11 @@ import { SidePeekTitleInput } from "@/components/shared/SidePeek/SidePeekTitleIn
 import { SidePeekFooter } from "@/components/shared/SidePeek/SidePeekFooter";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
-  useListTrimmingCourses,
+  useGetTrimmingCourses,
   useCreateTrimmingCourse,
   useUpdateTrimmingCourse,
   useDeleteTrimmingCourse,
-  useListTrimmingOptions,
+  useGetTrimmingOptions,
   useCreateTrimmingOption,
   useUpdateTrimmingOption,
   useDeleteTrimmingOption,
@@ -66,7 +65,6 @@ const COURSE_COLUMNS = [
   { header: "所要時間", className: "w-[100px]" },
   { header: "単価(税込)", className: "w-[110px]", align: "right" as const },
   { header: "ステータス", className: "w-[90px]", align: "right" as const },
-  { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
 const OPTION_COLUMNS = [
@@ -75,7 +73,6 @@ const OPTION_COLUMNS = [
   { header: "組合せ可否", className: "w-[110px]", align: "center" as const },
   { header: "単価(税込)", className: "w-[110px]", align: "right" as const },
   { header: "ステータス", className: "w-[90px]", align: "right" as const },
-  { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
 // ─────────────────────────────────────────────────
@@ -249,7 +246,7 @@ function TrimmingCourseTab() {
   const [pendingDelete, setPendingDelete] = useState<TrimmingCourse | null>(null);
   const [, startSaveTransition] = useTransition();
 
-  const { data: rawCourses } = useListTrimmingCourses();
+  const { data: rawCourses } = useGetTrimmingCourses();
   const createMutation = useCreateTrimmingCourse();
   const updateMutation = useUpdateTrimmingCourse();
   const deleteMutation = useDeleteTrimmingCourse();
@@ -376,9 +373,6 @@ function TrimmingCourseTab() {
                 </TableCell>
                 <TableCell className="text-right">
                   <NotionStatusPill isActive={item.isActive} />
-                </TableCell>
-                <TableCell className="p-0 text-right">
-                  <RowActionButton onClick={() => setEditTarget(item)} />
                 </TableCell>
               </DataTableRow>
             )}
@@ -544,7 +538,7 @@ function TrimmingOptionTab() {
   const [pendingDelete, setPendingDelete] = useState<TrimmingOption | null>(null);
   const [, startSaveTransition] = useTransition();
 
-  const { data: rawOptions } = useListTrimmingOptions();
+  const { data: rawOptions } = useGetTrimmingOptions();
   const createMutation = useCreateTrimmingOption();
   const updateMutation = useUpdateTrimmingOption();
   const deleteMutation = useDeleteTrimmingOption();
@@ -671,9 +665,6 @@ function TrimmingOptionTab() {
                 </TableCell>
                 <TableCell className="text-right">
                   <NotionStatusPill isActive={item.isActive} />
-                </TableCell>
-                <TableCell className="p-0 text-right">
-                  <RowActionButton onClick={() => setEditTarget(item)} />
                 </TableCell>
               </DataTableRow>
             )}

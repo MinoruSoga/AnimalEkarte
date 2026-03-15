@@ -66,12 +66,3 @@ export const useGetMasterItemsByCategory = (category: string) => {
   });
 };
 
-// Keep this for backward compat but return empty (no global fetch endpoint anymore)
-export const getMasterItems = async (): Promise<MasterItem[]> => [];
-export const useGetMasterItems = () =>
-  useQuery({
-    queryKey: ["masterItems"],
-    queryFn: getMasterItems,
-    staleTime: QUERY_STALE_TIMES.STATIC,
-    gcTime: QUERY_GC_TIMES.LONG,
-  });

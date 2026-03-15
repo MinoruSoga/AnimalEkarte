@@ -83,7 +83,7 @@ export async function reorderServiceTypes(
 // TanStack Query hooks
 // ─────────────────────────────────────────────────
 
-export function useListServiceTypes() {
+export function useGetServiceTypes() {
   return useQuery({
     queryKey: SERVICE_TYPES_QUERY_KEY,
     queryFn: listServiceTypes,

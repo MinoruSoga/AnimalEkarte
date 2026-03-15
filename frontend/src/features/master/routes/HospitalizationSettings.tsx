@@ -24,6 +24,8 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
+import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
+import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
 import { PropInput } from "@/components/shared/SidePeek/PropInput";
 import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
 import { SidePeekToolbar } from "@/components/shared/SidePeek/SidePeekToolbar";
@@ -135,17 +137,10 @@ const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
         <div className={`${STYLE.sectionDivider} mb-1`} />
         <div className="py-1">
           {/* Status */}
-          <PropertyRow label="ステータス">
-            <button
-              type="button"
-              onClick={() =>
-                setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))
-              }
-              className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-            >
-              <NotionStatusPill isActive={formData.isActive} />
-            </button>
-          </PropertyRow>
+          <StatusToggleButton
+            isActive={formData.isActive}
+            onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
+          />
 
           {/* Body Size */}
           <PropertyRow label="対象体格">
@@ -178,28 +173,10 @@ const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
           </PropertyRow>
 
           {/* Price */}
-          <PropertyRow label="単価(税込)">
-            <div className="flex items-center gap-1">
-              <span className={`text-sm ${C.text65} select-none`}>¥</span>
-              <input
-                type="number"
-                min={0}
-                className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
-                value={formData.price === 0 ? "" : String(formData.price)}
-                onChange={(e) => {
-                  if (e.target.value === "") {
-                    setFormData((prev) => ({ ...prev, price: 0 }));
-                    return;
-                  }
-                  const parsed = Number(e.target.value);
-                  if (!Number.isNaN(parsed) && parsed >= 0) {
-                    setFormData((prev) => ({ ...prev, price: parsed }));
-                  }
-                }}
-                placeholder="0"
-              />
-            </div>
-          </PropertyRow>
+          <MoneyInput
+            value={formData.price}
+            onChange={(v) => setFormData((prev) => ({ ...prev, price: v }))}
+          />
 
           {/* Description */}
           <PropertyRow label="備考">

@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback, useDeferredValue, useTransition, memo } from "react";
+import { useState, useMemo, useCallback, useDeferredValue, useTransition, memo, Fragment } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
@@ -138,23 +138,6 @@ const INITIAL_FORM: MedicineFormData = {
 };
 
 // ─────────────────────────────────────────────────
-// Sub-components
-// ─────────────────────────────────────────────────
-
-function StatusDot({ active }: { active: boolean }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span
-        className={`size-[7px] rounded-full ${active ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`}
-      />
-      <span className={`text-sm ${active ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}>
-        {active ? "有効" : "無効"}
-      </span>
-    </span>
-  );
-}
-
-// ─────────────────────────────────────────────────
 // SortableMedicineRow
 // ─────────────────────────────────────────────────
 
@@ -179,7 +162,7 @@ function SortableMedicineRow({
         {medicine.price > 0 ? `¥${medicine.price.toLocaleString()}` : "-"}
       </TableCell>
       <TableCell className="w-[110px] py-2.5 text-center">
-        <StatusDot active={medicine.isActive} />
+        <NotionStatusPill isActive={medicine.isActive} />
       </TableCell>
       <TableCell className="w-[80px] py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-center gap-1">
@@ -238,7 +221,7 @@ function MedicineRowOverlay({
         {medicine.price > 0 ? `¥${medicine.price.toLocaleString()}` : "-"}
       </div>
       <div className="w-[110px] shrink-0 flex justify-center">
-        <StatusDot active={medicine.isActive} />
+        <NotionStatusPill isActive={medicine.isActive} />
       </div>
       <div className="w-[80px] shrink-0" />
     </div>
@@ -317,16 +300,20 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
                     // カテゴリはルート固定 — 変更不可
                     <span className={`text-sm ${C.text}`}>なし（ルート）</span>
                   ) : (
-                    <select
-                      value={formData.parentId}
-                      onChange={(e) => updateForm({ parentId: e.target.value })}
-                      className={SELECT_TRIGGER_FULL}
+                    <Select
+                      value={formData.parentId || "__none__"}
+                      onValueChange={(v) => updateForm({ parentId: v === "__none__" ? "" : v })}
                     >
-                      <option value="">なし（未分類）</option>
-                      {categoryMedicines.map((cat) => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
-                    </select>
+                      <SelectTrigger className={SELECT_TRIGGER_FULL}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">なし（未分類）</SelectItem>
+                        {categoryMedicines.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   )}
                 </PropertyRow>
 
@@ -749,10 +736,9 @@ export function MedicineSettings() {
               const isCollapsed = collapsedGroups.has(parentId);
 
               return (
-                <>
+                <Fragment key={parentId}>
                   {/* Group header row — クリックでカテゴリ編集パネルを開く */}
                   <TableRow
-                    key={`h-${parentId}`}
                     onClick={() => handleEdit(header)}
                     className={`${STYLE.tableRow} border-b ${C.borderLight} bg-[#F7F6F3]/30 group/header hover:bg-[#F7F6F3]/60`}
                   >
@@ -811,7 +797,7 @@ export function MedicineSettings() {
 
                     {/* Status column — 有効 */}
                     <TableCell className="w-[110px] py-0 text-center">
-                      <StatusDot active={true} />
+                      <NotionStatusPill isActive={true} />
                     </TableCell>
 
                     {/* Actions column — category */}
@@ -848,7 +834,7 @@ export function MedicineSettings() {
                       ))}
                     </SortableContext>
                   )}
-                </>
+                </Fragment>
               );
             })}
 

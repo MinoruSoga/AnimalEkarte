@@ -1,5 +1,5 @@
 // React/Framework
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useMemo, useState, useTransition } from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 
@@ -89,6 +89,7 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
   const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState<Partial<MasterItem>>({});
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [, startSaveTransition] = useTransition();
   const deferredSearch = useDeferredValue(searchTerm);
 
   const { data: filteredItems, add, update, remove } = useMasterItems(hookCategory, deferredSearch);
@@ -101,16 +102,6 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
     () => config?.labels ?? { code: "コード", name: "名称", category: "カテゴリ" },
     [config],
   );
-
-  // Reset editing state when category changes
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    setIsEditing(false);
-    setSelectedItem(null);
-    setSearchTerm("");
-    setFormData({});
-  }, [rawCategory]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleCloseEdit = useCallback(() => {
     setIsEditing(false);
@@ -135,22 +126,25 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
       toast.error("名称は必須です");
       return;
     }
-    if (selectedItem) {
-      update(selectedItem.id, formData, {
-        onSuccess: () => {
-          toast.success("更新しました");
-          handleCloseEdit();
-        },
-      });
-    } else {
-      add(formData as Omit<MasterItem, "id">, {
-        onSuccess: () => {
-          toast.success("登録しました");
-          handleCloseEdit();
-        },
-      });
-    }
-  }, [formData, selectedItem, update, add, handleCloseEdit]);
+    // rerender-transitions: API書き込みを非緊急マーク
+    startSaveTransition(() => {
+      if (selectedItem) {
+        update(selectedItem.id, formData, {
+          onSuccess: () => {
+            toast.success("更新しました");
+            handleCloseEdit();
+          },
+        });
+      } else {
+        add(formData as Omit<MasterItem, "id">, {
+          onSuccess: () => {
+            toast.success("登録しました");
+            handleCloseEdit();
+          },
+        });
+      }
+    });
+  }, [formData, selectedItem, update, add, handleCloseEdit, startSaveTransition]);
 
   const handleDelete = useCallback(() => {
     if (!selectedItem) return;
@@ -183,6 +177,39 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
     [labels, showCode, showCategory, showPrice],
   );
 
+  // ── renderRow ──────────────────────────────────────
+  const renderRow = useCallback(
+    (item: MasterItem) => (
+      <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
+        <TableCell className={`font-medium text-sm ${C.text}`}>
+          {item.name}
+        </TableCell>
+        {showCode ? (
+          <TableCell className={`text-sm ${C.text}`}>
+            {item.code ?? "-"}
+          </TableCell>
+        ) : null}
+        {showCategory ? (
+          <TableCell className={`text-sm ${C.text}`}>
+            {item.category ?? "-"}
+          </TableCell>
+        ) : null}
+        {showPrice ? (
+          <TableCell className={`text-right font-mono text-sm ${C.text}`}>
+            {item.price ? `¥${item.price.toLocaleString()}` : "-"}
+          </TableCell>
+        ) : null}
+        <TableCell className="text-center">
+          <NotionStatusPill isActive={item.status !== "inactive"} />
+        </TableCell>
+        <TableCell className="p-0 text-right">
+          <RowActionButton onClick={() => handleEdit(item)} />
+        </TableCell>
+      </DataTableRow>
+    ),
+    [handleEdit, showCode, showCategory, showPrice],
+  );
+
   // ── List content ───────────────────────────────────
   const listContent = (
     <div className="flex flex-col gap-4">
@@ -208,34 +235,7 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
         columns={columns}
         data={filteredItems}
         emptyMessage="データが見つかりません"
-        renderRow={(item) => (
-          <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
-            <TableCell className={`font-medium text-sm ${C.text}`}>
-              {item.name}
-            </TableCell>
-            {showCode ? (
-              <TableCell className={`text-sm ${C.text}`}>
-                {item.code ?? "-"}
-              </TableCell>
-            ) : null}
-            {showCategory ? (
-              <TableCell className={`text-sm ${C.text}`}>
-                {item.category ?? "-"}
-              </TableCell>
-            ) : null}
-            {showPrice ? (
-              <TableCell className={`text-right font-mono text-sm ${C.text}`}>
-                {item.price ? `¥${item.price.toLocaleString()}` : "-"}
-              </TableCell>
-            ) : null}
-            <TableCell className="text-center">
-              <NotionStatusPill isActive={item.status !== "inactive"} />
-            </TableCell>
-            <TableCell className="p-0 text-right">
-              <RowActionButton onClick={() => handleEdit(item)} />
-            </TableCell>
-          </DataTableRow>
-        )}
+        renderRow={renderRow}
       />
 
       <button
