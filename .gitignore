@@ -46,3 +46,7 @@ service-account-key.json
 .env.local
 .vscode/settings.json
 .DS_Store
+
+# Issue tracking (local only)
+frontend/issues/
+backend/issues/
