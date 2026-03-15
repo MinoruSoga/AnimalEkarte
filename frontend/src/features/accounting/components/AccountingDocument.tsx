@@ -63,12 +63,12 @@ export function AccountingDocument({ type, accounting, paymentInfo }: Accounting
             <span>診療費等合計</span>
             <span>¥{paymentInfo.totalAmount.toLocaleString()}</span>
           </div>
-          {paymentInfo.insuranceAmount < 0 && (
+          {paymentInfo.insuranceAmount < 0 ? (
             <div className="flex justify-between border-b border-dotted pb-1 text-green-700">
               <span>保険負担額</span>
               <span>{paymentInfo.insuranceAmount.toLocaleString()}</span>
             </div>
-          )}
+          ) : null}
           <div className="flex justify-between border-b border-dotted pb-1 font-bold">
             <span>請求金額</span>
             <span>¥{paymentInfo.billingAmount.toLocaleString()}</span>
@@ -154,20 +154,20 @@ export function AccountingDocument({ type, accounting, paymentInfo }: Accounting
                     <span>10%対象額</span>
                     <span>¥{tax10Base.toLocaleString()} (税 ¥{tax10Amount.toLocaleString()})</span>
                 </div>
-                {tax8Base > 0 && (
+                {tax8Base > 0 ? (
                     <div className="flex justify-between">
                         <span>8%対象額</span>
                         <span>¥{tax8Base.toLocaleString()} (税 ¥{tax8Amount.toLocaleString()})</span>
                     </div>
-                )}
+                ) : null}
             </div>
 
-            {paymentInfo.insuranceAmount < 0 && (
+            {paymentInfo.insuranceAmount < 0 ? (
                 <div className="flex justify-between text-green-700 border-b pb-1 pt-2">
                     <span>保険適用</span>
                     <span>{paymentInfo.insuranceAmount.toLocaleString()}</span>
                 </div>
-            )}
+            ) : null}
             
             <div className="flex justify-between font-bold text-lg pt-2 border-t border-black">
                 <span>請求金額</span>

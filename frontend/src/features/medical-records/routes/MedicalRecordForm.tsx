@@ -139,9 +139,9 @@ export function MedicalRecordForm() {
               }`}
             >
               {tab}
-              {activeTab === tab && (
+              {activeTab === tab ? (
                 <div className={`absolute bottom-0 left-0 w-full h-[2px] ${C.bgPrimary}`} />
-              )}
+              ) : null}
             </button>
           ))}
         </div>
@@ -149,7 +149,7 @@ export function MedicalRecordForm() {
 
       {/* Content Area */}
       <div className="mt-4 flex-1 min-h-0">
-        {mountedTabs.has("問診") && (
+        {mountedTabs.has("問診") ? (
           <div className="h-full" style={{ display: activeTab === "問診" ? "block" : "none" }}>
             <MedicalRecordInterview
               chiefComplaint={chiefComplaint}
@@ -158,8 +158,8 @@ export function MedicalRecordForm() {
               setTreatmentPolicy={setTreatmentPolicy}
             />
           </div>
-        )}
-        {mountedTabs.has("診察/治療プラン") && (
+        ) : null}
+        {mountedTabs.has("診察/治療プラン") ? (
           <div style={{ display: activeTab === "診察/治療プラン" ? "block" : "none" }}>
             <MedicalRecordDiagnosisPlan
               isNewRecord={isNewRecord}
@@ -172,21 +172,21 @@ export function MedicalRecordForm() {
               medicalRecordId={recordId}
             />
           </div>
-        )}
-        {mountedTabs.has("治療") && (
+        ) : null}
+        {mountedTabs.has("治療") ? (
           <div style={{ display: activeTab === "治療" ? "block" : "none" }}>
             <MedicalRecordTreatment
               medicalRecordId={recordId ?? ""}
               isNewRecord={isNewRecord}
             />
           </div>
-        )}
-        {mountedTabs.has("予防接種") && (
+        ) : null}
+        {mountedTabs.has("予防接種") ? (
           <div style={{ display: activeTab === "予防接種" ? "block" : "none" }}>
             <MedicalRecordVaccination />
           </div>
-        )}
-        {mountedTabs.has("定期健診") && (
+        ) : null}
+        {mountedTabs.has("定期健診") ? (
           <div style={{ display: activeTab === "定期健診" ? "block" : "none" }}>
             {isNewRecord || !recordId ? (
               <div className={`flex items-center justify-center h-48 text-sm ${C.text40}`}>
@@ -196,23 +196,23 @@ export function MedicalRecordForm() {
               <CheckupsTab medicalRecordId={recordId} />
             )}
           </div>
-        )}
-        {mountedTabs.has("検査") && (
+        ) : null}
+        {mountedTabs.has("検査") ? (
           <div style={{ display: activeTab === "検査" ? "block" : "none" }}>
             <MedicalRecordExamination isNewRecord={isNewRecord} />
           </div>
-        )}
-        {mountedTabs.has("画像") && (
+        ) : null}
+        {mountedTabs.has("画像") ? (
           <div style={{ display: activeTab === "画像" ? "block" : "none" }}>
             <MedicalRecordImage isNewRecord={isNewRecord} />
           </div>
-        )}
-        {mountedTabs.has("見積書") && (
+        ) : null}
+        {mountedTabs.has("見積書") ? (
           <div style={{ display: activeTab === "見積書" ? "block" : "none" }}>
             <MedicalRecordEstimate isNewRecord={isNewRecord} />
           </div>
-        )}
-        {mountedTabs.has("会計(医師確認)") && (
+        ) : null}
+        {mountedTabs.has("会計(医師確認)") ? (
           <div style={{ display: activeTab === "会計(医師確認)" ? "block" : "none" }}>
             <MedicalRecordBillCheck
               isNewRecord={isNewRecord}
@@ -220,13 +220,13 @@ export function MedicalRecordForm() {
               completedItems={treatmentCompletedItems}
             />
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Floating Save / Delete Buttons */}
-      {activeTab !== "会計(医師確認)" && (
+      {activeTab !== "会計(医師確認)" ? (
         <div className="fixed bottom-6 right-6 z-50 flex gap-2">
-          {!isNewRecord && activeTab === "問診" && (
+          {!isNewRecord && activeTab === "問診" ? (
             <Button
               variant="outline"
               onClick={() => setIsDeleteConfirmOpen(true)}
@@ -235,7 +235,7 @@ export function MedicalRecordForm() {
               <Trash2 className="h-4 w-4" />
               削除
             </Button>
-          )}
+          ) : null}
           <Button
             variant="outline"
             onClick={() => setIsVitalsOpen(true)}
@@ -253,10 +253,10 @@ export function MedicalRecordForm() {
             保存
           </Button>
         </div>
-      )}
+      ) : null}
 
       {/* Delete confirm placeholder — connects to isDeleteConfirmOpen state */}
-      {isDeleteConfirmOpen && (
+      {isDeleteConfirmOpen ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
           onClick={() => setIsDeleteConfirmOpen(false)}
@@ -282,7 +282,7 @@ export function MedicalRecordForm() {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
       {/* Vitals Modal */}
       {!isNewRecord && recordId ? (
         <VitalsModal
