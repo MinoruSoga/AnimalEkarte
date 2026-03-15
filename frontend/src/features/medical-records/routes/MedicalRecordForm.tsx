@@ -24,6 +24,7 @@ import { MedicalRecordExamination } from "../components/MedicalRecordExamination
 import { CheckupsTab } from "../components/CheckupsTab";
 import { VitalsModal } from "../components/VitalsModal";
 import { useMedicalRecordForm } from "../hooks/useMedicalRecordForm";
+import { useAuth } from "@/features/auth";
 
 export function MedicalRecordForm() {
   const { id: recordId } = useParams();
@@ -50,8 +51,10 @@ export function MedicalRecordForm() {
     setAssessment,
   } = useMedicalRecordForm(recordId);
 
+  const { user } = useAuth();
+
   // ローカル状態: 担当者・診療種別（hookに追加するまでの暫定）
-  const [staffName, setStaffName] = useState("医師A");
+  const [staffName, setStaffName] = useState(() => user?.displayName ?? "");
   const [serviceType, setServiceType] = useState("診療");
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isVitalsOpen, setIsVitalsOpen] = useState(false);
