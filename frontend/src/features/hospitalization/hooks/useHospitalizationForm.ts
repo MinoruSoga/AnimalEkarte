@@ -86,6 +86,7 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
 
   useEffect(() => {
     if (!hospitalizationData) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 非同期サーバーデータでフォームを初期化するパターン。React 18 が自動バッチするため実害なし
     setFormData((prev) => ({
       ...prev,
       hospitalizationType:
