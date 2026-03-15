@@ -14,92 +14,168 @@ Bulletproof-Reactアーキテクチャに準拠する。
 ```
 src/
 ├── main.tsx                               # Viteエントリーポイント（ReactDOM.createRoot）
+├── index.css                              # グローバルスタイル読み込み
 ├── vite-env.d.ts                          # Vite型定義
 │
 ├── app/                                   # アプリケーション層
-│   ├── index.tsx                          # Appコンポーネント
-│   ├── provider.tsx                       # 全プロバイダー統合
-│   ├── router.tsx                         # React Router Data Mode設定
-│   └── ErrorBoundary.tsx                  # グローバルエラーバウンダリ
+│   ├── index.tsx                          # Appコンポーネント（AppProvider → RouterProvider）
+│   ├── provider.tsx                       # QueryClientProvider + Toaster
+│   ├── router.tsx                         # createBrowserRouter（inline lazy パターン）
+│   └── pages/                             # ★ Cross-feature合成ページ
+│       └── OwnerFormPage.tsx              # owners + pets を合成する例
 │
-├── features/                              # 機能別モジュール（Feature-Based）
-│   ├── auth/
-│   ├── dashboard/
-│   ├── reservations/
-│   ├── medical-records/
-│   ├── hospitalization/
-│   ├── accounting/
-│   ├── examinations/
-│   ├── owners/
-│   ├── pets/
-│   ├── trimming/
-│   ├── vaccinations/
-│   ├── master/
-│   └── clinic/
+├── assets/                                # 静的アセット
+│
+├── features/                              # 機能別モジュール（18 features）
+│   ├── auth/                              # 認証（ログイン・セッション管理）
+│   ├── dashboard/                         # ダッシュボード
+│   ├── owners/                            # ★ ベストプラクティス参照実装
+│   ├── pets/                              # ペット（CRUD API のみ）
+│   ├── reservations/                      # 予約管理
+│   ├── medical-records/                   # 電子カルテ
+│   ├── hospitalization/                   # 入院管理
+│   ├── examinations/                      # 診察
+│   ├── accounting/                        # 会計
+│   ├── vaccinations/                      # ワクチン
+│   ├── trimming/                          # トリミング
+│   ├── inventory/                         # 在庫管理
+│   ├── estimates/                         # 見積
+│   ├── shifts/                            # シフト管理
+│   ├── master/                            # マスタ設定（PATTERNS.md 参照）
+│   └── hospital-settings/                 # 病院設定（クリニックマスタ）
 │
 ├── components/                            # 共有コンポーネント
-│   ├── ui/                                # shadcn/ui（Radix UI Primitives）
+│   ├── ui/                                # shadcn/ui（Radix UI Primitives）★変更禁止
+│   ├── errors/                            # RouteErrorBoundary, RootErrorBoundary
 │   └── shared/                            # アプリケーション固有の共有コンポーネント
-│       ├── Layout/ (MainLayout, AuthLayout, PrintLayout, Header, Sidebar...)
-│       ├── DataTable/
-│       ├── Form/ (FormField, FormError, SubmitButton...)
-│       ├── Feedback/ (Spinner, ErrorFallback...)
-│       ├── Navigation/
-│       ├── StatusBadge/
-│       ├── DateRangePicker/
-│       ├── SearchBox/
-│       └── ConfirmDialog/
+│       ├── Layout/                        # Layout（Sidebar統合済み）
+│       ├── DataTable/                     # DataTableRow, SortableDataTableRow
+│       ├── SidePeek/                      # Panel, Body, Footer, TitleInput, Toolbar
+│       ├── Form/                          # FormHeader, PrimaryButton
+│       ├── FormFieldError/                # フィールドエラー表示
+│       ├── Feedback/                      # ImageWithFallback
+│       ├── ConfirmDialog/                 # 確認ダイアログ
+│       ├── DateRangePicker/               # 日付範囲選択
+│       ├── NotionDatePicker/              # 日付ピッカー
+│       ├── HistoryFilterPanel/            # 履歴フィルタUI
+│       ├── MasterSelectModal/             # マスタ選択モーダル
+│       ├── NavigationBlocker/             # 未保存変更時のナビゲーションブロック
+│       ├── PageLayout/                    # ページコンテナ
+│       ├── Pagination/                    # ページネーション
+│       ├── PatientInfoCard/               # 患者情報カード
+│       ├── PetSelection/                  # ペット選択UI
+│       ├── ReservationFormModal/          # 予約フォームモーダル
+│       ├── RowActionButton/               # 行アクションボタン
+│       ├── RowActionDropdown/             # 行アクションドロップダウン
+│       ├── SearchBox/                     # 検索ボックス
+│       ├── SearchFilterBar/               # 検索+フィルタバー
+│       ├── SortableHeader/                # ソート可能カラムヘッダ
+│       ├── StatusBadge/                   # ステータスバッジ
+│       ├── StatusPill/                    # ステータスピル
+│       └── TreatmentSearchDialog/         # 処置検索ダイアログ
 │
-├── hooks/                                 # 共有カスタムフック (useDebounce, useToast...)
+├── hooks/                                 # 共有カスタムフック（全feature横断）
+│   ├── use-master-items.ts               # マスタデータ取得
+│   ├── use-mobile.ts                     # モバイル判定
+│   ├── use-pet-selection.ts              # ペット選択
+│   ├── use-pet-selection-page.ts         # ペット選択ページロジック
+│   ├── use-pet.ts                        # 単体ペット取得
+│   ├── use-service-type-color-map.ts     # サービス種別→色マップ
+│   ├── usePagination.ts                  # ページネーション状態
+│   ├── useReducedMotion.ts               # アクセシビリティ
+│   ├── useSortableList.ts                # ソータブルリスト
+│   ├── useStaffValidation.ts             # スタッフ入力検証
+│   ├── useTableSort.ts                   # テーブルソート状態
+│   └── useUnsavedChanges.ts              # 未保存変更警告
 │
-├── lib/                                   # ライブラリ設定 (axios, react-query, zod...)
-│
-├── stores/                                # グローバル状態管理 (authStore, themeStore...)
-│
-├── types/                                 # グローバル型定義
-│
-├── utils/                                 # ユーティリティ関数 (format, validation...)
+├── lib/                                   # ライブラリ設定・ユーティリティ
+│   ├── axios.ts                           # Axiosインスタンス（baseURL, interceptors）
+│   ├── react-query.ts                     # QueryClient設定（staleTime階層）
+│   ├── zod.ts                             # Zodスキーマヘルパー
+│   ├── utils.ts                           # cn() 等
+│   ├── design-tokens.ts                   # デザイントークン
+│   ├── handle-api-error.ts                # APIエラーハンドリング共通処理
+│   ├── type-utils.ts                      # TypeScriptユーティリティ型
+│   └── transforms/                        # Backend型 → Frontend型 変換ヘルパー
+│       ├── pet.ts
+│       ├── medicine.ts
+│       └── treatment.ts
 │
 ├── config/                                # アプリケーション設定
+│   └── paths.ts                           # 全ルートの型安全URLマップ（getHref()付き）
+│
+├── stores/                                # グローバル状態（Zustand）
+│   └── sidebar-store.ts                   # サイドバー開閉状態のみ
+│
+├── types/                                 # 共有型定義
+│   ├── generated/                         # ★ 自動生成（直接編集禁止）
+│   │   └── models.ts                      # make codegen（tygo）で生成
+│   ├── diagnosis.ts
+│   ├── medicine.ts
+│   ├── owner.ts
+│   ├── pet.ts
+│   ├── service-type.ts
+│   ├── treatment.ts
+│   ├── trimming.ts
+│   └── index.ts
+│
+├── utils/                                 # 純粋ユーティリティ関数
+│   ├── format/                            # date.ts, number.ts
+│   ├── constants/                         # 定数
+│   ├── validation/                        # バリデーション
+│   └── status-helpers.ts                  # ステータス変換ヘルパー
 │
 ├── styles/                                # グローバルスタイル
-│   ├── globals.css
-│   └── themes/
+│   └── globals.css                        # Tailwind CSS v4
 │
 └── testing/                               # テスト設定
     ├── setup.ts
-    └── server/                            # MSW
+    └── server/                            # MSW handlers
 ```
 
 ### 1.2 コードフローの方向（単方向依存）
 
 ```
-┌─────────────────────────────────────────────────┐
-│                      app/                        │
-│  (router, provider, routes)                      │
-└─────────────────────────────────────────────────┘
-                        ↑
-                        │ import可能
-                        │
-┌─────────────────────────────────────────────────┐
-│                   features/                      │
-│  (owners, medical-records, dashboard, etc.)     │
-│                                                  │
-│  ※ feature間の直接importは禁止                   │
-└─────────────────────────────────────────────────┘
-                        ↑
-                        │ import可能
-                        │
-┌─────────────────────────────────────────────────┐
-│          shared (components/, hooks/,            │
-│                  lib/, types/)                   │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│                        app/                           │
+│  router.tsx        … ルート定義（inline lazy パターン）│
+│  provider.tsx      … QueryClient + Toaster            │
+│  pages/XxxPage.tsx … cross-feature合成（必要時のみ）  │
+└──────────────────────────────────────────────────────┘
+                          ↑
+                          │ import可能
+                          │
+┌──────────────────────────────────────────────────────┐
+│                     features/                         │
+│  routes/   … ページコンポーネント（app/routes/は使わない）│
+│  api/      … React Query hooks                        │
+│  hooks/    … フォーム・フィルタ等のUIロジック          │
+│                                                        │
+│  ※ feature間の直接importは禁止                        │
+└──────────────────────────────────────────────────────┘
+                          ↑
+                          │ import可能
+                          │
+┌──────────────────────────────────────────────────────┐
+│     shared (components/, hooks/, lib/, config/,       │
+│             stores/, types/, utils/)                  │
+└──────────────────────────────────────────────────────┘
 ```
 
 **ルール:**
 - `shared → features → app` の単方向のみ
-- feature間の直接importは禁止（app層で合成する、または`components/shared`に移動する）
+- feature間の直接importは禁止（app/pages/ で合成する、または `components/shared` に移動する）
 - 循環参照は絶対禁止
+- cross-feature合成が必要な場合は `app/pages/XxxPage.tsx` を作成し、router.tsx から lazy import する
+
+**bulletproof-react参照実装との意図的な差分:**
+
+| bulletproof-react | このプロジェクト | 理由 |
+|------------------|----------------|------|
+| routes を `app/routes/` に配置 | routes を `features/[feature]/routes/` に配置 | feature内に完結させる方が保守性が高い |
+| `clientLoader`/`clientAction`/`convert()` パターン | inline `lazy()` + 直接 `loader` 設定 | シンプルで読みやすい |
+| AuthLoader を AppProvider 内に配置 | AuthProvider を router の保護ルートに配置 | /login で不要な GET /v1/me を防ぐ |
+| `config/env.ts`（Zod検証） | なし（Vite env をそのまま使用） | 現時点では不要 |
 
 ### 1.3 Feature モジュール構成
 
@@ -108,11 +184,14 @@ src/
 ```
 features/[feature-name]/
 ├── api/                        # データフェッチング（React Query hooks）
-│   ├── get[Entity].ts          # 単体取得 + use[Entity]()
-│   ├── get[Entity]s.ts         # 一覧取得 + use[Entity]s()
-│   ├── create[Entity].ts       # 作成 + useCreate[Entity]()
-│   ├── update[Entity].ts       # 更新 + useUpdate[Entity]()
-│   └── delete[Entity].ts       # 削除 + useDelete[Entity]()
+│   ├── get-[entity].ts         # 単体取得: raw fetch fn + queryOptions factory + useQuery hook
+│   ├── get-[entity]s.ts        # 一覧取得: raw fetch fn + queryOptions factory + useQuery hook
+│   ├── create-[entity].ts      # 作成: Zod schema + useMutation hook
+│   ├── update-[entity].ts      # 更新: Zod schema + useMutation hook
+│   ├── delete-[entity].ts      # 削除: useMutation hook
+│   ├── types.ts                # APIリクエスト/レスポンス型（models.tsからOmit/Partialで導出）
+│   ├── transforms.ts           # Backend型 → Frontend型 変換
+│   └── index.ts                # 明示的named export
 ├── components/                 # feature固有コンポーネント
 │   ├── [Component]/
 │   │   ├── [Component].tsx
@@ -120,19 +199,17 @@ features/[feature-name]/
 │   │   └── index.ts
 │   └── ...
 ├── hooks/                      # ビジネスロジック・UI状態管理
-│   ├── use[Entity]Form.ts      # フォーム状態
-│   ├── use[Entity]Filters.ts   # フィルタ状態
+│   ├── use[Entity]Form.ts      # フォーム状態（useTransitionでAPI書き込み管理）
 │   └── ...
-├── routes/                     # ページコンポーネント
-│   ├── [Entity]List.tsx
-│   ├── [Entity]Detail.tsx
-│   └── [Entity]Create.tsx
-├── types/                      # 型定義
+├── routes/                     # ★ ページコンポーネント（app/routes/ではなくここに配置）
+│   ├── [Entity]List.tsx        # 一覧ページ
+│   ├── [Entity]Form.tsx        # 作成/編集フォーム
+│   ├── [Entity]Detail.tsx      # 詳細ページ
+│   └── [Entity]PetSelection.tsx # ペット選択（必要な場合のみ）
+├── types/                      # feature固有型定義
 │   └── index.ts
-├── utils/                      # feature固有ユーティリティ（必要に応じて）
-│   └── [entity]Helpers.ts
-├── mockData.ts                 # モックデータ
-└── index.ts                    # 公開API（Routes, Components, Hooks）
+├── loaders.ts                  # React Router loader（必要な場合のみ、Promise.allで並列フェッチ）
+└── index.ts                    # 公開API（明示的named export のみ）
 ```
 
 #### Feature構成例: dashboard
