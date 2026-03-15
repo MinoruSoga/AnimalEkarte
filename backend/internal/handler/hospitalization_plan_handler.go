@@ -10,26 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type createHospitalizationPlanInput struct {
-	Name        string   `json:"name"         binding:"required"`
-	Price       *float64 `json:"price"`
-	IsActive    bool     `json:"is_active"`
-	Description string   `json:"description"`
-	BodySize    string   `json:"body_size"`
-	BillingUnit string   `json:"billing_unit"`
-	SortOrder   int      `json:"sort_order"`
-}
-
-type updateHospitalizationPlanInput struct {
-	Name        string   `json:"name"`
-	Price       *float64 `json:"price"`
-	IsActive    *bool    `json:"is_active"`
-	Description string   `json:"description"`
-	BodySize    string   `json:"body_size"`
-	BillingUnit string   `json:"billing_unit"`
-	SortOrder   int      `json:"sort_order"`
-}
-
 // ---- HospitalizationPlan ----
 
 // ListHospitalizationPlans godoc
@@ -49,9 +29,9 @@ func (h *Handler) CreateHospitalizationPlan(c *gin.Context) {
 		return
 	}
 
-	var input createHospitalizationPlanInput
+	var input createHospitalizationPlanRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
@@ -86,14 +66,19 @@ func (h *Handler) UpdateHospitalizationPlan(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input updateHospitalizationPlanInput
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var input updateHospitalizationPlanRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
 	plan := &model.HospitalizationPlan{
 		ID:          id,
+		ClinicID:    clinicID,
 		Name:        input.Name,
 		Price:       input.Price,
 		Description: input.Description,
@@ -130,4 +115,22 @@ func (h *Handler) DeleteHospitalizationPlan(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// ReorderHospitalizationPlans godoc
+func (h *Handler) ReorderHospitalizationPlans(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderHospitalizationPlanRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+	if err := h.svc.HospitalizationPlan.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
 }

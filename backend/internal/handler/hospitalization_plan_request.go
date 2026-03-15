@@ -21,3 +21,8 @@ type updateHospitalizationPlanRequest struct {
 	BillingUnit string   `json:"billing_unit"`
 	SortOrder   int      `json:"sort_order"`
 }
+
+// reorderHospitalizationPlanRequest は入院プラン並び替えリクエスト。
+type reorderHospitalizationPlanRequest struct {
+	IDs []uint64 `json:"ids" binding:"required,min=1"`
+}

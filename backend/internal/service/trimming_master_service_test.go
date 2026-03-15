@@ -19,6 +19,7 @@ type mockTrimmingCourseRepository struct {
 	createFn   func(ctx context.Context, course *model.TrimmingCourse) error
 	updateFn   func(ctx context.Context, course *model.TrimmingCourse) error
 	deleteFn   func(ctx context.Context, id uint64) error
+	reorderErr error
 }
 
 func (m *mockTrimmingCourseRepository) FindAll(ctx context.Context) ([]model.TrimmingCourse, error) {
@@ -41,6 +42,10 @@ func (m *mockTrimmingCourseRepository) Delete(ctx context.Context, id uint64) er
 	return m.deleteFn(ctx, id)
 }
 
+func (m *mockTrimmingCourseRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
+	return m.reorderErr
+}
+
 // ---- TrimmingOption モック ----
 
 type mockTrimmingOptionRepository struct {
@@ -49,6 +54,7 @@ type mockTrimmingOptionRepository struct {
 	createFn   func(ctx context.Context, option *model.TrimmingOption) error
 	updateFn   func(ctx context.Context, option *model.TrimmingOption) error
 	deleteFn   func(ctx context.Context, id uint64) error
+	reorderErr error
 }
 
 func (m *mockTrimmingOptionRepository) FindAll(ctx context.Context) ([]model.TrimmingOption, error) {
@@ -69,6 +75,10 @@ func (m *mockTrimmingOptionRepository) Update(ctx context.Context, option *model
 
 func (m *mockTrimmingOptionRepository) Delete(ctx context.Context, id uint64) error {
 	return m.deleteFn(ctx, id)
+}
+
+func (m *mockTrimmingOptionRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
+	return m.reorderErr
 }
 
 // ---- TrimmingCourseService テスト ----
@@ -336,6 +346,43 @@ func TestTrimmingCourseService_Delete(t *testing.T) {
 	}
 }
 
+func TestTrimmingCourseService_Reorder(t *testing.T) {
+	tests := []struct {
+		name    string
+		ids     []uint64
+		repoErr error
+		wantErr bool
+	}{
+		{
+			name:    "reorders successfully",
+			ids:     []uint64{3, 1, 2},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name:    "propagates repository error",
+			ids:     []uint64{1, 2},
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockTrimmingCourseRepository{reorderErr: tt.repoErr}
+			svc := NewTrimmingCourseService(repo)
+
+			err := svc.Reorder(context.Background(), 1, tt.ids)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 // ---- TrimmingOptionService テスト ----
 
 func TestTrimmingOptionService_List(t *testing.T) {
@@ -537,6 +584,43 @@ func TestTrimmingOptionService_Update(t *testing.T) {
 			svc := NewTrimmingOptionService(repo)
 
 			err := svc.Update(context.Background(), tt.option)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestTrimmingOptionService_Reorder(t *testing.T) {
+	tests := []struct {
+		name    string
+		ids     []uint64
+		repoErr error
+		wantErr bool
+	}{
+		{
+			name:    "reorders successfully",
+			ids:     []uint64{2, 3, 1},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name:    "propagates repository error",
+			ids:     []uint64{1, 2},
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockTrimmingOptionRepository{reorderErr: tt.repoErr}
+			svc := NewTrimmingOptionService(repo)
+
+			err := svc.Reorder(context.Background(), 1, tt.ids)
 
 			if tt.wantErr {
 				assert.Error(t, err)

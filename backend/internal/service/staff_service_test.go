@@ -18,6 +18,7 @@ type mockStaffRepository struct {
 	createWithAccountFn func(ctx context.Context, staff *model.Staff, account *model.UserAccount, membership *model.UserClinicMembership) error
 	updateFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn            func(ctx context.Context, clinicID, id uint64) error
+	reorderErr          error
 }
 
 func (m *mockStaffRepository) FindAll(ctx context.Context, clinicID uint64, role *string) ([]model.Staff, error) {
@@ -38,6 +39,10 @@ func (m *mockStaffRepository) Update(ctx context.Context, clinicID, id uint64, f
 
 func (m *mockStaffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockStaffRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
+	return m.reorderErr
 }
 
 func TestStaffService_List(t *testing.T) {
@@ -334,6 +339,53 @@ func TestStaffService_Update(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, staff)
+			}
+		})
+	}
+}
+
+func TestStaffService_Reorder(t *testing.T) {
+	tests := []struct {
+		name             string
+		ids              []uint64
+		repoErr          error
+		wantErr          bool
+		wantInvalidInput bool
+	}{
+		{
+			name:    "reorders successfully",
+			ids:     []uint64{3, 1, 2},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name:             "returns invalid input when ids is empty",
+			ids:              []uint64{},
+			wantErr:          true,
+			wantInvalidInput: true,
+		},
+		{
+			name:    "propagates repository error",
+			ids:     []uint64{1, 2},
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockStaffRepository{reorderErr: tt.repoErr}
+			svc := NewStaffService(repo)
+
+			err := svc.Reorder(context.Background(), 1, tt.ids)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.wantInvalidInput {
+					assert.True(t, apperrors.IsInvalidInput(err))
+				}
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}

@@ -18,6 +18,7 @@ type mockInsuranceRepository struct {
 	createFn   func(ctx context.Context, insurance *model.Insurance) error
 	updateFn   func(ctx context.Context, insurance *model.Insurance) error
 	deleteFn   func(ctx context.Context, id uint64) error
+	reorderErr error
 }
 
 func (m *mockInsuranceRepository) FindAll(ctx context.Context) ([]model.Insurance, error) {
@@ -38,6 +39,10 @@ func (m *mockInsuranceRepository) Update(ctx context.Context, insurance *model.I
 
 func (m *mockInsuranceRepository) Delete(ctx context.Context, id uint64) error {
 	return m.deleteFn(ctx, id)
+}
+
+func (m *mockInsuranceRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
+	return m.reorderErr
 }
 
 func TestInsuranceService_List(t *testing.T) {
@@ -257,6 +262,43 @@ func TestInsuranceService_Update(t *testing.T) {
 			svc := NewInsuranceService(repo)
 
 			err := svc.Update(context.Background(), tt.insurance)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestInsuranceService_Reorder(t *testing.T) {
+	tests := []struct {
+		name    string
+		ids     []uint64
+		repoErr error
+		wantErr bool
+	}{
+		{
+			name:    "reorders successfully",
+			ids:     []uint64{3, 1, 2},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name:    "propagates repository error",
+			ids:     []uint64{1, 2},
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockInsuranceRepository{reorderErr: tt.repoErr}
+			svc := NewInsuranceService(repo)
+
+			err := svc.Reorder(context.Background(), 1, tt.ids)
 
 			if tt.wantErr {
 				assert.Error(t, err)
