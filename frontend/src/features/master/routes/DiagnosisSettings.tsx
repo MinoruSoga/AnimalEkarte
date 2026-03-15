@@ -646,9 +646,9 @@ export function DiagnosisSettings() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") ?? "diagnosis_category";
 
-  const handleTabChange = (tab: string) => {
+  const handleTabChange = useCallback((tab: string) => {
     setSearchParams({ tab });
-  };
+  }, [setSearchParams]);
 
   return (
     <PageLayout

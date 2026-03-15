@@ -516,9 +516,9 @@ export function TreatmentPlanMaster() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") ?? "consultation";
 
-  const handleTabChange = (tab: string) => {
+  const handleTabChange = useCallback((tab: string) => {
     setSearchParams({ tab });
-  };
+  }, [setSearchParams]);
 
   // ── Consultations ──────────────────────────────────
   const { data: consultationData } = useGetAllConsultations();
