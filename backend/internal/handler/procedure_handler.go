@@ -10,29 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type createProcedureInput struct {
-	Name        string   `json:"name"        binding:"required"`
-	Price       *float64 `json:"price"`
-	IsActive    bool     `json:"is_active"`
-	Description string   `json:"description"`
-	Duration    *int     `json:"duration"`
-	Anesthesia  string   `json:"anesthesia"`
-	ParentID    *uint64  `json:"parent_id"`
-	SortOrder   int      `json:"sort_order"`
-}
-
-type updateProcedureInput struct {
-	Name          string   `json:"name"`
-	Price         *float64 `json:"price"`
-	IsActive      *bool    `json:"is_active"`
-	Description   string   `json:"description"`
-	Duration      *int     `json:"duration"`
-	Anesthesia    string   `json:"anesthesia"`
-	ParentID      *uint64  `json:"parent_id"`
-	ClearParentID bool     `json:"clear_parent_id"`
-	SortOrder     int      `json:"sort_order"`
-}
-
 // ---- Procedure ----
 
 // GetProcedure godoc
@@ -67,9 +44,9 @@ func (h *Handler) CreateProcedure(c *gin.Context) {
 		return
 	}
 
-	var input createProcedureInput
+	var input createProcedureRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
@@ -101,9 +78,9 @@ func (h *Handler) UpdateProcedure(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input updateProcedureInput
+	var input updateProcedureRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 

@@ -10,29 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type createVaccineInput struct {
-	Name        string   `json:"name"        binding:"required"`
-	Price       *float64 `json:"price"`
-	IsActive    bool     `json:"is_active"`
-	Description string   `json:"description"`
-	Species     string   `json:"species"`
-	Interval    string   `json:"interval"`
-	ParentID    *uint64  `json:"parent_id"`
-	SortOrder   int      `json:"sort_order"`
-}
-
-type updateVaccineInput struct {
-	Name          string   `json:"name"`
-	Price         *float64 `json:"price"`
-	IsActive      *bool    `json:"is_active"`
-	Description   string   `json:"description"`
-	Species       string   `json:"species"`
-	Interval      string   `json:"interval"`
-	ParentID      *uint64  `json:"parent_id"`
-	ClearParentID bool     `json:"clear_parent_id"`
-	SortOrder     int      `json:"sort_order"`
-}
-
 // ---- Vaccine ----
 
 // GetVaccine godoc
@@ -71,9 +48,9 @@ func (h *Handler) CreateVaccine(c *gin.Context) {
 		return
 	}
 
-	var input createVaccineInput
+	var input createVaccineRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
@@ -106,9 +83,9 @@ func (h *Handler) UpdateVaccine(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input updateVaccineInput
+	var input updateVaccineRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 

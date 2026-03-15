@@ -5,6 +5,8 @@ type createVaccineRequest struct {
 	Price       *float64 `json:"price"`
 	IsActive    bool     `json:"is_active"`
 	Description string   `json:"description"`
+	Species     string   `json:"species"`
+	Interval    string   `json:"interval"`
 	ParentID    *uint64  `json:"parent_id"`
 	SortOrder   int      `json:"sort_order"`
 }
@@ -14,6 +16,8 @@ type updateVaccineRequest struct {
 	Price         *float64 `json:"price"`
 	IsActive      *bool    `json:"is_active"`
 	Description   string   `json:"description"`
+	Species       string   `json:"species"`
+	Interval      string   `json:"interval"`
 	ParentID      *uint64  `json:"parent_id"`
 	ClearParentID bool     `json:"clear_parent_id"`
 	SortOrder     int      `json:"sort_order"`

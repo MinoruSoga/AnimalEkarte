@@ -10,29 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type createCheckupTypeInput struct {
-	Name        string   `json:"name"        binding:"required"`
-	Price       *float64 `json:"price"`
-	IsActive    bool     `json:"is_active"`
-	Description string   `json:"description"`
-	Interval    string   `json:"interval"`
-	TargetAge   string   `json:"target_age"`
-	ParentID    *uint64  `json:"parent_id"`
-	SortOrder   int      `json:"sort_order"`
-}
-
-type updateCheckupTypeInput struct {
-	Name          string   `json:"name"`
-	Price         *float64 `json:"price"`
-	IsActive      *bool    `json:"is_active"`
-	Description   string   `json:"description"`
-	Interval      string   `json:"interval"`
-	TargetAge     string   `json:"target_age"`
-	ParentID      *uint64  `json:"parent_id"`
-	ClearParentID bool     `json:"clear_parent_id"`
-	SortOrder     int      `json:"sort_order"`
-}
-
 // ---- CheckupType ----
 
 // GetCheckupType godoc
@@ -67,9 +44,9 @@ func (h *Handler) CreateCheckupType(c *gin.Context) {
 		return
 	}
 
-	var input createCheckupTypeInput
+	var input createCheckupTypeRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
@@ -99,9 +76,9 @@ func (h *Handler) UpdateCheckupType(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input updateCheckupTypeInput
+	var input updateCheckupTypeRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
