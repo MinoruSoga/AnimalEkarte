@@ -26,7 +26,7 @@ const DashboardDetailModal = lazy(() =>
   import("../components/DashboardDetailModal").then(m => ({ default: m.DashboardDetailModal }))
 );
 const ReservationFormModal = lazy(() =>
-  import("@/components/shared/ReservationFormModal").then(m => ({ default: m.ReservationFormModal }))
+  import("@/components/shared/ReservationFormModal/ReservationFormModal").then(m => ({ default: m.ReservationFormModal }))
 );
 import { KanbanColumn } from "../components/KanbanColumn";
 import { useDashboardKanban } from "../hooks/useDashboardKanban";

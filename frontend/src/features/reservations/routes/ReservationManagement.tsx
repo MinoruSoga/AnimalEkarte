@@ -20,7 +20,7 @@ import { typedSetter } from "@/lib/type-utils";
 import type { CalendarView } from "../types";
 import { CALENDAR_VIEW_VALUES } from "../types";
 const ReservationFormModal = lazy(() =>
-  import("@/components/shared/ReservationFormModal").then((m) => ({
+  import("@/components/shared/ReservationFormModal/ReservationFormModal").then((m) => ({
     default: m.ReservationFormModal,
   })),
 );
