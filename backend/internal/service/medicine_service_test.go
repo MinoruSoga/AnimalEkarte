@@ -19,6 +19,7 @@ type mockMedicineRepository struct {
 	createFn   func(ctx context.Context, medicine *model.Medicine) error
 	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
+	reorderFn  func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 func (m *mockMedicineRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Medicine, error) {
@@ -39,6 +40,13 @@ func (m *mockMedicineRepository) Update(ctx context.Context, clinicID, id uint64
 
 func (m *mockMedicineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockMedicineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if m.reorderFn != nil {
+		return m.reorderFn(ctx, clinicID, ids)
+	}
+	return nil
 }
 
 func newTestMedicineService(repo *mockMedicineRepository) MedicineService {

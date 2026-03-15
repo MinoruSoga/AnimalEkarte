@@ -25,11 +25,17 @@ type MeClinicMembership struct {
 
 // MeClinicInfo は GET /me のメイン医院詳細情報
 type MeClinicInfo struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	LogoURL     *string `json:"logo_url"`
-	PhoneNumber string  `json:"phone_number"`
-	Address     string  `json:"address"`
+	ID                 string  `json:"id"`
+	Name               string  `json:"name"`
+	PostalCode         string  `json:"postal_code"`
+	Address            string  `json:"address"`
+	PhoneNumber        string  `json:"phone_number"`
+	FaxNumber          string  `json:"fax_number"`
+	RegistrationNumber string  `json:"registration_number"`
+	DirectorName       string  `json:"director_name"`
+	Email              string  `json:"email"`
+	Website            string  `json:"website"`
+	LogoURL            *string `json:"logo_url"`
 }
 
 // MeResponse は GET /me のレスポンス（フロントエンド AuthUser と対応）
@@ -89,11 +95,17 @@ func buildMeResponse(data *repository.UserAccountWithMemberships, mainClinicID s
 				logoURL = &cl.LogoURL
 			}
 			meClinic = &MeClinicInfo{
-				ID:          strconv.FormatUint(cl.ID, 10),
-				Name:        cl.Name,
-				LogoURL:     logoURL,
-				PhoneNumber: cl.PhoneNumber,
-				Address:     cl.Address,
+				ID:                 strconv.FormatUint(cl.ID, 10),
+				Name:               cl.Name,
+				PostalCode:         cl.PostalCode,
+				Address:            cl.Address,
+				PhoneNumber:        cl.PhoneNumber,
+				FaxNumber:          cl.FaxNumber,
+				RegistrationNumber: cl.RegistrationNumber,
+				DirectorName:       cl.DirectorName,
+				Email:              cl.Email,
+				Website:            cl.Website,
+				LogoURL:            logoURL,
 			}
 			break
 		}

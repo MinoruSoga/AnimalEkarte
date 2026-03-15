@@ -57,6 +57,21 @@ export interface ClinicMembership {
   isMain: boolean;
 }
 
+/** /me レスポンスに含まれるメイン医院の詳細情報 */
+export interface AuthClinic {
+  id: string;
+  name: string;
+  postalCode: string;
+  address: string;
+  phoneNumber: string;
+  faxNumber: string;
+  registrationNumber: string;
+  directorName: string;
+  email: string;
+  website: string;
+  logoUrl: string | null;
+}
+
 export type ClinicPermissions = Record<string, readonly Permission[]>;
 
 export interface AuthUser {
@@ -68,6 +83,8 @@ export interface AuthUser {
   staffRole: StaffRole | null;
   avatarUrl: string | null;
   mainClinicId: string;
+  /** メイン医院の詳細情報。/me レスポンスから取得。null の場合は未所属 */
+  clinic: AuthClinic | null;
   clinics: ClinicMembership[];
   permissions: ClinicPermissions;
 }

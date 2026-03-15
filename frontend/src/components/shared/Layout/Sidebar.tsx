@@ -26,7 +26,6 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { useClinicInfo } from "@/hooks/use-clinic-info";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import type { MenuItem } from "@/types";
 
@@ -159,8 +158,8 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 1280,
   );
-  const { clinicInfo } = useClinicInfo();
   const { user, logout } = useAuth();
+  const clinicName = user?.clinic?.name ?? "";
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 1279px)");
@@ -222,7 +221,7 @@ export function Sidebar() {
               className="flex items-center gap-1 min-w-0 text-base font-semibold text-[#37352F] hover:bg-[rgba(55,53,47,0.04)] rounded-[3px] px-1.5 py-1 transition-colors outline-none"
             >
               <span className="size-2 rounded-full bg-[#038B94] shrink-0" />
-              <span className="truncate">{clinicInfo.name}</span>
+              <span className="truncate">{clinicName}</span>
               <ChevronDown className="size-3 opacity-40 shrink-0" />
             </button>
             <button

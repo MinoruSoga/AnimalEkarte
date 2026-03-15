@@ -125,6 +125,24 @@ func (h *Handler) UpdateVaccine(c *gin.Context) {
 	c.JSON(http.StatusOK, vaccine)
 }
 
+// ReorderVaccines godoc
+func (h *Handler) ReorderVaccines(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderVaccineRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+	if err := h.svc.Vaccine.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+}
+
 // DeleteVaccine godoc
 func (h *Handler) DeleteVaccine(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)

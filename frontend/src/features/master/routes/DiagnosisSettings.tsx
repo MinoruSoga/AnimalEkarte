@@ -7,20 +7,16 @@ import { useNavigate, useSearchParams } from "react-router";
 import {
   DndContext,
   closestCenter,
-  type DragEndEvent,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
-  arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+
+// Shared hooks
+import { useSortableList } from "@/hooks/useSortableList";
 
 // External
 import {
@@ -474,7 +470,6 @@ function DiagnosisCategoryTab() {
   const [isEditing, setIsEditing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<DiagnosisCategory | null>(null);
-  const [overrideOrder, setOverrideOrder] = useState<string[]>([]);
 
   const { data: rawCategories } = useListDiagnosisCategories();
   const createMutation = useCreateDiagnosisCategory();
@@ -482,39 +477,19 @@ function DiagnosisCategoryTab() {
   const deleteMutation = useDeleteDiagnosisCategory();
   const reorderMutation = useReorderDiagnosisCategories();
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
-  const orderedCategories = useMemo(() => {
-    const base = rawCategories ?? [];
-    if (overrideOrder.length === 0) return base;
-    const idx = new Map<string, number>(overrideOrder.map((id, i) => [id, i]));
-    return [...base].sort((a, b) => (idx.get(a.id) ?? 0) - (idx.get(b.id) ?? 0));
-  }, [rawCategories, overrideOrder]);
+  const { orderedItems: orderedCategories, sensors, handleDragEnd: handleCategoryDragEnd } =
+    useSortableList({
+      items: rawCategories ?? [],
+      onReorder: (newIds) => {
+        reorderMutation.mutate({ ids: newIds.map(Number) });
+      },
+    });
 
   const filteredItems = useMemo(() => {
     if (!searchTerm) return orderedCategories;
     const lower = searchTerm.toLowerCase();
     return orderedCategories.filter((c) => c.name.toLowerCase().includes(lower));
   }, [orderedCategories, searchTerm]);
-
-  const handleCategoryDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const currentIds = orderedCategories.map((i) => i.id);
-    const newOrder = arrayMove(
-      currentIds,
-      currentIds.indexOf(String(active.id)),
-      currentIds.indexOf(String(over.id)),
-    );
-    setOverrideOrder(newOrder);
-    reorderMutation.mutate(
-      { ids: newOrder.map(Number) },
-      { onSuccess: () => setOverrideOrder([]) },
-    );
-  };
 
   const handleEdit = (item: DiagnosisCategory) => {
     setSelectedItem(item);
@@ -699,7 +674,6 @@ function DiagnosisNameTab() {
   const [isEditing, setIsEditing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<DiagnosisName | null>(null);
-  const [overrideOrder, setOverrideOrder] = useState<string[]>([]);
 
   const { data: rawCategories } = useListDiagnosisCategories();
   const { data: rawNames } = useListDiagnosisNames();
@@ -709,17 +683,13 @@ function DiagnosisNameTab() {
   const deleteMutation = useDeleteDiagnosisName();
   const reorderMutation = useReorderDiagnosisNames();
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
-  const orderedNames = useMemo(() => {
-    const base = rawNames ?? [];
-    if (overrideOrder.length === 0) return base;
-    const idx = new Map<string, number>(overrideOrder.map((id, i) => [id, i]));
-    return [...base].sort((a, b) => (idx.get(a.id) ?? 0) - (idx.get(b.id) ?? 0));
-  }, [rawNames, overrideOrder]);
+  const { orderedItems: orderedNames, sensors, handleDragEnd: handleNameDragEnd } =
+    useSortableList({
+      items: rawNames ?? [],
+      onReorder: (newIds) => {
+        reorderMutation.mutate({ ids: newIds.map(Number) });
+      },
+    });
 
   const filteredItems = useMemo(() => {
     if (!searchTerm) return orderedNames;
@@ -731,22 +701,6 @@ function DiagnosisNameTab() {
     () => new Map<string, string>((rawCategories ?? []).map((c) => [c.id, c.name])),
     [rawCategories],
   );
-
-  const handleNameDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const currentIds = orderedNames.map((i) => i.id);
-    const newOrder = arrayMove(
-      currentIds,
-      currentIds.indexOf(String(active.id)),
-      currentIds.indexOf(String(over.id)),
-    );
-    setOverrideOrder(newOrder);
-    reorderMutation.mutate(
-      { ids: newOrder.map(Number) },
-      { onSuccess: () => setOverrideOrder([]) },
-    );
-  };
 
   const handleEdit = (item: DiagnosisName) => {
     setSelectedItem(item);

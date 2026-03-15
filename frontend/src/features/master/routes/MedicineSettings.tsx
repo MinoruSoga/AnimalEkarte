@@ -9,18 +9,11 @@ import {
   DragOverlay,
   closestCenter,
   type DragEndEvent,
-  type DragStartEvent,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
-  arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -63,6 +56,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useSortableList } from "@/hooks/useSortableList";
 
 // Internal – feature API (direct import, no barrel)
 import {
@@ -278,10 +272,8 @@ export function MedicineSettings() {
   const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
   const [formData, setFormData] = useState<MedicineFormData>(INITIAL_FORM);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [overrideOrder, setOverrideOrder] = useState<string[]>([]);
   // 値は parentId 文字列、undefined = 親なし
   const [overrideCategories, setOverrideCategories] = useState<Map<string, string | undefined>>(new Map());
-  const [activeId, setActiveId] = useState<string | null>(null);
 
   // ── API ──
   const { data: medicines = [] } = useGetAllMedicines();
@@ -290,30 +282,34 @@ export function MedicineSettings() {
   const deleteMutation = useDeleteMedicine();
   const reorderMutation = useReorderMedicines();
 
-  // ── DnD sensors ──
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
-  // ── Derived: overrideOrder + overrideCategories 適用済みリスト ──
-  const orderedMedicines = useMemo(() => {
-    let result: Medicine[];
-    if (overrideOrder.length === 0) {
-      result = medicines;
-    } else {
-      const idx = new Map<string, number>(overrideOrder.map((id, i) => [id, i]));
-      result = [...medicines].sort((a, b) => (idx.get(a.id) ?? 0) - (idx.get(b.id) ?? 0));
-    }
-    if (overrideCategories.size > 0) {
-      result = result.map((m) =>
-        overrideCategories.has(m.id)
-          ? { ...m, parentId: overrideCategories.get(m.id) }
-          : m,
+  // ── DnD (flat sort 担当) ──
+  const {
+    orderedItems: sortedMedicines,
+    sensors,
+    activeId,
+    handleDragStart,
+    handleDragCancel,
+    handleDragEnd: handleFlatSortDragEnd,
+    resetOrder,
+  } = useSortableList({
+    items: medicines,
+    onReorder: (newIds) => {
+      reorderMutation.mutate(
+        { ids: newIds.map(Number) },
+        { onSuccess: resetOrder },
       );
-    }
-    return result;
-  }, [medicines, overrideOrder, overrideCategories]);
+    },
+  });
+
+  // ── Derived: overrideCategories 適用済みリスト ──
+  const orderedMedicines = useMemo(() => {
+    if (overrideCategories.size === 0) return sortedMedicines;
+    return sortedMedicines.map((m) =>
+      overrideCategories.has(m.id)
+        ? { ...m, parentId: overrideCategories.get(m.id) }
+        : m,
+    );
+  }, [sortedMedicines, overrideCategories]);
 
   // ── Derived: medicines ID → Medicine マップ (js-cache-function-results) ──
   const medicinesById = useMemo(
@@ -380,17 +376,8 @@ export function MedicineSettings() {
     });
   }, []);
 
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(String(event.active.id));
-  }, []);
-
-  const handleDragCancel = useCallback(() => {
-    setActiveId(null);
-  }, []);
-
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
-      setActiveId(null);
       const { active, over } = event;
       if (!over || active.id === over.id) return;
 
@@ -434,23 +421,11 @@ export function MedicineSettings() {
           },
         );
       } else {
-        // 同カテゴリ: 並び替え
-        const currentIds = orderedMedicines.map((m) => m.id);
-        const newOrder = arrayMove(
-          currentIds,
-          currentIds.indexOf(activeItemId),
-          currentIds.indexOf(overItemId),
-        );
-        flushSync(() => {
-          setOverrideOrder(newOrder);
-        });
-        reorderMutation.mutate(
-          { ids: newOrder.map(Number) },
-          { onSuccess: () => setOverrideOrder([]) },
-        );
+        // 同カテゴリ: 並び替え — useSortableList に委譲
+        handleFlatSortDragEnd(event);
       }
     },
-    [orderedMedicines, reorderMutation, updateMutation],
+    [orderedMedicines, updateMutation, handleFlatSortDragEnd],
   );
 
   const handleCloseEdit = useCallback(() => {

@@ -119,6 +119,24 @@ func (h *Handler) UpdateProcedure(c *gin.Context) {
 	c.JSON(http.StatusOK, procedure)
 }
 
+// ReorderProcedures godoc
+func (h *Handler) ReorderProcedures(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderProcedureRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+	if err := h.svc.Procedure.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+}
+
 // DeleteProcedure godoc
 func (h *Handler) DeleteProcedure(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)

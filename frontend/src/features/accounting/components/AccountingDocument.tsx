@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 
 // Shared Hooks
-import { useClinicInfo } from "@/hooks/use-clinic-info";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 
 // Types
 import type { Accounting } from "../types";
@@ -23,7 +23,8 @@ interface AccountingDocumentProps {
 }
 
 export function AccountingDocument({ type, accounting, paymentInfo }: AccountingDocumentProps) {
-  const { clinicInfo } = useClinicInfo();
+  const { user } = useAuth();
+  const clinic = user?.clinic ?? null;
 
   const currentDate = format(new Date(), "yyyy年MM月dd日", { locale: ja });
   
@@ -83,10 +84,10 @@ export function AccountingDocument({ type, accounting, paymentInfo }: Accounting
         </div>
 
         <div className="mt-4 pt-4 border-t text-xs text-center leading-relaxed text-gray-600">
-          <p className="font-bold text-sm text-black mb-1">{clinicInfo.name}</p>
-          <p>〒{clinicInfo.postalCode} {clinicInfo.address}</p>
-          <p>TEL: {clinicInfo.phoneNumber}</p>
-          {clinicInfo.registrationNumber ? <p>登録番号: {clinicInfo.registrationNumber}</p> : null}
+          <p className="font-bold text-sm text-black mb-1">{clinic?.name}</p>
+          <p>〒{clinic?.postalCode} {clinic?.address}</p>
+          <p>TEL: {clinic?.phoneNumber}</p>
+          {clinic?.registrationNumber ? <p>登録番号: {clinic.registrationNumber}</p> : null}
         </div>
       </div>
     );
@@ -102,9 +103,9 @@ export function AccountingDocument({ type, accounting, paymentInfo }: Accounting
            <p className="text-gray-600">発行日: {currentDate}</p>
         </div>
         <div className="text-right text-xs text-gray-600">
-          <p className="font-bold text-base text-black mb-1">{clinicInfo.name}</p>
-          <p>〒{clinicInfo.postalCode} {clinicInfo.address}</p>
-          <p>TEL: {clinicInfo.phoneNumber}</p>
+          <p className="font-bold text-base text-black mb-1">{clinic?.name}</p>
+          <p>〒{clinic?.postalCode} {clinic?.address}</p>
+          <p>TEL: {clinic?.phoneNumber}</p>
         </div>
       </div>
 

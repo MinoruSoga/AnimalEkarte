@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -16,6 +17,7 @@ type CheckupTypeService interface {
 	Create(ctx context.Context, checkupType *model.CheckupType) error
 	Update(ctx context.Context, checkupType *model.CheckupType) error
 	Delete(ctx context.Context, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type checkupTypeService struct {
@@ -40,4 +42,11 @@ func (s *checkupTypeService) Update(ctx context.Context, checkupType *model.Chec
 }
 func (s *checkupTypeService) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
+}
+
+func (s *checkupTypeService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if len(ids) == 0 {
+		return apperrors.WrapInvalidInput("ids must not be empty")
+	}
+	return s.repo.Reorder(ctx, clinicID, ids)
 }

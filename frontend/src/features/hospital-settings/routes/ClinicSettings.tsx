@@ -12,31 +12,80 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-// Shared Hooks
-import { useClinicInfo } from "@/hooks/use-clinic-info";
+// Feature API
+import { useListClinics, useUpdateClinic } from "@/features/hospital-settings/api/clinics";
 
 // Types
-import type { ClinicInfo } from "@/types";
+import type { UpdateClinicRequest } from "@/features/hospital-settings/api/clinics";
+
+interface ClinicFormData {
+  name: string;
+  postalCode: string;
+  address: string;
+  phoneNumber: string;
+  faxNumber: string;
+  registrationNumber: string;
+  directorName: string;
+  email: string;
+  website: string;
+}
 
 export function ClinicSettings() {
-  const { clinicInfo, updateClinicInfo, loading } = useClinicInfo();
-  
-  const { register, handleSubmit, reset, formState: { isDirty } } = useForm<ClinicInfo>({
-    defaultValues: clinicInfo
+  const { data: clinics = [], isLoading } = useListClinics();
+  const updateMutation = useUpdateClinic();
+
+  const clinic = clinics[0] ?? null;
+
+  const { register, handleSubmit, reset, formState: { isDirty } } = useForm<ClinicFormData>({
+    defaultValues: {
+      name: "",
+      postalCode: "",
+      address: "",
+      phoneNumber: "",
+      faxNumber: "",
+      registrationNumber: "",
+      directorName: "",
+      email: "",
+      website: "",
+    },
   });
 
   useEffect(() => {
-    if (!loading) {
-      reset(clinicInfo);
+    if (clinic) {
+      reset({
+        name: clinic.name,
+        postalCode: clinic.postalCode,
+        address: clinic.address,
+        phoneNumber: clinic.phoneNumber,
+        faxNumber: clinic.faxNumber,
+        registrationNumber: clinic.registrationNumber,
+        directorName: clinic.directorName,
+        email: clinic.email,
+        website: clinic.website,
+      });
     }
-  }, [loading, clinicInfo, reset]);
+  }, [clinic, reset]);
 
-  const onSubmit = (data: ClinicInfo) => {
-    updateClinicInfo(data);
-    reset(data); // Reset dirty state
+  const onSubmit = (data: ClinicFormData) => {
+    if (!clinic) return;
+    const req: UpdateClinicRequest = {
+      name: data.name,
+      postal_code: data.postalCode,
+      address: data.address,
+      phone_number: data.phoneNumber,
+      fax_number: data.faxNumber,
+      registration_number: data.registrationNumber,
+      director_name: data.directorName,
+      email: data.email,
+      website: data.website,
+    };
+    updateMutation.mutate(
+      { id: clinic.id, req },
+      { onSuccess: () => reset(data) },
+    );
   };
 
-  if (loading) {
+  if (isLoading) {
     return <div>Loading...</div>;
   }
 
@@ -101,7 +150,7 @@ export function ClinicSettings() {
             </div>
           </CardContent>
           <CardFooter className="bg-gray-50 border-t p-4 flex justify-end">
-            <Button type="submit" disabled={!isDirty}>
+            <Button type="submit" disabled={!isDirty || updateMutation.isPending}>
               <Save className="mr-2 h-4 w-4" />
               設定を保存
             </Button>

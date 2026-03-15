@@ -20,6 +20,7 @@ type ProcedureRepository interface {
 	Create(ctx context.Context, procedure *model.Procedure) error
 	Update(ctx context.Context, procedure *model.Procedure) error
 	Delete(ctx context.Context, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type procedureRepository struct{ db *gorm.DB }
@@ -78,4 +79,21 @@ func (r *procedureRepository) Delete(ctx context.Context, id uint64) error {
 		return apperrors.WrapNotFound("procedure", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *procedureRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for i, id := range ids {
+			result := tx.Model(&model.Procedure{}).
+				Where("id = ? AND clinic_id = ?", id, clinicID).
+				Update("sort_order", i+1)
+			if result.Error != nil {
+				return apperrors.Wrap(result.Error, "reorder procedure")
+			}
+			if result.RowsAffected == 0 {
+				return apperrors.WrapInvalidInput(fmt.Sprintf("procedure id %d not found in this clinic", id))
+			}
+		}
+		return nil
+	})
 }

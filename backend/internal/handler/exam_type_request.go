@@ -19,6 +19,11 @@ type updateExaminationTypeRequest struct {
 	SortOrder     int      `json:"sort_order"`
 }
 
+// reorderExaminationTypeRequest は検査種別並び替えのバインド struct
+type reorderExaminationTypeRequest struct {
+	IDs []uint64 `json:"ids" binding:"required,min=1"`
+}
+
 type examTypeItemInput struct {
 	Name            string `json:"name"             binding:"required"`
 	InspectionValue string `json:"inspection_value"`

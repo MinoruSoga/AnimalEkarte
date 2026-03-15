@@ -40,6 +40,10 @@ func (m *mockVaccineRepository) Delete(ctx context.Context, id uint64) error {
 	return m.deleteFn(ctx, id)
 }
 
+func (m *mockVaccineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return nil
+}
+
 func TestVaccineService_List(t *testing.T) {
 	dogSpecies := "dog"
 

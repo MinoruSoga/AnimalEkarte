@@ -115,6 +115,24 @@ func (h *Handler) UpdateConsultation(c *gin.Context) {
 	c.JSON(http.StatusOK, consultation)
 }
 
+// ReorderConsultations godoc
+func (h *Handler) ReorderConsultations(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderConsultationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+	if err := h.svc.Consultation.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+}
+
 // DeleteConsultation godoc
 func (h *Handler) DeleteConsultation(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)

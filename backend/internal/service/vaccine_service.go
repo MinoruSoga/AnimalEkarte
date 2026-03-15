@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -16,6 +17,7 @@ type VaccineService interface {
 	Create(ctx context.Context, vaccine *model.Vaccine) error
 	Update(ctx context.Context, vaccine *model.Vaccine) error
 	Delete(ctx context.Context, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type vaccineService struct{ repo repository.VaccineRepository }
@@ -38,4 +40,11 @@ func (s *vaccineService) Update(ctx context.Context, vaccine *model.Vaccine) err
 }
 func (s *vaccineService) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
+}
+
+func (s *vaccineService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if len(ids) == 0 {
+		return apperrors.WrapInvalidInput("ids must not be empty")
+	}
+	return s.repo.Reorder(ctx, clinicID, ids)
 }

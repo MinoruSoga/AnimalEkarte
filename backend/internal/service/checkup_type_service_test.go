@@ -40,6 +40,10 @@ func (m *mockCheckupTypeRepository) Delete(ctx context.Context, id uint64) error
 	return m.deleteFn(ctx, id)
 }
 
+func (m *mockCheckupTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return nil
+}
+
 func TestCheckupTypeService_List(t *testing.T) {
 	tests := []struct {
 		name     string

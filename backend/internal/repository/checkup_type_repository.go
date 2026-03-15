@@ -20,6 +20,7 @@ type CheckupTypeRepository interface {
 	Create(ctx context.Context, checkupType *model.CheckupType) error
 	Update(ctx context.Context, checkupType *model.CheckupType) error
 	Delete(ctx context.Context, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type checkupTypeRepository struct{ db *gorm.DB }
@@ -80,4 +81,21 @@ func (r *checkupTypeRepository) Delete(ctx context.Context, id uint64) error {
 		return apperrors.WrapNotFound("checkup_type", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *checkupTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for i, id := range ids {
+			result := tx.Model(&model.CheckupType{}).
+				Where("id = ? AND clinic_id = ?", id, clinicID).
+				Update("sort_order", i+1)
+			if result.Error != nil {
+				return apperrors.Wrap(result.Error, "reorder checkup type")
+			}
+			if result.RowsAffected == 0 {
+				return apperrors.WrapInvalidInput(fmt.Sprintf("checkup_type id %d not found in this clinic", id))
+			}
+		}
+		return nil
+	})
 }

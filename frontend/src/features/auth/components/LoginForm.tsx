@@ -8,29 +8,30 @@ import { C } from "@/lib/design-tokens";
 // AuthProvider はこのページを囲まないため useAuth() は使用不可。
 // login API を直接呼び出し、成功後に navigate("/") で保護ルート側に遷移する。
 import { login as loginApi } from "../api/login";
-import { MOCK_USERS } from "../api/mock-data";
-import { STAFF_ROLE_LABELS, USER_TYPE_LABELS } from "../types";
-import type { AuthUser } from "../types";
 
-/* ---- Demo Account Row ---- */
+/* ---- Demo accounts (dev only) ---- */
 
-interface DemoAccountProps {
+interface DemoCredential {
   email: string;
   displayName: string;
-  user: AuthUser;
-  onSelect: (email: string) => void;
+  roleLabel: string;
 }
 
-const DemoAccount = memo(function DemoAccount({ email, displayName, user, onSelect }: DemoAccountProps) {
-  const roleLabel =
-    user.userType === "system_admin"
-      ? USER_TYPE_LABELS.system_admin
-      : user.userType === "clinic_admin"
-        ? USER_TYPE_LABELS.clinic_admin
-        : user.staffRole
-          ? STAFF_ROLE_LABELS[user.staffRole]
-          : "スタッフ";
+const DEMO_ACCOUNTS: readonly DemoCredential[] = [
+  { email: "admin@example.com",     displayName: "田中 太郎",  roleLabel: "医院管理者" },
+  { email: "vet@example.com",       displayName: "山田 花子",  roleLabel: "医師" },
+  { email: "nurse@example.com",     displayName: "佐藤 美咲",  roleLabel: "看護師" },
+  { email: "reception@example.com", displayName: "鈴木 一郎",  roleLabel: "受付" },
+  { email: "trimmer@example.com",   displayName: "高橋 さくら", roleLabel: "トリマー" },
+  { email: "system@example.com",    displayName: "本部 管理者", roleLabel: "運営管理者" },
+];
 
+const DemoAccount = memo(function DemoAccount({
+  email,
+  displayName,
+  roleLabel,
+  onSelect,
+}: DemoCredential & { onSelect: (email: string) => void }) {
   return (
     <button
       type="button"
@@ -196,28 +197,26 @@ export function LoginForm() {
         </button>
       </form>
 
-      {/* Demo accounts (dev only) */}
-      {import.meta.env.DEV && (
-        <div className="mt-8">
-          <div className="flex items-center gap-2 mb-2">
-            <div className={`h-px flex-1 ${C.bgLight}`} />
-            <span className={`text-sm ${C.text35}`}>デモアカウント</span>
-            <div className={`h-px flex-1 ${C.bgLight}`} />
-          </div>
-          <p className={`text-sm text-center mb-2 ${C.text40}`}>パスワード: password</p>
-          <div className="space-y-px">
-            {MOCK_USERS.map((cred) => (
-              <DemoAccount
-                key={cred.email}
-                email={cred.email}
-                displayName={cred.user.displayName}
-                user={cred.user}
-                onSelect={handleSelectDemo}
-              />
-            ))}
-          </div>
+      {/* Demo accounts */}
+      <div className="mt-8">
+        <div className="flex items-center gap-2 mb-2">
+          <div className={`h-px flex-1 ${C.bgLight}`} />
+          <span className={`text-sm ${C.text35}`}>デモアカウント</span>
+          <div className={`h-px flex-1 ${C.bgLight}`} />
         </div>
-      )}
+        <p className={`text-sm text-center mb-2 ${C.text40}`}>パスワード: password</p>
+        <div className="space-y-px">
+          {DEMO_ACCOUNTS.map((cred) => (
+            <DemoAccount
+              key={cred.email}
+              email={cred.email}
+              displayName={cred.displayName}
+              roleLabel={cred.roleLabel}
+              onSelect={handleSelectDemo}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

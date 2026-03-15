@@ -44,6 +44,10 @@ func (m *mockExamTypeRepository) ReplaceItems(ctx context.Context, examTypeID ui
 	return nil
 }
 
+func (m *mockExamTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return nil
+}
+
 func TestExamTypeService_List(t *testing.T) {
 	tests := []struct {
 		name     string

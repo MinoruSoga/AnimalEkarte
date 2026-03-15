@@ -3,13 +3,27 @@
  * バックエンドは snake_case、フロントエンドは camelCase
  */
 import { z } from "zod";
-import type { AuthUser, StaffRole } from "../types";
+import type { AuthUser, AuthClinic, StaffRole } from "../types";
 import { USER_TYPE_VALUES, STAFF_ROLE_VALUES, PERMISSION_VALUES } from "../types";
 
 const clinicMembershipSchema = z.object({
   clinic_id: z.string(),
   clinic_name: z.string(),
   is_main: z.boolean(),
+});
+
+const meClinicInfoSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  postal_code: z.string().default(""),
+  address: z.string().default(""),
+  phone_number: z.string().default(""),
+  fax_number: z.string().default(""),
+  registration_number: z.string().default(""),
+  director_name: z.string().default(""),
+  email: z.string().default(""),
+  website: z.string().default(""),
+  logo_url: z.string().nullable().default(null),
 });
 
 // z.enum は mutable tuple を要求するため、readonly const 配列を型キャストして渡す
@@ -28,11 +42,29 @@ export const backendMeResponseSchema = z.object({
   job_title: z.string().nullable().optional(),
   avatar_url: z.string().nullable(),
   main_clinic_id: z.string(),
+  // clinic は /me レスポンスのメイン医院詳細。未所属の場合は null
+  clinic: meClinicInfoSchema.nullable().optional(),
   clinics: z.array(clinicMembershipSchema),
   permissions: z.record(z.string(), z.array(z.enum(toEnumTuple(PERMISSION_VALUES)))),
 });
 
 export type BackendMeResponse = z.infer<typeof backendMeResponseSchema>;
+
+function mapMeClinicInfo(raw: z.infer<typeof meClinicInfoSchema>): AuthClinic {
+  return {
+    id: raw.id,
+    name: raw.name,
+    postalCode: raw.postal_code,
+    address: raw.address,
+    phoneNumber: raw.phone_number,
+    faxNumber: raw.fax_number,
+    registrationNumber: raw.registration_number,
+    directorName: raw.director_name,
+    email: raw.email,
+    website: raw.website,
+    logoUrl: raw.logo_url,
+  };
+}
 
 export function mapMeToAuthUser(raw: unknown): AuthUser {
   const me = backendMeResponseSchema.parse(raw);
@@ -47,6 +79,7 @@ export function mapMeToAuthUser(raw: unknown): AuthUser {
       : null,
     avatarUrl: me.avatar_url,
     mainClinicId: me.main_clinic_id,
+    clinic: me.clinic ? mapMeClinicInfo(me.clinic) : null,
     clinics: me.clinics.map((c) => ({
       clinicId: c.clinic_id,
       clinicName: c.clinic_name,

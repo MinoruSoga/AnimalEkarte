@@ -20,6 +20,7 @@ type ExamTypeRepository interface {
 	Create(ctx context.Context, exType *model.ExaminationType) error
 	Update(ctx context.Context, exType *model.ExaminationType) error
 	Delete(ctx context.Context, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type examTypeRepository struct{ db *gorm.DB }
@@ -80,4 +81,21 @@ func (r *examTypeRepository) Delete(ctx context.Context, id uint64) error {
 		return apperrors.WrapNotFound("examination_type", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *examTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for i, id := range ids {
+			result := tx.Model(&model.ExaminationType{}).
+				Where("id = ? AND clinic_id = ?", id, clinicID).
+				Update("sort_order", i+1)
+			if result.Error != nil {
+				return apperrors.Wrap(result.Error, "reorder examination type")
+			}
+			if result.RowsAffected == 0 {
+				return apperrors.WrapInvalidInput(fmt.Sprintf("examination_type id %d not found in this clinic", id))
+			}
+		}
+		return nil
+	})
 }

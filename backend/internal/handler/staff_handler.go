@@ -136,6 +136,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 
 	masters.GET("/vaccines", h.ListVaccines)
 	masters.POST("/vaccines", h.CreateVaccine)
+	masters.PATCH("/vaccines/reorder", h.ReorderVaccines) // 静的パスを /:id より前に登録
 	masters.PATCH("/vaccines/:id", h.UpdateVaccine)
 	masters.DELETE("/vaccines/:id", h.DeleteVaccine)
 
@@ -151,11 +152,13 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 
 	masters.GET("/consultations", h.ListConsultations)
 	masters.POST("/consultations", h.CreateConsultation)
+	masters.PATCH("/consultations/reorder", h.ReorderConsultations) // 静的パスを /:id より前に登録
 	masters.PATCH("/consultations/:id", h.UpdateConsultation)
 	masters.DELETE("/consultations/:id", h.DeleteConsultation)
 
 	masters.GET("/procedures", h.ListProcedures)
 	masters.POST("/procedures", h.CreateProcedure)
+	masters.PATCH("/procedures/reorder", h.ReorderProcedures) // 静的パスを /:id より前に登録
 	masters.PATCH("/procedures/:id", h.UpdateProcedure)
 	masters.DELETE("/procedures/:id", h.DeleteProcedure)
 
@@ -176,6 +179,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 
 	masters.GET("/examination-types", h.ListExaminationTypes)
 	masters.POST("/examination-types", h.CreateExaminationType)
+	masters.PATCH("/examination-types/reorder", h.ReorderExaminationTypes) // 静的パスを /:id より前に登録
 	masters.PATCH("/examination-types/:id", h.UpdateExaminationType)
 	masters.DELETE("/examination-types/:id", h.DeleteExaminationType)
 
@@ -193,6 +197,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 
 	masters.GET("/checkup-types", h.ListCheckupTypes)
 	masters.POST("/checkup-types", h.CreateCheckupType)
+	masters.PATCH("/checkup-types/reorder", h.ReorderCheckupTypes) // 静的パスを /:id より前に登録
 	masters.PATCH("/checkup-types/:id", h.UpdateCheckupType)
 	masters.DELETE("/checkup-types/:id", h.DeleteCheckupType)
 

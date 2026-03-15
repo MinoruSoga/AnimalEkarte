@@ -115,6 +115,24 @@ func (h *Handler) UpdateCheckupType(c *gin.Context) {
 	c.JSON(http.StatusOK, checkupType)
 }
 
+// ReorderCheckupTypes godoc
+func (h *Handler) ReorderCheckupTypes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderCheckupTypeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+	if err := h.svc.CheckupType.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
+}
+
 // DeleteCheckupType godoc
 func (h *Handler) DeleteCheckupType(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)

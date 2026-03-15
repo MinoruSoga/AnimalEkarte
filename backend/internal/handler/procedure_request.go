@@ -22,3 +22,8 @@ type updateProcedureRequest struct {
 	ClearParentID bool     `json:"clear_parent_id"`
 	SortOrder     int      `json:"sort_order"`
 }
+
+// reorderProcedureRequest は処置並び替えのバインド struct
+type reorderProcedureRequest struct {
+	IDs []uint64 `json:"ids" binding:"required,min=1"`
+}

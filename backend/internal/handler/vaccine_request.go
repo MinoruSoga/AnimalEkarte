@@ -18,3 +18,8 @@ type updateVaccineRequest struct {
 	ClearParentID bool     `json:"clear_parent_id"`
 	SortOrder     int      `json:"sort_order"`
 }
+
+// reorderVaccineRequest はワクチン並び替えのバインド struct
+type reorderVaccineRequest struct {
+	IDs []uint64 `json:"ids" binding:"required,min=1"`
+}

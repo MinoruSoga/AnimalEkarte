@@ -22,3 +22,8 @@ type updateConsultationRequest struct {
 	ClearParentID bool     `json:"clear_parent_id"`
 	SortOrder     int      `json:"sort_order"`
 }
+
+// reorderConsultationRequest は診察料金並び替えのバインド struct
+type reorderConsultationRequest struct {
+	IDs []uint64 `json:"ids" binding:"required,min=1"`
+}

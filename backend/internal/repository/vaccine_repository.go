@@ -20,6 +20,7 @@ type VaccineRepository interface {
 	Create(ctx context.Context, vaccine *model.Vaccine) error
 	Update(ctx context.Context, vaccine *model.Vaccine) error
 	Delete(ctx context.Context, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 type vaccineRepository struct{ db *gorm.DB }
@@ -82,4 +83,21 @@ func (r *vaccineRepository) Delete(ctx context.Context, id uint64) error {
 		return apperrors.WrapNotFound("vaccine", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *vaccineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for i, id := range ids {
+			result := tx.Model(&model.Vaccine{}).
+				Where("id = ? AND clinic_id = ?", id, clinicID).
+				Update("sort_order", i+1)
+			if result.Error != nil {
+				return apperrors.Wrap(result.Error, "reorder vaccine")
+			}
+			if result.RowsAffected == 0 {
+				return apperrors.WrapInvalidInput(fmt.Sprintf("vaccine id %d not found in this clinic", id))
+			}
+		}
+		return nil
+	})
 }
