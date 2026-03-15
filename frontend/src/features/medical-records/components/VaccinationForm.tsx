@@ -1,5 +1,5 @@
 // React/Framework
-import React from "react";
+import { memo } from "react";
 
 // Internal
 import { Input } from "@/components/ui/input";
@@ -37,7 +37,7 @@ interface VaccinationFormProps {
   setRemarks: (v: string) => void;
 }
 
-export const VaccinationForm = React.memo(function VaccinationForm({
+export const VaccinationForm = memo(function VaccinationForm({
   vaccineName,
   setVaccineName,
   date,

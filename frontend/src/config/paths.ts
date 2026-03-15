@@ -229,15 +229,5 @@ export const paths = {
       path: "/settings/inquiry-templates",
       getHref: () => "/settings/inquiry-templates",
     },
-    // NOTE: /settings/interview は未実装。ルーターに定義なし。
-    interview: {
-      path: "/settings/interview",
-      chiefComplaint: {
-        getHref: () => "/settings/interview?tab=chief_complaint",
-      },
-      interviewTemplate: {
-        getHref: () => "/settings/interview?tab=interview_template",
-      },
-    },
   },
 } as const;
