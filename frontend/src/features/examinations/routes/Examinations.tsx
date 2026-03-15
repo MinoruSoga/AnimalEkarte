@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useDeferredValue } from "react";
+import { useState, useDeferredValue, useCallback } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -37,13 +37,13 @@ export function Examinations() {
   const deferredSearch = useDeferredValue(searchTerm);
   const { data: filteredRecords, isLoading } = useExaminationRecords(deferredSearch);
 
-  const handleCreate = () => {
+  const handleCreate = useCallback(() => {
     navigate(paths.examinations.selectPet.getHref());
-  };
+  }, [navigate]);
 
-  const handleEdit = (id: string) => {
+  const handleEdit = useCallback((id: string) => {
     navigate(`/examinations/${id}`);
-  };
+  }, [navigate]);
 
   return (
     <PageLayout

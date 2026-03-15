@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 // Internal
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,7 @@ export function ClinicalPlanSection({ medicalRecordId }: ClinicalPlanSectionProp
     }
   }, [data]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     const input: UpdateClinicalPlanInput = {
       physical_exam: physicalExam,
       diagnosis_category_id: diagnosisCategoryId ? Number(diagnosisCategoryId) : null,
@@ -49,7 +49,7 @@ export function ClinicalPlanSection({ medicalRecordId }: ClinicalPlanSectionProp
       treatment_policy: treatmentPolicy,
     };
     updateMutation.mutate(input);
-  };
+  }, [physicalExam, diagnosisCategoryId, diagnosisNameId, diagnosisDetails, treatmentPolicy, updateMutation]);
 
   if (isLoading) {
     return (

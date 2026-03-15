@@ -67,19 +67,19 @@ export function MedicalRecords() {
     prevPage,
   } = usePagination(sortedData, { pageSize: 20, resetKey: searchTerm });
 
+  const handleNavigateToForm = useCallback((recordId?: string) => {
+    navigate(
+      recordId ? `/medical-records/${recordId}` : "/medical-records/select-pet",
+      { state: { from: "/medical-records" } },
+    );
+  }, [navigate]);
+
   if (isLoading) return (
     <div className="flex justify-center items-center p-8">
       <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
     </div>
   );
   if (isError) return <div className="p-4 text-red-600">データの取得に失敗しました</div>;
-
-  const handleNavigateToForm = (recordId?: string) => {
-    navigate(
-      recordId ? `/medical-records/${recordId}` : "/medical-records/select-pet",
-      { state: { from: "/medical-records" } },
-    );
-  };
 
   const COLUMNS: TableColumn[] = [
     {

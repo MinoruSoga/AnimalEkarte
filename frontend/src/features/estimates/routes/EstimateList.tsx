@@ -1,4 +1,4 @@
-import { useState, useDeferredValue } from 'react';
+import { useState, useDeferredValue, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { Plus, FileText, Trash2, ExternalLink } from 'lucide-react';
 import { TableCell } from '@/components/ui/table';
@@ -59,11 +59,11 @@ export function EstimateList() {
     );
   });
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = useCallback(() => {
     if (deleteTargetId == null) return;
     deleteEstimate(deleteTargetId);
     setDeleteTargetId(null);
-  };
+  }, [deleteTargetId, deleteEstimate]);
 
   const renderRow = (estimate: Estimate) => (
     <DataTableRow key={estimate.id} onClick={() => navigate(`/estimates/${estimate.id}`)}>

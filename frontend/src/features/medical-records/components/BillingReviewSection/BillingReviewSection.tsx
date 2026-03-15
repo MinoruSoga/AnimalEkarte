@@ -1,5 +1,5 @@
 // React/Framework
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useCallback, useState } from "react";
 
 // External
 import { CheckCircle, AlertCircle, Clock } from "lucide-react";
@@ -54,6 +54,21 @@ export function BillingReviewSection({
   const confirmMutation = useConfirmBillingReview(medicalRecordId);
   const returnMutation = useReturnBillingReview(medicalRecordId);
 
+  const handleConfirm = useCallback(() => {
+    confirmMutation.mutate(undefined, {
+      onSuccess: () => {
+        toast.success("会計を確認しました");
+      },
+    });
+  }, [confirmMutation]);
+
+  const handleReturnSubmit = useCallback((reason: string) => {
+    returnMutation.mutate(
+      { return_reason: reason },
+      { onSuccess: () => setIsReturnDialogOpen(false) }
+    );
+  }, [returnMutation]);
+
   if (isLoading) {
     return (
       <div
@@ -78,21 +93,6 @@ export function BillingReviewSection({
     returnMutation.isPending;
   const isReturnDisabled =
     returnMutation.isPending || confirmMutation.isPending;
-
-  const handleConfirm = () => {
-    confirmMutation.mutate(undefined, {
-      onSuccess: () => {
-        toast.success("会計を確認しました");
-      },
-    });
-  };
-
-  const handleReturnSubmit = (reason: string) => {
-    returnMutation.mutate(
-      { return_reason: reason },
-      { onSuccess: () => setIsReturnDialogOpen(false) }
-    );
-  };
 
   return (
     <>

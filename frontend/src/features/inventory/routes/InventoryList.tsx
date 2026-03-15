@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useDeferredValue } from "react";
+import { useState, useDeferredValue, useCallback } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -67,13 +67,13 @@ export function InventoryList() {
     statusFilter,
   });
 
-  const handleCreate = () => {
+  const handleCreate = useCallback(() => {
     navigate(paths.inventory.new.getHref());
-  };
+  }, [navigate]);
 
-  const handleEdit = (id: string) => {
+  const handleEdit = useCallback((id: string) => {
     navigate(`/inventory/${id}`);
-  };
+  }, [navigate]);
 
   return (
     <PageLayout

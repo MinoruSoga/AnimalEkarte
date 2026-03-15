@@ -1,5 +1,5 @@
 // React/Framework
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useCallback, useState } from "react";
 
 // External
 import { Plus } from "lucide-react";
@@ -29,15 +29,15 @@ export function CarePlanSection({ plans, onAdd, onUpdate, onDelete }: CarePlanSe
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<CarePlanItem | undefined>(undefined);
 
-    const handleOpenCreate = () => {
+    const handleOpenCreate = useCallback(() => {
         setEditingItem(undefined);
         setIsDialogOpen(true);
-    };
+    }, []);
 
-    const handleOpenEdit = (item: CarePlanItem) => {
+    const handleOpenEdit = useCallback((item: CarePlanItem) => {
         setEditingItem(item);
         setIsDialogOpen(true);
-    };
+    }, []);
 
     return (
         <div className={H_STYLES.layout.section_mb}>
