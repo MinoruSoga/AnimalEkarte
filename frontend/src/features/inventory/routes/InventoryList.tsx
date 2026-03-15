@@ -1,5 +1,5 @@
 // React/Framework
-import { useState } from "react";
+import { useState, useDeferredValue } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -43,14 +43,26 @@ const CATEGORY_LABELS: Record<InventoryItem["category"], string> = {
   other: "その他",
 };
 
+const COLUMNS = [
+  { header: "品名", className: "min-w-[200px]" },
+  { header: "カテゴリ", className: "w-[100px]" },
+  { header: "在庫数", className: "w-[100px]", align: "right" as const },
+  { header: "最低在庫", className: "w-[100px]", align: "right" as const },
+  { header: "保管場所", className: "w-[120px]" },
+  { header: "有効期限", className: "w-[120px]" },
+  { header: "ステータス", className: "w-[100px]" },
+  { header: "操作", className: "w-[80px]", align: "right" as const },
+];
+
 export function InventoryList() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const deferredSearch = useDeferredValue(searchTerm);
   const [category, setCategory] = useState<CategoryFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const { data: filteredItems, summary } = useInventory({
-    searchTerm,
+    searchTerm: deferredSearch,
     category,
     statusFilter,
   });
@@ -62,17 +74,6 @@ export function InventoryList() {
   const handleEdit = (id: string) => {
     navigate(`/inventory/${id}`);
   };
-
-  const columns = [
-    { header: "品名", className: "min-w-[200px]" },
-    { header: "カテゴリ", className: "w-[100px]" },
-    { header: "在庫数", className: "w-[100px]", align: "right" as const },
-    { header: "最低在庫", className: "w-[100px]", align: "right" as const },
-    { header: "保管場所", className: "w-[120px]" },
-    { header: "有効期限", className: "w-[120px]" },
-    { header: "ステータス", className: "w-[100px]" },
-    { header: "操作", className: "w-[80px]", align: "right" as const },
-  ];
 
   return (
     <PageLayout
@@ -159,7 +160,7 @@ export function InventoryList() {
 
         {/* Table */}
         <DataTable
-          columns={columns}
+          columns={COLUMNS}
           data={filteredItems}
           emptyMessage="在庫データが見つかりません"
           renderRow={(item) => (

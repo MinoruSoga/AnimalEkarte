@@ -1,5 +1,5 @@
 // React/Framework
-import { useState } from "react";
+import { useState, useDeferredValue } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -20,10 +20,22 @@ import { getExaminationStatusColor } from "@/utils/status-helpers";
 import { useExaminationRecords } from "../hooks/useExaminationRecords";
 import { paths } from "@/config/paths";
 
+const COLUMNS = [
+  { header: "日時", className: "w-[120px]" },
+  { header: "飼主名" },
+  { header: "ペット名" },
+  { header: "検査種別" },
+  { header: "結果概要" },
+  { header: "担当医", className: "w-[100px]" },
+  { header: "ステータス", className: "w-[80px]" },
+  { header: "操作", className: "w-[80px]", align: "right" as const },
+];
+
 export function Examinations() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const { data: filteredRecords, isLoading } = useExaminationRecords(searchTerm);
+  const deferredSearch = useDeferredValue(searchTerm);
+  const { data: filteredRecords, isLoading } = useExaminationRecords(deferredSearch);
 
   const handleCreate = () => {
     navigate(paths.examinations.selectPet.getHref());
@@ -32,17 +44,6 @@ export function Examinations() {
   const handleEdit = (id: string) => {
     navigate(`/examinations/${id}`);
   };
-
-  const columns = [
-    { header: "日時", className: "w-[120px]" },
-    { header: "飼主名" },
-    { header: "ペット名" },
-    { header: "検査種別" },
-    { header: "結果概要" },
-    { header: "担当医", className: "w-[100px]" },
-    { header: "ステータス", className: "w-[80px]" },
-    { header: "操作", className: "w-[80px]", align: "right" as const },
-  ];
 
   return (
     <PageLayout
@@ -73,7 +74,7 @@ export function Examinations() {
 
         {/* Table */}
         <DataTable
-            columns={columns}
+            columns={COLUMNS}
             data={filteredRecords}
             emptyMessage="検査データが見つかりません"
             renderRow={(r) => (

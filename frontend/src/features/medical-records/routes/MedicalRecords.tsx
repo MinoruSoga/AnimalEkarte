@@ -1,5 +1,5 @@
 // React/Framework
-import { type ReactNode, useState, useCallback } from "react";
+import { type ReactNode, useState, useCallback, useDeferredValue } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -40,7 +40,8 @@ type TableColumn = {
 export function MedicalRecords() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const { data: filteredRecords, isLoading, isError } = useMedicalRecords(searchTerm);
+  const deferredSearch = useDeferredValue(searchTerm);
+  const { data: filteredRecords, isLoading, isError } = useMedicalRecords(deferredSearch);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
   const { mutate: deleteRecord } = useDeleteMedicalRecord();
 
@@ -80,7 +81,7 @@ export function MedicalRecords() {
     );
   };
 
-  const columns: TableColumn[] = [
+  const COLUMNS: TableColumn[] = [
     {
       header: <SortableHeader label="診療日" direction={directionFor("date")} onToggle={() => toggleSort("date")} />,
       className: "w-[120px]",
@@ -137,7 +138,7 @@ export function MedicalRecords() {
 
         {/* Table */}
         <DataTable
-          columns={columns}
+          columns={COLUMNS}
           data={paginatedData}
           emptyMessage="カルテデータが見つかりません"
           renderRow={(r) => (

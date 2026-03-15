@@ -9,27 +9,28 @@ import { STYLE } from "@/lib/design-tokens";
 // Types
 import type { Hospitalization } from "@/types";
 
+const COLUMNS = [
+  { header: "入院No", className: "w-[120px]" },
+  { header: "飼主名" },
+  { header: "ペット名" },
+  { header: "種", className: "w-[80px]" },
+  { header: "タイプ", className: "w-[100px]" },
+  { header: "入院開始日", className: "w-[120px]" },
+  { header: "退院予定日", className: "w-[120px]" },
+  { header: "ステータス", className: "w-[100px]" },
+  { header: "操作", className: "w-[100px]", align: "right" as const },
+];
+
 interface HospitalizationListViewProps {
   hospitalizations: Hospitalization[];
   onNavigate: (id: string) => void;
 }
 
 export function HospitalizationListView({ hospitalizations, onNavigate }: HospitalizationListViewProps) {
-  const columns = [
-    { header: "入院No", className: "w-[120px]" },
-    { header: "飼主名" },
-    { header: "ペット名" },
-    { header: "種", className: "w-[80px]" },
-    { header: "タイプ", className: "w-[100px]" },
-    { header: "入院開始日", className: "w-[120px]" },
-    { header: "退院予定日", className: "w-[120px]" },
-    { header: "ステータス", className: "w-[100px]" },
-    { header: "操作", className: "w-[100px]", align: "right" as const },
-  ];
 
   return (
     <DataTable
-      columns={columns}
+      columns={COLUMNS}
       data={hospitalizations}
       emptyMessage="入院データがありません"
       renderRow={(h) => (
