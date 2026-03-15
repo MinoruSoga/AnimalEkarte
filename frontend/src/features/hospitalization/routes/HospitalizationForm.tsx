@@ -40,6 +40,7 @@ export function HospitalizationForm() {
 
   const {
       isEdit,
+      isSaving,
       formData,
       handleFormDataChange,
       treatmentPlans,
@@ -140,8 +141,9 @@ export function HospitalizationForm() {
             <Button
             className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white rounded-[6px] h-10 text-sm px-4"
             onClick={handleSaveClick}
+            disabled={isSaving}
             >
-            {hospitalizationId ? "更新" : "登録"}
+            {isSaving ? "保存中..." : hospitalizationId ? "更新" : "登録"}
             </Button>
         </div>
       }

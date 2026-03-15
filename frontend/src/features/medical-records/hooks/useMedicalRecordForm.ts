@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -56,6 +56,9 @@ export function useMedicalRecordForm(recordId?: string) {
   const createMutation = useCreateMedicalRecord();
   const updateMutation = useUpdateMedicalRecord();
 
+  // useTransition: save の pending 管理 (rerender-transitions)
+  const [isSaveTransitionPending, startSaveTransition] = useTransition();
+
   const handleBack = () => {
     if (location.state?.from) {
       navigate(location.state.from);
@@ -69,48 +72,50 @@ export function useMedicalRecordForm(recordId?: string) {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!selectedPet) return;
 
-    const today = new Date().toISOString().split("T")[0];
+    startSaveTransition(async () => {
+      const today = new Date().toISOString().split("T")[0];
 
-    if (isNewRecord) {
-      const req: CreateMedicalRecordRequest = {
-        pet_id: selectedPet.id,
-        owner_id: selectedPet.ownerId,
-        visit_date: today,
-        visit_type: "再診",
-        status: "作成中",
-        chief_complaint: chiefComplaint !== DEFAULT_CHIEF_COMPLAINT ? chiefComplaint : undefined,
-        plan: plan !== DEFAULT_PLAN ? plan : undefined,
-        assessment: assessment !== DEFAULT_ASSESSMENT ? assessment : undefined,
-        notes: treatmentPolicy !== DEFAULT_TREATMENT_POLICY ? treatmentPolicy : undefined,
-      };
+      if (isNewRecord) {
+        const req: CreateMedicalRecordRequest = {
+          pet_id: selectedPet.id,
+          owner_id: selectedPet.ownerId,
+          visit_date: today,
+          visit_type: "再診",
+          status: "作成中",
+          chief_complaint: chiefComplaint !== DEFAULT_CHIEF_COMPLAINT ? chiefComplaint : undefined,
+          plan: plan !== DEFAULT_PLAN ? plan : undefined,
+          assessment: assessment !== DEFAULT_ASSESSMENT ? assessment : undefined,
+          notes: treatmentPolicy !== DEFAULT_TREATMENT_POLICY ? treatmentPolicy : undefined,
+        };
 
-      try {
-        await createMutation.mutateAsync(req);
-        toast.success("カルテを作成しました");
-        navigate(location.state?.from ?? paths.medicalRecords.getHref());
-      } catch (error) {
-        handleApiError(error, "作成");
+        try {
+          await createMutation.mutateAsync(req);
+          toast.success("カルテを作成しました");
+          navigate(location.state?.from ?? paths.medicalRecords.getHref());
+        } catch (error) {
+          handleApiError(error, "作成");
+        }
+      } else if (recordId) {
+        const req: UpdateMedicalRecordRequest = {
+          status: "作成中",
+          chief_complaint: chiefComplaint,
+          plan,
+          assessment,
+          notes: treatmentPolicy,
+        };
+
+        try {
+          await updateMutation.mutateAsync({ id: recordId, req });
+          toast.success("カルテを更新しました");
+          navigate(location.state?.from ?? paths.medicalRecords.getHref());
+        } catch (error) {
+          handleApiError(error, "更新");
+        }
       }
-    } else if (recordId) {
-      const req: UpdateMedicalRecordRequest = {
-        status: "作成中",
-        chief_complaint: chiefComplaint,
-        plan,
-        assessment,
-        notes: treatmentPolicy,
-      };
-
-      try {
-        await updateMutation.mutateAsync({ id: recordId, req });
-        toast.success("カルテを更新しました");
-        navigate(location.state?.from ?? paths.medicalRecords.getHref());
-      } catch (error) {
-        handleApiError(error, "更新");
-      }
-    }
+    });
   };
 
   // petIdがなく新規作成の場合はselect-petへリダイレクト（呼び出し元で判定）
@@ -125,6 +130,7 @@ export function useMedicalRecordForm(recordId?: string) {
     shouldRedirectToSelectPet,
     handleBack,
     handleSave,
+    isSaving: isSaveTransitionPending,
     treatmentPlanItems,
     setTreatmentPlanItems,
     treatmentCompletedItems,

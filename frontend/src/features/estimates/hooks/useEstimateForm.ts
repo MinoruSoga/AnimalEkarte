@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useTransition, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import type { Estimate, EstimateStatus } from '../types';
 import { useCreateEstimate } from '../api/create-estimate';
@@ -42,7 +42,7 @@ export function useEstimateForm(estimate?: Estimate) {
   const isEdit = !!estimate;
 
   const [form, setForm] = useState<EstimateFormState>(() => buildInitialState(estimate));
-  const [isPending, setIsPending] = useState(false);
+  const [isSaving, startSaveTransition] = useTransition();
 
   const { mutateAsync: createEstimate } = useCreateEstimate();
   const { mutateAsync: updateEstimate } = useUpdateEstimate();
@@ -54,11 +54,10 @@ export function useEstimateForm(estimate?: Estimate) {
     setForm(prev => ({ ...prev, [field]: value }));
   }, []);
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(() => {
     if (!form.title.trim()) return;
 
-    setIsPending(true);
-    try {
+    startSaveTransition(async () => {
       if (isEdit && estimate) {
         const req: UpdateEstimateRequest = {
           title: form.title,
@@ -92,10 +91,8 @@ export function useEstimateForm(estimate?: Estimate) {
         const created = await createEstimate(req);
         navigate(`/estimates/${created.id}`);
       }
-    } finally {
-      setIsPending(false);
-    }
-  }, [form, isEdit, estimate, createEstimate, updateEstimate, navigate]);
+    });
+  }, [form, isEdit, estimate, createEstimate, updateEstimate, navigate, startSaveTransition]);
 
   const handleCancel = useCallback(() => {
     if (isEdit && estimate) {
@@ -105,5 +102,5 @@ export function useEstimateForm(estimate?: Estimate) {
     }
   }, [isEdit, estimate, navigate]);
 
-  return { form, handleChange, handleSubmit, handleCancel, isPending };
+  return { form, handleChange, handleSubmit, handleCancel, isPending: isSaving };
 }

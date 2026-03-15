@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import type { ExaminationRecord } from "@/types";
 import { paths } from "@/config/paths";
@@ -26,6 +26,9 @@ export function useExaminationForm(id?: string) {
   const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
   const createMutation = useCreateExamination();
   const updateMutation = useUpdateExamination();
+
+  // useTransition: save の pending 管理 (rerender-transitions)
+  const [isSaveTransitionPending, startSaveTransition] = useTransition();
 
   // Local overrides applied on top of server data (only tracks user edits in edit mode)
   const [localOverrides, setLocalOverrides] = useState<Partial<ExaminationRecord>>({});
@@ -64,35 +67,37 @@ export function useExaminationForm(id?: string) {
       : formData;
 
   const handleSave = () => {
-    if (isEdit && id) {
-      const req: UpdateExaminationRequest = {
-        status: formDataWithPet.status,
-        result_summary: formDataWithPet.resultSummary,
-        machine: formDataWithPet.machine,
-        date: formDataWithPet.date,
-      };
-      updateMutation.mutate(
-        { id, req },
-        { onSuccess: () => navigate(paths.examinations.getHref()) }
-      );
-    } else {
-      const pet = selectedPets[0];
-      if (!pet) return;
-      const req: CreateExaminationRequest = {
-        medical_record_id: "",
-        pet_id: pet.id,
-        exam_type_id: formDataWithPet.testType ?? "",
-        date: formDataWithPet.date ?? new Date().toISOString(),
-        result_summary: formDataWithPet.resultSummary,
-        machine: formDataWithPet.machine,
-      };
-      createMutation.mutate(req, {
-        onSuccess: () => navigate(paths.examinations.getHref()),
-      });
-    }
+    startSaveTransition(() => {
+      if (isEdit && id) {
+        const req: UpdateExaminationRequest = {
+          status: formDataWithPet.status,
+          result_summary: formDataWithPet.resultSummary,
+          machine: formDataWithPet.machine,
+          date: formDataWithPet.date,
+        };
+        updateMutation.mutate(
+          { id, req },
+          { onSuccess: () => navigate(paths.examinations.getHref()) }
+        );
+      } else {
+        const pet = selectedPets[0];
+        if (!pet) return;
+        const req: CreateExaminationRequest = {
+          medical_record_id: "",
+          pet_id: pet.id,
+          exam_type_id: formDataWithPet.testType ?? "",
+          date: formDataWithPet.date ?? new Date().toISOString(),
+          result_summary: formDataWithPet.resultSummary,
+          machine: formDataWithPet.machine,
+        };
+        createMutation.mutate(req, {
+          onSuccess: () => navigate(paths.examinations.getHref()),
+        });
+      }
+    });
   };
 
-  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isSaving = createMutation.isPending || updateMutation.isPending || isSaveTransitionPending;
 
   return {
     formData: formDataWithPet,

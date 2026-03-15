@@ -42,6 +42,7 @@ export function MedicalRecordForm() {
     shouldRedirectToSelectPet,
     handleBack,
     handleSave,
+    isSaving,
     treatmentPlanItems,
     setTreatmentPlanItems,
     treatmentCompletedItems,
@@ -285,9 +286,10 @@ export function MedicalRecordForm() {
           </Button>
           <Button
             onClick={handleSaveClick}
+            disabled={isSaving}
             className={`${STYLE.btnPrimary} px-5`}
           >
-            保存
+            {isSaving ? "保存中..." : "保存"}
           </Button>
         </div>
       ) : null}

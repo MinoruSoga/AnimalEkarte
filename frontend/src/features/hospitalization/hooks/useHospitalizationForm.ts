@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -78,6 +78,9 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
 
   const [globalDiscount, setGlobalDiscount] = useState(0);
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
+
+  // useTransition: save の pending 管理 (rerender-transitions)
+  const [isSaveTransitionPending, startSaveTransition] = useTransition();
 
   const {
     data: hospitalizationData,
@@ -224,62 +227,65 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
     };
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!selectedPets.length) {
       toast.error("ペットを選択してください");
       return;
     }
 
-    const pet = selectedPets[0];
-    const today = new Date().toISOString().split("T")[0];
+    startSaveTransition(async () => {
+      const pet = selectedPets[0];
+      const today = new Date().toISOString().split("T")[0];
 
-    try {
-      if (isEdit && id) {
-        await updateHospitalization(id, {
-          type: formData.hospitalizationType === "入院" ? "hospitalization" : "hotel",
-          owner_request: formData.ownerRequest,
-          staff_notes: formData.staffNotes,
-          memo: formData.memo,
-          cage_id: formData.cageId || undefined,
-        });
-        toast.success("入院情報を更新しました");
-      } else {
-        const startISO = (formData.displayDate || today) + "T00:00:00Z";
-        const endISO = (formData.endDate || new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0]) + "T00:00:00Z";
-        await createHospitalization({
-          pet_id: pet.id,
-          owner_id: pet.ownerId || "",
-          type: formData.hospitalizationType === "入院" ? "hospitalization" : "hotel",
-          start_date: startISO,
-          end_date: endISO,
-          owner_request: formData.ownerRequest,
-          staff_notes: formData.staffNotes,
-          memo: formData.memo,
-          cage_id: formData.cageId || undefined,
-        });
-        toast.success("入院情報を登録しました");
-      }
+      try {
+        if (isEdit && id) {
+          await updateHospitalization(id, {
+            type: formData.hospitalizationType === "入院" ? "hospitalization" : "hotel",
+            owner_request: formData.ownerRequest,
+            staff_notes: formData.staffNotes,
+            memo: formData.memo,
+            cage_id: formData.cageId || undefined,
+          });
+          toast.success("入院情報を更新しました");
+        } else {
+          const startISO = (formData.displayDate || today) + "T00:00:00Z";
+          const endISO = (formData.endDate || new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0]) + "T00:00:00Z";
+          await createHospitalization({
+            pet_id: pet.id,
+            owner_id: pet.ownerId || "",
+            type: formData.hospitalizationType === "入院" ? "hospitalization" : "hotel",
+            start_date: startISO,
+            end_date: endISO,
+            owner_request: formData.ownerRequest,
+            staff_notes: formData.staffNotes,
+            memo: formData.memo,
+            cage_id: formData.cageId || undefined,
+          });
+          toast.success("入院情報を登録しました");
+        }
 
-      if (onSuccess) {
-        onSuccess();
-      } else {
-        setTimeout(() => {
-          if (location.state?.from) {
-            navigate(location.state.from);
-          } else {
-            navigate(paths.hospitalization.getHref());
-          }
-        }, 500);
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          setTimeout(() => {
+            if (location.state?.from) {
+              navigate(location.state.from);
+            } else {
+              navigate(paths.hospitalization.getHref());
+            }
+          }, 500);
+        }
+      } catch (error) {
+        handleApiError(error, "保存");
       }
-    } catch (error) {
-      handleApiError(error, "保存");
-    }
+    });
   };
 
   return {
     isEdit,
     isLoading,
     isError,
+    isSaving: isSaveTransitionPending,
     formData: formDataWithPet,
     setFormData,
     treatmentPlans,
