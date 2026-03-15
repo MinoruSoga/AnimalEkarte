@@ -218,8 +218,11 @@ export const ShiftCalendar = memo(function ShiftCalendar({
                   >
                     <ShiftCell
                       shift={shift}
-                      onAdd={() => handleAddShift(staff.id, staff.name, dateStr)}
-                      onEdit={(s) => handleEditShift(staff.id, staff.name, s)}
+                      staffId={staff.id}
+                      staffName={staff.name}
+                      dateStr={dateStr}
+                      onAddShift={handleAddShift}
+                      onEditShift={handleEditShift}
                     />
                   </div>
                 );

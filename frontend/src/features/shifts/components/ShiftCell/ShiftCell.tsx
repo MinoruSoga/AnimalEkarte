@@ -1,18 +1,37 @@
-import { memo } from "react";
+import { memo, useCallback } from "react";
 import type { Shift } from "../../types";
 import { SHIFT_TYPE_LABELS, SHIFT_TYPE_COLORS } from "../../types";
 
 interface ShiftCellProps {
   shift: Shift | undefined;
-  onAdd: () => void;
-  onEdit: (shift: Shift) => void;
+  // rerender-dependencies: primitive props + stable handlers の分離パターン
+  staffId: string;
+  staffName: string;
+  dateStr: string;
+  onAddShift: (staffId: string, staffName: string, dateStr: string) => void;
+  onEditShift: (staffId: string, staffName: string, shift: Shift) => void;
 }
 
-export const ShiftCell = memo(function ShiftCell({ shift, onAdd, onEdit }: ShiftCellProps) {
+export const ShiftCell = memo(function ShiftCell({
+  shift,
+  staffId,
+  staffName,
+  dateStr,
+  onAddShift,
+  onEditShift,
+}: ShiftCellProps) {
+  const handleAdd = useCallback(() => {
+    onAddShift(staffId, staffName, dateStr);
+  }, [onAddShift, staffId, staffName, dateStr]);
+
+  const handleEdit = useCallback(() => {
+    if (shift) onEditShift(staffId, staffName, shift);
+  }, [onEditShift, staffId, staffName, shift]);
+
   if (!shift) {
     return (
       <button
-        onClick={onAdd}
+        onClick={handleAdd}
         className="w-full h-full min-h-[36px] flex items-center justify-center text-gray-300 hover:text-gray-500 hover:bg-gray-50 rounded transition-colors text-xs"
         type="button"
         aria-label="シフトを追加"
@@ -27,7 +46,7 @@ export const ShiftCell = memo(function ShiftCell({ shift, onAdd, onEdit }: Shift
 
   return (
     <button
-      onClick={() => onEdit(shift)}
+      onClick={handleEdit}
       className={`w-full min-h-[36px] px-1 py-1 rounded border text-xs font-medium transition-opacity hover:opacity-80 ${colorClass}`}
       type="button"
     >
