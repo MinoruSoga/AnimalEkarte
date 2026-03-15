@@ -9,6 +9,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { C, STYLE } from "@/lib/design-tokens";
 
+// rendering-hoist-jsx: design token は定数なので module-level に巻き上げ
+const EDIT_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-full`;
+const ADD_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2]`;
+
 // Relative
 import { useVitals } from "../../api/vitals";
 import { useCreateVital } from "../../api/vitals";
@@ -118,8 +122,6 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
     onSave(vital.id, input);
   }, [vital.id, form, onSave]);
 
-  const inputClass = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-full`;
-
   return (
     <tr className={`border-b ${C.borderLight} ${C.bgNotice40}`}>
       <td className="px-3 py-2">
@@ -127,7 +129,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
           type="datetime-local"
           value={form.recorded_at}
           onChange={(e) => handleChange("recorded_at", e.target.value)}
-          className={inputClass}
+          className={EDIT_INPUT_CLASS}
         />
       </td>
       <td className="px-3 py-2">
@@ -137,7 +139,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
           value={form.temperature}
           onChange={(e) => handleChange("temperature", e.target.value)}
           placeholder="-"
-          className={inputClass}
+          className={EDIT_INPUT_CLASS}
         />
       </td>
       <td className="px-3 py-2">
@@ -146,7 +148,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
           value={form.heart_rate}
           onChange={(e) => handleChange("heart_rate", e.target.value)}
           placeholder="-"
-          className={inputClass}
+          className={EDIT_INPUT_CLASS}
         />
       </td>
       <td className="px-3 py-2">
@@ -155,7 +157,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
           value={form.respiratory_rate}
           onChange={(e) => handleChange("respiratory_rate", e.target.value)}
           placeholder="-"
-          className={inputClass}
+          className={EDIT_INPUT_CLASS}
         />
       </td>
       <td className="px-3 py-2">
@@ -165,7 +167,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
           value={form.body_weight}
           onChange={(e) => handleChange("body_weight", e.target.value)}
           placeholder="-"
-          className={inputClass}
+          className={EDIT_INPUT_CLASS}
         />
       </td>
       <td className="px-3 py-2">
@@ -174,7 +176,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
           value={form.note}
           onChange={(e) => handleChange("note", e.target.value)}
           placeholder="メモ"
-          className={inputClass}
+          className={EDIT_INPUT_CLASS}
         />
       </td>
       <td className="px-2 py-2">
@@ -346,8 +348,6 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
     );
   }
 
-  const inputClass = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2]`;
-
   return (
     <div className="flex flex-col gap-3 pb-24">
       <div className={`${STYLE.tableContainer} overflow-x-auto`}>
@@ -427,7 +427,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
               type="datetime-local"
               value={addForm.recorded_at}
               onChange={(e) => handleAddFormChange("recorded_at", e.target.value)}
-              className={`${inputClass} w-40`}
+              className={`${ADD_INPUT_CLASS} w-40`}
             />
             <input
               type="number"
@@ -435,21 +435,21 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
               value={addForm.temperature}
               onChange={(e) => handleAddFormChange("temperature", e.target.value)}
               placeholder="体温"
-              className={`${inputClass} w-20`}
+              className={`${ADD_INPUT_CLASS} w-20`}
             />
             <input
               type="number"
               value={addForm.heart_rate}
               onChange={(e) => handleAddFormChange("heart_rate", e.target.value)}
               placeholder="心拍数"
-              className={`${inputClass} w-20`}
+              className={`${ADD_INPUT_CLASS} w-20`}
             />
             <input
               type="number"
               value={addForm.respiratory_rate}
               onChange={(e) => handleAddFormChange("respiratory_rate", e.target.value)}
               placeholder="呼吸数"
-              className={`${inputClass} w-20`}
+              className={`${ADD_INPUT_CLASS} w-20`}
             />
             <input
               type="number"
@@ -457,7 +457,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
               value={addForm.body_weight}
               onChange={(e) => handleAddFormChange("body_weight", e.target.value)}
               placeholder="体重"
-              className={`${inputClass} w-20`}
+              className={`${ADD_INPUT_CLASS} w-20`}
             />
             <input
               type="text"
@@ -468,7 +468,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
                 if (e.key === "Escape") handleAddCancel();
               }}
               placeholder="メモ"
-              className={`${inputClass} flex-1 min-w-[120px]`}
+              className={`${ADD_INPUT_CLASS} flex-1 min-w-[120px]`}
             />
             <Button
               size="sm"
