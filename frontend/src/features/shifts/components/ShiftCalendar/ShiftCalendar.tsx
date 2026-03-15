@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, useCallback } from "react";
+import { lazy, memo, Suspense, useCallback, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,7 +10,9 @@ import {
 } from "@/components/ui/select";
 import type { Shift } from "../../types";
 import { ShiftCell } from "../ShiftCell/ShiftCell";
-import { ShiftFormDialog } from "../ShiftFormDialog/ShiftFormDialog";
+const ShiftFormDialog = lazy(() =>
+  import("../ShiftFormDialog/ShiftFormDialog").then((m) => ({ default: m.ShiftFormDialog }))
+);
 
 export interface StaffItem {
   id: string;
@@ -234,14 +236,16 @@ export const ShiftCalendar = memo(function ShiftCalendar({
       </div>
 
       {/* シフト追加・編集ダイアログ */}
-      <ShiftFormDialog
-        open={dialog.open}
-        onClose={handleCloseDialog}
-        staffId={dialog.staffId}
-        staffName={dialog.staffName}
-        date={dialog.date}
-        editShift={dialog.editShift}
-      />
+      <Suspense fallback={null}>
+        <ShiftFormDialog
+          open={dialog.open}
+          onClose={handleCloseDialog}
+          staffId={dialog.staffId}
+          staffName={dialog.staffName}
+          date={dialog.date}
+          editShift={dialog.editShift}
+        />
+      </Suspense>
     </div>
   );
 });

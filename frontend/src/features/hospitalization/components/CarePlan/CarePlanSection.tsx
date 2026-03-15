@@ -1,5 +1,5 @@
 // React/Framework
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 
 // External
 import { Plus } from "lucide-react";
@@ -9,8 +9,11 @@ import { Button } from "@/components/ui/button";
 
 // Relative
 import { CarePlanItemRow } from "./CarePlanItemRow";
-import { CarePlanDialog } from "./CarePlanDialog";
 import { H_STYLES } from "../../styles";
+
+const CarePlanDialog = lazy(() =>
+  import("./CarePlanDialog").then((m) => ({ default: m.CarePlanDialog }))
+);
 
 // Types
 import type { CarePlanItem, CreateCarePlanDTO, UpdateCarePlanDTO } from "../../types";
@@ -57,13 +60,15 @@ export function CarePlanSection({ plans, onAdd, onUpdate, onDelete }: CarePlanSe
                 ))}
             </div>
 
-            <CarePlanDialog
-                open={isDialogOpen}
-                onOpenChange={setIsDialogOpen}
-                editingPlan={editingItem}
-                onCreate={onAdd}
-                onUpdate={onUpdate}
-            />
+            <Suspense fallback={null}>
+              <CarePlanDialog
+                  open={isDialogOpen}
+                  onOpenChange={setIsDialogOpen}
+                  editingPlan={editingItem}
+                  onCreate={onAdd}
+                  onUpdate={onUpdate}
+              />
+            </Suspense>
         </div>
     );
 }
