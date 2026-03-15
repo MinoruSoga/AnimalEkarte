@@ -1,6 +1,6 @@
 // React/Framework
 import type { ReactNode } from "react";
-import { useState, useMemo } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 
@@ -140,6 +140,7 @@ export function ClinicMasterSettings() {
   const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState<ClinicFormData>(DEFAULT_FORM_DATA);
   const [pendingDelete, setPendingDelete] = useState<Clinic | null>(null);
+  const deferredSearch = useDeferredValue(searchTerm);
 
   const { data: rawClinics } = useListClinics();
   const createMutation = useCreateClinic();
@@ -148,15 +149,15 @@ export function ClinicMasterSettings() {
 
   const filteredItems = useMemo(() => {
     const clinics = rawClinics ?? [];
-    if (!searchTerm) return clinics;
-    const lower = searchTerm.toLowerCase();
+    if (!deferredSearch) return clinics;
+    const lower = deferredSearch.toLowerCase();
     return clinics.filter(
       (c) =>
         c.name.toLowerCase().includes(lower) ||
         c.phoneNumber.toLowerCase().includes(lower) ||
         c.email.toLowerCase().includes(lower),
     );
-  }, [rawClinics, searchTerm]);
+  }, [rawClinics, deferredSearch]);
 
   const handleEdit = (item: Clinic) => {
     setSelectedItem(item);

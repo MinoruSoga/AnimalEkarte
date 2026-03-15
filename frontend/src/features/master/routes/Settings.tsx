@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useEffect } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 
@@ -90,8 +90,9 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
   const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState<Partial<MasterItem>>({});
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const deferredSearch = useDeferredValue(searchTerm);
 
-  const { data: filteredItems, add, update, remove } = useMasterItems(hookCategory, searchTerm);
+  const { data: filteredItems, add, update, remove } = useMasterItems(hookCategory, deferredSearch);
 
   const pageTitle = config?.label ?? "マスタ";
   const showPrice = config?.showPrice ?? false;
