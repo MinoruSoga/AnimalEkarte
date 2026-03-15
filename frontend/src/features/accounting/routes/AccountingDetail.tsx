@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 
 // External
@@ -48,6 +48,13 @@ import { paths } from "@/config/paths";
 
 // Types
 import type { Accounting, AccountingItem, PaymentInfo, ItemCategory, PaymentMethod } from "../types";
+
+const CATEGORY_LABELS: Record<string, string> = {
+  examination: "診察",
+  medicine: "処方",
+  test: "検査",
+  food: "フード",
+};
 
 export function AccountingDetail() {
   const { id } = useParams();
@@ -170,7 +177,7 @@ export function AccountingDetail() {
     };
   }, [accounting, useInsurance, insuranceRatio, receivedAmount]);
 
-  const handleAddItem = () => {
+  const handleAddItem = useCallback(() => {
     if (!newItemName || !newItemPrice) return;
 
     const newItem: AccountingItem = {
@@ -184,18 +191,18 @@ export function AccountingDetail() {
       source: "manual",
     };
 
-    setLocalItems([...displayItems, newItem]);
+    setLocalItems((prev) => [...(prev ?? []), newItem]);
     setNewItemName("");
     setNewItemPrice("");
     setNewItemOpen(false);
     toast.success("明細を追加しました");
-  };
+  }, [newItemName, newItemPrice, newItemCategory]);
 
-  const handleDeleteItem = (itemId: string) => {
-    setLocalItems(displayItems.filter((i) => i.id !== itemId));
-  };
+  const handleDeleteItem = useCallback((itemId: string) => {
+    setLocalItems((prev) => (prev ?? []).filter((i) => i.id !== itemId));
+  }, []);
 
-  const handleComplete = () => {
+  const handleComplete = useCallback(() => {
     if (!accounting || !calculation) return;
 
     const paymentInfo: PaymentInfo = {
@@ -250,12 +257,12 @@ export function AccountingDetail() {
     }
 
     setCompletedPayment(paymentInfo);
-  };
+  }, [accounting, calculation, paymentMethod, useInsurance, insuranceRatio, id, updateMutation]);
 
-  const handlePrint = (type: "receipt" | "statement") => {
+  const handlePrint = useCallback((type: "receipt" | "statement") => {
     setPreviewType(type);
     setPreviewOpen(true);
-  };
+  }, []);
 
   if (id && isLoading) return <div>読み込み中...</div>;
   if (!accounting || !calculation) return <div>データが見つかりません</div>;
@@ -356,15 +363,7 @@ export function AccountingDetail() {
                       <TableRow key={item.id} className="h-12">
                         <TableCell>
                           <Badge variant="outline" className="font-normal text-xs">
-                            {item.category === "examination"
-                              ? "診察"
-                              : item.category === "medicine"
-                                ? "処方"
-                                : item.category === "test"
-                                  ? "検査"
-                                  : item.category === "food"
-                                    ? "フード"
-                                    : "その他"}
+                            {CATEGORY_LABELS[item.category] ?? "その他"}
                           </Badge>
                         </TableCell>
                         <TableCell className="font-medium">

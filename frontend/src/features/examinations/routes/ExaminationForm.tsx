@@ -1,5 +1,5 @@
 // React/Framework
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
@@ -40,6 +40,14 @@ export function ExaminationForm() {
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
 
+  const handleBack = useCallback(() => {
+    if (location.state?.from) {
+      navigate(location.state.from);
+    } else {
+      navigate(paths.examinations.getHref());
+    }
+  }, [location.state, navigate]);
+
   useEffect(() => {
     if (!selectedPet && !isEdit && !petId) {
         navigate(paths.examinations.selectPet.getHref());
@@ -48,14 +56,6 @@ export function ExaminationForm() {
 
   if (!selectedPet && !isEdit && petId) return null;
   if (!selectedPet && !isEdit) return null;
-
-  const handleBack = () => {
-    if (location.state?.from) {
-        navigate(location.state.from);
-    } else {
-        navigate(paths.examinations.getHref());
-    }
-  };
 
   return (
     <PageLayout

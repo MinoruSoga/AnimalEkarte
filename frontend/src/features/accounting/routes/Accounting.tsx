@@ -1,5 +1,5 @@
 // React/Framework
-import { useDeferredValue, useState } from "react";
+import { useCallback, useDeferredValue, useState } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -22,6 +22,23 @@ import { paths } from "@/config/paths";
 // Types
 import type { Accounting as AccountingType } from "../types";
 
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat("ja-JP", {
+    style: "currency",
+    currency: "JPY",
+  }).format(amount);
+}
+
+function calculateTotal(accounting: AccountingType) {
+  if (accounting.payment) return accounting.payment.totalAmount;
+
+  return accounting.items.reduce((sum: number, item) => {
+    const price = item.unitPrice * item.quantity;
+    const tax = Math.floor(price * item.taxRate);
+    return sum + price + tax;
+  }, 0);
+}
+
 const COLUMNS = [
   { header: "日時", className: "w-[140px]" },
   { header: "飼主名" },
@@ -38,37 +55,20 @@ export function Accounting() {
   const deferredSearch = useDeferredValue(searchTerm);
   const { data: filteredRecords, isLoading, isError } = useAccountingRecords(deferredSearch);
 
+  const handleCreate = useCallback(() => {
+    navigate(paths.accounting.selectPet.getHref());
+  }, [navigate]);
+
+  const handleEdit = useCallback((id: string) => {
+    navigate(paths.accounting.detail.getHref(id));
+  }, [navigate]);
+
   if (isLoading) return (
     <div className="flex justify-center items-center p-8">
       <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
     </div>
   );
   if (isError) return <div className="p-4 text-red-600">データの取得に失敗しました</div>;
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("ja-JP", {
-      style: "currency",
-      currency: "JPY",
-    }).format(amount);
-  };
-
-  const calculateTotal = (accounting: AccountingType) => {
-    if (accounting.payment) return accounting.payment.totalAmount;
-    
-    return accounting.items.reduce((sum: number, item) => {
-      const price = item.unitPrice * item.quantity;
-      const tax = Math.floor(price * item.taxRate);
-      return sum + price + tax;
-    }, 0);
-  };
-
-  const handleCreate = () => {
-    navigate(paths.accounting.selectPet.getHref());
-  };
-
-  const handleEdit = (id: string) => {
-    navigate(paths.accounting.detail.getHref(id));
-  };
 
   return (
     <PageLayout
