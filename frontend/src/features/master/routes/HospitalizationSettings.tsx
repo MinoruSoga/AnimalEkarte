@@ -468,26 +468,26 @@ export function HospitalizationSettings() {
             emptyMessage="入院プランが登録されていません"
             renderRow={(item) => (
               <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
-                <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
+                <TableCell className={`font-medium text-sm ${C.text}`}>
                   {item.name}
                 </TableCell>
-                <TableCell className={`text-sm ${C.text70} py-2.5`}>
+                <TableCell className={`text-sm ${C.text70}`}>
                   {item.bodySize
                     ? (BODY_SIZE_LABELS[item.bodySize] ?? item.bodySize)
                     : "-"}
                 </TableCell>
-                <TableCell className={`text-sm ${C.text70} py-2.5`}>
+                <TableCell className={`text-sm ${C.text70}`}>
                   {item.billingUnit
                     ? (BILLING_UNIT_LABELS[item.billingUnit] ?? item.billingUnit)
                     : "-"}
                 </TableCell>
-                <TableCell className={`text-right font-mono text-sm ${C.text} py-2.5`}>
+                <TableCell className={`text-right font-mono text-sm ${C.text}`}>
                   {item.price > 0 ? `¥${item.price.toLocaleString()}` : "-"}
                 </TableCell>
-                <TableCell className="text-center py-2.5">
+                <TableCell className="text-center">
                   <NotionStatusPill isActive={item.isActive} />
                 </TableCell>
-                <TableCell className="text-right py-2.5">
+                <TableCell className="text-right">
                   <RowActionButton onClick={() => handleEdit(item)} />
                 </TableCell>
               </DataTableRow>

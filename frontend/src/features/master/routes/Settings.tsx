@@ -273,20 +273,20 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
         emptyMessage="データが見つかりません"
         renderRow={(item) => (
           <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
-            <TableCell className={`font-medium text-sm ${C.text} py-2`}>
+            <TableCell className={`font-medium text-sm ${C.text}`}>
               {item.name}
             </TableCell>
             {showCategory && (
-              <TableCell className={`text-sm ${C.text} py-2`}>
+              <TableCell className={`text-sm ${C.text}`}>
                 {item.category ?? "-"}
               </TableCell>
             )}
             {showPrice && (
-              <TableCell className={`text-right font-mono text-sm ${C.text} py-2`}>
+              <TableCell className={`text-right font-mono text-sm ${C.text}`}>
                 {item.price ? `¥${item.price.toLocaleString()}` : "-"}
               </TableCell>
             )}
-            <TableCell className="text-right py-2">
+            <TableCell className="text-right">
               <StatusDot active={item.status !== "inactive"} />
             </TableCell>
           </DataTableRow>

@@ -307,19 +307,19 @@ function TrimmingCourseTab() {
             emptyMessage="トリミングコースが登録されていません"
             renderRow={(item) => (
               <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
-                <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
+                <TableCell className={`font-medium text-sm ${C.text}`}>
                   {item.name}
                 </TableCell>
-                <TableCell className={`text-sm ${C.text70} py-2.5`}>
+                <TableCell className={`text-sm ${C.text70}`}>
                   {item.targetSize ? TARGET_SIZE_LABELS[item.targetSize] : "-"}
                 </TableCell>
-                <TableCell className={`text-sm ${C.text70} py-2.5`}>
+                <TableCell className={`text-sm ${C.text70}`}>
                   {item.duration != null ? `${item.duration}分` : "-"}
                 </TableCell>
-                <TableCell className={`text-right font-mono text-sm ${C.text} py-2.5`}>
+                <TableCell className={`text-right font-mono text-sm ${C.text}`}>
                   {item.price != null ? `¥${item.price.toLocaleString()}` : "-"}
                 </TableCell>
-                <TableCell className="text-right py-2.5">
+                <TableCell className="text-right">
                   <span className="inline-flex items-center gap-1.5">
                     <span className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`} />
                     <span className={`text-sm ${item.isActive ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}>
@@ -640,19 +640,19 @@ function TrimmingOptionTab() {
             emptyMessage="トリミングオプションが登録されていません"
             renderRow={(item) => (
               <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
-                <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
+                <TableCell className={`font-medium text-sm ${C.text}`}>
                   {item.name}
                 </TableCell>
-                <TableCell className={`text-sm ${C.text70} py-2.5`}>
+                <TableCell className={`text-sm ${C.text70}`}>
                   {item.duration != null ? `${item.duration}分` : "-"}
                 </TableCell>
-                <TableCell className="text-center py-2.5">
+                <TableCell className="text-center">
                   <CombinablePill combinable={item.combinable} />
                 </TableCell>
-                <TableCell className={`text-right font-mono text-sm ${C.text} py-2.5`}>
+                <TableCell className={`text-right font-mono text-sm ${C.text}`}>
                   {item.price != null ? `¥${item.price.toLocaleString()}` : "-"}
                 </TableCell>
-                <TableCell className="text-right py-2.5">
+                <TableCell className="text-right">
                   <span className="inline-flex items-center gap-1.5">
                     <span className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`} />
                     <span className={`text-sm ${item.isActive ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}>

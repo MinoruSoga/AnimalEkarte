@@ -1,6 +1,6 @@
 // React/Framework
 import type { ReactNode } from "react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 
 // DnD
@@ -136,6 +136,17 @@ function PropInput({
 }
 
 // ─────────────────────────────────────────────────
+// フォームデータ型
+// ─────────────────────────────────────────────────
+
+interface ServiceTypeFormData {
+  name: string;
+  description: string;
+  color: string;
+  isActive: boolean;
+}
+
+// ─────────────────────────────────────────────────
 // ServiceTypeSidePanel
 // ─────────────────────────────────────────────────
 
@@ -147,15 +158,15 @@ function ServiceTypeSidePanel({
 }: {
   item: ServiceType | null;
   onClose: () => void;
-  onSave: (data: { name: string; description: string; color: string; isActive: boolean }) => void;
-  onDeleteRequest: () => void;
+  onSave: (data: ServiceTypeFormData) => void;
+  onDeleteRequest: (item: ServiceType) => void;
 }) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ServiceTypeFormData>(() => ({
     name: item?.name ?? "",
     description: item?.description ?? "",
     color: item?.color ?? "#3B82F6",
     isActive: item?.isActive ?? true,
-  });
+  }));
 
   return (
     <div className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0`}>
@@ -168,7 +179,7 @@ function ServiceTypeSidePanel({
           {item !== null ? (
             <button
               type="button"
-              onClick={onDeleteRequest}
+              onClick={() => onDeleteRequest(item)}
               className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
             >
               <Trash2 className="size-4" />
@@ -203,7 +214,7 @@ function ServiceTypeSidePanel({
                 lineHeight: LAYOUT.pageTitle.lineHeight,
               }}
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
               placeholder="無題"
               autoFocus
             />
@@ -213,7 +224,7 @@ function ServiceTypeSidePanel({
             <PropertyRow label="ステータス">
               <button
                 type="button"
-                onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+                onClick={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
                 className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
               >
                 <NotionStatusPill isActive={formData.isActive} />
@@ -224,12 +235,12 @@ function ServiceTypeSidePanel({
                 <input
                   type="color"
                   value={formData.color}
-                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, color: e.target.value }))}
                   className="w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0"
                 />
                 <PropInput
                   value={formData.color}
-                  onChange={(v) => setFormData({ ...formData, color: v })}
+                  onChange={(v) => setFormData((prev) => ({ ...prev, color: v }))}
                   placeholder="#3B82F6"
                 />
               </div>
@@ -237,7 +248,7 @@ function ServiceTypeSidePanel({
             <PropertyRow label="備考">
               <PropInput
                 value={formData.description}
-                onChange={(v) => setFormData({ ...formData, description: v })}
+                onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
                 placeholder="補足情報など"
               />
             </PropertyRow>
@@ -283,12 +294,12 @@ function SortableServiceTypeRow({
   return (
     <DataTableRow ref={setNodeRef} style={style} {...attributes} onClick={onEdit}>
       <TableCell
-        className="w-[32px] py-2.5 text-[#37352F]/20 cursor-grab"
+        className="w-[32px] text-[#37352F]/20 cursor-grab"
         {...listeners}
       >
         <GripVertical className="size-4" />
       </TableCell>
-      <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
+      <TableCell className={`font-medium text-sm ${C.text}`}>
         <div className="flex items-center gap-2">
           <span
             className="size-3 rounded-full shrink-0"
@@ -297,13 +308,13 @@ function SortableServiceTypeRow({
           {item.name}
         </div>
       </TableCell>
-      <TableCell className={`text-sm ${C.text70} py-2.5 truncate max-w-[240px]`}>
+      <TableCell className={`text-sm ${C.text70} truncate max-w-[240px]`}>
         {item.description || "-"}
       </TableCell>
-      <TableCell className="text-center py-2.5">
+      <TableCell className="text-center">
         <NotionStatusPill isActive={item.isActive} />
       </TableCell>
-      <TableCell className="text-right py-2.5">
+      <TableCell className="text-right">
         <RowActionButton onClick={onEdit} />
       </TableCell>
     </DataTableRow>
@@ -328,16 +339,33 @@ export function ServiceTypeSettings() {
   const deleteMutation = useDeleteServiceType();
   const reorderMutation = useReorderServiceTypes();
 
-  const { orderedItems, sensors, handleDragEnd } = useSortableList({
-    items: rawData ?? [],
-    onReorder: (newIds) => {
-      // TODO: BE-026 実装後に有効化
-      // reorderMutation.mutate({ ids: newIds.map(Number) });
-      void reorderMutation;
-      void newIds;
-      toast.info("並び替えはバックエンド実装後に反映されます（BE-026）");
+  // resetOrder は useSortableList が返す安定関数。ref 経由で onReorder に渡す。
+  const resetOrderRef = useRef<() => void>(() => {});
+
+  const handleReorder = useCallback(
+    (newIds: string[]) => {
+      reorderMutation.mutate(
+        { ids: newIds.map(Number) },
+        {
+          onError: () => {
+            resetOrderRef.current();
+            toast.error("並び替えに失敗しました");
+          },
+        },
+      );
     },
-  });
+    [reorderMutation],
+  );
+
+  const { orderedItems, sensors, handleDragStart, handleDragEnd, handleDragCancel, resetOrder } =
+    useSortableList({
+      items: rawData ?? [],
+      onReorder: handleReorder,
+    });
+  // resetOrder は useSortableList が返す安定関数（deps: []）だが effect 経由で同期する
+  useEffect(() => {
+    resetOrderRef.current = resetOrder;
+  }, [resetOrder]);
 
   const filteredItems = useMemo(() => {
     if (!searchTerm) return orderedItems;
@@ -345,61 +373,63 @@ export function ServiceTypeSettings() {
     return orderedItems.filter((i) => i.name.toLowerCase().includes(lower));
   }, [orderedItems, searchTerm]);
 
-  const handleEdit = (item: ServiceType) => {
+  const handleEdit = useCallback((item: ServiceType) => {
     setSelectedItem(item);
     setIsEditing(true);
-  };
+  }, []);
 
-  const handleCreate = () => {
+  const handleCreate = useCallback(() => {
     setSelectedItem(null);
     setIsEditing(true);
-  };
+  }, []);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsEditing(false);
     setSelectedItem(null);
-  };
+  }, []);
 
-  const handleSave = (data: {
-    name: string;
-    description: string;
-    color: string;
-    isActive: boolean;
-  }) => {
-    if (!data.name.trim()) {
-      toast.error("名称は必須です");
-      return;
-    }
+  const handleSave = useCallback(
+    (data: ServiceTypeFormData) => {
+      if (!data.name.trim()) {
+        toast.error("名称は必須です");
+        return;
+      }
 
-    if (selectedItem) {
-      const req: UpdateServiceTypeRequest = {
-        name: data.name,
-        description: data.description || undefined,
-        color: data.color || undefined,
-        is_active: data.isActive,
-      };
-      updateMutation.mutate(
-        { id: selectedItem.id, req },
-        {
-          onSuccess: () => { toast.success("更新しました"); handleClose(); },
-          onError: () => toast.error("更新に失敗しました"),
-        },
-      );
-    } else {
-      const req: CreateServiceTypeRequest = {
-        name: data.name,
-        description: data.description || undefined,
-        color: data.color || undefined,
-        is_active: true,
-      };
-      createMutation.mutate(req, {
-        onSuccess: () => { toast.success("登録しました"); handleClose(); },
-        onError: () => toast.error("登録に失敗しました"),
-      });
-    }
-  };
+      if (selectedItem) {
+        const req: UpdateServiceTypeRequest = {
+          name: data.name,
+          description: data.description || undefined,
+          color: data.color || undefined,
+          is_active: data.isActive,
+        };
+        updateMutation.mutate(
+          { id: selectedItem.id, req },
+          {
+            onSuccess: () => { toast.success("更新しました"); handleClose(); },
+            onError: () => toast.error("更新に失敗しました"),
+          },
+        );
+      } else {
+        const req: CreateServiceTypeRequest = {
+          name: data.name,
+          description: data.description || undefined,
+          color: data.color || undefined,
+          is_active: true,
+        };
+        createMutation.mutate(req, {
+          onSuccess: () => { toast.success("登録しました"); handleClose(); },
+          onError: () => toast.error("登録に失敗しました"),
+        });
+      }
+    },
+    [selectedItem, updateMutation, createMutation, handleClose],
+  );
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteRequest = useCallback((item: ServiceType) => {
+    setPendingDelete(item);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(() => {
     if (!pendingDelete) return;
     deleteMutation.mutate(pendingDelete.id, {
       onSuccess: () => {
@@ -409,7 +439,7 @@ export function ServiceTypeSettings() {
       },
       onError: () => toast.error("削除に失敗しました"),
     });
-  };
+  }, [pendingDelete, deleteMutation, handleClose]);
 
   return (
     <PageLayout
@@ -443,7 +473,9 @@ export function ServiceTypeSettings() {
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
           >
             <SortableContext
               items={filteredItems.map((i) => i.id)}
@@ -472,7 +504,7 @@ export function ServiceTypeSettings() {
             item={selectedItem}
             onClose={handleClose}
             onSave={handleSave}
-            onDeleteRequest={() => setPendingDelete(selectedItem)}
+            onDeleteRequest={handleDeleteRequest}
           />
         ) : null}
       </div>

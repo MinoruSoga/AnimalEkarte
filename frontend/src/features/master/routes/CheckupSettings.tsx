@@ -319,21 +319,21 @@ function SortableCheckupRow({
   return (
     <DataTableRow ref={setNodeRef} style={style} {...attributes} onClick={onEdit}>
       <TableCell
-        className="w-[32px] py-2.5 text-[#37352F]/20 cursor-grab"
+        className="w-[32px] text-[#37352F]/20 cursor-grab"
         {...listeners}
       >
         <GripVertical className="size-4" />
       </TableCell>
-      <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
+      <TableCell className={`font-medium text-sm ${C.text}`}>
         {item.name}
       </TableCell>
-      <TableCell className={`text-sm ${C.text70} py-2.5 text-right`}>
+      <TableCell className={`text-sm ${C.text70} text-right`}>
         {item.price > 0 ? `${item.price.toLocaleString()} 円` : "-"}
       </TableCell>
-      <TableCell className="text-center py-2.5">
+      <TableCell className="text-center">
         <NotionStatusPill isActive={item.isActive} />
       </TableCell>
-      <TableCell className="text-right py-2.5">
+      <TableCell className="text-right">
         <RowActionButton onClick={onEdit} />
       </TableCell>
     </DataTableRow>

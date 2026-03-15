@@ -368,12 +368,12 @@ function SortableTreatmentRow({
   return (
     <DataTableRow ref={setNodeRef} style={style} {...attributes} onClick={onEdit}>
       <TableCell
-        className="w-[32px] py-2.5 text-[#37352F]/20 cursor-grab"
+        className="w-[32px] text-[#37352F]/20 cursor-grab"
         {...listeners}
       >
         <GripVertical className="size-4" />
       </TableCell>
-      <TableCell className="py-2.5">
+      <TableCell>
         <div className="flex items-center gap-1">
           {hasChildren ? (
             <button
@@ -399,15 +399,15 @@ function SortableTreatmentRow({
           ) : null}
         </div>
       </TableCell>
-      <TableCell className="py-2.5 text-right">
+      <TableCell className="text-right">
         <span className={`text-sm ${C.text70} font-mono`}>
           {item.price > 0 ? `¥${item.price.toLocaleString()}` : "-"}
         </span>
       </TableCell>
-      <TableCell className="text-center py-2.5">
+      <TableCell className="text-center">
         <NotionStatusPill isActive={item.isActive} />
       </TableCell>
-      <TableCell className="text-right py-2.5">
+      <TableCell className="text-right">
         <RowActionButton onClick={onEdit} />
       </TableCell>
     </DataTableRow>
@@ -427,22 +427,22 @@ function ChildTreatmentRow({
 }) {
   return (
     <DataTableRow onClick={onEdit}>
-      <TableCell className="w-[32px] py-2.5" />
-      <TableCell className="py-2.5">
+      <TableCell className="w-[32px]" />
+      <TableCell>
         <div className="flex items-center gap-1 pl-[22px]">
           <span className="size-[22px] shrink-0" />
           <span className={`text-sm ${C.text}`}>{item.name}</span>
         </div>
       </TableCell>
-      <TableCell className="py-2.5 text-right">
+      <TableCell className="text-right">
         <span className={`text-sm ${C.text70} font-mono`}>
           {item.price > 0 ? `¥${item.price.toLocaleString()}` : "-"}
         </span>
       </TableCell>
-      <TableCell className="text-center py-2.5">
+      <TableCell className="text-center">
         <NotionStatusPill isActive={item.isActive} />
       </TableCell>
-      <TableCell className="text-right py-2.5">
+      <TableCell className="text-right">
         <RowActionButton onClick={onEdit} />
       </TableCell>
     </DataTableRow>

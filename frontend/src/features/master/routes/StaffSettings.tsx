@@ -272,16 +272,16 @@ export function StaffSettings() {
                 emptyMessage="スタッフが登録されていません"
                 renderRow={(item) => (
                   <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
-                    <TableCell className="font-mono text-sm text-[#37352F]/80 py-2.5">
+                    <TableCell className="font-mono text-sm text-[#37352F]/80">
                       {item.code}
                     </TableCell>
-                    <TableCell className="font-medium text-sm text-[#37352F] py-2.5">
+                    <TableCell className="font-medium text-sm text-[#37352F]">
                       {item.name}
                     </TableCell>
-                    <TableCell className="text-sm text-[#37352F] py-2.5">
+                    <TableCell className="text-sm text-[#37352F]">
                       {STAFF_ROLE_LABELS[item.staffRole]}
                     </TableCell>
-                    <TableCell className="text-right py-2.5">
+                    <TableCell className="text-right">
                       <span className="inline-flex items-center gap-1.5">
                         <span className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`} />
                         <span className={`text-sm ${item.isActive ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}>

@@ -435,21 +435,21 @@ function SortableCategoryRow({
   return (
     <DataTableRow ref={setNodeRef} style={style} {...attributes} onClick={onEdit}>
       <TableCell
-        className="w-[32px] py-2.5 text-[#37352F]/20 cursor-grab"
+        className="w-[32px] text-[#37352F]/20 cursor-grab"
         {...listeners}
       >
         <GripVertical className="size-4" />
       </TableCell>
-      <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
+      <TableCell className={`font-medium text-sm ${C.text}`}>
         {item.name}
       </TableCell>
-      <TableCell className={`text-sm ${C.text70} py-2.5 truncate max-w-[240px]`}>
+      <TableCell className={`text-sm ${C.text70} truncate max-w-[240px]`}>
         {item.description || "-"}
       </TableCell>
-      <TableCell className="text-center py-2.5">
+      <TableCell className="text-center">
         <NotionStatusPill isActive={item.isActive} />
       </TableCell>
-      <TableCell className="text-right py-2.5">
+      <TableCell className="text-right">
         <RowActionButton onClick={onEdit} />
       </TableCell>
     </DataTableRow>
@@ -641,21 +641,21 @@ function SortableNameRow({
   return (
     <DataTableRow ref={setNodeRef} style={style} {...attributes} onClick={onEdit}>
       <TableCell
-        className="w-[32px] py-2.5 text-[#37352F]/20 cursor-grab"
+        className="w-[32px] text-[#37352F]/20 cursor-grab"
         {...listeners}
       >
         <GripVertical className="size-4" />
       </TableCell>
-      <TableCell className={`text-sm ${C.text70} py-2.5`}>
+      <TableCell className={`text-sm ${C.text70}`}>
         {categoryMap.get(item.diagnosisCategoryId) ?? "-"}
       </TableCell>
-      <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
+      <TableCell className={`font-medium text-sm ${C.text}`}>
         {item.name}
       </TableCell>
-      <TableCell className="text-center py-2.5">
+      <TableCell className="text-center">
         <NotionStatusPill isActive={item.isActive} />
       </TableCell>
-      <TableCell className="text-right py-2.5">
+      <TableCell className="text-right">
         <RowActionButton onClick={onEdit} />
       </TableCell>
     </DataTableRow>
