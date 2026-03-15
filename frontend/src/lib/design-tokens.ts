@@ -623,7 +623,7 @@ export const STYLE = {
   tableHeaderCell:
     `text-xs font-medium ${C.text70} h-11`,
   tableRow:
-    `border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors cursor-pointer h-12`,
+    `border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors cursor-pointer h-16`,
   tableCell:
     `text-sm ${C.text} py-2.5`,
   tableCellMono:
