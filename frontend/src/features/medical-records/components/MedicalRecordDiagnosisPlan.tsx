@@ -1,6 +1,11 @@
-import React, { useState, useMemo, useCallback } from "react";
-import { TreatmentSearchDialog } from "@/components/shared/TreatmentSearchDialog";
+import React, { lazy, Suspense, useState, useMemo, useCallback } from "react";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog";
+
+const TreatmentSearchDialog = lazy(() =>
+  import("@/components/shared/TreatmentSearchDialog").then((m) => ({
+    default: m.TreatmentSearchDialog,
+  }))
+);
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { DiagnosisHeader } from "./DiagnosisHeader";
 import { ClinicalPlanSection } from "./ClinicalPlanSection";
@@ -154,11 +159,13 @@ export function MedicalRecordDiagnosisPlan({
         />
       </div>
 
-      <TreatmentSearchDialog
-        open={isSearchOpen}
-        onOpenChange={setIsSearchOpen}
-        onSelect={handleSelectTreatment}
-      />
+      <Suspense fallback={null}>
+        <TreatmentSearchDialog
+          open={isSearchOpen}
+          onOpenChange={setIsSearchOpen}
+          onSelect={handleSelectTreatment}
+        />
+      </Suspense>
     </div>
   );
 }
