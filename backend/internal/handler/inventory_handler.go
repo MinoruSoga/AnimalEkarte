@@ -3,38 +3,11 @@ package handler
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
-
-type createInventoryInput struct {
-	Name          string     `json:"name"            binding:"required"`
-	Category      string     `json:"category"        binding:"required"`
-	Quantity      int        `json:"quantity"`
-	Unit          string     `json:"unit"            binding:"required"`
-	MinStockLevel int        `json:"min_stock_level"`
-	Location      string     `json:"location"`
-	ExpiryDate    *time.Time `json:"expiry_date"`
-	Supplier      string     `json:"supplier"`
-	LastRestocked *time.Time `json:"last_restocked"`
-	Status        string     `json:"status"`
-}
-
-type updateInventoryInput struct {
-	Name          string     `json:"name"`
-	Category      string     `json:"category"`
-	Quantity      int        `json:"quantity"`
-	Unit          string     `json:"unit"`
-	MinStockLevel int        `json:"min_stock_level"`
-	Location      string     `json:"location"`
-	ExpiryDate    *time.Time `json:"expiry_date"`
-	Supplier      string     `json:"supplier"`
-	LastRestocked *time.Time `json:"last_restocked"`
-	Status        string     `json:"status"`
-}
 
 // ListInventory godoc
 func (h *Handler) ListInventory(c *gin.Context) {
@@ -94,9 +67,9 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 		return
 	}
 
-	var input createInventoryInput
+	var input createInventoryRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
@@ -135,9 +108,9 @@ func (h *Handler) UpdateInventory(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input updateInventoryInput
+	var input updateInventoryRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 

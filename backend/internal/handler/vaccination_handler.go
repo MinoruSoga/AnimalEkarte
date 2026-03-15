@@ -3,44 +3,11 @@ package handler
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
-
-type createVaccinationInput struct {
-	MedicalRecordID  *uint64    `json:"medical_record_id"`
-	PetID            *uint64    `json:"pet_id"`
-	VaccineID        uint64     `json:"vaccine_id"          binding:"required"`
-	Date             time.Time  `json:"date"                binding:"required"`
-	DoctorID         *uint64    `json:"doctor_id"`
-	NextDate         *time.Time `json:"next_date"`
-	NextScheduleType string     `json:"next_schedule_type"`
-	Supplemental     string     `json:"supplemental"`
-	Lot1             string     `json:"lot1"`
-	Lot2             string     `json:"lot2"`
-	Lot3             string     `json:"lot3"`
-	Lot4             string     `json:"lot4"`
-	Remarks          string     `json:"remarks"`
-}
-
-type updateVaccinationInput struct {
-	MedicalRecordID  *uint64    `json:"medical_record_id"`
-	PetID            *uint64    `json:"pet_id"`
-	VaccineID        uint64     `json:"vaccine_id"`
-	Date             *time.Time `json:"date"`
-	DoctorID         *uint64    `json:"doctor_id"`
-	NextDate         *time.Time `json:"next_date"`
-	NextScheduleType string     `json:"next_schedule_type"`
-	Supplemental     string     `json:"supplemental"`
-	Lot1             string     `json:"lot1"`
-	Lot2             string     `json:"lot2"`
-	Lot3             string     `json:"lot3"`
-	Lot4             string     `json:"lot4"`
-	Remarks          string     `json:"remarks"`
-}
 
 // ListVaccinations godoc
 func (h *Handler) ListVaccinations(c *gin.Context) {
@@ -109,9 +76,9 @@ func (h *Handler) CreateVaccination(c *gin.Context) {
 		return
 	}
 
-	var input createVaccinationInput
+	var input createVaccinationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
@@ -153,9 +120,9 @@ func (h *Handler) UpdateVaccination(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input updateVaccinationInput
+	var input updateVaccinationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
@@ -163,22 +130,36 @@ func (h *Handler) UpdateVaccination(c *gin.Context) {
 		ID:              id,
 		MedicalRecordID: input.MedicalRecordID,
 		PetID:           input.PetID,
-		VaccineID:       input.VaccineID,
 		DoctorID:        input.DoctorID,
 		NextDate:        input.NextDate,
-		Supplemental:    input.Supplemental,
-		Lot1:            input.Lot1,
-		Lot2:            input.Lot2,
-		Lot3:            input.Lot3,
-		Lot4:            input.Lot4,
-		Remarks:         input.Remarks,
+	}
+	if input.VaccineID != nil {
+		vaccination.VaccineID = *input.VaccineID
 	}
 	if input.Date != nil {
 		vaccination.Date = *input.Date
 	}
-	if input.NextScheduleType != "" {
-		nst := model.NextScheduleType(input.NextScheduleType)
+	if input.NextScheduleType != nil {
+		nst := model.NextScheduleType(*input.NextScheduleType)
 		vaccination.NextScheduleType = &nst
+	}
+	if input.Supplemental != nil {
+		vaccination.Supplemental = *input.Supplemental
+	}
+	if input.Lot1 != nil {
+		vaccination.Lot1 = *input.Lot1
+	}
+	if input.Lot2 != nil {
+		vaccination.Lot2 = *input.Lot2
+	}
+	if input.Lot3 != nil {
+		vaccination.Lot3 = *input.Lot3
+	}
+	if input.Lot4 != nil {
+		vaccination.Lot4 = *input.Lot4
+	}
+	if input.Remarks != nil {
+		vaccination.Remarks = *input.Remarks
 	}
 
 	if err := h.svc.Vaccination.Update(c.Request.Context(), clinicID, vaccination); err != nil {

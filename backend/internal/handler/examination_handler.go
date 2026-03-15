@@ -3,34 +3,11 @@ package handler
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
-
-type createExaminationInput struct {
-	MedicalRecordID uint64    `json:"medical_record_id" binding:"required"`
-	PetID           *uint64   `json:"pet_id"`
-	ExamTypeID      uint64    `json:"exam_type_id"      binding:"required"`
-	DoctorID        *uint64   `json:"doctor_id"`
-	Date            time.Time `json:"date"              binding:"required"`
-	ResultSummary   string    `json:"result_summary"`
-	Machine         string    `json:"machine"`
-	Status          string    `json:"status"`
-}
-
-type updateExaminationInput struct {
-	MedicalRecordID uint64     `json:"medical_record_id"`
-	PetID           *uint64    `json:"pet_id"`
-	ExamTypeID      uint64     `json:"exam_type_id"`
-	DoctorID        *uint64    `json:"doctor_id"`
-	Date            *time.Time `json:"date"`
-	ResultSummary   string     `json:"result_summary"`
-	Machine         string     `json:"machine"`
-	Status          string     `json:"status"`
-}
 
 // ListExaminations godoc
 func (h *Handler) ListExaminations(c *gin.Context) {
@@ -99,9 +76,9 @@ func (h *Handler) GetExamination(c *gin.Context) {
 
 // CreateExamination godoc
 func (h *Handler) CreateExamination(c *gin.Context) {
-	var input createExaminationInput
+	var input createExaminationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
@@ -136,9 +113,9 @@ func (h *Handler) UpdateExamination(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input updateExaminationInput
+	var input updateExaminationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
 
