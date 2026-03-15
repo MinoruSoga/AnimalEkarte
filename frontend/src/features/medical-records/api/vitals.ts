@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 // Internal
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 // Relative
 import type { Vital, CreateVitalInput, UpdateVitalInput } from "../types";
@@ -24,7 +25,7 @@ export const useVitals = (medicalRecordId: string) => {
     queryKey: ["vitals", medicalRecordId],
     queryFn: () => getVitals(medicalRecordId),
     enabled: !!medicalRecordId,
-    staleTime: 2 * 60 * 1000,
+    staleTime: QUERY_STALE_TIMES.REALTIME,
   });
 };
 

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 // Internal
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 // Relative
 import type {
@@ -29,7 +30,7 @@ export const useTreatments = (medicalRecordId: string) => {
     queryKey: ["treatments", medicalRecordId],
     queryFn: () => getTreatments(medicalRecordId),
     enabled: !!medicalRecordId,
-    staleTime: 2 * 60 * 1000,
+    staleTime: QUERY_STALE_TIMES.REALTIME,
   });
 };
 

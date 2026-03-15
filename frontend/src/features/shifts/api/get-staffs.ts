@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES } from "@/lib/react-query";
 import type { ShiftStaff } from "../types";
 
 interface BackendStaff {
@@ -19,6 +20,6 @@ export function useStaffsForShift() {
   return useQuery({
     queryKey: ["staffs-for-shift"],
     queryFn: getStaffsForShift,
-    staleTime: 1000 * 60 * 30, // 30分
+    staleTime: QUERY_STALE_TIMES.STATIC,
   });
 }

@@ -8,6 +8,7 @@ import { ExternalLink } from "lucide-react";
 // Internal
 import { paths } from "@/config/paths";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES } from "@/lib/react-query";
 import { C } from "@/lib/design-tokens";
 import {
   Sheet,
@@ -89,7 +90,7 @@ export function OwnerQuickViewModal({
     queryKey: ["owner-quick-view", ownerId],
     queryFn: () => fetchOwnerQuickView(ownerId),
     enabled: open && ownerId !== "",
-    staleTime: 5 * 60 * 1000,
+    staleTime: QUERY_STALE_TIMES.MEDIUM,
   });
 
   const address = [owner?.address1, owner?.address2].filter(Boolean).join(" ");

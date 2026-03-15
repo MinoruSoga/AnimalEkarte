@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 // Internal
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -46,7 +47,7 @@ export const useClinicalPlan = (medicalRecordId: string) => {
     queryKey: ["clinical-plan", medicalRecordId],
     queryFn: () => getClinicalPlan(medicalRecordId),
     enabled: !!medicalRecordId,
-    staleTime: 2 * 60 * 1000,
+    staleTime: QUERY_STALE_TIMES.REALTIME,
   });
 };
 

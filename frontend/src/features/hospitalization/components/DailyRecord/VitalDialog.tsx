@@ -26,14 +26,14 @@ interface VitalDialogProps {
 export function VitalDialog({ open, onOpenChange, onSave }: VitalDialogProps) {
     const getCurrentTime = () => format(new Date(), "HH:mm");
 
-    const [form, setForm] = useState({
+    const [form, setForm] = useState(() => ({
         temperature: "",
         heartRate: "",
         respirationRate: "",
         weight: "",
         notes: "",
         time: getCurrentTime()
-    });
+    }));
     const [prevOpen, setPrevOpen] = useState(false);
 
     if (open !== prevOpen) {
@@ -75,27 +75,27 @@ export function VitalDialog({ open, onOpenChange, onSave }: VitalDialogProps) {
                 <div className="grid grid-cols-2 gap-4 py-4">
                     <div className="col-span-2 space-y-2">
                         <Label>記録時刻</Label>
-                        <Input type="time" value={form.time} onChange={e => setForm({...form, time: e.target.value})} className={H_STYLES.text.base} />
+                        <Input type="time" value={form.time} onChange={e => setForm(prev => ({...prev, time: e.target.value}))} className={H_STYLES.text.base} />
                     </div>
                     <div className="space-y-2">
                         <Label>体温 (℃)</Label>
-                        <Input type="number" step="0.1" value={form.temperature} onChange={e => setForm({...form, temperature: e.target.value})} className={H_STYLES.text.base} />
+                        <Input type="number" step="0.1" value={form.temperature} onChange={e => setForm(prev => ({...prev, temperature: e.target.value}))} className={H_STYLES.text.base} />
                     </div>
                     <div className="space-y-2">
                         <Label>体重 (kg)</Label>
-                        <Input type="number" step="0.01" value={form.weight} onChange={e => setForm({...form, weight: e.target.value})} className={H_STYLES.text.base} />
+                        <Input type="number" step="0.01" value={form.weight} onChange={e => setForm(prev => ({...prev, weight: e.target.value}))} className={H_STYLES.text.base} />
                     </div>
                     <div className="space-y-2">
                         <Label>心拍数 (/min)</Label>
-                        <Input type="number" value={form.heartRate} onChange={e => setForm({...form, heartRate: e.target.value})} className={H_STYLES.text.base} />
+                        <Input type="number" value={form.heartRate} onChange={e => setForm(prev => ({...prev, heartRate: e.target.value}))} className={H_STYLES.text.base} />
                     </div>
                     <div className="space-y-2">
                         <Label>呼吸数 (/min)</Label>
-                        <Input type="number" value={form.respirationRate} onChange={e => setForm({...form, respirationRate: e.target.value})} className={H_STYLES.text.base} />
+                        <Input type="number" value={form.respirationRate} onChange={e => setForm(prev => ({...prev, respirationRate: e.target.value}))} className={H_STYLES.text.base} />
                     </div>
                     <div className="col-span-2 space-y-2">
                         <Label>メモ</Label>
-                        <Textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className={H_STYLES.text.base} />
+                        <Textarea value={form.notes} onChange={e => setForm(prev => ({...prev, notes: e.target.value}))} className={H_STYLES.text.base} />
                     </div>
                 </div>
                 <DialogFooter>

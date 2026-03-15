@@ -22,10 +22,10 @@ interface TaskCompleteDialogProps {
 export function TaskCompleteDialog({ open, onOpenChange, task, onConfirm }: TaskCompleteDialogProps) {
     const getCurrentTime = () => format(new Date(), "HH:mm");
 
-    const [form, setForm] = useState({
+    const [form, setForm] = useState(() => ({
         notes: "",
         time: getCurrentTime()
-    });
+    }));
     const [prevOpen, setPrevOpen] = useState(false);
 
     if (open !== prevOpen) {
@@ -70,7 +70,7 @@ export function TaskCompleteDialog({ open, onOpenChange, task, onConfirm }: Task
 
                     <div className="space-y-2">
                         <Label>実施時刻</Label>
-                        <Input type="time" value={form.time} onChange={e => setForm({...form, time: e.target.value})} className={H_STYLES.text.base} />
+                        <Input type="time" value={form.time} onChange={e => setForm(prev => ({...prev, time: e.target.value}))} className={H_STYLES.text.base} />
                     </div>
 
                     <div className="space-y-2">
@@ -78,7 +78,7 @@ export function TaskCompleteDialog({ open, onOpenChange, task, onConfirm }: Task
                         <Textarea 
                             placeholder="特記事項があれば入力..."
                             value={form.notes} 
-                            onChange={e => setForm({...form, notes: e.target.value})} 
+                            onChange={e => setForm(prev => ({...prev, notes: e.target.value}))}
                             className={H_STYLES.text.base}
                         />
                     </div>
