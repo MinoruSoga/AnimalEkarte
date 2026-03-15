@@ -70,6 +70,32 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, toUserResponse(account))
 }
 
+// GetUser godoc
+// GET /users/:id
+func (h *Handler) GetUser(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	data, err := h.svc.UserAccount.GetWithMemberships(c.Request.Context(), strconv.FormatUint(id, 10))
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	memberships := make([]userMembershipResponse, 0, len(data.Memberships))
+	for _, m := range data.Memberships {
+		memberships = append(memberships, userMembershipResponse{
+			ClinicID: strconv.FormatUint(m.ClinicID, 10),
+			IsMain:   m.IsMain,
+		})
+	}
+	c.JSON(http.StatusOK, userDetailResponse{
+		userResponse: toUserResponse(&data.UserAccount),
+		Memberships:  memberships,
+	})
+}
+
 // UpdateUser godoc
 // PATCH /users/:id
 func (h *Handler) UpdateUser(c *gin.Context) {
@@ -174,6 +200,7 @@ func (h *Handler) RegisterUserRoutes(rg *gin.RouterGroup) {
 	users := rg.Group("/users")
 	users.GET("", h.ListUsers)
 	users.POST("", h.CreateUser)
+	users.GET("/:id", h.GetUser)
 	users.PATCH("/:id", h.UpdateUser)
 	users.DELETE("/:id", h.DeleteUser)
 	users.GET("/:id/permissions", h.GetUserPermissions)

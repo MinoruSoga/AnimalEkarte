@@ -21,6 +21,18 @@ type userResponse struct {
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
+// userMembershipResponse は所属クリニック情報の API レスポンス
+type userMembershipResponse struct {
+	ClinicID string `json:"clinic_id"`
+	IsMain   bool   `json:"is_main"`
+}
+
+// userDetailResponse はユーザー詳細（所属クリニック含む）の API レスポンス
+type userDetailResponse struct {
+	userResponse
+	Memberships []userMembershipResponse `json:"memberships"`
+}
+
 // userPermissionResponse は権限の API レスポンス
 type userPermissionResponse struct {
 	Permission string `json:"permission"`
