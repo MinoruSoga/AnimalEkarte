@@ -1,5 +1,5 @@
 // React/Framework
-import { useDeferredValue, useEffect, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 
@@ -97,7 +97,10 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
   const pageTitle = config?.label ?? "マスタ";
   const showPrice = config?.showPrice ?? false;
   const showCategory = config?.showCategory ?? false;
-  const labels = config?.labels ?? { code: "コード", name: "名称", category: "カテゴリ" };
+  const labels = useMemo(
+    () => config?.labels ?? { code: "コード", name: "名称", category: "カテゴリ" },
+    [config],
+  );
 
   // Reset editing state when category changes
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -109,25 +112,25 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
   }, [rawCategory]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const handleEdit = (item: MasterItem) => {
-    setSelectedItem(item);
-    setFormData({ ...item });
-    setIsEditing(true);
-  };
-
-  const handleCreate = () => {
-    setSelectedItem(null);
-    setFormData({ status: "active", price: 0 });
-    setIsEditing(true);
-  };
-
-  const handleCloseEdit = () => {
+  const handleCloseEdit = useCallback(() => {
     setIsEditing(false);
     setSelectedItem(null);
     setFormData({});
-  };
+  }, []);
 
-  const handleSave = () => {
+  const handleEdit = useCallback((item: MasterItem) => {
+    setSelectedItem(item);
+    setFormData({ ...item });
+    setIsEditing(true);
+  }, []);
+
+  const handleCreate = useCallback(() => {
+    setSelectedItem(null);
+    setFormData({ status: "active", price: 0 });
+    setIsEditing(true);
+  }, []);
+
+  const handleSave = useCallback(() => {
     if (!formData.name) {
       toast.error("名称は必須です");
       return;
@@ -147,14 +150,14 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
         },
       });
     }
-  };
+  }, [formData, selectedItem, update, add, handleCloseEdit]);
 
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     if (!selectedItem) return;
     setDeleteConfirmOpen(true);
-  };
+  }, [selectedItem]);
 
-  const executeDelete = () => {
+  const executeDelete = useCallback(() => {
     if (!selectedItem) return;
     remove(selectedItem.id, {
       onSuccess: () => {
@@ -163,17 +166,20 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
         setDeleteConfirmOpen(false);
       },
     });
-  };
+  }, [selectedItem, remove, handleCloseEdit]);
 
   // ── Table columns ──────────────────────────────────
-  const columns = [
-    { header: labels.name },
-    ...(showCategory ? [{ header: labels.category, className: "w-[120px]" }] : []),
-    ...(showPrice
-      ? [{ header: "単価(税込)", className: "w-[110px]", align: "right" as const }]
-      : []),
-    { header: "ステータス", className: "w-[100px]", align: "right" as const },
-  ];
+  const columns = useMemo(
+    () => [
+      { header: labels.name },
+      ...(showCategory ? [{ header: labels.category, className: "w-[120px]" }] : []),
+      ...(showPrice
+        ? [{ header: "単価(税込)", className: "w-[110px]", align: "right" as const }]
+        : []),
+      { header: "ステータス", className: "w-[100px]", align: "right" as const },
+    ],
+    [labels, showCategory, showPrice],
+  );
 
   // ── List content ───────────────────────────────────
   const listContent = (
@@ -249,7 +255,7 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
         </div>
         <SidePeekTitleInput
           value={formData.name ?? ""}
-          onChange={(v) => setFormData({ ...formData, name: v })}
+          onChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
           placeholder={config?.namePlaceholder ?? "無題"}
         />
         <div className={`${STYLE.sectionDivider} mb-1`} />
@@ -259,10 +265,10 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
             <button
               type="button"
               onClick={() =>
-                setFormData({
-                  ...formData,
-                  status: formData.status === "inactive" ? "active" : "inactive",
-                })
+                setFormData((prev) => ({
+                  ...prev,
+                  status: prev.status === "inactive" ? "active" : "inactive",
+                }))
               }
               className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
             >
@@ -279,7 +285,7 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
                   type="number"
                   value={formData.price ?? 0}
                   onChange={(e) =>
-                    setFormData({ ...formData, price: Number(e.target.value) })
+                    setFormData((prev) => ({ ...prev, price: Number(e.target.value) }))
                   }
                   placeholder="0"
                   className={`${STYLE.propertyInput} w-28`}
@@ -293,7 +299,7 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
             <PropertyRow label={labels.category}>
               <PropInput
                 value={formData.category ?? ""}
-                onChange={(v) => setFormData({ ...formData, category: v })}
+                onChange={(v) => setFormData((prev) => ({ ...prev, category: v }))}
                 placeholder="分類"
               />
             </PropertyRow>
@@ -303,7 +309,7 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
           <PropertyRow label="備考">
             <PropInput
               value={formData.description ?? ""}
-              onChange={(v) => setFormData({ ...formData, description: v })}
+              onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
               placeholder="空"
             />
           </PropertyRow>
@@ -313,7 +319,7 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
             <PropertyRow label="適用区分">
               <Select
                 value={formData.timeCondition ?? "anytime"}
-                onValueChange={(v) => setFormData({ ...formData, timeCondition: v })}
+                onValueChange={(v) => setFormData((prev) => ({ ...prev, timeCondition: v }))}
               >
                 <SelectTrigger className={STYLE.selectCompact}>
                   <SelectValue />
@@ -337,10 +343,10 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
                 min={0}
                 value={formData.duration ?? ""}
                 onChange={(e) =>
-                  setFormData({
-                    ...formData,
+                  setFormData((prev) => ({
+                    ...prev,
                     duration: e.target.value === "" ? null : Number(e.target.value),
-                  })
+                  }))
                 }
                 placeholder="例: 15"
                 className={`${STYLE.propertyInput} w-28`}

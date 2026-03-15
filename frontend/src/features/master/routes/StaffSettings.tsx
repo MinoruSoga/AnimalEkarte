@@ -48,6 +48,9 @@ const COLUMNS = [
   { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
+// Hoisted CSS class string (rendering-hoist-jsx)
+const INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`;
+
 // Hoisted static JSX (rendering-hoist-jsx)
 const STAFF_ROLE_SELECT_ITEMS = (
   [
@@ -105,8 +108,6 @@ const StaffSidePanel = memo(function StaffSidePanel({
     password: "",
   }));
 
-  const inputClass = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`;
-
   return (
     <SidePeekPanel>
       <SidePeekToolbar
@@ -139,7 +140,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
           <PropertyRow label="社員番号">
             <input
               type="text"
-              className={inputClass}
+              className={INPUT_CLASS}
               value={formData.code}
               onChange={(e) => setFormData((prev) => ({ ...prev, code: e.target.value }))}
               placeholder="例: ST-001"
@@ -161,7 +162,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
           <PropertyRow label="資格番号">
             <input
               type="text"
-              className={inputClass}
+              className={INPUT_CLASS}
               value={formData.license_number}
               onChange={(e) => setFormData((prev) => ({ ...prev, license_number: e.target.value }))}
               placeholder="空"
@@ -174,7 +175,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
               <PropertyRow label="メールアドレス">
                 <input
                   type="email"
-                  className={inputClass}
+                  className={INPUT_CLASS}
                   value={formData.email}
                   onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
                   placeholder="例: staff@clinic.com"
@@ -184,7 +185,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
               <PropertyRow label="パスワード">
                 <input
                   type="password"
-                  className={inputClass}
+                  className={INPUT_CLASS}
                   value={formData.password}
                   onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
                   placeholder="8文字以上"
