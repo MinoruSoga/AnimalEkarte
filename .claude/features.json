@@ -1,7 +1,7 @@
 {
   "project": "Animal Ekarte",
-  "version": "0.1.0",
-  "lastUpdated": "2026-02-10",
+  "version": "0.2.0",
+  "lastUpdated": "2026-03-15",
   "techStack": {
     "frontend": "React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui",
     "backend": "Go 1.25 / Gin / GORM",
@@ -9,162 +9,121 @@
     "infrastructure": "Docker Compose"
   },
   "architecture": {
-    "pattern": "Clean Architecture",
-    "frontend": "SPA with React Router",
+    "pattern": "Layered Architecture (handler → service → repository)",
+    "frontend": "SPA with React Router 7 (Data Mode) / bulletproof-react準拠",
     "backend": "REST API with Gin framework",
     "orm": "GORM",
-    "recordFormat": "SOAPS (Subjective, Objective, Assessment, Plan, Summary)"
+    "routerPattern": "inline lazy + Promise.all（clientLoader/convert()は不使用）",
+    "crossFeature": "app/pages/ で合成（features間直接importは禁止）"
   },
   "features": [
     {
       "id": "SETUP-001",
       "name": "プロジェクト初期設定",
-      "description": "Docker環境、Go/React基本構成",
       "status": "completed",
-      "priority": "high",
-      "dependencies": [],
-      "commit": null,
       "completedAt": "2025-01-13"
     },
     {
       "id": "DB-001",
-      "name": "データベース設計",
-      "description": "45テーブル完全スキーマ設計（専用マスタテーブル版）",
+      "name": "データベース設計（45テーブル）",
       "status": "completed",
-      "priority": "high",
-      "dependencies": ["SETUP-001"],
-      "commit": null,
       "completedAt": "2026-03-12"
     },
     {
       "id": "DB-002",
       "name": "マイグレーション基盤 + Goモデル + 全層実装",
-      "description": "001_init.sql(45テーブル) + 002_seed_master.sql + GORMモデル25ファイル + repository/service/handler全層",
       "status": "completed",
-      "priority": "high",
-      "dependencies": ["DB-001"],
       "commit": "8ea4519",
       "completedAt": "2026-03-12"
     },
     {
-      "id": "DOCKER-001",
-      "name": "Docker Compose構成",
-      "description": "Go/React/PostgreSQL/Nginx のコンテナ構成",
-      "status": "in_progress",
-      "priority": "high",
-      "dependencies": ["SETUP-001"],
-      "commit": null,
-      "completedAt": null
-    },
-    {
-      "id": "API-001",
-      "name": "患者管理API",
-      "description": "患者CRUD操作のAPIエンドポイント",
-      "status": "in_progress",
-      "priority": "high",
-      "dependencies": ["DB-001"],
-      "commit": null,
-      "completedAt": null
-    },
-    {
-      "id": "API-002",
-      "name": "診療記録API",
-      "description": "SOAPS形式の診療記録CRUD操作",
-      "status": "in_progress",
-      "priority": "high",
-      "dependencies": ["DB-001"],
-      "commit": null,
-      "completedAt": null
-    },
-    {
-      "id": "API-003",
-      "name": "薬剤管理API",
-      "description": "薬剤マスタ・処方管理のAPIエンドポイント",
-      "status": "pending",
-      "priority": "medium",
-      "dependencies": ["DB-001"],
-      "commit": null,
-      "completedAt": null
-    },
-    {
-      "id": "API-004",
-      "name": "検査結果API",
-      "description": "検査結果の記録・表示API",
-      "status": "pending",
-      "priority": "medium",
-      "dependencies": ["DB-001"],
-      "commit": null,
-      "completedAt": null
-    },
-    {
-      "id": "API-005",
-      "name": "予約管理API",
-      "description": "診療予約のCRUD操作",
-      "status": "pending",
-      "priority": "medium",
-      "dependencies": ["DB-001"],
-      "commit": null,
-      "completedAt": null
-    },
-    {
       "id": "AUTH-001",
-      "name": "認証・認可",
-      "description": "ユーザー認証、ロール管理（獣医師/看護師/受付）",
+      "name": "認証・認可（JWT + RBAC設計）",
       "status": "completed",
-      "priority": "high",
-      "dependencies": ["DB-001"],
-      "commit": null,
       "completedAt": "2026-03-12"
     },
     {
-      "id": "UI-001",
-      "name": "患者一覧画面",
-      "description": "患者の検索・一覧表示UI（shadcn/ui DataTable）",
+      "id": "FE-ARCH-001",
+      "name": "フロントエンドアーキテクチャ刷新",
+      "description": "app/routes/ 廃止・features/routes/ への移管・inline lazy router・config/paths.ts",
+      "status": "completed",
+      "commit": "974c96d",
+      "completedAt": "2026-03-15"
+    },
+    {
+      "id": "FE-SHARED-001",
+      "name": "共有コンポーネント: SidePeek / SortableDataTableRow",
+      "status": "completed",
+      "commit": "aa9fa35",
+      "completedAt": "2026-03-15"
+    },
+    {
+      "id": "FE-MASTER-001",
+      "name": "マスタ設定ページ（13ページ全完成）",
+      "description": "Staff / Diagnosis / TreatmentItems / TreatmentPlan / Trimming / Medicine / ServiceType / Hospitalization / Cage / Insurance / JobTitle / InquiryTemplate / Company",
+      "status": "completed",
+      "commit": "4653fdf",
+      "completedAt": "2026-03-15"
+    },
+    {
+      "id": "FE-OWNERS-001",
+      "name": "飼い主・ペット管理画面（ベストプラクティス参照実装）",
+      "status": "completed",
+      "completedAt": "2026-03-12"
+    },
+    {
+      "id": "FE-MEDICAL-001",
+      "name": "電子カルテ入力画面",
+      "description": "vitals/treatments/billing/checkup/clinical-plan タブ",
       "status": "in_progress",
-      "priority": "medium",
-      "dependencies": ["API-001"],
-      "commit": null,
       "completedAt": null
     },
     {
-      "id": "UI-002",
-      "name": "カルテ入力画面",
-      "description": "SOAPS形式の診療記録入力・編集UI",
+      "id": "FE-HOSPITALIZATION-001",
+      "name": "入院管理画面",
+      "description": "入院フォーム・詳細・ケアプラン・日次記録",
       "status": "in_progress",
-      "priority": "medium",
-      "dependencies": ["API-002"],
-      "commit": null,
       "completedAt": null
     },
     {
-      "id": "UI-003",
-      "name": "ダッシュボード",
-      "description": "本日の予約、入院患者、統計サマリ表示",
-      "status": "pending",
-      "priority": "medium",
-      "dependencies": ["API-001", "API-005"],
-      "commit": null,
+      "id": "FE-ACCOUNTING-001",
+      "name": "会計画面",
+      "status": "in_progress",
       "completedAt": null
     },
     {
-      "id": "UI-004",
-      "name": "薬剤・処方管理画面",
-      "description": "薬剤検索、処方入力、投薬履歴表示",
-      "status": "pending",
-      "priority": "medium",
-      "dependencies": ["API-003"],
-      "commit": null,
+      "id": "FE-RESERVATIONS-001",
+      "name": "予約管理画面",
+      "status": "in_progress",
       "completedAt": null
     },
     {
-      "id": "UI-005",
-      "name": "予約カレンダー画面",
-      "description": "カレンダー形式の予約管理UI",
-      "status": "pending",
-      "priority": "low",
-      "dependencies": ["API-005"],
-      "commit": null,
+      "id": "FE-SHIFTS-001",
+      "name": "シフトカレンダー画面",
+      "status": "in_progress",
       "completedAt": null
+    },
+    {
+      "id": "BE-API-001",
+      "name": "バックエンド: owner/pet CRUD API",
+      "status": "completed",
+      "completedAt": "2026-03-12"
+    },
+    {
+      "id": "BE-API-002",
+      "name": "バックエンド: master settings API（service-type/cage等）",
+      "status": "in_progress",
+      "note": "service-type修正済み(6811d6a)・cage並び替え追加(9e8164a)。残エンドポイントはbackend/issues/open/参照"
+    },
+    {
+      "id": "BE-API-003",
+      "name": "バックエンド: medical-record / hospitalization / accounting API",
+      "status": "pending"
+    },
+    {
+      "id": "INTEGRATION-001",
+      "name": "フロントエンド ↔ バックエンド 結合テスト",
+      "status": "pending"
     }
   ]
 }
