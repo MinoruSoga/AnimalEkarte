@@ -369,11 +369,11 @@ export function AccountingDetail() {
                         </TableCell>
                         <TableCell className="font-medium">
                           {item.name}
-                          {item.source === "medical_record" && (
+                          {item.source === "medical_record" ? (
                             <span className="ml-2 text-[10px] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
                               カルテ連携
                             </span>
-                          )}
+                          ) : null}
                         </TableCell>
                         <TableCell className="text-right">
                           ¥{item.unitPrice.toLocaleString()}
@@ -394,7 +394,7 @@ export function AccountingDetail() {
                           ¥{(item.unitPrice * item.quantity).toLocaleString()}
                         </TableCell>
                         <TableCell>
-                          {item.source === "manual" && (
+                          {item.source === "manual" ? (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -403,7 +403,7 @@ export function AccountingDetail() {
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
-                          )}
+                          ) : null}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -433,7 +433,7 @@ export function AccountingDetail() {
                   <Switch checked={useInsurance} onCheckedChange={setUseInsurance} />
                 </div>
               </CardHeader>
-              {useInsurance && (
+              {useInsurance ? (
                 <CardContent className="p-4 space-y-4">
                   <div className="space-y-2">
                     <Label className="text-xs">負担割合（保険会社が支払う割合）</Label>
@@ -454,7 +454,7 @@ export function AccountingDetail() {
                     <span>{calculation.insuranceAmount.toLocaleString()} 円</span>
                   </div>
                 </CardContent>
-              )}
+              ) : null}
             </Card>
 
             {/* 支払い・お釣り */}
@@ -589,13 +589,13 @@ export function AccountingDetail() {
             </DialogHeader>
             <div className="flex-1 bg-gray-100 overflow-auto p-8 flex items-center justify-center">
               <div className="shadow-lg transform scale-100 origin-top">
-                {accounting.payment && (
+                {accounting.payment ? (
                   <AccountingDocument
                     type={previewType}
                     accounting={accounting}
                     paymentInfo={accounting.payment}
                   />
-                )}
+                ) : null}
               </div>
             </div>
             <DialogFooter className="gap-2">
@@ -612,7 +612,7 @@ export function AccountingDetail() {
       </PageLayout>
 
       {/* Hidden Print Area */}
-      {accounting.payment && (
+      {accounting.payment ? (
         <div className="hidden print:block fixed inset-0 bg-white z-[9999] p-0 m-0 w-full h-full">
           <style type="text/css" media="print">
             {`
@@ -628,7 +628,7 @@ export function AccountingDetail() {
             />
           </div>
         </div>
-      )}
+      ) : null}
     </>
   );
 }

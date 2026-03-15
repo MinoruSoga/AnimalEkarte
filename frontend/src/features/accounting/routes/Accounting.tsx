@@ -56,7 +56,7 @@ export function Accounting() {
   };
 
   const handleEdit = (id: string) => {
-    navigate(`/accounting/${id}`);
+    navigate(paths.accounting.detail.getHref(id));
   };
 
   const columns = [
