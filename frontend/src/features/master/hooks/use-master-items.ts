@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { toast } from "sonner";
 import type { MasterItem } from "@/types";
-import { useGetMasterItemsByCategory } from "../api/get-master-item";
+import { useGetMasterItemsByCategory } from "../api/get-master-items";
 import { useCreateMasterItem } from "../api/create-master-item";
 import { useUpdateMasterItem } from "../api/update-master-item";
 import { useDeleteMasterItem } from "../api/delete-master-item";
