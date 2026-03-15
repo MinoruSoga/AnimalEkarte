@@ -9,7 +9,7 @@ import { toast } from "sonner";
 // Internal
 import { Button } from "@/components/ui/button";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
-import { PageLayout } from "@/components/shared/PageLayout";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { useAuth } from "@/features/auth";
 

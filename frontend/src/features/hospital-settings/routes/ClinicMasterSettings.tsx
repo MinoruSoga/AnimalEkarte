@@ -10,9 +10,10 @@ import { toast } from "sonner";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
-import { PageLayout } from "@/components/shared/PageLayout";
-import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
-import { DataTable, DataTableRow } from "@/components/shared/DataTable";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";

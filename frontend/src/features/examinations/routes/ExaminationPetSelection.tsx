@@ -1,5 +1,6 @@
-import { PageLayout } from "@/components/shared/PageLayout";
-import { PetSelectionSearchForm, PetSelectionResultsTable } from "@/components/shared/PetSelection";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { PetSelectionSearchForm } from "@/components/shared/PetSelection/PetSelectionSearchForm";
+import { PetSelectionResultsTable } from "@/components/shared/PetSelection/PetSelectionResultsTable";
 import { usePetSelectionPage } from "@/hooks/use-pet-selection-page";
 
 export function ExaminationPetSelection() {

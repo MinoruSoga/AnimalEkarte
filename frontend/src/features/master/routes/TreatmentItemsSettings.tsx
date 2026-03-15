@@ -29,7 +29,7 @@ import MoreHorizontal from "lucide-react/dist/esm/icons/more-horizontal";
 import Maximize2 from "lucide-react/dist/esm/icons/maximize-2";
 
 // Internal – shared
-import { PageLayout } from "@/components/shared/PageLayout";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";

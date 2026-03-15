@@ -3,7 +3,7 @@ import { useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router";
 
 // Internal
-import { PageLayout } from "@/components/shared/PageLayout";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 
 // Relative
 import {

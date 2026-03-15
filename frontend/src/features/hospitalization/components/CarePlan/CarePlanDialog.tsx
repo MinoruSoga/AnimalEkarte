@@ -14,8 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 
 // Shared
-import { TreatmentSearchDialog } from "@/components/shared/TreatmentSearchDialog";
-import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog";
+import { TreatmentSearchDialog } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
+import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 
 // Relative
 import { H_STYLES } from "../../styles";

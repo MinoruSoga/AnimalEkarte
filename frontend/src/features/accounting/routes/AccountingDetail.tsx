@@ -7,7 +7,7 @@ import { Plus, Trash2, Save, CreditCard, Printer, FileText } from "lucide-react"
 import { toast } from "sonner";
 
 // Internal
-import { PageLayout } from "@/components/shared/PageLayout";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {

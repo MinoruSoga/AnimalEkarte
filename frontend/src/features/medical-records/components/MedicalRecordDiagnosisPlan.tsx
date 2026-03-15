@@ -1,8 +1,8 @@
 import React, { lazy, Suspense, useState, useMemo, useCallback } from "react";
-import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog";
+import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 
 const TreatmentSearchDialog = lazy(() =>
-  import("@/components/shared/TreatmentSearchDialog").then((m) => ({
+  import("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog").then((m) => ({
     default: m.TreatmentSearchDialog,
   }))
 );

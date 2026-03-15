@@ -16,12 +16,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageLayout } from "@/components/shared/PageLayout";
-import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
-import { DataTable, DataTableRow } from "@/components/shared/DataTable";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import {
   getInventoryStatusColor,
   getInventoryStatusLabel,

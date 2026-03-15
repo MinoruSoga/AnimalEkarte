@@ -8,11 +8,12 @@ import { Plus, TestTube, FileSpreadsheet } from "lucide-react";
 // Internal
 import { Button } from "@/components/ui/button";
 import { TableCell } from "@/components/ui/table";
-import { PageLayout } from "@/components/shared/PageLayout";
-import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
-import { DataTable, DataTableRow } from "@/components/shared/DataTable";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { getExaminationStatusColor } from "@/utils/status-helpers";
 

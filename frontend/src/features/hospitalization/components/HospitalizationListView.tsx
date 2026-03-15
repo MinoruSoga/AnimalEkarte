@@ -1,7 +1,8 @@
 // Internal
 import { TableCell } from "@/components/ui/table";
-import { DataTable, DataTableRow } from "@/components/shared/DataTable";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { getHospitalizationStatusColor, getHospitalizationTypeColor } from "@/utils/status-helpers";
 import { STYLE } from "@/lib/design-tokens";

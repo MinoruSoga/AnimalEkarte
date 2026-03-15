@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useGetPets } from "@/features/pets/api/get-pets";
 import type { Pet } from "@/types";
-import type { PetSelectionSearchParams } from "@/components/shared/PetSelection";
+import type { PetSelectionSearchParams } from "@/components/shared/PetSelection/PetSelectionSearchForm";
 
 interface PetSelectionPageConfig {
   /** 選択後の遷移先パス (例: "/examinations/new") */

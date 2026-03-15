@@ -9,7 +9,7 @@ import { HeartPulse, Trash2 } from "lucide-react";
 import { paths } from "@/config/paths";
 import { Button } from "@/components/ui/button";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
-import { PageLayout } from "@/components/shared/PageLayout";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { C, STYLE } from "@/lib/design-tokens";
 
 // Relative
