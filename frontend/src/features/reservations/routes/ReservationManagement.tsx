@@ -19,7 +19,11 @@ import { getCalendarViewLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
 import type { CalendarView } from "../types";
 import { CALENDAR_VIEW_VALUES } from "../types";
-import { ReservationFormModal } from "@/components/shared/ReservationFormModal";
+const ReservationFormModal = lazy(() =>
+  import("@/components/shared/ReservationFormModal").then((m) => ({
+    default: m.ReservationFormModal,
+  })),
+);
 import { useReservationManagement } from "../hooks/useReservationManagement";
 import { useServiceTypeColorMap } from "@/hooks/use-service-type-color-map";
 
@@ -244,24 +248,26 @@ export function ReservationManagement() {
         </div>
       </div>
 
-      {/* Create/Edit Form */}
-      <ReservationFormModal
-        isOpen={isFormOpen}
-        onClose={handleCloseForm}
-        onSave={handleSave}
-        initialData={editingAppointment}
-      />
+      <Suspense fallback={null}>
+        {/* Create/Edit Form */}
+        <ReservationFormModal
+          isOpen={isFormOpen}
+          onClose={handleCloseForm}
+          onSave={handleSave}
+          initialData={editingAppointment}
+        />
 
-      {/* Detail Modal */}
-      <ReservationDetailModal
-        isOpen={isDetailOpen}
-        onClose={handleCloseDetail}
-        appointment={detailAppointment}
-        onEdit={handleOpenForm}
-        onDelete={handleDelete}
-        onCreateRecord={handleCreateRecord}
-        onStatusChange={handleStatusChange}
-      />
+        {/* Detail Modal */}
+        <ReservationDetailModal
+          isOpen={isDetailOpen}
+          onClose={handleCloseDetail}
+          appointment={detailAppointment}
+          onEdit={handleOpenForm}
+          onDelete={handleDelete}
+          onCreateRecord={handleCreateRecord}
+          onStatusChange={handleStatusChange}
+        />
+      </Suspense>
 
       {/* Delete Confirm Dialog */}
       <ConfirmDialog
