@@ -25,19 +25,17 @@ import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import GripVertical from "lucide-react/dist/esm/icons/grip-vertical";
 
 // Internal – shared
-import { PageLayout } from "@/components/shared/PageLayout";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
-import {
-  PropertyRow,
-  PropInput,
-  SidePeekPanel,
-  SidePeekToolbar,
-  SidePeekBody,
-  SidePeekTitleInput,
-  SidePeekFooter,
-} from "@/components/shared/SidePeek";
+import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
+import { PropInput } from "@/components/shared/SidePeek/PropInput";
+import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
+import { SidePeekToolbar } from "@/components/shared/SidePeek/SidePeekToolbar";
+import { SidePeekBody } from "@/components/shared/SidePeek/SidePeekBody";
+import { SidePeekTitleInput } from "@/components/shared/SidePeek/SidePeekTitleInput";
+import { SidePeekFooter } from "@/components/shared/SidePeek/SidePeekFooter";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import {
   Table,

@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router";
 import { ClipboardList } from "lucide-react";
 import { paths } from "@/config/paths";
-import { PageLayout } from "@/components/shared/PageLayout";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { STYLE, LAYOUT, C } from "@/lib/design-tokens";
 
 export function InquiryTemplateSettings() {

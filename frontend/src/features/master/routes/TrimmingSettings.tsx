@@ -17,21 +17,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PageLayout } from "@/components/shared/PageLayout";
-import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
-import { DataTable, DataTableRow } from "@/components/shared/DataTable";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
-import {
-  PropertyRow,
-  PropInput,
-  SidePeekPanel,
-  SidePeekToolbar,
-  SidePeekBody,
-  SidePeekTitleInput,
-  SidePeekFooter,
-} from "@/components/shared/SidePeek";
+import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
+import { PropInput } from "@/components/shared/SidePeek/PropInput";
+import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
+import { SidePeekToolbar } from "@/components/shared/SidePeek/SidePeekToolbar";
+import { SidePeekBody } from "@/components/shared/SidePeek/SidePeekBody";
+import { SidePeekTitleInput } from "@/components/shared/SidePeek/SidePeekTitleInput";
+import { SidePeekFooter } from "@/components/shared/SidePeek/SidePeekFooter";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
   useListTrimmingCourses,

@@ -9,7 +9,7 @@ import { Building2, X } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
-import { PageLayout } from "@/components/shared/PageLayout";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { useCompany, useUpdateCompany } from "@/features/master/api/company";
 import type { UpdateCompanyRequest } from "@/features/master/api/company";

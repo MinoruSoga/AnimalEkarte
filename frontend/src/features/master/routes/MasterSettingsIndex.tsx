@@ -16,7 +16,7 @@ import { CATEGORY_CONFIG } from "@/features/master/constants/category-config";
 import type { MasterSettingsCategory } from "@/features/master/constants/category-config";
 
 // Internal
-import { PageLayout } from "@/components/shared/PageLayout";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 
 // ─────────────────────────────────────────────────
