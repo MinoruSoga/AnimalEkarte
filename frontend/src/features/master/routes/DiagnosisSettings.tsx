@@ -42,11 +42,8 @@ import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPil
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { PropInput } from "@/components/shared/SidePeek/PropInput";
-import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
-import { SidePeekToolbar } from "@/components/shared/SidePeek/SidePeekToolbar";
-import { SidePeekBody } from "@/components/shared/SidePeek/SidePeekBody";
-import { SidePeekTitleInput } from "@/components/shared/SidePeek/SidePeekTitleInput";
-import { SidePeekFooter } from "@/components/shared/SidePeek/SidePeekFooter";
+import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
   useGetDiagnosisCategories,
@@ -136,39 +133,27 @@ const DiagnosisCategorySidePanel = memo(function DiagnosisCategorySidePanel({
   }));
 
   return (
-    <SidePeekPanel>
-      <SidePeekToolbar
-        isNew={item === null}
-        onClose={onClose}
-        onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+    <MasterSidePanel
+      isNew={item === null}
+      title={formData.name}
+      onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+      onClose={onClose}
+      onSave={() => onSave(formData)}
+      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      icon={<FolderTree className={LAYOUT.pageIcon.innerIcon} />}
+    >
+      <StatusToggleButton
+        isActive={formData.isActive}
+        onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
       />
-      <SidePeekBody>
-        <div className="pt-4 pb-2">
-          <div className={STYLE.pageIcon}>
-            <FolderTree className={LAYOUT.pageIcon.innerIcon} />
-          </div>
-        </div>
-        <SidePeekTitleInput
-          value={formData.name}
-          onChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+      <PropertyRow label="備考">
+        <PropInput
+          value={formData.description}
+          onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
+          placeholder="補足情報など"
         />
-        <div className={`${STYLE.sectionDivider} mb-1`} />
-        <div className="py-1">
-          <StatusToggleButton
-            isActive={formData.isActive}
-            onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
-          />
-          <PropertyRow label="備考">
-            <PropInput
-              value={formData.description}
-              onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
-              placeholder="補足情報など"
-            />
-          </PropertyRow>
-        </div>
-      </SidePeekBody>
-      <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
-    </SidePeekPanel>
+      </PropertyRow>
+    </MasterSidePanel>
   );
 });
 
@@ -211,52 +196,40 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
   );
 
   return (
-    <SidePeekPanel>
-      <SidePeekToolbar
-        isNew={item === null}
-        onClose={onClose}
-        onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+    <MasterSidePanel
+      isNew={item === null}
+      title={formData.name}
+      onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+      onClose={onClose}
+      onSave={() => onSave(formData)}
+      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      icon={<ClipboardList className={LAYOUT.pageIcon.innerIcon} />}
+    >
+      <StatusToggleButton
+        isActive={formData.isActive}
+        onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
       />
-      <SidePeekBody>
-        <div className="pt-4 pb-2">
-          <div className={STYLE.pageIcon}>
-            <FolderTree className={LAYOUT.pageIcon.innerIcon} />
-          </div>
-        </div>
-        <SidePeekTitleInput
-          value={formData.name}
-          onChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+      <PropertyRow label="カテゴリ">
+        <Select
+          value={formData.diagnosisCategoryId}
+          onValueChange={(v) => setFormData((prev) => ({ ...prev, diagnosisCategoryId: v }))}
+        >
+          <SelectTrigger className={STYLE.selectCompact}>
+            <SelectValue placeholder="カテゴリを選択" />
+          </SelectTrigger>
+          <SelectContent>
+            {categorySelectItems}
+          </SelectContent>
+        </Select>
+      </PropertyRow>
+      <PropertyRow label="備考">
+        <PropInput
+          value={formData.description}
+          onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
+          placeholder="補足情報など"
         />
-        <div className={`${STYLE.sectionDivider} mb-1`} />
-        <div className="py-1">
-          <StatusToggleButton
-            isActive={formData.isActive}
-            onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
-          />
-          <PropertyRow label="カテゴリ">
-            <Select
-              value={formData.diagnosisCategoryId}
-              onValueChange={(v) => setFormData((prev) => ({ ...prev, diagnosisCategoryId: v }))}
-            >
-              <SelectTrigger className={STYLE.selectCompact}>
-                <SelectValue placeholder="カテゴリを選択" />
-              </SelectTrigger>
-              <SelectContent>
-                {categorySelectItems}
-              </SelectContent>
-            </Select>
-          </PropertyRow>
-          <PropertyRow label="備考">
-            <PropInput
-              value={formData.description}
-              onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
-              placeholder="補足情報など"
-            />
-          </PropertyRow>
-        </div>
-      </SidePeekBody>
-      <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
-    </SidePeekPanel>
+      </PropertyRow>
+    </MasterSidePanel>
   );
 });
 
@@ -264,9 +237,12 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
 // DiagnosisCategoryTab
 // ─────────────────────────────────────────────────
 
-function DiagnosisCategoryTab() {
-  // null=closed, "new"=create mode, DiagnosisCategory=edit mode
-  const [editTarget, setEditTarget] = useState<DiagnosisCategory | "new" | null>(null);
+interface DiagnosisCategoryTabProps {
+  editTarget: DiagnosisCategory | "new" | null;
+  onEditTargetChange: (v: DiagnosisCategory | "new" | null) => void;
+}
+
+function DiagnosisCategoryTab({ editTarget, onEditTargetChange }: DiagnosisCategoryTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<DiagnosisCategory | null>(null);
   const [, startSaveTransition] = useTransition();
@@ -294,7 +270,7 @@ function DiagnosisCategoryTab() {
     return orderedCategories.filter((c) => c.name.toLowerCase().includes(lower));
   }, [orderedCategories, deferredSearch]);
 
-  const handleClose = useCallback(() => setEditTarget(null), []);
+  const handleClose = useCallback(() => onEditTargetChange(null), [onEditTargetChange]);
 
   const handleSave = useCallback(
     (data: DiagnosisCategoryFormData) => {
@@ -353,24 +329,12 @@ function DiagnosisCategoryTab() {
       <div className="flex h-full">
         {/* Table area */}
         <div className="flex flex-col gap-4 flex-1 min-w-0">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <SearchFilterBar
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                placeholder="カテゴリ名で検索..."
-                count={filteredItems.length}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setEditTarget("new")}
-              className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1B6EC2] cursor-pointer transition-colors"
-            >
-              <Plus className="size-4" />
-              新規登録
-            </button>
-          </div>
+          <SearchFilterBar
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            placeholder="カテゴリ名で検索..."
+            count={filteredItems.length}
+          />
 
           <DndContext
             sensors={sensors}
@@ -389,7 +353,7 @@ function DiagnosisCategoryTab() {
                   <SortableDataTableRow
                     key={item.id}
                     id={item.id}
-                    onClick={() => setEditTarget(item)}
+                    onClick={() => onEditTargetChange(item)}
                   >
                     <TableCell className={`font-medium text-sm ${C.text}`}>
                       {item.name}
@@ -401,7 +365,7 @@ function DiagnosisCategoryTab() {
                       <NotionStatusPill isActive={item.isActive} />
                     </TableCell>
                     <TableCell className="p-0 text-right">
-                      <RowActionButton onClick={() => setEditTarget(item)} />
+                      <RowActionButton onClick={() => onEditTargetChange(item)} />
                     </TableCell>
                   </SortableDataTableRow>
                 )}
@@ -439,9 +403,12 @@ function DiagnosisCategoryTab() {
 // DiagnosisNameTab
 // ─────────────────────────────────────────────────
 
-function DiagnosisNameTab() {
-  // null=closed, "new"=create mode, DiagnosisName=edit mode
-  const [editTarget, setEditTarget] = useState<DiagnosisName | "new" | null>(null);
+interface DiagnosisNameTabProps {
+  editTarget: DiagnosisName | "new" | null;
+  onEditTargetChange: (v: DiagnosisName | "new" | null) => void;
+}
+
+function DiagnosisNameTab({ editTarget, onEditTargetChange }: DiagnosisNameTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<DiagnosisName | null>(null);
   const [, startSaveTransition] = useTransition();
@@ -476,7 +443,7 @@ function DiagnosisNameTab() {
     [rawCategories],
   );
 
-  const handleClose = useCallback(() => setEditTarget(null), []);
+  const handleClose = useCallback(() => onEditTargetChange(null), [onEditTargetChange]);
 
   const handleSave = useCallback(
     (data: DiagnosisNameFormData) => {
@@ -541,24 +508,12 @@ function DiagnosisNameTab() {
       <div className="flex h-full">
         {/* Table area */}
         <div className="flex flex-col gap-4 flex-1 min-w-0">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <SearchFilterBar
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                placeholder="診断病名で検索..."
-                count={filteredItems.length}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setEditTarget("new")}
-              className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1B6EC2] cursor-pointer transition-colors"
-            >
-              <Plus className="size-4" />
-              新規登録
-            </button>
-          </div>
+          <SearchFilterBar
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            placeholder="診断病名で検索..."
+            count={filteredItems.length}
+          />
 
           <DndContext
             sensors={sensors}
@@ -577,7 +532,7 @@ function DiagnosisNameTab() {
                   <SortableDataTableRow
                     key={item.id}
                     id={item.id}
-                    onClick={() => setEditTarget(item)}
+                    onClick={() => onEditTargetChange(item)}
                   >
                     <TableCell className={`text-sm ${C.text70}`}>
                       {categoryMap.get(item.diagnosisCategoryId) ?? "-"}
@@ -589,7 +544,7 @@ function DiagnosisNameTab() {
                       <NotionStatusPill isActive={item.isActive} />
                     </TableCell>
                     <TableCell className="p-0 text-right">
-                      <RowActionButton onClick={() => setEditTarget(item)} />
+                      <RowActionButton onClick={() => onEditTargetChange(item)} />
                     </TableCell>
                   </SortableDataTableRow>
                 )}
@@ -633,8 +588,13 @@ export function DiagnosisSettings() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") ?? "diagnosis_category";
 
+  const [categoryEditTarget, setCategoryEditTarget] = useState<DiagnosisCategory | "new" | null>(null);
+  const [nameEditTarget, setNameEditTarget] = useState<DiagnosisName | "new" | null>(null);
+
   const handleTabChange = useCallback((tab: string) => {
     setSearchParams({ tab });
+    setCategoryEditTarget(null);
+    setNameEditTarget(null);
   }, [setSearchParams]);
 
   return (
@@ -643,6 +603,15 @@ export function DiagnosisSettings() {
       icon={<ClipboardList className="size-5 text-[#37352F]" />}
       onBack={() => navigate(paths.settings.getHref())}
       maxWidth="max-w-full"
+      headerAction={
+        <PrimaryButton onClick={() => {
+          if (activeTab === "diagnosis_category") setCategoryEditTarget("new");
+          else setNameEditTarget("new");
+        }}>
+          <Plus className="mr-1.5 size-4" />
+          新規登録
+        </PrimaryButton>
+      }
     >
       <Tabs
         value={activeTab}
@@ -664,10 +633,16 @@ export function DiagnosisSettings() {
           ))}
         </TabsList>
         <TabsContent value="diagnosis_category" className="mt-4">
-          <DiagnosisCategoryTab />
+          <DiagnosisCategoryTab
+            editTarget={categoryEditTarget}
+            onEditTargetChange={setCategoryEditTarget}
+          />
         </TabsContent>
         <TabsContent value="diagnosis_name" className="mt-4">
-          <DiagnosisNameTab />
+          <DiagnosisNameTab
+            editTarget={nameEditTarget}
+            onEditTargetChange={setNameEditTarget}
+          />
         </TabsContent>
       </Tabs>
     </PageLayout>

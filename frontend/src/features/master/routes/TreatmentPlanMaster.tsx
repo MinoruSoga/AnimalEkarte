@@ -32,13 +32,10 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { PropInput } from "@/components/shared/SidePeek/PropInput";
-import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
-import { SidePeekToolbar } from "@/components/shared/SidePeek/SidePeekToolbar";
-import { SidePeekBody } from "@/components/shared/SidePeek/SidePeekBody";
-import { SidePeekTitleInput } from "@/components/shared/SidePeek/SidePeekTitleInput";
-import { SidePeekFooter } from "@/components/shared/SidePeek/SidePeekFooter";
+import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 
 // API hooks
@@ -179,43 +176,31 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
   }));
 
   return (
-    <SidePeekPanel>
-      <SidePeekToolbar
-        isNew={item === null}
-        onClose={onClose}
-        onDelete={item !== null ? onDeleteRequest : undefined}
+    <MasterSidePanel
+      isNew={item === null}
+      title={formData.name}
+      onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+      onClose={onClose}
+      onSave={() => onSave(formData)}
+      onDelete={item !== null ? onDeleteRequest : undefined}
+      icon={<Stethoscope className={LAYOUT.pageIcon.innerIcon} />}
+    >
+      <StatusToggleButton
+        isActive={formData.isActive}
+        onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
       />
-      <SidePeekBody>
-        <div className="pt-4 pb-2">
-          <div className={STYLE.pageIcon}>
-            <Stethoscope className={LAYOUT.pageIcon.innerIcon} />
-          </div>
-        </div>
-        <SidePeekTitleInput
-          value={formData.name}
-          onChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+      <MoneyInput
+        value={formData.price}
+        onChange={(v) => setFormData((prev) => ({ ...prev, price: v }))}
+      />
+      <PropertyRow label="備考">
+        <PropInput
+          value={formData.description}
+          onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
+          placeholder="補足情報など"
         />
-        <div className={`${STYLE.sectionDivider} mb-1`} />
-        <div className="py-1">
-          <StatusToggleButton
-            isActive={formData.isActive}
-            onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
-          />
-          <MoneyInput
-            value={formData.price}
-            onChange={(v) => setFormData((prev) => ({ ...prev, price: v }))}
-          />
-          <PropertyRow label="備考">
-            <PropInput
-              value={formData.description}
-              onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
-              placeholder="補足情報など"
-            />
-          </PropertyRow>
-        </div>
-      </SidePeekBody>
-      <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
-    </SidePeekPanel>
+      </PropertyRow>
+    </MasterSidePanel>
   );
 });
 
@@ -258,6 +243,11 @@ function ChildTreatmentRow({
 // TreatmentTabContent (generic — shared across all 5 tabs)
 // ─────────────────────────────────────────────────
 
+interface TreatmentTabContentProps extends TreatmentTabConfig {
+  editTarget: TreatmentItem | "new" | null;
+  onEditTargetChange: (v: TreatmentItem | "new" | null) => void;
+}
+
 function TreatmentTabContent({
   data: rawData,
   entityLabel,
@@ -267,8 +257,9 @@ function TreatmentTabContent({
   onUpdate,
   onDelete,
   onReorder,
-}: TreatmentTabConfig) {
-  const [editTarget, setEditTarget] = useState<TreatmentItem | "new" | null>(null);
+  editTarget,
+  onEditTargetChange,
+}: TreatmentTabContentProps) {
   const selectedItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
   const [searchTerm, setSearchTerm] = useState("");
   const deferredSearch = useDeferredValue(searchTerm);
@@ -321,16 +312,12 @@ function TreatmentTabContent({
   const totalCount = (rawData ?? []).length;
 
   const handleEdit = useCallback((item: TreatmentItem) => {
-    setEditTarget(item);
-  }, []);
-
-  const handleCreate = useCallback(() => {
-    setEditTarget("new");
-  }, []);
+    onEditTargetChange(item);
+  }, [onEditTargetChange]);
 
   const handleClose = useCallback(() => {
-    setEditTarget(null);
-  }, []);
+    onEditTargetChange(null);
+  }, [onEditTargetChange]);
 
   const handleDeleteRequest = useCallback(() => {
     setPendingDelete(selectedItem);
@@ -377,24 +364,12 @@ function TreatmentTabContent({
       <div className="flex h-full">
         {/* Table area */}
         <div className="flex flex-col gap-4 flex-1 min-w-0">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <SearchFilterBar
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                placeholder={searchPlaceholder}
-                count={totalCount}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={handleCreate}
-              className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1B6EC2] cursor-pointer transition-colors"
-            >
-              <Plus className="size-4" />
-              新規登録
-            </button>
-          </div>
+          <SearchFilterBar
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            placeholder={searchPlaceholder}
+            count={totalCount}
+          />
 
           <DndContext
             sensors={sensors}
@@ -503,9 +478,11 @@ export function TreatmentPlanMaster() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") ?? "consultation";
+  const [editTarget, setEditTarget] = useState<TreatmentItem | "new" | null>(null);
 
   const handleTabChange = useCallback((tab: string) => {
     setSearchParams({ tab });
+    setEditTarget(null);
   }, [setSearchParams]);
 
   // ── Consultations ──────────────────────────────────
@@ -739,6 +716,12 @@ export function TreatmentPlanMaster() {
       icon={<Stethoscope className="size-5 text-[#37352F]" />}
       onBack={() => navigate(paths.settings.getHref())}
       maxWidth="max-w-full"
+      headerAction={
+        <PrimaryButton onClick={() => setEditTarget("new")}>
+          <Plus className="mr-1.5 size-4" />
+          新規登録
+        </PrimaryButton>
+      }
     >
       <TabsPrimitive.Root
         value={activeTab}
@@ -764,7 +747,11 @@ export function TreatmentPlanMaster() {
           const config = tabConfigs[tab.value];
           return (
             <TabsPrimitive.Content key={tab.value} value={tab.value} className="mt-4">
-              <TreatmentTabContent {...config} />
+              <TreatmentTabContent
+                {...config}
+                editTarget={editTarget}
+                onEditTargetChange={setEditTarget}
+              />
             </TabsPrimitive.Content>
           );
         })}

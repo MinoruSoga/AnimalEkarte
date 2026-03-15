@@ -19,11 +19,8 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
-import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
-import { SidePeekToolbar } from "@/components/shared/SidePeek/SidePeekToolbar";
-import { SidePeekBody } from "@/components/shared/SidePeek/SidePeekBody";
-import { SidePeekTitleInput } from "@/components/shared/SidePeek/SidePeekTitleInput";
-import { SidePeekFooter } from "@/components/shared/SidePeek/SidePeekFooter";
+import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
   useGetStaffs,
@@ -72,7 +69,6 @@ const STAFF_ROLE_SELECT_ITEMS = (
 interface StaffFormData {
   name: string;
   staffRole: StaffRoleValue;
-  code: string;
   licenseNumber: string;
   isActive: boolean;
   email: string;
@@ -100,7 +96,6 @@ const StaffSidePanel = memo(function StaffSidePanel({
   const [formData, setFormData] = useState<StaffFormData>(() => ({
     name: item?.name ?? "",
     staffRole: item?.staffRole ?? "veterinarian",
-    code: item?.code ?? "",
     licenseNumber: item?.licenseNumber ?? "",
     isActive: item?.isActive ?? true,
     email: "",
@@ -108,89 +103,67 @@ const StaffSidePanel = memo(function StaffSidePanel({
   }));
 
   return (
-    <SidePeekPanel>
-      <SidePeekToolbar
-        isNew={item === null}
-        onClose={onClose}
-        onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+    <MasterSidePanel
+      isNew={item === null}
+      title={formData.name}
+      onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+      onClose={onClose}
+      onSave={() => onSave(formData)}
+      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      icon={<UserRound className={LAYOUT.pageIcon.innerIcon} />}
+    >
+      <StatusToggleButton
+        isActive={formData.isActive}
+        onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
       />
-      <SidePeekBody>
-        <div className="pt-4 pb-2">
-          <div className={STYLE.pageIcon}>
-            <UserRound className={LAYOUT.pageIcon.innerIcon} />
-          </div>
-        </div>
-        <SidePeekTitleInput
-          value={formData.name}
-          onChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+
+      <PropertyRow label="職種">
+        <Select
+          value={formData.staffRole}
+          onValueChange={(v) => setFormData((prev) => ({ ...prev, staffRole: v as StaffRoleValue }))}
+        >
+          <SelectTrigger className={STYLE.selectCompact}>
+            <SelectValue placeholder="選択" />
+          </SelectTrigger>
+          <SelectContent>{STAFF_ROLE_SELECT_ITEMS}</SelectContent>
+        </Select>
+      </PropertyRow>
+
+      <PropertyRow label="資格番号">
+        <input
+          type="text"
+          className={INPUT_CLASS}
+          value={formData.licenseNumber}
+          onChange={(e) => setFormData((prev) => ({ ...prev, licenseNumber: e.target.value }))}
+          placeholder="空"
         />
-        <div className={`${STYLE.sectionDivider} mb-1`} />
-        <div className="py-1">
-          <StatusToggleButton
-            isActive={formData.isActive}
-            onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
-          />
+      </PropertyRow>
 
-          <PropertyRow label="社員番号">
+      {/* 新規作成時のみ: email / password */}
+      {item === null ? (
+        <>
+          <PropertyRow label="メールアドレス">
             <input
-              type="text"
+              type="email"
               className={INPUT_CLASS}
-              value={formData.code}
-              onChange={(e) => setFormData((prev) => ({ ...prev, code: e.target.value }))}
-              placeholder="例: ST-001"
+              value={formData.email}
+              onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+              placeholder="例: staff@clinic.com"
             />
           </PropertyRow>
 
-          <PropertyRow label="職種">
-            <Select
-              value={formData.staffRole}
-              onValueChange={(v) => setFormData((prev) => ({ ...prev, staffRole: v as StaffRoleValue }))}
-            >
-              <SelectTrigger className={STYLE.selectCompact}>
-                <SelectValue placeholder="選択" />
-              </SelectTrigger>
-              <SelectContent>{STAFF_ROLE_SELECT_ITEMS}</SelectContent>
-            </Select>
-          </PropertyRow>
-
-          <PropertyRow label="資格番号">
+          <PropertyRow label="パスワード">
             <input
-              type="text"
+              type="password"
               className={INPUT_CLASS}
-              value={formData.licenseNumber}
-              onChange={(e) => setFormData((prev) => ({ ...prev, licenseNumber: e.target.value }))}
-              placeholder="空"
+              value={formData.password}
+              onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+              placeholder="8文字以上"
             />
           </PropertyRow>
-
-          {/* 新規作成時のみ: email / password */}
-          {item === null ? (
-            <>
-              <PropertyRow label="メールアドレス">
-                <input
-                  type="email"
-                  className={INPUT_CLASS}
-                  value={formData.email}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
-                  placeholder="例: staff@clinic.com"
-                />
-              </PropertyRow>
-
-              <PropertyRow label="パスワード">
-                <input
-                  type="password"
-                  className={INPUT_CLASS}
-                  value={formData.password}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
-                  placeholder="8文字以上"
-                />
-              </PropertyRow>
-            </>
-          ) : null}
-        </div>
-      </SidePeekBody>
-      <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
-    </SidePeekPanel>
+        </>
+      ) : null}
+    </MasterSidePanel>
   );
 });
 
@@ -253,7 +226,6 @@ export function StaffSettings() {
           const req: UpdateStaffRequest = {
             name: data.name,
             staff_role: data.staffRole,
-            code: data.code || undefined,
             license_number: data.licenseNumber || undefined,
             is_active: data.isActive,
           };
@@ -273,7 +245,6 @@ export function StaffSettings() {
             staff_role: data.staffRole,
             email: data.email,
             password: data.password,
-            code: data.code || undefined,
             license_number: data.licenseNumber || undefined,
           };
           createMutation.mutate(req, {
@@ -309,28 +280,22 @@ export function StaffSettings() {
       icon={<UserRound className="size-5 text-[#37352F]" />}
       onBack={() => navigate(paths.settings.getHref())}
       maxWidth="max-w-full"
+      headerAction={
+        <PrimaryButton onClick={() => setEditTarget("new")}>
+          <Plus className="mr-1.5 size-4" />
+          新規登録
+        </PrimaryButton>
+      }
     >
       <div className="flex h-full">
         {/* Table area */}
         <div className="flex flex-col gap-4 flex-1 min-w-0">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <SearchFilterBar
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                placeholder="氏名、職種で検索..."
-                count={filteredItems.length}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setEditTarget("new")}
-              className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1B6EC2] cursor-pointer transition-colors"
-            >
-              <Plus className="size-4" />
-              新規登録
-            </button>
-          </div>
+          <SearchFilterBar
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            placeholder="氏名、職種で検索..."
+            count={filteredItems.length}
+          />
 
           <DataTable
             columns={COLUMNS}

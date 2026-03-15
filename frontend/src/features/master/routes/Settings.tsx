@@ -33,11 +33,7 @@ import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { PropInput } from "@/components/shared/SidePeek/PropInput";
-import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
-import { SidePeekToolbar } from "@/components/shared/SidePeek/SidePeekToolbar";
-import { SidePeekBody } from "@/components/shared/SidePeek/SidePeekBody";
-import { SidePeekTitleInput } from "@/components/shared/SidePeek/SidePeekTitleInput";
-import { SidePeekFooter } from "@/components/shared/SidePeek/SidePeekFooter";
+import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 
 // Types
 import type { MasterItem } from "@/types";
@@ -251,122 +247,110 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
 
   // ── Side peek panel ────────────────────────────────
   const sidePeekPanel = isEditing ? (
-    <SidePeekPanel>
-      <SidePeekToolbar
-        isNew={selectedItem === null}
-        onClose={handleCloseEdit}
-        onDelete={selectedItem !== null ? handleDelete : undefined}
-      />
-      <SidePeekBody>
-        <div className="pt-4 pb-2">
-          <div className={STYLE.pageIcon}>
-            {config ? <config.IconComponent className={LAYOUT.pageIcon.innerIcon} /> : null}
-          </div>
-        </div>
-        <SidePeekTitleInput
-          value={formData.name ?? ""}
-          onChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
-          placeholder={config?.namePlaceholder ?? "無題"}
-        />
-        <div className={`${STYLE.sectionDivider} mb-1`} />
-        <div className="py-1">
-          {/* Status */}
-          <PropertyRow label="ステータス">
-            <button
-              type="button"
-              onClick={() =>
-                setFormData((prev) => ({
-                  ...prev,
-                  status: prev.status === "inactive" ? "active" : "inactive",
-                }))
+    <MasterSidePanel
+      isNew={selectedItem === null}
+      title={formData.name ?? ""}
+      onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+      onClose={handleCloseEdit}
+      onSave={handleSave}
+      onDelete={selectedItem !== null ? handleDelete : undefined}
+      icon={config ? <config.IconComponent className={LAYOUT.pageIcon.innerIcon} /> : null}
+      titlePlaceholder={config?.namePlaceholder ?? "無題"}
+    >
+      {/* Status */}
+      <PropertyRow label="ステータス">
+        <button
+          type="button"
+          onClick={() =>
+            setFormData((prev) => ({
+              ...prev,
+              status: prev.status === "inactive" ? "active" : "inactive",
+            }))
+          }
+          className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
+        >
+          <NotionStatusPill isActive={formData.status !== "inactive"} />
+        </button>
+      </PropertyRow>
+
+      {/* Price */}
+      {showPrice ? (
+        <PropertyRow label="単価(税込)">
+          <div className="flex items-center gap-1">
+            <span className={`text-sm ${C.text40}`}>¥</span>
+            <input
+              type="number"
+              value={formData.price ?? 0}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, price: Number(e.target.value) }))
               }
-              className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
-            >
-              <NotionStatusPill isActive={formData.status !== "inactive"} />
-            </button>
-          </PropertyRow>
-
-          {/* Price */}
-          {showPrice ? (
-            <PropertyRow label="単価(税込)">
-              <div className="flex items-center gap-1">
-                <span className={`text-sm ${C.text40}`}>¥</span>
-                <input
-                  type="number"
-                  value={formData.price ?? 0}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, price: Number(e.target.value) }))
-                  }
-                  placeholder="0"
-                  className={`${STYLE.propertyInput} w-28`}
-                />
-              </div>
-            </PropertyRow>
-          ) : null}
-
-          {/* Category */}
-          {showCategory ? (
-            <PropertyRow label={labels.category}>
-              <PropInput
-                value={formData.category ?? ""}
-                onChange={(v) => setFormData((prev) => ({ ...prev, category: v }))}
-                placeholder="分類"
-              />
-            </PropertyRow>
-          ) : null}
-
-          {/* Description / remarks */}
-          <PropertyRow label="備考">
-            <PropInput
-              value={formData.description ?? ""}
-              onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
-              placeholder="空"
+              placeholder="0"
+              className={`${STYLE.propertyInput} w-28`}
             />
-          </PropertyRow>
+          </div>
+        </PropertyRow>
+      ) : null}
 
-          {/* Consultation-specific: time_condition */}
-          {resolvedCategory === "consultation" ? (
-            <PropertyRow label="適用区分">
-              <Select
-                value={formData.timeCondition ?? "anytime"}
-                onValueChange={(v) => setFormData((prev) => ({ ...prev, timeCondition: v }))}
-              >
-                <SelectTrigger className={STYLE.selectCompact}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="anytime">常時</SelectItem>
-                  <SelectItem value="first_visit">初診</SelectItem>
-                  <SelectItem value="revisit">再診</SelectItem>
-                  <SelectItem value="after_hours">時間外</SelectItem>
-                  <SelectItem value="emergency">緊急</SelectItem>
-                </SelectContent>
-              </Select>
-            </PropertyRow>
-          ) : null}
+      {/* Category */}
+      {showCategory ? (
+        <PropertyRow label={labels.category}>
+          <PropInput
+            value={formData.category ?? ""}
+            onChange={(v) => setFormData((prev) => ({ ...prev, category: v }))}
+            placeholder="分類"
+          />
+        </PropertyRow>
+      ) : null}
 
-          {/* Consultation-specific: duration */}
-          {resolvedCategory === "consultation" ? (
-            <PropertyRow label="標準診察時間 (分)">
-              <input
-                type="number"
-                min={0}
-                value={formData.duration ?? ""}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    duration: e.target.value === "" ? null : Number(e.target.value),
-                  }))
-                }
-                placeholder="例: 15"
-                className={`${STYLE.propertyInput} w-28`}
-              />
-            </PropertyRow>
-          ) : null}
-        </div>
-      </SidePeekBody>
-      <SidePeekFooter onCancel={handleCloseEdit} onSave={handleSave} />
-    </SidePeekPanel>
+      {/* Description / remarks */}
+      <PropertyRow label="備考">
+        <PropInput
+          value={formData.description ?? ""}
+          onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
+          placeholder="空"
+        />
+      </PropertyRow>
+
+      {/* Consultation-specific: time_condition */}
+      {resolvedCategory === "consultation" ? (
+        <PropertyRow label="適用区分">
+          <Select
+            value={formData.timeCondition ?? "anytime"}
+            onValueChange={(v) => setFormData((prev) => ({ ...prev, timeCondition: v }))}
+          >
+            <SelectTrigger className={STYLE.selectCompact}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="anytime">常時</SelectItem>
+              <SelectItem value="first_visit">初診</SelectItem>
+              <SelectItem value="revisit">再診</SelectItem>
+              <SelectItem value="after_hours">時間外</SelectItem>
+              <SelectItem value="emergency">緊急</SelectItem>
+            </SelectContent>
+          </Select>
+        </PropertyRow>
+      ) : null}
+
+      {/* Consultation-specific: duration */}
+      {resolvedCategory === "consultation" ? (
+        <PropertyRow label="標準診察時間 (分)">
+          <input
+            type="number"
+            min={0}
+            value={formData.duration ?? ""}
+            onChange={(e) =>
+              setFormData((prev) => ({
+                ...prev,
+                duration: e.target.value === "" ? null : Number(e.target.value),
+              }))
+            }
+            placeholder="例: 15"
+            className={`${STYLE.propertyInput} w-28`}
+          />
+        </PropertyRow>
+      ) : null}
+    </MasterSidePanel>
   ) : null;
 
   // ── Confirm dialog ─────────────────────────────────

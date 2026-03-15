@@ -27,11 +27,8 @@ import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
 import { PropInput } from "@/components/shared/SidePeek/PropInput";
-import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
-import { SidePeekToolbar } from "@/components/shared/SidePeek/SidePeekToolbar";
-import { SidePeekBody } from "@/components/shared/SidePeek/SidePeekBody";
-import { SidePeekTitleInput } from "@/components/shared/SidePeek/SidePeekTitleInput";
-import { SidePeekFooter } from "@/components/shared/SidePeek/SidePeekFooter";
+import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
   useGetAllHospitalizationPlans,
@@ -118,80 +115,68 @@ const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
   }));
 
   return (
-    <SidePeekPanel>
-      <SidePeekToolbar
-        isNew={item === null}
-        onClose={onClose}
-        onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+    <MasterSidePanel
+      isNew={item === null}
+      title={formData.name}
+      onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+      onClose={onClose}
+      onSave={() => onSave(formData)}
+      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      icon={<Bed className={LAYOUT.pageIcon.innerIcon} />}
+    >
+      {/* Status */}
+      <StatusToggleButton
+        isActive={formData.isActive}
+        onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
       />
-      <SidePeekBody>
-        <div className="pt-4 pb-2">
-          <div className={STYLE.pageIcon}>
-            <Bed className={LAYOUT.pageIcon.innerIcon} />
-          </div>
-        </div>
-        <SidePeekTitleInput
-          value={formData.name}
-          onChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+
+      {/* Body Size */}
+      <PropertyRow label="対象体格">
+        <Select
+          value={formData.bodySize}
+          onValueChange={(v) =>
+            setFormData((prev) => ({ ...prev, bodySize: v as BodySize }))
+          }
+        >
+          <SelectTrigger className={STYLE.selectCompact}>
+            <SelectValue placeholder="選択" />
+          </SelectTrigger>
+          <SelectContent>{BODY_SIZE_SELECT_ITEMS}</SelectContent>
+        </Select>
+      </PropertyRow>
+
+      {/* Billing Unit */}
+      <PropertyRow label="料金単位">
+        <Select
+          value={formData.billingUnit}
+          onValueChange={(v) =>
+            setFormData((prev) => ({ ...prev, billingUnit: v as BillingUnit }))
+          }
+        >
+          <SelectTrigger className={STYLE.selectCompact}>
+            <SelectValue placeholder="選択" />
+          </SelectTrigger>
+          <SelectContent>{BILLING_UNIT_SELECT_ITEMS}</SelectContent>
+        </Select>
+      </PropertyRow>
+
+      {/* Price */}
+      <MoneyInput
+        value={formData.price}
+        onChange={(v) => setFormData((prev) => ({ ...prev, price: v }))}
+      />
+
+      {/* Description */}
+      <PropertyRow label="備考">
+        <PropInput
+          value={formData.description}
+          onChange={(v) =>
+            setFormData((prev) => ({ ...prev, description: v }))
+          }
+          placeholder="補足情報など"
         />
-        <div className={`${STYLE.sectionDivider} mb-1`} />
-        <div className="py-1">
-          {/* Status */}
-          <StatusToggleButton
-            isActive={formData.isActive}
-            onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
-          />
-
-          {/* Body Size */}
-          <PropertyRow label="対象体格">
-            <Select
-              value={formData.bodySize}
-              onValueChange={(v) =>
-                setFormData((prev) => ({ ...prev, bodySize: v as BodySize }))
-              }
-            >
-              <SelectTrigger className={STYLE.selectCompact}>
-                <SelectValue placeholder="選択" />
-              </SelectTrigger>
-              <SelectContent>{BODY_SIZE_SELECT_ITEMS}</SelectContent>
-            </Select>
-          </PropertyRow>
-
-          {/* Billing Unit */}
-          <PropertyRow label="料金単位">
-            <Select
-              value={formData.billingUnit}
-              onValueChange={(v) =>
-                setFormData((prev) => ({ ...prev, billingUnit: v as BillingUnit }))
-              }
-            >
-              <SelectTrigger className={STYLE.selectCompact}>
-                <SelectValue placeholder="選択" />
-              </SelectTrigger>
-              <SelectContent>{BILLING_UNIT_SELECT_ITEMS}</SelectContent>
-            </Select>
-          </PropertyRow>
-
-          {/* Price */}
-          <MoneyInput
-            value={formData.price}
-            onChange={(v) => setFormData((prev) => ({ ...prev, price: v }))}
-          />
-
-          {/* Description */}
-          <PropertyRow label="備考">
-            <PropInput
-              value={formData.description}
-              onChange={(v) =>
-                setFormData((prev) => ({ ...prev, description: v }))
-              }
-              placeholder="補足情報など"
-            />
-          </PropertyRow>
-        </div>
-      </SidePeekBody>
-      <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
-    </SidePeekPanel>
+      </PropertyRow>
+    </MasterSidePanel>
   );
 });
 
@@ -295,28 +280,22 @@ export function HospitalizationSettings() {
       icon={<Bed className="size-5 text-[#37352F]" />}
       onBack={() => navigate(paths.settings.getHref())}
       maxWidth="max-w-full"
+      headerAction={
+        <PrimaryButton onClick={() => setEditTarget("new")}>
+          <Plus className="mr-1.5 size-4" />
+          新規登録
+        </PrimaryButton>
+      }
     >
       <div className="flex h-full">
         {/* Table area */}
         <div className="flex flex-col gap-4 flex-1 min-w-0">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <SearchFilterBar
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                placeholder="名称で検索..."
-                count={filteredItems.length}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setEditTarget("new")}
-              className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1B6EC2] cursor-pointer transition-colors"
-            >
-              <Plus className="size-4" />
-              新規登録
-            </button>
-          </div>
+          <SearchFilterBar
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            placeholder="名称で検索..."
+            count={filteredItems.length}
+          />
 
           <DataTable
             columns={COLUMNS}

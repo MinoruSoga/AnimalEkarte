@@ -25,11 +25,8 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { PropInput } from "@/components/shared/SidePeek/PropInput";
-import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
-import { SidePeekToolbar } from "@/components/shared/SidePeek/SidePeekToolbar";
-import { SidePeekBody } from "@/components/shared/SidePeek/SidePeekBody";
-import { SidePeekTitleInput } from "@/components/shared/SidePeek/SidePeekTitleInput";
-import { SidePeekFooter } from "@/components/shared/SidePeek/SidePeekFooter";
+import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
   useGetTrimmingCourses,
@@ -147,91 +144,79 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
   }));
 
   return (
-    <SidePeekPanel>
-      <SidePeekToolbar
-        isNew={item === null}
-        onClose={onClose}
-        onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
-      />
-      <SidePeekBody>
-        <div className="pt-4 pb-2">
-          <div className={STYLE.pageIcon}>
-            <Scissors className={LAYOUT.pageIcon.innerIcon} />
-          </div>
-        </div>
-        <SidePeekTitleInput
-          value={formData.name}
-          onChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+    <MasterSidePanel
+      isNew={item === null}
+      title={formData.name}
+      onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+      onClose={onClose}
+      onSave={() => onSave(formData)}
+      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      icon={<Scissors className={LAYOUT.pageIcon.innerIcon} />}
+    >
+      <PropertyRow label="ステータス">
+        <button
+          type="button"
+          onClick={() =>
+            setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))
+          }
+          className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+        >
+          <NotionStatusPill isActive={formData.isActive} />
+        </button>
+      </PropertyRow>
+
+      <PropertyRow label="対象サイズ">
+        <Select
+          value={formData.targetSize || "__none__"}
+          onValueChange={(v) =>
+            setFormData((prev) => ({
+              ...prev,
+              targetSize: v === "__none__" ? "" : (v as TargetSize),
+            }))
+          }
+        >
+          <SelectTrigger className={STYLE.selectCompact}>
+            <SelectValue placeholder="選択" />
+          </SelectTrigger>
+          <SelectContent>{TARGET_SIZE_SELECT_ITEMS}</SelectContent>
+        </Select>
+      </PropertyRow>
+
+      <PropertyRow label="所要時間(分)">
+        <PropInput
+          type="number"
+          value={formData.duration}
+          onChange={(v) => setFormData((prev) => ({ ...prev, duration: v }))}
+          placeholder="90"
         />
-        <div className={`${STYLE.sectionDivider} mb-1`} />
-        <div className="py-1">
-          <PropertyRow label="ステータス">
-            <button
-              type="button"
-              onClick={() =>
-                setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))
-              }
-              className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-            >
-              <NotionStatusPill isActive={formData.isActive} />
-            </button>
-          </PropertyRow>
+      </PropertyRow>
 
-          <PropertyRow label="対象サイズ">
-            <Select
-              value={formData.targetSize || "__none__"}
-              onValueChange={(v) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  targetSize: v === "__none__" ? "" : (v as TargetSize),
-                }))
-              }
-            >
-              <SelectTrigger className={STYLE.selectCompact}>
-                <SelectValue placeholder="選択" />
-              </SelectTrigger>
-              <SelectContent>{TARGET_SIZE_SELECT_ITEMS}</SelectContent>
-            </Select>
-          </PropertyRow>
-
-          <PropertyRow label="所要時間(分)">
-            <PropInput
-              type="number"
-              value={formData.duration}
-              onChange={(v) => setFormData((prev) => ({ ...prev, duration: v }))}
-              placeholder="90"
-            />
-          </PropertyRow>
-
-          <PropertyRow label="単価(税込)">
-            <div className="flex items-center gap-1">
-              <span className={`text-sm ${C.text65} select-none`}>¥</span>
-              <input
-                type="number"
-                min={0}
-                className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
-                value={formData.price}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, price: e.target.value }))
-                }
-                placeholder="0"
-              />
-            </div>
-          </PropertyRow>
-
-          <PropertyRow label="備考">
-            <PropInput
-              value={formData.description}
-              onChange={(v) =>
-                setFormData((prev) => ({ ...prev, description: v }))
-              }
-              placeholder="補足情報など"
-            />
-          </PropertyRow>
+      <PropertyRow label="単価(税込)">
+        <div className="flex items-center gap-1">
+          <span className={`text-sm ${C.text65} select-none`}>¥</span>
+          <input
+            type="number"
+            min={0}
+            className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
+            value={formData.price}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, price: e.target.value }))
+            }
+            placeholder="0"
+          />
         </div>
-      </SidePeekBody>
-      <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
-    </SidePeekPanel>
+      </PropertyRow>
+
+      <PropertyRow label="備考">
+        <PropInput
+          value={formData.description}
+          onChange={(v) =>
+            setFormData((prev) => ({ ...prev, description: v }))
+          }
+          placeholder="補足情報など"
+        />
+      </PropertyRow>
+    </MasterSidePanel>
   );
 });
 
@@ -239,9 +224,12 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
 // TrimmingCourseTab
 // ─────────────────────────────────────────────────
 
-function TrimmingCourseTab() {
-  // null=closed, "new"=create mode, TrimmingCourse=edit mode
-  const [editTarget, setEditTarget] = useState<TrimmingCourse | "new" | null>(null);
+interface TrimmingCourseTabProps {
+  editTarget: TrimmingCourse | "new" | null;
+  onEditTargetChange: (v: TrimmingCourse | "new" | null) => void;
+}
+
+function TrimmingCourseTab({ editTarget, onEditTargetChange }: TrimmingCourseTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<TrimmingCourse | null>(null);
   const [, startSaveTransition] = useTransition();
@@ -261,7 +249,7 @@ function TrimmingCourseTab() {
     return courses.filter((c) => c.name.toLowerCase().includes(lower));
   }, [rawCourses, deferredSearch]);
 
-  const handleClose = useCallback(() => setEditTarget(null), []);
+  const handleClose = useCallback(() => onEditTargetChange(null), [onEditTargetChange]);
 
   const handleSave = useCallback(
     (data: CourseFormData) => {
@@ -334,31 +322,19 @@ function TrimmingCourseTab() {
       <div className="flex h-full">
         {/* ── Left: List ── */}
         <div className="flex-1 min-w-0 flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <SearchFilterBar
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                placeholder="コース名で検索..."
-                count={filteredItems.length}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setEditTarget("new")}
-              className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1B6EC2] cursor-pointer transition-colors"
-            >
-              <Plus className="size-4" />
-              新規登録
-            </button>
-          </div>
+          <SearchFilterBar
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            placeholder="コース名で検索..."
+            count={filteredItems.length}
+          />
 
           <DataTable
             columns={COURSE_COLUMNS}
             data={filteredItems}
             emptyMessage="トリミングコースが登録されていません"
             renderRow={(item) => (
-              <DataTableRow key={item.id} onClick={() => setEditTarget(item)}>
+              <DataTableRow key={item.id} onClick={() => onEditTargetChange(item)}>
                 <TableCell className={`font-medium text-sm ${C.text}`}>
                   {item.name}
                 </TableCell>
@@ -444,86 +420,74 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
   }));
 
   return (
-    <SidePeekPanel>
-      <SidePeekToolbar
-        isNew={item === null}
-        onClose={onClose}
-        onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
-      />
-      <SidePeekBody>
-        <div className="pt-4 pb-2">
-          <div className={STYLE.pageIcon}>
-            <Scissors className={LAYOUT.pageIcon.innerIcon} />
-          </div>
-        </div>
-        <SidePeekTitleInput
-          value={formData.name}
-          onChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+    <MasterSidePanel
+      isNew={item === null}
+      title={formData.name}
+      onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+      onClose={onClose}
+      onSave={() => onSave(formData)}
+      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      icon={<Scissors className={LAYOUT.pageIcon.innerIcon} />}
+    >
+      <PropertyRow label="ステータス">
+        <button
+          type="button"
+          onClick={() =>
+            setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))
+          }
+          className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+        >
+          <NotionStatusPill isActive={formData.isActive} />
+        </button>
+      </PropertyRow>
+
+      <PropertyRow label="所要時間(分)">
+        <PropInput
+          type="number"
+          value={formData.duration}
+          onChange={(v) => setFormData((prev) => ({ ...prev, duration: v }))}
+          placeholder="30"
         />
-        <div className={`${STYLE.sectionDivider} mb-1`} />
-        <div className="py-1">
-          <PropertyRow label="ステータス">
-            <button
-              type="button"
-              onClick={() =>
-                setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))
-              }
-              className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-            >
-              <NotionStatusPill isActive={formData.isActive} />
-            </button>
-          </PropertyRow>
+      </PropertyRow>
 
-          <PropertyRow label="所要時間(分)">
-            <PropInput
-              type="number"
-              value={formData.duration}
-              onChange={(v) => setFormData((prev) => ({ ...prev, duration: v }))}
-              placeholder="30"
-            />
-          </PropertyRow>
+      <PropertyRow label="組合せ可否">
+        <button
+          type="button"
+          onClick={() =>
+            setFormData((prev) => ({ ...prev, combinable: !prev.combinable }))
+          }
+          className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+        >
+          <CombinablePill combinable={formData.combinable} />
+        </button>
+      </PropertyRow>
 
-          <PropertyRow label="組合せ可否">
-            <button
-              type="button"
-              onClick={() =>
-                setFormData((prev) => ({ ...prev, combinable: !prev.combinable }))
-              }
-              className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-            >
-              <CombinablePill combinable={formData.combinable} />
-            </button>
-          </PropertyRow>
-
-          <PropertyRow label="単価(税込)">
-            <div className="flex items-center gap-1">
-              <span className={`text-sm ${C.text65} select-none`}>¥</span>
-              <input
-                type="number"
-                min={0}
-                className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
-                value={formData.price}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, price: e.target.value }))
-                }
-                placeholder="0"
-              />
-            </div>
-          </PropertyRow>
-
-          <PropertyRow label="備考">
-            <PropInput
-              value={formData.description}
-              onChange={(v) =>
-                setFormData((prev) => ({ ...prev, description: v }))
-              }
-              placeholder="補足情報など"
-            />
-          </PropertyRow>
+      <PropertyRow label="単価(税込)">
+        <div className="flex items-center gap-1">
+          <span className={`text-sm ${C.text65} select-none`}>¥</span>
+          <input
+            type="number"
+            min={0}
+            className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
+            value={formData.price}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, price: e.target.value }))
+            }
+            placeholder="0"
+          />
         </div>
-      </SidePeekBody>
-      <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
-    </SidePeekPanel>
+      </PropertyRow>
+
+      <PropertyRow label="備考">
+        <PropInput
+          value={formData.description}
+          onChange={(v) =>
+            setFormData((prev) => ({ ...prev, description: v }))
+          }
+          placeholder="補足情報など"
+        />
+      </PropertyRow>
+    </MasterSidePanel>
   );
 });
 
@@ -531,9 +495,12 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
 // TrimmingOptionTab
 // ─────────────────────────────────────────────────
 
-function TrimmingOptionTab() {
-  // null=closed, "new"=create mode, TrimmingOption=edit mode
-  const [editTarget, setEditTarget] = useState<TrimmingOption | "new" | null>(null);
+interface TrimmingOptionTabProps {
+  editTarget: TrimmingOption | "new" | null;
+  onEditTargetChange: (v: TrimmingOption | "new" | null) => void;
+}
+
+function TrimmingOptionTab({ editTarget, onEditTargetChange }: TrimmingOptionTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<TrimmingOption | null>(null);
   const [, startSaveTransition] = useTransition();
@@ -553,7 +520,7 @@ function TrimmingOptionTab() {
     return options.filter((o) => o.name.toLowerCase().includes(lower));
   }, [rawOptions, deferredSearch]);
 
-  const handleClose = useCallback(() => setEditTarget(null), []);
+  const handleClose = useCallback(() => onEditTargetChange(null), [onEditTargetChange]);
 
   const handleSave = useCallback(
     (data: OptionFormData) => {
@@ -626,31 +593,19 @@ function TrimmingOptionTab() {
       <div className="flex h-full">
         {/* ── Left: List ── */}
         <div className="flex-1 min-w-0 flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <SearchFilterBar
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                placeholder="オプション名で検索..."
-                count={filteredItems.length}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setEditTarget("new")}
-              className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1B6EC2] cursor-pointer transition-colors"
-            >
-              <Plus className="size-4" />
-              新規登録
-            </button>
-          </div>
+          <SearchFilterBar
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            placeholder="オプション名で検索..."
+            count={filteredItems.length}
+          />
 
           <DataTable
             columns={OPTION_COLUMNS}
             data={filteredItems}
             emptyMessage="トリミングオプションが登録されていません"
             renderRow={(item) => (
-              <DataTableRow key={item.id} onClick={() => setEditTarget(item)}>
+              <DataTableRow key={item.id} onClick={() => onEditTargetChange(item)}>
                 <TableCell className={`font-medium text-sm ${C.text}`}>
                   {item.name}
                 </TableCell>
@@ -708,6 +663,14 @@ const TABS = [
 export function TrimmingSettings() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>("course");
+  const [courseEditTarget, setCourseEditTarget] = useState<TrimmingCourse | "new" | null>(null);
+  const [optionEditTarget, setOptionEditTarget] = useState<TrimmingOption | "new" | null>(null);
+
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab);
+    setCourseEditTarget(null);
+    setOptionEditTarget(null);
+  }, []);
 
   return (
     <PageLayout
@@ -715,9 +678,18 @@ export function TrimmingSettings() {
       icon={<Scissors className="size-5 text-[#37352F]" />}
       onBack={() => navigate(paths.settings.getHref())}
       maxWidth="max-w-full"
+      headerAction={
+        <PrimaryButton onClick={() => {
+          if (activeTab === "course") setCourseEditTarget("new");
+          else setOptionEditTarget("new");
+        }}>
+          <Plus className="mr-1.5 size-4" />
+          新規登録
+        </PrimaryButton>
+      }
     >
       <div className="flex flex-col gap-4">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList
             className={`h-9 bg-transparent border-b ${C.borderLight} rounded-none w-full justify-start gap-0 p-0`}
           >
@@ -734,10 +706,16 @@ export function TrimmingSettings() {
             ))}
           </TabsList>
           <TabsContent value="course" className="mt-4">
-            <TrimmingCourseTab />
+            <TrimmingCourseTab
+              editTarget={courseEditTarget}
+              onEditTargetChange={setCourseEditTarget}
+            />
           </TabsContent>
           <TabsContent value="option" className="mt-4">
-            <TrimmingOptionTab />
+            <TrimmingOptionTab
+              editTarget={optionEditTarget}
+              onEditTargetChange={setOptionEditTarget}
+            />
           </TabsContent>
         </Tabs>
       </div>

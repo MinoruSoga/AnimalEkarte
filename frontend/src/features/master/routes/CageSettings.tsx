@@ -21,17 +21,14 @@ import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
 import { PropInput } from "@/components/shared/SidePeek/PropInput";
-import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
-import { SidePeekToolbar } from "@/components/shared/SidePeek/SidePeekToolbar";
-import { SidePeekBody } from "@/components/shared/SidePeek/SidePeekBody";
-import { SidePeekTitleInput } from "@/components/shared/SidePeek/SidePeekTitleInput";
-import { SidePeekFooter } from "@/components/shared/SidePeek/SidePeekFooter";
+import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
   useGetAllCages,
@@ -137,69 +134,57 @@ const CageSidePanel = memo(function CageSidePanel({
   }));
 
   return (
-    <SidePeekPanel>
-      <SidePeekToolbar
-        isNew={item === null}
-        onClose={onClose}
-        onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+    <MasterSidePanel
+      isNew={item === null}
+      title={formData.name}
+      onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+      onClose={onClose}
+      onSave={() => onSave(formData)}
+      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      icon={<Building2 className={LAYOUT.pageIcon.innerIcon} />}
+    >
+      <StatusToggleButton
+        isActive={formData.isActive}
+        onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
       />
-      <SidePeekBody>
-        <div className="pt-4 pb-2">
-          <div className={STYLE.pageIcon}>
-            <Building2 className={LAYOUT.pageIcon.innerIcon} />
-          </div>
-        </div>
-        <SidePeekTitleInput
-          value={formData.name}
-          onChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+
+      <PropertyRow label="エリア">
+        <Select
+          value={formData.cageType}
+          onValueChange={(v) => setFormData((prev) => ({ ...prev, cageType: v as CageType }))}
+        >
+          <SelectTrigger className={STYLE.selectCompact}>
+            <SelectValue placeholder="選択" />
+          </SelectTrigger>
+          <SelectContent>{CAGE_TYPE_SELECT_ITEMS}</SelectContent>
+        </Select>
+      </PropertyRow>
+
+      <PropertyRow label="サイズ">
+        <Select
+          value={formData.cageSize}
+          onValueChange={(v) => setFormData((prev) => ({ ...prev, cageSize: v as CageSize }))}
+        >
+          <SelectTrigger className={STYLE.selectCompact}>
+            <SelectValue placeholder="選択" />
+          </SelectTrigger>
+          <SelectContent>{CAGE_SIZE_SELECT_ITEMS}</SelectContent>
+        </Select>
+      </PropertyRow>
+
+      <MoneyInput
+        value={formData.price}
+        onChange={(v) => setFormData((prev) => ({ ...prev, price: v }))}
+      />
+
+      <PropertyRow label="備考">
+        <PropInput
+          value={formData.description}
+          onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
+          placeholder="補足情報など"
         />
-        <div className={`${STYLE.sectionDivider} mb-1`} />
-        <div className="py-1">
-          <StatusToggleButton
-            isActive={formData.isActive}
-            onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
-          />
-
-          <PropertyRow label="エリア">
-            <Select
-              value={formData.cageType}
-              onValueChange={(v) => setFormData((prev) => ({ ...prev, cageType: v as CageType }))}
-            >
-              <SelectTrigger className={STYLE.selectCompact}>
-                <SelectValue placeholder="選択" />
-              </SelectTrigger>
-              <SelectContent>{CAGE_TYPE_SELECT_ITEMS}</SelectContent>
-            </Select>
-          </PropertyRow>
-
-          <PropertyRow label="サイズ">
-            <Select
-              value={formData.cageSize}
-              onValueChange={(v) => setFormData((prev) => ({ ...prev, cageSize: v as CageSize }))}
-            >
-              <SelectTrigger className={STYLE.selectCompact}>
-                <SelectValue placeholder="選択" />
-              </SelectTrigger>
-              <SelectContent>{CAGE_SIZE_SELECT_ITEMS}</SelectContent>
-            </Select>
-          </PropertyRow>
-
-          <MoneyInput
-            value={formData.price}
-            onChange={(v) => setFormData((prev) => ({ ...prev, price: v }))}
-          />
-
-          <PropertyRow label="備考">
-            <PropInput
-              value={formData.description}
-              onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
-              placeholder="補足情報など"
-            />
-          </PropertyRow>
-        </div>
-      </SidePeekBody>
-      <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
-    </SidePeekPanel>
+      </PropertyRow>
+    </MasterSidePanel>
   );
 });
 
@@ -303,28 +288,22 @@ export function CageSettings() {
       icon={<Building2 className="size-5 text-[#37352F]" />}
       onBack={() => navigate(paths.settings.getHref())}
       maxWidth="max-w-full"
+      headerAction={
+        <PrimaryButton onClick={() => setEditTarget("new")}>
+          <Plus className="mr-1.5 size-4" />
+          新規登録
+        </PrimaryButton>
+      }
     >
       <div className="flex h-full">
         {/* Table area */}
         <div className="flex flex-col gap-4 flex-1 min-w-0">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <SearchFilterBar
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                placeholder="ケージ名で検索..."
-                count={filteredItems.length}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setEditTarget("new")}
-              className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1B6EC2] cursor-pointer transition-colors"
-            >
-              <Plus className="size-4" />
-              新規登録
-            </button>
-          </div>
+          <SearchFilterBar
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            placeholder="ケージ名で検索..."
+            count={filteredItems.length}
+          />
 
           <DataTable
             columns={COLUMNS}

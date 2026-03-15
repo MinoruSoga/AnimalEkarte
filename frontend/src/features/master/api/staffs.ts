@@ -16,7 +16,6 @@ export type StaffRoleValue =
 export interface BackendStaff {
   id: string;
   clinic_id: string;
-  code: string;
   name: string;
   is_active: boolean;
   staff_role: StaffRoleValue;
@@ -36,7 +35,6 @@ export interface CreateStaffRequest {
   staff_role: StaffRoleValue;
   email: string;
   password: string;
-  code?: string;
   license_number?: string;
   job_title_id?: string | null;
   sort_order?: number;
@@ -45,7 +43,6 @@ export interface CreateStaffRequest {
 export interface UpdateStaffRequest {
   name?: string;
   staff_role?: StaffRoleValue;
-  code?: string;
   license_number?: string;
   is_active?: boolean;
   job_title_id?: string | null;
@@ -59,7 +56,6 @@ export interface UpdateStaffRequest {
 export interface Staff {
   id: string;
   clinicId: string;
-  code: string;
   name: string;
   isActive: boolean;
   staffRole: StaffRoleValue;
@@ -90,7 +86,6 @@ function transformStaff(data: BackendStaff): Staff {
   return {
     id: data.id,
     clinicId: data.clinic_id,
-    code: data.code,
     name: data.name,
     isActive: data.is_active,
     staffRole: data.staff_role,

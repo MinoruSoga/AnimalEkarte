@@ -33,11 +33,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { PropInput } from "@/components/shared/SidePeek/PropInput";
-import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
-import { SidePeekToolbar } from "@/components/shared/SidePeek/SidePeekToolbar";
-import { SidePeekBody } from "@/components/shared/SidePeek/SidePeekBody";
-import { SidePeekTitleInput } from "@/components/shared/SidePeek/SidePeekTitleInput";
-import { SidePeekFooter } from "@/components/shared/SidePeek/SidePeekFooter";
+import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import {
   Table,
@@ -60,6 +56,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useSortableList } from "@/hooks/useSortableList";
@@ -263,142 +260,123 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
         <motion.div
           key="side-peek"
           initial={{ width: 0, opacity: 0 }}
-          animate={{ width: 680, opacity: 1 }}
+          animate={{ width: LAYOUT.sidePeek.widthPx, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
           transition={{ duration: panelDuration, ease: [0.25, 0.1, 0.25, 1] }}
           className="shrink-0 min-h-0 overflow-hidden"
         >
-          <SidePeekPanel>
-            <SidePeekToolbar
-              isNew={!selectedMedicine}
-              onClose={handleCloseEdit}
-              onDelete={selectedMedicine ? handleDeleteRequest : undefined}
-            />
+          <MasterSidePanel
+            isNew={!selectedMedicine}
+            title={formData.name}
+            onTitleChange={(v) => updateForm({ name: v })}
+            onClose={handleCloseEdit}
+            onSave={handleSave}
+            onDelete={selectedMedicine ? handleDeleteRequest : undefined}
+            icon={<Pill className={LAYOUT.pageIcon.innerIcon} />}
+            titlePlaceholder="薬品名"
+          >
+            {/* Properties */}
+            {/* Parent category select */}
+            <PropertyRow label="親カテゴリ">
+              {isCategory ? (
+                // カテゴリはルート固定 — 変更不可
+                <span className={`text-sm ${C.text}`}>なし（ルート）</span>
+              ) : (
+                <Select
+                  value={formData.parentId || "__none__"}
+                  onValueChange={(v) => updateForm({ parentId: v === "__none__" ? "" : v })}
+                >
+                  <SelectTrigger className={SELECT_TRIGGER_FULL}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">なし（未分類）</SelectItem>
+                    {categoryMedicines.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </PropertyRow>
 
-            <SidePeekBody>
-              {/* Page icon */}
-              <div className="pt-4 pb-2">
-                <div className={STYLE.pageIcon}>
-                  <Pill className={LAYOUT.pageIcon.innerIcon} />
-                </div>
-              </div>
-
-              {/* Title input (薬品名) */}
-              <SidePeekTitleInput
-                value={formData.name}
-                onChange={(v) => updateForm({ name: v })}
-                placeholder="薬品名"
-              />
-
-              <div className={`${STYLE.sectionDivider} mb-1`} />
-
-              {/* Properties */}
-              <div className="py-1">
-                {/* Parent category select */}
-                <PropertyRow label="親カテゴリ">
-                  {isCategory ? (
-                    // カテゴリはルート固定 — 変更不可
-                    <span className={`text-sm ${C.text}`}>なし（ルート）</span>
-                  ) : (
-                    <Select
-                      value={formData.parentId || "__none__"}
-                      onValueChange={(v) => updateForm({ parentId: v === "__none__" ? "" : v })}
-                    >
-                      <SelectTrigger className={SELECT_TRIGGER_FULL}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">なし（未分類）</SelectItem>
-                        {categoryMedicines.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </PropertyRow>
-
-                {/* Price — カテゴリは子項目に設定するため disabled */}
-                <PropertyRow label="単価(税込)">
-                  {isCategory ? (
-                    <span className={`text-sm ${C.text35} select-none`}>子項目に金額を設定</span>
-                  ) : (
-                    <div className="flex items-center gap-1">
-                      <span className={`text-sm ${C.text40}`}>¥</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={formData.price}
-                        onChange={(e) => updateForm({ price: Number(e.target.value) })}
-                        placeholder="0"
-                        className={`${STYLE.propertyInput} w-28`}
-                      />
-                    </div>
-                  )}
-                </PropertyRow>
-
-                {/* Status */}
-                <PropertyRow label="ステータス">
-                  <button
-                    type="button"
-                    onClick={() => updateForm({ isActive: !formData.isActive })}
-                    className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
-                  >
-                    <NotionStatusPill isActive={formData.isActive} />
-                  </button>
-                </PropertyRow>
-
-                {/* Description */}
-                <PropertyRow label="備考">
-                  <PropInput
-                    value={formData.description}
-                    onChange={(v) => updateForm({ description: v })}
-                    placeholder="空"
+            {/* Price — カテゴリは子項目に設定するため disabled */}
+            <PropertyRow label="単価(税込)">
+              {isCategory ? (
+                <span className={`text-sm ${C.text35} select-none`}>子項目に金額を設定</span>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <span className={`text-sm ${C.text40}`}>¥</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={formData.price}
+                    onChange={(e) => updateForm({ price: Number(e.target.value) })}
+                    placeholder="0"
+                    className={`${STYLE.propertyInput} w-28`}
                   />
-                </PropertyRow>
-              </div>
-
-              {/* ── 薬剤詳細 section ── */}
-              <div className={`${STYLE.sectionDivider} mt-3 mb-1`} />
-              <div className="py-1">
-                <div className="flex items-center gap-1.5 py-2 mb-1">
-                  <Pill className={`size-3.5 ${C.text40}`} />
-                  <span
-                    className={`text-xs font-medium ${C.text50} uppercase tracking-wide select-none`}
-                  >
-                    薬剤詳細
-                  </span>
                 </div>
+              )}
+            </PropertyRow>
 
-                {/* Dosage form — full-width */}
-                <PropertyRow label="剤形">
-                  <Select
-                    value={formData.dosageForm}
-                    onValueChange={(v) => updateForm({ dosageForm: v })}
-                  >
-                    <SelectTrigger className={SELECT_TRIGGER_FULL}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>{DOSAGE_FORM_SELECT_ITEMS}</SelectContent>
-                  </Select>
-                </PropertyRow>
+            {/* Status */}
+            <PropertyRow label="ステータス">
+              <button
+                type="button"
+                onClick={() => updateForm({ isActive: !formData.isActive })}
+                className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
+              >
+                <NotionStatusPill isActive={formData.isActive} />
+              </button>
+            </PropertyRow>
 
-                {/* Unit — full-width */}
-                <PropertyRow label="単位">
-                  <Select
-                    value={formData.medicineUnit}
-                    onValueChange={(v) => updateForm({ medicineUnit: v })}
-                  >
-                    <SelectTrigger className={SELECT_TRIGGER_FULL}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>{MEDICINE_UNIT_SELECT_ITEMS}</SelectContent>
-                  </Select>
-                </PropertyRow>
+            {/* Description */}
+            <PropertyRow label="備考">
+              <PropInput
+                value={formData.description}
+                onChange={(v) => updateForm({ description: v })}
+                placeholder="空"
+              />
+            </PropertyRow>
+
+            {/* ── 薬剤詳細 section ── */}
+            <div className={`${STYLE.sectionDivider} mt-3 mb-1`} />
+            <div className="py-1">
+              <div className="flex items-center gap-1.5 py-2 mb-1">
+                <Pill className={`size-3.5 ${C.text40}`} />
+                <span
+                  className={`text-xs font-medium ${C.text50} uppercase tracking-wide select-none`}
+                >
+                  薬剤詳細
+                </span>
               </div>
-            </SidePeekBody>
 
-            <SidePeekFooter onCancel={handleCloseEdit} onSave={handleSave} />
-          </SidePeekPanel>
+              {/* Dosage form — full-width */}
+              <PropertyRow label="剤形">
+                <Select
+                  value={formData.dosageForm}
+                  onValueChange={(v) => updateForm({ dosageForm: v })}
+                >
+                  <SelectTrigger className={SELECT_TRIGGER_FULL}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>{DOSAGE_FORM_SELECT_ITEMS}</SelectContent>
+                </Select>
+              </PropertyRow>
+
+              {/* Unit — full-width */}
+              <PropertyRow label="単位">
+                <Select
+                  value={formData.medicineUnit}
+                  onValueChange={(v) => updateForm({ medicineUnit: v })}
+                >
+                  <SelectTrigger className={SELECT_TRIGGER_FULL}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>{MEDICINE_UNIT_SELECT_ITEMS}</SelectContent>
+                </Select>
+              </PropertyRow>
+            </div>
+          </MasterSidePanel>
         </motion.div>
       ) : null}
     </AnimatePresence>
@@ -886,26 +864,20 @@ export function MedicineSettings() {
             icon={<Pill className="size-5 text-[#37352F]" />}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
+            headerAction={
+              <PrimaryButton onClick={() => handleCreate()}>
+                <Plus className="mr-1.5 size-4" />
+                新規登録
+              </PrimaryButton>
+            }
           >
             <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <SearchFilterBar
-                    searchTerm={searchTerm}
-                    onSearchChange={setSearchTerm}
-                    placeholder="薬品名で検索..."
-                    count={totalCount}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleCreate()}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-[4px] ${C.accent} ${C.hoverBgAccent5} transition-colors whitespace-nowrap`}
-                >
-                  <Plus className="size-3.5" />
-                  新規登録
-                </button>
-              </div>
+              <SearchFilterBar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                placeholder="薬品名で検索..."
+                count={totalCount}
+              />
               {tableContent}
             </div>
           </PageLayout>
