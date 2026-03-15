@@ -14,12 +14,13 @@ import (
 
 // mockMedicineRepository は MedicineRepository のテスト用モック実装
 type mockMedicineRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.Medicine, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
-	createFn   func(ctx context.Context, medicine *model.Medicine) error
-	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
-	reorderFn  func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.Medicine, error)
+	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
+	countChildrenFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
+	createFn       func(ctx context.Context, medicine *model.Medicine) error
+	updateFn       func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn       func(ctx context.Context, clinicID, id uint64) error
+	reorderFn      func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 func (m *mockMedicineRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Medicine, error) {
@@ -28,6 +29,13 @@ func (m *mockMedicineRepository) FindAll(ctx context.Context, clinicID uint64) (
 
 func (m *mockMedicineRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error) {
 	return m.findByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockMedicineRepository) CountChildren(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	if m.countChildrenFn != nil {
+		return m.countChildrenFn(ctx, clinicID, parentID)
+	}
+	return 0, nil
 }
 
 func (m *mockMedicineRepository) Create(ctx context.Context, medicine *model.Medicine) error {
@@ -313,42 +321,78 @@ func TestMedicineService_Update(t *testing.T) {
 	}
 }
 
+func uint64Ptr(v uint64) *uint64 { return &v }
+
 func TestMedicineService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name            string
+		id              uint64
+		medicine        *model.Medicine  // FindByID が返すレコード
+		findErr         error
+		childrenCount   int64
+		countChildrenErr error
+		deleteErr       error
+		wantErr         bool
+		wantNotFound    bool
+		wantInvalid     bool
 	}{
 		{
-			name:    "deletes medicine successfully",
-			id:      1,
-			repoErr: nil,
-			wantErr: false,
-			wantNF:  false,
+			name:          "deletes a leaf medicine item successfully",
+			id:            10,
+			medicine:      &model.Medicine{ID: 10, ClinicID: 1, ParentID: uint64Ptr(1)},
+			deleteErr:     nil,
+			wantErr:       false,
 		},
 		{
-			name:    "returns not found error when medicine does not exist",
-			id:      999,
-			repoErr: apperrors.WrapNotFound("medicine", "999"),
-			wantErr: true,
-			wantNF:  true,
+			name:          "deletes an empty category successfully",
+			id:            1,
+			medicine:      &model.Medicine{ID: 1, ClinicID: 1, ParentID: nil},
+			childrenCount: 0,
+			deleteErr:     nil,
+			wantErr:       false,
 		},
 		{
-			name:    "returns error on repository failure",
-			id:      1,
-			repoErr: errors.New("db error"),
-			wantErr: true,
-			wantNF:  false,
+			name:          "rejects deletion of category that has children",
+			id:            1,
+			medicine:      &model.Medicine{ID: 1, ClinicID: 1, ParentID: nil},
+			childrenCount: 3,
+			wantErr:       true,
+			wantInvalid:   true,
+		},
+		{
+			name:         "returns not found when medicine does not exist",
+			id:           999,
+			findErr:      apperrors.WrapNotFound("medicine", "999"),
+			wantErr:      true,
+			wantNotFound: true,
+		},
+		{
+			name:      "returns error on delete repository failure",
+			id:        10,
+			medicine:  &model.Medicine{ID: 10, ClinicID: 1, ParentID: uint64Ptr(1)},
+			deleteErr: errors.New("db error"),
+			wantErr:   true,
+		},
+		{
+			name:             "returns error on count children failure",
+			id:               1,
+			medicine:         &model.Medicine{ID: 1, ClinicID: 1, ParentID: nil},
+			countChildrenErr: errors.New("db error"),
+			wantErr:          true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockMedicineRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
+					return tt.medicine, tt.findErr
+				},
+				countChildrenFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.childrenCount, tt.countChildrenErr
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
-					return tt.repoErr
+					return tt.deleteErr
 				},
 			}
 			svc := newTestMedicineService(repo)
@@ -357,8 +401,11 @@ func TestMedicineService_Delete(t *testing.T) {
 
 			if tt.wantErr {
 				assert.Error(t, err)
-				if tt.wantNF {
+				if tt.wantNotFound {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantInvalid {
+					assert.True(t, apperrors.IsInvalidInput(err))
 				}
 			} else {
 				assert.NoError(t, err)

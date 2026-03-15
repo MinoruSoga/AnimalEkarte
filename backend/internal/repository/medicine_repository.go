@@ -17,6 +17,7 @@ import (
 type MedicineRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.Medicine, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
+	CountChildren(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	Create(ctx context.Context, medicine *model.Medicine) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -48,6 +49,17 @@ func (r *medicineRepository) FindByID(ctx context.Context, clinicID, id uint64) 
 		return nil, apperrors.Wrap(err, "find medicine by id")
 	}
 	return &medicine, nil
+}
+
+func (r *medicineRepository) CountChildren(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.Medicine{}).
+		Where("clinic_id = ? AND parent_id = ?", clinicID, parentID).
+		Count(&count).Error; err != nil {
+		return 0, apperrors.Wrap(err, "count children medicines")
+	}
+	return count, nil
 }
 
 func (r *medicineRepository) Create(ctx context.Context, medicine *model.Medicine) error {

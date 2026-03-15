@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -193,6 +194,24 @@ func (s *medicineService) Reorder(ctx context.Context, clinicID uint64, ids []ui
 }
 
 func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error {
+	m, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return err
+	}
+
+	// カテゴリ（parent_id = NULL）の場合、子アイテムが存在すれば削除を拒否する
+	if m.ParentID == nil {
+		count, err := s.repo.CountChildren(ctx, clinicID, id)
+		if err != nil {
+			return err
+		}
+		if count > 0 {
+			return apperrors.WrapInvalidInput(
+				fmt.Sprintf("このカテゴリには%d件の薬剤が含まれています。先に薬剤を移動または削除してください", count),
+			)
+		}
+	}
+
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return err
 	}
