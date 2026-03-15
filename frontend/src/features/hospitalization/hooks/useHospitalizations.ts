@@ -1,5 +1,6 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { Hospitalization } from "@/types";
 import { getHospitalizations, updateHospitalization } from "../api";
 import type { UpdateHospitalizationRequest } from "../api/types";
@@ -14,8 +15,8 @@ export function useHospitalizations(searchTerm: string, statusFilter: Hospitaliz
     try {
         const data = await getHospitalizations();
         setHospitalizations(data);
-    } catch {
-        toast.error("データの取得に失敗しました");
+    } catch (error) {
+        handleApiError(error, "取得");
     } finally {
         setIsLoading(false);
     }
@@ -77,8 +78,8 @@ export function useHospitalizations(searchTerm: string, statusFilter: Hospitaliz
           prev.map((h) => (h.id === id ? updated : h))
         );
         toast.success("更新しました");
-      } catch {
-        toast.error("更新に失敗しました");
+      } catch (error) {
+        handleApiError(error, "更新");
         setHospitalizations(previous);
       }
     },
@@ -129,8 +130,8 @@ export function useHospitalizations(searchTerm: string, statusFilter: Hospitaliz
         
         // Optionally fetch fresh data to be absolutely sure
         // await loadData(); 
-    } catch {
-        toast.error("部屋の移動に失敗しました");
+    } catch (error) {
+        handleApiError(error, "移動");
         // Rollback
         setHospitalizations(previousHospitalizations);
     }

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { Hospitalization } from "@/types";
 import { transformHospitalization } from "./transforms";
 import type {
@@ -35,8 +35,8 @@ export const useUpdateHospitalization = () => {
       queryClient.invalidateQueries({ queryKey: ["hospitalization", id] });
       queryClient.invalidateQueries({ queryKey: ["hospitalization", "raw", id] });
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "入院記録の更新に失敗しました");
+    onError: (error) => {
+      handleApiError(error, "更新");
     },
   });
 };

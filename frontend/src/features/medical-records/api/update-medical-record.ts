@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { MedicalRecord } from "@/types";
 import { transformMedicalRecord } from "./transforms";
 import type { BackendMedicalRecord, UpdateMedicalRecordRequest } from "./types";
@@ -26,8 +26,8 @@ export const useUpdateMedicalRecord = () => {
       queryClient.invalidateQueries({ queryKey: ["medical-records"] });
       queryClient.invalidateQueries({ queryKey: ["medical-record", id] });
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "操作に失敗しました");
+    onError: (error) => {
+      handleApiError(error, "更新");
     },
   });
 };

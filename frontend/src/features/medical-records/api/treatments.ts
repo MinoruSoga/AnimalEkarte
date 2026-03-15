@@ -1,12 +1,10 @@
 // React/Framework
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-// External
-import { toast } from "sonner";
-
 // Internal
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Relative
 import type {
@@ -47,8 +45,8 @@ export const useCreateTreatment = (medicalRecordId: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["treatments", medicalRecordId] });
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "追加に失敗しました");
+    onError: (error) => {
+      handleApiError(error, "治療追加");
     },
   });
 };
@@ -69,8 +67,8 @@ export const useUpdateTreatment = (medicalRecordId: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["treatments", medicalRecordId] });
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "更新に失敗しました");
+    onError: (error) => {
+      handleApiError(error, "治療更新");
     },
   });
 };
@@ -86,8 +84,8 @@ export const useDeleteTreatment = (medicalRecordId: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["treatments", medicalRecordId] });
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "削除に失敗しました");
+    onError: (error) => {
+      handleApiError(error, "治療削除");
     },
   });
 };
@@ -114,8 +112,8 @@ export const useReorderTreatments = (medicalRecordId: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["treatments", medicalRecordId] });
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "並び替えに失敗しました");
+    onError: (error) => {
+      handleApiError(error, "治療並び替え");
     },
   });
 };

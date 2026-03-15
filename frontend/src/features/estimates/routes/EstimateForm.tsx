@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useParams } from 'react-router';
 import { FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PageLayout } from '@/components/shared/PageLayout/PageLayout';
+import { NavigationBlocker } from '@/components/shared/NavigationBlocker';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { useGetEstimate } from '../api/get-estimate';
 import { useEstimateForm } from '../hooks/useEstimateForm';
 import type { EstimateStatus } from '../types';
@@ -30,6 +33,21 @@ function EstimateFormContent({ id }: { id?: string }) {
   );
 
   const isEdit = !!id;
+
+  const { isDirty, markDirty, markClean } = useUnsavedChanges();
+
+  const handleChangeWithDirty = useCallback(
+    (key: string, value: unknown) => {
+      markDirty();
+      (handleChange as (k: string, v: unknown) => void)(key, value);
+    },
+    [markDirty, handleChange]
+  );
+
+  const handleSubmitClick = useCallback(() => {
+    markClean();
+    handleSubmit();
+  }, [markClean, handleSubmit]);
 
   if (isEdit && isLoading) {
     return (
@@ -50,7 +68,7 @@ function EstimateFormContent({ id }: { id?: string }) {
           </Button>
           <Button
             size="sm"
-            onClick={handleSubmit}
+            onClick={handleSubmitClick}
             disabled={isPending || !form.title.trim()}
             className="h-9 bg-[#37352F] hover:bg-[#37352F]/90 text-white text-sm"
           >
@@ -60,6 +78,7 @@ function EstimateFormContent({ id }: { id?: string }) {
       }
       maxWidth="max-w-2xl"
     >
+      <NavigationBlocker when={isDirty && !isPending} />
       <div className="bg-white border border-[rgba(55,53,47,0.09)] rounded-[6px] p-5 space-y-5">
         {/* タイトル */}
         <div className="space-y-1.5">
@@ -69,7 +88,7 @@ function EstimateFormContent({ id }: { id?: string }) {
           <Input
             id="title"
             value={form.title}
-            onChange={e => handleChange('title', e.target.value)}
+            onChange={e => handleChangeWithDirty('title', e.target.value)}
             placeholder="見積書タイトルを入力"
             className="h-9 text-sm"
           />
@@ -82,7 +101,7 @@ function EstimateFormContent({ id }: { id?: string }) {
           </Label>
           <Select
             value={form.status}
-            onValueChange={v => handleChange('status', v as EstimateStatus)}
+            onValueChange={v => handleChangeWithDirty('status', v as EstimateStatus)}
           >
             <SelectTrigger id="status" className="h-9 text-sm w-[200px]">
               <SelectValue />
@@ -106,7 +125,7 @@ function EstimateFormContent({ id }: { id?: string }) {
             id="validUntil"
             type="date"
             value={form.validUntil ? form.validUntil.slice(0, 10) : ''}
-            onChange={e => handleChange('validUntil', e.target.value)}
+            onChange={e => handleChangeWithDirty('validUntil', e.target.value)}
             className="h-9 text-sm w-[180px]"
           />
         </div>
@@ -122,7 +141,7 @@ function EstimateFormContent({ id }: { id?: string }) {
               type="number"
               min={0}
               value={form.subtotal}
-              onChange={e => handleChange('subtotal', Number(e.target.value))}
+              onChange={e => handleChangeWithDirty('subtotal', Number(e.target.value))}
               className="h-9 text-sm"
             />
           </div>
@@ -135,7 +154,7 @@ function EstimateFormContent({ id }: { id?: string }) {
               type="number"
               min={0}
               value={form.taxTotal}
-              onChange={e => handleChange('taxTotal', Number(e.target.value))}
+              onChange={e => handleChangeWithDirty('taxTotal', Number(e.target.value))}
               className="h-9 text-sm"
             />
           </div>
@@ -148,7 +167,7 @@ function EstimateFormContent({ id }: { id?: string }) {
               type="number"
               min={0}
               value={form.insuranceAmount}
-              onChange={e => handleChange('insuranceAmount', Number(e.target.value))}
+              onChange={e => handleChangeWithDirty('insuranceAmount', Number(e.target.value))}
               className="h-9 text-sm"
             />
           </div>
@@ -161,7 +180,7 @@ function EstimateFormContent({ id }: { id?: string }) {
               type="number"
               min={0}
               value={form.discountAmount}
-              onChange={e => handleChange('discountAmount', Number(e.target.value))}
+              onChange={e => handleChangeWithDirty('discountAmount', Number(e.target.value))}
               className="h-9 text-sm"
             />
           </div>
@@ -174,7 +193,7 @@ function EstimateFormContent({ id }: { id?: string }) {
               type="number"
               min={0}
               value={form.totalAmount}
-              onChange={e => handleChange('totalAmount', Number(e.target.value))}
+              onChange={e => handleChangeWithDirty('totalAmount', Number(e.target.value))}
               className="h-9 text-sm"
             />
           </div>
@@ -188,7 +207,7 @@ function EstimateFormContent({ id }: { id?: string }) {
           <Textarea
             id="comment"
             value={form.comment}
-            onChange={e => handleChange('comment', e.target.value)}
+            onChange={e => handleChangeWithDirty('comment', e.target.value)}
             placeholder="飼主向けコメントを入力"
             className="text-sm min-h-[80px] resize-none"
           />
@@ -202,7 +221,7 @@ function EstimateFormContent({ id }: { id?: string }) {
           <Textarea
             id="notes"
             value={form.notes}
-            onChange={e => handleChange('notes', e.target.value)}
+            onChange={e => handleChangeWithDirty('notes', e.target.value)}
             placeholder="社内メモを入力"
             className="text-sm min-h-[80px] resize-none"
           />

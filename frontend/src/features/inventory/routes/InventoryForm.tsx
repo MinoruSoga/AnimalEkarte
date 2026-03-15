@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/select";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 
 // Relative
 import {
@@ -46,6 +48,8 @@ export function InventoryForm() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const isEdit = Boolean(id);
+
+  const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
   const { data: existingItem, isLoading } = useGetInventoryItem(id ?? "");
   const createMutation = useCreateInventoryItem();
@@ -85,7 +89,7 @@ export function InventoryForm() {
       };
       updateMutation.mutate(
         { id, req },
-        { onSuccess: () => navigate(paths.inventory.getHref()) }
+        { onSuccess: () => { markClean(); navigate(paths.inventory.getHref()); } }
       );
     } else {
       const req: CreateInventoryItemRequest = {
@@ -99,10 +103,10 @@ export function InventoryForm() {
         supplier: (formData.get("supplier") as string) || undefined,
       };
       createMutation.mutate(req, {
-        onSuccess: () => navigate(paths.inventory.getHref()),
+        onSuccess: () => { markClean(); navigate(paths.inventory.getHref()); },
       });
     }
-  }, [navigate, isEdit, id, category, createMutation, updateMutation]);
+  }, [navigate, isEdit, id, category, createMutation, updateMutation, markClean]);
 
   if (isEdit && isLoading) {
     return (
@@ -139,7 +143,8 @@ export function InventoryForm() {
       }
       maxWidth="max-w-3xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <NavigationBlocker when={isDirty && !createMutation.isPending && !updateMutation.isPending} />
+      <form onSubmit={handleSubmit} onChange={markDirty} className="space-y-6">
         {/* Basic Info */}
         <div className="bg-white rounded-lg border border-[rgba(55,53,47,0.16)] p-6">
           <h3 className="text-base font-medium text-[#37352F] mb-4">
@@ -165,7 +170,7 @@ export function InventoryForm() {
               </Label>
               <Select
                 value={category || (existingItem?.category ?? "medicine")}
-                onValueChange={setCategory}
+                onValueChange={(v) => { markDirty(); setCategory(v); }}
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="カテゴリを選択" />

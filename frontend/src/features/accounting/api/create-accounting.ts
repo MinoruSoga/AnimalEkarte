@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { AccountingRecord } from "@/types";
 import { transformAccounting } from "./transforms";
 import type { BackendAccounting, CreateAccountingRequest } from "./types";
@@ -23,8 +23,8 @@ export const useCreateAccounting = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["accountings"] });
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "操作に失敗しました");
+    onError: (error) => {
+      handleApiError(error, "作成");
     },
   });
 };

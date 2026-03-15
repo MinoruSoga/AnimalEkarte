@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
 import { usePetInfo } from "@/hooks/use-pet";
 import { useGetMedicalRecord } from "../api/get-medical-record";
@@ -90,8 +91,8 @@ export function useMedicalRecordForm(recordId?: string) {
         await createMutation.mutateAsync(req);
         toast.success("カルテを作成しました");
         navigate(location.state?.from ?? paths.medicalRecords.getHref());
-      } catch {
-        toast.error("カルテの作成に失敗しました");
+      } catch (error) {
+        handleApiError(error, "作成");
       }
     } else if (recordId) {
       const req: UpdateMedicalRecordRequest = {
@@ -106,8 +107,8 @@ export function useMedicalRecordForm(recordId?: string) {
         await updateMutation.mutateAsync({ id: recordId, req });
         toast.success("カルテを更新しました");
         navigate(location.state?.from ?? paths.medicalRecords.getHref());
-      } catch {
-        toast.error("カルテの更新に失敗しました");
+      } catch (error) {
+        handleApiError(error, "更新");
       }
     }
   };

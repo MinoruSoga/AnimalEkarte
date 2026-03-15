@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { addHours } from "date-fns";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 
 import { getReservationStatusLabel } from "@/utils/status-helpers";
 import type {
@@ -201,10 +202,8 @@ export function useReservationManagement() {
           if (locationFrom) {
             navigate(locationFrom);
           }
-        } catch {
-          toast.error("予約の作成に失敗しました", {
-            description: "時間をおいて再試行してください。",
-          });
+        } catch (error) {
+          handleApiError(error, "作成");
         }
       }
     },
@@ -295,10 +294,8 @@ export function useReservationManagement() {
           description: `${deleteTarget.petName} (${deleteTarget.ownerName}様)`,
         });
       },
-      onError: () => {
-        toast.error("削除に失敗しました", {
-          description: "時間をおいて再試行してください。",
-        });
+      onError: (error: unknown) => {
+        handleApiError(error, "削除");
       },
     });
   }, [deleteTarget, deleteMutation, handleCloseDetail]);

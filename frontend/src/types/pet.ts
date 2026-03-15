@@ -52,12 +52,12 @@ export interface PetListResponse {
  */
 export interface PetMutationCallbacks {
   onSuccess: () => void;
-  onError: () => void;
+  onError: (error?: unknown) => void;
 }
 
 export interface PetCreateCallbacks {
   onSuccess: (data: Pet) => void;
-  onError: () => void;
+  onError: (error?: unknown) => void;
 }
 
 export interface PetMutations {

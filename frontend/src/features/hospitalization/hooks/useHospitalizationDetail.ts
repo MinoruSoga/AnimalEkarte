@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { CarePlanItem, DailyRecord } from "@/types";
 import type {
   CreateCarePlanDTO,
@@ -58,8 +59,8 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
       });
       toast.success("退院処理が完了しました");
       return true;
-    } catch {
-      toast.error("退院処理に失敗しました");
+    } catch (error) {
+      handleApiError(error, "退院処理");
       return false;
     }
   };

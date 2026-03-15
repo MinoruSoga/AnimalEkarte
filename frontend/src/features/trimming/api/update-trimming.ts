@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { TrimmingRecord } from "@/types";
 import { transformTrimming } from "./transforms";
 import type { BackendTrimming, UpdateTrimmingRequest } from "@/types/trimming";
@@ -30,8 +30,8 @@ export const useUpdateTrimming = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trimmings"] });
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "操作に失敗しました");
+    onError: (error) => {
+      handleApiError(error, "更新");
     },
   });
 };

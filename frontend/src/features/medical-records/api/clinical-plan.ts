@@ -7,6 +7,7 @@ import { toast } from "sonner";
 // Internal
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -68,8 +69,8 @@ export const useUpdateClinicalPlan = (medicalRecordId: string) => {
       queryClient.invalidateQueries({ queryKey: ["clinical-plan", medicalRecordId] });
       toast.success("保存しました");
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "保存に失敗しました");
+    onError: (error) => {
+      handleApiError(error, "保存");
     },
   });
 };

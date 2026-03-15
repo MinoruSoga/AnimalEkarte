@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/select";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 
 // Relative
 import { useVaccinationForm } from "../hooks/useVaccinationForm";
@@ -392,18 +394,25 @@ export function VaccinationForm() {
     navigate(fromPath ?? paths.vaccinations.getHref());
   }, [fromPath, navigate]);
 
+  const { isDirty, markDirty, markClean } = useUnsavedChanges();
+
   // Stable event handler callbacks for memo components
-  const handleDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setDate(e.target.value), [setDate]);
-  const handleSupplementalChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setSupplemental(e.target.value), [setSupplemental]);
-  const handleLot1Change = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setLot1(e.target.value), [setLot1]);
-  const handleLot2Change = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setLot2(e.target.value), [setLot2]);
-  const handleLot3Change = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setLot3(e.target.value), [setLot3]);
-  const handleLot4Change = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setLot4(e.target.value), [setLot4]);
-  const handleNextDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setNextDate(e.target.value), [setNextDate]);
-  const handleRemarksChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => setRemarks(e.target.value), [setRemarks]);
+  const handleDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setDate(e.target.value); }, [markDirty, setDate]);
+  const handleSupplementalChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setSupplemental(e.target.value); }, [markDirty, setSupplemental]);
+  const handleLot1Change = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setLot1(e.target.value); }, [markDirty, setLot1]);
+  const handleLot2Change = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setLot2(e.target.value); }, [markDirty, setLot2]);
+  const handleLot3Change = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setLot3(e.target.value); }, [markDirty, setLot3]);
+  const handleLot4Change = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setLot4(e.target.value); }, [markDirty, setLot4]);
+  const handleNextDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setNextDate(e.target.value); }, [markDirty, setNextDate]);
+  const handleRemarksChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => { markDirty(); setRemarks(e.target.value); }, [markDirty, setRemarks]);
   const handleFilterStartDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setFilterStartDate(e.target.value), [setFilterStartDate]);
   const handleFilterEndDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setFilterEndDate(e.target.value), [setFilterEndDate]);
   const handleHistorySearchTermChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setHistorySearchTerm(e.target.value), [setHistorySearchTerm]);
+
+  const handleVaccineIdChange = useCallback((v: string) => { markDirty(); setVaccineId(v); }, [markDirty, setVaccineId]);
+  const handleNextScheduleTypeChange = useCallback((v: string) => { markDirty(); setNextScheduleType(v); }, [markDirty, setNextScheduleType]);
+
+  const handleSaveClick = useCallback(() => { markClean(); handleSave(); }, [markClean, handleSave]);
 
   // 早期 return（hooks より後）
   if (!selectedPet && !isEdit && petId) return null;
@@ -426,7 +435,7 @@ export function VaccinationForm() {
                 </Button>
             ) : null}
             <Button
-                onClick={handleSave}
+                onClick={handleSaveClick}
                 className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white shadow-sm px-6 h-10 text-sm"
             >
                 保存
@@ -434,6 +443,7 @@ export function VaccinationForm() {
         </div>
       }
     >
+        <NavigationBlocker when={isDirty} />
         {selectedPet ? (
             <PatientInfoCard
               ownerName={selectedPet.ownerName}
@@ -455,7 +465,7 @@ export function VaccinationForm() {
             <VaccinationFormFields
               vaccineItems={vaccineItems}
               vaccineId={vaccineId}
-              onVaccineIdChange={setVaccineId}
+              onVaccineIdChange={handleVaccineIdChange}
               date={date}
               onDateChange={handleDateChange}
               supplemental={supplemental}
@@ -469,7 +479,7 @@ export function VaccinationForm() {
               lot4={lot4}
               onLot4Change={handleLot4Change}
               nextScheduleType={nextScheduleType}
-              onNextScheduleTypeChange={setNextScheduleType}
+              onNextScheduleTypeChange={handleNextScheduleTypeChange}
               nextDate={nextDate}
               onNextDateChange={handleNextDateChange}
               remarks={remarks}

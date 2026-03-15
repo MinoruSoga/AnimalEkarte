@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 // External
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // Internal - shared (feature 間 import 禁止のため @/features/pets は使用不可)
 import { transformCreatePetRequest, transformUpdatePetRequest, PET_STATUS_REVERSE_MAP } from "@/lib/transforms/pet";
@@ -136,8 +137,8 @@ export function useOwnerForm(
         setPets(prev => prev.filter((pet) => pet.id !== petId));
         toast.success("ペットを削除しました");
       },
-      onError: () => {
-        toast.error("ペットの削除に失敗しました");
+      onError: (error: unknown) => {
+        handleApiError(error, "削除");
       },
     });
   };
@@ -186,8 +187,8 @@ export function useOwnerForm(
             );
             toast.success("ペット情報を更新しました");
           },
-          onError: () => {
-            toast.error("ペット情報の更新に失敗しました");
+          onError: (error: unknown) => {
+            handleApiError(error, "更新");
           },
         }
       );
@@ -256,8 +257,8 @@ export function useOwnerForm(
           setPets(prev => [...prev, newPet]);
           toast.success("ペットを追加しました");
         },
-        onError: () => {
-          toast.error("ペットの追加に失敗しました");
+        onError: (error: unknown) => {
+          handleApiError(error, "追加");
         },
       });
     }
@@ -358,8 +359,8 @@ export function useOwnerForm(
         }
 
         onSuccess?.();
-      } catch {
-        toast.error("保存に失敗しました");
+      } catch (error) {
+        handleApiError(error, "保存");
       }
     });
   };

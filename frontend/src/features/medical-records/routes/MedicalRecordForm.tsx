@@ -27,6 +27,8 @@ const VitalsModal = lazy(() =>
 );
 import { useMedicalRecordForm } from "../hooks/useMedicalRecordForm";
 import { useAuth } from "@/features/auth";
+import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 
 export function MedicalRecordForm() {
   const { id: recordId } = useParams();
@@ -54,6 +56,8 @@ export function MedicalRecordForm() {
   } = useMedicalRecordForm(recordId);
 
   const { user } = useAuth();
+
+  const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
   // ローカル状態: 担当者・診療種別（hookに追加するまでの暫定）
   const [staffName, setStaffName] = useState(() => user?.displayName ?? "");
@@ -93,6 +97,36 @@ export function MedicalRecordForm() {
     });
   }, [setActiveTab]);
 
+  const handleSetChiefComplaint = useCallback((val: string) => {
+    markDirty();
+    setChiefComplaint(val);
+  }, [markDirty, setChiefComplaint]);
+
+  const handleSetTreatmentPolicy = useCallback((val: string) => {
+    markDirty();
+    setTreatmentPolicy(val);
+  }, [markDirty, setTreatmentPolicy]);
+
+  const handleSetPlan = useCallback((val: string) => {
+    markDirty();
+    setPlan(val);
+  }, [markDirty, setPlan]);
+
+  const handleSetAssessment = useCallback((val: string) => {
+    markDirty();
+    setAssessment(val);
+  }, [markDirty, setAssessment]);
+
+  const handleSetTreatmentPlanItems = useCallback<typeof setTreatmentPlanItems>((items) => {
+    markDirty();
+    setTreatmentPlanItems(items);
+  }, [markDirty, setTreatmentPlanItems]);
+
+  const handleSaveClick = useCallback(() => {
+    markClean();
+    handleSave();
+  }, [markClean, handleSave]);
+
   if (isPetLoading) {
     return null;
   }
@@ -107,6 +141,7 @@ export function MedicalRecordForm() {
       onBack={handleBack}
       maxWidth="max-w-[1440px]"
     >
+      <NavigationBlocker when={isDirty} />
       {/* Sticky Header: Patient Info + Tabs */}
       <div className={`sticky top-0 z-10 ${C.bgPage}`}>
         {/* Patient Info Card */}
@@ -155,9 +190,9 @@ export function MedicalRecordForm() {
           <div className="h-full" style={{ display: activeTab === "問診" ? "block" : "none" }}>
             <MedicalRecordInterview
               chiefComplaint={chiefComplaint}
-              setChiefComplaint={setChiefComplaint}
+              setChiefComplaint={handleSetChiefComplaint}
               treatmentPolicy={treatmentPolicy}
-              setTreatmentPolicy={setTreatmentPolicy}
+              setTreatmentPolicy={handleSetTreatmentPolicy}
             />
           </div>
         ) : null}
@@ -166,11 +201,11 @@ export function MedicalRecordForm() {
             <MedicalRecordDiagnosisPlan
               isNewRecord={isNewRecord}
               items={treatmentPlanItems}
-              setItems={setTreatmentPlanItems}
+              setItems={handleSetTreatmentPlanItems}
               plan={plan}
-              setPlan={setPlan}
+              setPlan={handleSetPlan}
               assessment={assessment}
-              setAssessment={setAssessment}
+              setAssessment={handleSetAssessment}
               medicalRecordId={recordId}
             />
           </div>
@@ -249,7 +284,7 @@ export function MedicalRecordForm() {
             バイタル記録
           </Button>
           <Button
-            onClick={handleSave}
+            onClick={handleSaveClick}
             className={`${STYLE.btnPrimary} px-5`}
           >
             保存

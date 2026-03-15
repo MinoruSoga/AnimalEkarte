@@ -22,6 +22,8 @@ import { HospitalizationBasicInfo } from "../components/HospitalizationBasicInfo
 import { HospitalizationNoteCard } from "../components/HospitalizationNoteCard";
 import { HospitalizationTreatmentTable } from "../components/HospitalizationTreatmentTable";
 import { HospitalizationCostSummary } from "../components/HospitalizationCostSummary";
+import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 
 export function HospitalizationForm() {
   const navigate = useNavigate();
@@ -57,6 +59,8 @@ export function HospitalizationForm() {
   const selectedPet = selectedPets[0];
   const totals = calculateTotals();
 
+  const { isDirty, markDirty, markClean } = useUnsavedChanges();
+
   const handleBack = useCallback(() => {
     if (location.state?.from) {
         navigate(location.state.from as string);
@@ -74,6 +78,26 @@ export function HospitalizationForm() {
       onError: () => toast.error("削除に失敗しました"),
     });
   }, [hospitalizationId, deleteMutation, navigate]);
+
+  const handleFormChange = useCallback((updates: Parameters<typeof handleFormDataChange>[0]) => {
+    markDirty();
+    handleFormDataChange(updates);
+  }, [markDirty, handleFormDataChange]);
+
+  const handleSaveClick = useCallback(() => {
+    markClean();
+    handleSave();
+  }, [markClean, handleSave]);
+
+  const handleGlobalDiscountChange = useCallback((val: string) => {
+    markDirty();
+    setGlobalDiscount(val);
+  }, [markDirty, setGlobalDiscount]);
+
+  const handleGlobalDiscountAmountChange = useCallback((val: number) => {
+    markDirty();
+    setGlobalDiscountAmount(val);
+  }, [markDirty, setGlobalDiscountAmount]);
 
   useEffect(() => {
     if (!selectedPet && !isEdit && !petId) {
@@ -115,13 +139,14 @@ export function HospitalizationForm() {
             ) : null}
             <Button
             className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white rounded-[6px] h-10 text-sm px-4"
-            onClick={handleSave}
+            onClick={handleSaveClick}
             >
             {hospitalizationId ? "更新" : "登録"}
             </Button>
         </div>
       }
     >
+        <NavigationBlocker when={isDirty} />
         {/* Patient Info Card */}
         {selectedPet ? (
             <PatientInfoCard
@@ -142,10 +167,10 @@ export function HospitalizationForm() {
         {/* Main Form Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
           {/* Left Column - Basic Info */}
-          <HospitalizationBasicInfo 
-            formData={formData} 
-            onChange={handleFormDataChange} 
-            cageItems={cageItems} 
+          <HospitalizationBasicInfo
+            formData={formData}
+            onChange={handleFormChange}
+            cageItems={cageItems}
           />
 
           {/* Middle Column - 飼主からのリクエスト */}
@@ -153,7 +178,7 @@ export function HospitalizationForm() {
             title="飼主からのリクエスト"
             icon={MessageSquare}
             value={formData.ownerRequest}
-            onChange={(val) => handleFormDataChange({ ownerRequest: val })}
+            onChange={(val) => handleFormChange({ ownerRequest: val })}
             placeholder="リクエストを入力..."
           />
 
@@ -162,7 +187,7 @@ export function HospitalizationForm() {
             title="スタッフへの連絡事項"
             icon={AlertCircle}
             value={formData.staffNotes}
-            onChange={(val) => handleFormDataChange({ staffNotes: val })}
+            onChange={(val) => handleFormChange({ staffNotes: val })}
             placeholder="連絡事項を入力..."
           />
         </div>
@@ -179,9 +204,9 @@ export function HospitalizationForm() {
         <HospitalizationCostSummary 
             totals={totals}
             globalDiscount={globalDiscount}
-            setGlobalDiscount={setGlobalDiscount}
+            setGlobalDiscount={handleGlobalDiscountChange}
             globalDiscountAmount={globalDiscountAmount}
-            setGlobalDiscountAmount={setGlobalDiscountAmount}
+            setGlobalDiscountAmount={handleGlobalDiscountAmountChange}
         />
     </PageLayout>
       <ConfirmDialog

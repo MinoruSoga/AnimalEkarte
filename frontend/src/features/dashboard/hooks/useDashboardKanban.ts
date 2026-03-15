@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { Appointment, ColumnData } from "@/types";
 // bundle-barrel-imports: barrel経由ではなく各ファイルから直接import
 import { useDashboardData, todayISO } from "../api/get-dashboard";
@@ -144,8 +145,8 @@ export function useDashboardKanban() {
         updateStatusMutation.mutate(
           { id: draggedCard.id, status: newStatus },
           {
-            onError: () => {
-              toast.error("ステータスの更新に失敗しました");
+            onError: (error: unknown) => {
+              handleApiError(error, "更新");
               // rerender-defer-reads: refで最新値を参照（依存配列から除外するため）
               setColumns(apiColumnDataRef.current);
             },
@@ -206,8 +207,8 @@ export function useDashboardKanban() {
             onSuccess: () => {
               toast.success("手続きを完了し、リストから削除しました");
             },
-            onError: () => {
-              toast.error("ステータスの更新に失敗しました");
+            onError: (error: unknown) => {
+              handleApiError(error, "更新");
             },
           }
         );
@@ -233,8 +234,8 @@ export function useDashboardKanban() {
       updateStatusMutation.mutate(
         { id: appointment.id, status: newStatus },
         {
-          onError: () => {
-            toast.error("ステータスの更新に失敗しました");
+          onError: (error: unknown) => {
+            handleApiError(error, "更新");
             // rerender-defer-reads: refで最新値を参照
             setColumns(apiColumnDataRef.current);
           },
@@ -268,8 +269,8 @@ export function useDashboardKanban() {
     updateStatusMutation.mutate(
       { id: appointmentId, status: "cancelled" },
       {
-        onError: () => {
-          toast.error("予約の取り消しに失敗しました");
+        onError: (error: unknown) => {
+          handleApiError(error, "取り消し");
           // rerender-defer-reads: refで最新値を参照
           setColumns(apiColumnDataRef.current);
         },

@@ -1,12 +1,10 @@
 // React/Framework
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-// External
-import { toast } from "sonner";
-
 // Internal
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // ---- Types ----
 
@@ -132,8 +130,8 @@ export function useCreateCarePlanItem(hospitalizationId: string) {
                 queryKey: carePlanItemKeys.all(hospitalizationId),
             });
         },
-        onError: () => {
-            toast.error("ケアプラン項目の作成に失敗しました");
+        onError: (error: unknown) => {
+            handleApiError(error, "作成");
         },
     });
 }
@@ -148,8 +146,8 @@ export function useUpdateCarePlanItem(hospitalizationId: string) {
                 queryKey: carePlanItemKeys.all(hospitalizationId),
             });
         },
-        onError: () => {
-            toast.error("ケアプラン項目の更新に失敗しました");
+        onError: (error: unknown) => {
+            handleApiError(error, "更新");
         },
     });
 }
@@ -163,8 +161,8 @@ export function useDeleteCarePlanItem(hospitalizationId: string) {
                 queryKey: carePlanItemKeys.all(hospitalizationId),
             });
         },
-        onError: () => {
-            toast.error("ケアプラン項目の削除に失敗しました");
+        onError: (error: unknown) => {
+            handleApiError(error, "削除");
         },
     });
 }

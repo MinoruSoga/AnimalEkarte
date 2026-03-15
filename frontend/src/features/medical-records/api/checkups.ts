@@ -1,12 +1,10 @@
 // React/Framework
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-// External
-import { toast } from "sonner";
-
 // Internal
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
+import { handleApiError } from "@/lib/handle-api-error";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -72,8 +70,8 @@ export const useCreateCheckup = (medicalRecordId: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["checkups", medicalRecordId] });
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "追加に失敗しました");
+    onError: (error) => {
+      handleApiError(error, "検査結果追加");
     },
   });
 };
@@ -94,8 +92,8 @@ export const useUpdateCheckup = (medicalRecordId: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["checkups", medicalRecordId] });
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "更新に失敗しました");
+    onError: (error) => {
+      handleApiError(error, "検査結果更新");
     },
   });
 };
@@ -111,8 +109,8 @@ export const useDeleteCheckup = (medicalRecordId: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["checkups", medicalRecordId] });
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "削除に失敗しました");
+    onError: (error) => {
+      handleApiError(error, "検査結果削除");
     },
   });
 };

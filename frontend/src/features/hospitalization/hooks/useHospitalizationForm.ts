@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
 import type { TreatmentPlan } from "@/types";
 import type { Pet } from "@/types";
@@ -270,8 +271,8 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
           }
         }, 500);
       }
-    } catch {
-      toast.error("保存に失敗しました");
+    } catch (error) {
+      handleApiError(error, "保存");
     }
   };
 

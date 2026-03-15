@@ -12,6 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 
 // Relative
 import { useExaminationForm } from "../hooks/useExaminationForm";
@@ -40,6 +42,8 @@ export function ExaminationForm() {
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
 
+  const { isDirty, markDirty, markClean } = useUnsavedChanges();
+
   const handleBack = useCallback(() => {
     if (location.state?.from) {
       navigate(location.state.from);
@@ -47,6 +51,16 @@ export function ExaminationForm() {
       navigate(paths.examinations.getHref());
     }
   }, [location.state, navigate]);
+
+  const handleSetFormData = useCallback<typeof setFormData>((updater) => {
+    markDirty();
+    setFormData(updater);
+  }, [markDirty, setFormData]);
+
+  const handleSaveClick = useCallback(() => {
+    markClean();
+    handleSave();
+  }, [markClean, handleSave]);
 
   useEffect(() => {
     if (!selectedPet && !isEdit && !petId) {
@@ -64,6 +78,7 @@ export function ExaminationForm() {
       maxWidth="max-w-3xl"
       align="left"
     >
+      <NavigationBlocker when={isDirty && !isSaving} />
       <div className="flex flex-col gap-4">
           {/* Patient Info Card */}
           {selectedPet ? (
@@ -88,7 +103,7 @@ export function ExaminationForm() {
                 <Label className="text-sm text-[#37352F]/60">検査種別</Label>
                 <Select 
                     value={formData.testType} 
-                    onValueChange={(v) => setFormData((prev) => ({...prev, testType: v}))}
+                    onValueChange={(v) => handleSetFormData((prev) => ({...prev, testType: v}))}
                 >
                   <SelectTrigger className="h-10 text-sm text-[#37352F] bg-white border-[rgba(55,53,47,0.16)]">
                     <SelectValue placeholder="選択してください" />
@@ -106,7 +121,7 @@ export function ExaminationForm() {
                 <Label className="text-sm text-[#37352F]/60">担当医</Label>
                 <Select 
                     value={formData.doctor} 
-                    onValueChange={(v) => setFormData((prev) => ({...prev, doctor: v}))}
+                    onValueChange={(v) => handleSetFormData((prev) => ({...prev, doctor: v}))}
                 >
                   <SelectTrigger className="h-10 text-sm text-[#37352F] bg-white border-[rgba(55,53,47,0.16)]">
                     <SelectValue placeholder="選択してください" />
@@ -126,7 +141,7 @@ export function ExaminationForm() {
               <Label className="text-sm text-[#37352F]/60">ステータス</Label>
               <Select 
                 value={formData.status} 
-                onValueChange={(v: "依頼中" | "検査中" | "完了") => setFormData((prev) => ({...prev, status: v}))}
+                onValueChange={(v: "依頼中" | "検査中" | "完了") => handleSetFormData((prev) => ({...prev, status: v}))}
               >
                 <SelectTrigger className="h-10 text-sm text-[#37352F] bg-white border-[rgba(55,53,47,0.16)]">
                   <SelectValue placeholder="選択してください" />
@@ -145,7 +160,7 @@ export function ExaminationForm() {
                 className="h-24 text-sm text-[#37352F] bg-white border-[rgba(55,53,47,0.16)] resize-none" 
                 placeholder="検査結果や備考を入力" 
                 value={formData.resultSummary || ""} 
-                onChange={(e) => setFormData((prev) => ({...prev, resultSummary: e.target.value}))}
+                onChange={(e) => handleSetFormData((prev) => ({...prev, resultSummary: e.target.value}))}
               />
             </div>
 
@@ -157,7 +172,7 @@ export function ExaminationForm() {
                 </Button>
               ) : null}
               <Button variant="outline" onClick={handleBack} className="h-10 text-sm">キャンセル</Button>
-              <Button className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white h-10 text-sm" onClick={handleSave} disabled={isSaving}>{isSaving ? "保存中..." : "保存"}</Button>
+              <Button className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white h-10 text-sm" onClick={handleSaveClick} disabled={isSaving}>{isSaving ? "保存中..." : "保存"}</Button>
             </div>
           </div>
       </div>
