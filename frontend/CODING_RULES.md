@@ -1688,41 +1688,36 @@ export function RouteErrorBoundary() {
 
 ### 7.2 API エラー
 
+`axios` インスタンスは `lib/axios.ts` で一元管理（`withCredentials: true` + 401 自動リダイレクト）。
+詳細は **Section 1.4 の `lib/axios.ts` 例** を参照。
+
 ```typescript
-// lib/axios.ts
-import Axios, { AxiosError } from "axios";
-
-export const axios = Axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-});
-
-axios.interceptors.response.use(
-  (response) => response,
-  (error: AxiosError) => {
-    // 401 Unauthorized handling
-    if (error.response?.status === 401) {
-      window.location.href = "/login";
-    }
-    return Promise.reject(error);
-  }
-);
-
-// 使用例
+// features/xxx/api/get-xxx.ts での API エラーハンドリング例
 import { axios } from "@/lib/axios";
+import { AxiosError } from "axios";
+import { toast } from "sonner";
 
 try {
-  const { data } = await axios.get<Owner>(`/owners/${id}`);
+  const { data } = await axios.get<XxxResponse>(`/v1/xxx/${id}`);
 } catch (error) {
   if (error instanceof AxiosError) {
     if (error.response?.status === 404) {
-      toast.error("飼主が見つかりません");
+      toast.error("データが見つかりません");
     } else {
-      toast.error(error.message);
+      toast.error("通信エラーが発生しました");
     }
-  } else {
-    toast.error("通信エラーが発生しました");
   }
 }
+
+// loaders.ts でのエラー処理: throw new Response でルートエラーバウンダリに委譲
+export const xxxLoader = async (): Promise<XxxLoaderData> => {
+  try {
+    const { data } = await axios.get<XxxResponse>("/v1/xxx");
+    return { items: data.data };
+  } catch {
+    throw new Response("データの取得に失敗しました", { status: 500 });
+  }
+};
 ```
 
 ---
