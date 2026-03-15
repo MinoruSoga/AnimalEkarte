@@ -99,7 +99,7 @@ const MEDICINE_UNIT_SELECT_ITEMS = (
 );
 
 // Full-width Select trigger — matches Figma (h-[30px], no border, rounded-[3px])
-const SELECT_TRIGGER_FULL = `h-[30px] text-sm bg-transparent ${C.text} border-0 px-1.5 shadow-none rounded-[3px] w-full`;
+const SELECT_TRIGGER_FULL = `h-[30px] text-sm bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-[3px] w-full`;
 
 // 剤形ラベルマップ
 const DOSAGE_FORM_LABELS: Record<string, string> = {
