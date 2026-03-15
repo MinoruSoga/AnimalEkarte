@@ -7,35 +7,23 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
-
-type createServiceTypeInput struct {
-	Name        string `json:"name"        binding:"required"`
-	IsActive    bool   `json:"is_active"`
-	Description string `json:"description"`
-	Color       string `json:"color"`
-	SortOrder   int    `json:"sort_order"`
-}
-
-type updateServiceTypeInput struct {
-	Name        string `json:"name"`
-	IsActive    *bool  `json:"is_active"`
-	Description string `json:"description"`
-	Color       string `json:"color"`
-	SortOrder   int    `json:"sort_order"`
-}
 
 // ---- ServiceType ----
 
 // ListServiceTypes godoc
 func (h *Handler) ListServiceTypes(c *gin.Context) {
-	serviceTypes, err := h.svc.ServiceType.List(c.Request.Context())
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	serviceTypes, err := h.svc.ServiceType.List(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, serviceTypes)
+	c.JSON(http.StatusOK, toServiceTypeResponseList(serviceTypes))
 }
 
 // CreateServiceType godoc
@@ -44,68 +32,85 @@ func (h *Handler) CreateServiceType(c *gin.Context) {
 	if !ok {
 		return
 	}
-
-	var input createServiceTypeInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	var req createServiceTypeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
-
-	serviceType := &model.ServiceType{
-		ClinicID:    clinicID,
-		Name:        input.Name,
-		IsActive:    input.IsActive,
-		Description: input.Description,
-		Color:       input.Color,
-		SortOrder:   input.SortOrder,
-	}
-
-	if err := h.svc.ServiceType.Create(c.Request.Context(), serviceType); err != nil {
+	st, err := h.svc.ServiceType.Create(c.Request.Context(), clinicID, &service.CreateServiceTypeInput{
+		Name:        req.Name,
+		Color:       req.Color,
+		IsActive:    req.IsActive,
+		Description: req.Description,
+		SortOrder:   req.SortOrder,
+	})
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, serviceType)
+	c.JSON(http.StatusCreated, toServiceTypeResponse(st))
 }
 
 // UpdateServiceType godoc
 func (h *Handler) UpdateServiceType(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var input updateServiceTypeInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	var req updateServiceTypeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
-
-	serviceType := &model.ServiceType{
-		ID:          id,
-		Name:        input.Name,
-		Description: input.Description,
-		Color:       input.Color,
-		SortOrder:   input.SortOrder,
-	}
-	if input.IsActive != nil {
-		serviceType.IsActive = *input.IsActive
-	}
-
-	if err := h.svc.ServiceType.Update(c.Request.Context(), serviceType); err != nil {
+	st, err := h.svc.ServiceType.Update(c.Request.Context(), clinicID, id, &service.UpdateServiceTypeInput{
+		Name:        req.Name,
+		Color:       req.Color,
+		IsActive:    req.IsActive,
+		Description: req.Description,
+		SortOrder:   req.SortOrder,
+	})
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, serviceType)
+	c.JSON(http.StatusOK, toServiceTypeResponse(st))
 }
 
 // DeleteServiceType godoc
 func (h *Handler) DeleteServiceType(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	if err := h.svc.ServiceType.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.ServiceType.Delete(c.Request.Context(), clinicID, id); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// ReorderServiceTypes godoc
+func (h *Handler) ReorderServiceTypes(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var req reorderServiceTypeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+	if err := h.svc.ServiceType.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
 		RespondError(c, err)
 		return
 	}

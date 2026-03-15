@@ -147,6 +147,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 
 	masters.GET("/service-types", h.ListServiceTypes)
 	masters.POST("/service-types", h.CreateServiceType)
+	masters.PATCH("/service-types/reorder", h.ReorderServiceTypes) // 静的パスを /:id より前に登録
 	masters.PATCH("/service-types/:id", h.UpdateServiceType)
 	masters.DELETE("/service-types/:id", h.DeleteServiceType)
 
