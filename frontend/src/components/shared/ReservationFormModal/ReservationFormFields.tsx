@@ -47,7 +47,7 @@ function FieldLabel({ children, trailing }: FieldLabelProps) {
       <Label className="text-[12px] text-[#37352F]/40 tracking-wide font-medium">
         {children}
       </Label>
-      {trailing && <div>{trailing}</div>}
+      {trailing ? <div>{trailing}</div> : null}
     </div>
   );
 }
@@ -116,9 +116,9 @@ export const ReservationFormFields = ({
               />
             </PopoverContent>
           </Popover>
-          {validationErrors?.date && (
+          {validationErrors?.date ? (
             <FormFieldError id="res-date-error" message={validationErrors.date} />
-          )}
+          ) : null}
         </div>
 
         <div className="space-y-1.5">
@@ -202,9 +202,9 @@ export const ReservationFormFields = ({
               ))}
             </SelectContent>
           </Select>
-          {validationErrors?.type && (
+          {validationErrors?.type ? (
             <FormFieldError id="res-type-error" message={validationErrors.type} />
-          )}
+          ) : null}
         </div>
         <div className="space-y-1.5">
           <FieldLabel>初診/再診</FieldLabel>

@@ -59,7 +59,7 @@ export const PetSelectionResultsTable = ({ pets, onSelect }: PetSelectionResults
                 <TableCell className="font-mono text-sm text-[#37352F] whitespace-nowrap py-2">{pet.petNumber || "-"}</TableCell>
                 <TableCell className="text-sm text-[#37352F] whitespace-nowrap py-2">{pet.name}</TableCell>
                 <TableCell className="whitespace-nowrap py-2">
-                  {pet.status && (
+                  {pet.status ? (
                     <Badge
                       variant="secondary"
                       className={
@@ -70,7 +70,7 @@ export const PetSelectionResultsTable = ({ pets, onSelect }: PetSelectionResults
                     >
                       {pet.status}
                     </Badge>
-                  )}
+                  ) : null}
                 </TableCell>
                 <TableCell className="text-sm text-[#37352F] whitespace-nowrap py-2">{pet.species}</TableCell>
                 <TableCell className="font-mono text-sm text-[#37352F] whitespace-nowrap py-2">{pet.birthDate || "-"}</TableCell>
@@ -89,13 +89,13 @@ export const PetSelectionResultsTable = ({ pets, onSelect }: PetSelectionResults
                 </TableCell>
               </TableRow>
             ))}
-            {pets.length === 0 && (
+            {pets.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={11} className="h-24 text-center text-sm text-[#37352F]/60">
                   該当するペットが見つかりません
                 </TableCell>
               </TableRow>
-            )}
+            ) : null}
           </TableBody>
         </Table>
       </div>

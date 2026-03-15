@@ -257,9 +257,9 @@ export function ReservationFormModal({
                     </div>
                   </div>
                 )}
-                {selectedPets.length === 0 && (
+                {selectedPets.length === 0 ? (
                   <FormFieldError message={validationErrors.patient} />
-                )}
+                ) : null}
               </div>
 
               {/* Form Fields */}

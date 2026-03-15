@@ -71,7 +71,7 @@ const CategoryFilter = React.memo(function CategoryFilter({
   return (
     <div className="flex gap-2 p-2 border-b overflow-x-auto items-center bg-gray-50/50 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       <div className="flex gap-1.5 min-w-max px-1">
-        {activeCategory && (
+        {activeCategory ? (
           <Badge
             variant="outline"
             className="h-10 px-3 text-sm cursor-pointer hover:bg-gray-200 gap-1 text-muted-foreground border-transparent bg-transparent"
@@ -88,7 +88,7 @@ const CategoryFilter = React.memo(function CategoryFilter({
             <X className="h-3.5 w-3.5" />
             解除
           </Badge>
-        )}
+        ) : null}
         {categories.map((category) => {
           const isSelected = activeCategory === category;
           return (
@@ -212,7 +212,7 @@ export function TreatmentSearchDialog({
                 ))}
               </CommandGroup>
               {/* Show separator only when not filtering by category (cleaner look) */}
-              {!activeCategory && <CommandSeparator />}
+              {!activeCategory ? <CommandSeparator /> : null}
             </React.Fragment>
           );
         })}

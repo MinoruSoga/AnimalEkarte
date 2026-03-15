@@ -68,14 +68,14 @@ export const PetSelection = ({
                         </span>
                     </div>
                 </div>
-                {isSelected && <Check className="size-3.5 text-blue-600 flex-shrink-0 ml-2" />}
+                {isSelected ? <Check className="size-3.5 text-blue-600 flex-shrink-0 ml-2" /> : null}
                 </div>
             );
             })
         )}
       </div>
 
-      {selectedPets.length > 0 && (
+      {selectedPets.length > 0 ? (
         <div className="bg-blue-50/50 p-2 rounded-md border border-blue-100/50">
           <div className="text-sm font-bold text-blue-700 mb-1">選択中 ({selectedPets.length})</div>
           <div className="flex flex-wrap gap-1.5">
@@ -100,7 +100,7 @@ export const PetSelection = ({
             ))}
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

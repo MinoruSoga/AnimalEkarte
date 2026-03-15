@@ -51,7 +51,7 @@ export function RowActionDropdown({ actions }: RowActionDropdownProps) {
                     : ""
                 }
               >
-                {Icon && <Icon className="mr-2 h-4 w-4" />}
+                {Icon ? <Icon className="mr-2 h-4 w-4" /> : null}
                 {action.label}
               </DropdownMenuItem>
             );

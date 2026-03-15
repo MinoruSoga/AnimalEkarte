@@ -95,7 +95,7 @@ export function NotionDatePicker({
             <CalendarIcon className="h-4 w-4 shrink-0 text-[#37352F]/40" />
             {selected ? formatDisplay(selected) : placeholder}
           </span>
-          {value && (
+          {value ? (
             <span
               role="button"
               tabIndex={-1}
@@ -104,7 +104,7 @@ export function NotionDatePicker({
             >
               <X className="h-3.5 w-3.5" />
             </span>
-          )}
+          ) : null}
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">

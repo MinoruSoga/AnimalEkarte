@@ -29,7 +29,7 @@ export function SearchBox({
           value ? "pr-8" : "pr-3",
         )}
       />
-      {value && (
+      {value ? (
         <button
           type="button"
           onClick={() => onChange("")}
@@ -38,7 +38,7 @@ export function SearchBox({
         >
           <X className="size-3" />
         </button>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -21,11 +21,11 @@ export function SearchFilterBar({
 }: SearchFilterBarProps) {
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      {count !== undefined && (
+      {count !== undefined ? (
         <span className={STYLE.searchCount}>
           {count} 件
         </span>
-      )}
+      ) : null}
       {children}
       <div className="relative flex-1 max-w-md">
         <Search className={STYLE.searchIcon} />

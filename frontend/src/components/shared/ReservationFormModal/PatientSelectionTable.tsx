@@ -132,7 +132,7 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
             <Search className="mr-1.5 size-3" />
             検索
           </Button>
-          {hasSearchConditions && (
+          {hasSearchConditions ? (
             <Button
               size="sm"
               variant="outline"
@@ -142,7 +142,7 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
               <RotateCcw className="mr-1.5 size-3" />
               クリア
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
 

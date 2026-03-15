@@ -79,11 +79,11 @@ export function PatientInfoCard({
             <span className="text-base font-medium text-[#37352F]">{petName}</span>
           </div>
           <div className="flex items-center gap-3 text-sm text-[#37352F]/60">
-            {petNumber && (
+            {petNumber ? (
               <span className="font-mono text-[11px] px-1 py-0 rounded bg-[#F7F6F3] border border-[rgba(55,53,47,0.12)] text-[#37352F]/40 leading-4 tracking-wide">
                 #{petNumber}
               </span>
-            )}
+            ) : null}
             <span className="flex items-center gap-1">
               <User className="size-3" /> {petDetails}
             </span>
@@ -129,7 +129,7 @@ export function PatientInfoCard({
 
         {/* Staff & Actions */}
         <div className="flex items-center gap-2 ml-auto shrink-0">
-          {onVitalClick && (
+          {onVitalClick ? (
             <Button
               variant="outline"
               size="sm"
@@ -138,8 +138,8 @@ export function PatientInfoCard({
             >
               +生体情報
             </Button>
-          )}
-          {!hideStaff && (
+          ) : null}
+          {!hideStaff ? (
             onStaffClick ? (
               <Button
                 variant="ghost"
@@ -155,7 +155,7 @@ export function PatientInfoCard({
                 {staffLabel ? `${staffLabel}${staffName}` : staffName}
               </div>
             )
-          )}
+          ) : null}
         </div>
       </div>
     </div>
