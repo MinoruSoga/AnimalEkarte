@@ -12,6 +12,21 @@ import (
 
 // ---- HospitalizationPlan ----
 
+// GetHospitalizationPlan godoc
+func (h *Handler) GetHospitalizationPlan(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	plan, err := h.svc.HospitalizationPlan.GetByID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toHospitalizationPlanResponse(plan))
+}
+
 // ListHospitalizationPlans godoc
 func (h *Handler) ListHospitalizationPlans(c *gin.Context) {
 	plans, err := h.svc.HospitalizationPlan.List(c.Request.Context())

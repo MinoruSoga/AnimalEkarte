@@ -35,6 +35,21 @@ type updateVaccineInput struct {
 
 // ---- Vaccine ----
 
+// GetVaccine godoc
+func (h *Handler) GetVaccine(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	vaccine, err := h.svc.Vaccine.GetByID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, vaccine)
+}
+
 // ListVaccines godoc
 func (h *Handler) ListVaccines(c *gin.Context) {
 	var species *string

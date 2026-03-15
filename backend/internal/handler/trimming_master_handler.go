@@ -13,6 +13,21 @@ import (
 
 // ---- TrimmingCourse ----
 
+// GetTrimmingCourse godoc
+func (h *Handler) GetTrimmingCourse(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	course, err := h.svc.TrimmingCourse.GetByID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toTrimmingCourseResponse(course))
+}
+
 // ListTrimmingCourses godoc
 func (h *Handler) ListTrimmingCourses(c *gin.Context) {
 	courses, err := h.svc.TrimmingCourse.List(c.Request.Context())
@@ -131,6 +146,21 @@ func (h *Handler) ReorderTrimmingCourses(c *gin.Context) {
 }
 
 // ---- TrimmingOption ----
+
+// GetTrimmingOption godoc
+func (h *Handler) GetTrimmingOption(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	option, err := h.svc.TrimmingOption.GetByID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toTrimmingOptionResponse(option))
+}
 
 // ListTrimmingOptions godoc
 func (h *Handler) ListTrimmingOptions(c *gin.Context) {

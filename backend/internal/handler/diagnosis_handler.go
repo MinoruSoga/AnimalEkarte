@@ -7,10 +7,30 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- DiagnosisCategory ----
+
+// GetDiagnosisCategory godoc
+func (h *Handler) GetDiagnosisCategory(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	category, err := h.svc.DiagnosisCategory.GetByID(c.Request.Context(), clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toDiagnosisCategoryResponse(category))
+}
 
 // ListDiagnosisCategories godoc
 func (h *Handler) ListDiagnosisCategories(c *gin.Context) {
@@ -120,6 +140,25 @@ func (h *Handler) ReorderDiagnosisCategories(c *gin.Context) {
 }
 
 // ---- DiagnosisName ----
+
+// GetDiagnosisName godoc
+func (h *Handler) GetDiagnosisName(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	diagnosisName, err := h.svc.DiagnosisName.GetByID(c.Request.Context(), clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toDiagnosisNameResponse(diagnosisName))
+}
 
 // ListDiagnosisNames godoc
 func (h *Handler) ListDiagnosisNames(c *gin.Context) {

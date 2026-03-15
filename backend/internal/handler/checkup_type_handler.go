@@ -35,6 +35,21 @@ type updateCheckupTypeInput struct {
 
 // ---- CheckupType ----
 
+// GetCheckupType godoc
+func (h *Handler) GetCheckupType(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	checkupType, err := h.svc.CheckupType.GetByID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, checkupType)
+}
+
 // ListCheckupTypes godoc
 func (h *Handler) ListCheckupTypes(c *gin.Context) {
 	checkupTypes, err := h.svc.CheckupType.List(c.Request.Context())

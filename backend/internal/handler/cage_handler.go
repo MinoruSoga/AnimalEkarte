@@ -26,6 +26,21 @@ func (h *Handler) ListCages(c *gin.Context) {
 	c.JSON(http.StatusOK, cages)
 }
 
+// GetCage godoc
+func (h *Handler) GetCage(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	cage, err := h.svc.Cage.GetByID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, cage)
+}
+
 // CreateCage godoc
 func (h *Handler) CreateCage(c *gin.Context) {
 	var input createCageRequest

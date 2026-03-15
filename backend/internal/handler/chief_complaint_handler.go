@@ -14,6 +14,21 @@ import (
 
 // ---- ChiefComplaintCategory ----
 
+// GetChiefComplaint godoc
+func (h *Handler) GetChiefComplaint(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	category, err := h.svc.ChiefComplaintCategory.GetByID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toChiefComplaintResponse(category))
+}
+
 // ListChiefComplaints godoc
 func (h *Handler) ListChiefComplaints(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)

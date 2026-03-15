@@ -159,4 +159,6 @@ func (h *Handler) RegisterTreatmentPlanMedicalRecordRoutes(rg *gin.RouterGroup) 
 func (h *Handler) RegisterTreatmentPlanHospitalizationRoutes(rg *gin.RouterGroup) {
 	rg.GET("/:id/treatment-plans", h.ListTreatmentPlansByHospitalization)
 	rg.POST("/:id/treatment-plans", h.CreateTreatmentPlanForHospitalization)
+	rg.PATCH("/:id/treatment-plans/:planId", h.UpdateTreatmentPlan)
+	rg.DELETE("/:id/treatment-plans/:planId", h.DeleteTreatmentPlan)
 }

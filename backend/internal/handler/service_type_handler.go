@@ -7,10 +7,30 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- ServiceType ----
+
+// GetServiceType godoc
+func (h *Handler) GetServiceType(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	st, err := h.svc.ServiceType.GetByID(c.Request.Context(), clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toServiceTypeResponse(st))
+}
 
 // ListServiceTypes godoc
 func (h *Handler) ListServiceTypes(c *gin.Context) {

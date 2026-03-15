@@ -35,6 +35,21 @@ type updateProcedureInput struct {
 
 // ---- Procedure ----
 
+// GetProcedure godoc
+func (h *Handler) GetProcedure(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	procedure, err := h.svc.Procedure.GetByID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, procedure)
+}
+
 // ListProcedures godoc
 func (h *Handler) ListProcedures(c *gin.Context) {
 	procedures, err := h.svc.Procedure.List(c.Request.Context())

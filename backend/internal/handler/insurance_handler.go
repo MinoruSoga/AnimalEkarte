@@ -23,6 +23,21 @@ func (h *Handler) ListInsurances(c *gin.Context) {
 	c.JSON(http.StatusOK, toInsuranceResponseList(insurances))
 }
 
+// GetInsurance godoc
+func (h *Handler) GetInsurance(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	insurance, err := h.svc.Insurance.GetByID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toInsuranceResponse(insurance))
+}
+
 // CreateInsurance godoc
 func (h *Handler) CreateInsurance(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)

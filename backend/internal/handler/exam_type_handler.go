@@ -12,6 +12,21 @@ import (
 
 // ---- ExaminationType ----
 
+// GetExaminationType godoc
+func (h *Handler) GetExaminationType(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	et, err := h.svc.ExaminationType.GetByID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toExamTypeResponse(et))
+}
+
 // ListExaminationTypes godoc
 func (h *Handler) ListExaminationTypes(c *gin.Context) {
 	exTypes, err := h.svc.ExaminationType.List(c.Request.Context())

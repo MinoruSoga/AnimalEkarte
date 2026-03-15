@@ -12,6 +12,21 @@ import (
 
 // ---- Consultation ----
 
+// GetConsultation godoc
+func (h *Handler) GetConsultation(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	consultation, err := h.svc.Consultation.GetByID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, consultation)
+}
+
 // ListConsultations godoc
 func (h *Handler) ListConsultations(c *gin.Context) {
 	consultations, err := h.svc.Consultation.List(c.Request.Context())

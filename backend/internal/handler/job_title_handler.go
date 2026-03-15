@@ -14,6 +14,21 @@ import (
 
 // ---- JobTitle ----
 
+// GetJobTitle godoc
+func (h *Handler) GetJobTitle(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	jt, err := h.svc.JobTitle.GetByID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toJobTitleResponse(jt))
+}
+
 // ListJobTitles godoc
 func (h *Handler) ListJobTitles(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
