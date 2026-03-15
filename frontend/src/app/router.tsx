@@ -33,7 +33,7 @@ export const router = createBrowserRouter([
       {
         path: "/",
         lazy: async () => {
-          const { Dashboard } = await import("@/features/dashboard/routes");
+          const { Dashboard } = await import("@/features/dashboard/routes/Dashboard");
           return { Component: Dashboard };
         },
       },

@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PageLayout } from '@/components/shared/PageLayout';
+import { PageLayout } from '@/components/shared/PageLayout/PageLayout';
 import { useEstimate } from '../api/get-estimate';
 import { useEstimateForm } from '../hooks/useEstimateForm';
 import type { EstimateStatus } from '../types';
