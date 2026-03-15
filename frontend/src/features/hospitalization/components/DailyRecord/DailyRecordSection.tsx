@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { format, addDays, subDays } from "date-fns";
 import { Activity, Sun, Moon, Coffee, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,9 +6,9 @@ import { DateNavigation } from "./DateNavigation";
 import { TimingSection } from "./TimingSection";
 import { Timeline } from "./Timeline";
 import { SimpleNoteForm } from "./SimpleNoteForm";
-import { VitalDialog } from "./VitalDialog";
-import { LogDialog } from "./LogDialog";
-import { TaskCompleteDialog } from "./TaskCompleteDialog";
+const VitalDialog = lazy(() => import("./VitalDialog").then((m) => ({ default: m.VitalDialog })));
+const LogDialog = lazy(() => import("./LogDialog").then((m) => ({ default: m.LogDialog })));
+const TaskCompleteDialog = lazy(() => import("./TaskCompleteDialog").then((m) => ({ default: m.TaskCompleteDialog })));
 import { useDailyRecordLogic } from "../../hooks/useDailyRecordLogic";
 import { H_STYLES } from "../../styles";
 import type { DailyRecord, CarePlanItem, CreateVitalDTO, CreateCareLogDTO, Task } from "../../types";
@@ -114,25 +114,25 @@ export function DailyRecordSection({ records, plans = [], onAddVital, onAddLog }
                 </div>
             </div>
 
-            <VitalDialog 
-                open={isVitalOpen} 
-                onOpenChange={setIsVitalOpen} 
-                onSave={handleSaveVital} 
-            />
-
-            <LogDialog 
-                open={isLogOpen} 
-                onOpenChange={setIsLogOpen} 
-                type={logType} 
-                onSave={handleSaveLog} 
-            />
-
-            <TaskCompleteDialog 
-                open={isTaskCompleteOpen} 
-                onOpenChange={setIsTaskCompleteOpen} 
-                task={selectedTask} 
-                onConfirm={handleSaveLog} 
-            />
+            <Suspense fallback={null}>
+              <VitalDialog
+                  open={isVitalOpen}
+                  onOpenChange={setIsVitalOpen}
+                  onSave={handleSaveVital}
+              />
+              <LogDialog
+                  open={isLogOpen}
+                  onOpenChange={setIsLogOpen}
+                  type={logType}
+                  onSave={handleSaveLog}
+              />
+              <TaskCompleteDialog
+                  open={isTaskCompleteOpen}
+                  onOpenChange={setIsTaskCompleteOpen}
+                  task={selectedTask}
+                  onConfirm={handleSaveLog}
+              />
+            </Suspense>
         </div>
     );
 }
