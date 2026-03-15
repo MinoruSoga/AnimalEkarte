@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, memo, useDeferredValue, useTransition } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
 
@@ -99,32 +99,51 @@ const TABS = [
 ] as const;
 
 // ─────────────────────────────────────────────────
+// Form state types
+// ─────────────────────────────────────────────────
+
+interface DiagnosisCategoryFormData {
+  name: string;
+  description: string;
+  isActive: boolean;
+}
+
+interface DiagnosisNameFormData {
+  name: string;
+  diagnosisCategoryId: string;
+  description: string;
+  isActive: boolean;
+}
+
+// ─────────────────────────────────────────────────
 // DiagnosisCategorySidePanel
 // ─────────────────────────────────────────────────
 
-function DiagnosisCategorySidePanel({
+interface DiagnosisCategorySidePanelProps {
+  item: DiagnosisCategory | null;
+  onClose: () => void;
+  onSave: (data: DiagnosisCategoryFormData) => void;
+  onDeleteRequest: (item: DiagnosisCategory) => void;
+}
+
+const DiagnosisCategorySidePanel = memo(function DiagnosisCategorySidePanel({
   item,
   onClose,
   onSave,
   onDeleteRequest,
-}: {
-  item: DiagnosisCategory | null;
-  onClose: () => void;
-  onSave: (data: { name: string; description: string; isActive: boolean }) => void;
-  onDeleteRequest: () => void;
-}) {
-  const [formData, setFormData] = useState({
+}: DiagnosisCategorySidePanelProps) {
+  const [formData, setFormData] = useState<DiagnosisCategoryFormData>(() => ({
     name: item?.name ?? "",
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,
-  });
+  }));
 
   return (
     <SidePeekPanel>
       <SidePeekToolbar
         isNew={item === null}
         onClose={onClose}
-        onDelete={item !== null ? onDeleteRequest : undefined}
+        onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       />
       <SidePeekBody>
         <div className="pt-4 pb-2">
@@ -134,14 +153,14 @@ function DiagnosisCategorySidePanel({
         </div>
         <SidePeekTitleInput
           value={formData.name}
-          onChange={(v) => setFormData({ ...formData, name: v })}
+          onChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
         />
         <div className={`${STYLE.sectionDivider} mb-1`} />
         <div className="py-1">
           <PropertyRow label="ステータス">
             <button
               type="button"
-              onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+              onClick={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
               className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
             >
               <NotionStatusPill isActive={formData.isActive} />
@@ -150,7 +169,7 @@ function DiagnosisCategorySidePanel({
           <PropertyRow label="備考">
             <PropInput
               value={formData.description}
-              onChange={(v) => setFormData({ ...formData, description: v })}
+              onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
               placeholder="補足情報など"
             />
           </PropertyRow>
@@ -159,26 +178,28 @@ function DiagnosisCategorySidePanel({
       <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
     </SidePeekPanel>
   );
-}
+});
 
 // ─────────────────────────────────────────────────
 // DiagnosisNameSidePanel
 // ─────────────────────────────────────────────────
 
-function DiagnosisNameSidePanel({
+interface DiagnosisNameSidePanelProps {
+  item: DiagnosisName | null;
+  categories: DiagnosisCategory[];
+  onClose: () => void;
+  onSave: (data: DiagnosisNameFormData) => void;
+  onDeleteRequest: (item: DiagnosisName) => void;
+}
+
+const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
   item,
   categories,
   onClose,
   onSave,
   onDeleteRequest,
-}: {
-  item: DiagnosisName | null;
-  categories: DiagnosisCategory[];
-  onClose: () => void;
-  onSave: (data: { name: string; diagnosisCategoryId: string; description: string; isActive: boolean }) => void;
-  onDeleteRequest: () => void;
-}) {
-  const [formData, setFormData] = useState({
+}: DiagnosisNameSidePanelProps) {
+  const [formData, setFormData] = useState<DiagnosisNameFormData>(() => ({
     name: item?.name ?? "",
     diagnosisCategoryId: item
       ? String(item.diagnosisCategoryId)
@@ -187,14 +208,22 @@ function DiagnosisNameSidePanel({
         : "",
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,
-  });
+  }));
+
+  // js-cache-function-results: API由来のJSXリストをuseMemoでキャッシュ
+  const categorySelectItems = useMemo(
+    () => categories.map((cat) => (
+      <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>
+    )),
+    [categories],
+  );
 
   return (
     <SidePeekPanel>
       <SidePeekToolbar
         isNew={item === null}
         onClose={onClose}
-        onDelete={item !== null ? onDeleteRequest : undefined}
+        onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       />
       <SidePeekBody>
         <div className="pt-4 pb-2">
@@ -204,14 +233,14 @@ function DiagnosisNameSidePanel({
         </div>
         <SidePeekTitleInput
           value={formData.name}
-          onChange={(v) => setFormData({ ...formData, name: v })}
+          onChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
         />
         <div className={`${STYLE.sectionDivider} mb-1`} />
         <div className="py-1">
           <PropertyRow label="ステータス">
             <button
               type="button"
-              onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+              onClick={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
               className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
             >
               <NotionStatusPill isActive={formData.isActive} />
@@ -220,24 +249,20 @@ function DiagnosisNameSidePanel({
           <PropertyRow label="カテゴリ">
             <Select
               value={formData.diagnosisCategoryId}
-              onValueChange={(v) => setFormData({ ...formData, diagnosisCategoryId: v })}
+              onValueChange={(v) => setFormData((prev) => ({ ...prev, diagnosisCategoryId: v }))}
             >
               <SelectTrigger className={STYLE.selectCompact}>
                 <SelectValue placeholder="カテゴリを選択" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={String(cat.id)}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
+                {categorySelectItems}
               </SelectContent>
             </Select>
           </PropertyRow>
           <PropertyRow label="備考">
             <PropInput
               value={formData.description}
-              onChange={(v) => setFormData({ ...formData, description: v })}
+              onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
               placeholder="補足情報など"
             />
           </PropertyRow>
@@ -246,17 +271,18 @@ function DiagnosisNameSidePanel({
       <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
     </SidePeekPanel>
   );
-}
+});
 
 // ─────────────────────────────────────────────────
 // DiagnosisCategoryTab
 // ─────────────────────────────────────────────────
 
 function DiagnosisCategoryTab() {
-  const [selectedItem, setSelectedItem] = useState<DiagnosisCategory | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  // null=closed, "new"=create mode, DiagnosisCategory=edit mode
+  const [editTarget, setEditTarget] = useState<DiagnosisCategory | "new" | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<DiagnosisCategory | null>(null);
+  const [, startSaveTransition] = useTransition();
 
   const { data: rawCategories } = useListDiagnosisCategories();
   const createMutation = useCreateDiagnosisCategory();
@@ -272,59 +298,56 @@ function DiagnosisCategoryTab() {
       },
     });
 
+  // rerender-transitions: 検索フィルタを低優先度に遅延
+  const deferredSearch = useDeferredValue(searchTerm);
+
   const filteredItems = useMemo(() => {
-    if (!searchTerm) return orderedCategories;
-    const lower = searchTerm.toLowerCase();
+    if (!deferredSearch) return orderedCategories;
+    const lower = deferredSearch.toLowerCase();
     return orderedCategories.filter((c) => c.name.toLowerCase().includes(lower));
-  }, [orderedCategories, searchTerm]);
+  }, [orderedCategories, deferredSearch]);
 
-  const handleEdit = (item: DiagnosisCategory) => {
-    setSelectedItem(item);
-    setIsEditing(true);
-  };
+  const handleClose = useCallback(() => setEditTarget(null), []);
 
-  const handleCreate = () => {
-    setSelectedItem(null);
-    setIsEditing(true);
-  };
+  const handleSave = useCallback(
+    (data: DiagnosisCategoryFormData) => {
+      if (!data.name.trim()) {
+        toast.error("カテゴリ名は必須です");
+        return;
+      }
 
-  const handleClose = () => {
-    setIsEditing(false);
-    setSelectedItem(null);
-  };
-
-  const handleSave = (data: { name: string; description: string; isActive: boolean }) => {
-    if (!data.name.trim()) {
-      toast.error("カテゴリ名は必須です");
-      return;
-    }
-    if (selectedItem) {
-      const req: UpdateDiagnosisCategoryRequest = {
-        name: data.name,
-        description: data.description || undefined,
-        is_active: data.isActive,
-      };
-      updateMutation.mutate(
-        { id: selectedItem.id, req },
-        {
-          onSuccess: () => { toast.success("更新しました"); handleClose(); },
-          onError: () => toast.error("更新に失敗しました"),
-        },
-      );
-    } else {
-      const req: CreateDiagnosisCategoryRequest = {
-        name: data.name,
-        description: data.description || undefined,
-        is_active: true,
-      };
-      createMutation.mutate(req, {
-        onSuccess: () => { toast.success("登録しました"); handleClose(); },
-        onError: () => toast.error("登録に失敗しました"),
+      // rerender-transitions: API書き込みを非緊急マーク
+      startSaveTransition(() => {
+        if (editTarget !== null && editTarget !== "new") {
+          const req: UpdateDiagnosisCategoryRequest = {
+            name: data.name,
+            description: data.description || undefined,
+            is_active: data.isActive,
+          };
+          updateMutation.mutate(
+            { id: editTarget.id, req },
+            {
+              onSuccess: () => { toast.success("更新しました"); handleClose(); },
+              onError: () => toast.error("更新に失敗しました"),
+            },
+          );
+        } else {
+          const req: CreateDiagnosisCategoryRequest = {
+            name: data.name,
+            description: data.description || undefined,
+            is_active: true,
+          };
+          createMutation.mutate(req, {
+            onSuccess: () => { toast.success("登録しました"); handleClose(); },
+            onError: () => toast.error("登録に失敗しました"),
+          });
+        }
       });
-    }
-  };
+    },
+    [editTarget, updateMutation, createMutation, handleClose],
+  );
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = useCallback(() => {
     if (!pendingDelete) return;
     deleteMutation.mutate(pendingDelete.id, {
       onSuccess: () => {
@@ -334,7 +357,9 @@ function DiagnosisCategoryTab() {
       },
       onError: () => toast.error("削除に失敗しました"),
     });
-  };
+  }, [pendingDelete, deleteMutation, handleClose]);
+
+  const panelItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
 
   return (
     <>
@@ -352,7 +377,7 @@ function DiagnosisCategoryTab() {
             </div>
             <button
               type="button"
-              onClick={handleCreate}
+              onClick={() => setEditTarget("new")}
               className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1B6EC2] cursor-pointer transition-colors"
             >
               <Plus className="size-4" />
@@ -377,7 +402,7 @@ function DiagnosisCategoryTab() {
                   <SortableDataTableRow
                     key={item.id}
                     id={item.id}
-                    onClick={() => handleEdit(item)}
+                    onClick={() => setEditTarget(item)}
                   >
                     <TableCell className={`font-medium text-sm ${C.text}`}>
                       {item.name}
@@ -389,7 +414,7 @@ function DiagnosisCategoryTab() {
                       <NotionStatusPill isActive={item.isActive} />
                     </TableCell>
                     <TableCell className="p-0 text-right">
-                      <RowActionButton onClick={() => handleEdit(item)} />
+                      <RowActionButton onClick={() => setEditTarget(item)} />
                     </TableCell>
                   </SortableDataTableRow>
                 )}
@@ -399,13 +424,13 @@ function DiagnosisCategoryTab() {
         </div>
 
         {/* Side peek */}
-        {isEditing ? (
+        {editTarget !== null ? (
           <DiagnosisCategorySidePanel
-            key={selectedItem ? String(selectedItem.id) : "new-category"}
-            item={selectedItem}
+            key={panelItem ? String(panelItem.id) : "new-category"}
+            item={panelItem}
             onClose={handleClose}
             onSave={handleSave}
-            onDeleteRequest={() => setPendingDelete(selectedItem)}
+            onDeleteRequest={setPendingDelete}
           />
         ) : null}
       </div>
@@ -428,10 +453,11 @@ function DiagnosisCategoryTab() {
 // ─────────────────────────────────────────────────
 
 function DiagnosisNameTab() {
-  const [selectedItem, setSelectedItem] = useState<DiagnosisName | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  // null=closed, "new"=create mode, DiagnosisName=edit mode
+  const [editTarget, setEditTarget] = useState<DiagnosisName | "new" | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<DiagnosisName | null>(null);
+  const [, startSaveTransition] = useTransition();
 
   const { data: rawCategories } = useListDiagnosisCategories();
   const { data: rawNames } = useListDiagnosisNames();
@@ -449,76 +475,67 @@ function DiagnosisNameTab() {
       },
     });
 
+  // rerender-transitions: 検索フィルタを低優先度に遅延
+  const deferredSearch = useDeferredValue(searchTerm);
+
   const filteredItems = useMemo(() => {
-    if (!searchTerm) return orderedNames;
-    const lower = searchTerm.toLowerCase();
+    if (!deferredSearch) return orderedNames;
+    const lower = deferredSearch.toLowerCase();
     return orderedNames.filter((n) => n.name.toLowerCase().includes(lower));
-  }, [orderedNames, searchTerm]);
+  }, [orderedNames, deferredSearch]);
 
   const categoryMap = useMemo(
     () => new Map<string, string>((rawCategories ?? []).map((c) => [c.id, c.name])),
     [rawCategories],
   );
 
-  const handleEdit = (item: DiagnosisName) => {
-    setSelectedItem(item);
-    setIsEditing(true);
-  };
+  const handleClose = useCallback(() => setEditTarget(null), []);
 
-  const handleCreate = () => {
-    setSelectedItem(null);
-    setIsEditing(true);
-  };
+  const handleSave = useCallback(
+    (data: DiagnosisNameFormData) => {
+      if (!data.name.trim()) {
+        toast.error("診断病名は必須です");
+        return;
+      }
+      if (!data.diagnosisCategoryId) {
+        toast.error("カテゴリは必須です");
+        return;
+      }
 
-  const handleClose = () => {
-    setIsEditing(false);
-    setSelectedItem(null);
-  };
-
-  const handleSave = (data: {
-    name: string;
-    diagnosisCategoryId: string;
-    description: string;
-    isActive: boolean;
-  }) => {
-    if (!data.name.trim()) {
-      toast.error("診断病名は必須です");
-      return;
-    }
-    if (!data.diagnosisCategoryId) {
-      toast.error("カテゴリは必須です");
-      return;
-    }
-
-    if (selectedItem) {
-      const req: UpdateDiagnosisNameRequest = {
-        name: data.name,
-        diagnosis_category_id: Number(data.diagnosisCategoryId),
-        description: data.description || undefined,
-        is_active: data.isActive,
-      };
-      updateMutation.mutate(
-        { id: selectedItem.id, req },
-        {
-          onSuccess: () => { toast.success("更新しました"); handleClose(); },
-          onError: () => toast.error("更新に失敗しました"),
-        },
-      );
-    } else {
-      const req: CreateDiagnosisNameRequest = {
-        name: data.name,
-        diagnosis_category_id: Number(data.diagnosisCategoryId),
-        description: data.description || undefined,
-        is_active: true,
-      };
-      createMutation.mutate(req, {
-        onSuccess: () => { toast.success("登録しました"); handleClose(); },
-        onError: () => toast.error("登録に失敗しました"),
+      // rerender-transitions: API書き込みを非緊急マーク
+      startSaveTransition(() => {
+        if (editTarget !== null && editTarget !== "new") {
+          const req: UpdateDiagnosisNameRequest = {
+            name: data.name,
+            diagnosis_category_id: Number(data.diagnosisCategoryId),
+            description: data.description || undefined,
+            is_active: data.isActive,
+          };
+          updateMutation.mutate(
+            { id: editTarget.id, req },
+            {
+              onSuccess: () => { toast.success("更新しました"); handleClose(); },
+              onError: () => toast.error("更新に失敗しました"),
+            },
+          );
+        } else {
+          const req: CreateDiagnosisNameRequest = {
+            name: data.name,
+            diagnosis_category_id: Number(data.diagnosisCategoryId),
+            description: data.description || undefined,
+            is_active: true,
+          };
+          createMutation.mutate(req, {
+            onSuccess: () => { toast.success("登録しました"); handleClose(); },
+            onError: () => toast.error("登録に失敗しました"),
+          });
+        }
       });
-    }
-  };
+    },
+    [editTarget, updateMutation, createMutation, handleClose],
+  );
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = useCallback(() => {
     if (!pendingDelete) return;
     deleteMutation.mutate(pendingDelete.id, {
       onSuccess: () => {
@@ -528,7 +545,9 @@ function DiagnosisNameTab() {
       },
       onError: () => toast.error("削除に失敗しました"),
     });
-  };
+  }, [pendingDelete, deleteMutation, handleClose]);
+
+  const panelItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
 
   return (
     <>
@@ -546,7 +565,7 @@ function DiagnosisNameTab() {
             </div>
             <button
               type="button"
-              onClick={handleCreate}
+              onClick={() => setEditTarget("new")}
               className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1B6EC2] cursor-pointer transition-colors"
             >
               <Plus className="size-4" />
@@ -571,7 +590,7 @@ function DiagnosisNameTab() {
                   <SortableDataTableRow
                     key={item.id}
                     id={item.id}
-                    onClick={() => handleEdit(item)}
+                    onClick={() => setEditTarget(item)}
                   >
                     <TableCell className={`text-sm ${C.text70}`}>
                       {categoryMap.get(item.diagnosisCategoryId) ?? "-"}
@@ -583,7 +602,7 @@ function DiagnosisNameTab() {
                       <NotionStatusPill isActive={item.isActive} />
                     </TableCell>
                     <TableCell className="p-0 text-right">
-                      <RowActionButton onClick={() => handleEdit(item)} />
+                      <RowActionButton onClick={() => setEditTarget(item)} />
                     </TableCell>
                   </SortableDataTableRow>
                 )}
@@ -593,14 +612,14 @@ function DiagnosisNameTab() {
         </div>
 
         {/* Side peek */}
-        {isEditing ? (
+        {editTarget !== null ? (
           <DiagnosisNameSidePanel
-            key={selectedItem ? String(selectedItem.id) : "new-name"}
-            item={selectedItem}
+            key={panelItem ? String(panelItem.id) : "new-name"}
+            item={panelItem}
             categories={rawCategories ?? []}
             onClose={handleClose}
             onSave={handleSave}
-            onDeleteRequest={() => setPendingDelete(selectedItem)}
+            onDeleteRequest={setPendingDelete}
           />
         ) : null}
       </div>

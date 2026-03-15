@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, memo, useDeferredValue } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
 
@@ -156,23 +156,26 @@ function buildTree(items: TreatmentItem[]): TreeItem[] {
 // TreatmentItemSidePanel
 // ─────────────────────────────────────────────────
 
-function TreatmentItemSidePanel({
-  item,
-  onClose,
-  onSave,
-  onDeleteRequest,
-}: {
+interface TreatmentItemSidePanelProps {
   item: TreatmentItem | null;
   onClose: () => void;
   onSave: (data: TreatmentFormData) => void;
   onDeleteRequest: () => void;
-}) {
-  const [formData, setFormData] = useState<TreatmentFormData>({
+}
+
+const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
+  item,
+  onClose,
+  onSave,
+  onDeleteRequest,
+}: TreatmentItemSidePanelProps) {
+  // rerender-lazy-state-init: 初回マウント時のみ item から初期化
+  const [formData, setFormData] = useState<TreatmentFormData>(() => ({
     name: item?.name ?? "",
     price: item?.price ?? 0,
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,
-  });
+  }));
 
   return (
     <SidePeekPanel>
@@ -189,14 +192,14 @@ function TreatmentItemSidePanel({
         </div>
         <SidePeekTitleInput
           value={formData.name}
-          onChange={(v) => setFormData({ ...formData, name: v })}
+          onChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
         />
         <div className={`${STYLE.sectionDivider} mb-1`} />
         <div className="py-1">
           <PropertyRow label="ステータス">
             <button
               type="button"
-              onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+              onClick={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
               className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
             >
               <NotionStatusPill isActive={formData.isActive} />
@@ -209,7 +212,7 @@ function TreatmentItemSidePanel({
               className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder} font-mono`}
               value={formData.price === 0 ? "" : formData.price}
               onChange={(e) =>
-                setFormData({ ...formData, price: Number(e.target.value) || 0 })
+                setFormData((prev) => ({ ...prev, price: Number(e.target.value) || 0 }))
               }
               placeholder="0"
             />
@@ -217,7 +220,7 @@ function TreatmentItemSidePanel({
           <PropertyRow label="備考">
             <PropInput
               value={formData.description}
-              onChange={(v) => setFormData({ ...formData, description: v })}
+              onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
               placeholder="補足情報など"
             />
           </PropertyRow>
@@ -226,7 +229,7 @@ function TreatmentItemSidePanel({
       <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
     </SidePeekPanel>
   );
-}
+});
 
 // ─────────────────────────────────────────────────
 // ChildTreatmentRow (child items — not sortable)
@@ -277,9 +280,10 @@ function TreatmentTabContent({
   onDelete,
   onReorder,
 }: TreatmentTabConfig) {
-  const [selectedItem, setSelectedItem] = useState<TreatmentItem | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const [editTarget, setEditTarget] = useState<TreatmentItem | "new" | null>(null);
+  const selectedItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
   const [searchTerm, setSearchTerm] = useState("");
+  const deferredSearch = useDeferredValue(searchTerm);
   const [pendingDelete, setPendingDelete] = useState<TreatmentItem | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
@@ -293,14 +297,14 @@ function TreatmentTabContent({
   });
 
   const filteredRoots = useMemo(() => {
-    if (!searchTerm) return orderedRoots;
-    const lower = searchTerm.toLowerCase();
+    if (!deferredSearch) return orderedRoots;
+    const lower = deferredSearch.toLowerCase();
     return orderedRoots.filter(
       (r) =>
         r.name.toLowerCase().includes(lower) ||
         r.children.some((c) => c.name.toLowerCase().includes(lower)),
     );
-  }, [orderedRoots, searchTerm]);
+  }, [orderedRoots, deferredSearch]);
 
   const toggleExpanded = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -328,22 +332,23 @@ function TreatmentTabContent({
 
   const totalCount = (rawData ?? []).length;
 
-  const handleEdit = (item: TreatmentItem) => {
-    setSelectedItem(item);
-    setIsEditing(true);
-  };
+  const handleEdit = useCallback((item: TreatmentItem) => {
+    setEditTarget(item);
+  }, []);
 
-  const handleCreate = () => {
-    setSelectedItem(null);
-    setIsEditing(true);
-  };
+  const handleCreate = useCallback(() => {
+    setEditTarget("new");
+  }, []);
 
-  const handleClose = () => {
-    setIsEditing(false);
-    setSelectedItem(null);
-  };
+  const handleClose = useCallback(() => {
+    setEditTarget(null);
+  }, []);
 
-  const handleSave = (data: TreatmentFormData) => {
+  const handleDeleteRequest = useCallback(() => {
+    setPendingDelete(selectedItem);
+  }, [selectedItem]);
+
+  const handleSave = useCallback((data: TreatmentFormData) => {
     if (!data.name.trim()) {
       toast.error("名称は必須です");
       return;
@@ -365,9 +370,9 @@ function TreatmentTabContent({
         onError: () => toast.error("登録に失敗しました"),
       });
     }
-  };
+  }, [selectedItem, onUpdate, onCreate, handleClose]);
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = useCallback(() => {
     if (!pendingDelete) return;
     onDelete(pendingDelete.id, {
       onSuccess: () => {
@@ -377,7 +382,7 @@ function TreatmentTabContent({
       },
       onError: () => toast.error("削除に失敗しました"),
     });
-  };
+  }, [pendingDelete, onDelete, handleClose]);
 
   return (
     <>
@@ -478,13 +483,13 @@ function TreatmentTabContent({
         </div>
 
         {/* Side peek */}
-        {isEditing ? (
+        {editTarget !== null ? (
           <TreatmentItemSidePanel
             key={selectedItem ? String(selectedItem.id) : "new-item"}
             item={selectedItem}
             onClose={handleClose}
             onSave={handleSave}
-            onDeleteRequest={() => setPendingDelete(selectedItem)}
+            onDeleteRequest={handleDeleteRequest}
           />
         ) : null}
       </div>

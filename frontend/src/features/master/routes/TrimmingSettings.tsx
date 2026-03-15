@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, memo, useDeferredValue, useTransition } from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 
@@ -7,7 +7,7 @@ import { paths } from "@/config/paths";
 import { Plus, Scissors } from "lucide-react";
 import { toast } from "sonner";
 
-// Internal
+// Shared
 import { TableCell } from "@/components/ui/table";
 import {
   Select,
@@ -20,9 +20,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable, DataTableRow } from "@/components/shared/DataTable";
-import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import {
   PropertyRow,
@@ -33,6 +32,7 @@ import {
   SidePeekTitleInput,
   SidePeekFooter,
 } from "@/components/shared/SidePeek";
+import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
   useListTrimmingCourses,
   useCreateTrimmingCourse,
@@ -66,7 +66,8 @@ const COURSE_COLUMNS = [
   { header: "対象サイズ", className: "w-[120px]" },
   { header: "所要時間", className: "w-[100px]" },
   { header: "単価(税込)", className: "w-[110px]", align: "right" as const },
-  { header: "ステータス", className: "w-[90px]", align: "right" as const },
+  { header: "ステータス", className: "w-[90px]", align: "center" as const },
+  { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
 const OPTION_COLUMNS = [
@@ -74,10 +75,27 @@ const OPTION_COLUMNS = [
   { header: "所要時間", className: "w-[100px]" },
   { header: "組合せ可否", className: "w-[110px]", align: "center" as const },
   { header: "単価(税込)", className: "w-[110px]", align: "right" as const },
-  { header: "ステータス", className: "w-[90px]", align: "right" as const },
+  { header: "ステータス", className: "w-[90px]", align: "center" as const },
+  { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
-// Combinable pill
+// ─────────────────────────────────────────────────
+// Hoisted static JSX (rendering-hoist-jsx)
+// ─────────────────────────────────────────────────
+
+const TARGET_SIZE_SELECT_ITEMS = [
+  <SelectItem key="__none__" value="__none__">指定なし</SelectItem>,
+  ...TARGET_SIZE_OPTIONS.map((opt) => (
+    <SelectItem key={opt.value} value={opt.value}>
+      {opt.label}
+    </SelectItem>
+  )),
+];
+
+// ─────────────────────────────────────────────────
+// CombinablePill
+// ─────────────────────────────────────────────────
+
 function CombinablePill({ combinable }: { combinable: boolean }) {
   if (combinable) {
     return (
@@ -94,7 +112,7 @@ function CombinablePill({ combinable }: { combinable: boolean }) {
 }
 
 // ─────────────────────────────────────────────────
-// TrimmingCourseTab
+// CourseFormData
 // ─────────────────────────────────────────────────
 
 interface CourseFormData {
@@ -106,116 +124,214 @@ interface CourseFormData {
   isActive: boolean;
 }
 
-const DEFAULT_COURSE_FORM: CourseFormData = {
-  name: "",
-  price: "",
-  targetSize: "",
-  duration: "",
-  description: "",
-  isActive: true,
-};
+// ─────────────────────────────────────────────────
+// TrimmingCourseSidePanel
+// ─────────────────────────────────────────────────
+
+interface TrimmingCourseSidePanelProps {
+  item: TrimmingCourse | null;
+  onClose: () => void;
+  onSave: (data: CourseFormData) => void;
+  onDeleteRequest: (item: TrimmingCourse) => void;
+}
+
+const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
+  item,
+  onClose,
+  onSave,
+  onDeleteRequest,
+}: TrimmingCourseSidePanelProps) {
+  const [formData, setFormData] = useState<CourseFormData>(() => ({
+    name: item?.name ?? "",
+    price: item?.price != null ? String(item.price) : "",
+    targetSize: item?.targetSize ?? "",
+    duration: item?.duration != null ? String(item.duration) : "",
+    description: item?.description ?? "",
+    isActive: item?.isActive ?? true,
+  }));
+
+  return (
+    <SidePeekPanel>
+      <SidePeekToolbar
+        isNew={item === null}
+        onClose={onClose}
+        onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      />
+      <SidePeekBody>
+        <div className="pt-4 pb-2">
+          <div className={STYLE.pageIcon}>
+            <Scissors className={LAYOUT.pageIcon.innerIcon} />
+          </div>
+        </div>
+        <SidePeekTitleInput
+          value={formData.name}
+          onChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+        />
+        <div className={`${STYLE.sectionDivider} mb-1`} />
+        <div className="py-1">
+          <PropertyRow label="ステータス">
+            <button
+              type="button"
+              onClick={() =>
+                setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))
+              }
+              className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+            >
+              <NotionStatusPill isActive={formData.isActive} />
+            </button>
+          </PropertyRow>
+
+          <PropertyRow label="対象サイズ">
+            <Select
+              value={formData.targetSize || "__none__"}
+              onValueChange={(v) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  targetSize: v === "__none__" ? "" : (v as TargetSize),
+                }))
+              }
+            >
+              <SelectTrigger className={STYLE.selectCompact}>
+                <SelectValue placeholder="選択" />
+              </SelectTrigger>
+              <SelectContent>{TARGET_SIZE_SELECT_ITEMS}</SelectContent>
+            </Select>
+          </PropertyRow>
+
+          <PropertyRow label="所要時間(分)">
+            <PropInput
+              type="number"
+              value={formData.duration}
+              onChange={(v) => setFormData((prev) => ({ ...prev, duration: v }))}
+              placeholder="90"
+            />
+          </PropertyRow>
+
+          <PropertyRow label="単価(税込)">
+            <div className="flex items-center gap-1">
+              <span className={`text-sm ${C.text65} select-none`}>¥</span>
+              <input
+                type="number"
+                min={0}
+                className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
+                value={formData.price}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, price: e.target.value }))
+                }
+                placeholder="0"
+              />
+            </div>
+          </PropertyRow>
+
+          <PropertyRow label="備考">
+            <PropInput
+              value={formData.description}
+              onChange={(v) =>
+                setFormData((prev) => ({ ...prev, description: v }))
+              }
+              placeholder="補足情報など"
+            />
+          </PropertyRow>
+        </div>
+      </SidePeekBody>
+      <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
+    </SidePeekPanel>
+  );
+});
+
+// ─────────────────────────────────────────────────
+// TrimmingCourseTab
+// ─────────────────────────────────────────────────
 
 function TrimmingCourseTab() {
-  const [isEditing, setIsEditing] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<TrimmingCourse | null>(null);
+  // null=closed, "new"=create mode, TrimmingCourse=edit mode
+  const [editTarget, setEditTarget] = useState<TrimmingCourse | "new" | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<TrimmingCourse | null>(null);
-  const [formData, setFormData] = useState<CourseFormData>(DEFAULT_COURSE_FORM);
+  const [, startSaveTransition] = useTransition();
 
   const { data: rawCourses } = useListTrimmingCourses();
   const createMutation = useCreateTrimmingCourse();
   const updateMutation = useUpdateTrimmingCourse();
   const deleteMutation = useDeleteTrimmingCourse();
 
+  // rerender-transitions: 検索フィルタを低優先度に遅延
+  const deferredSearch = useDeferredValue(searchTerm);
+
   const filteredItems = useMemo(() => {
     const courses = rawCourses ?? [];
-    if (!searchTerm) return courses;
-    const lower = searchTerm.toLowerCase();
+    if (!deferredSearch) return courses;
+    const lower = deferredSearch.toLowerCase();
     return courses.filter((c) => c.name.toLowerCase().includes(lower));
-  }, [rawCourses, searchTerm]);
+  }, [rawCourses, deferredSearch]);
 
-  const handleEdit = (item: TrimmingCourse) => {
-    setSelectedItem(item);
-    setFormData({
-      name: item.name,
-      price: item.price != null ? String(item.price) : "",
-      targetSize: item.targetSize ?? "",
-      duration: item.duration != null ? String(item.duration) : "",
-      description: item.description,
-      isActive: item.isActive,
-    });
-    setIsEditing(true);
-  };
+  const handleClose = useCallback(() => setEditTarget(null), []);
 
-  const handleCreate = () => {
-    setSelectedItem(null);
-    setFormData(DEFAULT_COURSE_FORM);
-    setIsEditing(true);
-  };
+  const handleSave = useCallback(
+    (data: CourseFormData) => {
+      if (!data.name.trim()) {
+        toast.error("コース名は必須です");
+        return;
+      }
 
-  const handleCloseEdit = () => {
-    setIsEditing(false);
-    setSelectedItem(null);
-    setFormData(DEFAULT_COURSE_FORM);
-  };
+      const priceValue = data.price !== "" ? Number(data.price) : null;
 
-  const handleSave = () => {
-    if (!formData.name.trim()) {
-      toast.error("コース名は必須です");
-      return;
-    }
-
-    const priceValue = formData.price !== "" ? Number(formData.price) : null;
-
-    if (selectedItem) {
-      const req: UpdateTrimmingCourseRequest = {
-        name: formData.name,
-        price: priceValue,
-        target_size: formData.targetSize !== "" ? formData.targetSize : null,
-        duration: formData.duration !== "" ? Number(formData.duration) : null,
-        description: formData.description || undefined,
-        is_active: formData.isActive,
-      };
-      updateMutation.mutate(
-        { id: selectedItem.id, req },
-        {
-          onSuccess: () => {
-            toast.success("更新しました");
-            setIsEditing(false);
-          },
-          onError: () => toast.error("更新に失敗しました"),
-        },
-      );
-    } else {
-      const req: CreateTrimmingCourseRequest = {
-        name: formData.name,
-        price: priceValue,
-        target_size: formData.targetSize !== "" ? formData.targetSize : null,
-        duration: formData.duration !== "" ? Number(formData.duration) : null,
-        description: formData.description || undefined,
-        is_active: true,
-      };
-      createMutation.mutate(req, {
-        onSuccess: () => {
-          toast.success("登録しました");
-          setIsEditing(false);
-        },
-        onError: () => toast.error("登録に失敗しました"),
+      // rerender-transitions: API書き込みを非緊急マーク
+      startSaveTransition(() => {
+        if (editTarget !== null && editTarget !== "new") {
+          const req: UpdateTrimmingCourseRequest = {
+            name: data.name,
+            price: priceValue,
+            target_size: data.targetSize !== "" ? data.targetSize : null,
+            duration: data.duration !== "" ? Number(data.duration) : null,
+            description: data.description || undefined,
+            is_active: data.isActive,
+          };
+          updateMutation.mutate(
+            { id: editTarget.id, req },
+            {
+              onSuccess: () => {
+                toast.success("更新しました");
+                handleClose();
+              },
+              onError: () => toast.error("更新に失敗しました"),
+            },
+          );
+        } else {
+          const req: CreateTrimmingCourseRequest = {
+            name: data.name,
+            price: priceValue,
+            target_size: data.targetSize !== "" ? data.targetSize : null,
+            duration: data.duration !== "" ? Number(data.duration) : null,
+            description: data.description || undefined,
+            is_active: true,
+          };
+          createMutation.mutate(req, {
+            onSuccess: () => {
+              toast.success("登録しました");
+              handleClose();
+            },
+            onError: () => toast.error("登録に失敗しました"),
+          });
+        }
       });
-    }
-  };
+    },
+    [editTarget, updateMutation, createMutation, handleClose],
+  );
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = useCallback(() => {
     if (!pendingDelete) return;
     deleteMutation.mutate(pendingDelete.id, {
       onSuccess: () => {
         setPendingDelete(null);
-        setIsEditing(false);
+        handleClose();
         toast.success("削除しました");
       },
       onError: () => toast.error("削除に失敗しました"),
     });
-  };
+  }, [pendingDelete, deleteMutation, handleClose]);
+
+  const panelItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
 
   return (
     <>
@@ -231,10 +347,14 @@ function TrimmingCourseTab() {
                 count={filteredItems.length}
               />
             </div>
-            <PrimaryButton onClick={handleCreate}>
-              <Plus className="mr-1.5 size-4" />
+            <button
+              type="button"
+              onClick={() => setEditTarget("new")}
+              className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1B6EC2] cursor-pointer transition-colors"
+            >
+              <Plus className="size-4" />
               新規登録
-            </PrimaryButton>
+            </button>
           </div>
 
           <DataTable
@@ -242,7 +362,7 @@ function TrimmingCourseTab() {
             data={filteredItems}
             emptyMessage="トリミングコースが登録されていません"
             renderRow={(item) => (
-              <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
+              <DataTableRow key={item.id} onClick={() => setEditTarget(item)}>
                 <TableCell className={`font-medium text-sm ${C.text}`}>
                   {item.name}
                 </TableCell>
@@ -255,114 +375,26 @@ function TrimmingCourseTab() {
                 <TableCell className={`text-right font-mono text-sm ${C.text}`}>
                   {item.price != null ? `¥${item.price.toLocaleString()}` : "-"}
                 </TableCell>
-                <TableCell className="text-right">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`} />
-                    <span className={`text-sm ${item.isActive ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}>
-                      {item.isActive ? "有効" : "無効"}
-                    </span>
-                  </span>
+                <TableCell className="text-center">
+                  <NotionStatusPill isActive={item.isActive} />
+                </TableCell>
+                <TableCell className="p-0 text-right">
+                  <RowActionButton onClick={() => setEditTarget(item)} />
                 </TableCell>
               </DataTableRow>
             )}
           />
-          <button
-            type="button"
-            onClick={handleCreate}
-            className="flex items-center gap-1.5 w-full px-3 py-2 text-sm text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[rgba(55,53,47,0.04)] transition-colors rounded"
-          >
-            <Plus className="size-3.5" />
-            新しいコースを追加...
-          </button>
         </div>
 
         {/* ── Right: Side Peek ── */}
-        {isEditing ? (
-          <SidePeekPanel>
-            <SidePeekToolbar
-              isNew={selectedItem === null}
-              onClose={handleCloseEdit}
-              onDelete={selectedItem !== null ? () => setPendingDelete(selectedItem) : undefined}
-            />
-            <SidePeekBody>
-              <div className="pt-4 pb-2">
-                <div className={STYLE.pageIcon}>
-                  <Scissors className={LAYOUT.pageIcon.innerIcon} />
-                </div>
-              </div>
-              <SidePeekTitleInput
-                value={formData.name}
-                onChange={(v) => setFormData({ ...formData, name: v })}
-              />
-              <div className={`${STYLE.sectionDivider} mb-1`} />
-              <div className="py-1">
-                <PropertyRow label="ステータス">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData({ ...formData, isActive: !formData.isActive })
-                    }
-                    className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-                  >
-                    <NotionStatusPill isActive={formData.isActive} />
-                  </button>
-                </PropertyRow>
-
-                <PropertyRow label="対象サイズ">
-                  <Select
-                    value={formData.targetSize || "__none__"}
-                    onValueChange={(v) =>
-                      setFormData({ ...formData, targetSize: v === "__none__" ? "" : v as TargetSize })
-                    }
-                  >
-                    <SelectTrigger className={STYLE.selectCompact}>
-                      <SelectValue placeholder="選択" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">指定なし</SelectItem>
-                      {TARGET_SIZE_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </PropertyRow>
-
-                <PropertyRow label="所要時間(分)">
-                  <PropInput
-                    type="number"
-                    value={formData.duration}
-                    onChange={(v) => setFormData({ ...formData, duration: v })}
-                    placeholder="90"
-                  />
-                </PropertyRow>
-
-                <PropertyRow label="単価(税込)">
-                  <div className="flex items-center gap-1">
-                    <span className={`text-sm ${C.text65} select-none`}>¥</span>
-                    <input
-                      type="number"
-                      min={0}
-                      className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
-                      value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                      placeholder="0"
-                    />
-                  </div>
-                </PropertyRow>
-
-                <PropertyRow label="備考">
-                  <PropInput
-                    value={formData.description}
-                    onChange={(v) => setFormData({ ...formData, description: v })}
-                    placeholder="補足情報など"
-                  />
-                </PropertyRow>
-              </div>
-            </SidePeekBody>
-            <SidePeekFooter onCancel={handleCloseEdit} onSave={handleSave} />
-          </SidePeekPanel>
+        {editTarget !== null ? (
+          <TrimmingCourseSidePanel
+            key={panelItem ? String(panelItem.id) : "new-trimming-course"}
+            item={panelItem}
+            onClose={handleClose}
+            onSave={handleSave}
+            onDeleteRequest={setPendingDelete}
+          />
         ) : null}
       </div>
 
@@ -380,7 +412,7 @@ function TrimmingCourseTab() {
 }
 
 // ─────────────────────────────────────────────────
-// TrimmingOptionTab
+// OptionFormData
 // ─────────────────────────────────────────────────
 
 interface OptionFormData {
@@ -392,116 +424,209 @@ interface OptionFormData {
   isActive: boolean;
 }
 
-const DEFAULT_OPTION_FORM: OptionFormData = {
-  name: "",
-  price: "",
-  duration: "",
-  combinable: true,
-  description: "",
-  isActive: true,
-};
+// ─────────────────────────────────────────────────
+// TrimmingOptionSidePanel
+// ─────────────────────────────────────────────────
+
+interface TrimmingOptionSidePanelProps {
+  item: TrimmingOption | null;
+  onClose: () => void;
+  onSave: (data: OptionFormData) => void;
+  onDeleteRequest: (item: TrimmingOption) => void;
+}
+
+const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
+  item,
+  onClose,
+  onSave,
+  onDeleteRequest,
+}: TrimmingOptionSidePanelProps) {
+  const [formData, setFormData] = useState<OptionFormData>(() => ({
+    name: item?.name ?? "",
+    price: item?.price != null ? String(item.price) : "",
+    duration: item?.duration != null ? String(item.duration) : "",
+    combinable: item?.combinable ?? true,
+    description: item?.description ?? "",
+    isActive: item?.isActive ?? true,
+  }));
+
+  return (
+    <SidePeekPanel>
+      <SidePeekToolbar
+        isNew={item === null}
+        onClose={onClose}
+        onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      />
+      <SidePeekBody>
+        <div className="pt-4 pb-2">
+          <div className={STYLE.pageIcon}>
+            <Scissors className={LAYOUT.pageIcon.innerIcon} />
+          </div>
+        </div>
+        <SidePeekTitleInput
+          value={formData.name}
+          onChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+        />
+        <div className={`${STYLE.sectionDivider} mb-1`} />
+        <div className="py-1">
+          <PropertyRow label="ステータス">
+            <button
+              type="button"
+              onClick={() =>
+                setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))
+              }
+              className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+            >
+              <NotionStatusPill isActive={formData.isActive} />
+            </button>
+          </PropertyRow>
+
+          <PropertyRow label="所要時間(分)">
+            <PropInput
+              type="number"
+              value={formData.duration}
+              onChange={(v) => setFormData((prev) => ({ ...prev, duration: v }))}
+              placeholder="30"
+            />
+          </PropertyRow>
+
+          <PropertyRow label="組合せ可否">
+            <button
+              type="button"
+              onClick={() =>
+                setFormData((prev) => ({ ...prev, combinable: !prev.combinable }))
+              }
+              className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+            >
+              <CombinablePill combinable={formData.combinable} />
+            </button>
+          </PropertyRow>
+
+          <PropertyRow label="単価(税込)">
+            <div className="flex items-center gap-1">
+              <span className={`text-sm ${C.text65} select-none`}>¥</span>
+              <input
+                type="number"
+                min={0}
+                className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
+                value={formData.price}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, price: e.target.value }))
+                }
+                placeholder="0"
+              />
+            </div>
+          </PropertyRow>
+
+          <PropertyRow label="備考">
+            <PropInput
+              value={formData.description}
+              onChange={(v) =>
+                setFormData((prev) => ({ ...prev, description: v }))
+              }
+              placeholder="補足情報など"
+            />
+          </PropertyRow>
+        </div>
+      </SidePeekBody>
+      <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
+    </SidePeekPanel>
+  );
+});
+
+// ─────────────────────────────────────────────────
+// TrimmingOptionTab
+// ─────────────────────────────────────────────────
 
 function TrimmingOptionTab() {
-  const [isEditing, setIsEditing] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<TrimmingOption | null>(null);
+  // null=closed, "new"=create mode, TrimmingOption=edit mode
+  const [editTarget, setEditTarget] = useState<TrimmingOption | "new" | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<TrimmingOption | null>(null);
-  const [formData, setFormData] = useState<OptionFormData>(DEFAULT_OPTION_FORM);
+  const [, startSaveTransition] = useTransition();
 
   const { data: rawOptions } = useListTrimmingOptions();
   const createMutation = useCreateTrimmingOption();
   const updateMutation = useUpdateTrimmingOption();
   const deleteMutation = useDeleteTrimmingOption();
 
+  // rerender-transitions: 検索フィルタを低優先度に遅延
+  const deferredSearch = useDeferredValue(searchTerm);
+
   const filteredItems = useMemo(() => {
     const options = rawOptions ?? [];
-    if (!searchTerm) return options;
-    const lower = searchTerm.toLowerCase();
+    if (!deferredSearch) return options;
+    const lower = deferredSearch.toLowerCase();
     return options.filter((o) => o.name.toLowerCase().includes(lower));
-  }, [rawOptions, searchTerm]);
+  }, [rawOptions, deferredSearch]);
 
-  const handleEdit = (item: TrimmingOption) => {
-    setSelectedItem(item);
-    setFormData({
-      name: item.name,
-      price: item.price != null ? String(item.price) : "",
-      duration: item.duration != null ? String(item.duration) : "",
-      combinable: item.combinable,
-      description: item.description,
-      isActive: item.isActive,
-    });
-    setIsEditing(true);
-  };
+  const handleClose = useCallback(() => setEditTarget(null), []);
 
-  const handleCreate = () => {
-    setSelectedItem(null);
-    setFormData(DEFAULT_OPTION_FORM);
-    setIsEditing(true);
-  };
+  const handleSave = useCallback(
+    (data: OptionFormData) => {
+      if (!data.name.trim()) {
+        toast.error("オプション名は必須です");
+        return;
+      }
 
-  const handleCloseEdit = () => {
-    setIsEditing(false);
-    setSelectedItem(null);
-    setFormData(DEFAULT_OPTION_FORM);
-  };
+      const priceValue = data.price !== "" ? Number(data.price) : null;
 
-  const handleSave = () => {
-    if (!formData.name.trim()) {
-      toast.error("オプション名は必須です");
-      return;
-    }
-
-    const priceValue = formData.price !== "" ? Number(formData.price) : null;
-
-    if (selectedItem) {
-      const req: UpdateTrimmingOptionRequest = {
-        name: formData.name,
-        price: priceValue,
-        duration: formData.duration !== "" ? Number(formData.duration) : null,
-        combinable: formData.combinable,
-        description: formData.description || undefined,
-        is_active: formData.isActive,
-      };
-      updateMutation.mutate(
-        { id: selectedItem.id, req },
-        {
-          onSuccess: () => {
-            toast.success("更新しました");
-            setIsEditing(false);
-          },
-          onError: () => toast.error("更新に失敗しました"),
-        },
-      );
-    } else {
-      const req: CreateTrimmingOptionRequest = {
-        name: formData.name,
-        price: priceValue,
-        duration: formData.duration !== "" ? Number(formData.duration) : null,
-        combinable: formData.combinable,
-        description: formData.description || undefined,
-        is_active: true,
-      };
-      createMutation.mutate(req, {
-        onSuccess: () => {
-          toast.success("登録しました");
-          setIsEditing(false);
-        },
-        onError: () => toast.error("登録に失敗しました"),
+      // rerender-transitions: API書き込みを非緊急マーク
+      startSaveTransition(() => {
+        if (editTarget !== null && editTarget !== "new") {
+          const req: UpdateTrimmingOptionRequest = {
+            name: data.name,
+            price: priceValue,
+            duration: data.duration !== "" ? Number(data.duration) : null,
+            combinable: data.combinable,
+            description: data.description || undefined,
+            is_active: data.isActive,
+          };
+          updateMutation.mutate(
+            { id: editTarget.id, req },
+            {
+              onSuccess: () => {
+                toast.success("更新しました");
+                handleClose();
+              },
+              onError: () => toast.error("更新に失敗しました"),
+            },
+          );
+        } else {
+          const req: CreateTrimmingOptionRequest = {
+            name: data.name,
+            price: priceValue,
+            duration: data.duration !== "" ? Number(data.duration) : null,
+            combinable: data.combinable,
+            description: data.description || undefined,
+            is_active: true,
+          };
+          createMutation.mutate(req, {
+            onSuccess: () => {
+              toast.success("登録しました");
+              handleClose();
+            },
+            onError: () => toast.error("登録に失敗しました"),
+          });
+        }
       });
-    }
-  };
+    },
+    [editTarget, updateMutation, createMutation, handleClose],
+  );
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = useCallback(() => {
     if (!pendingDelete) return;
     deleteMutation.mutate(pendingDelete.id, {
       onSuccess: () => {
         setPendingDelete(null);
-        setIsEditing(false);
+        handleClose();
         toast.success("削除しました");
       },
       onError: () => toast.error("削除に失敗しました"),
     });
-  };
+  }, [pendingDelete, deleteMutation, handleClose]);
+
+  const panelItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
 
   return (
     <>
@@ -517,10 +642,14 @@ function TrimmingOptionTab() {
                 count={filteredItems.length}
               />
             </div>
-            <PrimaryButton onClick={handleCreate}>
-              <Plus className="mr-1.5 size-4" />
+            <button
+              type="button"
+              onClick={() => setEditTarget("new")}
+              className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1B6EC2] cursor-pointer transition-colors"
+            >
+              <Plus className="size-4" />
               新規登録
-            </PrimaryButton>
+            </button>
           </div>
 
           <DataTable
@@ -528,7 +657,7 @@ function TrimmingOptionTab() {
             data={filteredItems}
             emptyMessage="トリミングオプションが登録されていません"
             renderRow={(item) => (
-              <DataTableRow key={item.id} onClick={() => handleEdit(item)}>
+              <DataTableRow key={item.id} onClick={() => setEditTarget(item)}>
                 <TableCell className={`font-medium text-sm ${C.text}`}>
                   {item.name}
                 </TableCell>
@@ -541,105 +670,26 @@ function TrimmingOptionTab() {
                 <TableCell className={`text-right font-mono text-sm ${C.text}`}>
                   {item.price != null ? `¥${item.price.toLocaleString()}` : "-"}
                 </TableCell>
-                <TableCell className="text-right">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`} />
-                    <span className={`text-sm ${item.isActive ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}>
-                      {item.isActive ? "有効" : "無効"}
-                    </span>
-                  </span>
+                <TableCell className="text-center">
+                  <NotionStatusPill isActive={item.isActive} />
+                </TableCell>
+                <TableCell className="p-0 text-right">
+                  <RowActionButton onClick={() => setEditTarget(item)} />
                 </TableCell>
               </DataTableRow>
             )}
           />
-          <button
-            type="button"
-            onClick={handleCreate}
-            className="flex items-center gap-1.5 w-full px-3 py-2 text-sm text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[rgba(55,53,47,0.04)] transition-colors rounded"
-          >
-            <Plus className="size-3.5" />
-            新しいオプションを追加...
-          </button>
         </div>
 
         {/* ── Right: Side Peek ── */}
-        {isEditing ? (
-          <SidePeekPanel>
-            <SidePeekToolbar
-              isNew={selectedItem === null}
-              onClose={handleCloseEdit}
-              onDelete={selectedItem !== null ? () => setPendingDelete(selectedItem) : undefined}
-            />
-            <SidePeekBody>
-              <div className="pt-4 pb-2">
-                <div className={STYLE.pageIcon}>
-                  <Scissors className={LAYOUT.pageIcon.innerIcon} />
-                </div>
-              </div>
-              <SidePeekTitleInput
-                value={formData.name}
-                onChange={(v) => setFormData({ ...formData, name: v })}
-              />
-              <div className={`${STYLE.sectionDivider} mb-1`} />
-              <div className="py-1">
-                <PropertyRow label="ステータス">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData({ ...formData, isActive: !formData.isActive })
-                    }
-                    className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-                  >
-                    <NotionStatusPill isActive={formData.isActive} />
-                  </button>
-                </PropertyRow>
-
-                <PropertyRow label="所要時間(分)">
-                  <PropInput
-                    type="number"
-                    value={formData.duration}
-                    onChange={(v) => setFormData({ ...formData, duration: v })}
-                    placeholder="30"
-                  />
-                </PropertyRow>
-
-                <PropertyRow label="組合せ可否">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData({ ...formData, combinable: !formData.combinable })
-                    }
-                    className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
-                  >
-                    <CombinablePill combinable={formData.combinable} />
-                  </button>
-                </PropertyRow>
-
-                <PropertyRow label="単価(税込)">
-                  <div className="flex items-center gap-1">
-                    <span className={`text-sm ${C.text65} select-none`}>¥</span>
-                    <input
-                      type="number"
-                      min={0}
-                      className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
-                      value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                      placeholder="0"
-                    />
-                  </div>
-                </PropertyRow>
-
-                <PropertyRow label="備考">
-                  <PropInput
-                    value={formData.description}
-                    onChange={(v) => setFormData({ ...formData, description: v })}
-                    placeholder="補足情報など"
-                  />
-                </PropertyRow>
-              </div>
-            </SidePeekBody>
-            <SidePeekFooter onCancel={handleCloseEdit} onSave={handleSave} />
-          </SidePeekPanel>
+        {editTarget !== null ? (
+          <TrimmingOptionSidePanel
+            key={panelItem ? String(panelItem.id) : "new-trimming-option"}
+            item={panelItem}
+            onClose={handleClose}
+            onSave={handleSave}
+            onDeleteRequest={setPendingDelete}
+          />
         ) : null}
       </div>
 

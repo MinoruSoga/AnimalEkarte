@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useState, useMemo, useCallback, memo, useDeferredValue, useTransition, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 
@@ -83,17 +83,19 @@ interface ServiceTypeFormData {
 // ServiceTypeSidePanel
 // ─────────────────────────────────────────────────
 
-function ServiceTypeSidePanel({
-  item,
-  onClose,
-  onSave,
-  onDeleteRequest,
-}: {
+interface ServiceTypeSidePanelProps {
   item: ServiceType | null;
   onClose: () => void;
   onSave: (data: ServiceTypeFormData) => void;
   onDeleteRequest: (item: ServiceType) => void;
-}) {
+}
+
+const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
+  item,
+  onClose,
+  onSave,
+  onDeleteRequest,
+}: ServiceTypeSidePanelProps) {
   const [formData, setFormData] = useState<ServiceTypeFormData>(() => ({
     name: item?.name ?? "",
     description: item?.description ?? "",
@@ -156,7 +158,7 @@ function ServiceTypeSidePanel({
       <SidePeekFooter onCancel={onClose} onSave={() => onSave(formData)} />
     </SidePeekPanel>
   );
-}
+});
 
 // ─────────────────────────────────────────────────
 // ServiceTypeSettings (main page)
@@ -165,10 +167,11 @@ function ServiceTypeSidePanel({
 export function ServiceTypeSettings() {
   const navigate = useNavigate();
 
-  const [selectedItem, setSelectedItem] = useState<ServiceType | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  // null=closed, "new"=create mode, ServiceType=edit mode
+  const [editTarget, setEditTarget] = useState<ServiceType | "new" | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<ServiceType | null>(null);
+  const [, startSaveTransition] = useTransition();
 
   const { data: rawData } = useListServiceTypes();
   const createMutation = useCreateServiceType();
@@ -204,26 +207,16 @@ export function ServiceTypeSettings() {
     resetOrderRef.current = resetOrder;
   }, [resetOrder]);
 
+  // rerender-transitions: 検索フィルタを低優先度に遅延
+  const deferredSearch = useDeferredValue(searchTerm);
+
   const filteredItems = useMemo(() => {
-    if (!searchTerm) return orderedItems;
-    const lower = searchTerm.toLowerCase();
+    if (!deferredSearch) return orderedItems;
+    const lower = deferredSearch.toLowerCase();
     return orderedItems.filter((i) => i.name.toLowerCase().includes(lower));
-  }, [orderedItems, searchTerm]);
+  }, [orderedItems, deferredSearch]);
 
-  const handleEdit = useCallback((item: ServiceType) => {
-    setSelectedItem(item);
-    setIsEditing(true);
-  }, []);
-
-  const handleCreate = useCallback(() => {
-    setSelectedItem(null);
-    setIsEditing(true);
-  }, []);
-
-  const handleClose = useCallback(() => {
-    setIsEditing(false);
-    setSelectedItem(null);
-  }, []);
+  const handleClose = useCallback(() => setEditTarget(null), []);
 
   const handleSave = useCallback(
     (data: ServiceTypeFormData) => {
@@ -232,39 +225,44 @@ export function ServiceTypeSettings() {
         return;
       }
 
-      if (selectedItem) {
-        const req: UpdateServiceTypeRequest = {
-          name: data.name,
-          description: data.description || undefined,
-          color: data.color || undefined,
-          is_active: data.isActive,
-        };
-        updateMutation.mutate(
-          { id: selectedItem.id, req },
-          {
-            onSuccess: () => { toast.success("更新しました"); handleClose(); },
-            onError: () => toast.error("更新に失敗しました"),
-          },
-        );
-      } else {
-        const req: CreateServiceTypeRequest = {
-          name: data.name,
-          description: data.description || undefined,
-          color: data.color || undefined,
-          is_active: true,
-        };
-        createMutation.mutate(req, {
-          onSuccess: () => { toast.success("登録しました"); handleClose(); },
-          onError: () => toast.error("登録に失敗しました"),
-        });
-      }
+      // rerender-transitions: API書き込みを非緊急マーク
+      startSaveTransition(() => {
+        if (editTarget !== null && editTarget !== "new") {
+          const req: UpdateServiceTypeRequest = {
+            name: data.name,
+            description: data.description || undefined,
+            color: data.color || undefined,
+            is_active: data.isActive,
+          };
+          updateMutation.mutate(
+            { id: editTarget.id, req },
+            {
+              onSuccess: () => {
+                toast.success("更新しました");
+                handleClose();
+              },
+              onError: () => toast.error("更新に失敗しました"),
+            },
+          );
+        } else {
+          const req: CreateServiceTypeRequest = {
+            name: data.name,
+            description: data.description || undefined,
+            color: data.color || undefined,
+            is_active: true,
+          };
+          createMutation.mutate(req, {
+            onSuccess: () => {
+              toast.success("登録しました");
+              handleClose();
+            },
+            onError: () => toast.error("登録に失敗しました"),
+          });
+        }
+      });
     },
-    [selectedItem, updateMutation, createMutation, handleClose],
+    [editTarget, updateMutation, createMutation, handleClose],
   );
-
-  const handleDeleteRequest = useCallback((item: ServiceType) => {
-    setPendingDelete(item);
-  }, []);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!pendingDelete) return;
@@ -277,6 +275,8 @@ export function ServiceTypeSettings() {
       onError: () => toast.error("削除に失敗しました"),
     });
   }, [pendingDelete, deleteMutation, handleClose]);
+
+  const panelItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
 
   return (
     <PageLayout
@@ -299,7 +299,7 @@ export function ServiceTypeSettings() {
             </div>
             <button
               type="button"
-              onClick={handleCreate}
+              onClick={() => setEditTarget("new")}
               className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1B6EC2] cursor-pointer transition-colors"
             >
               <Plus className="size-4" />
@@ -326,7 +326,7 @@ export function ServiceTypeSettings() {
                   <SortableDataTableRow
                     key={item.id}
                     id={item.id}
-                    onClick={() => handleEdit(item)}
+                    onClick={() => setEditTarget(item)}
                   >
                     <TableCell className={`font-medium text-sm ${C.text}`}>
                       <div className="flex items-center gap-2">
@@ -344,7 +344,7 @@ export function ServiceTypeSettings() {
                       <NotionStatusPill isActive={item.isActive} />
                     </TableCell>
                     <TableCell className="p-0 text-right">
-                      <RowActionButton onClick={() => handleEdit(item)} />
+                      <RowActionButton onClick={() => setEditTarget(item)} />
                     </TableCell>
                   </SortableDataTableRow>
                 )}
@@ -354,13 +354,13 @@ export function ServiceTypeSettings() {
         </div>
 
         {/* Side peek */}
-        {isEditing ? (
+        {editTarget !== null ? (
           <ServiceTypeSidePanel
-            key={selectedItem ? String(selectedItem.id) : "new-service-type"}
-            item={selectedItem}
+            key={panelItem ? String(panelItem.id) : "new-service-type"}
+            item={panelItem}
             onClose={handleClose}
             onSave={handleSave}
-            onDeleteRequest={handleDeleteRequest}
+            onDeleteRequest={setPendingDelete}
           />
         ) : null}
       </div>

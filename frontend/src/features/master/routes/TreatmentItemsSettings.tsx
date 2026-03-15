@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useDeferredValue } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
@@ -291,9 +291,10 @@ function TreatmentTabContent({
 
   // ── UI state ──
   const [searchTerm, setSearchTerm] = useState("");
+  const deferredSearch = useDeferredValue(searchTerm);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  const [isEditing, setIsEditing] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<TreatmentItem | null>(null);
+  const [editTarget, setEditTarget] = useState<TreatmentItem | "new" | null>(null);
+  const selectedItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
   const [formData, setFormData] = useState<TreatmentFormData>(INITIAL_FORM);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [overrideCategories, setOverrideCategories] = useState<
@@ -336,9 +337,9 @@ function TreatmentTabContent({
 
   // ── Derived: filtered + grouped + ungrouped ──
   const { groupedItems, ungroupedItems, totalCount } = useMemo(() => {
-    const lower = searchTerm.toLowerCase();
+    const lower = deferredSearch.toLowerCase();
     const filtered = orderedItems.filter(
-      (m) => !searchTerm || m.name.toLowerCase().includes(lower),
+      (m) => !deferredSearch || m.name.toLowerCase().includes(lower),
     );
 
     const groups = new Map<string, { header: TreatmentItem; items: TreatmentItem[] }>();
@@ -367,7 +368,7 @@ function TreatmentTabContent({
     }
 
     return { groupedItems: groups, ungroupedItems: ungrouped, totalCount: filtered.length };
-  }, [orderedItems, searchTerm, itemsById]);
+  }, [orderedItems, deferredSearch, itemsById]);
 
   // ── Handlers ──
 
@@ -430,13 +431,11 @@ function TreatmentTabContent({
   );
 
   const handleCloseEdit = useCallback(() => {
-    setIsEditing(false);
-    setSelectedItem(null);
+    setEditTarget(null);
     setFormData(INITIAL_FORM);
   }, []);
 
   const handleEdit = useCallback((item: TreatmentItem) => {
-    setSelectedItem(item);
     setFormData({
       name: item.name,
       parentId: item.parentId ?? "",
@@ -444,16 +443,15 @@ function TreatmentTabContent({
       description: item.description,
       isActive: item.isActive,
     });
-    setIsEditing(true);
+    setEditTarget(item);
   }, []);
 
   const handleCreate = useCallback((parentId?: string) => {
-    setSelectedItem(null);
     setFormData({
       ...INITIAL_FORM,
       parentId: parentId !== "uncategorized" ? (parentId ?? "") : "",
     });
-    setIsEditing(true);
+    setEditTarget("new");
   }, []);
 
   const updateForm = useCallback((updates: Partial<TreatmentFormData>) => {
@@ -678,7 +676,7 @@ function TreatmentTabContent({
   // ── Side peek panel ──
   const sidePeekPanel = (
     <AnimatePresence>
-      {isEditing ? (
+      {editTarget !== null ? (
         <motion.div
           key="side-peek"
           initial={{ width: 0, opacity: 0 }}

@@ -1,6 +1,6 @@
 // React/Framework
 import type { ReactNode } from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 
@@ -92,11 +92,11 @@ export function CompanySettings() {
     }
   }, [company]);
 
-  const handleEdit = () => {
+  const handleEdit = useCallback(() => {
     setIsEditing(true);
-  };
+  }, []);
 
-  const handleCloseEdit = () => {
+  const handleCloseEdit = useCallback(() => {
     setIsEditing(false);
     if (company) {
       setFormData({
@@ -111,9 +111,9 @@ export function CompanySettings() {
         registration_number: company.registrationNumber,
       });
     }
-  };
+  }, [company]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (!formData.name.trim()) {
       toast.error("法人名は必須です");
       return;
@@ -140,7 +140,7 @@ export function CompanySettings() {
         toast.error("更新に失敗しました");
       },
     });
-  };
+  }, [formData, updateMutation]);
 
   return (
     <div className="flex h-full">
@@ -283,7 +283,7 @@ export function CompanySettings() {
                     lineHeight: LAYOUT.pageTitle.lineHeight,
                   }}
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                   placeholder="法人名"
                 />
               </div>
@@ -298,7 +298,7 @@ export function CompanySettings() {
                     type="text"
                     className={PROP_INPUT_CLASS}
                     value={formData.postal_code}
-                    onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, postal_code: e.target.value }))}
                     placeholder="例: 150-0001"
                   />
                 </PropertyRow>
@@ -308,7 +308,7 @@ export function CompanySettings() {
                     type="text"
                     className={PROP_INPUT_CLASS}
                     value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, address: e.target.value }))}
                     placeholder="例: 東京都渋谷区..."
                   />
                 </PropertyRow>
@@ -318,7 +318,7 @@ export function CompanySettings() {
                     type="text"
                     className={PROP_INPUT_CLASS}
                     value={formData.phone_number}
-                    onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, phone_number: e.target.value }))}
                     placeholder="例: 03-1234-5678"
                   />
                 </PropertyRow>
@@ -328,7 +328,7 @@ export function CompanySettings() {
                     type="text"
                     className={PROP_INPUT_CLASS}
                     value={formData.fax_number}
-                    onChange={(e) => setFormData({ ...formData, fax_number: e.target.value })}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, fax_number: e.target.value }))}
                     placeholder="例: 03-1234-5679"
                   />
                 </PropertyRow>
@@ -338,7 +338,7 @@ export function CompanySettings() {
                     type="email"
                     className={PROP_INPUT_CLASS}
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
                     placeholder="例: info@company.com"
                   />
                 </PropertyRow>
@@ -348,7 +348,7 @@ export function CompanySettings() {
                     type="text"
                     className={PROP_INPUT_CLASS}
                     value={formData.website}
-                    onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, website: e.target.value }))}
                     placeholder="例: https://example.com"
                   />
                 </PropertyRow>
@@ -358,7 +358,7 @@ export function CompanySettings() {
                     type="text"
                     className={PROP_INPUT_CLASS}
                     value={formData.director_name}
-                    onChange={(e) => setFormData({ ...formData, director_name: e.target.value })}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, director_name: e.target.value }))}
                     placeholder="例: 山田 太郎"
                   />
                 </PropertyRow>
@@ -369,7 +369,7 @@ export function CompanySettings() {
                     className={PROP_INPUT_CLASS}
                     value={formData.registration_number}
                     onChange={(e) =>
-                      setFormData({ ...formData, registration_number: e.target.value })
+                      setFormData((prev) => ({ ...prev, registration_number: e.target.value }))
                     }
                     placeholder="例: 1234567890123"
                   />

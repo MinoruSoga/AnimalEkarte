@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useDeferredValue, useTransition } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
@@ -216,12 +216,16 @@ export function MedicineSettings() {
   // ── UI state ──
   const [searchTerm, setSearchTerm] = useState("");
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  const [isEditing, setIsEditing] = useState(false);
-  const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
+  // null=closed, "new"=create mode, Medicine=edit mode
+  const [editTarget, setEditTarget] = useState<Medicine | "new" | null>(null);
   const [formData, setFormData] = useState<MedicineFormData>(INITIAL_FORM);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   // 値は parentId 文字列、undefined = 親なし
   const [overrideCategories, setOverrideCategories] = useState<Map<string, string | undefined>>(new Map());
+
+  // ── Derived: discriminated union → isEditing / selectedMedicine ──
+  const selectedMedicine = editTarget !== null && editTarget !== "new" ? editTarget : null;
+  const isEditing = editTarget !== null;
 
   // ── 現在選択中アイテムがカテゴリかどうか ──
   const isCategory = useMemo(() => isCategoryMedicine(selectedMedicine), [selectedMedicine]);
@@ -275,10 +279,12 @@ export function MedicineSettings() {
   );
 
   // ── Derived: filtered + grouped + ungrouped (js-cache-function-results) ──
+  const deferredSearch = useDeferredValue(searchTerm);
+
   const { groupedMedicines, ungroupedMedicines, totalCount } = useMemo(() => {
-    const lower = searchTerm.toLowerCase();
+    const lower = deferredSearch.toLowerCase();
     const filtered = orderedMedicines.filter(
-      (m) => !searchTerm || m.name.toLowerCase().includes(lower),
+      (m) => !deferredSearch || m.name.toLowerCase().includes(lower),
     );
 
     const groups = new Map<string, { header: Medicine; items: Medicine[] }>();
@@ -311,7 +317,7 @@ export function MedicineSettings() {
     }
 
     return { groupedMedicines: groups, ungroupedMedicines: ungrouped, totalCount: filtered.length };
-  }, [orderedMedicines, searchTerm, medicinesById]);
+  }, [orderedMedicines, deferredSearch, medicinesById]);
 
   // ── Handlers ──
 
@@ -380,13 +386,12 @@ export function MedicineSettings() {
   );
 
   const handleCloseEdit = useCallback(() => {
-    setIsEditing(false);
-    setSelectedMedicine(null);
+    setEditTarget(null);
     setFormData(INITIAL_FORM);
   }, []);
 
   const handleEdit = useCallback((medicine: Medicine) => {
-    setSelectedMedicine(medicine);
+    setEditTarget(medicine);
     setFormData({
       name: medicine.name,
       parentId: medicine.parentId ?? "",
@@ -396,21 +401,21 @@ export function MedicineSettings() {
       description: medicine.description,
       isActive: medicine.isActive,
     });
-    setIsEditing(true);
   }, []);
 
   const handleCreate = useCallback((parentId?: string) => {
-    setSelectedMedicine(null);
+    setEditTarget("new");
     setFormData({
       ...INITIAL_FORM,
       parentId: parentId !== "uncategorized" ? (parentId ?? "") : "",
     });
-    setIsEditing(true);
   }, []);
 
   const updateForm = useCallback((updates: Partial<MedicineFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
   }, []);
+
+  const [, startSaveTransition] = useTransition();
 
   const handleSave = useCallback(() => {
     if (!formData.name.trim()) {
@@ -421,50 +426,52 @@ export function MedicineSettings() {
     // カテゴリ編集時は price を 0 に固定（disabled UI をバイパス対策）
     const effectivePrice = isCategoryMedicine(selectedMedicine) ? 0 : formData.price;
 
-    if (selectedMedicine) {
-      const req: UpdateMedicineRequest = {
-        name: formData.name,
-        dosage_form: formData.dosageForm || undefined,
-        medicine_unit: formData.medicineUnit || undefined,
-        price: effectivePrice,
-        description: formData.description,
-        is_active: formData.isActive,
-      };
-      // parent_id の処理
-      if (formData.parentId) {
-        req.parent_id = Number(formData.parentId);
-      } else if (selectedMedicine.parentId) {
-        // 元々グループに属していたが今は外す
-        req.clear_parent_id = true;
-      }
-      updateMutation.mutate(
-        { id: selectedMedicine.id, req },
-        {
+    startSaveTransition(() => {
+      if (selectedMedicine) {
+        const req: UpdateMedicineRequest = {
+          name: formData.name,
+          dosage_form: formData.dosageForm || undefined,
+          medicine_unit: formData.medicineUnit || undefined,
+          price: effectivePrice,
+          description: formData.description,
+          is_active: formData.isActive,
+        };
+        // parent_id の処理
+        if (formData.parentId) {
+          req.parent_id = Number(formData.parentId);
+        } else if (selectedMedicine.parentId) {
+          // 元々グループに属していたが今は外す
+          req.clear_parent_id = true;
+        }
+        updateMutation.mutate(
+          { id: selectedMedicine.id, req },
+          {
+            onSuccess: () => {
+              toast.success("更新しました");
+              handleCloseEdit();
+            },
+            onError: () => toast.error("更新に失敗しました"),
+          },
+        );
+      } else {
+        const req: CreateMedicineRequest = {
+          name: formData.name,
+          dosage_form: formData.dosageForm || undefined,
+          medicine_unit: formData.medicineUnit || undefined,
+          price: effectivePrice,
+          description: formData.description,
+          is_active: formData.isActive,
+          ...(formData.parentId ? { parent_id: Number(formData.parentId) } : {}),
+        };
+        createMutation.mutate(req, {
           onSuccess: () => {
-            toast.success("更新しました");
+            toast.success("登録しました");
             handleCloseEdit();
           },
-          onError: () => toast.error("更新に失敗しました"),
-        },
-      );
-    } else {
-      const req: CreateMedicineRequest = {
-        name: formData.name,
-        dosage_form: formData.dosageForm || undefined,
-        medicine_unit: formData.medicineUnit || undefined,
-        price: effectivePrice,
-        description: formData.description,
-        is_active: formData.isActive,
-        ...(formData.parentId ? { parent_id: Number(formData.parentId) } : {}),
-      };
-      createMutation.mutate(req, {
-        onSuccess: () => {
-          toast.success("登録しました");
-          handleCloseEdit();
-        },
-        onError: () => toast.error("登録に失敗しました"),
-      });
-    }
+          onError: () => toast.error("登録に失敗しました"),
+        });
+      }
+    });
   }, [formData, selectedMedicine, updateMutation, createMutation, handleCloseEdit]);
 
   const handleDeleteRequest = useCallback(() => {
