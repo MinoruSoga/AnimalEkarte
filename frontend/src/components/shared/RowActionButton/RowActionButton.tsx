@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Edit } from "lucide-react";
 import { cn } from "@/components/ui/utils";
-import { TABLE_STYLES } from "@/config/design-tokens";
+import { TABLE_STYLES } from "@/lib/design-tokens";
 
 interface RowActionButtonProps {
   icon?: React.ElementType;

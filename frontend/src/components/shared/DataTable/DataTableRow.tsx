@@ -1,6 +1,6 @@
 import { TableRow } from "@/components/ui/table";
 import { cn } from "@/components/ui/utils";
-import { TABLE_STYLES } from "@/config/design-tokens";
+import { TABLE_STYLES } from "@/lib/design-tokens";
 
 interface DataTableRowProps extends React.ComponentProps<typeof TableRow> {
   children: React.ReactNode;

@@ -33,6 +33,7 @@ import Maximize2 from "lucide-react/dist/esm/icons/maximize-2";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import {
   Table,
   TableBody,
@@ -198,15 +199,15 @@ function SortableMedicineRow({
     opacity: isDragging ? 0 : 1,
   };
   return (
-    <TableRow
+    <DataTableRow
       ref={setNodeRef}
       style={style}
       {...attributes}
       onClick={() => onEdit(medicine)}
-      className={`${STYLE.tableRow} group/row`}
+      className="group/row"
     >
       <TableCell
-        className="w-8 px-0 py-0 pl-1 text-[#37352F]/20 group-hover/row:text-[#37352F]/50 transition-colors cursor-grab"
+        className="w-8 px-0 py-2.5 pl-1 text-[#37352F]/20 group-hover/row:text-[#37352F]/50 transition-colors cursor-grab"
         {...listeners}
       >
         <GripVertical className="size-4" />
@@ -217,10 +218,10 @@ function SortableMedicineRow({
       <TableCell className={`${STYLE.tableCell} w-[130px] text-right pr-4 font-mono`}>
         {medicine.price > 0 ? `¥${medicine.price.toLocaleString()}` : "-"}
       </TableCell>
-      <TableCell className="w-[110px] py-2 text-center">
+      <TableCell className="w-[110px] py-2.5 text-center">
         <StatusDot active={medicine.isActive} />
       </TableCell>
-    </TableRow>
+    </DataTableRow>
   );
 }
 
@@ -260,6 +261,11 @@ function MedicineRowOverlay({
 // Main component
 // ─────────────────────────────────────────────────
 
+// カテゴリかどうかの判定ヘルパー
+function isCategoryMedicine(m: Medicine | null): boolean {
+  return m !== null && !m.parentId && m.price === 0;
+}
+
 export function MedicineSettings() {
   const navigate = useNavigate();
   const reduced = useReducedMotion();
@@ -274,6 +280,9 @@ export function MedicineSettings() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   // 値は parentId 文字列、undefined = 親なし
   const [overrideCategories, setOverrideCategories] = useState<Map<string, string | undefined>>(new Map());
+
+  // ── 現在選択中アイテムがカテゴリかどうか ──
+  const isCategory = useMemo(() => isCategoryMedicine(selectedMedicine), [selectedMedicine]);
 
   // ── API ──
   const { data: medicines = [] } = useGetAllMedicines();
@@ -467,12 +476,15 @@ export function MedicineSettings() {
       return;
     }
 
+    // カテゴリ編集時は price を 0 に固定（disabled UI をバイパス対策）
+    const effectivePrice = isCategoryMedicine(selectedMedicine) ? 0 : formData.price;
+
     if (selectedMedicine) {
       const req: UpdateMedicineRequest = {
         name: formData.name,
         dosage_form: formData.dosageForm || undefined,
         medicine_unit: formData.medicineUnit || undefined,
-        price: formData.price,
+        price: effectivePrice,
         description: formData.description,
         is_active: formData.isActive,
       };
@@ -498,7 +510,7 @@ export function MedicineSettings() {
         name: formData.name,
         dosage_form: formData.dosageForm || undefined,
         medicine_unit: formData.medicineUnit || undefined,
-        price: formData.price,
+        price: effectivePrice,
         description: formData.description,
         is_active: formData.isActive,
         ...(formData.parentId ? { parent_id: Number(formData.parentId) } : {}),
@@ -568,16 +580,18 @@ export function MedicineSettings() {
 
               return (
                 <>
-                  {/* Group header row */}
+                  {/* Group header row — クリックでカテゴリ編集パネルを開く */}
                   <TableRow
                     key={`h-${parentId}`}
-                    className={`border-b ${C.borderLight} bg-[#F7F6F3]/30 h-[49px] group/header hover:bg-[#F7F6F3]/60`}
+                    onClick={() => handleEdit(header)}
+                    className={`${STYLE.tableRow} border-b ${C.borderLight} bg-[#F7F6F3]/30 group/header hover:bg-[#F7F6F3]/60`}
                   >
-                    {/* Grip handle — left */}
+                    {/* Grip handle — left (クリック伝播を止める) */}
                     <TableCell className="w-8 px-0 py-0">
                       <button
                         type="button"
                         tabIndex={-1}
+                        onClick={(e) => e.stopPropagation()}
                         className="w-8 h-8 flex items-center justify-center rounded-[3px] text-[#37352F]/20 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F]/50 transition-colors cursor-grab"
                       >
                         <GripVertical className="size-4" />
@@ -589,8 +603,11 @@ export function MedicineSettings() {
                       <div className="flex items-center">
                         <button
                           type="button"
-                          onClick={() => toggleGroup(parentId)}
-                          className="flex flex-1 items-center gap-1.5 py-1.5 px-1 hover:bg-[rgba(55,53,47,0.04)] rounded-[3px] transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleGroup(parentId);
+                          }}
+                          className="flex items-center gap-1.5 py-1.5 px-1 hover:bg-[rgba(55,53,47,0.04)] rounded-[3px] transition-colors"
                         >
                           <ChevronRight
                             className={`size-3.5 text-[#37352F]/50 transition-transform duration-150 ${
@@ -602,6 +619,7 @@ export function MedicineSettings() {
                           </span>
                           <span className="text-xs text-[#37352F]/40 ml-0.5">{items.length}</span>
                         </button>
+                        <div className="flex-1" />
                         <button
                           type="button"
                           onClick={(e) => {
@@ -782,31 +800,40 @@ export function MedicineSettings() {
               <div className="py-1">
                 {/* Parent category select */}
                 <PropertyRow label="親カテゴリ">
-                  <select
-                    value={formData.parentId}
-                    onChange={(e) => updateForm({ parentId: e.target.value })}
-                    className={SELECT_TRIGGER_FULL}
-                  >
-                    <option value="">なし（未分類）</option>
-                    {categoryMedicines.map((cat) => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                  </select>
+                  {isCategory ? (
+                    // カテゴリはルート固定 — 変更不可
+                    <span className={`text-sm ${C.text}`}>なし（ルート）</span>
+                  ) : (
+                    <select
+                      value={formData.parentId}
+                      onChange={(e) => updateForm({ parentId: e.target.value })}
+                      className={SELECT_TRIGGER_FULL}
+                    >
+                      <option value="">なし（未分類）</option>
+                      {categoryMedicines.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
+                  )}
                 </PropertyRow>
 
-                {/* Price */}
+                {/* Price — カテゴリは子項目に設定するため disabled */}
                 <PropertyRow label="単価(税込)">
-                  <div className="flex items-center gap-1">
-                    <span className={`text-sm ${C.text40}`}>¥</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={formData.price}
-                      onChange={(e) => updateForm({ price: Number(e.target.value) })}
-                      placeholder="0"
-                      className={`${STYLE.propertyInput} w-28`}
-                    />
-                  </div>
+                  {isCategory ? (
+                    <span className={`text-sm ${C.text35} select-none`}>子項目に金額を設定</span>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <span className={`text-sm ${C.text40}`}>¥</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={formData.price}
+                        onChange={(e) => updateForm({ price: Number(e.target.value) })}
+                        placeholder="0"
+                        className={`${STYLE.propertyInput} w-28`}
+                      />
+                    </div>
+                  )}
                 </PropertyRow>
 
                 {/* Status */}

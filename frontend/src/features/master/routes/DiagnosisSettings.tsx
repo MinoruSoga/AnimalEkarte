@@ -42,11 +42,8 @@ import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { PageLayout } from "@/components/shared/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable, DataTableRow } from "@/components/shared/DataTable";
-import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { StatusBadge } from "@/components/shared/StatusBadge";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { getMasterStatusColor } from "@/utils/status-helpers";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
   useListDiagnosisCategories,
@@ -84,8 +81,8 @@ const CATEGORY_COLUMNS = [
 
 const NAME_COLUMNS = [
   { header: "", className: "w-[32px]" },
-  { header: "診断病名" },
   { header: "所属カテゴリ", className: "w-[160px]" },
+  { header: "診断病名" },
   { header: "ステータス", className: "w-[100px]", align: "center" as const },
   { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
@@ -450,9 +447,7 @@ function SortableCategoryRow({
         {item.description || "-"}
       </TableCell>
       <TableCell className="text-center py-2.5">
-        <StatusBadge colorClass={getMasterStatusColor(item.isActive ? "active" : "inactive")}>
-          {item.isActive ? "有効" : "無効"}
-        </StatusBadge>
+        <NotionStatusPill isActive={item.isActive} />
       </TableCell>
       <TableCell className="text-right py-2.5">
         <RowActionButton onClick={onEdit} />
@@ -563,10 +558,14 @@ function DiagnosisCategoryTab() {
                 count={filteredItems.length}
               />
             </div>
-            <PrimaryButton onClick={handleCreate}>
-              <Plus className="mr-1.5 size-4" />
+            <button
+              type="button"
+              onClick={handleCreate}
+              className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1B6EC2] cursor-pointer transition-colors"
+            >
+              <Plus className="size-4" />
               新規登録
-            </PrimaryButton>
+            </button>
           </div>
 
           <DndContext
@@ -647,16 +646,14 @@ function SortableNameRow({
       >
         <GripVertical className="size-4" />
       </TableCell>
-      <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
-        {item.name}
-      </TableCell>
       <TableCell className={`text-sm ${C.text70} py-2.5`}>
         {categoryMap.get(item.diagnosisCategoryId) ?? "-"}
       </TableCell>
+      <TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
+        {item.name}
+      </TableCell>
       <TableCell className="text-center py-2.5">
-        <StatusBadge colorClass={getMasterStatusColor(item.isActive ? "active" : "inactive")}>
-          {item.isActive ? "有効" : "無効"}
-        </StatusBadge>
+        <NotionStatusPill isActive={item.isActive} />
       </TableCell>
       <TableCell className="text-right py-2.5">
         <RowActionButton onClick={onEdit} />
@@ -786,10 +783,14 @@ function DiagnosisNameTab() {
                 count={filteredItems.length}
               />
             </div>
-            <PrimaryButton onClick={handleCreate}>
-              <Plus className="mr-1.5 size-4" />
+            <button
+              type="button"
+              onClick={handleCreate}
+              className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1B6EC2] cursor-pointer transition-colors"
+            >
+              <Plus className="size-4" />
               新規登録
-            </PrimaryButton>
+            </button>
           </div>
 
           <DndContext
@@ -859,7 +860,7 @@ export function DiagnosisSettings() {
 
   return (
     <PageLayout
-      title="診断マスタ"
+      title="診断病名マスタ"
       icon={<ClipboardList className="size-5 text-[#37352F]" />}
       onBack={() => navigate("/settings")}
       maxWidth="max-w-full"
