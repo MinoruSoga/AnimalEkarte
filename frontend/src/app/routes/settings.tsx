@@ -4,12 +4,13 @@ type SettingsCategory =
   | "examination" | "vaccine"
   | "insurance" | "consultation" | "procedure"
   | "hospitalization" | "cage" | "trimmingCourse" | "trimmingOption"
-  | "diagnosisCategory" | "diagnosisName" | "checkup" | "job_title";
+  | "diagnosisCategory" | "diagnosisName" | "job_title";
 
 const SETTINGS_CATEGORY_MAP: Record<string, SettingsCategory> = {
   examination: "examination",
   vaccine: "vaccine",
   // medicine は MedicineSettings 専用ルートで処理
+  // checkup は CheckupSettings 専用ルートで処理
   insurance: "insurance",
   consultation: "consultation",
   procedure: "procedure",
@@ -19,7 +20,6 @@ const SETTINGS_CATEGORY_MAP: Record<string, SettingsCategory> = {
   "trimming-option": "trimmingOption",
   "diagnosis-category": "diagnosisCategory",
   "diagnosis-name": "diagnosisName",
-  checkup: "checkup",
   "job-title": "job_title",
 };
 
@@ -52,8 +52,10 @@ export const settingsRoutes: RouteObject[] = [
   {
     path: "/settings/treatment-items",
     lazy: async () => {
-      const { TreatmentItemsSettings } = await import("@/features/master/routes/TreatmentItemsSettings");
-      return { Component: TreatmentItemsSettings };
+      const { TreatmentPlanMaster } = await import(
+        "@/features/master/routes/TreatmentPlanMaster"
+      );
+      return { Component: TreatmentPlanMaster };
     },
   },
   {
@@ -84,6 +86,15 @@ export const settingsRoutes: RouteObject[] = [
         "@/features/master/routes/ServiceTypeSettings"
       );
       return { Component: ServiceTypeSettings };
+    },
+  },
+  {
+    path: "/settings/checkup",
+    lazy: async () => {
+      const { CheckupSettings } = await import(
+        "@/features/master/routes/CheckupSettings"
+      );
+      return { Component: CheckupSettings };
     },
   },
   ...Object.entries(SETTINGS_CATEGORY_MAP).map(([slug, category]) => ({

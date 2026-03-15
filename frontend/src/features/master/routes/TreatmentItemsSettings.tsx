@@ -328,7 +328,7 @@ function TreatmentTabContent({
   onCrossGroupUpdate,
   isCreatePending,
   isUpdatePending,
-  isDeletePending,
+  isDeletePending: _isDeletePending,
 }: TreatmentTabContentProps) {
   const reduced = useReducedMotion();
   const panelDuration = reduced ? 0 : 0.2;
