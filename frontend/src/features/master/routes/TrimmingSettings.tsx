@@ -1,5 +1,4 @@
 // React/Framework
-import type { ReactNode } from "react";
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
 
@@ -23,6 +22,8 @@ import { DataTable, DataTableRow } from "@/components/shared/DataTable";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { PropertyRow, PropInput } from "@/components/shared/SidePeek";
 import {
   useListTrimmingCourses,
   useCreateTrimmingCourse,
@@ -67,37 +68,6 @@ const OPTION_COLUMNS = [
   { header: "ステータス", className: "w-[90px]", align: "right" as const },
 ];
 
-// ─────────────────────────────────────────────────
-// Notion Status Pill
-// ─────────────────────────────────────────────────
-
-const STATUS_CONFIG = {
-  active: {
-    dot: "bg-[#2383E2]",
-    label: "有効",
-    bg: "bg-[#D3E5EF]",
-    text: "text-[#183B56]",
-  },
-  inactive: {
-    dot: "bg-[#37352F]/10",
-    label: "無効",
-    bg: "bg-[#E3E2E0]",
-    text: "text-[#37352F]/60",
-  },
-} as const;
-
-function NotionStatusPill({ isActive }: { isActive: boolean }) {
-  const cfg = STATUS_CONFIG[isActive ? "active" : "inactive"];
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-xs ${cfg.bg} ${cfg.text}`}
-    >
-      <span className={`size-[7px] rounded-full ${cfg.dot}`} />
-      {cfg.label}
-    </span>
-  );
-}
-
 // Combinable pill
 function CombinablePill({ combinable }: { combinable: boolean }) {
   if (combinable) {
@@ -111,49 +81,6 @@ function CombinablePill({ combinable }: { combinable: boolean }) {
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs bg-[#E3E2E0] text-[#37352F]/60">
       不可
     </span>
-  );
-}
-
-// ─────────────────────────────────────────────────
-// Property Row (Notion-style)
-// ─────────────────────────────────────────────────
-
-function PropertyRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div
-      className={`flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px]`}
-    >
-      <div className="w-[140px] shrink-0 text-sm text-[#37352F]/65 select-none truncate flex items-center">
-        {label}
-      </div>
-      <div className="flex-1 flex items-center">{children}</div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────
-// Inline input for property rows
-// ─────────────────────────────────────────────────
-
-function PropInput({
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  type?: string;
-}) {
-  return (
-    <input
-      type={type}
-      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder ?? "空"}
-    />
   );
 }
 

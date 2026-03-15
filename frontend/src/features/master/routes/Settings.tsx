@@ -1,6 +1,5 @@
 // React/Framework
 import { useState, useEffect } from "react";
-import type { ReactNode } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -31,6 +30,8 @@ import {
 } from "@/features/master/constants/category-config";
 import type { MasterSettingsCategory } from "@/features/master/constants/category-config";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { PropertyRow, PropInput } from "@/components/shared/SidePeek";
 
 // Types
 import type { MasterItem } from "@/types";
@@ -53,86 +54,6 @@ function toCamelCaseCategory(cat: MasterSettingsCategory): string {
     diagnosis_name: "diagnosisName",
   };
   return reverseAlias[cat] ?? cat;
-}
-
-// ─────────────────────────────────────────────────
-// Sub-components
-// ─────────────────────────────────────────────────
-
-function PropertyRow({
-  label,
-  required,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <div
-      className={`flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px] items-center`}
-    >
-      <div className={`w-[140px] shrink-0 text-sm ${C.text65} select-none`}>
-        {label}
-        {required && <span className={`${C.textRequired} ml-0.5`}>*</span>}
-      </div>
-      <div className="flex-1 min-w-0">{children}</div>
-    </div>
-  );
-}
-
-function PropInput({
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  type?: string;
-}) {
-  return (
-    <input
-      type={type}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className={STYLE.propertyInput}
-    />
-  );
-}
-
-function NotionStatusPill({ active }: { active: boolean }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-xs ${
-        active ? "bg-[#D3E5EF] text-[#183B56]" : "bg-[#E3E2E0] text-[#37352F]/60"
-      }`}
-    >
-      <span
-        className={`size-[7px] rounded-full ${
-          active ? "bg-[#2383E2]" : "bg-[#37352F]/10"
-        }`}
-      />
-      {active ? "有効" : "無効"}
-    </span>
-  );
-}
-
-function StatusDot({ active }: { active: boolean }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span
-        className={`size-[7px] rounded-full ${active ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`}
-      />
-      <span
-        className={`text-sm ${active ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}
-      >
-        {active ? "有効" : "無効"}
-      </span>
-    </span>
-  );
 }
 
 // ─────────────────────────────────────────────────
@@ -287,7 +208,7 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
               </TableCell>
             )}
             <TableCell className="text-right">
-              <StatusDot active={item.status !== "inactive"} />
+              <NotionStatusPill isActive={item.status !== "inactive"} />
             </TableCell>
           </DataTableRow>
         )}
@@ -377,7 +298,7 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
                 }
                 className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
               >
-                <NotionStatusPill active={formData.status !== "inactive"} />
+                <NotionStatusPill isActive={formData.status !== "inactive"} />
               </button>
             </PropertyRow>
 

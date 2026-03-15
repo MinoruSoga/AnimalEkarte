@@ -1,5 +1,4 @@
 // React/Framework
-import type { ReactNode } from "react";
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
 
@@ -15,6 +14,8 @@ import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
 import { DataTable, DataTableRow } from "@/components/shared/DataTable";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { PropertyRow } from "@/components/shared/SidePeek";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
   useListStaffs,
@@ -45,54 +46,6 @@ const COLUMNS = [
   { header: "職種", className: "w-[130px]" },
   { header: "ステータス", className: "w-[90px]", align: "right" as const },
 ];
-
-// ─────────────────────────────────────────────────
-// Notion Status Pill
-// ─────────────────────────────────────────────────
-
-const STATUS_CONFIG = {
-  active: {
-    dot: "bg-[#2383E2]",
-    label: "有効",
-    bg: "bg-[#D3E5EF]",
-    text: "text-[#183B56]",
-  },
-  inactive: {
-    dot: "bg-[#37352F]/10",
-    label: "無効",
-    bg: "bg-[#E3E2E0]",
-    text: "text-[#37352F]/60",
-  },
-} as const;
-
-function NotionStatusPill({ status }: { status: "active" | "inactive" }) {
-  const cfg = STATUS_CONFIG[status];
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-xs ${cfg.bg} ${cfg.text}`}
-    >
-      <span className={`size-[7px] rounded-full ${cfg.dot}`} />
-      {cfg.label}
-    </span>
-  );
-}
-
-// ─────────────────────────────────────────────────
-// Property Row (Notion-style)
-// ─────────────────────────────────────────────────
-
-function PropertyRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div
-      className={`flex gap-2 py-2 px-2 -mx-2 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors min-h-[40px]`}
-    >
-      <div className="w-[140px] shrink-0 text-sm text-[#37352F]/65 select-none truncate flex items-center">
-        {label}
-      </div>
-      <div className="flex-1 flex items-center">{children}</div>
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────
 // Form state types
@@ -282,12 +235,7 @@ export function StaffSettings() {
                       {STAFF_ROLE_LABELS[item.staffRole]}
                     </TableCell>
                     <TableCell className="text-right">
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className={`size-[7px] rounded-full ${item.isActive ? "bg-[#2383E2]" : "bg-[#37352F]/20"}`} />
-                        <span className={`text-sm ${item.isActive ? "text-[#37352F]/65" : "text-[#37352F]/35"}`}>
-                          {item.isActive ? "有効" : "無効"}
-                        </span>
-                      </span>
+                      <NotionStatusPill isActive={item.isActive} />
                     </TableCell>
                   </DataTableRow>
                 )}
@@ -377,9 +325,7 @@ export function StaffSettings() {
                       }
                       className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
                     >
-                      <NotionStatusPill
-                        status={formData.is_active ? "active" : "inactive"}
-                      />
+                      <NotionStatusPill isActive={formData.is_active} />
                     </button>
                   </PropertyRow>
 
