@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { useNavigate } from "react-router";
 import { useHospitalizations } from "./useHospitalizations";
 import { useMasterItems } from "@/hooks/use-master-items";
@@ -7,10 +7,11 @@ import { HospitalizationFilterStatus, HOSPITALIZATION_FILTER_STATUS } from "../c
 export const useHospitalizationList = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const deferredSearch = useDeferredValue(searchTerm);
   const [statusFilter, setStatusFilter] = useState<HospitalizationFilterStatus>(HOSPITALIZATION_FILTER_STATUS.ACTIVE);
   const [viewMode, setViewMode] = useState<"list" | "board">("board");
-  
-  const { data: filteredHospitalizations, movePet, isLoading } = useHospitalizations(searchTerm, statusFilter);
+
+  const { data: filteredHospitalizations, movePet, isLoading } = useHospitalizations(deferredSearch, statusFilter);
   const { data: cages } = useMasterItems("cage");
 
   const handleNavigateToForm = (id?: string) => {

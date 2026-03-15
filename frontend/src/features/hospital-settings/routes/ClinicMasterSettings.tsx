@@ -1,6 +1,6 @@
 // React/Framework
 import type { ReactNode } from "react";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 
@@ -159,7 +159,7 @@ export function ClinicMasterSettings() {
     );
   }, [rawClinics, deferredSearch]);
 
-  const handleEdit = (item: Clinic) => {
+  const handleEdit = useCallback((item: Clinic) => {
     setSelectedItem(item);
     setFormData({
       name: item.name,
@@ -174,21 +174,21 @@ export function ClinicMasterSettings() {
       is_active: item.isActive,
     });
     setIsEditing(true);
-  };
+  }, []);
 
-  const handleCreate = () => {
+  const handleCreate = useCallback(() => {
     setSelectedItem(null);
     setFormData(DEFAULT_FORM_DATA);
     setIsEditing(true);
-  };
+  }, []);
 
-  const handleCloseEdit = () => {
+  const handleCloseEdit = useCallback(() => {
     setIsEditing(false);
     setSelectedItem(null);
     setFormData(DEFAULT_FORM_DATA);
-  };
+  }, []);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (!formData.name) {
       toast.error("院名は必須です");
       return;
@@ -241,9 +241,9 @@ export function ClinicMasterSettings() {
         },
       });
     }
-  };
+  }, [formData, selectedItem, updateMutation, createMutation]);
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = useCallback(() => {
     if (!pendingDelete) return;
     deleteMutation.mutate(pendingDelete.id, {
       onSuccess: () => {
@@ -255,7 +255,7 @@ export function ClinicMasterSettings() {
         toast.error("削除に失敗しました");
       },
     });
-  };
+  }, [pendingDelete, deleteMutation]);
 
   return (
     <>
@@ -372,7 +372,7 @@ export function ClinicMasterSettings() {
                     }}
                     value={formData.name}
                     onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
+                      setFormData((prev) => ({ ...prev, name: e.target.value }))
                     }
                     placeholder="無題"
                   />
@@ -388,10 +388,10 @@ export function ClinicMasterSettings() {
                     <button
                       type="button"
                       onClick={() =>
-                        setFormData({
-                          ...formData,
-                          is_active: !formData.is_active,
-                        })
+                        setFormData((prev) => ({
+                          ...prev,
+                          is_active: !prev.is_active,
+                        }))
                       }
                       className="inline-flex items-center rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] transition-colors py-0.5 px-0.5 cursor-pointer"
                     >
@@ -408,10 +408,10 @@ export function ClinicMasterSettings() {
                       className={PROP_INPUT_CLASS}
                       value={formData.postal_code}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
+                        setFormData((prev) => ({
+                          ...prev,
                           postal_code: e.target.value,
-                        })
+                        }))
                       }
                       placeholder="例: 150-0001"
                     />
@@ -424,7 +424,7 @@ export function ClinicMasterSettings() {
                       className={PROP_INPUT_CLASS}
                       value={formData.address}
                       onChange={(e) =>
-                        setFormData({ ...formData, address: e.target.value })
+                        setFormData((prev) => ({ ...prev, address: e.target.value }))
                       }
                       placeholder="例: 東京都渋谷区..."
                     />
@@ -437,10 +437,10 @@ export function ClinicMasterSettings() {
                       className={PROP_INPUT_CLASS}
                       value={formData.phone_number}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
+                        setFormData((prev) => ({
+                          ...prev,
                           phone_number: e.target.value,
-                        })
+                        }))
                       }
                       placeholder="例: 03-1234-5678"
                     />
@@ -453,10 +453,10 @@ export function ClinicMasterSettings() {
                       className={PROP_INPUT_CLASS}
                       value={formData.fax_number}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
+                        setFormData((prev) => ({
+                          ...prev,
                           fax_number: e.target.value,
-                        })
+                        }))
                       }
                       placeholder="例: 03-1234-5679"
                     />
@@ -469,10 +469,10 @@ export function ClinicMasterSettings() {
                       className={PROP_INPUT_CLASS}
                       value={formData.registration_number}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
+                        setFormData((prev) => ({
+                          ...prev,
                           registration_number: e.target.value,
-                        })
+                        }))
                       }
                       placeholder="例: 東京都獣医師会 第12345号"
                     />
@@ -485,10 +485,10 @@ export function ClinicMasterSettings() {
                       className={PROP_INPUT_CLASS}
                       value={formData.director_name}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
+                        setFormData((prev) => ({
+                          ...prev,
                           director_name: e.target.value,
-                        })
+                        }))
                       }
                       placeholder="例: 山田 太郎"
                     />
@@ -501,7 +501,7 @@ export function ClinicMasterSettings() {
                       className={PROP_INPUT_CLASS}
                       value={formData.email}
                       onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
+                        setFormData((prev) => ({ ...prev, email: e.target.value }))
                       }
                       placeholder="例: info@clinic.com"
                     />
@@ -514,7 +514,7 @@ export function ClinicMasterSettings() {
                       className={PROP_INPUT_CLASS}
                       value={formData.website}
                       onChange={(e) =>
-                        setFormData({ ...formData, website: e.target.value })
+                        setFormData((prev) => ({ ...prev, website: e.target.value }))
                       }
                       placeholder="例: https://example.com"
                     />

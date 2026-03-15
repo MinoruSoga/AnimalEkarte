@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useCallback, useState } from "react";
 import { format, addDays, subDays } from "date-fns";
 import { Activity, Sun, Moon, Coffee, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,18 +32,18 @@ export function DailyRecordSection({ records, plans = [], onAddVital, onAddLog }
     const [logType, setLogType] = useState<"food" | "excretion" | "medicine" | "other">("food");
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
-    const handleOpenTaskComplete = (task: Task) => {
+    const handleOpenTaskComplete = useCallback((task: Task) => {
         setSelectedTask(task);
         setIsTaskCompleteOpen(true);
-    };
+    }, []);
 
-    const handleSaveVital = (data: CreateVitalDTO) => {
+    const handleSaveVital = useCallback((data: CreateVitalDTO) => {
         onAddVital(format(selectedDate, "yyyy-MM-dd"), data);
-    };
+    }, [onAddVital, selectedDate]);
 
-    const handleSaveLog = (data: CreateCareLogDTO) => {
+    const handleSaveLog = useCallback((data: CreateCareLogDTO) => {
         onAddLog(format(selectedDate, "yyyy-MM-dd"), data);
-    };
+    }, [onAddLog, selectedDate]);
 
     const openLogDialog = (type: "food" | "excretion" | "medicine" | "other") => {
         setLogType(type);

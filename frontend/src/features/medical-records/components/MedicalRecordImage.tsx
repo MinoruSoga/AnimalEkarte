@@ -1,5 +1,5 @@
 // React/Framework
-import React, { useState } from "react";
+import React, { useDeferredValue, useState } from "react";
 
 // Relative
 import { ImageGalleryFilter } from "./ImageGalleryFilter";
@@ -7,6 +7,7 @@ import { ImageGalleryGroup } from "./ImageGalleryGroup";
 
 export function MedicalRecordImage({ isNewRecord = false }: { isNewRecord?: boolean }) {
   const [searchTerm, setSearchTerm] = useState("");
+  const deferredSearch = useDeferredValue(searchTerm);
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
   const [sortOrder, setSortOrder] = useState("desc");
@@ -36,7 +37,7 @@ export function MedicalRecordImage({ isNewRecord = false }: { isNewRecord?: bool
     <div className="h-[calc(100vh-220px)] min-h-[500px] flex flex-col gap-3 overflow-y-auto pb-20 pr-1">
       {/* Search & Upload Header */}
       <ImageGalleryFilter
-        searchTerm={searchTerm}
+        searchTerm={deferredSearch}
         onSearchChange={setSearchTerm}
         dateStart={dateStart}
         onDateStartChange={setDateStart}

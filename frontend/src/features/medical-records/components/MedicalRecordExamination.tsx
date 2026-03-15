@@ -1,5 +1,5 @@
 // React/Framework
-import React, { useState } from "react";
+import React, { useDeferredValue, useState } from "react";
 
 // Relative
 import { ExaminationFilter } from "./ExaminationFilter";
@@ -7,6 +7,7 @@ import { ExaminationGroup } from "./ExaminationGroup";
 
 export function MedicalRecordExamination({ isNewRecord = false }: { isNewRecord?: boolean }) {
   const [searchTerm, setSearchTerm] = useState("");
+  const deferredSearch = useDeferredValue(searchTerm);
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
 
@@ -41,7 +42,7 @@ export function MedicalRecordExamination({ isNewRecord = false }: { isNewRecord?
     <div className="h-[calc(100vh-220px)] min-h-[500px] flex flex-col gap-3 overflow-y-auto pb-20 pr-1">
       {/* Search & Actions Header */}
       <ExaminationFilter
-        searchTerm={searchTerm}
+        searchTerm={deferredSearch}
         onSearchChange={setSearchTerm}
         dateStart={dateStart}
         onDateStartChange={setDateStart}

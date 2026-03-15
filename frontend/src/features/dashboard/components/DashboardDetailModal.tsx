@@ -1,4 +1,5 @@
 // React/Framework
+import { useCallback } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -309,42 +310,50 @@ export function DashboardDetailModal({
 }: DashboardDetailModalProps) {
   const navigate = useNavigate();
 
+  // Extract primitives before hooks so useCallback deps stay stable
+  const petId = appointment?.petId;
+  const appointmentId = appointment?.id;
+  const ownerId = appointment?.ownerId;
+
+  const navigateAndClose = useCallback((path: string, extraState?: Record<string, unknown>) => {
+    navigate(path, { state: { from: "/", ...extraState } });
+    onClose();
+  }, [navigate, onClose]);
+
+  const handleCreateMedicalRecord = useCallback((tab?: string) => {
+    const base = petId
+      ? `/medical-records/new?petId=${petId}${tab ? `&tab=${tab}` : ""}`
+      : "/medical-records/select-pet";
+    navigateAndClose(base, { appointmentId });
+  }, [petId, appointmentId, navigateAndClose]);
+
+  const handleCreateTrimming = useCallback(() =>
+    navigateAndClose(petId ? `/trimming/new?petId=${petId}` : "/trimming/new"),
+  [petId, navigateAndClose]);
+
+  const handleCreateHospitalization = useCallback(() =>
+    navigateAndClose(petId ? `/hospitalization/new?petId=${petId}` : "/hospitalization/new"),
+  [petId, navigateAndClose]);
+
+  const handleCreateAccounting = useCallback(() =>
+    navigateAndClose(petId ? `/accounting/new?petId=${petId}` : "/accounting/new", {
+      appointmentId,
+    }),
+  [petId, appointmentId, navigateAndClose]);
+
+  const handleOpenOwnerDetail = useCallback(() => {
+    if (ownerId) {
+      navigateAndClose(`/owners/${ownerId}`);
+    } else if (petId) {
+      navigateAndClose(`/pets/${petId}`);
+    }
+  }, [ownerId, petId, navigateAndClose]);
+
   if (!appointment) return null;
 
   const isTrimming = appointment.serviceType.includes("トリミング");
   const isHospitalization = appointment.serviceType.includes("入院");
   const isMedical = appointment.serviceType.includes("診療") || (!isTrimming && !isHospitalization);
-
-  const navigateAndClose = (path: string, extraState?: Record<string, unknown>) => {
-    navigate(path, { state: { from: "/", ...extraState } });
-    onClose();
-  };
-
-  const handleCreateMedicalRecord = (tab?: string) => {
-    const base = appointment.petId
-      ? `/medical-records/new?petId=${appointment.petId}${tab ? `&tab=${tab}` : ""}`
-      : "/medical-records/select-pet";
-    navigateAndClose(base, { appointmentId: appointment.id });
-  };
-
-  const handleCreateTrimming = () =>
-    navigateAndClose(appointment.petId ? `/trimming/new?petId=${appointment.petId}` : "/trimming/new");
-
-  const handleCreateHospitalization = () =>
-    navigateAndClose(appointment.petId ? `/hospitalization/new?petId=${appointment.petId}` : "/hospitalization/new");
-
-  const handleCreateAccounting = () =>
-    navigateAndClose(appointment.petId ? `/accounting/new?petId=${appointment.petId}` : "/accounting/new", {
-      appointmentId: appointment.id,
-    });
-
-  const handleOpenOwnerDetail = () => {
-    if (appointment.ownerId) {
-      navigateAndClose(`/owners/${appointment.ownerId}`);
-    } else if (appointment.petId) {
-      navigateAndClose(`/pets/${appointment.petId}`);
-    }
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
