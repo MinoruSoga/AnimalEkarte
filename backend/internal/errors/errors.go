@@ -12,7 +12,6 @@ var (
 	ErrInvalidInput  = errors.New("invalid input")
 	ErrUnauthorized  = errors.New("unauthorized")
 	ErrForbidden     = errors.New("forbidden")
-	ErrInternal      = errors.New("internal server error")
 )
 
 // AppError はアプリケーション固有のエラー
@@ -54,14 +53,6 @@ func WrapInvalidInput(message string) error {
 		Code:    "INVALID_INPUT",
 		Message: message,
 		Err:     ErrInvalidInput,
-	}
-}
-
-func WrapInternal(err error, message string) error {
-	return &AppError{
-		Code:    "INTERNAL",
-		Message: message,
-		Err:     err,
 	}
 }
 
