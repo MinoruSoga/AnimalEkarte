@@ -21,6 +21,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { RowActionButton } from "@/components/shared/RowActionButton";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { useMasterItems } from "@/hooks/use-master-items";
 import {
@@ -94,6 +95,7 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
 
   const pageTitle = config?.label ?? "マスタ";
   const showPrice = config?.showPrice ?? false;
+  const showCode = config?.showCode ?? false;
   const showCategory = config?.showCategory ?? false;
   const labels = useMemo(
     () => config?.labels ?? { code: "コード", name: "名称", category: "カテゴリ" },
@@ -170,13 +172,15 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
   const columns = useMemo(
     () => [
       { header: labels.name },
+      ...(showCode ? [{ header: labels.code, className: "w-[120px]" }] : []),
       ...(showCategory ? [{ header: labels.category, className: "w-[120px]" }] : []),
       ...(showPrice
         ? [{ header: "単価(税込)", className: "w-[110px]", align: "right" as const }]
         : []),
-      { header: "ステータス", className: "w-[100px]", align: "right" as const },
+      { header: "ステータス", className: "w-[100px]", align: "center" as const },
+      { header: "操作", className: "w-[80px]", align: "right" as const },
     ],
-    [labels, showCategory, showPrice],
+    [labels, showCode, showCategory, showPrice],
   );
 
   // ── List content ───────────────────────────────────
@@ -209,6 +213,11 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
             <TableCell className={`font-medium text-sm ${C.text}`}>
               {item.name}
             </TableCell>
+            {showCode ? (
+              <TableCell className={`text-sm ${C.text}`}>
+                {item.code ?? "-"}
+              </TableCell>
+            ) : null}
             {showCategory ? (
               <TableCell className={`text-sm ${C.text}`}>
                 {item.category ?? "-"}
@@ -219,8 +228,11 @@ export function Settings({ category: propCategory, embedded = false }: SettingsP
                 {item.price ? `¥${item.price.toLocaleString()}` : "-"}
               </TableCell>
             ) : null}
-            <TableCell className="text-right">
+            <TableCell className="text-center">
               <NotionStatusPill isActive={item.status !== "inactive"} />
+            </TableCell>
+            <TableCell className="p-0 text-right">
+              <RowActionButton onClick={() => handleEdit(item)} />
             </TableCell>
           </DataTableRow>
         )}

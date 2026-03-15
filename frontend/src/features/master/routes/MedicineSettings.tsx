@@ -23,6 +23,8 @@ import Pill from "lucide-react/dist/esm/icons/pill";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import GripVertical from "lucide-react/dist/esm/icons/grip-vertical";
+import MoreHorizontal from "lucide-react/dist/esm/icons/more-horizontal";
+import Maximize2 from "lucide-react/dist/esm/icons/maximize-2";
 
 // Internal – shared
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -52,6 +54,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useSortableList } from "@/hooks/useSortableList";
@@ -95,6 +103,15 @@ const MEDICINE_UNIT_SELECT_ITEMS = (
 
 // Full-width Select trigger — matches Figma (h-[30px], no border, rounded-[3px])
 const SELECT_TRIGGER_FULL = `h-[30px] text-sm bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-[3px] w-full`;
+
+// 剤形ラベルマップ
+const DOSAGE_FORM_LABELS: Record<string, string> = {
+  tablet: "錠剤",
+  liquid: "液剤",
+  injection: "注射剤",
+  topical: "外用剤",
+  powder: "散剤",
+};
 
 // ─────────────────────────────────────────────────
 // Form data type
@@ -155,11 +172,38 @@ function SortableMedicineRow({
       <TableCell className={`${STYLE.tableCell} font-medium ${grouped ? "pl-12!" : "pl-2"}`}>
         {medicine.name}
       </TableCell>
+      <TableCell className={`${STYLE.tableCell} w-[100px] text-center text-sm`}>
+        {medicine.dosageForm ? (DOSAGE_FORM_LABELS[medicine.dosageForm] ?? medicine.dosageForm) : "-"}
+      </TableCell>
       <TableCell className={`${STYLE.tableCell} w-[130px] text-right pr-4 font-mono`}>
         {medicine.price > 0 ? `¥${medicine.price.toLocaleString()}` : "-"}
       </TableCell>
       <TableCell className="w-[110px] py-2.5 text-center">
         <StatusDot active={medicine.isActive} />
+      </TableCell>
+      <TableCell className="w-[80px] py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-center gap-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="w-7 h-7 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors"
+              >
+                <MoreHorizontal className="size-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onEdit(medicine)}>編集</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button
+            type="button"
+            onClick={() => onEdit(medicine)}
+            className="w-7 h-7 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors"
+          >
+            <Maximize2 className="size-3.5" />
+          </button>
+        </div>
       </TableCell>
     </SortableDataTableRow>
   );
@@ -187,12 +231,16 @@ function MedicineRowOverlay({
       <div className={`flex-1 min-w-0 text-sm font-medium ${C.text} ${grouped ? "pl-10" : "pl-0"}`}>
         {medicine.name}
       </div>
-      <div className="w-[130px] shrink-0 text-right pr-4 font-mono text-sm ${C.text}">
+      <div className="w-[100px] shrink-0 text-center text-sm text-[#37352F]/65">
+        {medicine.dosageForm ? (DOSAGE_FORM_LABELS[medicine.dosageForm] ?? medicine.dosageForm) : "-"}
+      </div>
+      <div className={`w-[130px] shrink-0 text-right pr-4 font-mono text-sm ${C.text}`}>
         {medicine.price > 0 ? `¥${medicine.price.toLocaleString()}` : "-"}
       </div>
       <div className="w-[110px] shrink-0 flex justify-center">
         <StatusDot active={medicine.isActive} />
       </div>
+      <div className="w-[80px] shrink-0" />
     </div>
   );
 }
@@ -678,18 +726,20 @@ export function MedicineSettings() {
             <TableRow className={STYLE.tableHeaderRow}>
               <TableHead className="w-8 px-0" />
               <TableHead className={`${STYLE.tableHeaderCell} pl-3`}>薬品名</TableHead>
+              <TableHead className={`${STYLE.tableHeaderCell} w-[100px] text-center`}>剤形</TableHead>
               <TableHead className={`${STYLE.tableHeaderCell} w-[130px] text-right pr-4`}>
                 単価(税込)
               </TableHead>
               <TableHead className={`${STYLE.tableHeaderCell} w-[110px] text-center`}>
                 ステータス
               </TableHead>
+              <TableHead className={`${STYLE.tableHeaderCell} w-[80px] text-center`}>操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {groupedMedicines.size === 0 && ungroupedMedicines.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className={STYLE.tableEmpty}>
+                <TableCell colSpan={6} className={STYLE.tableEmpty}>
                   データが見つかりません
                 </TableCell>
               </TableRow>
@@ -753,12 +803,32 @@ export function MedicineSettings() {
                       </div>
                     </TableCell>
 
+                    {/* Dosage form column — empty for category */}
+                    <TableCell className="w-[100px] py-0" />
+
                     {/* Price column — empty */}
                     <TableCell className="w-[130px] py-0" />
 
                     {/* Status column — 有効 */}
                     <TableCell className="w-[110px] py-0 text-center">
                       <StatusDot active={true} />
+                    </TableCell>
+
+                    {/* Actions column — category */}
+                    <TableCell className="w-[80px] py-0 text-center" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className="w-7 h-7 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors opacity-0 group-hover/header:opacity-100"
+                          >
+                            <MoreHorizontal className="size-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEdit(header)}>編集</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
 

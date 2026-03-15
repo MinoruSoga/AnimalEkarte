@@ -1,6 +1,6 @@
 # マスタ設定ページ一覧
 
-最終更新: 2026-03-15
+最終更新: 2026-03-15 (修正済)
 
 ## 凡例
 
@@ -51,7 +51,7 @@
 | D&Dハンドル | 32px | GripVertical |
 | 名称 | flex-1 | 展開トグル付き（子ありの場合） |
 | 単価(税込) | 120px | 右揃え |
-| ステータス | 100px | 中央揃え、`NotionStatusPill`（inline定義） |
+| ステータス | 100px | 中央揃え、`NotionStatusPill` |
 | 操作 | 80px | 右揃え、`RowActionButton` |
 
 **階層構造:**
@@ -64,9 +64,9 @@
 
 | ラベル | フィールド | 入力UI |
 |--------|-----------|--------|
-| ステータス | `isActive` | `NotionStatusPill` クリック切替（inline定義） |
+| ステータス | `isActive` | `NotionStatusPill` クリック切替 |
 | 単価(税込) | `price` | `<input type="number">` |
-| 備考 | `description` | `PropInput`（inline定義） |
+| 備考 | `description` | `PropInput` |
 
 > **注意:** `checkup` タブは `interval`（健診間隔）・`target_age`（対象年齢）フィールドを表示しない。
 > API には対応フィールドが存在するが、`TreatmentTabContent` が汎用設計のため未対応。
@@ -253,14 +253,40 @@
 
 ---
 
-## 8〜11. 汎用 Settings.tsx 経由ページ
+## 8. 入院マスタ (`/settings/hospitalization`)
+
+**コンポーネント:** `HospitalizationSettings.tsx`（**独自実装**）
+
+`body_size`（体格）・`billing_unit`（課金単位）など入院プラン固有フィールドが必要なため、`Settings.tsx` ラッパーではなく独自実装。データ取得は `useGetAllHospitalizationPlans`。
+
+| 項目 | 内容 |
+|------|------|
+| パターン | フラットパターン |
+| テーブルコンポーネント | `DataTable` + `DataTableRow` |
+| D&D | なし |
+
+---
+
+## 9. ケージマスタ (`/settings/cage`)
+
+**コンポーネント:** `CageSettings.tsx`（**独自実装**）
+
+`cage_type`（エリア区分）・`cage_size`（サイズ）など固有フィールドが必要なため、`Settings.tsx` ラッパーではなく独自実装。データ取得は `useGetAllCages`。
+
+| 項目 | 内容 |
+|------|------|
+| パターン | フラットパターン |
+| テーブルコンポーネント | `DataTable` + `DataTableRow` |
+| D&D | なし |
+
+---
+
+## 10〜11. 汎用 Settings.tsx 経由ページ
 
 **コンポーネント:** `Settings.tsx`（`category` prop で動作を切り替え）
 
 | # | ページ | パス | category |
 |---|--------|------|----------|
-| 8 | 入院マスタ | `/settings/hospitalization` | `hospitalization` |
-| 9 | ケージマスタ | `/settings/cage` | `cage` |
 | 10 | 職種マスタ | `/settings/job-title` | `job_title` |
 | 11 | 保険マスタ | `/settings/insurance` | `insurance` |
 
@@ -286,7 +312,5 @@
 | `NotionStatusPill` | `@/components/shared/StatusPill/NotionStatusPill` | diagnosis, service-type, staff, Settings.tsx |
 | `PropertyRow` | `@/components/shared/SidePeek/PropertyRow` | diagnosis, service-type |
 | `PropInput` | `@/components/shared/SidePeek/PropInput` | diagnosis, service-type |
-| `RowActionButton` | `@/components/shared/RowActionButton` | treatment-items, diagnosis, service-type |
+| `RowActionButton` | `@/components/shared/RowActionButton` | treatment-items, diagnosis, service-type, staff, Settings.tsx |
 | `useSortableList` | `@/hooks/useSortableList` | treatment-items, diagnosis, service-type, MedicineSettings |
-
-> **注意:** `TreatmentPlanMaster.tsx` は `NotionStatusPill`, `PropertyRow`, `PropInput` をファイル内に inline 定義しており、shared コンポーネントを使用していない。共有版への移行が必要。

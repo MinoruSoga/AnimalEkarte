@@ -65,7 +65,7 @@ const COURSE_COLUMNS = [
   { header: "対象サイズ", className: "w-[120px]" },
   { header: "所要時間", className: "w-[100px]" },
   { header: "単価(税込)", className: "w-[110px]", align: "right" as const },
-  { header: "ステータス", className: "w-[90px]", align: "center" as const },
+  { header: "ステータス", className: "w-[90px]", align: "right" as const },
   { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
@@ -74,7 +74,7 @@ const OPTION_COLUMNS = [
   { header: "所要時間", className: "w-[100px]" },
   { header: "組合せ可否", className: "w-[110px]", align: "center" as const },
   { header: "単価(税込)", className: "w-[110px]", align: "right" as const },
-  { header: "ステータス", className: "w-[90px]", align: "center" as const },
+  { header: "ステータス", className: "w-[90px]", align: "right" as const },
   { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
@@ -374,7 +374,7 @@ function TrimmingCourseTab() {
                 <TableCell className={`text-right font-mono text-sm ${C.text}`}>
                   {item.price != null ? `¥${item.price.toLocaleString()}` : "-"}
                 </TableCell>
-                <TableCell className="text-center">
+                <TableCell className="text-right">
                   <NotionStatusPill isActive={item.isActive} />
                 </TableCell>
                 <TableCell className="p-0 text-right">
@@ -669,7 +669,7 @@ function TrimmingOptionTab() {
                 <TableCell className={`text-right font-mono text-sm ${C.text}`}>
                   {item.price != null ? `¥${item.price.toLocaleString()}` : "-"}
                 </TableCell>
-                <TableCell className="text-center">
+                <TableCell className="text-right">
                   <NotionStatusPill isActive={item.isActive} />
                 </TableCell>
                 <TableCell className="p-0 text-right">

@@ -40,8 +40,7 @@ import type { Staff, StaffRoleValue, CreateStaffRequest, UpdateStaffRequest } fr
 // ─────────────────────────────────────────────────
 
 const COLUMNS = [
-  { header: "社員番号", className: "w-[130px]" },
-  { header: "氏名" },
+  { header: "氏名", className: "flex-1" },
   { header: "職種", className: "w-[130px]" },
   { header: "ステータス", className: "w-[90px]", align: "center" as const },
   { header: "操作", className: "w-[80px]", align: "right" as const },
@@ -320,7 +319,7 @@ export function StaffSettings() {
               <SearchFilterBar
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
-                placeholder="社員番号、氏名、職種で検索..."
+                placeholder="氏名、職種で検索..."
                 count={filteredItems.length}
               />
             </div>
@@ -340,9 +339,6 @@ export function StaffSettings() {
             emptyMessage="スタッフが登録されていません"
             renderRow={(item) => (
               <DataTableRow key={item.id} onClick={() => setEditTarget(item)}>
-                <TableCell className="font-mono text-sm text-[#37352F]/80">
-                  {item.code}
-                </TableCell>
                 <TableCell className={`font-medium text-sm ${C.text}`}>
                   {item.name}
                 </TableCell>
