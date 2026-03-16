@@ -2,7 +2,7 @@
 .env
 .env.local
 .env.*.local
-.env.production
+# .env.production は本番環境設定として git track する
 
 # Dependencies
 node_modules/
