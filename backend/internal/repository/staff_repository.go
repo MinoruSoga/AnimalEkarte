@@ -15,7 +15,7 @@ import (
 // ---- Staff ----
 
 type StaffRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, role *string) ([]model.Staff, error)
+	FindAll(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error)
 	FindByID(ctx context.Context, id uint64) (*model.Staff, error)
 	// CreateWithAccount はスタッフ・ユーザーアカウント・クリニック所属を単一トランザクションで作成する。
 	CreateWithAccount(ctx context.Context, staff *model.Staff, account *model.UserAccount, membership *model.UserClinicMembership) error
@@ -28,16 +28,28 @@ type staffRepository struct{ db *gorm.DB }
 
 func NewStaffRepository(db *gorm.DB) StaffRepository { return &staffRepository{db: db} }
 
-func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, role *string) ([]model.Staff, error) {
+func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error) {
 	staffs := make([]model.Staff, 0)
-	q := r.db.WithContext(ctx).Model(&model.Staff{}).Where("clinic_id = ?", clinicID)
-	if role != nil {
-		q = q.Where("staff_role = ?", *role)
+	var total int64
+
+	buildBase := func() *gorm.DB {
+		q := r.db.WithContext(ctx).Model(&model.Staff{}).Where("clinic_id = ?", clinicID)
+		if role != nil {
+			q = q.Where("staff_role = ?", *role)
+		}
+		return q
 	}
-	if err := q.Order("sort_order ASC, name ASC").Find(&staffs).Error; err != nil {
-		return nil, apperrors.Wrap(err, "find staffs")
+
+	if err := buildBase().Count(&total).Error; err != nil {
+		return nil, 0, apperrors.Wrap(err, "count staffs")
 	}
-	return staffs, nil
+	if err := buildBase().
+		Offset((page - 1) * limit).Limit(limit).
+		Order("sort_order ASC, name ASC").
+		Find(&staffs).Error; err != nil {
+		return nil, 0, apperrors.Wrap(err, "find staffs")
+	}
+	return staffs, total, nil
 }
 
 func (r *staffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff, error) {

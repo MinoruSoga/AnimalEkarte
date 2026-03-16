@@ -15,7 +15,7 @@ import (
 // ---- DiagnosisCategory ----
 
 type DiagnosisCategoryRepository interface {
-	FindAll(ctx context.Context, clinicID uint64) ([]model.DiagnosisCategory, error)
+	FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisCategory, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisCategory, error)
 	Create(ctx context.Context, category *model.DiagnosisCategory) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -29,15 +29,24 @@ func NewDiagnosisCategoryRepository(db *gorm.DB) DiagnosisCategoryRepository {
 	return &diagnosisCategoryRepository{db: db}
 }
 
-func (r *diagnosisCategoryRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.DiagnosisCategory, error) {
+func (r *diagnosisCategoryRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisCategory, int64, error) {
 	categories := make([]model.DiagnosisCategory, 0)
-	if err := r.db.WithContext(ctx).
-		Where("clinic_id = ?", clinicID).
+	var total int64
+
+	buildBase := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.DiagnosisCategory{}).Where("clinic_id = ?", clinicID)
+	}
+
+	if err := buildBase().Count(&total).Error; err != nil {
+		return nil, 0, apperrors.Wrap(err, "count diagnosis categories")
+	}
+	if err := buildBase().
+		Offset((page - 1) * limit).Limit(limit).
 		Order("sort_order ASC, name ASC").
 		Find(&categories).Error; err != nil {
-		return nil, apperrors.Wrap(err, "find diagnosis categories")
+		return nil, 0, apperrors.Wrap(err, "find diagnosis categories")
 	}
-	return categories, nil
+	return categories, total, nil
 }
 
 func (r *diagnosisCategoryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisCategory, error) {
@@ -111,8 +120,8 @@ func (r *diagnosisCategoryRepository) Reorder(ctx context.Context, clinicID uint
 // ---- DiagnosisName ----
 
 type DiagnosisNameRepository interface {
-	FindAll(ctx context.Context, clinicID uint64) ([]model.DiagnosisName, error)
-	FindByCategoryID(ctx context.Context, clinicID, categoryID uint64) ([]model.DiagnosisName, error)
+	FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
+	FindByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
 	Create(ctx context.Context, name *model.DiagnosisName) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -126,26 +135,45 @@ func NewDiagnosisNameRepository(db *gorm.DB) DiagnosisNameRepository {
 	return &diagnosisNameRepository{db: db}
 }
 
-func (r *diagnosisNameRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.DiagnosisName, error) {
+func (r *diagnosisNameRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
 	names := make([]model.DiagnosisName, 0)
-	if err := r.db.WithContext(ctx).
-		Where("clinic_id = ?", clinicID).
+	var total int64
+
+	buildBase := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.DiagnosisName{}).Where("clinic_id = ?", clinicID)
+	}
+
+	if err := buildBase().Count(&total).Error; err != nil {
+		return nil, 0, apperrors.Wrap(err, "count diagnosis names")
+	}
+	if err := buildBase().
+		Offset((page - 1) * limit).Limit(limit).
 		Order("sort_order ASC, name ASC").
 		Find(&names).Error; err != nil {
-		return nil, apperrors.Wrap(err, "find diagnosis names")
+		return nil, 0, apperrors.Wrap(err, "find diagnosis names")
 	}
-	return names, nil
+	return names, total, nil
 }
 
-func (r *diagnosisNameRepository) FindByCategoryID(ctx context.Context, clinicID, categoryID uint64) ([]model.DiagnosisName, error) {
+func (r *diagnosisNameRepository) FindByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
 	names := make([]model.DiagnosisName, 0)
-	if err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND diagnosis_category_id = ?", clinicID, categoryID).
+	var total int64
+
+	buildBase := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.DiagnosisName{}).
+			Where("clinic_id = ? AND diagnosis_category_id = ?", clinicID, categoryID)
+	}
+
+	if err := buildBase().Count(&total).Error; err != nil {
+		return nil, 0, apperrors.Wrap(err, "count diagnosis names by category id")
+	}
+	if err := buildBase().
+		Offset((page - 1) * limit).Limit(limit).
 		Order("sort_order ASC, name ASC").
 		Find(&names).Error; err != nil {
-		return nil, apperrors.Wrap(err, "find diagnosis names by category id")
+		return nil, 0, apperrors.Wrap(err, "find diagnosis names by category id")
 	}
-	return names, nil
+	return names, total, nil
 }
 
 func (r *diagnosisNameRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error) {

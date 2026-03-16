@@ -107,7 +107,7 @@ func buildMedicineUpdateFields(input *UpdateMedicineInput) map[string]any {
 // ---- MedicineService ----
 
 type MedicineService interface {
-	List(ctx context.Context, clinicID uint64) ([]model.Medicine, error)
+	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateMedicineInput) (*model.Medicine, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateMedicineInput) (*model.Medicine, error)
@@ -124,8 +124,8 @@ func NewMedicineService(repo repository.MedicineRepository, logger *slog.Logger)
 	return &medicineService{repo: repo, logger: logger}
 }
 
-func (s *medicineService) List(ctx context.Context, clinicID uint64) ([]model.Medicine, error) {
-	return s.repo.FindAll(ctx, clinicID)
+func (s *medicineService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
+	return s.repo.FindAll(ctx, clinicID, page, limit)
 }
 
 func (s *medicineService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error) {

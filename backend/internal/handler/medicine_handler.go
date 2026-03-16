@@ -18,12 +18,18 @@ func (h *Handler) ListMedicines(c *gin.Context) {
 		return
 	}
 
-	medicines, err := h.svc.Medicine.List(c.Request.Context(), clinicID)
+	page, limit, err := parsePagination(c)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toMedicineResponseList(medicines))
+
+	medicines, total, err := h.svc.Medicine.List(c.Request.Context(), clinicID, page, limit)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, newPaginatedResponse(toMedicineResponseList(medicines), total, page, limit))
 }
 
 // GetMedicine godoc

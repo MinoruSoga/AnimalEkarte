@@ -38,12 +38,19 @@ func (h *Handler) ListDiagnosisCategories(c *gin.Context) {
 	if !ok {
 		return
 	}
-	categories, err := h.svc.DiagnosisCategory.List(c.Request.Context(), clinicID)
+
+	page, limit, err := parsePagination(c)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toDiagnosisCategoryResponseList(categories))
+
+	categories, total, err := h.svc.DiagnosisCategory.List(c.Request.Context(), clinicID, page, limit)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, newPaginatedResponse(toDiagnosisCategoryResponseList(categories), total, page, limit))
 }
 
 // CreateDiagnosisCategory godoc
@@ -55,7 +62,7 @@ func (h *Handler) CreateDiagnosisCategory(c *gin.Context) {
 
 	var req createDiagnosisCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -80,13 +87,13 @@ func (h *Handler) UpdateDiagnosisCategory(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 
 	var req updateDiagnosisCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -111,7 +118,7 @@ func (h *Handler) DeleteDiagnosisCategory(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.DiagnosisCategory.Delete(c.Request.Context(), clinicID, id); err != nil {
@@ -129,7 +136,7 @@ func (h *Handler) ReorderDiagnosisCategories(c *gin.Context) {
 	}
 	var req reorderDiagnosisCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.DiagnosisCategory.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
@@ -167,29 +174,35 @@ func (h *Handler) ListDiagnosisNames(c *gin.Context) {
 		return
 	}
 
-	var names any
-	var svcErr error
+	page, limit, err := parsePagination(c)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
 
+	var resp any
 	if catIDStr := c.Query("category_id"); catIDStr != "" {
 		catID, parseErr := strconv.ParseUint(catIDStr, 10, 64)
 		if parseErr != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid category_id"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid category_id"))
 			return
 		}
-		result, err := h.svc.DiagnosisName.ListByCategoryID(c.Request.Context(), clinicID, catID)
-		names = toDiagnosisNameResponseList(result)
-		svcErr = err
+		names, total, svcErr := h.svc.DiagnosisName.ListByCategoryID(c.Request.Context(), clinicID, catID, page, limit)
+		if svcErr != nil {
+			RespondError(c, svcErr)
+			return
+		}
+		resp = newPaginatedResponse(toDiagnosisNameResponseList(names), total, page, limit)
 	} else {
-		result, err := h.svc.DiagnosisName.List(c.Request.Context(), clinicID)
-		names = toDiagnosisNameResponseList(result)
-		svcErr = err
+		names, total, svcErr := h.svc.DiagnosisName.List(c.Request.Context(), clinicID, page, limit)
+		if svcErr != nil {
+			RespondError(c, svcErr)
+			return
+		}
+		resp = newPaginatedResponse(toDiagnosisNameResponseList(names), total, page, limit)
 	}
 
-	if svcErr != nil {
-		RespondError(c, svcErr)
-		return
-	}
-	c.JSON(http.StatusOK, names)
+	c.JSON(http.StatusOK, resp)
 }
 
 // CreateDiagnosisName godoc
@@ -201,7 +214,7 @@ func (h *Handler) CreateDiagnosisName(c *gin.Context) {
 
 	var req createDiagnosisNameRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -227,13 +240,13 @@ func (h *Handler) UpdateDiagnosisName(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 
 	var req updateDiagnosisNameRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -259,7 +272,7 @@ func (h *Handler) DeleteDiagnosisName(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.DiagnosisName.Delete(c.Request.Context(), clinicID, id); err != nil {
@@ -277,7 +290,7 @@ func (h *Handler) ReorderDiagnosisNames(c *gin.Context) {
 	}
 	var req reorderDiagnosisNameRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	if err := h.svc.DiagnosisName.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {

@@ -23,12 +23,19 @@ func (h *Handler) ListStaffs(c *gin.Context) {
 	if r := c.Query("role"); r != "" {
 		role = &r
 	}
-	staffs, err := h.svc.Staff.List(c.Request.Context(), clinicID, role)
+
+	page, limit, err := parsePagination(c)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toStaffResponseList(staffs))
+
+	staffs, total, err := h.svc.Staff.List(c.Request.Context(), clinicID, role, page, limit)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, newPaginatedResponse(toStaffResponseList(staffs), total, page, limit))
 }
 
 // CreateStaff godoc

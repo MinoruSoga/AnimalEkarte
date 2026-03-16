@@ -41,7 +41,7 @@ type UpdateStaffInput struct {
 }
 
 type StaffService interface {
-	List(ctx context.Context, clinicID uint64, role *string) ([]model.Staff, error)
+	List(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error)
 	GetByID(ctx context.Context, id uint64) (*model.Staff, error)
 	// CreateWithAccount はスタッフとシステムアカウントをアトミックに作成する。
 	CreateWithAccount(ctx context.Context, input *CreateStaffInput) (*model.Staff, error)
@@ -56,8 +56,8 @@ func NewStaffService(repo repository.StaffRepository) StaffService {
 	return &staffService{repo: repo}
 }
 
-func (s *staffService) List(ctx context.Context, clinicID uint64, role *string) ([]model.Staff, error) {
-	return s.repo.FindAll(ctx, clinicID, role)
+func (s *staffService) List(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error) {
+	return s.repo.FindAll(ctx, clinicID, role, page, limit)
 }
 
 func (s *staffService) GetByID(ctx context.Context, id uint64) (*model.Staff, error) {

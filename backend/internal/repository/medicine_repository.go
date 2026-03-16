@@ -15,7 +15,7 @@ import (
 // ---- Medicine ----
 
 type MedicineRepository interface {
-	FindAll(ctx context.Context, clinicID uint64) ([]model.Medicine, error)
+	FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
 	CountChildren(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	Create(ctx context.Context, medicine *model.Medicine) error
@@ -28,15 +28,24 @@ type medicineRepository struct{ db *gorm.DB }
 
 func NewMedicineRepository(db *gorm.DB) MedicineRepository { return &medicineRepository{db: db} }
 
-func (r *medicineRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Medicine, error) {
+func (r *medicineRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
 	medicines := make([]model.Medicine, 0)
-	if err := r.db.WithContext(ctx).
-		Where("clinic_id = ?", clinicID).
+	var total int64
+
+	buildBase := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.Medicine{}).Where("clinic_id = ?", clinicID)
+	}
+
+	if err := buildBase().Count(&total).Error; err != nil {
+		return nil, 0, apperrors.Wrap(err, "count medicines")
+	}
+	if err := buildBase().
+		Offset((page - 1) * limit).Limit(limit).
 		Order("sort_order ASC, name ASC").
 		Find(&medicines).Error; err != nil {
-		return nil, apperrors.Wrap(err, "find medicines")
+		return nil, 0, apperrors.Wrap(err, "find medicines")
 	}
-	return medicines, nil
+	return medicines, total, nil
 }
 
 func (r *medicineRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error) {

@@ -14,7 +14,7 @@ import (
 
 // mockMedicineRepository は MedicineRepository のテスト用モック実装
 type mockMedicineRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.Medicine, error)
+	findAllFn      func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error)
 	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
 	countChildrenFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	createFn       func(ctx context.Context, medicine *model.Medicine) error
@@ -23,8 +23,8 @@ type mockMedicineRepository struct {
 	reorderFn      func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-func (m *mockMedicineRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Medicine, error) {
-	return m.findAllFn(ctx, clinicID)
+func (m *mockMedicineRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
+	return m.findAllFn(ctx, clinicID, page, limit)
 }
 
 func (m *mockMedicineRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error) {
@@ -98,19 +98,20 @@ func TestMedicineService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockMedicineRepository{
-				findAllFn: func(_ context.Context, _ uint64) ([]model.Medicine, error) {
-					return tt.repoData, tt.repoErr
+				findAllFn: func(_ context.Context, _ uint64, _, _ int) ([]model.Medicine, int64, error) {
+					return tt.repoData, int64(len(tt.repoData)), tt.repoErr
 				},
 			}
 			svc := newTestMedicineService(repo)
 
-			medicines, err := svc.List(context.Background(), 1)
+			medicines, total, err := svc.List(context.Background(), 1, 1, 20)
 
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 				assert.Len(t, medicines, tt.wantLen)
+				assert.Equal(t, int64(tt.wantLen), total)
 			}
 		})
 	}

@@ -66,7 +66,7 @@ type UpdateDiagnosisNameInput struct {
 // ---- DiagnosisCategoryService ----
 
 type DiagnosisCategoryService interface {
-	List(ctx context.Context, clinicID uint64) ([]model.DiagnosisCategory, error)
+	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisCategory, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisCategory, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisCategoryInput) (*model.DiagnosisCategory, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisCategoryInput) (*model.DiagnosisCategory, error)
@@ -87,8 +87,8 @@ func NewDiagnosisCategoryService(
 	return &diagnosisCategoryService{repo: repo, logger: logger}
 }
 
-func (s *diagnosisCategoryService) List(ctx context.Context, clinicID uint64) ([]model.DiagnosisCategory, error) {
-	return s.repo.FindAll(ctx, clinicID)
+func (s *diagnosisCategoryService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisCategory, int64, error) {
+	return s.repo.FindAll(ctx, clinicID, page, limit)
 }
 
 func (s *diagnosisCategoryService) GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisCategory, error) {
@@ -158,8 +158,8 @@ func buildDiagnosisCategoryUpdateFields(input *UpdateDiagnosisCategoryInput) map
 // ---- DiagnosisNameService ----
 
 type DiagnosisNameService interface {
-	List(ctx context.Context, clinicID uint64) ([]model.DiagnosisName, error)
-	ListByCategoryID(ctx context.Context, clinicID, categoryID uint64) ([]model.DiagnosisName, error)
+	List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
+	ListByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateDiagnosisNameInput) (*model.DiagnosisName, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateDiagnosisNameInput) (*model.DiagnosisName, error)
@@ -182,12 +182,12 @@ func NewDiagnosisNameService(
 	return &diagnosisNameService{repo: repo, categoryRepo: categoryRepo, logger: logger}
 }
 
-func (s *diagnosisNameService) List(ctx context.Context, clinicID uint64) ([]model.DiagnosisName, error) {
-	return s.repo.FindAll(ctx, clinicID)
+func (s *diagnosisNameService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
+	return s.repo.FindAll(ctx, clinicID, page, limit)
 }
 
-func (s *diagnosisNameService) ListByCategoryID(ctx context.Context, clinicID, categoryID uint64) ([]model.DiagnosisName, error) {
-	return s.repo.FindByCategoryID(ctx, clinicID, categoryID)
+func (s *diagnosisNameService) ListByCategoryID(ctx context.Context, clinicID, categoryID uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
+	return s.repo.FindByCategoryID(ctx, clinicID, categoryID, page, limit)
 }
 
 func (s *diagnosisNameService) GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error) {
