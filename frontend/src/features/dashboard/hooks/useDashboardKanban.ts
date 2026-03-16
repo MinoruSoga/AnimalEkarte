@@ -133,7 +133,9 @@ export function useDashboardKanban() {
     const sourceColFiltered = filteredColumns.find(col => col.title === sourceColumn);
     const targetColFiltered = filteredColumns.find(col => col.title === targetColumn);
 
-    if (!sourceColFiltered || !targetColFiltered) return false;
+    if (!sourceColFiltered || !targetColFiltered) {
+      return false;
+    }
 
     // draggedCardId が提供されている場合は ID から直接取得（インデックスズレを防ぐ）
     // そうでない場合は dragIndex を使用（後方互換性のため）
@@ -141,7 +143,9 @@ export function useDashboardKanban() {
       ? sourceColFiltered.appointments.find(a => a.id === draggedCardId)
       : sourceColFiltered.appointments[dragIndex];
 
-    if (!draggedCard) return false;
+    if (!draggedCard) {
+      return false;
+    }
 
     // カラムが変わった場合は API でステータス更新
     if (sourceColumn !== targetColumn) {
@@ -315,7 +319,7 @@ export function useDashboardKanban() {
   }, []);
 
   return {
-    columns,
+    columns,  // ローカル状態（ポーリング影響を避けるためドラッグハンドラで使用）
     filteredColumns,
     isLoading,
     staffs: staffs ?? [],

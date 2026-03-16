@@ -3,7 +3,7 @@ import { useState, useCallback, useMemo, lazy, Suspense } from "react";
 import { useNavigate } from "react-router";
 
 // External
-import { DndContext, PointerSensor, useSensor, useSensors, DragOverEvent, DragEndEvent, closestCorners } from "@dnd-kit/core";
+import { DndContext, PointerSensor, useSensor, useSensors, DragOverEvent, DragEndEvent, pointerWithin } from "@dnd-kit/core";
 import Filter from "lucide-react/dist/esm/icons/filter";
 import { toast } from "sonner";
 import { format, addHours } from "date-fns";
@@ -40,6 +40,7 @@ const NO_ADD_BUTTON_COLUMNS = new Set(["診療中", "会計待ち", "会計済"]
 export function Dashboard() {
     const navigate = useNavigate();
     const {
+        columns,
         filteredColumns,
         staffs,
         moveCard,
@@ -82,64 +83,69 @@ export function Dashboard() {
         if (!over) return;
 
         const activeId = active.id as string;
-        const overId = over.id as string;
 
-        // Determine source and target columns
-        const sourceColumn = findColumnByCardId(activeId);
+        // Use over.data.columnTitle for reliable column detection
+        const targetTitle = (over.data?.columnTitle as string) || (over.id as string).replace("column-", "");
+
+        const sourceColumn = columns.find(col => col.appointments.some(a => a.id === activeId));
         if (!sourceColumn) return;
+
+        const targetCol = columns.find(c => c.title === targetTitle);
+        if (!targetCol) return;
+
         const sourceTitle = sourceColumn.title;
-
-        let targetTitle: string;
-        let hoverIndex: number;
-
-        if (overId.startsWith("column-")) {
-            // Dropped on column itself (empty area)
-            targetTitle = overId.replace("column-", "");
-            const targetCol = filteredColumns.find(c => c.title === targetTitle);
-            hoverIndex = targetCol ? targetCol.appointments.length : 0;
-        } else {
-            // Dropped on another card
-            const targetColumn = findColumnByCardId(overId);
-            if (!targetColumn) return;
-            targetTitle = targetColumn.title;
-            hoverIndex = targetColumn.appointments.findIndex(a => a.id === overId);
-        }
-
-        if (sourceTitle === targetTitle && activeId === overId) return;
-
         const dragIndex = sourceColumn.appointments.findIndex(a => a.id === activeId);
         if (dragIndex === -1) return;
 
-        // Same column, same position
+        // Find hover position in target column
+        const overId = over.id as string;
+        let hoverIndex: number;
+
+        if (overId.startsWith("column-")) {
+            hoverIndex = targetCol.appointments.length;
+        } else {
+            hoverIndex = targetCol.appointments.findIndex(a => a.id === overId);
+            if (hoverIndex === -1) {
+                hoverIndex = targetCol.appointments.length;
+            }
+        }
+
+        // Skip if same column and same position
         if (sourceTitle === targetTitle && dragIndex === hoverIndex) return;
 
         moveCard(dragIndex, hoverIndex, sourceTitle, targetTitle, activeId);
-    }, [filteredColumns, findColumnByCardId, moveCard]);
+    }, [columns, moveCard]);
 
     const handleDragEnd = useCallback((event: DragEndEvent) => {
         const { active, over } = event;
         if (!over) return;
 
         const activeId = active.id as string;
-        const overId = over.id as string;
 
-        if (activeId === overId) return;
+        // Use over.data.columnTitle (set in KanbanColumn's useDroppable) for reliable column detection
+        // This avoids collision detection ambiguity with closestCorners
+        const targetTitle = (over.data?.columnTitle as string) || (over.id as string).replace("column-", "");
 
-        const sourceColumn = findColumnByCardId(activeId);
+        const sourceColumn = columns.find(col => col.appointments.some(a => a.id === activeId));
         if (!sourceColumn) return;
 
-        let targetTitle: string;
+        const targetCol = columns.find(c => c.title === targetTitle);
+        if (!targetCol) return;
+
+        // Find the card ID in the target column to determine insert position
+        const overId = over.id as string;
         let hoverIndex: number;
 
         if (overId.startsWith("column-")) {
-            targetTitle = overId.replace("column-", "");
-            const targetCol = filteredColumns.find(c => c.title === targetTitle);
-            hoverIndex = targetCol ? targetCol.appointments.length : 0;
+            // Dropped on empty column area
+            hoverIndex = targetCol.appointments.length;
         } else {
-            const targetColumn = findColumnByCardId(overId);
-            if (!targetColumn) return;
-            targetTitle = targetColumn.title;
-            hoverIndex = targetColumn.appointments.findIndex(a => a.id === overId);
+            // Dropped on a card - find its position in the target column
+            hoverIndex = targetCol.appointments.findIndex(a => a.id === overId);
+            if (hoverIndex === -1) {
+                // Card not in target column, append to end
+                hoverIndex = targetCol.appointments.length;
+            }
         }
 
         const dragIndex = sourceColumn.appointments.findIndex(a => a.id === activeId);
@@ -148,14 +154,9 @@ export function Dashboard() {
         // Same column, same position - no change needed
         if (sourceColumn.title === targetTitle && dragIndex === hoverIndex) return;
 
-        // Call moveCard - will handle API call if columns changed
-        // Pass draggedCardId to ensure correct card identification even if filters change
-        const success = moveCard(dragIndex, hoverIndex, sourceColumn.title, targetTitle, activeId);
-        if (!success) {
-            // Revert UI if moveCard failed
-            return;
-        }
-    }, [filteredColumns, findColumnByCardId, moveCard]);
+        // Call moveCard with draggedCardId for reliable card identification
+        moveCard(dragIndex, hoverIndex, sourceColumn.title, targetTitle, activeId);
+    }, [columns, moveCard]);
 
     const todayLabel = format(new Date(), "yyyy年M月d日 (E)", { locale: ja });
 
@@ -338,7 +339,7 @@ export function Dashboard() {
             ) : null}
 
             <div className="flex-1 overflow-hidden p-5 pt-4">
-                <DndContext sensors={sensors} collisionDetection={closestCorners} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+                <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
                     {/* タブレット: 2-3列グリッド、デスクトップ: 5列flex */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:flex gap-4 h-full w-full overflow-y-auto lg:overflow-x-auto lg:overflow-y-hidden pb-2 bg-transparent">
                         {filteredColumns.map((column) => (
