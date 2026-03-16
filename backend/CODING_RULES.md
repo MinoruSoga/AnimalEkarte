@@ -57,10 +57,8 @@ backend/
 │   ├── 002_create_pets.sql
 │   └── ...
 │
-├── docs/                       # Swagger
-│   ├── docs.go
-│   ├── swagger.json
-│   └── swagger.yaml
+├── docs/                       # APIドキュメント
+│   └── api.yaml
 │
 ├── .golangci.yml               # Linter設定
 ├── go.mod
@@ -656,24 +654,10 @@ c.JSON(http.StatusBadRequest, gin.H{
 })
 ```
 
-### 6.4 Swagger アノテーション
+### 6.4 API ドキュメント
 
-```go
-// GetOwner godoc
-// @Summary      飼主取得
-// @Description  IDを指定して飼主情報を取得
-// @Tags         owners
-// @Accept       json
-// @Produce      json
-// @Param        id   path      string  true  "飼主ID"
-// @Success      200  {object}  model.Owner
-// @Failure      404  {object}  ErrorResponse
-// @Failure      500  {object}  ErrorResponse
-// @Router       /owners/{id} [get]
-func (h *OwnerHandler) GetOwner(c *gin.Context) {
-    // ...
-}
-```
+API 仕様は `docs/api.yaml`（OpenAPI 3.0）で手動管理。
+Swagger アノテーション（`@Summary` 等）は廃止済み — 使用しない。
 
 ---
 
@@ -940,7 +924,7 @@ func TestOwnerService_GetOwner(t *testing.T) {
 ### PR作成時
 - [ ] `golangci-lint run ./...` がパス
 - [ ] `go test ./... -v` がパス
-- [ ] Swagger更新済み
+- [ ] API仕様（docs/api.yaml）更新済み
 - [ ] 不要なコメントアウトがない
 - [ ] デバッグ用コードが残っていない
 

@@ -8,7 +8,7 @@
 - **フレームワーク**: Gin v1.10
 - **ORM**: GORM v1.30
 - **データベース**: PostgreSQL 18
-- **API仕様**: OpenAPI/Swagger
+- **API仕様**: OpenAPI 3.0（手動管理: `docs/api.yaml`）
 - **ホットリロード**: Air
 - **ロギング**: slog（構造化ログ）
 - **リンター**: golangci-lint
@@ -44,7 +44,7 @@ backend/
 │   └── validation/
 │       └── *.go             # バリデーション
 ├── migrations/              # DBマイグレーション
-├── docs/                    # Swagger生成ドキュメント（自動生成）
+├── docs/                    # APIドキュメント（手動管理）
 ├── .golangci.yml            # リンター設定
 ├── Dockerfile               # 本番用
 ├── Dockerfile.dev           # 開発用
@@ -82,12 +82,6 @@ make restart-api
 # 依存関係インストール
 go mod download
 
-# Swagger CLIインストール
-go install github.com/swaggo/swag/cmd/swag@latest
-
-# Swaggerドキュメント生成
-swag init -g cmd/api/main.go -o docs
-
 # 環境変数設定
 export DB_HOST=localhost
 export DB_PORT=5432
@@ -115,13 +109,9 @@ air -c .air.toml
 | PUT | /api/v1/pets/:id | ペット情報更新 |
 | DELETE | /api/v1/pets/:id | ペット削除 |
 
-## Swagger UI
+## API ドキュメント
 
-開発サーバー起動後、以下のURLでAPIドキュメントを確認できます:
-
-```
-http://localhost:8080/swagger/index.html
-```
+API 仕様は `docs/api.yaml`（OpenAPI 3.0）で手動管理。
 
 ## 新しいCRUD機能の追加手順
 
@@ -206,7 +196,7 @@ func (s *Service) CreateOwner(req *model.CreateOwnerRequest) (*model.Owner, erro
 
 ### 4. ハンドラー作成
 
-`internal/handler/` にハンドラーを作成（Swaggerアノテーション付き）:
+`internal/handler/` にハンドラーを作成:
 
 ```go
 // internal/handler/owner.go
@@ -253,10 +243,10 @@ v1.POST("/owners", h.CreateOwner)
 db.AutoMigrate(&model.Pet{}, &model.Owner{})
 ```
 
-### 7. Swagger再生成
+### 7. 型生成（tygo）
 
 ```bash
-swag init -g cmd/api/main.go -o docs
+make codegen
 ```
 
 ## テスト

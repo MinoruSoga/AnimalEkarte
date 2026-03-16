@@ -21,7 +21,7 @@ AnimalEkarte/
 │   ├── cmd/                    # エントリーポイント
 │   ├── internal/               # 内部パッケージ
 │   ├── migrations/             # DBマイグレーション
-│   └── docs/                   # Swagger
+│   └── docs/                   # APIドキュメント
 ├── frontend/                   # React 19 SPA
 │   └── src/
 │       ├── main.tsx            # Viteエントリーポイント
@@ -345,7 +345,7 @@ func TestPetService_GetByID(t *testing.T) {
 
 | ドキュメント | 場所 | 内容 |
 |-------------|------|------|
-| API仕様 | `/backend/docs/swagger.yaml` | OpenAPI 3.0 |
+| API仕様 | `/backend/docs/api.yaml` | OpenAPI 3.0 |
 | DB設計 | `/docs/ERD.md` | ER図、テーブル定義 |
 | 環境構築 | `/README.md` | セットアップ手順 |
 | コーディング規約 | `/CODING_RULES.md` | 本ドキュメント |
@@ -426,7 +426,7 @@ export function calculateAge(birthDate: Date): number {
 - [Frontend Coding Rules](./frontend/CODING_RULES.md)
 - [Backend Coding Rules](./backend/CODING_RULES.md)
 - [ERD（データベース設計）](./docs/ERD.md)
-- [API仕様（Swagger）](http://localhost:8080/swagger/index.html)
+- [API仕様](./backend/docs/api.yaml)
 - [Bulletproof React](https://github.com/alan2207/bulletproof-react)
 - [React 19 Release Notes](https://react.dev/blog/2024/12/05/react-19)
 - [Effective Go](https://go.dev/doc/effective_go)
