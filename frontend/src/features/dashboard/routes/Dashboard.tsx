@@ -113,7 +113,7 @@ export function Dashboard() {
         // Same column, same position
         if (sourceTitle === targetTitle && dragIndex === hoverIndex) return;
 
-        moveCard(dragIndex, hoverIndex, sourceTitle, targetTitle);
+        moveCard(dragIndex, hoverIndex, sourceTitle, targetTitle, activeId);
     }, [filteredColumns, findColumnByCardId, moveCard]);
 
     const handleDragEnd = useCallback((event: DragEndEvent) => {
@@ -145,9 +145,16 @@ export function Dashboard() {
         const dragIndex = sourceColumn.appointments.findIndex(a => a.id === activeId);
         if (dragIndex === -1) return;
 
+        // Same column, same position - no change needed
         if (sourceColumn.title === targetTitle && dragIndex === hoverIndex) return;
 
-        moveCard(dragIndex, hoverIndex, sourceColumn.title, targetTitle);
+        // Call moveCard - will handle API call if columns changed
+        // Pass draggedCardId to ensure correct card identification even if filters change
+        const success = moveCard(dragIndex, hoverIndex, sourceColumn.title, targetTitle, activeId);
+        if (!success) {
+            // Revert UI if moveCard failed
+            return;
+        }
     }, [filteredColumns, findColumnByCardId, moveCard]);
 
     const todayLabel = format(new Date(), "yyyy年M月d日 (E)", { locale: ja });

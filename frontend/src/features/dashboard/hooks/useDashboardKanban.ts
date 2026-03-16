@@ -116,7 +116,7 @@ export function useDashboardKanban() {
     );
   }, []);
 
-  const moveCard = useCallback((dragIndex: number, hoverIndex: number, sourceColumn: string, targetColumn: string) => {
+  const moveCard = useCallback((dragIndex: number, hoverIndex: number, sourceColumn: string, targetColumn: string, draggedCardId?: string) => {
     // 受付済 → 診療中 への直接ドラッグは禁止（カルテ作成が必要）
     if (sourceColumn === "受付済" && targetColumn === "診療中") {
       const now = Date.now();
@@ -135,7 +135,12 @@ export function useDashboardKanban() {
 
     if (!sourceColFiltered || !targetColFiltered) return false;
 
-    const draggedCard = sourceColFiltered.appointments[dragIndex];
+    // draggedCardId が提供されている場合は ID から直接取得（インデックスズレを防ぐ）
+    // そうでない場合は dragIndex を使用（後方互換性のため）
+    const draggedCard = draggedCardId
+      ? sourceColFiltered.appointments.find(a => a.id === draggedCardId)
+      : sourceColFiltered.appointments[dragIndex];
+
     if (!draggedCard) return false;
 
     // カラムが変わった場合は API でステータス更新

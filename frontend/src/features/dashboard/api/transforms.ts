@@ -48,6 +48,19 @@ function visitTypeToJapanese(visitType: string): "初診" | "再診" {
   return visitType === "first" ? "初診" : "再診";
 }
 
+/** animal_species_id → 動物種名マッピング */
+const ANIMAL_SPECIES_MAP: Record<number, string> = {
+  1: "犬",
+  2: "猫",
+  3: "ウサギ",
+  4: "ハムスター",
+  5: "モルモット",
+  6: "フェレット",
+  7: "鳥",
+  8: "爬虫類",
+  9: "その他",
+};
+
 /** BackendDashboardReservation → DashboardAppointment 変換 */
 export function transformReservationToDashboardAppointment(
   reservation: BackendDashboardReservation
@@ -56,7 +69,10 @@ export function transformReservationToDashboardAppointment(
   const time = format(startDate, "HH:mm");
 
   const petName = reservation.pet?.name ?? "";
-  const petType = reservation.pet?.animal_species?.name ?? "犬";
+  // animal_species ネストがないため、animal_species_id からマッピング
+  const petType = reservation.pet?.animal_species?.name
+    ?? (reservation.pet?.animal_species_id ? ANIMAL_SPECIES_MAP[reservation.pet.animal_species_id] : "犬")
+    ?? "犬";
   const ownerName = reservation.owner?.owner_name ?? "";
 
   const status = STATUS_TO_COLUMN_ID[reservation.status] ?? "pending";

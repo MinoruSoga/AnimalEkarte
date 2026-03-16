@@ -5,6 +5,13 @@ import { transformReservationsToDashboardColumns } from "./transforms";
 import type { ReservationAppointment as BackendDashboardReservation } from "@/types/generated/models";
 import type { DashboardColumn } from "./types";
 
+interface ReservationsResponse {
+  data: BackendDashboardReservation[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 /** 今日の日付を YYYY-MM-DD 形式で返す */
 export function todayISO(): string {
   return format(new Date(), "yyyy-MM-dd");
@@ -12,11 +19,11 @@ export function todayISO(): string {
 
 /** 指定日の予約をダッシュボード用カラム配列として取得 */
 export async function getDashboard(date: string): Promise<DashboardColumn[]> {
-  const { data } = await axios.get<BackendDashboardReservation[]>(
+  const { data } = await axios.get<ReservationsResponse>(
     "/v1/reservations",
     { params: { date } }
   );
-  return transformReservationsToDashboardColumns(data);
+  return transformReservationsToDashboardColumns(data.data);
 }
 
 /** ダッシュボード用 React Query hook */
