@@ -164,13 +164,29 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 		return
 	}
 
+	// DoctorID の型変換（文字列 → uint64）
+	var doctorID *uint64
+	if input.DoctorID != nil {
+		// 数値として解析を試みる
+		docID, err := strconv.ParseUint(*input.DoctorID, 10, 64)
+		if err == nil {
+			// 数値として有効
+			doctorID = &docID
+		} else {
+			// 医師名として扱う場合は、フロントエンド側で修正が必要
+			// 現在はエラーとして返す
+			RespondError(c, apperrors.WrapInvalidInput("doctor_id must be a numeric ID, not a name"))
+			return
+		}
+	}
+
 	reservation := &model.ReservationAppointment{
 		ID:            id,
 		ClinicID:      clinicID,
 		OwnerID:       input.OwnerID,
 		PetID:         input.PetID,
 		ServiceTypeID: input.ServiceTypeID,
-		DoctorID:      input.DoctorID,
+		DoctorID:      doctorID,
 		Notes:         input.Notes,
 	}
 	if input.StartTime != nil {

@@ -24,7 +24,7 @@ type updateReservationRequest struct {
 	PetID         *uint64    `json:"pet_id"`
 	VisitType     string     `json:"visit_type"`
 	ServiceTypeID uint64     `json:"service_type_id"`
-	DoctorID      *uint64    `json:"doctor_id"`
+	DoctorID      *string    `json:"doctor_id"` // 医師IDまたは医師名で受け取る
 	IsDesignated  *bool      `json:"is_designated"`
 	Status        string     `json:"status"`
 	Notes         string     `json:"notes"`
