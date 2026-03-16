@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { CalendarIcon, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -58,7 +58,7 @@ export function NotionDatePicker({
 }: NotionDatePickerProps) {
   const [open, setOpen] = useState(false);
 
-  const selected = parseLocalDate(value);
+  const selected = useMemo(() => parseLocalDate(value), [value]);
 
   const handleSelect = useCallback(
     (day: Date | undefined) => {
@@ -71,7 +71,7 @@ export function NotionDatePicker({
   );
 
   const handleClear = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.MouseEvent<HTMLSpanElement>) => {
       e.stopPropagation();
       onChange("");
     },
@@ -96,31 +96,37 @@ export function NotionDatePicker({
             {selected ? formatDisplay(selected) : placeholder}
           </span>
           {value ? (
-            <span
-              role="button"
-              tabIndex={-1}
+            <button
+              type="button"
               onClick={handleClear}
               className="ml-1 shrink-0 rounded p-0.5 text-[#37352F]/40 hover:bg-[#37352F]/10 hover:text-[#37352F]/70"
+              aria-label="Clear date"
             >
               <X className="h-3.5 w-3.5" />
-            </span>
+            </button>
           ) : null}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="single"
-          selected={selected}
-          onSelect={handleSelect}
-          defaultMonth={selected}
-          className="rounded-md"
-          classNames={{
-            day_selected:
-              "bg-[#37352F] text-white hover:bg-[#37352F] hover:text-white focus:bg-[#37352F] focus:text-white",
-            day_today: "bg-[#F7F6F3] text-[#37352F]",
-          }}
-        />
-      </PopoverContent>
+      {open && (
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={selected}
+            onSelect={handleSelect}
+            defaultMonth={selected || new Date()}
+            disabled={(date) => {
+              // Prevent selecting disabled dates if needed
+              return false;
+            }}
+            className="rounded-md"
+            classNames={{
+              day_selected:
+                "bg-[#37352F] text-white hover:bg-[#37352F] hover:text-white focus:bg-[#37352F] focus:text-white",
+              day_today: "bg-[#F7F6F3] text-[#37352F]",
+            }}
+          />
+        </PopoverContent>
+      )}
     </Popover>
   );
 }
