@@ -1,1 +1,1 @@
-export { StatusPill } from "./StatusPill";
+export { NotionStatusPill as StatusPill } from "./NotionStatusPill";
