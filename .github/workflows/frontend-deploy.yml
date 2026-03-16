@@ -9,10 +9,6 @@ on:
       - '.github/workflows/frontend-deploy.yml'
   workflow_dispatch:
 
-env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
 jobs:
   deploy:
     name: Deploy Frontend to Vercel
@@ -31,12 +27,15 @@ jobs:
           vercel env add VITE_API_URL \
             "https://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com/api" \
             production \
+            --project-id ${{ secrets.VERCEL_PROJECT_ID }} \
+            --team-id ${{ secrets.VERCEL_ORG_ID }} \
             --token ${{ secrets.VERCEL_TOKEN }} || true
 
       - name: Deploy to Vercel
         working-directory: ./frontend
         run: |
           vercel deploy --prod \
+            --project-id ${{ secrets.VERCEL_PROJECT_ID }} \
             --token ${{ secrets.VERCEL_TOKEN }} \
             --yes
 
