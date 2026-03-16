@@ -145,8 +145,12 @@ func TestDiagnosisCategoryService_List(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			capturedPage := 0
+			capturedLimit := 0
 			repo := &mockDiagnosisCategoryRepository{
-				findAllFn: func(_ context.Context, _ uint64, _, _ int) ([]model.DiagnosisCategory, int64, error) {
+				findAllFn: func(_ context.Context, _ uint64, page, limit int) ([]model.DiagnosisCategory, int64, error) {
+					capturedPage = page
+					capturedLimit = limit
 					return tt.repoData, tt.repoTotal, tt.repoErr
 				},
 			}
@@ -156,10 +160,13 @@ func TestDiagnosisCategoryService_List(t *testing.T) {
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Equal(t, int64(0), total)
 			} else {
 				assert.NoError(t, err)
 				assert.Len(t, categories, tt.wantLen)
 				assert.Equal(t, tt.wantTotal, total)
+				assert.Equal(t, 1, capturedPage)
+				assert.Equal(t, 20, capturedLimit)
 			}
 		})
 	}
@@ -451,6 +458,10 @@ func defaultCategoryRepo() *mockDiagnosisCategoryRepository {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.DiagnosisCategory, error) {
 			return &model.DiagnosisCategory{ID: 1}, nil
 		},
+		// FindAll は DiagnosisNameService では使用されないが、テスト追加時の panic防止
+		findAllFn: func(_ context.Context, _ uint64, _, _ int) ([]model.DiagnosisCategory, int64, error) {
+			return []model.DiagnosisCategory{}, 0, nil
+		},
 	}
 }
 
@@ -498,8 +509,12 @@ func TestDiagnosisNameService_List(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			capturedPage := 0
+			capturedLimit := 0
 			repo := &mockDiagnosisNameRepository{
-				findAllFn: func(_ context.Context, _ uint64, _, _ int) ([]model.DiagnosisName, int64, error) {
+				findAllFn: func(_ context.Context, _ uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
+					capturedPage = page
+					capturedLimit = limit
 					return tt.repoData, tt.repoTotal, tt.repoErr
 				},
 			}
@@ -509,10 +524,13 @@ func TestDiagnosisNameService_List(t *testing.T) {
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Equal(t, int64(0), total)
 			} else {
 				assert.NoError(t, err)
 				assert.Len(t, names, tt.wantLen)
 				assert.Equal(t, tt.wantTotal, total)
+				assert.Equal(t, 1, capturedPage)
+				assert.Equal(t, 20, capturedLimit)
 			}
 		})
 	}
@@ -565,8 +583,12 @@ func TestDiagnosisNameService_ListByCategoryID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			capturedPage := 0
+			capturedLimit := 0
 			repo := &mockDiagnosisNameRepository{
-				findByCategoryIDFn: func(_ context.Context, _, _ uint64, _, _ int) ([]model.DiagnosisName, int64, error) {
+				findByCategoryIDFn: func(_ context.Context, _, _ uint64, page, limit int) ([]model.DiagnosisName, int64, error) {
+					capturedPage = page
+					capturedLimit = limit
 					return tt.repoData, tt.repoTotal, tt.repoErr
 				},
 			}
@@ -576,10 +598,13 @@ func TestDiagnosisNameService_ListByCategoryID(t *testing.T) {
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Equal(t, int64(0), total)
 			} else {
 				assert.NoError(t, err)
 				assert.Len(t, names, tt.wantLen)
 				assert.Equal(t, tt.wantTotal, total)
+				assert.Equal(t, 1, capturedPage)
+				assert.Equal(t, 20, capturedLimit)
 			}
 		})
 	}

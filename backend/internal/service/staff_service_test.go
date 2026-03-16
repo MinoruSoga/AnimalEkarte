@@ -111,9 +111,13 @@ func TestStaffService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			capturedRole := (*string)(nil)
+			capturedPage := 0
+			capturedLimit := 0
 			repo := &mockStaffRepository{
-				findAllFn: func(_ context.Context, _ uint64, role *string, _, _ int) ([]model.Staff, int64, error) {
+				findAllFn: func(_ context.Context, _ uint64, role *string, page, limit int) ([]model.Staff, int64, error) {
 					capturedRole = role
+					capturedPage = page
+					capturedLimit = limit
 					return tt.repoStaffs, tt.repoTotal, tt.repoErr
 				},
 			}
@@ -123,11 +127,14 @@ func TestStaffService_List(t *testing.T) {
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Equal(t, int64(0), total)
 			} else {
 				assert.NoError(t, err)
 				assert.Len(t, staffs, tt.wantLen)
 				assert.Equal(t, tt.wantTotal, total)
 				assert.Equal(t, tt.role, capturedRole)
+				assert.Equal(t, 1, capturedPage)
+				assert.Equal(t, 20, capturedLimit)
 			}
 		})
 	}
