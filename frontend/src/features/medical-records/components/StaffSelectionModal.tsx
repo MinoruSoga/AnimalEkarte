@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useGetStaffs } from "../api/get-staffs";
+import { useGetStaffs } from "@/features/master/api/staffs";
 
 interface StaffSelectionModalProps {
   open: boolean;
@@ -24,7 +24,7 @@ export const StaffSelectionModal = React.memo(function StaffSelectionModal({
   const { data: staffs = [], isLoading } = useGetStaffs();
 
   const activeStaffs = useMemo(
-    () => staffs.filter((s) => s.is_active),
+    () => staffs.filter((s) => s.isActive),
     [staffs]
   );
 

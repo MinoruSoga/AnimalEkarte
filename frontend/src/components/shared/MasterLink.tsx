@@ -16,7 +16,9 @@ export type MasterLinkCategory =
   | "insurance"
   | "staff"
   | "diagnosis_category"
-  | "diagnosis_name";
+  | "diagnosis_name"
+  | "chief_complaint"
+  | "interview_template";
 
 const CATEGORY_PATH_MAP: Record<MasterLinkCategory, string> = {
   serviceType: "/settings/service-type",
@@ -33,6 +35,8 @@ const CATEGORY_PATH_MAP: Record<MasterLinkCategory, string> = {
   staff: "/settings/staff",
   diagnosis_category: "/settings/diagnosis-category",
   diagnosis_name: "/settings/diagnosis-name",
+  chief_complaint: "/settings/interview/chief-complaint",
+  interview_template: "/settings/interview/templates",
 };
 
 interface MasterLinkProps {

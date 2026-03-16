@@ -559,6 +559,24 @@ export const router = createBrowserRouter([
           return { Component: InquiryTemplateSettings };
         },
       },
+      {
+        path: "/settings/interview/chief-complaint",
+        lazy: async () => {
+          const { ChiefComplaintSettings } = await import(
+            "@/features/master/routes/ChiefComplaintSettings"
+          );
+          return { Component: ChiefComplaintSettings };
+        },
+      },
+      {
+        path: "/settings/interview/templates",
+        lazy: async () => {
+          const { InterviewTemplateSettings } = await import(
+            "@/features/master/routes/InterviewTemplateSettings"
+          );
+          return { Component: InterviewTemplateSettings };
+        },
+      },
 
       // ── Not Found ────────────────────────────────────────────────
       {
