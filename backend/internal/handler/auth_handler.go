@@ -3,7 +3,6 @@ package handler
 import (
 	"log/slog"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -62,6 +61,7 @@ type LoginInput struct {
 
 // LoginResponse はログイン成功時のレスポンス
 type LoginResponse struct {
+	Token     string      `json:"token"`      // JWT トークン（Authorization Bearer で送信）
 	ExpiresAt int64       `json:"expires_at"`
 	UserType  string      `json:"user_type"`
 	User      *MeResponse `json:"user"`
@@ -239,26 +239,12 @@ func (h *Handler) Login(c *gin.Context) {
 		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
 	}
 
-	// httpOnly Cookie でトークンを保存（XSS攻撃でのトークン窃取を防止）
-	sameSite := http.SameSiteStrictMode
-	secure := gin.Mode() == gin.ReleaseMode
-	// クロスドメイン環境（Vercel + CloudFront等）では SameSite=None + Secure=true が必要
-	// Domain 属性は設定しない（リクエストドメイン配下すべてで有効になる）
-	if os.Getenv("COOKIE_CROSS_DOMAIN") == "true" {
-		sameSite = http.SameSiteNoneMode
-		secure = true
-	}
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "auth_token",
-		Value:    tokenStr,
-		HttpOnly: true,
-		Secure:   secure,
-		SameSite: sameSite,
-		Path:     "/",
-		MaxAge:   86400, // 24時間
-	})
+	// JWT トークンはレスポンスボディに含める（Authorization Bearer ヘッダで管理）
+	// フロントが sessionStorage に保存 → 各リクエストで Authorization ヘッダに含める
+	// Cookie は使わない（cross-domain third-party Cookie ブロック対策）
 
 	c.JSON(http.StatusOK, LoginResponse{
+		Token:     tokenStr,
 		ExpiresAt: expiresAt.Unix(),
 		UserType:  claims.UserType,
 		User:      buildMeResponse(userData, mainClinicID, clinicNameMap, allClinics),
@@ -266,22 +252,8 @@ func (h *Handler) Login(c *gin.Context) {
 }
 
 // Logout godoc
+// フロント側で sessionStorage から token を削除するため、バック側では何もしない
 func (h *Handler) Logout(c *gin.Context) {
-	logoutSameSite := http.SameSiteStrictMode
-	logoutSecure := gin.Mode() == gin.ReleaseMode
-	if os.Getenv("COOKIE_CROSS_DOMAIN") == "true" {
-		logoutSameSite = http.SameSiteNoneMode
-		logoutSecure = true
-	}
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "auth_token",
-		Value:    "",
-		HttpOnly: true,
-		Secure:   logoutSecure,
-		SameSite: logoutSameSite,
-		Path:     "/",
-		MaxAge:   -1,
-	})
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }
 
