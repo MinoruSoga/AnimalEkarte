@@ -1,0 +1,46 @@
+name: Frontend Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-deploy.yml'
+  workflow_dispatch:
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  deploy:
+    name: Deploy Frontend to Vercel
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Set Vercel environment variable - VITE_API_URL (Production)
+        run: |
+          vercel env add VITE_API_URL \
+            --value "https://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com/api" \
+            --environment production \
+            --token ${{ secrets.VERCEL_TOKEN }} \
+            --skip-dialog || true
+        # || true で既に存在する場合のエラーをスキップ
+
+      - name: Deploy to Vercel
+        run: |
+          vercel deploy --prod \
+            --token ${{ secrets.VERCEL_TOKEN }} \
+            --confirm
+
+      - name: Verify deployment
+        run: |
+          echo "Frontend deployment to Vercel completed!"
+          echo "Production URL: https://animalekarte-frontend.vercel.app"
