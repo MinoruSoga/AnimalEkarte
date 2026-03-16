@@ -154,7 +154,7 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     settingsPath: "/settings/insurance",
     IconComponent: ShieldCheck,
     labels: { code: "コード", name: "保険会社名", category: "種別" },
-    showPrice: false, showCode: false, showCategory: true, showParentItem: false,
+    showPrice: false, showCode: false, showCategory: false, showParentItem: false,
     namePlaceholder: "アニコム", codePlaceholder: "",
   },
   diagnosis_category: {
