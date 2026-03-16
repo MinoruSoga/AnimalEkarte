@@ -134,6 +134,28 @@ resource "aws_iam_role" "task" {
   }
 }
 
+# IAM Policy for ECS Exec
+resource "aws_iam_role_policy" "ecs_exec" {
+  name = "${var.name_prefix}-ecs-exec-policy"
+  role = aws_iam_role.task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssmmessages:CreateControlChannel",
+          "ssmmessages:CreateDataChannel",
+          "ssmmessages:OpenControlChannel",
+          "ssmmessages:OpenDataChannel"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # ECS Task Definition
 resource "aws_ecs_task_definition" "main" {
   family                   = "${var.name_prefix}-api"
@@ -234,6 +256,8 @@ resource "aws_ecs_service" "main" {
     container_name   = "api"
     container_port   = 8080
   }
+
+  enable_execute_command = true
 
   depends_on = [aws_lb_listener.http]
 
