@@ -13,7 +13,7 @@ import (
 
 // mockStaffRepository は StaffRepository のテスト用モック実装
 type mockStaffRepository struct {
-	findAllFn           func(ctx context.Context, clinicID uint64, role *string) ([]model.Staff, error)
+	findAllFn           func(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error)
 	findByIDFn          func(ctx context.Context, id uint64) (*model.Staff, error)
 	createWithAccountFn func(ctx context.Context, staff *model.Staff, account *model.UserAccount, membership *model.UserClinicMembership) error
 	updateFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -21,8 +21,8 @@ type mockStaffRepository struct {
 	reorderErr          error
 }
 
-func (m *mockStaffRepository) FindAll(ctx context.Context, clinicID uint64, role *string) ([]model.Staff, error) {
-	return m.findAllFn(ctx, clinicID, role)
+func (m *mockStaffRepository) FindAll(ctx context.Context, clinicID uint64, role *string, page, limit int) ([]model.Staff, int64, error) {
+	return m.findAllFn(ctx, clinicID, role, page, limit)
 }
 
 func (m *mockStaffRepository) FindByID(ctx context.Context, id uint64) (*model.Staff, error) {
@@ -51,8 +51,10 @@ func TestStaffService_List(t *testing.T) {
 		clinicID   uint64
 		role       *string
 		repoStaffs []model.Staff
+		repoTotal  int64
 		repoErr    error
 		wantLen    int
+		wantTotal  int64
 		wantErr    bool
 	}{
 		{
@@ -63,9 +65,11 @@ func TestStaffService_List(t *testing.T) {
 				{ID: 1, ClinicID: 1, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
 				{ID: 2, ClinicID: 1, Name: "鈴木 花子", StaffRole: model.StaffRoleNurse},
 			},
-			repoErr: nil,
-			wantLen: 2,
-			wantErr: false,
+			repoTotal: 2,
+			repoErr:   nil,
+			wantLen:   2,
+			wantTotal: 2,
+			wantErr:   false,
 		},
 		{
 			name:     "filters staffs by role",
@@ -74,17 +78,21 @@ func TestStaffService_List(t *testing.T) {
 			repoStaffs: []model.Staff{
 				{ID: 1, ClinicID: 1, Name: "山田 太郎", StaffRole: model.StaffRoleVeterinarian},
 			},
-			repoErr: nil,
-			wantLen: 1,
-			wantErr: false,
+			repoTotal: 1,
+			repoErr:   nil,
+			wantLen:   1,
+			wantTotal: 1,
+			wantErr:   false,
 		},
 		{
 			name:       "returns empty list when no staffs exist",
 			clinicID:   1,
 			role:       nil,
 			repoStaffs: []model.Staff{},
+			repoTotal:  0,
 			repoErr:    nil,
 			wantLen:    0,
+			wantTotal:  0,
 			wantErr:    false,
 		},
 		{
@@ -92,8 +100,10 @@ func TestStaffService_List(t *testing.T) {
 			clinicID:   1,
 			role:       nil,
 			repoStaffs: nil,
+			repoTotal:  0,
 			repoErr:    errors.New("db connection error"),
 			wantLen:    0,
+			wantTotal:  0,
 			wantErr:    true,
 		},
 	}
@@ -102,20 +112,21 @@ func TestStaffService_List(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			capturedRole := (*string)(nil)
 			repo := &mockStaffRepository{
-				findAllFn: func(_ context.Context, _ uint64, role *string) ([]model.Staff, error) {
+				findAllFn: func(_ context.Context, _ uint64, role *string, _, _ int) ([]model.Staff, int64, error) {
 					capturedRole = role
-					return tt.repoStaffs, tt.repoErr
+					return tt.repoStaffs, tt.repoTotal, tt.repoErr
 				},
 			}
 			svc := NewStaffService(repo)
 
-			staffs, err := svc.List(context.Background(), tt.clinicID, tt.role)
+			staffs, total, err := svc.List(context.Background(), tt.clinicID, tt.role, 1, 20)
 
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 				assert.Len(t, staffs, tt.wantLen)
+				assert.Equal(t, tt.wantTotal, total)
 				assert.Equal(t, tt.role, capturedRole)
 			}
 		})
