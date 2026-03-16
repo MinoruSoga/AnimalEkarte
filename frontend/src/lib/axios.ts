@@ -1,6 +1,6 @@
 import Axios, { type InternalAxiosRequestConfig } from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "https://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
 function authRequestInterceptor(config: InternalAxiosRequestConfig) {
   // httpOnly Cookie は自動送信されるため Authorization ヘッダへの手動注入は不要
