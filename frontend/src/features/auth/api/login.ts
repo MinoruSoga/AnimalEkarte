@@ -6,8 +6,9 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
-/** バックエンドのログインレスポンス。token は httpOnly Cookie で返るためボディには含まれない */
+/** バックエンドのログインレスポンス。token はレスポンスボディに含まれる */
 interface BackendLoginResponse {
+  token: string;
   expires_at: number;
   user_type: string;
   user: BackendMeResponse;
@@ -19,11 +20,13 @@ export async function login(
 ): Promise<LoginResponse> {
   // async-parallel 適用済み: バックエンドがログインレスポンスにユーザー情報を含むため
   // /me への2番目のリクエストは不要（ウォーターフォール解消）
-  // token は httpOnly Cookie でセットされるため localStorage への保存も不要（XSS耐性）
   const { data } = await axios.post<BackendLoginResponse>(
     "/v1/login",
     { email, password },
   );
+
+  // JWT トークンを sessionStorage に保存（Authorization Bearer ヘッダで送信用）
+  sessionStorage.setItem("auth_token", data.token);
 
   const user = mapMeToAuthUser(data.user);
 
