@@ -50,7 +50,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count reservations")
 	}
-	if err := q.Preload("Pet").Preload("Pet.Owner").Preload("ServiceType").Preload("Doctor").
+	if err := q.Preload("Pet").Preload("Pet.Owner").Preload("Pet.AnimalSpecies").Preload("ServiceType").Preload("Doctor").
 		Offset((page-1)*limit).Limit(limit).Order("start_time ASC").Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find reservations")
 	}
@@ -61,6 +61,8 @@ func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint6
 	var reservation model.ReservationAppointment
 	if err := r.db.WithContext(ctx).
 		Preload("Pet").
+		Preload("Pet.Owner").
+		Preload("Pet.AnimalSpecies").
 		Preload("ServiceType").
 		Preload("Doctor").
 		First(&reservation, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
