@@ -242,17 +242,11 @@ func (h *Handler) Login(c *gin.Context) {
 	// httpOnly Cookie でトークンを保存（XSS攻撃でのトークン窃取を防止）
 	sameSite := http.SameSiteStrictMode
 	secure := gin.Mode() == gin.ReleaseMode
-	cookieDomain := ""
-	// クロスドメイン環境（Vercel + CloudFront等）では SameSite=None + Secure=true + Domain が必要
+	// クロスドメイン環境（Vercel + CloudFront等）では SameSite=None + Secure=true が必要
+	// Domain 属性は設定しない（リクエストドメイン配下すべてで有効になる）
 	if os.Getenv("COOKIE_CROSS_DOMAIN") == "true" {
 		sameSite = http.SameSiteNoneMode
 		secure = true
-		// Domain 属性を設定: CloudFront ドメイン配下のすべてのサブドメインで Cookie を有効化
-		cookieDomain = os.Getenv("COOKIE_DOMAIN")
-		if cookieDomain == "" {
-			// COOKIE_DOMAIN が未設定の場合は、リクエストホストから推論（設定推奨）
-			cookieDomain = c.Request.Host
-		}
 	}
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "auth_token",
@@ -261,7 +255,6 @@ func (h *Handler) Login(c *gin.Context) {
 		Secure:   secure,
 		SameSite: sameSite,
 		Path:     "/",
-		Domain:   cookieDomain,
 		MaxAge:   86400, // 24時間
 	})
 
@@ -276,14 +269,9 @@ func (h *Handler) Login(c *gin.Context) {
 func (h *Handler) Logout(c *gin.Context) {
 	logoutSameSite := http.SameSiteStrictMode
 	logoutSecure := gin.Mode() == gin.ReleaseMode
-	logoutDomain := ""
 	if os.Getenv("COOKIE_CROSS_DOMAIN") == "true" {
 		logoutSameSite = http.SameSiteNoneMode
 		logoutSecure = true
-		logoutDomain = os.Getenv("COOKIE_DOMAIN")
-		if logoutDomain == "" {
-			logoutDomain = c.Request.Host
-		}
 	}
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "auth_token",
@@ -292,7 +280,6 @@ func (h *Handler) Logout(c *gin.Context) {
 		Secure:   logoutSecure,
 		SameSite: logoutSameSite,
 		Path:     "/",
-		Domain:   logoutDomain,
 		MaxAge:   -1,
 	})
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
