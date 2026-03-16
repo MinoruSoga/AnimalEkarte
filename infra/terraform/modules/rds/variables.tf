@@ -47,3 +47,15 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
+
+variable "public_subnet_ids" {
+  description = "List of public subnet IDs for RDS (when using public access)"
+  type        = list(string)
+  default     = []
+}
+
+variable "use_public_access" {
+  description = "Whether to deploy RDS in public subnet with public access"
+  type        = bool
+  default     = false
+}
