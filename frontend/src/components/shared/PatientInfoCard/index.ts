@@ -1,0 +1,1 @@
+export { PatientInfoCard } from "./PatientInfoCard";

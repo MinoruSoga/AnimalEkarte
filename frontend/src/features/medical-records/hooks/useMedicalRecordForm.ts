@@ -7,6 +7,9 @@ import { usePetInfo } from "@/hooks/use-pet";
 import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useCreateMedicalRecord } from "../api/create-medical-record";
 import { useUpdateMedicalRecord } from "../api/update-medical-record";
+import { useUpdateInquiry } from "../api/inquiries";
+import { useUpdateTreatmentPlan } from "../api/treatment-plans";
+import { useCreateEstimate } from "../api/estimates";
 import type { CreateMedicalRecordRequest, UpdateMedicalRecordRequest } from "../api/types";
 import type { TreatmentItem } from "../components/TreatmentTable";
 
@@ -28,11 +31,18 @@ export function useMedicalRecordForm(recordId?: string) {
 
   // 問診タブの状態
   const [chiefComplaint, setChiefComplaint] = useState(DEFAULT_CHIEF_COMPLAINT);
+  const [chiefComplaintCategoryId, setChiefComplaintCategoryId] = useState<number | null>(null);
   const [treatmentPolicy, setTreatmentPolicy] = useState(DEFAULT_TREATMENT_POLICY);
 
   // 診察/治療プランタブの状態（SOAPS）
   const [plan, setPlan] = useState(DEFAULT_PLAN);
   const [assessment, setAssessment] = useState(DEFAULT_ASSESSMENT);
+
+  // 診断マスタの状態
+  const [diagnosis1CategoryId, setDiagnosis1CategoryId] = useState<number | null>(null);
+  const [diagnosis1NameId, setDiagnosis1NameId] = useState<number | null>(null);
+  const [diagnosis2CategoryId, setDiagnosis2CategoryId] = useState<number | null>(null);
+  const [diagnosis2NameId, setDiagnosis2NameId] = useState<number | null>(null);
 
   // 編集モード: カルテからpetIdを取得
   const { data: existingRecord } = useGetMedicalRecord(recordId ?? "");
@@ -55,6 +65,9 @@ export function useMedicalRecordForm(recordId?: string) {
 
   const createMutation = useCreateMedicalRecord();
   const updateMutation = useUpdateMedicalRecord();
+  const updateInquiryMutation = useUpdateInquiry(recordId ?? "");
+  const updateTreatmentPlanMutation = useUpdateTreatmentPlan(recordId ?? "");
+  const createEstimateMutation = useCreateEstimate(recordId ?? "");
 
   // useTransition: save の pending 管理 (rerender-transitions)
   const [isSaveTransitionPending, startSaveTransition] = useTransition();
@@ -84,11 +97,16 @@ export function useMedicalRecordForm(recordId?: string) {
           owner_id: selectedPet.ownerId,
           visit_date: today,
           visit_type: "再診",
-          status: "作成中",
+          status: "draft",
           chief_complaint: chiefComplaint !== DEFAULT_CHIEF_COMPLAINT ? chiefComplaint : undefined,
+          chief_complaint_category_id: chiefComplaintCategoryId,
           plan: plan !== DEFAULT_PLAN ? plan : undefined,
           assessment: assessment !== DEFAULT_ASSESSMENT ? assessment : undefined,
           notes: treatmentPolicy !== DEFAULT_TREATMENT_POLICY ? treatmentPolicy : undefined,
+          diagnosis_1_category_id: diagnosis1CategoryId,
+          diagnosis_1_name_id: diagnosis1NameId,
+          diagnosis_2_category_id: diagnosis2CategoryId,
+          diagnosis_2_name_id: diagnosis2NameId,
         };
 
         try {
@@ -99,16 +117,35 @@ export function useMedicalRecordForm(recordId?: string) {
           handleApiError(error, "作成");
         }
       } else if (recordId) {
-        const req: UpdateMedicalRecordRequest = {
-          status: "作成中",
+        const mainReq: UpdateMedicalRecordRequest = {
           chief_complaint: chiefComplaint,
           plan,
           assessment,
           notes: treatmentPolicy,
         };
 
+        const inquiriesReq = {
+          chief_complaint: chiefComplaint !== DEFAULT_CHIEF_COMPLAINT ? chiefComplaint : undefined,
+          chief_complaint_category_id: chiefComplaintCategoryId,
+          notes: treatmentPolicy !== DEFAULT_TREATMENT_POLICY ? treatmentPolicy : undefined,
+        };
+
+        const treatmentPlanReq = {
+          plan: plan !== DEFAULT_PLAN ? plan : undefined,
+          assessment: assessment !== DEFAULT_ASSESSMENT ? assessment : undefined,
+          diagnosis_1_category_id: diagnosis1CategoryId,
+          diagnosis_1_name_id: diagnosis1NameId,
+          diagnosis_2_category_id: diagnosis2CategoryId,
+          diagnosis_2_name_id: diagnosis2NameId,
+        };
+
         try {
-          await updateMutation.mutateAsync({ id: recordId, req });
+          // 並列で複数の API を呼び出し
+          await Promise.all([
+            updateMutation.mutateAsync({ id: recordId, req: mainReq }),
+            updateInquiryMutation.mutateAsync(inquiriesReq),
+            updateTreatmentPlanMutation.mutateAsync(treatmentPlanReq),
+          ]);
           toast.success("カルテを更新しました");
           navigate(location.state?.from ?? paths.medicalRecords.getHref());
         } catch (error) {
@@ -138,6 +175,8 @@ export function useMedicalRecordForm(recordId?: string) {
     // 問診タブ
     chiefComplaint,
     setChiefComplaint,
+    chiefComplaintCategoryId,
+    setChiefComplaintCategoryId,
     treatmentPolicy,
     setTreatmentPolicy,
     // 診察/治療プランタブ（SOAPS）
@@ -145,5 +184,14 @@ export function useMedicalRecordForm(recordId?: string) {
     setPlan,
     assessment,
     setAssessment,
+    // 診断マスタ
+    diagnosis1CategoryId,
+    setDiagnosis1CategoryId,
+    diagnosis1NameId,
+    setDiagnosis1NameId,
+    diagnosis2CategoryId,
+    setDiagnosis2CategoryId,
+    diagnosis2NameId,
+    setDiagnosis2NameId,
   };
 }

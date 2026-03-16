@@ -10,6 +10,8 @@ import type { InterviewHistoryItem } from "../types";
 interface MedicalRecordInterviewProps {
   chiefComplaint: string;
   setChiefComplaint: (value: string) => void;
+  chiefComplaintCategoryId: number | null;
+  setChiefComplaintCategoryId: (id: number | null) => void;
   treatmentPolicy: string;
   setTreatmentPolicy: (value: string) => void;
   historyItems?: InterviewHistoryItem[];
@@ -46,6 +48,8 @@ const DEFAULT_HISTORY_ITEMS: InterviewHistoryItem[] = [
 export function MedicalRecordInterview({
   chiefComplaint,
   setChiefComplaint,
+  chiefComplaintCategoryId,
+  setChiefComplaintCategoryId,
   treatmentPolicy,
   setTreatmentPolicy,
   historyItems,
@@ -71,6 +75,8 @@ export function MedicalRecordInterview({
         <InterviewChiefComplaint
           chiefComplaint={chiefComplaint}
           setChiefComplaint={setChiefComplaint}
+          chiefComplaintCategoryId={chiefComplaintCategoryId}
+          setChiefComplaintCategoryId={setChiefComplaintCategoryId}
           templates={templates}
           onInsertTemplate={handleInsertTemplate}
         />

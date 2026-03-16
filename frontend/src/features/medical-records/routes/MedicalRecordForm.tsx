@@ -22,6 +22,7 @@ import { MedicalRecordEstimate } from "../components/MedicalRecordEstimate";
 import { MedicalRecordBillCheck } from "../components/MedicalRecordBillCheck";
 import { MedicalRecordExamination } from "../components/MedicalRecordExamination";
 import { CheckupsTab } from "../components/CheckupsTab";
+import { StaffSelectionModal } from "../components/StaffSelectionModal";
 const VitalsModal = lazy(() =>
   import("../components/VitalsModal").then((m) => ({ default: m.VitalsModal }))
 );
@@ -48,12 +49,22 @@ export function MedicalRecordForm() {
     treatmentCompletedItems,
     chiefComplaint,
     setChiefComplaint,
+    chiefComplaintCategoryId,
+    setChiefComplaintCategoryId,
     treatmentPolicy,
     setTreatmentPolicy,
     plan,
     setPlan,
     assessment,
     setAssessment,
+    diagnosis1CategoryId,
+    setDiagnosis1CategoryId,
+    diagnosis1NameId,
+    setDiagnosis1NameId,
+    diagnosis2CategoryId,
+    setDiagnosis2CategoryId,
+    diagnosis2NameId,
+    setDiagnosis2NameId,
   } = useMedicalRecordForm(recordId);
 
   const { user } = useAuth();
@@ -65,6 +76,7 @@ export function MedicalRecordForm() {
   const [serviceType, setServiceType] = useState("診療");
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isVitalsOpen, setIsVitalsOpen] = useState(false);
+  const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   // 一度マウントしたタブを記録してhide/show方式で管理
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(["問診"]));
 
@@ -103,6 +115,11 @@ export function MedicalRecordForm() {
     setChiefComplaint(val);
   }, [markDirty, setChiefComplaint]);
 
+  const handleSetChiefComplaintCategoryId = useCallback((id: number | null) => {
+    markDirty();
+    setChiefComplaintCategoryId(id);
+  }, [markDirty, setChiefComplaintCategoryId]);
+
   const handleSetTreatmentPolicy = useCallback((val: string) => {
     markDirty();
     setTreatmentPolicy(val);
@@ -118,6 +135,26 @@ export function MedicalRecordForm() {
     setAssessment(val);
   }, [markDirty, setAssessment]);
 
+  const handleSetDiagnosis1CategoryId = useCallback((id: number | null) => {
+    markDirty();
+    setDiagnosis1CategoryId(id);
+  }, [markDirty, setDiagnosis1CategoryId]);
+
+  const handleSetDiagnosis1NameId = useCallback((id: number | null) => {
+    markDirty();
+    setDiagnosis1NameId(id);
+  }, [markDirty, setDiagnosis1NameId]);
+
+  const handleSetDiagnosis2CategoryId = useCallback((id: number | null) => {
+    markDirty();
+    setDiagnosis2CategoryId(id);
+  }, [markDirty, setDiagnosis2CategoryId]);
+
+  const handleSetDiagnosis2NameId = useCallback((id: number | null) => {
+    markDirty();
+    setDiagnosis2NameId(id);
+  }, [markDirty, setDiagnosis2NameId]);
+
   const handleSetTreatmentPlanItems = useCallback<typeof setTreatmentPlanItems>((items) => {
     markDirty();
     setTreatmentPlanItems(items);
@@ -127,6 +164,14 @@ export function MedicalRecordForm() {
     markClean();
     handleSave();
   }, [markClean, handleSave]);
+
+  const handleSelectStaff = useCallback((newStaffName: string) => {
+    setStaffName(newStaffName);
+  }, []);
+
+  const handleStaffModalOpenChange = useCallback((open: boolean) => {
+    setIsStaffModalOpen(open);
+  }, []);
 
   if (isPetLoading) {
     return null;
@@ -155,7 +200,7 @@ export function MedicalRecordForm() {
           serviceType={serviceType}
           serviceTypeLabel="診療種別"
           onServiceTypeClick={() => setServiceType(serviceType)}
-          onStaffClick={() => setStaffName(staffName)}
+          onStaffClick={() => setIsStaffModalOpen(true)}
           petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
           insuranceName={selectedPet.insuranceName || "保険情報未登録"}
           insuranceDetails={selectedPet.insuranceDetails || "-"}
@@ -192,6 +237,8 @@ export function MedicalRecordForm() {
             <MedicalRecordInterview
               chiefComplaint={chiefComplaint}
               setChiefComplaint={handleSetChiefComplaint}
+              chiefComplaintCategoryId={chiefComplaintCategoryId}
+              setChiefComplaintCategoryId={handleSetChiefComplaintCategoryId}
               treatmentPolicy={treatmentPolicy}
               setTreatmentPolicy={handleSetTreatmentPolicy}
             />
@@ -207,6 +254,14 @@ export function MedicalRecordForm() {
               setPlan={handleSetPlan}
               assessment={assessment}
               setAssessment={handleSetAssessment}
+              diagnosis1CategoryId={diagnosis1CategoryId}
+              setDiagnosis1CategoryId={handleSetDiagnosis1CategoryId}
+              diagnosis1NameId={diagnosis1NameId}
+              setDiagnosis1NameId={handleSetDiagnosis1NameId}
+              diagnosis2CategoryId={diagnosis2CategoryId}
+              setDiagnosis2CategoryId={handleSetDiagnosis2CategoryId}
+              diagnosis2NameId={diagnosis2NameId}
+              setDiagnosis2NameId={handleSetDiagnosis2NameId}
               medicalRecordId={recordId}
             />
           </div>
@@ -332,6 +387,14 @@ export function MedicalRecordForm() {
           />
         ) : null}
       </Suspense>
+
+      {/* Staff Selection Modal */}
+      <StaffSelectionModal
+        open={isStaffModalOpen}
+        selectedStaffName={staffName}
+        onSelect={handleSelectStaff}
+        onOpenChange={handleStaffModalOpenChange}
+      />
     </PageLayout>
   );
 }

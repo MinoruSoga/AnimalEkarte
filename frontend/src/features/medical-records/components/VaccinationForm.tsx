@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 
 interface VaccinationFormProps {
   vaccineName: string;
@@ -82,12 +83,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           <Label className="text-sm font-medium text-[#37352F]/60">
             予防接種日
           </Label>
-          <Input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm text-[#37352F]"
-          />
+          <NotionDatePicker value={date} onChange={setDate} />
         </div>
       </div>
 
@@ -217,12 +213,7 @@ export const VaccinationForm = memo(function VaccinationForm({
         <Label className="text-sm font-medium text-[#37352F]/60">
           次回予定日
         </Label>
-        <Input
-          type="date"
-          value={nextDate}
-          onChange={(e) => setNextDate(e.target.value)}
-          className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm text-[#37352F]"
-        />
+        <NotionDatePicker value={nextDate} onChange={setNextDate} />
       </div>
 
       {/* Remarks */}

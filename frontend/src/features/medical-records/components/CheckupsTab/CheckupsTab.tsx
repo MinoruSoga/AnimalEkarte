@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useCallback, memo } from "react";
+import { useState, useCallback, memo, type ChangeEvent } from "react";
 
 // External
 import { Pencil, Trash2, Plus, Check, X } from "lucide-react";
@@ -14,7 +14,9 @@ import { useCheckups } from "../../api/checkups";
 import { useCreateCheckup } from "../../api/checkups";
 import { useUpdateCheckup } from "../../api/checkups";
 import { useDeleteCheckup } from "../../api/checkups";
+import { useGetAllCheckupTypes } from "../../../master/api/checkup-types";
 import type { Checkup, CreateCheckupInput, UpdateCheckupInput } from "../../api/checkups";
+import type { CheckupTypeItem } from "../../../master/api/checkup-types";
 
 // ── 静的定数 ────────────────────────────────────────────────────────────
 
@@ -54,9 +56,10 @@ interface EditRowProps {
   onSave: (checkupId: string, input: UpdateCheckupInput) => void;
   onCancel: () => void;
   isPending: boolean;
+  checkupTypes: CheckupTypeItem[];
 }
 
-const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending }: EditRowProps) {
+const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, checkupTypes }: EditRowProps) {
   const [form, setForm] = useState<UpdateCheckupInput>({
     checkup_type_id: Number(checkup.checkup_type_id),
     date: checkup.date,
@@ -86,15 +89,20 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending }: 
         />
       </td>
       <td className="px-3 py-2">
-        <input
-          type="number"
+        <select
           value={form.checkup_type_id ?? ""}
-          onChange={(e) =>
+          onChange={(e: ChangeEvent<HTMLSelectElement>) =>
             handleChange("checkup_type_id", e.target.value ? Number(e.target.value) : null)
           }
-          placeholder="健診種別ID"
           className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-full`}
-        />
+        >
+          <option value="">選択してください</option>
+          {checkupTypes.map((type: CheckupTypeItem) => (
+            <option key={type.id} value={type.id}>
+              {type.name}
+            </option>
+          ))}
+        </select>
       </td>
       <td className="px-3 py-2">
         <input
@@ -150,6 +158,7 @@ interface CheckupsTabProps {
 
 export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
   const { data: checkups, isLoading } = useCheckups(medicalRecordId);
+  const { data: checkupTypes = [] } = useGetAllCheckupTypes();
   const createMutation = useCreateCheckup(medicalRecordId);
   const updateMutation = useUpdateCheckup(medicalRecordId);
   const deleteMutation = useDeleteCheckup(medicalRecordId);
@@ -255,6 +264,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
                     onSave={handleEditSave}
                     onCancel={handleEditCancel}
                     isPending={updateMutation.isPending}
+                    checkupTypes={checkupTypes}
                   />
                 ) : (
                   <tr
@@ -307,13 +317,18 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
               onChange={(e) => handleAddFormChange("date", e.target.value)}
               className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-32`}
             />
-            <input
-              type="number"
+            <select
               value={addForm.checkup_type_id}
-              onChange={(e) => handleAddFormChange("checkup_type_id", e.target.value)}
-              placeholder="健診種別ID"
+              onChange={(e: ChangeEvent<HTMLSelectElement>) => handleAddFormChange("checkup_type_id", e.target.value)}
               className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-32`}
-            />
+            >
+              <option value="">選択</option>
+              {checkupTypes.map((type: CheckupTypeItem) => (
+                <option key={type.id} value={type.id}>
+                  {type.name}
+                </option>
+              ))}
+            </select>
             <input
               type="date"
               value={addForm.next_date}

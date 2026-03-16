@@ -16,15 +16,37 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+// Relative
+import { useGetDiagnosisCategories, useGetDiagnosisNames } from "../api/get-diagnosis-options";
+
 interface DiagnosisHeaderDiagnosisProps {
   diagnosisDetails: string;
   setDiagnosisDetails: (v: string) => void;
+  diagnosis1CategoryId?: number | null;
+  setDiagnosis1CategoryId?: (id: number | null) => void;
+  diagnosis1NameId?: number | null;
+  setDiagnosis1NameId?: (id: number | null) => void;
+  diagnosis2CategoryId?: number | null;
+  setDiagnosis2CategoryId?: (id: number | null) => void;
+  diagnosis2NameId?: number | null;
+  setDiagnosis2NameId?: (id: number | null) => void;
 }
 
 export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagnosis({
   diagnosisDetails,
   setDiagnosisDetails,
+  diagnosis1CategoryId,
+  setDiagnosis1CategoryId,
+  diagnosis1NameId,
+  setDiagnosis1NameId,
+  diagnosis2CategoryId,
+  setDiagnosis2CategoryId,
+  diagnosis2NameId,
+  setDiagnosis2NameId,
 }: DiagnosisHeaderDiagnosisProps) {
+  const { data: categories = [], isLoading: isCategoriesLoading } = useGetDiagnosisCategories();
+  const { data: names = [], isLoading: isNamesLoading } = useGetDiagnosisNames();
+
   return (
     <div className="col-span-5 flex flex-col min-h-0">
       <Card className="flex-1 flex flex-col min-h-0 border-none shadow-none bg-transparent">
@@ -40,20 +62,36 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
               <Label className="w-10 shrink-0 text-sm font-medium text-[#37352F]/60">
                 診断1
               </Label>
-              <Select defaultValue="digestive">
+              <Select
+                value={diagnosis1CategoryId ? String(diagnosis1CategoryId) : ""}
+                onValueChange={(value) => setDiagnosis1CategoryId?.(value ? Number(value) : null)}
+                disabled={isCategoriesLoading}
+              >
                 <SelectTrigger className="flex-1 bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
-                  <SelectValue placeholder="選択してください" />
+                  <SelectValue placeholder={isCategoriesLoading ? "読み込み中..." : "選択してください"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="digestive">消化器疾患</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={String(cat.id)}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              <Select defaultValue="esophagitis">
+              <Select
+                value={diagnosis1NameId ? String(diagnosis1NameId) : ""}
+                onValueChange={(value) => setDiagnosis1NameId?.(value ? Number(value) : null)}
+                disabled={isNamesLoading}
+              >
                 <SelectTrigger className="flex-1 bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
-                  <SelectValue placeholder="選択してください" />
+                  <SelectValue placeholder={isNamesLoading ? "読み込み中..." : "選択してください"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="esophagitis">食道炎</SelectItem>
+                  {names.map((name) => (
+                    <SelectItem key={name.id} value={String(name.id)}>
+                      {name.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -62,20 +100,36 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
               <Label className="w-10 shrink-0 text-sm font-medium text-[#37352F]/60">
                 診断2
               </Label>
-              <Select defaultValue="unselected">
+              <Select
+                value={diagnosis2CategoryId ? String(diagnosis2CategoryId) : ""}
+                onValueChange={(value) => setDiagnosis2CategoryId?.(value ? Number(value) : null)}
+                disabled={isCategoriesLoading}
+              >
                 <SelectTrigger className="flex-1 bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
-                  <SelectValue placeholder="選択してください" />
+                  <SelectValue placeholder={isCategoriesLoading ? "読み込み中..." : "選択してください"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="unselected">未選択</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={String(cat.id)}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              <Select disabled>
-                <SelectTrigger className="flex-1 bg-gray-50 border-[rgba(55,53,47,0.16)] h-10 text-sm">
-                  <SelectValue placeholder="" />
+              <Select
+                value={diagnosis2NameId ? String(diagnosis2NameId) : ""}
+                onValueChange={(value) => setDiagnosis2NameId?.(value ? Number(value) : null)}
+                disabled={isNamesLoading}
+              >
+                <SelectTrigger className="flex-1 bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
+                  <SelectValue placeholder={isNamesLoading ? "読み込み中..." : "選択してください"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">なし</SelectItem>
+                  {names.map((name) => (
+                    <SelectItem key={name.id} value={String(name.id)}>
+                      {name.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

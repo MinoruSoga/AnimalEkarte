@@ -1,0 +1,1 @@
+export { VitalsTab } from "./VitalsTab";

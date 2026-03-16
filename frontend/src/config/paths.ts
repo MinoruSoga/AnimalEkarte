@@ -229,5 +229,15 @@ export const paths = {
       path: "/settings/inquiry-templates",
       getHref: () => "/settings/inquiry-templates",
     },
+    interview: {
+      chiefComplaint: {
+        path: "/settings/interview/chief-complaint",
+        getHref: () => "/settings/interview/chief-complaint",
+      },
+      interviewTemplate: {
+        path: "/settings/interview/templates",
+        getHref: () => "/settings/interview/templates",
+      },
+    },
   },
 } as const;

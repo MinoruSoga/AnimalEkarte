@@ -20,9 +20,14 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { C, LAYOUT } from "@/lib/design-tokens";
 
+// Relative
+import { useGetChiefComplaintCategories } from "../api/get-chief-complaint-categories";
+
 interface InterviewChiefComplaintProps {
   chiefComplaint: string;
   setChiefComplaint: (value: string) => void;
+  chiefComplaintCategoryId: number | null;
+  setChiefComplaintCategoryId: (id: number | null) => void;
   templates: { label: string; text: string }[];
   onInsertTemplate: (text: string) => void;
 }
@@ -30,10 +35,13 @@ interface InterviewChiefComplaintProps {
 export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
   chiefComplaint,
   setChiefComplaint,
+  chiefComplaintCategoryId,
+  setChiefComplaintCategoryId,
   templates,
   onInsertTemplate,
 }: InterviewChiefComplaintProps) {
   const navigate = useNavigate();
+  const { data: categories = [], isLoading } = useGetChiefComplaintCategories();
 
   return (
     <Card className="flex-1 flex flex-col min-h-0 border-none shadow-none bg-transparent gap-0">
@@ -56,14 +64,20 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
               マスタ編集
             </button>
           </div>
-          <Select>
+          <Select
+            value={chiefComplaintCategoryId ? String(chiefComplaintCategoryId) : ""}
+            onValueChange={(value) => setChiefComplaintCategoryId(value ? Number(value) : null)}
+            disabled={isLoading}
+          >
             <SelectTrigger className={`w-full ${LAYOUT.touch.md} bg-white ${C.borderMedium} text-sm ${C.text}`}>
-              <SelectValue placeholder="選択してください" />
+              <SelectValue placeholder={isLoading ? "読み込み中..." : "選択してください"} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="checkup">定期検診</SelectItem>
-              <SelectItem value="sick">傷病</SelectItem>
-              <SelectItem value="prevention">予防</SelectItem>
+              {categories.map((category) => (
+                <SelectItem key={category.id} value={String(category.id)}>
+                  {category.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
