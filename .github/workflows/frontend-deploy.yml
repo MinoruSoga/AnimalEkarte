@@ -26,19 +26,19 @@ jobs:
         run: npm install -g vercel
 
       - name: Set Vercel environment variable - VITE_API_URL (Production)
+        working-directory: ./frontend
         run: |
           vercel env add VITE_API_URL \
-            --value "https://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com/api" \
-            --environment production \
-            --token ${{ secrets.VERCEL_TOKEN }} \
-            --skip-dialog || true
-        # || true で既に存在する場合のエラーをスキップ
+            "https://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com/api" \
+            production \
+            --token ${{ secrets.VERCEL_TOKEN }} || true
 
       - name: Deploy to Vercel
+        working-directory: ./frontend
         run: |
           vercel deploy --prod \
             --token ${{ secrets.VERCEL_TOKEN }} \
-            --confirm
+            --yes
 
       - name: Verify deployment
         run: |
