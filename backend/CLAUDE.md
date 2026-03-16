@@ -87,9 +87,8 @@ backend/
 │   ├── 001_create_owners.sql
 │   └── ...
 │
-└── docs/                       # Swagger
-    ├── docs.go
-    └── swagger.yaml
+└── docs/                       # APIドキュメント
+    └── api.yaml
 ```
 
 ---

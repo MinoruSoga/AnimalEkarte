@@ -30,6 +30,10 @@ npm-debug.log*
 # Go
 backend/tmp/
 
+# Terraform
+*.tfplan
+tfplan
+
 # Docker
 postgres_data/
 
