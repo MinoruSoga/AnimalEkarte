@@ -9,13 +9,20 @@ export interface BackendStaff {
   is_active: boolean;
 }
 
+interface StaffListResponse {
+  data: BackendStaff[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 /** マスタのスタッフ一覧を取得する */
 export function useGetStaffs() {
   return useQuery({
     queryKey: ["masters", "staffs"],
     queryFn: async () => {
-      const { data } = await axios.get<BackendStaff[]>("/v1/masters/staffs");
-      return data;
+      const { data } = await axios.get<StaffListResponse>("/v1/masters/staffs");
+      return data.data;
     },
     // スタッフ情報は頻繁に変わらないので30分キャッシュ
     staleTime: QUERY_STALE_TIMES.STATIC,

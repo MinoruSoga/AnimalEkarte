@@ -14,7 +14,7 @@ export interface RowActionDropdownAction {
   variant?: "default" | "destructive";
 }
 
-interface RowActionDropdownProps {
+export interface RowActionDropdownProps {
   actions: RowActionDropdownAction[];
 }
 
