@@ -52,7 +52,7 @@ func (h *Handler) CreateJobTitle(c *gin.Context) {
 
 	var req createJobTitleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -83,7 +83,7 @@ func (h *Handler) UpdateJobTitle(c *gin.Context) {
 
 	var req updateJobTitleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 

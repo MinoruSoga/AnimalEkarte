@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -16,7 +17,7 @@ import (
 func (h *Handler) GetConsultation(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	consultation, err := h.svc.Consultation.GetByID(c.Request.Context(), id)
@@ -29,7 +30,11 @@ func (h *Handler) GetConsultation(c *gin.Context) {
 
 // ListConsultations godoc
 func (h *Handler) ListConsultations(c *gin.Context) {
-	consultations, err := h.svc.Consultation.List(c.Request.Context())
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	consultations, err := h.svc.Consultation.List(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -71,9 +76,13 @@ func (h *Handler) CreateConsultation(c *gin.Context) {
 
 // UpdateConsultation godoc
 func (h *Handler) UpdateConsultation(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var input updateConsultationRequest
@@ -84,6 +93,7 @@ func (h *Handler) UpdateConsultation(c *gin.Context) {
 
 	consultation := &model.Consultation{
 		ID:            id,
+		ClinicID:      clinicID,
 		Name:          input.Name,
 		Price:         input.Price,
 		Description:   input.Description,
@@ -129,7 +139,7 @@ func (h *Handler) ReorderConsultations(c *gin.Context) {
 func (h *Handler) DeleteConsultation(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.Consultation.Delete(c.Request.Context(), id); err != nil {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -27,7 +28,7 @@ func (h *Handler) ListReservations(c *gin.Context) {
 	if dateStr := c.Query("date"); dateStr != "" {
 		t, err := time.Parse("2006-01-02", dateStr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid date format, use YYYY-MM-DD"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid date format, use YYYY-MM-DD"))
 			return
 		}
 		date = &t
@@ -42,7 +43,7 @@ func (h *Handler) ListReservations(c *gin.Context) {
 	if s := c.Query("pet_id"); s != "" {
 		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pet_id"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid pet_id"))
 			return
 		}
 		petID = &id
@@ -51,7 +52,7 @@ func (h *Handler) ListReservations(c *gin.Context) {
 	if s := c.Query("owner_id"); s != "" {
 		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid owner_id"))
 			return
 		}
 		ownerID = &id
@@ -73,7 +74,7 @@ func (h *Handler) GetReservation(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	reservation, err := h.svc.Reservation.GetByID(c.Request.Context(), clinicID, id)
@@ -92,7 +93,7 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 	}
 	var input createReservationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -113,7 +114,7 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 			model.VisitTypeRevisit,
 		)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid visit_type: " + err.Error()})
+			RespondError(c, apperrors.WrapInvalidInput("invalid visit_type: "+err.Error()))
 			return
 		}
 		reservation.VisitType = vt
@@ -184,7 +185,7 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 			model.VisitTypeRevisit,
 		)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid visit_type: " + err.Error()})
+			RespondError(c, apperrors.WrapInvalidInput("invalid visit_type: "+err.Error()))
 			return
 		}
 		reservation.VisitType = vt

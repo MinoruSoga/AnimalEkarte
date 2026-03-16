@@ -13,7 +13,7 @@ import (
 
 // mockInsuranceRepository は InsuranceRepository のテスト用モック実装
 type mockInsuranceRepository struct {
-	findAllFn  func(ctx context.Context) ([]model.Insurance, error)
+	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.Insurance, error)
 	findByIDFn func(ctx context.Context, id uint64) (*model.Insurance, error)
 	createFn   func(ctx context.Context, insurance *model.Insurance) error
 	updateFn   func(ctx context.Context, insurance *model.Insurance) error
@@ -21,8 +21,8 @@ type mockInsuranceRepository struct {
 	reorderErr error
 }
 
-func (m *mockInsuranceRepository) FindAll(ctx context.Context) ([]model.Insurance, error) {
-	return m.findAllFn(ctx)
+func (m *mockInsuranceRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Insurance, error) {
+	return m.findAllFn(ctx, clinicID)
 }
 
 func (m *mockInsuranceRepository) FindByID(ctx context.Context, id uint64) (*model.Insurance, error) {
@@ -82,13 +82,13 @@ func TestInsuranceService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockInsuranceRepository{
-				findAllFn: func(_ context.Context) ([]model.Insurance, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.Insurance, error) {
 					return tt.repoInsurances, tt.repoErr
 				},
 			}
 			svc := NewInsuranceService(repo)
 
-			insurances, err := svc.List(context.Background())
+			insurances, err := svc.List(context.Background(), 1)
 
 			if tt.wantErr {
 				assert.Error(t, err)

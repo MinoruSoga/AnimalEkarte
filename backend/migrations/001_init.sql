@@ -238,7 +238,8 @@ CREATE TABLE inventory_items (
     last_restocked  date,
     status          inventory_status            DEFAULT 'sufficient',
     created_at      timestamptz        NOT NULL DEFAULT now(),
-    updated_at      timestamptz        NOT NULL DEFAULT now()
+    updated_at      timestamptz        NOT NULL DEFAULT now(),
+    deleted_at      timestamptz
 );
 
 -- ------------------------------------
@@ -1331,6 +1332,11 @@ CREATE INDEX idx_hospitalizations_clinic_doctor
 CREATE INDEX idx_trimming_records_clinic_date
   ON trimming_records(clinic_id, date DESC)
   WHERE deleted_at IS NULL;
+
+-- BE-033: 追加インデックス（検索パフォーマンス改善）
+CREATE INDEX idx_owners_phone_trgm ON owners USING gin (phone gin_trgm_ops) WHERE deleted_at IS NULL;
+CREATE INDEX idx_staffs_staff_role ON staffs(staff_role) WHERE deleted_at IS NULL;
+CREATE INDEX idx_inventory_items_category ON inventory_items(category) WHERE deleted_at IS NULL;
 
 -- =============================================================================
 -- 5. テーブルコメント

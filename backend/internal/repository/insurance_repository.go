@@ -15,7 +15,7 @@ import (
 // ---- Insurance ----
 
 type InsuranceRepository interface {
-	FindAll(ctx context.Context) ([]model.Insurance, error)
+	FindAll(ctx context.Context, clinicID uint64) ([]model.Insurance, error)
 	FindByID(ctx context.Context, id uint64) (*model.Insurance, error)
 	Create(ctx context.Context, insurance *model.Insurance) error
 	Update(ctx context.Context, insurance *model.Insurance) error
@@ -27,9 +27,9 @@ type insuranceRepository struct{ db *gorm.DB }
 
 func NewInsuranceRepository(db *gorm.DB) InsuranceRepository { return &insuranceRepository{db: db} }
 
-func (r *insuranceRepository) FindAll(ctx context.Context) ([]model.Insurance, error) {
+func (r *insuranceRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Insurance, error) {
 	insurances := make([]model.Insurance, 0)
-	if err := r.db.WithContext(ctx).Order("sort_order ASC, name ASC").Find(&insurances).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).Order("sort_order ASC, name ASC").Find(&insurances).Error; err != nil {
 		return nil, apperrors.Wrap(err, "find insurances")
 	}
 	return insurances, nil

@@ -48,7 +48,7 @@ func (h *Handler) CreateShiftEntry(c *gin.Context) {
 
 	var req createShiftRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -95,7 +95,7 @@ func (h *Handler) UpdateShiftEntry(c *gin.Context) {
 
 	var req updateShiftRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 

@@ -41,10 +41,19 @@ func (h *Handler) Health(c *gin.Context) {
 
 // RegisterRoutes はすべてのルートを登録する
 func (h *Handler) RegisterRoutes(r *gin.Engine) {
+	// Health check エンドポイント（ルートレベル）
+	r.GET("/health", h.Health)
+
+	// レートリミッター初期化
+	rateLimitStore := middleware.NewRateLimitStore()
+
 	api := r.Group("/api/v1")
-	api.GET("/health", h.Health)
-	api.POST("/login", h.Login)
-	api.POST("/logout", h.Logout)
+
+	// ログイン・ログアウトは厳しいレート制限（5 req/min = ~0.083 req/sec）
+	loginGroup := api.Group("")
+	loginGroup.Use(middleware.RateLimit(rateLimitStore, 0.083, 1))
+	loginGroup.POST("/login", h.Login)
+	loginGroup.POST("/logout", h.Logout)
 
 	protected := api.Group("")
 	protected.Use(middleware.Auth(h.cfg.JWTSecret))

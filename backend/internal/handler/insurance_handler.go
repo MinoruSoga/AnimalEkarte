@@ -15,7 +15,11 @@ import (
 
 // ListInsurances godoc
 func (h *Handler) ListInsurances(c *gin.Context) {
-	insurances, err := h.svc.Insurance.List(c.Request.Context())
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	insurances, err := h.svc.Insurance.List(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return

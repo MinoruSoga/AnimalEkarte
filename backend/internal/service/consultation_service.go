@@ -12,7 +12,7 @@ import (
 // ---- ConsultationService ----
 
 type ConsultationService interface {
-	List(ctx context.Context) ([]model.Consultation, error)
+	List(ctx context.Context, clinicID uint64) ([]model.Consultation, error)
 	GetByID(ctx context.Context, id uint64) (*model.Consultation, error)
 	Create(ctx context.Context, consultation *model.Consultation) error
 	Update(ctx context.Context, consultation *model.Consultation) error
@@ -28,8 +28,8 @@ func NewConsultationService(repo repository.ConsultationRepository) Consultation
 	return &consultationService{repo: repo}
 }
 
-func (s *consultationService) List(ctx context.Context) ([]model.Consultation, error) {
-	return s.repo.FindAll(ctx)
+func (s *consultationService) List(ctx context.Context, clinicID uint64) ([]model.Consultation, error) {
+	return s.repo.FindAll(ctx, clinicID)
 }
 func (s *consultationService) GetByID(ctx context.Context, id uint64) (*model.Consultation, error) {
 	return s.repo.FindByID(ctx, id)

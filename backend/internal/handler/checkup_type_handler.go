@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -16,7 +17,7 @@ import (
 func (h *Handler) GetCheckupType(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	checkupType, err := h.svc.CheckupType.GetByID(c.Request.Context(), id)
@@ -71,9 +72,13 @@ func (h *Handler) CreateCheckupType(c *gin.Context) {
 
 // UpdateCheckupType godoc
 func (h *Handler) UpdateCheckupType(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var input updateCheckupTypeRequest
@@ -84,6 +89,7 @@ func (h *Handler) UpdateCheckupType(c *gin.Context) {
 
 	checkupType := &model.CheckupType{
 		ID:          id,
+		ClinicID:    clinicID,
 		Name:        input.Name,
 		Price:       input.Price,
 		Description: input.Description,
@@ -129,7 +135,7 @@ func (h *Handler) ReorderCheckupTypes(c *gin.Context) {
 func (h *Handler) DeleteCheckupType(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.CheckupType.Delete(c.Request.Context(), id); err != nil {

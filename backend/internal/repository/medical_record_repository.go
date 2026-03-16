@@ -92,11 +92,36 @@ func (r *medicalRecordRepository) Create(ctx context.Context, record *model.Medi
 	return nil
 }
 
+// buildMedicalRecordUpdateFields は MedicalRecord から非ゼロ値/非nilフィールドのみを map に変換する。
+// GORM の zero-value スキップ問題を回避し、PATCH セマンティクスを実現する。
+func buildMedicalRecordUpdateFields(record *model.MedicalRecord) map[string]any {
+	fields := make(map[string]any)
+	if !record.Date.IsZero() {
+		fields["date"] = record.Date
+	}
+	if record.Status != "" {
+		fields["status"] = record.Status
+	}
+	if record.OwnerID != nil {
+		fields["owner_id"] = record.OwnerID
+	}
+	if record.PetID != nil {
+		fields["pet_id"] = record.PetID
+	}
+	if record.DoctorID != nil {
+		fields["doctor_id"] = record.DoctorID
+	}
+	if record.ReservationAppointmentID != nil {
+		fields["reservation_appointment_id"] = record.ReservationAppointmentID
+	}
+	return fields
+}
+
 func (r *medicalRecordRepository) Update(ctx context.Context, record *model.MedicalRecord) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
 		Where("id = ? AND clinic_id = ?", record.ID, record.ClinicID).
-		Updates(record)
+		Updates(buildMedicalRecordUpdateFields(record))
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "update medical record")
 	}

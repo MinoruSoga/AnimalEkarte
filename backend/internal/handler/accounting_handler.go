@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -27,7 +28,7 @@ func (h *Handler) ListAccountings(c *gin.Context) {
 	if s := c.Query("pet_id"); s != "" {
 		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pet_id"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid pet_id"))
 			return
 		}
 		petID = &id
@@ -36,7 +37,7 @@ func (h *Handler) ListAccountings(c *gin.Context) {
 	if s := c.Query("owner_id"); s != "" {
 		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid owner_id"))
 			return
 		}
 		ownerID = &id
@@ -64,7 +65,7 @@ func (h *Handler) GetAccounting(c *gin.Context) {
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	accounting, err := h.svc.Accounting.GetByID(c.Request.Context(), clinicID, id)
@@ -84,7 +85,7 @@ func (h *Handler) CreateAccounting(c *gin.Context) {
 
 	var input createAccountingRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -126,12 +127,12 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var input updateAccountingRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 

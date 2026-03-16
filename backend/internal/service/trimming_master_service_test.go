@@ -14,7 +14,7 @@ import (
 // ---- TrimmingCourse モック ----
 
 type mockTrimmingCourseRepository struct {
-	findAllFn  func(ctx context.Context) ([]model.TrimmingCourse, error)
+	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
 	findByIDFn func(ctx context.Context, id uint64) (*model.TrimmingCourse, error)
 	createFn   func(ctx context.Context, course *model.TrimmingCourse) error
 	updateFn   func(ctx context.Context, course *model.TrimmingCourse) error
@@ -22,8 +22,8 @@ type mockTrimmingCourseRepository struct {
 	reorderErr error
 }
 
-func (m *mockTrimmingCourseRepository) FindAll(ctx context.Context) ([]model.TrimmingCourse, error) {
-	return m.findAllFn(ctx)
+func (m *mockTrimmingCourseRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
+	return m.findAllFn(ctx, clinicID)
 }
 
 func (m *mockTrimmingCourseRepository) FindByID(ctx context.Context, id uint64) (*model.TrimmingCourse, error) {
@@ -49,7 +49,7 @@ func (m *mockTrimmingCourseRepository) Reorder(_ context.Context, _ uint64, _ []
 // ---- TrimmingOption モック ----
 
 type mockTrimmingOptionRepository struct {
-	findAllFn  func(ctx context.Context) ([]model.TrimmingOption, error)
+	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error)
 	findByIDFn func(ctx context.Context, id uint64) (*model.TrimmingOption, error)
 	createFn   func(ctx context.Context, option *model.TrimmingOption) error
 	updateFn   func(ctx context.Context, option *model.TrimmingOption) error
@@ -57,8 +57,8 @@ type mockTrimmingOptionRepository struct {
 	reorderErr error
 }
 
-func (m *mockTrimmingOptionRepository) FindAll(ctx context.Context) ([]model.TrimmingOption, error) {
-	return m.findAllFn(ctx)
+func (m *mockTrimmingOptionRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error) {
+	return m.findAllFn(ctx, clinicID)
 }
 
 func (m *mockTrimmingOptionRepository) FindByID(ctx context.Context, id uint64) (*model.TrimmingOption, error) {
@@ -120,13 +120,13 @@ func TestTrimmingCourseService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingCourseRepository{
-				findAllFn: func(_ context.Context) ([]model.TrimmingCourse, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.TrimmingCourse, error) {
 					return tt.repoData, tt.repoErr
 				},
 			}
 			svc := NewTrimmingCourseService(repo)
 
-			courses, err := svc.List(context.Background())
+			courses, err := svc.List(context.Background(), 1)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -422,13 +422,13 @@ func TestTrimmingOptionService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingOptionRepository{
-				findAllFn: func(_ context.Context) ([]model.TrimmingOption, error) {
+				findAllFn: func(_ context.Context, _ uint64) ([]model.TrimmingOption, error) {
 					return tt.repoData, tt.repoErr
 				},
 			}
 			svc := NewTrimmingOptionService(repo)
 
-			options, err := svc.List(context.Background())
+			options, err := svc.List(context.Background(), 1)
 
 			if tt.wantErr {
 				assert.Error(t, err)

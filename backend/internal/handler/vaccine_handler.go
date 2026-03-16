@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -16,7 +17,7 @@ import (
 func (h *Handler) GetVaccine(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	vaccine, err := h.svc.Vaccine.GetByID(c.Request.Context(), id)
@@ -78,9 +79,13 @@ func (h *Handler) CreateVaccine(c *gin.Context) {
 
 // UpdateVaccine godoc
 func (h *Handler) UpdateVaccine(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var input updateVaccineRequest
@@ -91,6 +96,7 @@ func (h *Handler) UpdateVaccine(c *gin.Context) {
 
 	vaccine := &model.Vaccine{
 		ID:          id,
+		ClinicID:    clinicID,
 		Name:        input.Name,
 		Price:       input.Price,
 		Description: input.Description,
@@ -139,7 +145,7 @@ func (h *Handler) ReorderVaccines(c *gin.Context) {
 func (h *Handler) DeleteVaccine(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.Vaccine.Delete(c.Request.Context(), id); err != nil {

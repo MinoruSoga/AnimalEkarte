@@ -1,7 +1,7 @@
 package handler
 
 type createConsultationRequest struct {
-	Name          string   `json:"name"           binding:"required"`
+	Name          string   `json:"name"           binding:"required,min=1,max=255"`
 	Price         *float64 `json:"price"`
 	IsActive      bool     `json:"is_active"`
 	Description   string   `json:"description"`

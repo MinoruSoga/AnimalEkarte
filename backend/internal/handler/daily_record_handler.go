@@ -70,7 +70,7 @@ func (h *Handler) CreateDailyRecord(c *gin.Context) {
 		Date string `json:"date" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -106,7 +106,7 @@ func (h *Handler) AddVitalRecord(c *gin.Context) {
 
 	var req addVitalRecordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 

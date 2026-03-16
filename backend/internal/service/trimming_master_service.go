@@ -11,7 +11,7 @@ import (
 // ---- TrimmingCourseService ----
 
 type TrimmingCourseService interface {
-	List(ctx context.Context) ([]model.TrimmingCourse, error)
+	List(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
 	GetByID(ctx context.Context, id uint64) (*model.TrimmingCourse, error)
 	Create(ctx context.Context, course *model.TrimmingCourse) error
 	Update(ctx context.Context, course *model.TrimmingCourse) error
@@ -27,8 +27,8 @@ func NewTrimmingCourseService(repo repository.TrimmingCourseRepository) Trimming
 	return &trimmingCourseService{repo: repo}
 }
 
-func (s *trimmingCourseService) List(ctx context.Context) ([]model.TrimmingCourse, error) {
-	return s.repo.FindAll(ctx)
+func (s *trimmingCourseService) List(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
+	return s.repo.FindAll(ctx, clinicID)
 }
 func (s *trimmingCourseService) GetByID(ctx context.Context, id uint64) (*model.TrimmingCourse, error) {
 	return s.repo.FindByID(ctx, id)
@@ -50,7 +50,7 @@ func (s *trimmingCourseService) Reorder(ctx context.Context, clinicID uint64, id
 // ---- TrimmingOptionService ----
 
 type TrimmingOptionService interface {
-	List(ctx context.Context) ([]model.TrimmingOption, error)
+	List(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error)
 	GetByID(ctx context.Context, id uint64) (*model.TrimmingOption, error)
 	Create(ctx context.Context, option *model.TrimmingOption) error
 	Update(ctx context.Context, option *model.TrimmingOption) error
@@ -66,8 +66,8 @@ func NewTrimmingOptionService(repo repository.TrimmingOptionRepository) Trimming
 	return &trimmingOptionService{repo: repo}
 }
 
-func (s *trimmingOptionService) List(ctx context.Context) ([]model.TrimmingOption, error) {
-	return s.repo.FindAll(ctx)
+func (s *trimmingOptionService) List(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error) {
+	return s.repo.FindAll(ctx, clinicID)
 }
 func (s *trimmingOptionService) GetByID(ctx context.Context, id uint64) (*model.TrimmingOption, error) {
 	return s.repo.FindByID(ctx, id)

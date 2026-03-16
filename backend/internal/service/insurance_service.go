@@ -11,7 +11,7 @@ import (
 // ---- InsuranceService ----
 
 type InsuranceService interface {
-	List(ctx context.Context) ([]model.Insurance, error)
+	List(ctx context.Context, clinicID uint64) ([]model.Insurance, error)
 	GetByID(ctx context.Context, id uint64) (*model.Insurance, error)
 	Create(ctx context.Context, insurance *model.Insurance) error
 	Update(ctx context.Context, insurance *model.Insurance) error
@@ -27,8 +27,8 @@ func NewInsuranceService(repo repository.InsuranceRepository) InsuranceService {
 	return &insuranceService{repo: repo}
 }
 
-func (s *insuranceService) List(ctx context.Context) ([]model.Insurance, error) {
-	return s.repo.FindAll(ctx)
+func (s *insuranceService) List(ctx context.Context, clinicID uint64) ([]model.Insurance, error) {
+	return s.repo.FindAll(ctx, clinicID)
 }
 func (s *insuranceService) GetByID(ctx context.Context, id uint64) (*model.Insurance, error) {
 	return s.repo.FindByID(ctx, id)

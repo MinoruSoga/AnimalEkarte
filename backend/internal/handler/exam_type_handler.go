@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -16,7 +17,7 @@ import (
 func (h *Handler) GetExaminationType(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	et, err := h.svc.ExaminationType.GetByID(c.Request.Context(), id)
@@ -69,9 +70,13 @@ func (h *Handler) CreateExaminationType(c *gin.Context) {
 
 // UpdateExaminationType godoc
 func (h *Handler) UpdateExaminationType(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var req updateExaminationTypeRequest
@@ -82,6 +87,7 @@ func (h *Handler) UpdateExaminationType(c *gin.Context) {
 
 	examType := &model.ExaminationType{
 		ID:          id,
+		ClinicID:    clinicID,
 		Name:        req.Name,
 		Price:       req.Price,
 		Description: req.Description,
@@ -125,7 +131,7 @@ func (h *Handler) ReorderExaminationTypes(c *gin.Context) {
 func (h *Handler) DeleteExaminationType(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.ExaminationType.Delete(c.Request.Context(), id); err != nil {

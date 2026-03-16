@@ -60,11 +60,37 @@ func (r *cageRepository) Create(ctx context.Context, cage *model.Cage) error {
 	return nil
 }
 
+// buildCageUpdateFields は updateCageRequest から非ゼロ値/非nilフィールドのみを map に変換する。
+// GORM の zero-value スキップ問題を回避し、PATCH セマンティクスを実現する。
+func buildCageUpdateFields(cage *model.Cage) map[string]any {
+	fields := make(map[string]any)
+	if cage.Name != "" {
+		fields["name"] = cage.Name
+	}
+	if cage.CageType != "" {
+		fields["cage_type"] = cage.CageType
+	}
+	if cage.CageSize != "" {
+		fields["cage_size"] = cage.CageSize
+	}
+	if cage.Price != nil {
+		fields["price"] = cage.Price
+	}
+	fields["is_active"] = cage.IsActive
+	if cage.Description != "" {
+		fields["description"] = cage.Description
+	}
+	if cage.SortOrder != 0 {
+		fields["sort_order"] = cage.SortOrder
+	}
+	return fields
+}
+
 func (r *cageRepository) Update(ctx context.Context, cage *model.Cage) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Cage{}).
 		Where("id = ? AND clinic_id = ?", cage.ID, cage.ClinicID).
-		Updates(cage)
+		Updates(buildCageUpdateFields(cage))
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "update cage")
 	}

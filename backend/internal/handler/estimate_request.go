@@ -5,7 +5,7 @@ import "time"
 // createEstimateRequest は見積書作成リクエスト
 type createEstimateRequest struct {
 	MedicalRecordID *uint64    `json:"medical_record_id"`
-	Title           string     `json:"title" binding:"required"`
+	Title           string     `json:"title" binding:"required,min=1,max=255"`
 	OwnerID         *uint64    `json:"owner_id"`
 	Status          string     `json:"status"`
 	Subtotal        float64    `json:"subtotal"`

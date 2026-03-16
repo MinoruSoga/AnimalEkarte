@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -16,7 +17,7 @@ import (
 func (h *Handler) GetHospitalizationPlan(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	plan, err := h.svc.HospitalizationPlan.GetByID(c.Request.Context(), id)
@@ -29,7 +30,11 @@ func (h *Handler) GetHospitalizationPlan(c *gin.Context) {
 
 // ListHospitalizationPlans godoc
 func (h *Handler) ListHospitalizationPlans(c *gin.Context) {
-	plans, err := h.svc.HospitalizationPlan.List(c.Request.Context())
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	plans, err := h.svc.HospitalizationPlan.List(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -78,7 +83,7 @@ func (h *Handler) CreateHospitalizationPlan(c *gin.Context) {
 func (h *Handler) UpdateHospitalizationPlan(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	clinicID, ok := extractClinicID(c)
@@ -122,7 +127,7 @@ func (h *Handler) UpdateHospitalizationPlan(c *gin.Context) {
 func (h *Handler) DeleteHospitalizationPlan(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.HospitalizationPlan.Delete(c.Request.Context(), id); err != nil {

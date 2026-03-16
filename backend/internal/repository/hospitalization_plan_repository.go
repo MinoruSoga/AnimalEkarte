@@ -15,7 +15,7 @@ import (
 // ---- HospitalizationPlan ----
 
 type HospitalizationPlanRepository interface {
-	FindAll(ctx context.Context) ([]model.HospitalizationPlan, error)
+	FindAll(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error)
 	FindByID(ctx context.Context, id uint64) (*model.HospitalizationPlan, error)
 	Create(ctx context.Context, plan *model.HospitalizationPlan) error
 	Update(ctx context.Context, plan *model.HospitalizationPlan) error
@@ -29,9 +29,9 @@ func NewHospitalizationPlanRepository(db *gorm.DB) HospitalizationPlanRepository
 	return &hospitalizationPlanRepository{db: db}
 }
 
-func (r *hospitalizationPlanRepository) FindAll(ctx context.Context) ([]model.HospitalizationPlan, error) {
+func (r *hospitalizationPlanRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error) {
 	plans := make([]model.HospitalizationPlan, 0)
-	if err := r.db.WithContext(ctx).Order("sort_order ASC, name ASC").Find(&plans).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).Order("sort_order ASC, name ASC").Find(&plans).Error; err != nil {
 		return nil, apperrors.Wrap(err, "find hospitalization plans")
 	}
 	return plans, nil

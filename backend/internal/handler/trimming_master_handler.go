@@ -30,7 +30,11 @@ func (h *Handler) GetTrimmingCourse(c *gin.Context) {
 
 // ListTrimmingCourses godoc
 func (h *Handler) ListTrimmingCourses(c *gin.Context) {
-	courses, err := h.svc.TrimmingCourse.List(c.Request.Context())
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	courses, err := h.svc.TrimmingCourse.List(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -164,7 +168,11 @@ func (h *Handler) GetTrimmingOption(c *gin.Context) {
 
 // ListTrimmingOptions godoc
 func (h *Handler) ListTrimmingOptions(c *gin.Context) {
-	options, err := h.svc.TrimmingOption.List(c.Request.Context())
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	options, err := h.svc.TrimmingOption.List(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return

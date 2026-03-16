@@ -15,7 +15,7 @@ import (
 // ---- Consultation ----
 
 type ConsultationRepository interface {
-	FindAll(ctx context.Context) ([]model.Consultation, error)
+	FindAll(ctx context.Context, clinicID uint64) ([]model.Consultation, error)
 	FindByID(ctx context.Context, id uint64) (*model.Consultation, error)
 	Create(ctx context.Context, consultation *model.Consultation) error
 	Update(ctx context.Context, consultation *model.Consultation) error
@@ -29,9 +29,9 @@ func NewConsultationRepository(db *gorm.DB) ConsultationRepository {
 	return &consultationRepository{db: db}
 }
 
-func (r *consultationRepository) FindAll(ctx context.Context) ([]model.Consultation, error) {
+func (r *consultationRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Consultation, error) {
 	consultations := make([]model.Consultation, 0)
-	if err := r.db.WithContext(ctx).Order("sort_order ASC, name ASC").Find(&consultations).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("clinic_id = ?", clinicID).Order("sort_order ASC, name ASC").Find(&consultations).Error; err != nil {
 		return nil, apperrors.Wrap(err, "find consultations")
 	}
 	return consultations, nil

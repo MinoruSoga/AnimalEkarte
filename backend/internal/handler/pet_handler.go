@@ -28,7 +28,7 @@ func (h *Handler) ListPets(c *gin.Context) {
 	if ownerIDStr := c.Query("owner_id"); ownerIDStr != "" {
 		id, err := strconv.ParseUint(ownerIDStr, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid owner_id"))
 			return
 		}
 		ownerID = &id
@@ -74,7 +74,7 @@ func (h *Handler) CreatePet(c *gin.Context) {
 	}
 	var req createPetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -121,7 +121,7 @@ func (h *Handler) UpdatePet(c *gin.Context) {
 	}
 	var req updatePetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 

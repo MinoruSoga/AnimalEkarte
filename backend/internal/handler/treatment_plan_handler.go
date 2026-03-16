@@ -36,7 +36,7 @@ func (h *Handler) CreateTreatmentPlanForMedicalRecord(c *gin.Context) {
 	}
 	var req createTreatmentPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	input := &service.CreateTreatmentPlanInput{
@@ -84,7 +84,7 @@ func (h *Handler) CreateTreatmentPlanForHospitalization(c *gin.Context) {
 	}
 	var req createTreatmentPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	input := &service.CreateTreatmentPlanInput{
@@ -114,7 +114,7 @@ func (h *Handler) UpdateTreatmentPlan(c *gin.Context) {
 	}
 	var req updateTreatmentPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 	input := &service.UpdateTreatmentPlanInput{

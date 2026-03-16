@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -30,7 +31,7 @@ func (h *Handler) ListCages(c *gin.Context) {
 func (h *Handler) GetCage(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	cage, err := h.svc.Cage.GetByID(c.Request.Context(), id)
@@ -43,6 +44,10 @@ func (h *Handler) GetCage(c *gin.Context) {
 
 // CreateCage godoc
 func (h *Handler) CreateCage(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	var input createCageRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
@@ -50,6 +55,7 @@ func (h *Handler) CreateCage(c *gin.Context) {
 	}
 
 	cage := &model.Cage{
+		ClinicID:    clinicID,
 		Name:        input.Name,
 		CageType:    model.CageType(input.CageType),
 		CageSize:    model.CageSize(input.CageSize),
@@ -68,9 +74,13 @@ func (h *Handler) CreateCage(c *gin.Context) {
 
 // UpdateCage godoc
 func (h *Handler) UpdateCage(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var input updateCageRequest
@@ -81,6 +91,7 @@ func (h *Handler) UpdateCage(c *gin.Context) {
 
 	cage := &model.Cage{
 		ID:          id,
+		ClinicID:    clinicID,
 		Name:        input.Name,
 		Price:       input.Price,
 		Description: input.Description,
@@ -125,7 +136,7 @@ func (h *Handler) ReorderCages(c *gin.Context) {
 func (h *Handler) DeleteCage(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.Cage.Delete(c.Request.Context(), id); err != nil {

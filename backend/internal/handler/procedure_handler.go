@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -16,7 +17,7 @@ import (
 func (h *Handler) GetProcedure(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	procedure, err := h.svc.Procedure.GetByID(c.Request.Context(), id)
@@ -73,9 +74,13 @@ func (h *Handler) CreateProcedure(c *gin.Context) {
 
 // UpdateProcedure godoc
 func (h *Handler) UpdateProcedure(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var input updateProcedureRequest
@@ -86,6 +91,7 @@ func (h *Handler) UpdateProcedure(c *gin.Context) {
 
 	procedure := &model.Procedure{
 		ID:          id,
+		ClinicID:    clinicID,
 		Name:        input.Name,
 		Price:       input.Price,
 		Description: input.Description,
@@ -133,7 +139,7 @@ func (h *Handler) ReorderProcedures(c *gin.Context) {
 func (h *Handler) DeleteProcedure(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.Procedure.Delete(c.Request.Context(), id); err != nil {

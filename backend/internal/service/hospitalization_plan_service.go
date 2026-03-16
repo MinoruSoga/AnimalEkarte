@@ -11,7 +11,7 @@ import (
 // ---- HospitalizationPlanService ----
 
 type HospitalizationPlanService interface {
-	List(ctx context.Context) ([]model.HospitalizationPlan, error)
+	List(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error)
 	GetByID(ctx context.Context, id uint64) (*model.HospitalizationPlan, error)
 	Create(ctx context.Context, plan *model.HospitalizationPlan) error
 	Update(ctx context.Context, plan *model.HospitalizationPlan) error
@@ -27,8 +27,8 @@ func NewHospitalizationPlanService(repo repository.HospitalizationPlanRepository
 	return &hospitalizationPlanService{repo: repo}
 }
 
-func (s *hospitalizationPlanService) List(ctx context.Context) ([]model.HospitalizationPlan, error) {
-	return s.repo.FindAll(ctx)
+func (s *hospitalizationPlanService) List(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error) {
+	return s.repo.FindAll(ctx, clinicID)
 }
 func (s *hospitalizationPlanService) GetByID(ctx context.Context, id uint64) (*model.HospitalizationPlan, error) {
 	return s.repo.FindByID(ctx, id)
