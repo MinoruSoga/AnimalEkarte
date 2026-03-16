@@ -25,6 +25,7 @@ module "rds" {
 
   name_prefix             = var.name_prefix
   private_subnet_ids      = module.vpc.private_subnet_ids
+  public_subnet_ids       = module.vpc.public_subnet_ids
   rds_sg_id               = module.security.rds_sg_id
   instance_class          = var.rds_instance_class
   allocated_storage       = var.rds_allocated_storage
@@ -32,6 +33,7 @@ module "rds" {
   db_name                 = var.db_name
   db_username             = var.db_username
   db_password             = var.db_password
+  use_public_access       = var.use_public_rds
 }
 
 module "ecr" {
@@ -63,9 +65,12 @@ module "ecs" {
     module.security.db_user_parameter_arn,
     module.security.db_password_parameter_arn
   ]
-  task_cpu       = var.ecs_task_cpu
-  task_memory    = var.ecs_task_memory
-  desired_count  = var.ecs_desired_count
+  task_cpu              = var.ecs_task_cpu
+  task_memory           = var.ecs_task_memory
+  desired_count         = var.ecs_desired_count
+  alb_certificate_arn   = var.alb_certificate_arn
+  cors_allowed_origin   = var.cors_allowed_origin
+  cookie_cross_domain   = var.cookie_cross_domain
 }
 
 module "github_oidc" {

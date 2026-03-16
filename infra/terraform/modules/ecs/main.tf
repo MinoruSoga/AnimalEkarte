@@ -38,7 +38,24 @@ resource "aws_lb_target_group" "main" {
   }
 }
 
-# ALB Listener
+# HTTPS Listener (only created when certificate ARN is provided)
+resource "aws_lb_listener" "https" {
+  count             = var.alb_certificate_arn != "" ? 1 : 0
+  load_balancer_arn = aws_lb.main.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS-1-2-2017-01"
+  certificate_arn   = var.alb_certificate_arn
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.main.arn
+  }
+}
+
+# HTTP Listener - Forward to target group
+# CloudFront がオリジンに HTTP で接続するため forward を使用
+# 独自ドメイン取得後は redirect に変更する
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
@@ -195,6 +212,18 @@ resource "aws_ecs_task_definition" "main" {
         {
           name  = "DB_SSL_MODE"
           value = "require"
+        },
+        {
+          name  = "GIN_MODE"
+          value = "release"
+        },
+        {
+          name  = "CORS_ALLOWED_ORIGIN"
+          value = var.cors_allowed_origin
+        },
+        {
+          name  = "COOKIE_CROSS_DOMAIN"
+          value = var.cookie_cross_domain ? "true" : "false"
         }
       ]
 

@@ -111,9 +111,36 @@ variable "ecs_desired_count" {
   default     = 1
 }
 
+# RDS Configuration
+variable "use_public_rds" {
+  description = "Whether to deploy RDS in public subnet with public access (for external tools like TablePlus)"
+  type        = bool
+  default     = false
+}
+
+# ALB HTTPS Configuration
+variable "alb_certificate_arn" {
+  description = "ACM certificate ARN for ALB HTTPS listener"
+  type        = string
+  default     = ""
+}
+
+# Application Configuration
+variable "cors_allowed_origin" {
+  description = "Comma-separated list of allowed CORS origins"
+  type        = string
+  default     = "http://localhost:3000"
+}
+
+variable "cookie_cross_domain" {
+  description = "Enable cross-domain cookie settings (SameSite=None + Secure)"
+  type        = bool
+  default     = false
+}
+
 # GitHub Configuration
 variable "github_repo" {
   description = "GitHub repository in format owner/repo"
   type        = string
-  default     = "minoru-nakamura/AnimalEkarte"
+  default     = "MinoruSoga/AnimalEkarte"
 }

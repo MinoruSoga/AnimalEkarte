@@ -1,10 +1,22 @@
-# DB Subnet Group
-resource "aws_db_subnet_group" "main" {
+# DB Subnet Group - Private (default)
+resource "aws_db_subnet_group" "private" {
+  count      = var.use_public_access ? 0 : 1
   name       = "${var.name_prefix}-db-subnet-group"
   subnet_ids = var.private_subnet_ids
 
   tags = {
     Name = "${var.name_prefix}-db-subnet-group"
+  }
+}
+
+# DB Subnet Group - Public (for external tools like TablePlus)
+resource "aws_db_subnet_group" "public" {
+  count      = var.use_public_access ? 1 : 0
+  name       = "${var.name_prefix}-db-public-subnet-group"
+  subnet_ids = var.public_subnet_ids
+
+  tags = {
+    Name = "${var.name_prefix}-db-public-subnet-group"
   }
 }
 
@@ -18,7 +30,7 @@ resource "aws_db_instance" "main" {
   allocated_storage     = var.allocated_storage
   storage_type          = "gp3"
   storage_encrypted     = true
-  publicly_accessible   = false
+  publicly_accessible   = var.use_public_access
   multi_az              = false
   deletion_protection   = false
   skip_final_snapshot   = true
@@ -30,7 +42,7 @@ resource "aws_db_instance" "main" {
   port     = 5432
 
   vpc_security_group_ids = [var.rds_sg_id]
-  db_subnet_group_name   = aws_db_subnet_group.main.name
+  db_subnet_group_name   = var.use_public_access ? aws_db_subnet_group.public[0].name : aws_db_subnet_group.private[0].name
 
   enabled_cloudwatch_logs_exports = ["postgresql"]
 

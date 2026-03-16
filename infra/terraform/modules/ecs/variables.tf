@@ -90,3 +90,21 @@ variable "desired_count" {
   type        = number
   default     = 1
 }
+
+variable "alb_certificate_arn" {
+  description = "ACM certificate ARN for HTTPS listener"
+  type        = string
+  default     = ""
+}
+
+variable "cors_allowed_origin" {
+  description = "Comma-separated list of allowed CORS origins"
+  type        = string
+  default     = "http://localhost:3000"
+}
+
+variable "cookie_cross_domain" {
+  description = "Enable cross-domain cookie settings (SameSite=None + Secure)"
+  type        = bool
+  default     = false
+}

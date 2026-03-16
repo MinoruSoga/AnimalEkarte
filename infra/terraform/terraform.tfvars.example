@@ -14,3 +14,10 @@ db_password = "CHANGE_ME_STRONG_PASSWORD" # Must be at least 8 characters
 rds_instance_class          = "db.t4g.micro" # or db.t3.micro if t4g is unavailable
 rds_allocated_storage       = 20
 rds_backup_retention_period = 1
+
+# Application Configuration
+cors_allowed_origin  = "https://your-frontend.vercel.app,https://your-cloudfront-id.cloudfront.net"
+cookie_cross_domain  = true  # Required for cross-domain cookie (Vercel + CloudFront)
+
+# GitHub Configuration
+github_repo = "YourOrg/YourRepo"
