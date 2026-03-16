@@ -1,6 +1,7 @@
 import type { Hospitalization, InventoryItem, MedicalRecord, ReservationStatus, SortOrder } from "@/types";
 import { RESERVATION_STATUS_LABELS } from "@/types";
 import { C } from "@/lib/design-tokens";
+import type React from "react";
 
 // ── Notion カラーパレット定数（インライン参照用） ──────────────────────────
 const N = {
@@ -134,11 +135,25 @@ export const getDashboardColumnColor = (title: string): DashboardColumnColorSet 
   };
 };
 
-export const getReservationTypeColor = (type: string, dynamicColorMap?: Map<string, string>) => {
+interface ServiceTypeColor {
+  style: React.CSSProperties;
+  dotStyle: React.CSSProperties;
+  hex: string;
+}
+
+const DEFAULT_RESERVATION_COLOR: React.CSSProperties = {
+  backgroundColor: "#EAE9E5",
+  color: "#9B9A97",
+  borderColor: "#E3E2E0",
+};
+
+export const getReservationTypeColor = (type: string, dynamicColorMap?: Map<string, ServiceTypeColor>) => {
   if (dynamicColorMap) {
     const mapped = dynamicColorMap.get(type);
-    if (mapped) return mapped;
+    if (mapped) return mapped.style;
   }
+
+  // Fallback to Notion palette (className based)
   switch (type) {
     case "treatment":
     case "診療":

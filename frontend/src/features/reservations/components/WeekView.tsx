@@ -38,14 +38,20 @@ const STATUS_DOT_STYLE: Partial<Record<ReservationStatus, { color: string; label
   cancelled:       { color: C.bgNotionRed, label: "キャンセル" },
 };
 
+interface ServiceTypeColor {
+  style: React.CSSProperties;
+  dotStyle: React.CSSProperties;
+  hex: string;
+}
+
 interface WeekViewProps {
   currentDate: Date;
   appointments: ReservationAppointment[];
   onAppointmentClick: (appointment: ReservationAppointment) => void;
   onTimeSlotClick?: (date: Date) => void;
   onAppointmentUpdate?: (appointment: ReservationAppointment, newStart: Date, newEnd: Date) => void;
-  /** Dynamic color map from serviceType master (name → "bg-xx text-xx border-xx") */
-  dynamicColorMap?: Map<string, string>;
+  /** Dynamic color map from serviceType master (name → ServiceTypeColor) */
+  dynamicColorMap?: Map<string, ServiceTypeColor>;
 }
 
 // Helper: Calculate event layout (overlapping)
@@ -143,7 +149,7 @@ function AppointmentCard({
   layoutStyle: { left: string; width: string };
   onClick: (appointment: ReservationAppointment) => void;
   onUpdate?: (appointment: ReservationAppointment, newStart: Date, newEnd: Date) => void;
-  dynamicColorMap?: Map<string, string>;
+  dynamicColorMap?: Map<string, ServiceTypeColor>;
 }) {
   const startHour = appointment.start.getHours();
   const startMin = appointment.start.getMinutes();
@@ -197,11 +203,14 @@ function AppointmentCard({
 
   const whileDragProps = reduced ? WHILE_DRAG_REDUCED : WHILE_DRAG_FULL;
 
+  const colorStyle = getReservationTypeColor(appointment.type, dynamicColorMap);
+  const isClassNameColor = typeof colorStyle === "string";
+
   return (
     <motion.div
       className={`absolute rounded border hover:ring-1 ${C.ringPrimary20} transition-all cursor-grab active:cursor-grabbing z-10 overflow-hidden group touch-none
         ${isCompact ? "py-px px-1" : isNarrow ? "px-1 py-0.5" : "p-1"}
-        ${getReservationTypeColor(appointment.type, dynamicColorMap)}
+        ${isClassNameColor ? colorStyle : ""}
         ${isDimmed ? "opacity-60" : "opacity-100"}
         ${isCancelled ? "line-through decoration-red-500/50" : ""}
       `}
@@ -213,6 +222,7 @@ function AppointmentCard({
         height: `${height}px`,
         left: layoutStyle.left,
         width: layoutStyle.width,
+        ...(isClassNameColor ? {} : (colorStyle as React.CSSProperties)),
       }}
       onClick={(e) => {
         e.stopPropagation();
@@ -344,7 +354,7 @@ function DayColumn({
   onAppointmentClick: (appointment: ReservationAppointment) => void;
   onTimeSlotClick?: (date: Date) => void;
   onAppointmentUpdate?: (appointment: ReservationAppointment, newStart: Date, newEnd: Date) => void;
-  dynamicColorMap?: Map<string, string>;
+  dynamicColorMap?: Map<string, ServiceTypeColor>;
 }) {
   const layoutStyles = useMemo(
     () => calculateEventLayout(appointments),

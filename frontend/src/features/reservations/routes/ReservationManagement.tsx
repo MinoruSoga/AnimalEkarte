@@ -54,18 +54,7 @@ export function ReservationManagement() {
   const [view, setView] = useState<CalendarView>("week");
   const [doctorFilter, setDoctorFilter] = useState("all");
 
-  const { activeEntries } = useServiceTypeColorMap();
-
-  const dynamicColorMap = useMemo(
-    () =>
-      new Map(
-        activeEntries.map((e) => [
-          e.name,
-          `${e.color.bg} ${e.color.text} ${e.color.border}`,
-        ]),
-      ),
-    [activeEntries],
-  );
+  const { activeEntries, colorMap: dynamicColorMap } = useServiceTypeColorMap();
 
   const {
     appointments,
@@ -207,7 +196,10 @@ export function ReservationManagement() {
         <div className="flex items-center gap-3 mb-3 flex-wrap">
           {activeEntries.map((entry) => (
             <div key={entry.name} className="flex items-center gap-1.5">
-              <span className={`w-2.5 h-2.5 rounded-full ${entry.color.dot}`} />
+              <span
+                className="w-2.5 h-2.5 rounded-full"
+                style={entry.color.dotStyle}
+              />
               <span className="text-xs text-[#37352F]/60">{entry.name}</span>
             </div>
           ))}

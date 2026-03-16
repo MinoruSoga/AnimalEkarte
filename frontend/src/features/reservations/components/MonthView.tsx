@@ -1,5 +1,6 @@
 // React/Framework
 import { useMemo } from "react";
+import type React from "react";
 
 // External
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, format, isSameMonth, isSameDay, addDays } from "date-fns";
@@ -11,11 +12,17 @@ import { getReservationTypeColor } from "@/utils/status-helpers";
 // Types
 import type { ReservationAppointment } from "@/types";
 
+interface ServiceTypeColor {
+  style: React.CSSProperties;
+  dotStyle: React.CSSProperties;
+  hex: string;
+}
+
 interface MonthViewProps {
   currentDate: Date;
   appointments: ReservationAppointment[];
   onAppointmentClick: (appointment: ReservationAppointment) => void;
-  dynamicColorMap?: Map<string, string>;
+  dynamicColorMap?: Map<string, ServiceTypeColor>;
 }
 
 const DAYS_OF_WEEK = ["日", "月", "火", "水", "木", "金", "土"] as const;
@@ -69,10 +76,14 @@ export function MonthView({ currentDate, appointments, onAppointmentClick, dynam
                 </span>
             </div>
             <div className="space-y-1.5 flex-1 overflow-hidden">
-                {dayAppointments.slice(0, 4).map(app => (
+                {dayAppointments.slice(0, 4).map(app => {
+                    const colorStyle = getReservationTypeColor(app.type, dynamicColorMap);
+                    const isClassNameColor = typeof colorStyle === "string";
+                    return (
                     <div
                         key={app.id}
-                        className={`text-sm px-2 py-1.5 rounded border ${getReservationTypeColor(app.type, dynamicColorMap)} cursor-pointer hover:opacity-80 leading-tight`}
+                        className={`text-sm px-2 py-1.5 rounded border cursor-pointer hover:opacity-80 leading-tight ${isClassNameColor ? colorStyle : ""}`}
+                        style={isClassNameColor ? undefined : (colorStyle as React.CSSProperties)}
                         onClick={(e) => {
                             e.stopPropagation();
                             onAppointmentClick(app);
@@ -89,7 +100,8 @@ export function MonthView({ currentDate, appointments, onAppointmentClick, dynam
                             {app.ownerName}{app.doctor ? ` / ${app.doctor}` : ""}
                         </div>
                     </div>
-                ))}
+                    );
+                })}
                 {dayAppointments.length > 4 ? (
                     <div className="text-sm text-[#37352F]/60 pl-1">
                         他 {dayAppointments.length - 4} 件
