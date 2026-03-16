@@ -18,28 +18,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-
-      - name: Set Vercel environment variable - VITE_API_URL (Production)
-        working-directory: ./frontend
-        run: |
-          vercel env add VITE_API_URL \
-            "https://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com/api" \
-            production \
-            --project-id ${{ secrets.VERCEL_PROJECT_ID }} \
-            --team-id ${{ secrets.VERCEL_ORG_ID }} \
-            --token ${{ secrets.VERCEL_TOKEN }} || true
-
       - name: Deploy to Vercel
-        working-directory: ./frontend
-        run: |
-          vercel deploy --prod \
-            --project-id ${{ secrets.VERCEL_PROJECT_ID }} \
-            --token ${{ secrets.VERCEL_TOKEN }} \
-            --yes
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./frontend
+          production: true
+          env: |
+            VITE_API_URL=https://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com/api
 
       - name: Verify deployment
         run: |
           echo "Frontend deployment to Vercel completed!"
-          echo "Production URL: https://animalekarte-frontend.vercel.app"
