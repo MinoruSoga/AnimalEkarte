@@ -14,6 +14,7 @@ import (
 // ---- Staff ----
 
 // ListStaffs godoc
+// FE互換: 直接配列を返す（ページネーション不要）
 func (h *Handler) ListStaffs(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
@@ -24,18 +25,14 @@ func (h *Handler) ListStaffs(c *gin.Context) {
 		role = &r
 	}
 
-	page, limit, err := parsePagination(c)
+	// NOTE: pagination パラメータは無視（全件返却）
+	// 将来的にページネーション対応が必要な場合は、別エンドポイント化を検討
+	staffs, _, err := h.svc.Staff.List(c.Request.Context(), clinicID, role, 1, 1000)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-
-	staffs, total, err := h.svc.Staff.List(c.Request.Context(), clinicID, role, page, limit)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, newPaginatedResponse(toStaffResponseList(staffs), total, page, limit))
+	c.JSON(http.StatusOK, toStaffResponseList(staffs))
 }
 
 // CreateStaff godoc
