@@ -49,9 +49,9 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 
 	api := r.Group("/api/v1")
 
-	// ログイン・ログアウトは厳しいレート制限（5 req/min = ~0.083 req/sec）
+	// ログイン・ログアウトのレート制限（10 req/min, burst 5）
 	loginGroup := api.Group("")
-	loginGroup.Use(middleware.RateLimit(rateLimitStore, 0.083, 1))
+	loginGroup.Use(middleware.RateLimit(rateLimitStore, 0.167, 5))
 	loginGroup.POST("/login", h.Login)
 	loginGroup.POST("/logout", h.Logout)
 

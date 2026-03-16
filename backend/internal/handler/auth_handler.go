@@ -3,6 +3,7 @@ package handler
 import (
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -239,12 +240,19 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	// httpOnly Cookie でトークンを保存（XSS攻撃でのトークン窃取を防止）
+	sameSite := http.SameSiteStrictMode
+	secure := gin.Mode() == gin.ReleaseMode
+	// クロスドメイン環境（Vercel + CloudFront等）では SameSite=None + Secure=true が必要
+	if os.Getenv("COOKIE_CROSS_DOMAIN") == "true" {
+		sameSite = http.SameSiteNoneMode
+		secure = true
+	}
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "auth_token",
 		Value:    tokenStr,
 		HttpOnly: true,
-		Secure:   gin.Mode() == gin.ReleaseMode,
-		SameSite: http.SameSiteStrictMode,
+		Secure:   secure,
+		SameSite: sameSite,
 		Path:     "/",
 		MaxAge:   86400, // 24時間
 	})
@@ -258,12 +266,18 @@ func (h *Handler) Login(c *gin.Context) {
 
 // Logout godoc
 func (h *Handler) Logout(c *gin.Context) {
+	logoutSameSite := http.SameSiteStrictMode
+	logoutSecure := gin.Mode() == gin.ReleaseMode
+	if os.Getenv("COOKIE_CROSS_DOMAIN") == "true" {
+		logoutSameSite = http.SameSiteNoneMode
+		logoutSecure = true
+	}
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "auth_token",
 		Value:    "",
 		HttpOnly: true,
-		Secure:   gin.Mode() == gin.ReleaseMode,
-		SameSite: http.SameSiteStrictMode,
+		Secure:   logoutSecure,
+		SameSite: logoutSameSite,
 		Path:     "/",
 		MaxAge:   -1,
 	})
