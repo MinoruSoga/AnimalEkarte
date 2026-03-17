@@ -6,7 +6,7 @@ WORKDIR /app
 RUN go install github.com/air-verse/air@latest && \
     go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
-COPY go.mod ./
+COPY go.mod go.sum ./
 COPY entrypoint.sh ./
 RUN chmod +x entrypoint.sh
 

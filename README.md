@@ -38,7 +38,7 @@ make up
 | Frontend | http://localhost:3000 |
 | Backend API | http://localhost:8080 |
 | Swagger UI | http://localhost:8080/swagger/index.html |
-| PostgreSQL | localhost:5432 |
+| PostgreSQL | localhost:5434 |
 
 ## 開発コマンド
 

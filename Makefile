@@ -1,12 +1,16 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset restart-api restart-front build-prod lint lint-fix test test-cover build-go mod-download mod-tidy help codegen codegen-check
+.PHONY: up down build logs logs-api logs-front ps db clean reset restart-api restart-front build-prod lint lint-fix test test-cover build-go mod-download mod-tidy help codegen codegen-check sync-modules
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
 
 # 起動
 up:
-	rm -rf frontend/node_modules
+	docker compose down --remove-orphans 2>/dev/null || true
 	docker compose up -d
+
+# node_modules をホストにコピー（IDE補完用・初回 or package.json 変更時のみ実行）
+sync-modules:
+	docker compose exec -T frontend npm install
 	docker compose cp frontend:/app/node_modules ./frontend/
 	docker compose cp frontend:/app/package-lock.json ./frontend/
 
@@ -36,7 +40,7 @@ ps:
 
 # DB接続
 db:
-	docker compose exec db psql -U ekarte_user -d ekarte_db
+	docker compose exec db sh -c 'psql -U $$POSTGRES_USER -d $$POSTGRES_DB'
 
 # キャッシュクリア＆再ビルド
 clean:
@@ -130,5 +134,6 @@ help:
 	@echo "  build-go      Goビルド（開発用）"
 	@echo "  mod-download  Goモジュールダウンロード"
 	@echo "  mod-tidy      Goモジュールtidy"
+	@echo "  sync-modules  node_modulesをホストにコピー（IDE補完用）"
 	@echo ""
 	@echo "  help          このヘルプを表示"

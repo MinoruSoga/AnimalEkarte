@@ -26,7 +26,6 @@ logs/
 coverage.out
 
 # Air (hot reload)
-.air.toml
 tmp/
 
 # Environment files
