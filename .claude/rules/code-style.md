@@ -1,5 +1,7 @@
 ---
-paths: "**/*.{ts,tsx,js,jsx,go}"
+description: 命名規則・コードスタイル規約
+alwaysApply: true
+globs: ["**/*.{ts,tsx,js,jsx,go}"]
 ---
 
 # Code Style Rules

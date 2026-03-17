@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: コードレビュー、PR確認、品質チェック。レビュー、PR、コード品質確認時にPROACTIVELY使用。
-tools: Read, Grep, Glob, Bash
+tools: ["Read", "Grep", "Glob", "Bash"]
 model: haiku
 ---
 

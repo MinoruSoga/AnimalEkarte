@@ -1,7 +1,7 @@
 ---
 name: architect
 description: アーキテクチャ設計、重要な技術判断、セキュリティ監査。設計、アーキテクチャ、セキュリティ監査時にPROACTIVELY使用。
-tools: Read, Grep, Glob, Bash
+tools: ["Read", "Grep", "Glob", "Bash"]
 model: opus
 ---
 

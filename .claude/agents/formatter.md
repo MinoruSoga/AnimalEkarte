@@ -1,7 +1,7 @@
 ---
 name: formatter
 description: コミットメッセージ生成、コード整形、簡単な修正。コミット、フォーマット、整形時に使用。
-tools: Read, Edit, Bash
+tools: ["Read", "Edit", "Bash"]
 model: haiku
 ---
 

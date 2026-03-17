@@ -1,7 +1,7 @@
 ---
 name: researcher
 description: コード検索、ファイル探索、パターン調査。検索、調査、探索、どこにある時に使用。
-tools: Read, Grep, Glob
+tools: ["Read", "Grep", "Glob"]
 model: haiku
 ---
 

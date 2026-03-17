@@ -1,7 +1,7 @@
 ---
 name: implementer
 description: 機能実装、テスト作成、ドキュメント作成。実装、コード作成、機能追加時に使用。
-tools: Read, Edit, Write, Grep, Glob, Bash
+tools: ["Read", "Edit", "Write", "Grep", "Glob", "Bash"]
 model: sonnet
 ---
 

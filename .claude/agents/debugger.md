@@ -1,7 +1,7 @@
 ---
 name: debugger
 description: バグ調査、エラー分析、修正提案。デバッグ、エラー、バグ修正時に使用。
-tools: Read, Edit, Grep, Glob, Bash
+tools: ["Read", "Edit", "Grep", "Glob", "Bash"]
 model: haiku
 ---
 
