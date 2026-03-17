@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import type { AccountingRecord } from "@/types";
 import type { Accounting } from "../types";
-import { transformAccounting, transformToAccounting } from "./transforms";
+import { transformToAccounting } from "./transforms";
 import type { BackendAccounting } from "./types";
 
 interface AccountingListResponse {
@@ -12,9 +11,9 @@ interface AccountingListResponse {
   limit: number;
 }
 
-export const getAccounting = async (id: string): Promise<AccountingRecord> => {
+export const getAccounting = async (id: string): Promise<Accounting> => {
   const { data } = await axios.get<BackendAccounting>(`/v1/accountings/${id}`);
-  return transformAccounting(data);
+  return transformToAccounting(data);
 };
 
 export const useGetAccounting = (id: string) => {
@@ -25,7 +24,7 @@ export const useGetAccounting = (id: string) => {
   });
 };
 
-// Accounting 詳細型（明細含む）を取得するhook
+// Accounting 詳細型（明細含む）を取得する hook
 export const getAccountingDetail = async (id: string): Promise<Accounting> => {
   const { data } = await axios.get<BackendAccounting>(`/v1/accountings/${id}`);
   return transformToAccounting(data);
@@ -41,12 +40,12 @@ export const useGetAccountingDetail = (id: string | undefined) => {
 
 // Fetch accountings by pet ID
 export const getAccountingsByPetId = async (
-  petId: string
-): Promise<AccountingRecord[]> => {
+  petId: string,
+): Promise<Accounting[]> => {
   const { data } = await axios.get<AccountingListResponse>("/v1/accountings", {
     params: { pet_id: petId },
   });
-  return data.data.map(transformAccounting);
+  return data.data.map(transformToAccounting);
 };
 
 export const useGetAccountingsByPetId = (petId: string) => {
@@ -59,12 +58,12 @@ export const useGetAccountingsByPetId = (petId: string) => {
 
 // Fetch accountings by owner ID
 export const getAccountingsByOwnerId = async (
-  ownerId: string
-): Promise<AccountingRecord[]> => {
+  ownerId: string,
+): Promise<Accounting[]> => {
   const { data } = await axios.get<AccountingListResponse>("/v1/accountings", {
     params: { owner_id: ownerId },
   });
-  return data.data.map(transformAccounting);
+  return data.data.map(transformToAccounting);
 };
 
 export const useGetAccountingsByOwnerId = (ownerId: string) => {
@@ -77,12 +76,12 @@ export const useGetAccountingsByOwnerId = (ownerId: string) => {
 
 // Fetch accountings by status
 export const getAccountingsByStatus = async (
-  status: string
-): Promise<AccountingRecord[]> => {
+  status: string,
+): Promise<Accounting[]> => {
   const { data } = await axios.get<AccountingListResponse>(
-    `/v1/accountings/status/${status}`
+    `/v1/accountings/status/${status}`,
   );
-  return data.data.map(transformAccounting);
+  return data.data.map(transformToAccounting);
 };
 
 export const useGetAccountingsByStatus = (status: string) => {

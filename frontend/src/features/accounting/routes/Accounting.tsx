@@ -1,6 +1,6 @@
 // React/Framework
-import { useCallback, useDeferredValue, useState } from "react";
-import { useNavigate } from "react-router";
+import { useCallback, useDeferredValue, useMemo, useState } from "react";
+import { useNavigate, useLoaderData } from "react-router";
 
 // External
 import { Plus, CreditCard } from "lucide-react";
@@ -15,13 +15,35 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { getAccountingStatusColor } from "@/utils/status-helpers";
-
-// Relative
-import { useAccountingRecords } from "../hooks/useAccountingRecords";
 import { paths } from "@/config/paths";
 
 // Types
-import type { Accounting as AccountingType } from "../types";
+import type { Accounting as AccountingType, AccountingStatus, PaymentMethod } from "../types";
+import type { AccountingsLoaderData } from "../loaders";
+
+// ── 静的定数（rendering-hoist-jsx）──────────────────────────
+const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  cash: "現金",
+  credit_card: "クレジットカード",
+  electronic_money: "電子マネー",
+};
+
+const ACCOUNTING_STATUS_LABELS: Record<AccountingStatus, string> = {
+  waiting: "会計待ち",
+  pending: "会計待ち",
+  completed: "会計済",
+  cancelled: "キャンセル",
+};
+
+const COLUMNS = [
+  { header: "日時", className: "w-[140px]" },
+  { header: "飼主名" },
+  { header: "ペット名" },
+  { header: "請求金額", align: "right" as const },
+  { header: "支払方法", align: "center" as const },
+  { header: "ステータス", className: "w-[100px]" },
+  { header: "操作", className: "w-[100px]", align: "right" as const },
+];
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("ja-JP", {
@@ -40,21 +62,24 @@ function calculateTotal(accounting: AccountingType) {
   }, 0);
 }
 
-const COLUMNS = [
-  { header: "日時", className: "w-[140px]" },
-  { header: "飼主名" },
-  { header: "ペット名" },
-  { header: "請求金額", align: "right" as const },
-  { header: "支払方法", align: "center" as const },
-  { header: "ステータス", className: "w-[100px]" },
-  { header: "操作", className: "w-[100px]", align: "right" as const },
-];
-
 export function Accounting() {
   const navigate = useNavigate();
+  const { accountings } = useLoaderData<AccountingsLoaderData>();
+
   const [searchTerm, setSearchTerm] = useState("");
   const deferredSearch = useDeferredValue(searchTerm);
-  const { data: filteredRecords, isLoading, isError } = useAccountingRecords(deferredSearch);
+  const isFiltering = searchTerm !== deferredSearch;
+
+  // js-cache-function-results: フィルタ結果を useMemo でキャッシュ
+  const filteredRecords = useMemo(() => {
+    if (!deferredSearch) return accountings;
+    const lowerTerm = deferredSearch.toLowerCase();
+    return accountings.filter(
+      (r) =>
+        r.ownerName.toLowerCase().includes(lowerTerm) ||
+        r.petName.toLowerCase().includes(lowerTerm),
+    );
+  }, [accountings, deferredSearch]);
 
   const handleCreate = useCallback(() => {
     navigate(paths.accounting.selectPet.getHref());
@@ -64,12 +89,37 @@ export function Accounting() {
     navigate(paths.accounting.detail.getHref(id));
   }, [navigate]);
 
-  if (isLoading) return (
-    <div className="flex justify-center items-center p-8">
-      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
-    </div>
+  // rerender-memo: renderRow を useCallback で安定化
+  const renderRow = useCallback(
+    (r: AccountingType) => {
+      const statusLabel = ACCOUNTING_STATUS_LABELS[r.status] ?? r.status;
+      return (
+        <DataTableRow
+          key={r.id}
+          onClick={() => handleEdit(r.id)}
+        >
+          <TableCell className="font-mono text-sm text-[#37352F] py-2">{r.scheduledDate}</TableCell>
+          <TableCell className="text-sm text-[#37352F] py-2">{r.ownerName}</TableCell>
+          <TableCell className="text-sm text-[#37352F] py-2">{r.petName}</TableCell>
+          <TableCell className="text-right font-mono font-medium text-sm text-[#37352F] py-2">
+            {formatCurrency(calculateTotal(r))}
+          </TableCell>
+          <TableCell className="text-center text-sm text-[#37352F] py-2">
+            {r.payment ? PAYMENT_METHOD_LABELS[r.payment.method] : "-"}
+          </TableCell>
+          <TableCell className="py-2">
+            <StatusBadge colorClass={getAccountingStatusColor(statusLabel)}>
+              {statusLabel}
+            </StatusBadge>
+          </TableCell>
+          <TableCell className="text-right py-2">
+            <RowActionButton onClick={() => handleEdit(r.id)} />
+          </TableCell>
+        </DataTableRow>
+      );
+    },
+    [handleEdit],
   );
-  if (isError) return <div className="p-4 text-red-600">データの取得に失敗しました</div>;
 
   return (
     <PageLayout
@@ -84,42 +134,21 @@ export function Accounting() {
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">
-        {/* Filter & Search */}
         <SearchFilterBar
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            placeholder="飼主名、ペット名..."
-            count={filteredRecords.length}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          placeholder="飼主名、ペット名..."
+          count={filteredRecords.length}
         />
 
-        {/* Table */}
-        <DataTable
+        <div style={{ opacity: isFiltering ? 0.7 : 1, transition: "opacity 150ms" }}>
+          <DataTable
             columns={COLUMNS}
             data={filteredRecords}
             emptyMessage="会計データが見つかりません"
-            renderRow={(r) => (
-                <DataTableRow 
-                    key={r.id} 
-                    onClick={() => handleEdit(r.id)}
-                >
-                    <TableCell className="font-mono text-sm text-[#37352F] py-2">{r.scheduledDate}</TableCell>
-                    <TableCell className="text-sm text-[#37352F] py-2">{r.ownerName}</TableCell>
-                    <TableCell className="text-sm text-[#37352F] py-2">{r.petName}</TableCell>
-                    <TableCell className="text-right font-mono font-medium text-sm text-[#37352F] py-2">
-                    {formatCurrency(calculateTotal(r))}
-                    </TableCell>
-                    <TableCell className="text-center text-sm text-[#37352F] py-2">{r.payment?.method || "-"}</TableCell>
-                    <TableCell className="py-2">
-                    <StatusBadge colorClass={getAccountingStatusColor(r.status)}>
-                        {r.status}
-                    </StatusBadge>
-                    </TableCell>
-                    <TableCell className="text-right py-2">
-                        <RowActionButton onClick={() => handleEdit(r.id)} />
-                    </TableCell>
-                </DataTableRow>
-            )}
-        />
+            renderRow={renderRow}
+          />
+        </div>
       </div>
     </PageLayout>
   );

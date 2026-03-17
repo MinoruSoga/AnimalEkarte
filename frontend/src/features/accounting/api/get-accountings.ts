@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import type { AccountingRecord } from "@/types";
-import { transformAccounting } from "./transforms";
+import type { Accounting } from "../types";
+import { transformToAccounting } from "./transforms";
 import type { BackendAccounting } from "./types";
 
 interface AccountingsListResponse {
@@ -11,9 +11,9 @@ interface AccountingsListResponse {
   limit: number;
 }
 
-export const getAccountings = async (): Promise<AccountingRecord[]> => {
+export const getAccountings = async (): Promise<Accounting[]> => {
   const { data } = await axios.get<AccountingsListResponse>("/v1/accountings");
-  return data.data.map(transformAccounting);
+  return data.data.map(transformToAccounting);
 };
 
 export const useGetAccountings = () => {

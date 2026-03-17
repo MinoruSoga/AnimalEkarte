@@ -1,4 +1,3 @@
-import type { AccountingRecord } from "@/types";
 import type { Accounting, AccountingItem, PaymentInfo } from "../types";
 import type { BackendAccounting, BackendAccountingItem } from "./types";
 
@@ -35,7 +34,7 @@ function buildPaymentInfo(data: BackendAccounting): PaymentInfo | undefined {
   };
 }
 
-// Backend → フロントエンド Accounting 型（詳細画面用）
+// Backend → フロントエンド Accounting 型（一覧・詳細共通）
 export function transformToAccounting(data: BackendAccounting): Accounting {
   return {
     id: String(data.id ?? 0),
@@ -51,36 +50,5 @@ export function transformToAccounting(data: BackendAccounting): Accounting {
     items: (data.items ?? []).map(transformAccountingItem),
     payment: buildPaymentInfo(data),
     memo: data.memo || undefined,
-  };
-}
-
-// Backend → AccountingRecord 型（一覧表示用）
-export function transformAccounting(data: BackendAccounting): AccountingRecord {
-  const payment = data.payments?.[0];
-
-  const methodMap: Record<string, AccountingRecord["method"]> = {
-    cash: "現金",
-    credit_card: "クレジットカード",
-    electronic_money: "電子マネー",
-  };
-  const method = methodMap[payment?.method ?? ""] ?? "-";
-
-  const statusMap: Record<string, AccountingRecord["status"]> = {
-    waiting: "会計待ち",
-    pending: "会計待ち",
-    completed: "会計済",
-    cancelled: "キャンセル",
-  };
-  const status = statusMap[data.status] ?? "会計待ち";
-
-  return {
-    id: String(data.id ?? 0),
-    date: data.scheduled_date.slice(0, 10),
-    ownerName: data.owner?.owner_name ?? "",
-    petName: data.pet?.name ?? "",
-    amount: data.total_amount ?? payment?.billing_amount ?? 0,
-    method,
-    status,
-    note: data.memo || undefined,
   };
 }

@@ -242,19 +242,6 @@ export interface ExaminationItem {
   referenceRange?: string;
 }
 
-// Accounting Types
-export interface AccountingRecord {
-  id: string;
-  date: string;
-  ownerName: string;
-  petName: string;
-  amount: number;
-  method: "現金" | "クレジットカード" | "電子マネー" | "-";
-  status: "会計待ち" | "会計済" | "キャンセル";
-  source?: "hospitalization";
-  note?: string;
-}
-
 // Vaccination Types
 export interface VaccinationRecord {
   id: string;

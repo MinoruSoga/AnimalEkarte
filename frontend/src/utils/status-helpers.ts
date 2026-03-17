@@ -205,9 +205,9 @@ export const getExaminationStatusColor = (status: string) => {
 
 export const getAccountingStatusColor = (status: string) => {
   switch (status) {
-    case "未収":
-      return badge(N.redBg, N.redText, N.redBorder);
-    case "回収済":
+    case "会計待ち":
+      return badge(N.orangeBg, N.orangeText, N.orangeBorder);
+    case "会計済":
       return badge(N.greenBg, N.greenText, N.greenBorder);
     case "キャンセル":
       return badge(N.grayBg, N.grayText, N.grayBorder);
