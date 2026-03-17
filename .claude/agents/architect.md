@@ -27,10 +27,11 @@ model: opus
 
 ## 技術スタック
 
-- Next.js 14 (App Router)
-- TypeScript
-- Prisma + PostgreSQL
-- Tailwind CSS + shadcn/ui
+- Frontend: React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui / React Router 7
+- Backend: Go 1.25 / Gin / GORM / PostgreSQL 18
+- Architecture: Layered (handler → service → repository)
+- Testing: Vitest (FE) / go test (BE)
+- Infrastructure: Docker Compose
 
 ## 出力形式
 

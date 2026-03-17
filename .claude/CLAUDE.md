@@ -77,9 +77,9 @@ docker compose exec backend go test ./...
 
 | サービス | ポート |
 |---------|--------|
-| Frontend | 3000 |
+| Frontend | 3003 (外部) / 3000 (コンテナ内部) |
 | Backend API | 8080 |
-| PostgreSQL | 5432 |
+| PostgreSQL | 5434 (外部) / 5432 (コンテナ内部) |
 
 ---
 
@@ -324,8 +324,8 @@ features/xxx/api/types.ts       ← Omit/Partial で導出（手書き interface
 |-------------|--------|------|
 | `architect` | Opus | アーキテクチャ設計、セキュリティ監査 |
 | `implementer` | Sonnet | 機能実装、テスト作成 |
-| `reviewer` | Sonnet | コードレビュー、品質チェック |
-| `debugger` | Sonnet | バグ調査、エラー分析 |
+| `reviewer` | Haiku | コードレビュー、品質チェック |
+| `debugger` | Haiku | バグ調査、エラー分析 |
 | `researcher` | Haiku | コード検索、ファイル探索 |
 | `formatter` | Haiku | コミット生成、コード整形 |
 
@@ -336,7 +336,7 @@ features/xxx/api/types.ts       ← Omit/Partial で導出（手書き interface
 | 項目 | 値 |
 |------|-----|
 | Host | `localhost` (外部) / `db` (Docker内部) |
-| Port | `5432` |
+| Port | `5434` |
 | Database | `ekarte_db` |
 | User | `ekarte_user` |
 

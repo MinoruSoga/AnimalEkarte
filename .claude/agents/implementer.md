@@ -34,11 +34,11 @@ model: sonnet
 
 ## 技術スタック
 
-- Next.js 14 (App Router, Server Components)
-- TypeScript
-- Prisma
-- Tailwind CSS + shadcn/ui
-- Jest / Vitest
+- Frontend: React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui / React Router 7
+- Backend: Go 1.25 / Gin / GORM / PostgreSQL 18
+- Architecture: Layered (handler → service → repository)
+- Testing: Vitest (FE) / go test (BE)
+- Infrastructure: Docker Compose
 
 ## ワークフロー
 

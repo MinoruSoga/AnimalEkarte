@@ -1,14 +1,5 @@
 {
   "mcpServers": {
-    "serena": {
-      "command": "uvx",
-      "args": [
-        "--from",
-        "serena-ai",
-        "serena"
-      ],
-      "env": {}
-    },
     "github": {
       "command": "npx",
       "args": [
@@ -18,22 +9,6 @@
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
       }
-    },
-    "memory": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-memory"
-      ],
-      "env": {}
-    },
-    "sequential-thinking": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-sequential-thinking"
-      ],
-      "env": {}
     },
     "chrome-devtools": {
       "type": "stdio",
@@ -56,16 +31,7 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-postgres",
-        "postgresql://${DB_USER:-ekarte_user}:${DB_PASSWORD:-ekarte_password}@localhost:5432/${DB_NAME:-ekarte_db}"
-      ],
-      "env": {}
-    },
-    "filesystem": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-filesystem",
-        "."
+        "postgresql://${DB_USER:-ekarte_user}:${DB_PASSWORD:-ekarte_password}@localhost:5434/${DB_NAME:-ekarte_db}"
       ],
       "env": {}
     },

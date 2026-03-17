@@ -3,29 +3,18 @@
   "alwaysThinkingEnabled": true,
   "attribution": {
     "enabled": true,
-    "format": "Co-Authored-By: Claude <noreply@anthropic.com>"
+    "format": "Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
   },
   "outputStyle": "senior-engineer",
   "env": {
-    "USE_DOCKER": "true",
-    "DOCKER_PROJECT": "your-project-name",
-    "MAX_THINKING_TOKENS": "10000",
-    "BASH_DEFAULT_TIMEOUT_MS": "60000",
     "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
-    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
   "teammateMode": "in-process",
   "plansPath": ".claude/plans",
-  "sessionsPath": ".claude/sessions",
-  "fileHistoryPath": ".claude/file-history",
   "outputStylesPath": ".claude/output-styles",
-  "skillsPath": ".claude/skills",
   "agentsPath": ".claude/agents",
-  "designSystemPath": ".claude/design_system",
-  "docsPath": ".claude/docs",
-  "readmePath": ".claude/README.md",
-  "claudePath": ".claude",
+  "skillsPath": ".claude/skills",
   "enableAllProjectMcpServers": true,
   "permissions": {
     "deny": [
@@ -33,6 +22,7 @@
       "Bash(pnpm:*)",
       "Bash(yarn:*)",
       "Bash(node:*)",
+      "Bash(go:*)",
       "Bash(wget:*)",
       "Bash(rm -rf:*)",
       "Bash(*|bash:*)",
@@ -85,26 +75,22 @@
       "Bash(git branch:*)",
       "Bash(git show:*)",
       "Bash(git stash:*)",
-      "Bash(cat:*)",
       "Bash(ls:*)",
       "Bash(pwd:*)",
-      "Bash(echo:*)",
-      "Bash(head:*)",
-      "Bash(tail:*)",
       "Bash(wc:*)",
-      "Bash(grep:*)",
-      "Bash(find:*)",
-      "Read(src/**)",
+      "Read(frontend/src/**)",
+      "Read(backend/**)",
       "Read(public/**)",
       "Read(tests/**)",
       "Read(docs/**)",
-      "Write(src/**)",
+      "Write(frontend/src/**)",
+      "Write(backend/**)",
       "Write(tests/**)"
     ],
     "ask": [
       "Bash(rm:*)",
       "Bash(make clean:*)",
-      "Bash(docker-compose down:*)",
+      "Bash(docker compose down:*)",
       "Bash(docker stop:*)",
       "Bash(docker rm:*)",
       "Bash(docker restart:*)",
@@ -118,8 +104,6 @@
     ],
     "defaultMode": "default"
   },
-  "cleanupPeriodDays": 30,
-  "includeCoAuthoredBy": true,
   "hooks": {
     "PreToolUse": [
       {
@@ -148,17 +132,6 @@
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/auto-format.sh"
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "matcher": ".*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/notify-slack.sh"
           }
         ]
       }

@@ -8,6 +8,14 @@ model: haiku
 あなたは高速なコードリサーチャーです。
 コードベースの検索と調査を効率的に行います。
 
+## 技術スタック
+
+- Frontend: React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui / React Router 7
+- Backend: Go 1.25 / Gin / GORM / PostgreSQL 18
+- Architecture: Layered (handler → service → repository)
+- Testing: Vitest (FE) / go test (BE)
+- Infrastructure: Docker Compose
+
 ## 責務
 
 1. **コード検索**
