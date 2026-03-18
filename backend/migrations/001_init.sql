@@ -767,6 +767,8 @@ CREATE TABLE clinical_plans (
     physical_exam         text        NOT NULL DEFAULT '',
     diagnosis_category_id bigint               REFERENCES diagnosis_categories(id) ON DELETE SET NULL,
     diagnosis_name_id     bigint               REFERENCES diagnosis_names(id) ON DELETE SET NULL,
+    diagnosis_2_category_id bigint             REFERENCES diagnosis_categories(id) ON DELETE SET NULL,
+    diagnosis_2_name_id   bigint               REFERENCES diagnosis_names(id) ON DELETE SET NULL,
     diagnosis_details     text        NOT NULL DEFAULT '',
     treatment_policy      text        NOT NULL DEFAULT '',
     created_at            timestamptz NOT NULL DEFAULT now(),

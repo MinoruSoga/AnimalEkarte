@@ -8,6 +8,15 @@ on:
       - 'backend/**'
       - '.github/workflows/backend-deploy.yml'
   workflow_dispatch:
+    inputs:
+      db_reset:
+        description: "DB_RESET: true で DB を DROP & 再作成（001_init.sql 変更時に使用）"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
 
 permissions:
   id-token: write
@@ -83,8 +92,14 @@ jobs:
             --region ${{ env.AWS_REGION }} > migrate-task-definition-raw.json
 
           # register-task-definition は read-only フィールドを拒否するため除去
-          jq 'del(.taskDefinitionArn, .revision, .status, .registeredAt, .registeredBy, .compatibilities, .requiresAttributes)' \
-            migrate-task-definition-raw.json > migrate-task-definition.json
+          # DB_RESET を workflow input から注入（push トリガーでは "false"）
+          DB_RESET_VALUE="${{ github.event.inputs.db_reset || 'false' }}"
+          jq --arg db_reset "$DB_RESET_VALUE" '
+            del(.taskDefinitionArn, .revision, .status, .registeredAt, .registeredBy, .compatibilities, .requiresAttributes) |
+            .containerDefinitions[0].environment |= map(
+              if .name == "DB_RESET" then .value = $db_reset else . end
+            )
+          ' migrate-task-definition-raw.json > migrate-task-definition.json
 
       - name: Update migrate task definition with new image
         id: migrate-task-def
