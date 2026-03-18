@@ -76,6 +76,10 @@ function parseRangeValue(value: string): { from?: Date; to?: Date } {
   };
 }
 
+// Calendar date range for dropdown navigation (100 years back → current year)
+const CALENDAR_START_MONTH = new Date(new Date().getFullYear() - 100, 0);
+const CALENDAR_END_MONTH = new Date(new Date().getFullYear(), 11);
+
 // Calendar classNames shared between modes
 const CALENDAR_CLASS_NAMES = {
   selected:
@@ -152,6 +156,10 @@ function SinglePicker({
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="single"
+          captionLayout="dropdown"
+          startMonth={CALENDAR_START_MONTH}
+          endMonth={CALENDAR_END_MONTH}
+          reverseYears
           selected={selected}
           onSelect={handleSelect}
           defaultMonth={selected ?? new Date()}
@@ -232,6 +240,10 @@ function RangePicker({
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="range"
+          captionLayout="dropdown"
+          startMonth={CALENDAR_START_MONTH}
+          endMonth={CALENDAR_END_MONTH}
+          reverseYears
           selected={dateRange}
           onSelect={handleSelect}
           numberOfMonths={2}
