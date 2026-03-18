@@ -282,4 +282,11 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.GET("/inquiry-templates/:id", h.GetInquiryTemplate)
 	masters.PATCH("/inquiry-templates/:id", h.UpdateInquiryTemplate)
 	masters.DELETE("/inquiry-templates/:id", h.DeleteInquiryTemplate)
+
+	masters.GET("/merchandise-items", h.ListMerchandiseItems)
+	masters.POST("/merchandise-items", h.CreateMerchandiseItem)
+	masters.POST("/merchandise-items/reorder", h.ReorderMerchandiseItems) // 静的パスを /:id より前に登録
+	masters.GET("/merchandise-items/:id", h.GetMerchandiseItem)
+	masters.PATCH("/merchandise-items/:id", h.UpdateMerchandiseItem)
+	masters.DELETE("/merchandise-items/:id", h.DeleteMerchandiseItem)
 }

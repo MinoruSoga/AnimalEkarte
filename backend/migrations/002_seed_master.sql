@@ -709,5 +709,20 @@ ON CONFLICT DO NOTHING;
 SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM payments));
 
 -- =============================================================================
+-- O. merchandise_items（物販・フード・その他: 7件）
+-- =============================================================================
+INSERT INTO merchandise_items (id, clinic_id, name, category, unit_price, tax_rate, sort_order) VALUES
+    (1, 3, 'ロイヤルカナン 消化器サポート 1kg', 'food', 2800, 0.10, 1),
+    (2, 3, 'ヒルズ k/d 2kg', 'food', 3500, 0.10, 2),
+    (3, 3, 'ペット用歯ブラシセット', 'goods', 1200, 0.10, 3),
+    (4, 3, 'エリザベスカラー（S）', 'goods', 800, 0.10, 4),
+    (5, 3, 'ノミ・ダニ予防首輪', 'goods', 1500, 0.10, 5),
+    (6, 3, '文書料', 'other', 3000, 0.10, 6),
+    (7, 3, '時間外診療費', 'other', 5000, 0.10, 7)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('merchandise_items', 'id'), (SELECT MAX(id) FROM merchandise_items));
+
+-- =============================================================================
 -- シード完了
 -- =============================================================================

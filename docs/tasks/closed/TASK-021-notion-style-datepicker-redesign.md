@@ -1,7 +1,7 @@
 # TASK-021: 日付ピッカーを Notion 風にリデザイン
 
 **作成日**: 2026-03-18
-**ステータス**: Open
+**ステータス**: Closed
 **依頼元**: ユーザー
 
 ---
@@ -31,7 +31,7 @@
 
 | # | サブタスク | 領域 | イシュー | 依存 | 完了 |
 |---|----------|------|---------|------|------|
-| 1 | NotionDatePicker を Notion 風にリデザイン + calendar.tsx バグ修正 | FE | FE-074 | - | [ ] |
+| 1 | NotionDatePicker を Notion 風にリデザイン + calendar.tsx バグ修正 | FE | FE-074 | - | [x] |
 
 ## 受入条件（Acceptance Criteria）
 

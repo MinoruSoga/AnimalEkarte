@@ -1129,6 +1129,21 @@ CREATE TABLE shift_entries (
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- merchandise_items（物販・フード・その他マスタ）
+CREATE TABLE merchandise_items (
+    id          BIGSERIAL     PRIMARY KEY,
+    clinic_id   bigint        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name        text          NOT NULL DEFAULT '',
+    category    item_category NOT NULL DEFAULT 'goods',
+    unit_price  numeric       NOT NULL DEFAULT 0,
+    tax_rate    numeric       NOT NULL DEFAULT 0.10,
+    is_active   boolean       NOT NULL DEFAULT true,
+    sort_order  integer       NOT NULL DEFAULT 0,
+    created_at  timestamptz   NOT NULL DEFAULT now(),
+    updated_at  timestamptz   NOT NULL DEFAULT now(),
+    deleted_at  timestamptz
+);
+
 -- =============================================================================
 -- 4. インデックス定義
 -- =============================================================================
@@ -1206,6 +1221,11 @@ CREATE INDEX idx_trimming_records_clinic_id ON trimming_records(clinic_id);
 CREATE INDEX idx_billings_clinic_id ON billings(clinic_id);
 CREATE INDEX idx_shift_entries_clinic_id ON shift_entries(clinic_id);
 CREATE INDEX idx_estimates_clinic_id ON estimates(clinic_id);
+
+-- merchandise_items インデックス
+CREATE INDEX idx_merchandise_items_clinic ON merchandise_items(clinic_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_merchandise_items_category ON merchandise_items(clinic_id, category) WHERE deleted_at IS NULL;
+CREATE INDEX idx_merchandise_items_sort ON merchandise_items(clinic_id, sort_order);
 
 -- 予約 FK インデックス
 CREATE INDEX idx_reservation_appointments_owner_id ON reservation_appointments(owner_id);
@@ -1400,3 +1420,4 @@ COMMENT ON TABLE billings IS '会計';
 COMMENT ON TABLE billing_items IS '会計明細';
 COMMENT ON TABLE payments IS '支払い情報';
 COMMENT ON TABLE shift_entries IS 'スタッフシフト';
+COMMENT ON TABLE merchandise_items IS '物販・フード・その他マスタ';

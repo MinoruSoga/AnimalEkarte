@@ -1,3 +1,5 @@
+**Status**: Closed
+
 # BE-046: 物販・その他マスタテーブル追加 + CRUD API
 
 ## 背景
@@ -90,9 +92,26 @@ ON CONFLICT DO NOTHING;
 
 ## 受入条件
 
-- [ ] merchandise_items テーブルが 001_init.sql に追加
-- [ ] Go Model 作成
-- [ ] 全6エンドポイント実装
-- [ ] clinic_id フィルタ必須
-- [ ] Seed データ投入
-- [ ] `make codegen` で models.ts 更新
+- [x] merchandise_items テーブルが 001_init.sql に追加
+- [x] Go Model 作成
+- [x] 全6エンドポイント実装
+- [x] clinic_id フィルタ必須
+- [x] Seed データ投入
+- [x] `make codegen` で models.ts 更新
+
+## クローズ情報
+
+- **Closed At**: 2026-03-19
+- **変更ファイル**:
+  - `backend/migrations/001_init.sql` — merchandise_items テーブル + インデックス追加
+  - `backend/migrations/002_seed_master.sql` — 7件のシードデータ追加
+  - `backend/internal/model/merchandise_item.go` — Go モデル（新規）
+  - `backend/internal/handler/merchandise_item_handler.go` — 6 エンドポイント（新規）
+  - `backend/internal/handler/merchandise_item_request.go` — リクエスト型（新規）
+  - `backend/internal/handler/merchandise_item_response.go` — レスポンス型（新規）
+  - `backend/internal/service/merchandise_item_service.go` — サービス層（新規）
+  - `backend/internal/repository/merchandise_item_repository.go` — リポジトリ層（新規）
+  - `backend/internal/service/service.go` — DI 登録追加
+  - `backend/internal/repository/repositories.go` — DI 登録追加
+  - `backend/internal/handler/staff_handler.go` — ルート登録追加
+  - `frontend/src/types/generated/models.ts` — codegen 更新

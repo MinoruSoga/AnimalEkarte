@@ -927,6 +927,25 @@ export interface Medicine {
 }
 
 //////////
+// source: merchandise_item.go
+
+/**
+ * MerchandiseItem は物販・フード・その他マスタアイテム
+ */
+export interface MerchandiseItem {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  name: string;
+  category: ItemCategory;
+  unit_price: number /* float64 */;
+  tax_rate: number /* float64 */;
+  is_active: boolean;
+  sort_order: number /* int */;
+  created_at: string;
+  updated_at: string;
+}
+
+//////////
 // source: owner.go
 
 export type MembershipType = string;
