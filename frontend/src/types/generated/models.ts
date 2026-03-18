@@ -301,6 +301,8 @@ export interface ClinicalPlan {
   physical_exam: string;
   diagnosis_category_id?: number /* uint64 */;
   diagnosis_name_id?: number /* uint64 */;
+  diagnosis_2_category_id?: number /* uint64 */;
+  diagnosis_2_name_id?: number /* uint64 */;
   diagnosis_details: string;
   treatment_policy: string;
   created_at: string;
@@ -311,6 +313,8 @@ export interface ClinicalPlan {
   medical_record?: MedicalRecord;
   diagnosis_category?: DiagnosisCategory;
   diagnosis_name?: DiagnosisName;
+  diagnosis_2_category?: DiagnosisCategory;
+  diagnosis_2_name?: DiagnosisName;
 }
 
 //////////
@@ -330,6 +334,7 @@ export interface Company {
   website: string;
   director_name: string;
   registration_number: string;
+  invoice_registration_number: string;
   logo_url: string;
   created_at: string;
   updated_at: string;

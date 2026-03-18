@@ -98,6 +98,7 @@ CREATE TABLE company (
     phone_number        text        NOT NULL DEFAULT '',
     fax_number          text        NOT NULL DEFAULT '',
     registration_number text        NOT NULL DEFAULT '',
+    invoice_registration_number text NOT NULL DEFAULT '',
     director_name       text        NOT NULL DEFAULT '',
     email               text        NOT NULL DEFAULT '',
     website             text        NOT NULL DEFAULT '',

@@ -34,8 +34,9 @@ func (h *Handler) UpdateCompany(c *gin.Context) {
 		Email:              req.Email,
 		Website:            req.Website,
 		DirectorName:       req.DirectorName,
-		RegistrationNumber: req.RegistrationNumber,
-		LogoURL:            req.LogoURL,
+		RegistrationNumber:        req.RegistrationNumber,
+		InvoiceRegistrationNumber: req.InvoiceRegistrationNumber,
+		LogoURL:                   req.LogoURL,
 	})
 	if err != nil {
 		RespondError(c, err)

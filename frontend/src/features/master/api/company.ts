@@ -17,6 +17,7 @@ export interface UpdateCompanyRequest {
   website?: string;
   director_name?: string;
   registration_number?: string;
+  invoice_registration_number?: string;
   logo_url?: string;
 }
 
@@ -36,6 +37,7 @@ function transformCompany(data: ModelCompany) {
     website: data.website,
     directorName: data.director_name,
     registrationNumber: data.registration_number,
+    invoiceRegistrationNumber: data.invoice_registration_number,
     logoUrl: data.logo_url,
     createdAt: data.created_at,
     updatedAt: data.updated_at,

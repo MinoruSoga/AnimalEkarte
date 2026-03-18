@@ -34,6 +34,7 @@ interface CompanyFormData {
   website: string;
   director_name: string;
   registration_number: string;
+  invoice_registration_number: string;
 }
 
 const DEFAULT_FORM_DATA: CompanyFormData = {
@@ -46,6 +47,7 @@ const DEFAULT_FORM_DATA: CompanyFormData = {
   website: "",
   director_name: "",
   registration_number: "",
+  invoice_registration_number: "",
 };
 
 // ─────────────────────────────────────────────────
@@ -73,6 +75,7 @@ export function CompanySettings() {
         website: company.website,
         director_name: company.directorName,
         registration_number: company.registrationNumber,
+        invoice_registration_number: company.invoiceRegistrationNumber,
       });
     }
   }, [company]);
@@ -94,6 +97,7 @@ export function CompanySettings() {
         website: company.website,
         director_name: company.directorName,
         registration_number: company.registrationNumber,
+        invoice_registration_number: company.invoiceRegistrationNumber,
       });
     }
   }, [company]);
@@ -114,6 +118,7 @@ export function CompanySettings() {
       website: formData.website || undefined,
       director_name: formData.director_name || undefined,
       registration_number: formData.registration_number || undefined,
+      invoice_registration_number: formData.invoice_registration_number || undefined,
     };
 
     updateMutation.mutate(req, {
@@ -216,6 +221,11 @@ export function CompanySettings() {
                 <PropertyRow label="法人番号">
                   <span className={`text-base ${company.registrationNumber ? C.text : C.text30}`}>
                     {company.registrationNumber || "空"}
+                  </span>
+                </PropertyRow>
+                <PropertyRow label="インボイス番号">
+                  <span className={`text-base font-mono ${company.invoiceRegistrationNumber ? C.text : C.text30}`}>
+                    {company.invoiceRegistrationNumber || "空"}
                   </span>
                 </PropertyRow>
               </div>
@@ -357,6 +367,18 @@ export function CompanySettings() {
                       setFormData((prev) => ({ ...prev, registration_number: e.target.value }))
                     }
                     placeholder="例: 1234567890123"
+                  />
+                </PropertyRow>
+
+                <PropertyRow label="インボイス番号">
+                  <input
+                    type="text"
+                    className={PROP_INPUT_CLASS}
+                    value={formData.invoice_registration_number}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, invoice_registration_number: e.target.value }))
+                    }
+                    placeholder="例: T1234567890123"
                   />
                 </PropertyRow>
               </div>
