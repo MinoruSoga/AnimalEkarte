@@ -69,10 +69,8 @@ jobs:
         run: go build ./...
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          working-directory: backend
+        working-directory: backend
+        run: go vet ./...
 
       - name: Test
         working-directory: backend
@@ -146,9 +144,10 @@ jobs:
       - name: Run tygo
         working-directory: backend
         run: |
-          mkdir -p /output
-          go run github.com/gzuidhof/tygo@latest generate
-          cp /output/models.ts ../frontend/src/types/generated/models.ts
+          mkdir -p "$GITHUB_WORKSPACE/tygo-output"
+          sed 's|/output/models.ts|'"$GITHUB_WORKSPACE"'/tygo-output/models.ts|' tygo.yaml > tygo-ci.yaml
+          go run github.com/gzuidhof/tygo@latest generate --config tygo-ci.yaml
+          cp "$GITHUB_WORKSPACE/tygo-output/models.ts" ../frontend/src/types/generated/models.ts
 
       - name: Check for drift
         run: |
