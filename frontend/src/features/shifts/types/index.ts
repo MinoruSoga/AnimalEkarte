@@ -1,10 +1,24 @@
-export type ShiftType =
-  | "full"
-  | "morning"
-  | "afternoon"
-  | "off"
-  | "paid_leave";
+/**
+ * Shifts feature types
+ * Backend types: {@link ShiftEntry}, {@link ShiftType as BackendShiftType} from models.ts
+ */
+import {
+  ShiftTypeFull,
+  ShiftTypeMorning,
+  ShiftTypeAfternoon,
+  ShiftTypeOff,
+  ShiftTypePaidLeave,
+} from "@/types/generated/models";
 
+/** ShiftType — models.ts const 値と一致する union 型（型安全性のため union 維持） */
+export type ShiftType =
+  | typeof ShiftTypeFull
+  | typeof ShiftTypeMorning
+  | typeof ShiftTypeAfternoon
+  | typeof ShiftTypeOff
+  | typeof ShiftTypePaidLeave;
+
+/** UI-facing shift (string IDs — post-transform) */
 export interface Shift {
   id: string;
   clinic_id: string;
@@ -19,6 +33,7 @@ export interface Shift {
   updated_at: string;
 }
 
+/** @see {@link import("@/types/generated/models").ShiftEntry} */
 export interface CreateShiftInput {
   staff_id: string;
   date: string; // YYYY-MM-DD
@@ -28,6 +43,7 @@ export interface CreateShiftInput {
   note?: string;
 }
 
+/** @see {@link import("@/types/generated/models").ShiftEntry} */
 export interface UpdateShiftInput {
   shift_type?: ShiftType;
   start_time?: string;
@@ -36,19 +52,19 @@ export interface UpdateShiftInput {
 }
 
 export const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
-  full: "全日",
-  morning: "午前",
-  afternoon: "午後",
-  off: "休日",
-  paid_leave: "有休",
+  [ShiftTypeFull]: "全日",
+  [ShiftTypeMorning]: "午前",
+  [ShiftTypeAfternoon]: "午後",
+  [ShiftTypeOff]: "休日",
+  [ShiftTypePaidLeave]: "有休",
 };
 
 export const SHIFT_TYPE_COLORS: Record<ShiftType, string> = {
-  full: "bg-blue-100 text-blue-800 border-blue-200",
-  morning: "bg-green-100 text-green-800 border-green-200",
-  afternoon: "bg-teal-100 text-teal-800 border-teal-200",
-  off: "bg-gray-100 text-gray-600 border-gray-200",
-  paid_leave: "bg-purple-100 text-purple-800 border-purple-200",
+  [ShiftTypeFull]: "bg-blue-100 text-blue-800 border-blue-200",
+  [ShiftTypeMorning]: "bg-green-100 text-green-800 border-green-200",
+  [ShiftTypeAfternoon]: "bg-teal-100 text-teal-800 border-teal-200",
+  [ShiftTypeOff]: "bg-gray-100 text-gray-600 border-gray-200",
+  [ShiftTypePaidLeave]: "bg-purple-100 text-purple-800 border-purple-200",
 };
 
 // シフトカレンダーで使用するスタッフの最小型（feature間importを避けるため）

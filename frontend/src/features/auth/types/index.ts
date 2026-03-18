@@ -1,33 +1,55 @@
 /**
  * Authentication & Authorization types.
+ * Backend types: {@link UserAccount}, {@link UserClinicMembership}, {@link Clinic} from models.ts
  */
 import type { ReactNode } from "react";
+import {
+  UserTypeSystemAdmin,
+  UserTypeClinicAdmin,
+  UserTypeStaff,
+  StaffRoleVeterinarian,
+  StaffRoleNurse,
+  StaffRoleTrimmer,
+  StaffRoleReception,
+  StaffRoleManager,
+  PermissionAccountAdmin,
+  PermissionMedical,
+  PermissionMedicalRead,
+  PermissionTrimming,
+  PermissionBilling,
+  PermissionReception,
+  PermissionHospitalization,
+  PermissionMasterAdmin,
+  PermissionShiftAdmin,
+  PermissionInventory,
+} from "@/types/generated/models";
 
-export const USER_TYPE_VALUES = ["system_admin", "clinic_admin", "staff"] as const;
+/** @see {@link import("@/types/generated/models").UserType} */
+export const USER_TYPE_VALUES = [UserTypeSystemAdmin, UserTypeClinicAdmin, UserTypeStaff] as const;
 export type UserType = (typeof USER_TYPE_VALUES)[number];
 
 export const USER_TYPE_LABELS: Record<UserType, string> = {
-  system_admin: "運営管理者",
-  clinic_admin: "医院管理者",
-  staff: "スタッフ",
+  [UserTypeSystemAdmin]: "運営管理者",
+  [UserTypeClinicAdmin]: "医院管理者",
+  [UserTypeStaff]: "スタッフ",
 };
 
-/** バックエンドの staff_role ENUM と一致させる */
+/** @see {@link import("@/types/generated/models").StaffRole} */
 export const STAFF_ROLE_VALUES = [
-  "veterinarian",
-  "nurse",
-  "trimmer",
-  "reception",
-  "manager",
+  StaffRoleVeterinarian,
+  StaffRoleNurse,
+  StaffRoleTrimmer,
+  StaffRoleReception,
+  StaffRoleManager,
 ] as const;
 export type StaffRole = (typeof STAFF_ROLE_VALUES)[number];
 
 export const STAFF_ROLE_LABELS: Record<StaffRole, string> = {
-  veterinarian: "医師",
-  nurse: "看護師",
-  trimmer: "トリマー",
-  reception: "受付",
-  manager: "管理職",
+  [StaffRoleVeterinarian]: "医師",
+  [StaffRoleNurse]: "看護師",
+  [StaffRoleTrimmer]: "トリマー",
+  [StaffRoleReception]: "受付",
+  [StaffRoleManager]: "管理職",
 };
 
 /** @deprecated JOB_TITLE_VALUES は STAFF_ROLE_VALUES に統合。後方互換のため残す */
@@ -37,27 +59,29 @@ export type JobTitle = StaffRole;
 /** @deprecated JOB_TITLE_LABELS は STAFF_ROLE_LABELS に統合。後方互換のため残す */
 export const JOB_TITLE_LABELS = STAFF_ROLE_LABELS;
 
+/** @see {@link import("@/types/generated/models").PermissionType} */
 export const PERMISSION_VALUES = [
-  "account_admin",
-  "medical",
-  "medical_read",
-  "trimming",
-  "billing",
-  "reception",
-  "hospitalization",
-  "master_admin",
-  "shift_admin",
-  "inventory",
+  PermissionAccountAdmin,
+  PermissionMedical,
+  PermissionMedicalRead,
+  PermissionTrimming,
+  PermissionBilling,
+  PermissionReception,
+  PermissionHospitalization,
+  PermissionMasterAdmin,
+  PermissionShiftAdmin,
+  PermissionInventory,
 ] as const;
 export type Permission = (typeof PERMISSION_VALUES)[number];
 
+/** @see {@link import("@/types/generated/models").UserClinicMembership} */
 export interface ClinicMembership {
   clinicId: string;
   clinicName: string;
   isMain: boolean;
 }
 
-/** /me レスポンスに含まれるメイン医院の詳細情報 */
+/** @see {@link import("@/types/generated/models").Clinic} */
 export interface AuthClinic {
   id: string;
   name: string;
@@ -74,6 +98,7 @@ export interface AuthClinic {
 
 export type ClinicPermissions = Record<string, readonly Permission[]>;
 
+/** @see {@link import("@/types/generated/models").UserAccount} */
 export interface AuthUser {
   id: string;
   email: string;

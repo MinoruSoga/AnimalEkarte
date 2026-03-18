@@ -1,3 +1,4 @@
+/** UI-facing clinic info (camelCase) @see {@link import("@/types/generated/models").Clinic} */
 export interface ClinicInfo {
   name: string;
   postalCode: string;

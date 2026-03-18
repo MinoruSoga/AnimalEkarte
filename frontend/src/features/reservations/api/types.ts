@@ -1,3 +1,7 @@
+/**
+ * 予約作成リクエスト
+ * @see {@link import("@/types/generated/models").ReservationAppointment}
+ */
 export interface CreateReservationRequest {
   pet_id: string;
   owner_id: string;
@@ -10,6 +14,10 @@ export interface CreateReservationRequest {
   notes?: string;
 }
 
+/**
+ * 予約更新リクエスト
+ * @see {@link import("@/types/generated/models").ReservationAppointment}
+ */
 export interface UpdateReservationRequest {
   start_time?: string;
   end_time?: string;

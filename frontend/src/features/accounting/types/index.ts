@@ -1,15 +1,50 @@
-export type AccountingStatus = "waiting" | "completed" | "cancelled" | "pending";
-export type PaymentMethod = "cash" | "credit_card" | "electronic_money";
-export type ItemCategory =
-  | "examination"
-  | "test"
-  | "procedure"
-  | "surgery"
-  | "medicine"
-  | "food"
-  | "goods"
-  | "other";
+/**
+ * Accounting feature types (UI-facing: camelCase, string IDs)
+ * Backend types: {@link Billing}, {@link BillingItem}, {@link Payment} from models.ts
+ */
+import {
+  BillingStatusWaiting,
+  BillingStatusCompleted,
+  BillingStatusCancelled,
+  BillingStatusPending,
+  PaymentMethodCash,
+  PaymentMethodCreditCard,
+  PaymentMethodElectronicMoney,
+  ItemCategoryExamination,
+  ItemCategoryTest,
+  ItemCategoryProcedure,
+  ItemCategorySurgery,
+  ItemCategoryMedicine,
+  ItemCategoryFood,
+  ItemCategoryGoods,
+  ItemCategoryOther,
+} from "@/types/generated/models";
 
+/** @see {@link import("@/types/generated/models").BillingStatus} */
+export type AccountingStatus =
+  | typeof BillingStatusWaiting
+  | typeof BillingStatusCompleted
+  | typeof BillingStatusCancelled
+  | typeof BillingStatusPending;
+
+/** @see {@link import("@/types/generated/models").PaymentMethod} */
+export type PaymentMethod =
+  | typeof PaymentMethodCash
+  | typeof PaymentMethodCreditCard
+  | typeof PaymentMethodElectronicMoney;
+
+/** @see {@link import("@/types/generated/models").ItemCategory} */
+export type ItemCategory =
+  | typeof ItemCategoryExamination
+  | typeof ItemCategoryTest
+  | typeof ItemCategoryProcedure
+  | typeof ItemCategorySurgery
+  | typeof ItemCategoryMedicine
+  | typeof ItemCategoryFood
+  | typeof ItemCategoryGoods
+  | typeof ItemCategoryOther;
+
+/** @see {@link import("@/types/generated/models").BillingItem} */
 export interface AccountingItem {
   id: string;
   code?: string;
@@ -22,6 +57,7 @@ export interface AccountingItem {
   source: "medical_record" | "manual"; // カルテ連携か手動追加か
 }
 
+/** @see {@link import("@/types/generated/models").Payment} */
 export interface PaymentInfo {
   subtotal: number; // 税抜小計
   taxTotal: number; // 消費税合計
@@ -36,6 +72,7 @@ export interface PaymentInfo {
   method: PaymentMethod;
 }
 
+/** @see {@link import("@/types/generated/models").Billing} */
 export interface Accounting {
   id: string;
   medicalRecordId?: string;

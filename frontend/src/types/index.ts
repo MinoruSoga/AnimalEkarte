@@ -1,3 +1,12 @@
+/**
+ * 共有UI型定義（camelCase, string IDs — transform 後のフロントエンド用）
+ *
+ * ⚠️ これらの型は models.ts（snake_case, number IDs）とは別物。
+ * Backend API → transform 関数 → ここの UI 型 という変換パイプラインで使用。
+ * Enum/Status の値は models.ts const 値と一致するが、型安全性のため union 型を維持。
+ *
+ * @see {@link import("./generated/models")} — Backend 型（tygo 自動生成）
+ */
 export type { Owner, CreateOwnerRequest, UpdateOwnerRequest } from './owner';
 
 import { ReactNode } from "react";
