@@ -30,25 +30,13 @@ backend/
 │   │   ├── pet_service.go
 │   │   ├── validators.go        # 業務バリデーション関数
 │   │   └── ...
-│   ├── repository/              # データアクセス層
+├── repository/              # データアクセス層
 │   │   ├── owner_repository.go
 │   │   ├── pet_repository.go
+│   │   ├── db.go                # DB接続管理（旧 internal/db）
 │   │   └── ...
-│   ├── model/                   # GORMモデル（DBスキーマ対応）
-│   │   ├── owner.go
-│   │   ├── pet.go
-│   │   └── ...
-│   ├── errors/                  # アプリケーション全体のセンチネルエラー
-│   │   └── errors.go
-│   ├── middleware/              # Ginミドルウェア
-│   │   ├── auth.go
-│   │   └── ...
-│   ├── config/                  # 設定読み込み
-│   │   └── config.go
-│   ├── logger/                  # slogラッパー
-│   │   └── logger.go
-│   └── db/                      # DB接続管理
-│       └── postgres.go
+├── model/                   # GORMモデル（DBスキーマ対応）
+
 ├── migrations/                  # SQLマイグレーション
 ├── go.mod
 └── go.sum

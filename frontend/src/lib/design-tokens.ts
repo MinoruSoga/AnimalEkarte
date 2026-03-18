@@ -707,6 +707,10 @@ export const STYLE = {
   badge:
     "text-sm px-2 h-9 font-normal border",
 
+  /* ── Ghost Danger (delete buttons in form headers) ── */
+  btnDangerGhost:
+    `${C.danger} ${C.hoverBgDanger5} transition-colors`,
+
   /* ── Confirm dialog primary ── */
   confirmPrimary:
     `${C.bgAccent} text-white ${C.bgAccentHover} h-11 px-4 text-sm rounded-[4px] transition-colors shadow-none border-transparent`,

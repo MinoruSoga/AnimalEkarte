@@ -14,6 +14,7 @@ import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { C, STYLE } from "@/lib/design-tokens";
 
 // Relative
 import { useExaminationForm } from "../hooks/useExaminationForm";
@@ -97,15 +98,15 @@ export function ExaminationForm() {
               />
           ) : null}
 
-          <div className="bg-white p-4 rounded-lg border border-[rgba(55,53,47,0.16)] space-y-4 shadow-sm">
+          <div className={`bg-white p-4 rounded-lg border ${C.borderMedium} space-y-4 shadow-sm`}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-sm text-[#37352F]/60">検査種別</Label>
+                <Label className={`text-sm ${C.text60}`}>検査種別</Label>
                 <Select 
                     value={formData.testType} 
                     onValueChange={(v) => handleSetFormData({ testType: v })}
                 >
-                  <SelectTrigger className="h-10 text-sm text-[#37352F] bg-white border-[rgba(55,53,47,0.16)]">
+                  <SelectTrigger className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
                     <SelectValue placeholder="選択してください" />
                   </SelectTrigger>
                   <SelectContent>
@@ -118,12 +119,12 @@ export function ExaminationForm() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-sm text-[#37352F]/60">担当医</Label>
+                <Label className={`text-sm ${C.text60}`}>担当医</Label>
                 <Select 
                     value={formData.doctor} 
                     onValueChange={(v) => handleSetFormData({ doctor: v })}
                 >
-                  <SelectTrigger className="h-10 text-sm text-[#37352F] bg-white border-[rgba(55,53,47,0.16)]">
+                  <SelectTrigger className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
                     <SelectValue placeholder="選択してください" />
                   </SelectTrigger>
                   <SelectContent>
@@ -138,12 +139,12 @@ export function ExaminationForm() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-sm text-[#37352F]/60">ステータス</Label>
+              <Label className={`text-sm ${C.text60}`}>ステータス</Label>
               <Select 
                 value={formData.status} 
                 onValueChange={(v: "依頼中" | "検査中" | "完了") => handleSetFormData({ status: v })}
               >
-                <SelectTrigger className="h-10 text-sm text-[#37352F] bg-white border-[rgba(55,53,47,0.16)]">
+                <SelectTrigger className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
                   <SelectValue placeholder="選択してください" />
                 </SelectTrigger>
                 <SelectContent>
@@ -155,9 +156,9 @@ export function ExaminationForm() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-sm text-[#37352F]/60">備考・所見</Label>
+              <Label className={`text-sm ${C.text60}`}>備考・所見</Label>
               <Textarea 
-                className="h-24 text-sm text-[#37352F] bg-white border-[rgba(55,53,47,0.16)] resize-none" 
+                className={`h-24 text-sm ${C.text} bg-white ${C.borderMedium} resize-none`} 
                 placeholder="検査結果や備考を入力" 
                 value={formData.resultSummary || ""} 
                 onChange={(e) => handleSetFormData({ resultSummary: e.target.value })}
@@ -166,13 +167,13 @@ export function ExaminationForm() {
 
             <div className="flex justify-end gap-2 pt-2">
               {isEdit ? (
-                <Button variant="ghost" className="h-10 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 mr-auto">
+                <Button variant="ghost" className={`h-10 text-sm ${STYLE.btnDangerGhost} mr-auto`}>
                     <Trash2 className="mr-1.5 size-4" />
                     削除
                 </Button>
               ) : null}
               <Button variant="outline" onClick={handleBack} className="h-10 text-sm">キャンセル</Button>
-              <Button className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white h-10 text-sm" onClick={handleSaveClick} disabled={isSaving}>{isSaving ? "保存中..." : "保存"}</Button>
+              <Button className={`${C.bgAccent} ${C.bgAccentHover} text-white h-10 text-sm`} onClick={handleSaveClick} disabled={isSaving}>{isSaving ? "保存中..." : "保存"}</Button>
             </div>
           </div>
       </div>

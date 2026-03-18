@@ -137,7 +137,7 @@ export function NotionFilter({
           {/* Filter icon (visual indicator - same as add popover trigger) */}
           {activeFilters.length > 0 ? (
             <span className="h-9 w-9 flex items-center justify-center text-[#2383E2]">
-              <ListFilter className="h-6 w-6" />
+              <ListFilter className="size-6" />
             </span>
           ) : null}
 
@@ -163,7 +163,7 @@ export function NotionFilter({
               onClick={handleSearchToggle}
               aria-label="検索"
             >
-              <Search className="h-6 w-6" />
+              <Search className="size-6" />
             </Button>
           ) : null}
         </div>

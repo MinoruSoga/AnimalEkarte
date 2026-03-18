@@ -46,7 +46,7 @@ const SortRuleRow = memo(function SortRuleRow({
             className="flex items-center gap-1 px-2 py-1 text-sm text-[#37352F] bg-[#F1F1EF] hover:bg-[#E8E7E4] rounded-[3px] transition-colors max-w-[160px] truncate"
           >
             {property?.icon ? (
-              <property.icon className="h-4 w-4 shrink-0 opacity-50" />
+              <property.icon className="size-4 shrink-0 opacity-50" />
             ) : null}
             <span className="truncate">{property?.label ?? sort.key}</span>
           </button>
@@ -66,7 +66,7 @@ const SortRuleRow = memo(function SortRuleRow({
                   className="text-sm"
                 >
                   {prop.icon ? (
-                    <prop.icon className="mr-2 h-5 w-5 text-[#37352F]/50" />
+                    <prop.icon className="mr-2 size-5 text-[#37352F]/50" />
                   ) : null}
                   {prop.label}
                 </CommandItem>
@@ -83,9 +83,9 @@ const SortRuleRow = memo(function SortRuleRow({
         className="flex items-center gap-1 px-2 py-1 text-sm text-[#37352F] bg-[#F1F1EF] hover:bg-[#E8E7E4] rounded-[3px] transition-colors whitespace-nowrap"
       >
         {sort.direction === "asc" ? (
-          <ArrowUp className="h-5 w-5 shrink-0" />
+          <ArrowUp className="size-5 shrink-0" />
         ) : (
-          <ArrowDown className="h-5 w-5 shrink-0" />
+          <ArrowDown className="size-5 shrink-0" />
         )}
         {dirLabel}
       </button>
@@ -97,7 +97,7 @@ const SortRuleRow = memo(function SortRuleRow({
         className="p-0.5 rounded-[3px] text-[#37352F]/30 hover:text-[#37352F]/60 hover:bg-[#F1F1EF] opacity-0 group-hover:opacity-100 transition-opacity ml-auto"
         aria-label={`${property?.label ?? sort.key} ソートを削除`}
       >
-        <X className="h-5 w-5" />
+        <X className="size-5" />
       </button>
     </div>
   );
@@ -174,7 +174,7 @@ export const SortPopover = memo(function SortPopover({
           className="h-9 w-9 p-0 text-[#37352F]/50 hover:text-[#37352F]/80 hover:bg-[#F1F1EF]"
           aria-label="並べ替え"
         >
-          <ArrowUpDown className="h-6 w-6" />
+          <ArrowUpDown className="size-6" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[280px] p-0" align="end">
@@ -216,7 +216,7 @@ export const SortPopover = memo(function SortPopover({
                         className="text-sm"
                       >
                         {prop.icon ? (
-                          <prop.icon className="mr-2 h-5 w-5 text-[#37352F]/50" />
+                          <prop.icon className="mr-2 size-5 text-[#37352F]/50" />
                         ) : null}
                         {prop.label}
                       </CommandItem>
@@ -230,7 +230,7 @@ export const SortPopover = memo(function SortPopover({
                 onClick={() => setAddingSort(true)}
                 className="flex items-center gap-1 mt-1 px-1 py-1 text-sm text-[#37352F]/50 hover:text-[#37352F]/80 hover:bg-[#F1F1EF] rounded-[3px] transition-colors w-full"
               >
-                <Plus className="h-5 w-5" />
+                <Plus className="size-5" />
                 並べ替えを追加
               </button>
             )

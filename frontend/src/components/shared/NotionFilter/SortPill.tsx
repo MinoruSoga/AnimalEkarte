@@ -61,11 +61,11 @@ export const SortPill = memo(function SortPill({
           type="button"
           className="inline-flex items-center gap-1.5 h-8 px-3 text-sm font-medium rounded-[3px] bg-[#FAEBDD] text-[#D9730D] hover:bg-[#F5DCC3] transition-colors whitespace-nowrap"
         >
-          <DirectionIcon className="h-5 w-5 shrink-0" />
+          <DirectionIcon className="size-5 shrink-0" />
           <span className="truncate max-w-[140px]">
             {property?.label ?? sort.key}
           </span>
-          <ChevronDown className="h-5 w-5 shrink-0 opacity-60" />
+          <ChevronDown className="size-5 shrink-0 opacity-60" />
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0" align="start">
@@ -77,9 +77,9 @@ export const SortPill = memo(function SortPill({
             className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-[#37352F] hover:bg-[#F1F1EF] transition-colors"
           >
             {sort.direction === "asc" ? (
-              <ArrowDown className="h-5 w-5" />
+              <ArrowDown className="size-5" />
             ) : (
-              <ArrowUp className="h-5 w-5" />
+              <ArrowUp className="size-5" />
             )}
             {sort.direction === "asc" ? "降順に変更" : "昇順に変更"}
           </button>
@@ -102,7 +102,7 @@ export const SortPill = memo(function SortPill({
                   className={`text-sm ${prop.key === sort.key ? "bg-[#2383E2]/10 text-[#2383E2]" : ""}`}
                 >
                   {prop.icon ? (
-                    <prop.icon className="mr-2 h-5 w-5 text-[#37352F]/50" />
+                    <prop.icon className="mr-2 size-5 text-[#37352F]/50" />
                   ) : null}
                   {prop.label}
                 </CommandItem>
@@ -119,7 +119,7 @@ export const SortPill = memo(function SortPill({
             onClick={handleRemove}
             className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-[#EB5757] hover:bg-[#EB5757]/5 transition-colors"
           >
-            <X className="h-5 w-5" />
+            <X className="size-5" />
             削除
           </button>
         </div>

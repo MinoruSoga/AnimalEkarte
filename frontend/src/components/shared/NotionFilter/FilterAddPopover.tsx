@@ -291,7 +291,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
           size="sm"
           className="h-9 gap-2 text-base text-[#37352F]/50 hover:text-[#37352F]/80 hover:bg-[#F1F1EF] px-3"
         >
-          <Plus className="h-5 w-5" />
+          <Plus className="size-5" />
           フィルタを追加
         </Button>
       </PopoverTrigger>
@@ -311,7 +311,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
               onClick={handleBack}
               className="flex items-center gap-1 text-sm text-[#37352F]/50 hover:text-[#37352F]/80 px-1"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="size-4" />
               戻る
             </button>
           </div>
@@ -330,7 +330,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
                   className="text-sm"
                 >
                   {prop.icon ? (
-                    <prop.icon className="mr-2 h-5 w-5 text-[#37352F]/50" />
+                    <prop.icon className="mr-2 size-5 text-[#37352F]/50" />
                   ) : null}
                   {prop.label}
                 </CommandItem>

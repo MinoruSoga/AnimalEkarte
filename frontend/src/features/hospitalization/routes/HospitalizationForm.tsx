@@ -24,6 +24,7 @@ import { HospitalizationTreatmentTable } from "../components/HospitalizationTrea
 import { HospitalizationCostSummary } from "../components/HospitalizationCostSummary";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { C, STYLE } from "@/lib/design-tokens";
 
 export function HospitalizationForm() {
   const navigate = useNavigate();
@@ -114,7 +115,7 @@ export function HospitalizationForm() {
     <PageLayout
       title={hospitalizationId ? "入院編集" : "入院登録"}
       onBack={handleBack}
-      icon={<FileText className="h-4 w-4 text-[#37352F]/60" />}
+      icon={<FileText className={`size-4 ${C.text60}`} />}
       maxWidth="max-w-[1400px]"
       headerAction={
         <div className="flex gap-2">
@@ -122,7 +123,7 @@ export function HospitalizationForm() {
                 <>
                   <Button
                     variant="outline"
-                    className="gap-2 h-10 text-sm px-4 text-[#37352F]"
+                    className={`gap-2 h-10 text-sm px-4 ${C.text}`}
                     onClick={() => navigate(`/hospitalization/${hospitalizationId}`)}
                   >
                     <FileText className="h-4 w-4" />
@@ -130,7 +131,7 @@ export function HospitalizationForm() {
                   </Button>
                   <Button
                     variant="ghost"
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 h-10 text-sm px-4"
+                    className={`${STYLE.btnDangerGhost} h-10 text-sm px-4`}
                     onClick={() => setIsDeleteConfirmOpen(true)}
                   >
                     <Trash2 className="mr-1.5 size-4" />
@@ -139,7 +140,7 @@ export function HospitalizationForm() {
                 </>
             ) : null}
             <Button
-            className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white rounded-[6px] h-10 text-sm px-4"
+            className={`${C.bgAccent} ${C.bgAccentHover} text-white rounded-[6px] h-10 text-sm px-4`}
             onClick={handleSaveClick}
             disabled={isSaving}
             >
