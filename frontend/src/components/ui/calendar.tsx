@@ -19,7 +19,8 @@ function Calendar({
         months: "flex flex-col sm:flex-row gap-2",
         month: "flex flex-col gap-4",
         month_caption: "flex justify-center pt-1 relative items-center w-full",
-        caption_label: "text-sm font-medium",
+        caption_label:
+          "text-sm font-medium has-[+.rdp-dropdowns]:sr-only",
         nav: "flex items-center gap-1",
         dropdowns: "flex items-center gap-2",
         dropdown_root: "relative",
