@@ -1,6 +1,6 @@
 // React/Framework
-import { useState, useMemo, useCallback, memo, useDeferredValue } from "react";
-import { useNavigate } from "react-router";
+import { useMemo, useCallback, memo, useDeferredValue } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
@@ -491,7 +491,8 @@ const TABS = [
 
 export function TrimmingSettings() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<string>("course");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") ?? "course";
 
   const createCourseMutation = useCreateTrimmingCourse();
   const updateCourseMutation = useUpdateTrimmingCourse();
@@ -513,10 +514,12 @@ export function TrimmingSettings() {
   });
 
   const handleTabChange = useCallback((tab: string) => {
-    setActiveTab(tab);
+    setSearchParams({ tab });
     courseCrud.setEditTarget(null);
     optionCrud.setEditTarget(null);
-  }, [courseCrud.setEditTarget, optionCrud.setEditTarget]);
+    courseCrud.setPendingDelete(null);
+    optionCrud.setPendingDelete(null);
+  }, [setSearchParams, courseCrud.setEditTarget, optionCrud.setEditTarget, courseCrud.setPendingDelete, optionCrud.setPendingDelete]);
 
   const handleCourseSave = useCallback(
     (data: CourseFormData) => {
@@ -624,40 +627,37 @@ export function TrimmingSettings() {
             }
           >
             <div className="flex flex-col gap-4">
-              <Tabs value={activeTab} onValueChange={handleTabChange}>
-                <TabsList
-                  className={`h-9 bg-transparent border-b ${C.borderLight} rounded-none w-full justify-start gap-0 p-0`}
-                >
+              <TabsPrimitive.Root value={activeTab} onValueChange={handleTabChange} className="flex flex-col gap-4">
+                <TabsPrimitive.List className={`flex h-9 border-b ${C.borderLight} gap-0`}>
                   {TABS.map((tab) => (
-                    <TabsTrigger
+                    <TabsPrimitive.Trigger
                       key={tab.value}
                       value={tab.value}
-                      className={`h-9 rounded-none border-b-2 border-transparent px-4 text-sm ${C.text60}
-                        data-[state=active]:border-[#37352F] data-[state=active]:${C.text}
-                        data-[state=active]:shadow-none data-[state=active]:bg-transparent`}
+                      className={`h-9 border-b-2 border-b-transparent px-4 text-sm ${C.text60} outline-none transition-colors cursor-pointer
+                        data-[state=active]:border-b-[#37352F] data-[state=active]:text-[#37352F] data-[state=active]:font-medium`}
                     >
                       {tab.label}
-                    </TabsTrigger>
+                    </TabsPrimitive.Trigger>
                   ))}
-                </TabsList>
-                <TabsContent value="course" className="mt-4">
+                </TabsPrimitive.List>
+                <TabsPrimitive.Content value="course" className="mt-4">
                   <TrimmingCourseTab
                     editTarget={courseCrud.editTarget}
                     onEditTargetChange={courseCrud.setEditTarget}
                   />
-                </TabsContent>
-                <TabsContent value="option" className="mt-4">
+                </TabsPrimitive.Content>
+                <TabsPrimitive.Content value="option" className="mt-4">
                   <TrimmingOptionTab
                     editTarget={optionCrud.editTarget}
                     onEditTargetChange={optionCrud.setEditTarget}
                   />
-                </TabsContent>
-              </Tabs>
+                </TabsPrimitive.Content>
+              </TabsPrimitive.Root>
             </div>
           </PageLayout>
         </div>
 
-        {activeTab === "course" && courseCrud.isEditing ? (
+        {activeTab === "course" && courseCrud.isEditing === true ? (
           <TrimmingCourseSidePanel
             key={courseCrud.panelItem ? String(courseCrud.panelItem.id) : "new-trimming-course"}
             item={courseCrud.panelItem}
@@ -666,7 +666,7 @@ export function TrimmingSettings() {
             onDeleteRequest={courseCrud.setPendingDelete}
           />
         ) : null}
-        {activeTab === "option" && optionCrud.isEditing ? (
+        {activeTab === "option" && optionCrud.isEditing === true ? (
           <TrimmingOptionSidePanel
             key={optionCrud.panelItem ? String(optionCrud.panelItem.id) : "new-trimming-option"}
             item={optionCrud.panelItem}

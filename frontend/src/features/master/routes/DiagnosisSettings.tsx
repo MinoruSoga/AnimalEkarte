@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
@@ -542,38 +542,38 @@ export function DiagnosisSettings() {
               </PrimaryButton>
             }
           >
-            <Tabs
+            <TabsPrimitive.Root
               value={activeTab}
               onValueChange={handleTabChange}
               className="flex flex-col gap-4"
             >
-              <TabsList
+              <TabsPrimitive.List
                 className={`flex h-9 border-b ${C.borderLight} gap-0`}
               >
                 {TABS.map((tab) => (
-                  <TabsTrigger
+                  <TabsPrimitive.Trigger
                     key={tab.value}
                     value={tab.value}
                     className={`h-9 border-b-2 border-b-transparent px-4 text-sm ${C.text60} outline-none transition-colors cursor-pointer
                       data-[state=active]:border-b-[#37352F] data-[state=active]:text-[#37352F] data-[state=active]:font-medium`}
                   >
                     {tab.label}
-                  </TabsTrigger>
+                  </TabsPrimitive.Trigger>
                 ))}
-              </TabsList>
-              <TabsContent value="diagnosis_category" className="mt-4">
+              </TabsPrimitive.List>
+              <TabsPrimitive.Content value="diagnosis_category" className="mt-4">
                 <DiagnosisCategoryTab
                   editTarget={catCrud.editTarget}
                   onEditTargetChange={catCrud.setEditTarget}
                 />
-              </TabsContent>
-              <TabsContent value="diagnosis_name" className="mt-4">
+              </TabsPrimitive.Content>
+              <TabsPrimitive.Content value="diagnosis_name" className="mt-4">
                 <DiagnosisNameTab
                   editTarget={nameCrud.editTarget}
                   onEditTargetChange={nameCrud.setEditTarget}
                 />
-              </TabsContent>
-            </Tabs>
+              </TabsPrimitive.Content>
+            </TabsPrimitive.Root>
           </PageLayout>
         </div>
 
