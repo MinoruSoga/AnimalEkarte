@@ -5,10 +5,6 @@ export {
 export {
   getVaccination,
   useGetVaccination,
-  getVaccinationsByPetId,
-  useGetVaccinationsByPetId,
-  getVaccinationsByOwnerId,
-  useGetVaccinationsByOwnerId,
 } from "./get-vaccination";
 export {
   createVaccination,

@@ -6,12 +6,6 @@ export type { ExaminationFilters } from "./get-examinations";
 export {
   getExamination,
   useGetExamination,
-  getExaminationsByPetId,
-  useGetExaminationsByPetId,
-  getExaminationsByOwnerId,
-  useGetExaminationsByOwnerId,
-  getExaminationsByStatus,
-  useGetExaminationsByStatus,
 } from "./get-examination";
 export {
   createExamination,

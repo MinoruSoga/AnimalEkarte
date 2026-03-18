@@ -28,38 +28,3 @@ export const useGetReservation = (id: string) => {
   });
 };
 
-// Fetch reservations by pet ID
-export const getReservationsByPetId = async (
-  petId: string
-): Promise<ReservationAppointment[]> => {
-  const { data } = await axios.get<ReservationListResponse>("/v1/reservations", {
-    params: { pet_id: petId },
-  });
-  return data.data.map(transformReservation);
-};
-
-export const useGetReservationsByPetId = (petId: string) => {
-  return useQuery({
-    queryKey: ["reservations", "pet", petId],
-    queryFn: () => getReservationsByPetId(petId),
-    enabled: !!petId,
-  });
-};
-
-// Fetch reservations by owner ID
-export const getReservationsByOwnerId = async (
-  ownerId: string
-): Promise<ReservationAppointment[]> => {
-  const { data } = await axios.get<ReservationListResponse>("/v1/reservations", {
-    params: { owner_id: ownerId },
-  });
-  return data.data.map(transformReservation);
-};
-
-export const useGetReservationsByOwnerId = (ownerId: string) => {
-  return useQuery({
-    queryKey: ["reservations", "owner", ownerId],
-    queryFn: () => getReservationsByOwnerId(ownerId),
-    enabled: !!ownerId,
-  });
-};

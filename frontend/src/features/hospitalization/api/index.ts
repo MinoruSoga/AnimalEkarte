@@ -7,12 +7,6 @@ export {
   useGetHospitalization,
   getHospitalizationRaw,
   useGetHospitalizationRaw,
-  getHospitalizationsByPetId,
-  useGetHospitalizationsByPetId,
-  getHospitalizationsByOwnerId,
-  useGetHospitalizationsByOwnerId,
-  getHospitalizationsByStatus,
-  useGetHospitalizationsByStatus,
 } from "./get-hospitalization";
 export {
   createHospitalization,

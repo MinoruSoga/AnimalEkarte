@@ -35,38 +35,3 @@ export const useGetTrimmingsByPetId = (petId: string) => {
   });
 };
 
-// Fetch trimmings by owner ID
-export const getTrimmingsByOwnerId = async (
-  ownerId: string
-): Promise<TrimmingRecord[]> => {
-  const { data } = await axios.get<TrimmingListResponse>("/v1/trimmings", {
-    params: { owner_id: ownerId },
-  });
-  return data.data.map(transformTrimming);
-};
-
-export const useGetTrimmingsByOwnerId = (ownerId: string) => {
-  return useQuery({
-    queryKey: ["trimmings", "owner", ownerId],
-    queryFn: () => getTrimmingsByOwnerId(ownerId),
-    enabled: !!ownerId,
-  });
-};
-
-// Fetch trimmings by status
-export const getTrimmingsByStatus = async (
-  status: string
-): Promise<TrimmingRecord[]> => {
-  const { data } = await axios.get<TrimmingListResponse>(
-    `/v1/trimmings/status/${status}`
-  );
-  return data.data.map(transformTrimming);
-};
-
-export const useGetTrimmingsByStatus = (status: string) => {
-  return useQuery({
-    queryKey: ["trimmings", "status", status],
-    queryFn: () => getTrimmingsByStatus(status),
-    enabled: !!status,
-  });
-};

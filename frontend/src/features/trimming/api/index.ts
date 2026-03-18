@@ -7,10 +7,6 @@ export {
   useGetTrimming,
   getTrimmingsByPetId,
   useGetTrimmingsByPetId,
-  getTrimmingsByOwnerId,
-  useGetTrimmingsByOwnerId,
-  getTrimmingsByStatus,
-  useGetTrimmingsByStatus,
 } from "./get-trimming";
 export {
   createTrimming,

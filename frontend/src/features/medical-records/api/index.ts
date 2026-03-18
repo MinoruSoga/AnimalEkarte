@@ -5,10 +5,6 @@ export {
 export {
   getMedicalRecord,
   useGetMedicalRecord,
-  getMedicalRecordsByPetId,
-  useGetMedicalRecordsByPetId,
-  getMedicalRecordsByOwnerId,
-  useGetMedicalRecordsByOwnerId,
 } from "./get-medical-record";
 export {
   createMedicalRecord,
