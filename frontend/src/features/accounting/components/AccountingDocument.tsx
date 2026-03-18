@@ -17,6 +17,7 @@ interface ClinicInfo {
   address?: string;
   phoneNumber?: string;
   registrationNumber?: string;
+  invoiceRegistrationNumber?: string;
 }
 
 interface AccountingDocumentProps {
@@ -96,7 +97,7 @@ export function AccountingDocument({ type, accounting, paymentInfo, clinic }: Ac
           <p className="font-bold text-sm text-black mb-1">{clinic?.name}</p>
           <p>〒{clinic?.postalCode} {clinic?.address}</p>
           <p>TEL: {clinic?.phoneNumber}</p>
-          {clinic?.registrationNumber ? <p>登録番号: {clinic.registrationNumber}</p> : null}
+          {clinic?.invoiceRegistrationNumber ? <p>登録番号: {clinic.invoiceRegistrationNumber}</p> : null}
         </div>
       </div>
     );
@@ -115,6 +116,7 @@ export function AccountingDocument({ type, accounting, paymentInfo, clinic }: Ac
           <p className="font-bold text-base text-black mb-1">{clinic?.name}</p>
           <p>〒{clinic?.postalCode} {clinic?.address}</p>
           <p>TEL: {clinic?.phoneNumber}</p>
+          {clinic?.invoiceRegistrationNumber ? <p>登録番号: {clinic.invoiceRegistrationNumber}</p> : null}
         </div>
       </div>
 

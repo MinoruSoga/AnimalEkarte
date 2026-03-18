@@ -429,7 +429,11 @@ const PaymentCard = memo(function PaymentCard({
 
 // ── メインコンポーネント ──────────────────────────────────
 
-export function AccountingDetail() {
+interface AccountingDetailProps {
+  invoiceRegistrationNumber?: string;
+}
+
+export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetailProps) {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -501,7 +505,14 @@ export function AccountingDetail() {
 
   // clinic 情報（AccountingDocument に props 注入）
   const { user } = useAuth();
-  const clinic = user?.clinic ?? null;
+  const clinicForDocument = useMemo(() => {
+    const baseClinic = user?.clinic ?? null;
+    if (!baseClinic) return null;
+    return {
+      ...baseClinic,
+      invoiceRegistrationNumber,
+    };
+  }, [user?.clinic, invoiceRegistrationNumber]);
 
   // 金額計算
   const calculation = useMemo(() => {
@@ -693,7 +704,7 @@ export function AccountingDetail() {
                     type={previewType}
                     accounting={accounting}
                     paymentInfo={accounting.payment}
-                    clinic={clinic}
+                    clinic={clinicForDocument}
                   />
                 ) : null}
               </div>
@@ -725,7 +736,7 @@ export function AccountingDetail() {
               type={previewType}
               accounting={accounting}
               paymentInfo={accounting.payment}
-              clinic={clinic}
+              clinic={clinicForDocument}
             />
           </div>
         </div>

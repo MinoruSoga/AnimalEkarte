@@ -296,19 +296,19 @@ export const router = createBrowserRouter([
           {
             path: "new",
             lazy: async () => {
-              const { AccountingDetail } = await import(
-                "@/features/accounting/routes/AccountingDetail"
+              const { AccountingDetailPage } = await import(
+                "@/app/pages/AccountingDetailPage"
               );
-              return { Component: AccountingDetail };
+              return { Component: AccountingDetailPage };
             },
           },
           {
             path: ":id",
             lazy: async () => {
-              const { AccountingDetail } = await import(
-                "@/features/accounting/routes/AccountingDetail"
+              const { AccountingDetailPage } = await import(
+                "@/app/pages/AccountingDetailPage"
               );
-              return { Component: AccountingDetail };
+              return { Component: AccountingDetailPage };
             },
           },
         ],

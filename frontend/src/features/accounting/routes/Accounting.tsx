@@ -3,10 +3,11 @@ import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { useNavigate, useLoaderData } from "react-router";
 
 // External
-import { Plus, CreditCard, CircleDot } from "lucide-react";
+import { Plus, CreditCard, CircleDot, FileText } from "lucide-react";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
@@ -240,6 +241,7 @@ export function Accounting() {
       ),
       className: "w-[100px]",
     },
+    { header: "カルテ", className: "w-[80px]", align: "center" as const },
     { header: "操作", className: "w-[100px]", align: "right" as const },
   ], [directionFor, toggleSort]);
 
@@ -266,13 +268,29 @@ export function Accounting() {
               {statusLabel}
             </StatusBadge>
           </TableCell>
+          <TableCell className="text-center py-2">
+            {r.medicalRecordId ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(paths.medicalRecords.detail.getHref(r.medicalRecordId!));
+                }}
+                aria-label="カルテを開く"
+              >
+                <FileText className="h-4 w-4" />
+              </Button>
+            ) : null}
+          </TableCell>
           <TableCell className="text-right py-2">
             <RowActionButton onClick={() => handleEdit(r.id)} />
           </TableCell>
         </DataTableRow>
       );
     },
-    [handleEdit],
+    [handleEdit, navigate],
   );
 
   return (
