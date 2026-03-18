@@ -46,11 +46,11 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const [{ OwnersList }, { ownersLoader }] = await Promise.all([
-                import("@/features/owners/routes/OwnersList"),
+              const [{ OwnersListPage }, { ownersLoader }] = await Promise.all([
+                import("@/app/pages/OwnersListPage"),
                 import("@/features/owners/loaders"),
               ]);
-              return { Component: OwnersList, loader: ownersLoader };
+              return { Component: OwnersListPage, loader: ownersLoader };
             },
           },
           {

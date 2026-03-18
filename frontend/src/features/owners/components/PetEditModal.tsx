@@ -194,14 +194,18 @@ export function PetEditModal({
               <Label htmlFor="petNumber" className={LABEL_CLS}>
                 ペットNo
               </Label>
-              <Input
-                id="petNumber"
-                value={formData.petNumber}
-                onChange={(e) =>
-                  setFormData(prev => ({ ...prev, petNumber: e.target.value }))
-                }
-                className={INPUT_CLS}
-              />
+              {petData ? (
+                <Input
+                  id="petNumber"
+                  value={formData.petNumber}
+                  disabled
+                  className={`${INPUT_CLS} disabled:opacity-50`}
+                />
+              ) : (
+                <p className={`flex h-9 items-center px-3 text-sm ${C.text40} italic`}>
+                  登録時に自動採番されます
+                </p>
+              )}
             </div>
 
             <div className="space-y-1">

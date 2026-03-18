@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback, useTransition, useDeferredValue } from "react";
+import { useState, useMemo, useCallback, useTransition, useDeferredValue, lazy, Suspense } from "react";
 import { useNavigate, useLoaderData, useRevalidator } from "react-router";
 
 // External
@@ -24,11 +24,21 @@ import { formatWeight } from "@/utils/format/number";
 import { usePagination } from "@/hooks/use-pagination";
 import { STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
+import { transformUpdatePetRequest } from "@/lib/transforms/pet";
+import { handleApiError } from "@/lib/handle-api-error";
 // bundle-barrel-imports: バレルindex経由ではなく直接ファイルからimport
 import { deleteOwner } from "../api/delete-owner";
 
+// bundle-dynamic-imports: PetEditModal を遅延ロード
+const PetEditModal = lazy(() =>
+  import("../components/PetEditModal").then((m) => ({ default: m.PetEditModal }))
+);
+
 // Types
+import type { Pet } from "@/types";
 import type { OwnersLoaderData } from "../loaders";
+import type { PetFormData } from "../types";
+import type { UpdatePetRequest } from "@/types/pet";
 import type {
   FilterProperty,
   ActiveFilter,
@@ -76,7 +86,38 @@ const OWNER_FILTER_PROPERTIES: FilterProperty[] = [
   },
 ];
 
-export function OwnersList() {
+/** Pet 型 → PetEditModal 用の PetFormData に変換 */
+function petToFormData(pet: Pet): PetFormData {
+  return {
+    id: pet.id,
+    petNumber: pet.petNumber || "",
+    petName: pet.name,
+    petNameKana: pet.petNameKana || "",
+    status: pet.status || "生存",
+    species: pet.species,
+    animalSpeciesId: pet.animalSpeciesId,
+    gender: pet.gender || "",
+    birthDate: pet.birthDate || "",
+    color: pet.color || "",
+    weight: pet.weight || "",
+    food: pet.food || "",
+    environment: pet.environment || "",
+    neuteredDate: pet.neuteredDate || "",
+    acquisitionType: (pet.acquisitionType as PetFormData["acquisitionType"]) || undefined,
+    dangerLevel: (pet.dangerLevel as PetFormData["dangerLevel"]) || undefined,
+    remarks: pet.remarks || "",
+    breed: pet.breed,
+    insuranceId: pet.insuranceId,
+    insuranceName: pet.insuranceName,
+    insuranceDetails: pet.insuranceDetails,
+  };
+}
+
+interface OwnersListProps {
+  onUpdatePet?: (id: string, req: UpdatePetRequest) => Promise<Pet>;
+}
+
+export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const navigate = useNavigate();
   const revalidator = useRevalidator();
   const { pets } = useLoaderData<OwnersLoaderData>();
@@ -91,6 +132,8 @@ export function OwnersList() {
     name: string;
   } | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
+  const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
+  const [_isPetSaving, startPetSaveTransition] = useTransition();
 
   const filteredPets = useMemo(() => {
     let result = pets;
@@ -216,6 +259,44 @@ export function OwnersList() {
     navigate(`/owners/${ownerId}`);
   }, [navigate]);
 
+  // 行クリック → ペット編集モーダルを開く
+  const handleRowClick = useCallback((pet: Pet) => {
+    setSelectedPet(pet);
+  }, []);
+
+  // PetEditModal の保存ハンドラ
+  const handlePetSave = useCallback((formData: PetFormData) => {
+    if (!selectedPet || !onUpdatePet) return;
+    startPetSaveTransition(async () => {
+      try {
+        const req = transformUpdatePetRequest({
+          name: formData.petName,
+          petNameKana: formData.petNameKana,
+          animalSpeciesId: formData.animalSpeciesId,
+          gender: formData.gender,
+          birthDate: formData.birthDate,
+          breed: formData.breed,
+          color: formData.color,
+          weight: formData.weight,
+          food: formData.food,
+          environment: formData.environment,
+          neuteredDate: formData.neuteredDate,
+          acquisitionType: formData.acquisitionType,
+          dangerLevel: formData.dangerLevel,
+          status: formData.status === "死亡" ? "deceased" : "alive",
+          insuranceId: formData.insuranceId,
+          remarks: formData.remarks,
+        });
+        await onUpdatePet(selectedPet.id, req);
+        toast.success("ペット情報を更新しました");
+        setSelectedPet(null);
+        revalidator.revalidate();
+      } catch (error: unknown) {
+        handleApiError(error, "更新");
+      }
+    });
+  }, [selectedPet, onUpdatePet, revalidator]);
+
   const handleDeleteRequest = useCallback((ownerId: string, ownerName: string) => {
     setPendingDeleteOwner({ id: ownerId, name: ownerName });
   }, []);
@@ -242,7 +323,7 @@ export function OwnersList() {
   const renderRow = useCallback((pet: (typeof filteredPets)[number]) => (
     <DataTableRow
       key={pet.id}
-      onClick={() => handleEdit(pet.ownerId)}
+      onClick={() => handleRowClick(pet)}
     >
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
         {pet.ownerNumber ?? "-"}
@@ -297,7 +378,7 @@ export function OwnersList() {
         />
       </TableCell>
     </DataTableRow>
-  ), [handleEdit, handleDeleteRequest]);
+  ), [handleRowClick, handleEdit, handleDeleteRequest]);
 
   const columns = useMemo(() => [
     {
@@ -431,6 +512,21 @@ export function OwnersList() {
         cancelLabel="キャンセル"
         variant="destructive"
       />
+
+      {/* ペット編集モーダル */}
+      {selectedPet ? (
+        <Suspense fallback={null}>
+          <PetEditModal
+            open={!!selectedPet}
+            onOpenChange={(open) => {
+              if (!open) setSelectedPet(null);
+            }}
+            ownerName={selectedPet.ownerName}
+            petData={petToFormData(selectedPet)}
+            onSave={handlePetSave}
+          />
+        </Suspense>
+      ) : null}
     </PageLayout>
   );
 }

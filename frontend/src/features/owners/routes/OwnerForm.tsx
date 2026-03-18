@@ -236,14 +236,19 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
       {/* Row 1 */}
       <div className="space-y-1.5">
         <Label htmlFor="ownerId" className={`text-sm ${C.text60}`}>飼主No</Label>
-        <Input
-          id="ownerId"
-          type="text"
-          value={ownerData.ownerId}
-          onChange={(e) => onChange("ownerId", e.target.value)}
-          disabled={isEdit}
-          className={`${INPUT_CLS} disabled:opacity-50`}
-        />
+        {isEdit ? (
+          <Input
+            id="ownerId"
+            type="text"
+            value={ownerData.ownerId}
+            disabled
+            className={`${INPUT_CLS} disabled:opacity-50`}
+          />
+        ) : (
+          <p className={`flex h-9 items-center px-3 text-sm ${C.text40} italic`}>
+            登録時に自動採番されます
+          </p>
+        )}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="postalCode" className={`text-sm ${C.text60}`}>郵便番号</Label>
