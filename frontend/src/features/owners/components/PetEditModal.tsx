@@ -151,7 +151,7 @@ export function PetEditModal({
   const handleSave = () => {
     const errors: Record<string, string> = {};
     if (!formData.petName.trim()) errors.petName = "ペット名を入力してください";
-    if (!formData.animalSpeciesId) errors.animalSpeciesId = "動物種を選択してください";
+    if (!formData.animalSpeciesId) errors.animalSpeciesId = "CFBEを選択してください";
     if (!formData.gender) errors.gender = "性別を選択してください";
 
     if (Object.keys(errors).length > 0) {
@@ -239,7 +239,7 @@ export function PetEditModal({
 
             <div className="space-y-1">
               <Label htmlFor="animalSpeciesId" className={LABEL_CLS}>
-                動物種 <span className={C.textRequired}>*</span>
+                CFBE <span className={C.textRequired}>*</span>
               </Label>
               <Select
                 value={formData.animalSpeciesId || ""}
@@ -298,7 +298,7 @@ export function PetEditModal({
           <div className="space-y-2">
             <div className="space-y-1">
               <Label htmlFor="breed" className={LABEL_CLS}>
-                品種
+                BREED
               </Label>
               <Input
                 id="breed"
