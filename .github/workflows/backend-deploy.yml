@@ -19,6 +19,9 @@ env:
   ECS_CLUSTER: animalekarte-test-cluster
   ECS_SERVICE: animalekarte-test-service
   ECS_TASK_DEFINITION_FAMILY: animalekarte-test-api
+  ECS_MIGRATE_TASK_FAMILY: animalekarte-test-migrate
+  ECS_SUBNETS: subnet-02442ec427303161f,subnet-0e2c5fa539a4048ca
+  ECS_SECURITY_GROUPS: sg-0934ac397301ec633
 
 jobs:
   deploy:
@@ -69,6 +72,125 @@ jobs:
           container-name: api
           image: ${{ steps.build-image.outputs.image }}
 
+      # -------------------------------------------------------
+      # Run database migration before deploying new API version
+      # -------------------------------------------------------
+      - name: Download migrate task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.ECS_MIGRATE_TASK_FAMILY }} \
+            --query taskDefinition \
+            --region ${{ env.AWS_REGION }} > migrate-task-definition-raw.json
+
+          # register-task-definition は read-only フィールドを拒否するため除去
+          jq 'del(.taskDefinitionArn, .revision, .status, .registeredAt, .registeredBy, .compatibilities, .requiresAttributes)' \
+            migrate-task-definition-raw.json > migrate-task-definition.json
+
+      - name: Update migrate task definition with new image
+        id: migrate-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: migrate-task-definition.json
+          container-name: migrate
+          image: ${{ steps.build-image.outputs.image }}
+
+      - name: Register migrate task definition
+        id: register-migrate-task
+        run: |
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://${{ steps.migrate-task-def.outputs.task-definition }} \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text \
+            --region ${{ env.AWS_REGION }})
+
+          if [ -z "$TASK_DEF_ARN" ] || [ "$TASK_DEF_ARN" = "None" ]; then
+            echo "::error::Failed to register migrate task definition"
+            exit 1
+          fi
+
+          echo "task_definition_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+          echo "Registered: $TASK_DEF_ARN"
+
+      - name: Run database migration
+        id: run-migration
+        run: |
+          TASK_ARN=$(aws ecs run-task \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --task-definition ${{ steps.register-migrate-task.outputs.task_definition_arn }} \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ env.ECS_SUBNETS }}],securityGroups=[${{ env.ECS_SECURITY_GROUPS }}],assignPublicIp=DISABLED}" \
+            --query 'tasks[0].taskArn' \
+            --output text \
+            --region ${{ env.AWS_REGION }})
+
+          if [ -z "$TASK_ARN" ] || [ "$TASK_ARN" = "None" ]; then
+            echo "::error::Failed to start migration task"
+            exit 1
+          fi
+
+          echo "task_arn=$TASK_ARN" >> $GITHUB_OUTPUT
+          echo "Migration task started: $TASK_ARN"
+
+      - name: Wait for migration to complete
+        timeout-minutes: 15
+        run: |
+          echo "Waiting for migration task to finish..."
+
+          CLUSTER="${{ env.ECS_CLUSTER }}"
+          TASK_ARN="${{ steps.run-migration.outputs.task_arn }}"
+          REGION="${{ env.AWS_REGION }}"
+          TASK_ID=$(echo "$TASK_ARN" | awk -F'/' '{print $NF}')
+
+          # 10秒間隔 × 最大60回 = 最大10分ポーリング（step timeout は15分で余裕を持たせる）
+          for i in $(seq 1 60); do
+            STATUS=$(aws ecs describe-tasks \
+              --cluster "$CLUSTER" \
+              --tasks "$TASK_ARN" \
+              --query 'tasks[0].lastStatus' \
+              --output text \
+              --region "$REGION")
+
+            echo "[$i/60] Task status: $STATUS"
+
+            if [ "$STATUS" = "STOPPED" ]; then
+              break
+            fi
+
+            sleep 10
+          done
+
+          if [ "$STATUS" != "STOPPED" ]; then
+            echo "::error::Migration timed out (status: $STATUS)"
+            exit 1
+          fi
+
+          # Check exit code（null/空の場合もエラーとして扱う）
+          EXIT_CODE=$(aws ecs describe-tasks \
+            --cluster "$CLUSTER" \
+            --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[0].exitCode' \
+            --output text \
+            --region "$REGION")
+
+          if [ -z "$EXIT_CODE" ] || [ "$EXIT_CODE" = "None" ] || [ "$EXIT_CODE" != "0" ]; then
+            echo "::error::Migration failed (exit code: $EXIT_CODE)"
+
+            # ECS awslogs stream format: {prefix}/{container-name}/{task-id}
+            echo "--- Migration logs ---"
+            aws logs get-log-events \
+              --log-group-name /ecs/animalekarte-test \
+              --log-stream-name "migrate/migrate/$TASK_ID" \
+              --region "$REGION" \
+              --query 'events[*].message' \
+              --output text 2>/dev/null || echo "Could not fetch logs"
+            exit 1
+          fi
+
+          echo "Migration completed successfully (exit code: $EXIT_CODE)"
+
+      # -------------------------------------------------------
+      # Deploy new API version
+      # -------------------------------------------------------
       - name: Deploy to Amazon ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
