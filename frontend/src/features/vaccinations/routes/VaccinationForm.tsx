@@ -301,9 +301,9 @@ const HistorySection = memo(function HistorySection({
         {/* Header */}
         <div className={`flex items-center border-b ${C.borderMedium} text-sm font-bold ${C.text} h-10 shrink-0 ${C.bgPage}`}>
           <div className="flex-1 px-3 text-center">予防接種名</div>
-          <div className="w-[100px] px-2 text-center border-l ${C.borderMedium}">実施日</div>
-          <div className="w-[100px] px-2 text-center border-l ${C.borderMedium}">次予定</div>
-          <div className="w-[80px] px-2 text-center border-l ${C.borderMedium}">操作</div>
+          <div className={`w-[100px] px-2 text-center border-l ${C.borderMedium}`}>実施日</div>
+          <div className={`w-[100px] px-2 text-center border-l ${C.borderMedium}`}>次予定</div>
+          <div className={`w-[80px] px-2 text-center border-l ${C.borderMedium}`}>操作</div>
         </div>
 
         {/* Scrollable Rows */}
@@ -312,9 +312,9 @@ const HistorySection = memo(function HistorySection({
             MOCK_HISTORY_ITEMS.map((item) => (
               <div key={item.id} className={`flex items-center border-b ${C.borderMedium} bg-white text-sm ${C.text} h-10 ${C.hoverBgPage}`}>
                 <div className="flex-1 px-3 truncate">{item.name}</div>
-                <div className="w-[100px] px-2 text-center border-l ${C.borderMedium} font-mono">{item.date}</div>
-                <div className="w-[100px] px-2 text-center border-l ${C.borderMedium} font-mono">{item.next}</div>
-                <div className="w-[80px] px-2 flex justify-center border-l ${C.borderMedium}">
+                <div className={`w-[100px] px-2 text-center border-l ${C.borderMedium} font-mono`}>{item.date}</div>
+                <div className={`w-[100px] px-2 text-center border-l ${C.borderMedium} font-mono`}>{item.next}</div>
+                <div className={`w-[80px] px-2 flex justify-center border-l ${C.borderMedium}`}>
                   <Button
                     variant="outline"
                     size="sm"
