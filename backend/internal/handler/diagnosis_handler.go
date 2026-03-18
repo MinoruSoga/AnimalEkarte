@@ -45,12 +45,12 @@ func (h *Handler) ListDiagnosisCategories(c *gin.Context) {
 		return
 	}
 
-	categories, total, err := h.svc.DiagnosisCategory.List(c.Request.Context(), clinicID, page, limit)
+	categories, _, err := h.svc.DiagnosisCategory.List(c.Request.Context(), clinicID, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, newPaginatedResponse(toDiagnosisCategoryResponseList(categories), total, page, limit))
+	c.JSON(http.StatusOK, toDiagnosisCategoryResponseList(categories))
 }
 
 // CreateDiagnosisCategory godoc
@@ -187,19 +187,19 @@ func (h *Handler) ListDiagnosisNames(c *gin.Context) {
 			RespondError(c, apperrors.WrapInvalidInput("invalid category_id"))
 			return
 		}
-		names, total, svcErr := h.svc.DiagnosisName.ListByCategoryID(c.Request.Context(), clinicID, catID, page, limit)
+		names, _, svcErr := h.svc.DiagnosisName.ListByCategoryID(c.Request.Context(), clinicID, catID, page, limit)
 		if svcErr != nil {
 			RespondError(c, svcErr)
 			return
 		}
-		resp = newPaginatedResponse(toDiagnosisNameResponseList(names), total, page, limit)
+		resp = toDiagnosisNameResponseList(names)
 	} else {
-		names, total, svcErr := h.svc.DiagnosisName.List(c.Request.Context(), clinicID, page, limit)
+		names, _, svcErr := h.svc.DiagnosisName.List(c.Request.Context(), clinicID, page, limit)
 		if svcErr != nil {
 			RespondError(c, svcErr)
 			return
 		}
-		resp = newPaginatedResponse(toDiagnosisNameResponseList(names), total, page, limit)
+		resp = toDiagnosisNameResponseList(names)
 	}
 
 	c.JSON(http.StatusOK, resp)
