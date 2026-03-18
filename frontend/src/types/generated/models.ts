@@ -59,7 +59,7 @@ export interface BillingItem {
   category: ItemCategory;
   name: string;
   unit_price: number /* float64 */;
-  quantity: number /* int */;
+  quantity: number /* float64 */;
   tax_rate: number /* float64 */;
   is_insurance_applicable: boolean;
   source: ItemSource;
@@ -441,7 +441,7 @@ export interface EstimateItem {
   name: string;
   category: ItemCategory;
   unit_price: number /* float64 */;
-  quantity: number /* int */;
+  quantity: number /* float64 */;
   tax_rate: number /* float64 */;
   discount_rate: number /* float64 */;
   discount_amount: number /* float64 */;
@@ -623,7 +623,7 @@ export interface TreatmentPlan {
   memo: string;
   insurance: boolean;
   unit_price: number /* float64 */;
-  quantity: number /* int */;
+  quantity: number /* float64 */;
   discount_rate: number /* float64 */;
   discount_amount: number /* float64 */;
   subtotal: number /* float64 */;
@@ -916,7 +916,7 @@ export interface Medicine {
   dosage_form?: DosageForm;
   medicine_unit?: MedicineUnit;
   inventory_id?: number /* uint64 */;
-  default_quantity: number /* int */;
+  default_quantity: number /* float64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -1210,7 +1210,7 @@ export interface Treatment {
   medicine_id?: number /* uint64 */;
   inventory_id?: number /* uint64 */;
   unit_price: number /* float64 */;
-  quantity: number /* int */;
+  quantity: number /* float64 */;
   selected: boolean;
   status: TreatmentStatus;
   content: string;

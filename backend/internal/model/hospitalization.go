@@ -112,7 +112,7 @@ type TreatmentPlan struct {
 	Memo              string         `gorm:"default:''"                                     json:"memo"`
 	Insurance         bool           `gorm:"default:false"                                  json:"insurance"`
 	UnitPrice         float64        `gorm:"type:numeric(10,2);default:0"                   json:"unit_price"`
-	Quantity          int            `gorm:"default:1"                                      json:"quantity"`
+	Quantity          float64        `gorm:"type:numeric(10,1);default:1"                   json:"quantity"`
 	DiscountRate      float64        `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
 	DiscountAmount    float64        `gorm:"type:numeric(10,2);default:0"                   json:"discount_amount"`
 	Subtotal          float64        `gorm:"type:numeric(10,2);default:0"                   json:"subtotal"`

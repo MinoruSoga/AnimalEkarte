@@ -54,7 +54,7 @@ type EstimateItem struct {
 	Name                  string       `gorm:"not null;default:''"                            json:"name"`
 	Category              ItemCategory `gorm:"type:item_category;not null"                    json:"category"`
 	UnitPrice             float64      `gorm:"type:numeric(10,2);default:0"                   json:"unit_price"`
-	Quantity              int          `gorm:"default:1"                                      json:"quantity"`
+	Quantity              float64      `gorm:"type:numeric(10,1);default:1"                   json:"quantity"`
 	TaxRate               float64      `gorm:"type:numeric(3,2);default:0.10"                 json:"tax_rate"`
 	DiscountRate          float64      `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
 	DiscountAmount        float64      `gorm:"type:numeric(10,2);default:0"                   json:"discount_amount"`

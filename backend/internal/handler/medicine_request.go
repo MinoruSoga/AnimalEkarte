@@ -10,7 +10,7 @@ type createMedicineRequest struct {
 	DosageForm      *string  `json:"dosage_form"`
 	MedicineUnit    *string  `json:"medicine_unit"`
 	InventoryID     *uint64  `json:"inventory_id"`
-	DefaultQuantity int      `json:"default_quantity"`
+	DefaultQuantity float64  `json:"default_quantity"`
 	SortOrder       int      `json:"sort_order"`
 }
 
@@ -33,6 +33,6 @@ type updateMedicineRequest struct {
 	DosageForm      *string  `json:"dosage_form"`
 	MedicineUnit    *string  `json:"medicine_unit"`
 	InventoryID     **uint64 `json:"inventory_id"`
-	DefaultQuantity *int     `json:"default_quantity"`
+	DefaultQuantity *float64 `json:"default_quantity"`
 	SortOrder       *int     `json:"sort_order"`
 }

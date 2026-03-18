@@ -15,7 +15,7 @@ type treatmentPlanResponse struct {
 	Memo              string    `json:"memo"`
 	Insurance         bool      `json:"insurance"`
 	UnitPrice         float64   `json:"unit_price"`
-	Quantity          int       `json:"quantity"`
+	Quantity          float64   `json:"quantity"`
 	DiscountRate      float64   `json:"discount_rate"`
 	DiscountAmount    float64   `json:"discount_amount"`
 	Subtotal          float64   `json:"subtotal"`

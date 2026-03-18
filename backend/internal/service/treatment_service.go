@@ -20,7 +20,7 @@ type CreateTreatmentInput struct {
 	MedicineID     *uint64
 	InventoryID    *uint64
 	UnitPrice      float64
-	Quantity       int
+	Quantity       float64
 	Selected       bool
 	Status         string
 	Content        string
@@ -39,7 +39,7 @@ type UpdateTreatmentInput struct {
 	MedicineID     *uint64
 	InventoryID    *uint64
 	UnitPrice      *float64
-	Quantity       *int
+	Quantity       *float64
 	Selected       *bool
 	Status         *string
 	Content        *string

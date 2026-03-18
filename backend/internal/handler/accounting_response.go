@@ -12,7 +12,7 @@ type billingItemResponse struct {
 	Category              string    `json:"category"`
 	Name                  string    `json:"name"`
 	UnitPrice             float64   `json:"unit_price"`
-	Quantity              int       `json:"quantity"`
+	Quantity              float64   `json:"quantity"`
 	TaxRate               float64   `json:"tax_rate"`
 	IsInsuranceApplicable bool      `json:"is_insurance_applicable"`
 	Source                string    `json:"source"`

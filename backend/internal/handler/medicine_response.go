@@ -17,7 +17,7 @@ type medicineResponse struct {
 	DosageForm      *string   `json:"dosage_form,omitempty"`
 	MedicineUnit    *string   `json:"medicine_unit,omitempty"`
 	InventoryID     *uint64   `json:"inventory_id,omitempty"`
-	DefaultQuantity int       `json:"default_quantity"`
+	DefaultQuantity float64   `json:"default_quantity"`
 	SortOrder       int       `json:"sort_order"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`

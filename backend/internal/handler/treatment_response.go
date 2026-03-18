@@ -16,7 +16,7 @@ type treatmentResponse struct {
 	MedicineID      *string   `json:"medicine_id,omitempty"`
 	InventoryID     *string   `json:"inventory_id,omitempty"`
 	UnitPrice       float64   `json:"unit_price"`
-	Quantity        int       `json:"quantity"`
+	Quantity        float64   `json:"quantity"`
 	Selected        bool      `json:"selected"`
 	Status          string    `json:"status"`
 	Content         string    `json:"content"`

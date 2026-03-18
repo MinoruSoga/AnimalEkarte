@@ -35,7 +35,7 @@ type Treatment struct {
 	MedicineID      *uint64           `                                                      json:"medicine_id,omitempty"`
 	InventoryID     *uint64           `                                                      json:"inventory_id,omitempty"`
 	UnitPrice       float64           `gorm:"type:numeric(10,2);default:0"                   json:"unit_price"`
-	Quantity        int               `gorm:"default:1"                                      json:"quantity"`
+	Quantity        float64           `gorm:"type:numeric(10,1);default:1"                   json:"quantity"`
 	Selected        bool              `gorm:"default:false"                                  json:"selected"`
 	Status          TreatmentStatus   `gorm:"type:treatment_status;default:'pending'"          json:"status"`
 	Content         string            `gorm:"not null;default:''"                            json:"content"`

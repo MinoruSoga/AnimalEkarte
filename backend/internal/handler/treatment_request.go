@@ -7,7 +7,7 @@ type createTreatmentRequest struct {
 	MedicineID     *uint64 `json:"medicine_id"`
 	InventoryID    *uint64 `json:"inventory_id"`
 	UnitPrice      float64 `json:"unit_price"`
-	Quantity       int     `json:"quantity"`
+	Quantity       float64 `json:"quantity"`
 	Selected       bool    `json:"selected"`
 	Status         string  `json:"status"`
 	Content        string  `json:"content"`
@@ -25,7 +25,7 @@ type updateTreatmentRequest struct {
 	MedicineID     *uint64  `json:"medicine_id"`
 	InventoryID    *uint64  `json:"inventory_id"`
 	UnitPrice      *float64 `json:"unit_price"`
-	Quantity       *int     `json:"quantity"`
+	Quantity       *float64 `json:"quantity"`
 	Selected       *bool    `json:"selected"`
 	Status         *string  `json:"status"`
 	Content        *string  `json:"content"`

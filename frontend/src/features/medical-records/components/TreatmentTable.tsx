@@ -139,6 +139,8 @@ export const TreatmentTable = memo(function TreatmentTable({
               <Cell>
                 <TableInput
                   type="number"
+                  step="0.1"
+                  min="0.1"
                   value={item.quantity}
                   onChange={(val) => onUpdate(item.id, "quantity", Number(val))}
                   align="right"
@@ -258,6 +260,8 @@ function TableInput({
   onChange,
   placeholder,
   type = "text",
+  step,
+  min,
   align = "left",
   className,
 }: {
@@ -265,12 +269,16 @@ function TableInput({
   onChange: (val: string) => void;
   placeholder?: string;
   type?: string;
+  step?: string;
+  min?: string;
   align?: "left" | "right";
   className?: string;
 }) {
   return (
     <Input
       type={type}
+      step={step}
+      min={min}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={cn(

@@ -51,12 +51,12 @@ func (m *mockTreatmentRepository) BulkUpdateSortOrder(ctx context.Context, updat
 
 func TestTreatmentService_List(t *testing.T) {
 	tests := []struct {
-		name              string
-		medicalRecordID   uint64
-		repoTreatments    []model.Treatment
-		repoErr           error
-		wantLen           int
-		wantErr           bool
+		name            string
+		medicalRecordID uint64
+		repoTreatments  []model.Treatment
+		repoErr         error
+		wantLen         int
+		wantErr         bool
 	}{
 		{
 			name:            "returns treatments for medical record",
@@ -111,7 +111,7 @@ func TestTreatmentService_Create(t *testing.T) {
 	procedureID := uint64(1)
 	unitPrice := 10000.0
 	discountRate := 0.1
-	quantity := 1
+	quantity := 1.0
 
 	tests := []struct {
 		name            string
@@ -208,20 +208,20 @@ func TestTreatmentService_Create(t *testing.T) {
 
 func TestTreatmentService_Update(t *testing.T) {
 	newUnitPrice := 15000.0
-	newQuantity := 2
+	newQuantity := 2.0
 	newStatus := string(model.TreatmentStatusCompleted)
 	newMemo := "Updated treatment"
 
 	tests := []struct {
-		name              string
-		medicalRecordID   uint64
-		treatmentID       uint64
-		input             *UpdateTreatmentInput
-		repoTreatment     *model.Treatment
-		findByIDErr       error
-		updateErr         error
-		wantErr           bool
-		wantErrSubstring  string
+		name             string
+		medicalRecordID  uint64
+		treatmentID      uint64
+		input            *UpdateTreatmentInput
+		repoTreatment    *model.Treatment
+		findByIDErr      error
+		updateErr        error
+		wantErr          bool
+		wantErrSubstring string
 	}{
 		{
 			name:            "updates treatment successfully",

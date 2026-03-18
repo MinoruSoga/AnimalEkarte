@@ -114,7 +114,7 @@ export const TreatmentRow = memo(function TreatmentRow({
   }, [localUnitPrice, treatment.unit_price, treatment.id, onUpdate]);
 
   const commitQuantity = useCallback(() => {
-    const val = parseInt(localQuantity, 10) || 1;
+    const val = parseFloat(localQuantity) || 1;
     if (val !== treatment.quantity) {
       onUpdate(treatment.id, { quantity: val });
     }
@@ -250,6 +250,8 @@ export const TreatmentRow = memo(function TreatmentRow({
           <Input
             ref={inputRef}
             type="number"
+            step="0.1"
+            min="0.1"
             value={localQuantity}
             onChange={(e) => setLocalQuantity(e.target.value)}
             onBlur={commitQuantity}

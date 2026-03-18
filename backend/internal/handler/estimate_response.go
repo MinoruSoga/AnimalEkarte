@@ -12,7 +12,7 @@ type estimateItemResponse struct {
 	Name                  string    `json:"name"`
 	Category              string    `json:"category"`
 	UnitPrice             float64   `json:"unit_price"`
-	Quantity              int       `json:"quantity"`
+	Quantity              float64   `json:"quantity"`
 	TaxRate               float64   `json:"tax_rate"`
 	DiscountRate          float64   `json:"discount_rate"`
 	DiscountAmount        float64   `json:"discount_amount"`
@@ -22,26 +22,26 @@ type estimateItemResponse struct {
 }
 
 type estimateResponse struct {
-	ID              uint64                  `json:"id"`
-	ClinicID        uint64                  `json:"clinic_id"`
-	EstimateNo      string                  `json:"estimate_no"`
-	MedicalRecordID *uint64                 `json:"medical_record_id,omitempty"`
-	Title           string                  `json:"title"`
-	OwnerID         *uint64                 `json:"owner_id,omitempty"`
-	Owner           *ownerSummaryResponse   `json:"owner,omitempty"`
-	Status          string                  `json:"status"`
-	Subtotal        float64                 `json:"subtotal"`
-	TaxTotal        float64                 `json:"tax_total"`
-	TotalAmount     float64                 `json:"total_amount"`
-	InsuranceAmount float64                 `json:"insurance_amount"`
-	DiscountAmount  float64                 `json:"discount_amount"`
-	ValidUntil      *time.Time              `json:"valid_until,omitempty"`
-	Comment         string                  `json:"comment"`
-	Notes           string                  `json:"notes"`
-	CreatedBy       *uint64                 `json:"created_by,omitempty"`
-	Items           []estimateItemResponse  `json:"items,omitempty"`
-	CreatedAt       time.Time               `json:"created_at"`
-	UpdatedAt       time.Time               `json:"updated_at"`
+	ID              uint64                 `json:"id"`
+	ClinicID        uint64                 `json:"clinic_id"`
+	EstimateNo      string                 `json:"estimate_no"`
+	MedicalRecordID *uint64                `json:"medical_record_id,omitempty"`
+	Title           string                 `json:"title"`
+	OwnerID         *uint64                `json:"owner_id,omitempty"`
+	Owner           *ownerSummaryResponse  `json:"owner,omitempty"`
+	Status          string                 `json:"status"`
+	Subtotal        float64                `json:"subtotal"`
+	TaxTotal        float64                `json:"tax_total"`
+	TotalAmount     float64                `json:"total_amount"`
+	InsuranceAmount float64                `json:"insurance_amount"`
+	DiscountAmount  float64                `json:"discount_amount"`
+	ValidUntil      *time.Time             `json:"valid_until,omitempty"`
+	Comment         string                 `json:"comment"`
+	Notes           string                 `json:"notes"`
+	CreatedBy       *uint64                `json:"created_by,omitempty"`
+	Items           []estimateItemResponse `json:"items,omitempty"`
+	CreatedAt       time.Time              `json:"created_at"`
+	UpdatedAt       time.Time              `json:"updated_at"`
 }
 
 func toEstimateItemResponse(item *model.EstimateItem) estimateItemResponse {

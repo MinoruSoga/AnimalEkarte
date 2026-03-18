@@ -34,7 +34,7 @@ type Medicine struct {
 	DosageForm      *DosageForm   `gorm:"type:dosage_form"                               json:"dosage_form,omitempty"`
 	MedicineUnit    *MedicineUnit `gorm:"type:medicine_unit"                             json:"medicine_unit,omitempty"`
 	InventoryID     *uint64       `                                                      json:"inventory_id,omitempty"`
-	DefaultQuantity int           `gorm:"default:1"                                      json:"default_quantity"`
+	DefaultQuantity float64       `gorm:"type:numeric(10,1);default:1"                   json:"default_quantity"`
 	SortOrder       int           `gorm:"default:0"                                      json:"sort_order"`
 	CreatedAt       time.Time     `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time     `gorm:"autoUpdateTime"                                 json:"updated_at"`

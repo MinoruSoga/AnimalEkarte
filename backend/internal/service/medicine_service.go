@@ -38,22 +38,22 @@ type CreateMedicineInput struct {
 	DosageForm      *string // nil = 未指定, "tablet" 等 = 値セット
 	MedicineUnit    *string // nil = 未指定, "per_ml" 等 = 値セット
 	InventoryID     *uint64
-	DefaultQuantity int
+	DefaultQuantity float64
 	SortOrder       int
 }
 
 // UpdateMedicineInput は薬剤更新の入力DTO（nil = 未指定）
 type UpdateMedicineInput struct {
 	Name            *string
-	ParentID        *uint64  // nil = 未指定（ClearParentID=false 時）
-	ClearParentID   bool     // true = parent_id を NULL にクリア
+	ParentID        *uint64 // nil = 未指定（ClearParentID=false 時）
+	ClearParentID   bool    // true = parent_id を NULL にクリア
 	Price           *float64
 	IsActive        *bool
 	Description     *string
 	DosageForm      *string  // nil = 未指定, "" = NULL クリア, "tablet" = 値セット
 	MedicineUnit    *string  // nil = 未指定, "" = NULL クリア, "per_ml" = 値セット
 	InventoryID     **uint64 // nil = 未指定, &nil = NULL クリア, &&val = 値セット
-	DefaultQuantity *int
+	DefaultQuantity *float64
 	SortOrder       *int
 }
 
