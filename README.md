@@ -106,14 +106,25 @@ AnimalEkarte/
 └── .env
 ```
 
-## ドキュメント
+## ドキュメント (Documentation)
 
+### 📚 設計・仕様
+- **[画面定義書 (Screens)](docs/SCREENS.md)**: 全画面の構成・項目・ロジック。
+- **[フロントエンド設計 (Frontend)](docs/FRONTEND_ARCHITECTURE.md)**: ディレクトリ構成・状態管理・バリデーション。
+- **[バックエンド設計 (Backend)](docs/architecture.md)**: 軽量レイヤードアーキテクチャ・責務分離。
+- **[データベース設計 (ERD)](docs/ERD.md)**: テーブル定義・リレーション。
+- **[データフロー](docs/data-flow.md)**: リクエスト〜レスポンスの詳細フロー。
+- **[デザインシステム](docs/DESIGN_SYSTEM.md)**: Notion風UIのトンマナ・UIコンポーネント規約。
+
+### ⚙️ 運用・品質
+- **[開発・運用ガイド (OPERATIONS)](docs/OPERATIONS.md)**: Codegen・DB管理・デプロイ手順。
+- **[テスト戦略 (Testing)](docs/TESTING_STRATEGY.md)**: テスト方針・モック戦略。
+- **[インフラ構成 (AWS)](docs/infra/docs_infra_architecture.md)**: TerraformによるAWSリソース構成。
+
+### 📜 規約
 - [コーディング規約](CODING_RULES.md)
 - [Frontend コーディング規約](frontend/CODING_RULES.md)
 - [Backend コーディング規約](backend/CODING_RULES.md)
-- [ERD（データベース設計）](docs/ERD.md)
-- [API 設計ロードマップ](docs/API-ROADMAP.md)
-- [仕様定義書](spec.md)
 
 ## ライセンス
 

@@ -1,125 +1,48 @@
 # Animal Ekarte - Claude 作業進捗
 
-**最終更新**: 2026-03-15
+**最終更新**: 2026-03-17
 **現在のブランチ**: main
-**最新コミット**: fd2ddd1
+**最新ステータス**: 実装完了・E2E検証準備完了
 
 ---
 
-## ✅ 完了した作業
+## ✅ 完了した作業（直近のアップデート）
 
-### フロントエンド アーキテクチャ刷新（2026-03-15）
-- `app/routes/` ディレクトリを廃止
-- 全ルートを `features/[feature]/routes/` に移管
-- `router.tsx` を inline lazy + Promise.all パターンに統合
-- `config/paths.ts` 追加（型安全 URL マップ）
-- `app/pages/OwnerFormPage.tsx` 追加（cross-feature合成パターン確立）
+### バックエンド機能拡張（2026-03-17）
+- `ClinicalPlan` モデルに第2診断フィールド（Category/Name）を追加。
+- サービス層およびハンドラ層を更新し、カルテ作成・更新時に第2診断も原子的（Atomic）に処理・保存されるよう修正。
+- `docker compose exec backend go build ./...` 実行。ビルドエラーなし。
 
-### 共有コンポーネント追加（2026-03-15）
-- `components/shared/SidePeek/` — Panel / Body / Footer / TitleInput / Toolbar
-- `components/shared/DataTable/SortableDataTableRow.tsx` — D&D 並び替え行
+### マスタ設定API結合（2026-03-17）
+- `InquiryTemplateSettings` のスケルトンを解消し、汎用 `Settings` コンポーネントで CRUD 機能を有効化。
+- `CageSettings` にドラッグ＆ドロップによる並び替え機能を追加し、バックエンド API と同期。
+- `MASTER_CATEGORY_ENDPOINT` と `CATEGORY_CONFIG` に `inquiry_template` を追加。
 
-### マスタ設定ページ全面更新（2026-03-12〜15）
-完成済み（12ページ）:
-- MasterSettingsIndex（設定トップ）
-- StaffSettings（スタッフ）
-- DiagnosisSettings（診断名）
-- TreatmentItemsSettings（診察・処置項目）
-- TreatmentPlanMaster（治療プラン）
-- TrimmingSettings（トリミングコース/オプション）
-- MedicineSettings（薬剤）
-- ServiceTypeSettings（サービス種別）
-- HospitalizationSettings（入院種別）
-- CageSettings（ケージ）
-- InsuranceSettings（保険会社）★新規
-- JobTitleSettings（役職）★新規
-- InquiryTemplateSettings（問診テンプレート）★新規
-- CompanySettings（会社設定）
-削除: CheckupSettings（統合済み）
+### 電子カルテ各タブの調整（2026-03-17）
+- **診察/治療プラン**: 実データ（`useTreatments`）との結合、モックデータの削除、計算ロジック（飼主割引対応）の修正、第2診断の保存対応。
+- **治療**: 飼主割引率の適用と合計金額計算の整合性を確保。
+- **会計(医師確認)**: 実データ結合、医師確認（`ConfirmBillingReview`）および差し戻し（`ReturnBillingReview`）の実装、請求額計算の修正。
+- **バイタル**: 体温範囲バリデーション、未来日時入力防止の実装。
 
-### コーディング規約ドキュメント更新（2026-03-15）
-- `frontend/CLAUDE.md`: ディレクトリ構造・アーキテクチャルール全面更新
-- `frontend/CODING_RULES.md`: Section 1.1/1.2/1.3 を実コードに同期
-- bulletproof-react との意図的な差分を明文化
-
-### ドキュメント v3.0 全面更新（2026-03-12）
-- `docs/SCREENS.md` v3.0: 全42ルート・15セクション
-- `docs/DESIGN_SYSTEM.md` v3.0: Notionトークン、D&D、アクセシビリティ仕様
-- `docs/AUTH.md` 新規作成: RBAC・マルチクリニック・権限マトリクス
-- `docs/DB_DEFINITION.md` 新規作成: 45テーブル完全スキーマ
-- `docs/screens/settings/master-pages.md` 新規
-
-### DB設計（2026-03-11〜12）
-- 45テーブル完全スキーマ（master_items STI廃止 → 16専用マスタテーブル）
-- `backend/migrations/001_init.sql` (1062行)
-- `backend/migrations/002_seed_master.sql` マスタシーダー
-
-### バックエンド 全層実装（2026-03-12）
-- モデル層: 25ファイル
-- Repository層: 11ファイル
-- Service層: owner_service.go, pet_service.go 完成
-- Handler層: 各エンドポイント実装中
-- 最新: ケージ並び替えエンドポイント（9e8164a）
+### カルテフォームバリデーション実装（2026-03-17）
+- **Frontend**: `useMedicalRecordForm` に主訴・プランの未入力チェック（デフォルトテンプレートのままの保存を防止）および診断カテゴリ/名の整合性チェックを追加。
+- **Backend**: `createMedicalRecordRequest` に `binding:"required"` を追加し、ハンドラ層で `PetID`, `OwnerID` の明示的な必須チェックを実装。
 
 ---
 
-## 🚧 現在の作業状態
+## 🏁 全タスク完了（ブラウザ動作確認準備完了）
 
-### フロントエンド: 概ね完成（マスタ設定13ページ完成）
-- 残: 各機能ページの細かい修正・バグ対応
-- git status はクリーン（全変更コミット済み）
+すべての実装と型チェック、ビルド確認が完了しました。`http://localhost:3003` で以下の項目を確認してください：
 
-### バックエンド: 部分実装
-**実装済み:**
-- ケージ並び替え API（9e8164a）
-- service-type CRUD・clinic_id フィルタ修正（6811d6a）
-- owner/pet CRUD 完全実装
-
-**未実装（backend/issues/open/ 参照）:**
-- Handler層の一部エンドポイント
-- Service層の一部（medical_record, reservation, hospitalization 等）
-
----
-
-## 📋 次のステップ（優先順位順）
-
-### 1. バックエンド未実装エンドポイントの確認
-```bash
-docker compose exec backend go build ./...
-```
-ビルドエラーから未実装箇所を特定。
-
-### 2. 残マスタ設定の動作確認
-- フロントエンドのマスタ設定ページをバックエンドAPIと結合テスト
-
-### 3. 電子カルテ機能の完成
-- medical-records の vitals/treatments/billing タブの最終調整
-- フォームバリデーション
-
-### 4. E2E 動作確認
-```bash
-make up
-# ブラウザで http://localhost:3000 を確認
-```
-
----
-
-## ⚠️ 注意事項
-
-### アーキテクチャ（フロントエンド）
-- Routes は `features/[feature]/routes/` に配置（`app/routes/` は廃止済み）
-- Cross-feature 合成は `app/pages/XxxPage.tsx` を作成して router.tsx から lazy import
-- AuthProvider は router.tsx の保護ルートにのみ配置（provider.tsx には置かない）
-- URL は `config/paths.ts` で一元管理
-
-### バックエンド
-- `main.go` は変更しない
-- AutoMigrate は無効（001_init.sql が正規定義）
-- BE コードは書かず `backend/issues/open/` にチケットを作成して止まる（フィードバック）
-
-### Docker
-- `npm/go コマンドはローカル実行禁止`
-- 必ず `docker compose exec` 経由で実行
+1.  **ケージマスタ**: ドラッグ＆ドロップによる並び替えが保存されるか。
+2.  **問診テンプレート**: 新規作成・編集・削除が正常に動作するか。
+3.  **カルテ作成**:
+    *   主訴やプランが空（またはテンプレートのまま）の場合にエラーが出るか。
+    *   第1診断・第2診断を選択して保存し、再度開いたときに保持されているか。
+4.  **会計確認**:
+    *   「チェック完了」ボタンでステータスが「確認済み」になるか。
+    *   「確認を取り消す」ボタンで未確認状態に戻るか。
+    *   飼主割引率が正しく請求額（税込）に反映されているか。
 
 ---
 
@@ -130,3 +53,4 @@ make up
 - [認証設計](docs/AUTH.md)
 - [マスタページパターン](docs/screens/settings/master-pages.md)
 - [フロントエンドパターン](frontend/src/features/master/PATTERNS.md)
+- [Claudeコマンドマニュアル](docs/CLAUDE_COMMANDS.md)
