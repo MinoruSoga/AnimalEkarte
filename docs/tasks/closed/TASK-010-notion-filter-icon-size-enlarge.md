@@ -1,7 +1,7 @@
 # TASK-010: NotionFilter ツールバーアイコンが16pxに縮小される問題の修正
 
 **作成日**: 2026-03-18
-**ステータス**: Open
+**ステータス**: Closed
 **依頼元**: ユーザー（Chromeブラウザでの目視確認 + DevTools実測）
 
 ---
@@ -56,5 +56,5 @@ shadcn/ui の Button コンポーネントが子 SVG に対して以下のルー
 
 ## 関連イシュー
 
-- FE-038: [NotionFilter アイコン size-X 修正](../../frontend/issues/open/FE-038-notion-filter-icon-enlarge.md)
+- FE-038: [NotionFilter アイコン size-X 修正](../../frontend/issues/closed/FE-038-notion-filter-icon-enlarge.md)
 - FE-035（closed）: 前回のサイズ拡大対応（値は変更済みだが、Button の CSS に上書きされていた）
