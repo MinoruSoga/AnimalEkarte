@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState, useMemo, useCallback } from "react";
+import React, { lazy, memo, Suspense, useState, useMemo, useCallback } from "react";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 
 const TreatmentSearchDialog = lazy(() =>
@@ -34,7 +34,7 @@ export interface DiagnosisPlanProps {
   ownerDiscountRate?: number;
 }
 
-export function MedicalRecordDiagnosisPlan({
+export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPlan({
   isNewRecord = false,
   plan: planProp,
   setPlan: setPlanProp,
@@ -218,4 +218,4 @@ export function MedicalRecordDiagnosisPlan({
       </Suspense>
     </div>
   );
-}
+});

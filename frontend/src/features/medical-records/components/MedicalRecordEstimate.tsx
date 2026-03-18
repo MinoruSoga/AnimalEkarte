@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { memo, useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -6,7 +6,7 @@ import { EstimateForm } from "./EstimateForm";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 
-export function MedicalRecordEstimate({ isNewRecord = false, ownerDiscountRate = 0 }: { isNewRecord?: boolean; ownerDiscountRate?: number }) {
+export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({ isNewRecord = false, ownerDiscountRate = 0 }: { isNewRecord?: boolean; ownerDiscountRate?: number }) {
   const [subject, setSubject] = useState("");
   const [comment, setComment] = useState("");
   const [remarks, setRemarks] = useState("");
@@ -134,4 +134,4 @@ export function MedicalRecordEstimate({ isNewRecord = false, ownerDiscountRate =
       </div>
     </div>
   );
-}
+});

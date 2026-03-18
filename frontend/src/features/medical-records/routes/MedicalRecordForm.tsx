@@ -1,5 +1,5 @@
 // React/Framework
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 
 // External
@@ -31,7 +31,7 @@ import { useAuth } from "@/features/auth";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 
-export function MedicalRecordForm() {
+export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { id: recordId } = useParams();
   const navigate = useNavigate();
   const {
@@ -399,4 +399,4 @@ export function MedicalRecordForm() {
       />
     </PageLayout>
   );
-}
+});

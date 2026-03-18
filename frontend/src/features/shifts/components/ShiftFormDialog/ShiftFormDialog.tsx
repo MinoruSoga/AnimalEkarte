@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useTransition } from "react";
 import {
   Dialog,
   DialogContent,
@@ -79,9 +79,7 @@ export function ShiftFormDialog({
   const createShift = useCreateShift();
   const updateShift = useUpdateShift();
   const deleteShift = useDeleteShift();
-
-  const isPending =
-    createShift.isPending || updateShift.isPending || deleteShift.isPending;
+  const [isSavePending, startSaveTransition] = useTransition();
 
   const handleShiftTypeChange = useCallback((value: string) => {
     setForm((prev) => ({ ...prev, shiftType: value as ShiftType }));
@@ -96,37 +94,41 @@ export function ShiftFormDialog({
   );
 
   const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
+    (e: React.FormEvent) => {
       e.preventDefault();
-      if (isEdit && editShift) {
-        const input: UpdateShiftInput = {
-          shift_type: form.shiftType,
-          start_time: form.startTime || undefined,
-          end_time: form.endTime || undefined,
-          note: form.note || undefined,
-        };
-        await updateShift.mutateAsync({ id: editShift.id, input });
-      } else {
-        const input: CreateShiftInput = {
-          staff_id: staffId,
-          date,
-          shift_type: form.shiftType,
-          start_time: form.startTime || undefined,
-          end_time: form.endTime || undefined,
-          note: form.note || undefined,
-        };
-        await createShift.mutateAsync(input);
-      }
-      onClose();
+      startSaveTransition(async () => {
+        if (isEdit && editShift) {
+          const input: UpdateShiftInput = {
+            shift_type: form.shiftType,
+            start_time: form.startTime || undefined,
+            end_time: form.endTime || undefined,
+            note: form.note || undefined,
+          };
+          await updateShift.mutateAsync({ id: editShift.id, input });
+        } else {
+          const input: CreateShiftInput = {
+            staff_id: staffId,
+            date,
+            shift_type: form.shiftType,
+            start_time: form.startTime || undefined,
+            end_time: form.endTime || undefined,
+            note: form.note || undefined,
+          };
+          await createShift.mutateAsync(input);
+        }
+        onClose();
+      });
     },
-    [isEdit, editShift, form, staffId, date, updateShift, createShift, onClose],
+    [isEdit, editShift, form, staffId, date, updateShift, createShift, onClose, startSaveTransition],
   );
 
-  const handleDelete = useCallback(async () => {
+  const handleDelete = useCallback(() => {
     if (!editShift) return;
-    await deleteShift.mutateAsync(editShift.id);
-    onClose();
-  }, [editShift, deleteShift, onClose]);
+    startSaveTransition(async () => {
+      await deleteShift.mutateAsync(editShift.id);
+      onClose();
+    });
+  }, [editShift, deleteShift, onClose, startSaveTransition]);
 
   const formattedDate = date
     ? new Date(date + "T00:00:00").toLocaleDateString("ja-JP", {
@@ -200,16 +202,16 @@ export function ShiftFormDialog({
                 variant="destructive"
                 size="sm"
                 onClick={handleDelete}
-                disabled={isPending}
+                disabled={isSavePending}
               >
                 削除
               </Button>
             ) : null}
-            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSavePending}>
               キャンセル
             </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? "保存中..." : "保存"}
+            <Button type="submit" disabled={isSavePending}>
+              {isSavePending ? "保存中..." : "保存"}
             </Button>
           </DialogFooter>
         </form>

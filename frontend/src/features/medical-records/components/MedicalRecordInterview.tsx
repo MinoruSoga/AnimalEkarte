@@ -1,5 +1,5 @@
 // React/Framework
-import { useCallback } from "react";
+import { memo, useCallback } from "react";
 
 // Relative
 import { InterviewChiefComplaint } from "./InterviewChiefComplaint";
@@ -45,7 +45,7 @@ const DEFAULT_HISTORY_ITEMS: InterviewHistoryItem[] = [
   },
 ];
 
-export function MedicalRecordInterview({
+export const MedicalRecordInterview = memo(function MedicalRecordInterview({
   chiefComplaint,
   setChiefComplaint,
   chiefComplaintCategoryId,
@@ -96,4 +96,4 @@ export function MedicalRecordInterview({
       </div>
     </div>
   );
-}
+});

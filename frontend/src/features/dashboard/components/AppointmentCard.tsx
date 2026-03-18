@@ -1,5 +1,5 @@
 // React/Framework
-import { useCallback } from "react";
+import { memo, useCallback } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -44,7 +44,7 @@ interface AppointmentCardProps {
   isDragOverlay?: boolean;
 }
 
-export function AppointmentCard({
+export const AppointmentCard = memo(function AppointmentCard({
   appointment,
   columnTitle,
   onCardClick,
@@ -195,4 +195,4 @@ export function AppointmentCard({
       </Card>
     </div>
   );
-}
+});

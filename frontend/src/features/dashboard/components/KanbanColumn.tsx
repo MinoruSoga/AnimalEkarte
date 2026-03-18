@@ -1,3 +1,4 @@
+import { memo } from "react";
 // External
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -19,7 +20,7 @@ interface KanbanColumnProps {
   onCardClick: (appointment: Appointment) => void;
 }
 
-export function KanbanColumn({
+export const KanbanColumn = memo(function KanbanColumn({
   data,
   onAddClick,
   onCardClick
@@ -72,4 +73,4 @@ export function KanbanColumn({
       ) : null}
     </div>
   );
-}
+});

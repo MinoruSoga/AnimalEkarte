@@ -1,5 +1,5 @@
 // React/Framework
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 
 // External
 import { Calendar, FileText } from "lucide-react";
@@ -35,7 +35,7 @@ interface HospitalizationDesktopLayoutProps {
     onAddLog: (date: string, data: CreateCareLogDTO) => void;
 }
 
-export function HospitalizationDesktopLayout({
+export const HospitalizationDesktopLayout = memo(function HospitalizationDesktopLayout({
     hospitalization,
     plans,
     records,
@@ -104,4 +104,4 @@ export function HospitalizationDesktopLayout({
             </div>
         </div>
     );
-}
+});

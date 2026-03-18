@@ -6,12 +6,10 @@ import { useParams, useNavigate } from "react-router";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 
 // Relative
-import {
-    DischargeAlertDialog,
-    HospitalizationDetailActions,
-    HospitalizationDesktopLayout,
-    HospitalizationMobileLayout
-} from "../components";
+import { DischargeAlertDialog } from "../components/DischargeAlertDialog";
+import { HospitalizationDetailActions } from "../components/HospitalizationDetailActions";
+import { HospitalizationDesktopLayout } from "../components/HospitalizationDesktopLayout";
+import { HospitalizationMobileLayout } from "../components/HospitalizationMobileLayout";
 import { useHospitalizationDetail } from "../hooks/useHospitalizationDetail";
 import { paths } from "@/config/paths";
 

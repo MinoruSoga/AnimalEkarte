@@ -1,5 +1,5 @@
 // React/Framework
-import { useCallback } from "react";
+import { memo, useCallback } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -299,7 +299,7 @@ interface DashboardDetailModalProps {
   currentStatus?: string;
 }
 
-export function DashboardDetailModal({
+export const DashboardDetailModal = memo(function DashboardDetailModal({
   isOpen,
   onClose,
   appointment,
@@ -471,4 +471,4 @@ export function DashboardDetailModal({
       </DialogContent>
     </Dialog>
   );
-}
+});

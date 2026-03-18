@@ -1,5 +1,5 @@
 // React/Framework
-import { useRef, useCallback, useMemo } from "react";
+import { memo, useRef, useCallback, useMemo } from "react";
 import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from "react";
 
 // External
@@ -120,7 +120,7 @@ const calculateEventLayout = (
 };
 
 // Sub-component: Time Sidebar
-function TimeSidebar() {
+const TimeSidebar = memo(function TimeSidebar() {
   return (
     <div className={`w-12 flex-shrink-0 flex flex-col ${C.bgPage} border-r border-[rgba(55,53,47,0.16)] z-30 sticky left-0`}>
       {HOURS.map((hour) => (
@@ -135,10 +135,10 @@ function TimeSidebar() {
       ))}
     </div>
   );
-}
+});
 
 // Sub-component: Appointment Card
-function AppointmentCard({
+const AppointmentCard = memo(function AppointmentCard({
   appointment,
   layoutStyle,
   onClick,
@@ -338,10 +338,10 @@ function AppointmentCard({
       ) : null}
     </motion.div>
   );
-}
+});
 
 // Sub-component: Day Column
-function DayColumn({
+const DayColumn = memo(function DayColumn({
   date,
   appointments,
   onAppointmentClick,
@@ -461,7 +461,7 @@ function DayColumn({
       ))}
     </div>
   );
-}
+});
 
 // Main Component
 export function WeekView({

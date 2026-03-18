@@ -1,5 +1,5 @@
 // React/Framework
-import { useCallback } from "react";
+import { memo, useCallback } from "react";
 
 // External
 import { DndContext, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
@@ -115,7 +115,7 @@ const CageCard = ({ cage, occupant, onNavigateToForm }: CageCardProps) => {
     );
 };
 
-export function HospitalizationBoard({ cages, hospitalizations, onNavigateToForm, onMovePet }: HospitalizationBoardProps) {
+export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, hospitalizations, onNavigateToForm, onMovePet }: HospitalizationBoardProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
@@ -173,4 +173,4 @@ export function HospitalizationBoard({ cages, hospitalizations, onNavigateToForm
       </div>
     </DndContext>
   );
-}
+});

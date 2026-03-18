@@ -1,5 +1,5 @@
 // React/Framework
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import type React from "react";
 
 // External
@@ -42,7 +42,7 @@ const HEADER_ROW = (
   </div>
 );
 
-export function MonthView({ currentDate, appointments, onAppointmentClick, dynamicColorMap }: MonthViewProps) {
+export const MonthView = memo(function MonthView({ currentDate, appointments, onAppointmentClick, dynamicColorMap }: MonthViewProps) {
 
   const rows = useMemo(() => {
     const monthStart = startOfMonth(currentDate);
@@ -131,4 +131,4 @@ export function MonthView({ currentDate, appointments, onAppointmentClick, dynam
       </div>
     </div>
   );
-}
+});

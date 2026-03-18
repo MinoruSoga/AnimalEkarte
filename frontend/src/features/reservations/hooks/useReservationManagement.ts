@@ -12,13 +12,11 @@ import type {
   Pet,
   NavigationState,
 } from "../types";
-import {
-  useGetReservations,
-  useCreateReservation,
-  useUpdateReservation,
-  useDeleteReservation,
-  transformToCreateRequest,
-} from "../api";
+import { useGetReservations } from "../api/get-reservations";
+import { useCreateReservation } from "../api/create-reservation";
+import { useUpdateReservation } from "../api/update-reservation";
+import { useDeleteReservation } from "../api/delete-reservation";
+import { transformToCreateRequest } from "../api/transforms";
 
 const EMPTY_APPOINTMENTS: ReservationAppointment[] = [];
 

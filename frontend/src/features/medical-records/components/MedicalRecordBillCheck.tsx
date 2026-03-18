@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { memo, useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
@@ -16,7 +16,7 @@ interface BillCheckProps {
   ownerDiscountRate?: number;
 }
 
-export function MedicalRecordBillCheck({ isNewRecord = false, medicalRecordId = "", ownerDiscountRate = 0 }: BillCheckProps) {
+export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isNewRecord = false, medicalRecordId = "", ownerDiscountRate = 0 }: BillCheckProps) {
   const { user } = useAuth();
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
 
@@ -179,4 +179,4 @@ export function MedicalRecordBillCheck({ isNewRecord = false, medicalRecordId = 
       </div>
     </div>
   );
-}
+});

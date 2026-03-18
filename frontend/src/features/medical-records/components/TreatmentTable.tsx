@@ -1,5 +1,5 @@
 // React/Framework
-import React from "react";
+import React, { memo, useMemo } from "react";
 
 // External
 import { Circle, X, Trash2, PlusCircle } from "lucide-react";
@@ -40,7 +40,7 @@ interface TreatmentTableProps {
   showStatus?: boolean;
 }
 
-export function TreatmentTable({
+export const TreatmentTable = memo(function TreatmentTable({
   items,
   onUpdate,
   onRemove,
@@ -197,7 +197,7 @@ export function TreatmentTable({
       </div>
     </div>
   );
-}
+});
 
 // --- Helper Components ---
 

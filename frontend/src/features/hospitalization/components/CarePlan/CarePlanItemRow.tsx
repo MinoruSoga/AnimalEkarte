@@ -1,3 +1,4 @@
+import { memo } from "react";
 // External
 import { Edit2, Trash2, Utensils, Pill, ClipboardList, Stethoscope, CheckCircle2 } from "lucide-react";
 
@@ -16,7 +17,7 @@ interface CarePlanItemProps {
     onDelete: (id: string) => void;
 }
 
-export function CarePlanItemRow({ plan, onEdit, onDelete }: CarePlanItemProps) {
+export const CarePlanItemRow = memo(function CarePlanItemRow({ plan, onEdit, onDelete }: CarePlanItemProps) {
     const getTypeIcon = (type: string) => {
         switch (type) {
             case "food": return <Utensils className={H_STYLES.button.icon} />;
@@ -86,4 +87,4 @@ export function CarePlanItemRow({ plan, onEdit, onDelete }: CarePlanItemProps) {
             </div>
         </div>
     );
-}
+});

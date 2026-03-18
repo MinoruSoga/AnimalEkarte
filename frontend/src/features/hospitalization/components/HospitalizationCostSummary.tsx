@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Input } from "@/components/ui/input";
 import { H_STYLES } from "../styles";
 
@@ -14,7 +15,7 @@ interface HospitalizationCostSummaryProps {
     setGlobalDiscountAmount: (val: number) => void;
 }
 
-export function HospitalizationCostSummary({
+export const HospitalizationCostSummary = memo(function HospitalizationCostSummary({
     totals,
     globalDiscount,
     setGlobalDiscount,
@@ -110,4 +111,4 @@ export function HospitalizationCostSummary({
       </div>
     </div>
   );
-}
+});

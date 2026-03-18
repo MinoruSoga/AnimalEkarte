@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useState } from "react";
 import { format, addDays, subDays } from "date-fns";
 import { Activity, Sun, Moon, Coffee, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,8 +20,8 @@ interface DailyRecordSectionProps {
     onAddLog: (date: string, data: CreateCareLogDTO) => void;
 }
 
-export function DailyRecordSection({ records, plans = [], onAddVital, onAddLog }: DailyRecordSectionProps) {
-    const [selectedDate, setSelectedDate] = useState(new Date());
+export const DailyRecordSection = memo(function DailyRecordSection({ records, plans = [], onAddVital, onAddLog }: DailyRecordSectionProps) {
+    const [selectedDate, setSelectedDate] = useState(() => new Date());
     const currentDateStr = format(selectedDate, "yyyy-MM-dd");
     const { tasks, groupedTasks, timelineItems } = useDailyRecordLogic(records, plans, currentDateStr);
     
@@ -135,4 +135,4 @@ export function DailyRecordSection({ records, plans = [], onAddVital, onAddLog }
             </Suspense>
         </div>
     );
-}
+});

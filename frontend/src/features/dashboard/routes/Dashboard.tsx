@@ -258,6 +258,18 @@ export function Dashboard() {
         setCancelTarget(null);
     }, [cancelTarget, cancelAppointment]);
 
+    const columnElements = useMemo(() =>
+        filteredColumns.map((column) => (
+            <KanbanColumn
+                key={column.title}
+                data={column}
+                onAddClick={addClickHandlers.get(column.title)}
+                onCardClick={handleCardClick}
+            />
+        )),
+        [filteredColumns, addClickHandlers, handleCardClick]
+    );
+
     return (
         <div className={`flex-1 flex flex-col h-full ${C.bgPage}`}>
             <FormHeader
@@ -342,14 +354,7 @@ export function Dashboard() {
                 <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
                     {/* タブレット: 2-3列グリッド、デスクトップ: 5列flex */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:flex gap-4 h-full w-full overflow-y-auto lg:overflow-x-auto lg:overflow-y-hidden pb-2 bg-transparent">
-                        {filteredColumns.map((column) => (
-                            <KanbanColumn
-                                key={column.title}
-                                data={column}
-                                onAddClick={addClickHandlers.get(column.title)}
-                                onCardClick={handleCardClick}
-                            />
-                        ))}
+                        {columnElements}
                     </div>
                 </DndContext>
             </div>

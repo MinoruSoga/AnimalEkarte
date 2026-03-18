@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Plus, Trash2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,7 @@ interface HospitalizationTreatmentTableProps {
   onUpdate: (id: string, field: keyof TreatmentPlan, value: string | number | boolean) => void;
 }
 
-export function HospitalizationTreatmentTable({
+export const HospitalizationTreatmentTable = memo(function HospitalizationTreatmentTable({
     treatmentPlans,
     onAdd,
     onRemove,
@@ -107,4 +108,4 @@ export function HospitalizationTreatmentTable({
       </div>
     </div>
   );
-}
+});

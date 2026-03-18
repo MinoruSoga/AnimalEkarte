@@ -1,5 +1,5 @@
 // React/Framework
-import { useState } from "react";
+import { memo, useState } from "react";
 
 // External
 import { Search } from "lucide-react";
@@ -37,7 +37,7 @@ const DEFAULT_FORM_STATE: Partial<CarePlanItem> = {
     status: "active"
 };
 
-export function CarePlanDialog({
+export const CarePlanDialog = memo(function CarePlanDialog({
     open,
     onOpenChange,
     editingPlan,
@@ -226,4 +226,4 @@ export function CarePlanDialog({
             />
         </Dialog>
     );
-}
+});

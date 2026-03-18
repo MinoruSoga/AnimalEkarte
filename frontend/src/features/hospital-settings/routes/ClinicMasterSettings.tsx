@@ -1,6 +1,12 @@
 // React/Framework
 import type { ReactNode } from "react";
-import { useCallback, useDeferredValue, useMemo, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 
@@ -147,6 +153,7 @@ export function ClinicMasterSettings() {
   const createMutation = useCreateClinic();
   const updateMutation = useUpdateClinic();
   const deleteMutation = useDeleteClinic();
+  const [_isSavePending, startSaveTransition] = useTransition();
 
   const filteredItems = useMemo(() => {
     const clinics = rawClinics ?? [];
@@ -189,64 +196,71 @@ export function ClinicMasterSettings() {
     setFormData(DEFAULT_FORM_DATA);
   }, []);
 
+  const selectedItemId = selectedItem?.id ?? null;
+
   const handleSave = useCallback(() => {
-    if (!formData.name) {
+    const fd = formData;
+    if (!fd.name) {
       toast.error("院名は必須です");
       return;
     }
 
-    if (selectedItem) {
-      const req: UpdateClinicRequest = {
-        name: formData.name,
-        postal_code: formData.postal_code || undefined,
-        address: formData.address || undefined,
-        phone_number: formData.phone_number || undefined,
-        fax_number: formData.fax_number || undefined,
-        registration_number: formData.registration_number || undefined,
-        director_name: formData.director_name || undefined,
-        email: formData.email || undefined,
-        website: formData.website || undefined,
-        is_active: formData.is_active,
-      };
-      updateMutation.mutate(
-        { id: selectedItem.id, req },
-        {
+    startSaveTransition(async () => {
+      if (selectedItemId !== null) {
+        const req: UpdateClinicRequest = {
+          name: fd.name,
+          postal_code: fd.postal_code || undefined,
+          address: fd.address || undefined,
+          phone_number: fd.phone_number || undefined,
+          fax_number: fd.fax_number || undefined,
+          registration_number: fd.registration_number || undefined,
+          director_name: fd.director_name || undefined,
+          email: fd.email || undefined,
+          website: fd.website || undefined,
+          is_active: fd.is_active,
+        };
+        await updateMutation.mutateAsync(
+          { id: selectedItemId, req },
+          {
+            onSuccess: () => {
+              toast.success("更新しました");
+              setIsEditing(false);
+            },
+            onError: () => {
+              toast.error("更新に失敗しました");
+            },
+          },
+        );
+      } else {
+        const req: CreateClinicRequest = {
+          name: fd.name,
+          postal_code: fd.postal_code || undefined,
+          address: fd.address || undefined,
+          phone_number: fd.phone_number || undefined,
+          fax_number: fd.fax_number || undefined,
+          registration_number: fd.registration_number || undefined,
+          director_name: fd.director_name || undefined,
+          email: fd.email || undefined,
+          website: fd.website || undefined,
+        };
+        await createMutation.mutateAsync(req, {
           onSuccess: () => {
-            toast.success("更新しました");
+            toast.success("登録しました");
             setIsEditing(false);
           },
           onError: () => {
-            toast.error("更新に失敗しました");
+            toast.error("登録に失敗しました");
           },
-        },
-      );
-    } else {
-      const req: CreateClinicRequest = {
-        name: formData.name,
-        postal_code: formData.postal_code || undefined,
-        address: formData.address || undefined,
-        phone_number: formData.phone_number || undefined,
-        fax_number: formData.fax_number || undefined,
-        registration_number: formData.registration_number || undefined,
-        director_name: formData.director_name || undefined,
-        email: formData.email || undefined,
-        website: formData.website || undefined,
-      };
-      createMutation.mutate(req, {
-        onSuccess: () => {
-          toast.success("登録しました");
-          setIsEditing(false);
-        },
-        onError: () => {
-          toast.error("登録に失敗しました");
-        },
-      });
-    }
-  }, [formData, selectedItem, updateMutation, createMutation]);
+        });
+      }
+    });
+  }, [formData, selectedItemId, startSaveTransition, updateMutation, createMutation]);
+
+  const pendingDeleteId = pendingDelete?.id ?? null;
 
   const handleDeleteConfirm = useCallback(() => {
-    if (!pendingDelete) return;
-    deleteMutation.mutate(pendingDelete.id, {
+    if (pendingDeleteId === null) return;
+    deleteMutation.mutate(pendingDeleteId, {
       onSuccess: () => {
         setPendingDelete(null);
         setIsEditing(false);
@@ -256,7 +270,7 @@ export function ClinicMasterSettings() {
         toast.error("削除に失敗しました");
       },
     });
-  }, [pendingDelete, deleteMutation]);
+  }, [pendingDeleteId, deleteMutation]);
 
   return (
     <>

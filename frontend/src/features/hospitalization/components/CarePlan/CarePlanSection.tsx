@@ -1,5 +1,5 @@
 // React/Framework
-import { lazy, Suspense, useCallback, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useMemo, useState } from "react";
 
 // External
 import { Plus } from "lucide-react";
@@ -25,7 +25,7 @@ interface CarePlanSectionProps {
     onDelete: (id: string) => void;
 }
 
-export function CarePlanSection({ plans, onAdd, onUpdate, onDelete }: CarePlanSectionProps) {
+export const CarePlanSection = memo(function CarePlanSection({ plans, onAdd, onUpdate, onDelete }: CarePlanSectionProps) {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<CarePlanItem | undefined>(undefined);
 
@@ -39,6 +39,18 @@ export function CarePlanSection({ plans, onAdd, onUpdate, onDelete }: CarePlanSe
         setIsDialogOpen(true);
     }, []);
 
+    const planRows = useMemo(() =>
+        plans.map(plan => (
+            <CarePlanItemRow
+                key={plan.id}
+                plan={plan}
+                onEdit={handleOpenEdit}
+                onDelete={onDelete}
+            />
+        )),
+        [plans, handleOpenEdit, onDelete]
+    );
+
     return (
         <div className={H_STYLES.layout.section_mb}>
             <div className="flex items-center justify-between mb-2">
@@ -50,14 +62,7 @@ export function CarePlanSection({ plans, onAdd, onUpdate, onDelete }: CarePlanSe
             </div>
 
             <div className={`flex flex-col ${H_STYLES.gap.tight}`}>
-                {plans.map(plan => (
-                    <CarePlanItemRow
-                        key={plan.id}
-                        plan={plan}
-                        onEdit={handleOpenEdit}
-                        onDelete={onDelete}
-                    />
-                ))}
+                {planRows}
             </div>
 
             <Suspense fallback={null}>
@@ -71,4 +76,4 @@ export function CarePlanSection({ plans, onAdd, onUpdate, onDelete }: CarePlanSe
             </Suspense>
         </div>
     );
-}
+});
