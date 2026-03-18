@@ -1,361 +1,184 @@
-// React/Framework
-import { useState, useMemo, useCallback, memo, useDeferredValue, useTransition } from "react";
-import { useNavigate } from "react-router";
-import { paths } from "@/config/paths";
-
-// External
-import { Plus, Building2 } from "lucide-react";
-import { toast } from "sonner";
-
-// Internal
-import { TableCell } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useState, memo } from "react";
+import { DndContext, DragOverlay, closestCenter } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useSortableList } from "@/hooks/useSortableList";
+import { Plus, Building2, GripVertical } from "lucide-react";
+import { Table, TableBody, TableHeader, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
 import { PropInput } from "@/components/shared/SidePeek/PropInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
-import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
-import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
+import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
+import { useMasterSave } from "@/features/master/hooks/use-master-save";
+import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
 import {
-  useGetAllCages,
-  useCreateCage,
-  useUpdateCage,
-  useDeleteCage,
+  useGetAllCages, useCreateCage, useUpdateCage, useDeleteCage, useReorderCages,
 } from "@/features/master/api/cages";
-
-// Types
 import type { Cage, CageType, CageSize, CreateCageRequest, UpdateCageRequest } from "@/features/master/api/cages";
 
-// ─────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────
+// ─── Constants ───
+const CAGE_TYPE_LABELS: Record<CageType, string> = { icu: "ICU", dog: "犬舎", cat: "猫舎", general: "汎用" };
+const CAGE_SIZE_LABELS: Record<CageSize, string> = { small: "小型", medium: "中型", large: "大型" };
 
-const CAGE_TYPE_LABELS: Record<CageType, string> = {
-  icu: "ICU",
-  dog: "犬舎",
-  cat: "猫舎",
-  general: "汎用",
-};
-
-const CAGE_SIZE_LABELS: Record<CageSize, string> = {
-  small: "小型",
-  medium: "中型",
-  large: "大型",
-};
-
-const COLUMNS = [
-  { header: "ケージ名" },
-  { header: "エリア", className: "w-[100px]" },
-  { header: "サイズ", className: "w-[90px]" },
-  { header: "単価(税込)", className: "w-[120px]", align: "right" as const },
-  { header: "ステータス", className: "w-[90px]", align: "center" as const },
-  { header: "操作", className: "w-[80px]", align: "right" as const },
-];
-
-// Hoisted static JSX (rendering-hoist-jsx)
 const CAGE_TYPE_SELECT_ITEMS = (
-  [
-    { value: "icu" as CageType, label: "ICU" },
-    { value: "dog" as CageType, label: "犬舎" },
-    { value: "cat" as CageType, label: "猫舎" },
-    { value: "general" as CageType, label: "汎用" },
-  ] satisfies { value: CageType; label: string }[]
-).map((opt) => (
-  <SelectItem key={opt.value} value={opt.value}>
-    {opt.label}
-  </SelectItem>
-));
+  [{ value: "icu" as CageType, label: "ICU" }, { value: "dog" as CageType, label: "犬舎" },
+   { value: "cat" as CageType, label: "猫舎" }, { value: "general" as CageType, label: "汎用" }] satisfies { value: CageType; label: string }[]
+).map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>);
 
 const CAGE_SIZE_SELECT_ITEMS = (
-  [
-    { value: "small" as CageSize, label: "小型" },
-    { value: "medium" as CageSize, label: "中型" },
-    { value: "large" as CageSize, label: "大型" },
-  ] satisfies { value: CageSize; label: string }[]
-).map((opt) => (
-  <SelectItem key={opt.value} value={opt.value}>
-    {opt.label}
-  </SelectItem>
-));
+  [{ value: "small" as CageSize, label: "小型" }, { value: "medium" as CageSize, label: "中型" },
+   { value: "large" as CageSize, label: "大型" }] satisfies { value: CageSize; label: string }[]
+).map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>);
 
-// ─────────────────────────────────────────────────
-// Form state
-// ─────────────────────────────────────────────────
+// ─── FormData ───
+interface CageFormData { name: string; cageType: CageType; cageSize: CageSize; price: number; description: string; isActive: boolean; }
 
-interface CageFormData {
-  name: string;
-  cageType: CageType;
-  cageSize: CageSize;
-  price: number;
-  description: string;
-  isActive: boolean;
-}
-
-// ─────────────────────────────────────────────────
-// CageSidePanel
-// ─────────────────────────────────────────────────
-
-interface CageSidePanelProps {
-  item: Cage | null;
-  onClose: () => void;
-  onSave: (data: CageFormData) => void;
-  onDeleteRequest: (item: Cage) => void;
-}
-
+// ─── SidePanel ───
 const CageSidePanel = memo(function CageSidePanel({
-  item,
-  onClose,
-  onSave,
-  onDeleteRequest,
-}: CageSidePanelProps) {
-  // rerender-lazy-state-init: 初回マウント時のみ item から初期化
-  const [formData, setFormData] = useState<CageFormData>(() => ({
-    name: item?.name ?? "",
-    cageType: item?.cageType ?? "general",
-    cageSize: item?.cageSize ?? "medium",
-    price: item?.price ?? 0,
-    description: item?.description ?? "",
-    isActive: item?.isActive ?? true,
+  item, onClose, onSave, onDeleteRequest,
+}: { item: Cage | null; onClose: () => void; onSave: (d: CageFormData) => void; onDeleteRequest: (i: Cage) => void; }) {
+  const [f, setF] = useState<CageFormData>(() => ({
+    name: item?.name ?? "", cageType: item?.cageType ?? "general", cageSize: item?.cageSize ?? "medium",
+    price: item?.price ?? 0, description: item?.description ?? "", isActive: item?.isActive ?? true,
   }));
-
   return (
-    <MasterSidePanel
-      isNew={item === null}
-      title={formData.name}
-      onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
-      onClose={onClose}
-      onSave={() => onSave(formData)}
-      onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
-      icon={<Building2 className={LAYOUT.pageIcon.innerIcon} />}
-    >
-      <StatusToggleButton
-        isActive={formData.isActive}
-        onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
-      />
-
+    <MasterSidePanel isNew={item === null} title={f.name} onTitleChange={(v) => setF((p) => ({ ...p, name: v }))}
+      onClose={onClose} onSave={() => onSave(f)} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      icon={<Building2 className={LAYOUT.pageIcon.innerIcon} />}>
+      <StatusToggleButton isActive={f.isActive} onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))} />
       <PropertyRow label="エリア">
-        <Select
-          value={formData.cageType}
-          onValueChange={(v) => setFormData((prev) => ({ ...prev, cageType: v as CageType }))}
-        >
-          <SelectTrigger className={STYLE.selectCompact}>
-            <SelectValue placeholder="選択" />
-          </SelectTrigger>
+        <Select value={f.cageType} onValueChange={(v) => setF((p) => ({ ...p, cageType: v as CageType }))}>
+          <SelectTrigger className={STYLE.selectCompact}><SelectValue placeholder="選択" /></SelectTrigger>
           <SelectContent>{CAGE_TYPE_SELECT_ITEMS}</SelectContent>
         </Select>
       </PropertyRow>
-
       <PropertyRow label="サイズ">
-        <Select
-          value={formData.cageSize}
-          onValueChange={(v) => setFormData((prev) => ({ ...prev, cageSize: v as CageSize }))}
-        >
-          <SelectTrigger className={STYLE.selectCompact}>
-            <SelectValue placeholder="選択" />
-          </SelectTrigger>
+        <Select value={f.cageSize} onValueChange={(v) => setF((p) => ({ ...p, cageSize: v as CageSize }))}>
+          <SelectTrigger className={STYLE.selectCompact}><SelectValue placeholder="選択" /></SelectTrigger>
           <SelectContent>{CAGE_SIZE_SELECT_ITEMS}</SelectContent>
         </Select>
       </PropertyRow>
-
-      <MoneyInput
-        value={formData.price}
-        onChange={(v) => setFormData((prev) => ({ ...prev, price: v }))}
-      />
-
+      <MoneyInput value={f.price} onChange={(v) => setF((p) => ({ ...p, price: v }))} />
       <PropertyRow label="備考">
-        <PropInput
-          value={formData.description}
-          onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
-          placeholder="補足情報など"
-        />
+        <PropInput value={f.description} onChange={(v) => setF((p) => ({ ...p, description: v }))} placeholder="補足情報など" />
       </PropertyRow>
     </MasterSidePanel>
   );
 });
 
-// ─────────────────────────────────────────────────
-// CageSettings (main page)
-// ─────────────────────────────────────────────────
+// ─── DragOverlay ───
+function CageRowOverlay({ cage }: { cage: Cage }) {
+  return (
+    <div className={`flex items-center h-12 bg-white border ${C.borderLight} rounded-[4px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] cursor-grabbing`} style={{ width: "100%" }}>
+      <div className="w-8 shrink-0 flex items-center justify-center text-[#37352F]/50"><GripVertical className="size-4" /></div>
+      <div className={`flex-1 min-w-0 text-sm font-medium ${C.text} px-3`}>{cage.name}</div>
+      <div className="w-[100px] shrink-0 text-sm text-[#37352F]/65">{CAGE_TYPE_LABELS[cage.cageType]}</div>
+      <div className="w-[90px] shrink-0 text-sm text-[#37352F]/65">{CAGE_SIZE_LABELS[cage.cageSize]}</div>
+      <div className={`w-[120px] shrink-0 text-right pr-4 font-mono text-sm ${C.text}`}>{cage.price != null ? `¥${cage.price.toLocaleString()}` : "-"}</div>
+      <div className="w-[90px] shrink-0 flex justify-center"><NotionStatusPill isActive={cage.isActive} /></div>
+      <div className="w-[80px] shrink-0" />
+    </div>
+  );
+}
 
+// ─── Columns (custom table, not DataTable) ───
+const TABLE_COLUMNS = [
+  { key: "grip", className: "w-8 px-0" },
+  { key: "name", label: "ケージ名", className: "pl-3" },
+  { key: "type", label: "エリア", className: "w-[100px]" },
+  { key: "size", label: "サイズ", className: "w-[90px]" },
+  { key: "price", label: "単価(税込)", className: "w-[120px] text-right pr-4" },
+  { key: "status", label: "ステータス", className: "w-[90px] text-center" },
+  { key: "action", label: "操作", className: "w-[80px] text-right pr-2" },
+];
+
+// ─── Page ───
 export function CageSettings() {
-  const navigate = useNavigate();
-
-  // null=closed, "new"=create mode, Cage=edit mode
-  const [editTarget, setEditTarget] = useState<Cage | "new" | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [pendingDelete, setPendingDelete] = useState<Cage | null>(null);
-  const [, startSaveTransition] = useTransition();
-
-  const { data: rawCages } = useGetAllCages();
+  const { data } = useGetAllCages();
   const createMutation = useCreateCage();
   const updateMutation = useUpdateCage();
   const deleteMutation = useDeleteCage();
+  const reorderMutation = useReorderCages();
 
-  // rerender-transitions: 検索フィルタを低優先度に遅延
-  const deferredSearch = useDeferredValue(searchTerm);
+  const crud = useMasterCRUD<Cage>({ data, deleteMutation, entityLabel: "ケージ" });
 
-  const filteredItems = useMemo(() => {
-    const cages = rawCages ?? [];
-    if (!deferredSearch) return cages;
-    const lower = deferredSearch.toLowerCase();
-    return cages.filter((c) => c.name.toLowerCase().includes(lower));
-  }, [rawCages, deferredSearch]);
-
-  const handleClose = useCallback(() => setEditTarget(null), []);
-
-  const handleSave = useCallback(
-    (data: CageFormData) => {
-      if (!data.name.trim()) {
-        toast.error("ケージ名は必須です");
-        return;
-      }
-
-      // rerender-transitions: API書き込みを非緊急マーク
-      startSaveTransition(() => {
-        if (editTarget !== null && editTarget !== "new") {
-          const req: UpdateCageRequest = {
-            name: data.name,
-            cage_type: data.cageType,
-            cage_size: data.cageSize,
-            price: data.price,
-            description: data.description || undefined,
-            is_active: data.isActive,
-          };
-          updateMutation.mutate(
-            { id: editTarget.id, req },
-            {
-              onSuccess: () => {
-                toast.success("更新しました");
-                handleClose();
-              },
-              onError: () => toast.error("更新に失敗しました"),
-            },
-          );
-        } else {
-          const req: CreateCageRequest = {
-            name: data.name,
-            cage_type: data.cageType,
-            cage_size: data.cageSize,
-            price: data.price,
-            description: data.description || undefined,
-            is_active: data.isActive,
-          };
-          createMutation.mutate(req, {
-            onSuccess: () => {
-              toast.success("登録しました");
-              handleClose();
-            },
-            onError: () => toast.error("登録に失敗しました"),
-          });
-        }
-      });
-    },
-    [editTarget, updateMutation, createMutation, handleClose],
-  );
-
-  const handleDeleteConfirm = useCallback(() => {
-    if (!pendingDelete) return;
-    deleteMutation.mutate(pendingDelete.id, {
-      onSuccess: () => {
-        setPendingDelete(null);
-        handleClose();
-        toast.success("削除しました");
-      },
-      onError: () => toast.error("削除に失敗しました"),
+  const { orderedItems: sortedCages, sensors, activeId, handleDragStart, handleDragCancel, handleDragEnd, resetOrder } =
+    useSortableList({
+      items: crud.filteredItems,
+      onReorder: (newIds) => { reorderMutation.mutate({ ids: newIds.map(Number) }, { onSuccess: resetOrder }); },
     });
-  }, [pendingDelete, deleteMutation, handleClose]);
 
-  const panelItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
+  const { handleSave } = useMasterSave<Cage, CageFormData, CreateCageRequest, UpdateCageRequest>({
+    crud, createMutation, updateMutation,
+    validate: (d) => (!d.name.trim() ? "ケージ名は必須です" : null),
+    toCreateRequest: (d) => ({
+      name: d.name, cage_type: d.cageType, cage_size: d.cageSize, price: d.price,
+      description: d.description || undefined, is_active: d.isActive,
+    }),
+    toUpdateRequest: (d) => ({
+      name: d.name, cage_type: d.cageType, cage_size: d.cageSize, price: d.price,
+      description: d.description || undefined, is_active: d.isActive,
+    }),
+  });
 
+  // CageSettings uses custom table (not DataTable) for DnD + DragOverlay + bottom "add" button
   return (
-    <>
-      <div className="flex h-full">
-        <div className="flex-1 min-w-0">
-          <PageLayout
-            title="ケージマスタ"
-            icon={<Building2 className="size-5 text-[#37352F]" />}
-            onBack={() => navigate(paths.settings.getHref())}
-            maxWidth="max-w-full"
-            headerAction={
-              <PrimaryButton onClick={() => setEditTarget("new")}>
-                <Plus className="mr-1.5 size-4" />
-                新規登録
-              </PrimaryButton>
-            }
-          >
-            <div className="flex flex-col gap-4">
-              <SearchFilterBar
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                placeholder="ケージ名で検索..."
-                count={filteredItems.length}
-              />
-
-              <DataTable
-                columns={COLUMNS}
-                data={filteredItems}
-                emptyMessage="ケージが登録されていません"
-                renderRow={(item) => (
-                  <DataTableRow key={item.id} onClick={() => setEditTarget(item)}>
-                    <TableCell className={`font-medium text-sm ${C.text}`}>
-                      {item.name}
-                    </TableCell>
-                    <TableCell className={`text-sm ${C.text70}`}>
-                      {CAGE_TYPE_LABELS[item.cageType]}
-                    </TableCell>
-                    <TableCell className={`text-sm ${C.text70}`}>
-                      {CAGE_SIZE_LABELS[item.cageSize]}
-                    </TableCell>
-                    <TableCell className={`text-right font-mono text-sm ${C.text}`}>
-                      {item.price != null ? `¥${item.price.toLocaleString()}` : "-"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <NotionStatusPill isActive={item.isActive} />
-                    </TableCell>
-                    <TableCell className="p-0 text-right">
-                      <RowActionButton onClick={() => setEditTarget(item)} />
-                    </TableCell>
-                  </DataTableRow>
-                )}
-              />
-            </div>
-          </PageLayout>
+    <MasterCRUDPage title="ケージマスタ" icon={<Building2 className="size-5 text-[#37352F]" />}
+      entityLabel="ケージ" searchPlaceholder="ケージ名で検索..." emptyMessage="ケージが登録されていません"
+      crud={crud} handleSave={handleSave}
+      filterProperties={[MASTER_STATUS_FILTER]}
+      columns={[]} renderRow={() => null}
+      renderSidePanel={(props) => <CageSidePanel key={props.item?.id ?? "new"} {...props} />}
+    >
+      <div className={STYLE.tableContainer}>
+        <div className="flex-1 overflow-auto relative">
+          <DndContext sensors={sensors} collisionDetection={closestCenter}
+            onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
+            <Table>
+              <TableHeader className="sticky top-0 z-10">
+                <TableRow className={STYLE.tableHeaderRow}>
+                  {TABLE_COLUMNS.map((col) => (
+                    <TableHead key={col.key} className={`${STYLE.tableHeaderCell} ${col.className}`}>
+                      {col.label ?? ""}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedCages.length === 0 ? (
+                  <TableRow><TableCell colSpan={7} className={STYLE.tableEmpty}>ケージが登録されていません</TableCell></TableRow>
+                ) : null}
+                <SortableContext items={sortedCages.map((m) => m.id)} strategy={verticalListSortingStrategy}>
+                  {sortedCages.map((item) => (
+                    <SortableDataTableRow key={item.id} id={item.id} onClick={() => crud.handleEdit(item)}>
+                      <TableCell className={`font-medium text-sm ${C.text}`}>{item.name}</TableCell>
+                      <TableCell className={`text-sm ${C.text70}`}>{CAGE_TYPE_LABELS[item.cageType] || item.cageType}</TableCell>
+                      <TableCell className={`text-sm ${C.text70}`}>{CAGE_SIZE_LABELS[item.cageSize] || item.cageSize}</TableCell>
+                      <TableCell className={`text-right font-mono text-sm ${C.text} pr-4`}>{item.price != null ? `¥${item.price.toLocaleString()}` : "-"}</TableCell>
+                      <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
+                      <TableCell className="p-0 text-right pr-2"><RowActionButton onClick={() => crud.handleEdit(item)} /></TableCell>
+                    </SortableDataTableRow>
+                  ))}
+                </SortableContext>
+              </TableBody>
+            </Table>
+            <DragOverlay dropAnimation={null}>
+              {activeId ? (() => { const m = sortedCages.find((x) => x.id === activeId); return m ? <CageRowOverlay cage={m} /> : null; })() : null}
+            </DragOverlay>
+          </DndContext>
         </div>
-
-        {editTarget !== null ? (
-          <CageSidePanel
-            key={panelItem ? String(panelItem.id) : "new-cage"}
-            item={panelItem}
-            onClose={handleClose}
-            onSave={handleSave}
-            onDeleteRequest={setPendingDelete}
-          />
-        ) : null}
+        <button type="button" onClick={crud.handleNew}
+          className="flex items-center gap-1.5 w-full px-3 py-2.5 text-sm text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]">
+          <Plus className="size-3.5" />新しいケージを追加...
+        </button>
       </div>
-
-      <ConfirmDialog
-        open={pendingDelete !== null}
-        onClose={() => setPendingDelete(null)}
-        title="ケージを削除しますか？"
-        description={`「${pendingDelete?.name}」を削除します。この操作は取り消せません。`}
-        confirmLabel="削除"
-        variant="destructive"
-        onConfirm={handleDeleteConfirm}
-      />
-    </>
+    </MasterCRUDPage>
   );
 }

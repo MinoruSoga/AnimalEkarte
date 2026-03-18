@@ -28,7 +28,9 @@ import Maximize2 from "lucide-react/dist/esm/icons/maximize-2";
 
 // Internal – shared
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
+import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
+import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
@@ -399,6 +401,7 @@ export function MedicineSettings() {
 
   // ── UI state ──
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   // null=closed, "new"=create mode, Medicine=edit mode
   const [editTarget, setEditTarget] = useState<Medicine | "new" | null>(null);
@@ -466,8 +469,15 @@ export function MedicineSettings() {
   const deferredSearch = useDeferredValue(searchTerm);
 
   const { groupedMedicines, ungroupedMedicines, totalCount } = useMemo(() => {
+    let items = orderedMedicines;
+    for (const f of activeFilters) {
+      if (f.key === "status" && typeof f.value === "string") {
+        const want = f.value === "active";
+        items = items.filter((m) => f.condition === "is" ? m.isActive === want : m.isActive !== want);
+      }
+    }
     const lower = deferredSearch.toLowerCase();
-    const filtered = orderedMedicines.filter(
+    const filtered = items.filter(
       (m) => !deferredSearch || m.name.toLowerCase().includes(lower),
     );
 
@@ -501,7 +511,7 @@ export function MedicineSettings() {
     }
 
     return { groupedMedicines: groups, ungroupedMedicines: ungrouped, totalCount: filtered.length };
-  }, [orderedMedicines, deferredSearch, medicinesById]);
+  }, [orderedMedicines, activeFilters, deferredSearch, medicinesById]);
 
   // ── Handlers ──
 
@@ -872,10 +882,13 @@ export function MedicineSettings() {
             }
           >
             <div className="flex flex-col gap-4">
-              <SearchFilterBar
+              <NotionFilter
+                properties={[MASTER_STATUS_FILTER]}
+                activeFilters={activeFilters}
+                onFilterChange={setActiveFilters}
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
-                placeholder="薬品名で検索..."
+                searchPlaceholder="薬品名で検索..."
                 count={totalCount}
               />
               {tableContent}

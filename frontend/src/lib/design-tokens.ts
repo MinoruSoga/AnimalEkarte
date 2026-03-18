@@ -639,7 +639,7 @@ export const STYLE = {
   searchInput:
     `pl-8 h-11 w-full text-sm ${C.text} ${C.textPlaceholder} ${C.bgPage} border border-transparent rounded-[4px] outline-none transition-colors ${C.hoverBgPageDark} focus:bg-white ${C.focusBorderLight}`,
   searchIcon:
-    `absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 ${C.text30}`,
+    `absolute left-2.5 top-1/2 -translate-y-1/2 size-5 ${C.text30}`,
   searchCount:
     `text-sm ${C.text60} whitespace-nowrap`,
 

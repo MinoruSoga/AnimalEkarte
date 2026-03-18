@@ -23,7 +23,9 @@ import * as TabsPrimitive from "@radix-ui/react-tabs";
 // Internal shared
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
+import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
+import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
@@ -264,6 +266,7 @@ function TreatmentTabContent({
   onPendingDeleteChange,
 }: TreatmentTabContentProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
@@ -277,14 +280,23 @@ function TreatmentTabContent({
   });
 
   const filteredRoots = useMemo(() => {
-    if (!deferredSearch) return orderedRoots;
-    const lower = deferredSearch.toLowerCase();
-    return orderedRoots.filter(
-      (r) =>
-        r.name.toLowerCase().includes(lower) ||
-        r.children.some((c) => c.name.toLowerCase().includes(lower)),
-    );
-  }, [orderedRoots, deferredSearch]);
+    let items = orderedRoots;
+    for (const f of activeFilters) {
+      if (f.key === "status" && typeof f.value === "string") {
+        const want = f.value === "active";
+        items = items.filter((r) => f.condition === "is" ? r.isActive === want : r.isActive !== want);
+      }
+    }
+    if (deferredSearch) {
+      const lower = deferredSearch.toLowerCase();
+      items = items.filter(
+        (r) =>
+          r.name.toLowerCase().includes(lower) ||
+          r.children.some((c) => c.name.toLowerCase().includes(lower)),
+      );
+    }
+    return items;
+  }, [orderedRoots, activeFilters, deferredSearch]);
 
   const toggleExpanded = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -335,10 +347,13 @@ function TreatmentTabContent({
   return (
     <>
       <div className="flex flex-col gap-4">
-        <SearchFilterBar
+        <NotionFilter
+          properties={[MASTER_STATUS_FILTER]}
+          activeFilters={activeFilters}
+          onFilterChange={setActiveFilters}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
-          placeholder={searchPlaceholder}
+          searchPlaceholder={searchPlaceholder}
           count={totalCount}
         />
 

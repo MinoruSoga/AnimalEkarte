@@ -1,7 +1,8 @@
 // React/Framework
-import { useState, useMemo, useCallback, memo, useDeferredValue, useTransition } from "react";
+import { useState, useMemo, useCallback, memo, useDeferredValue } from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
+import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 
 // External
 import { Plus, Scissors } from "lucide-react";
@@ -18,7 +19,9 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
+import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
+import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -231,6 +234,7 @@ interface TrimmingCourseTabProps {
 
 function TrimmingCourseTab({ editTarget: _editTarget, onEditTargetChange }: TrimmingCourseTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
 
   const { data: rawCourses } = useGetTrimmingCourses();
 
@@ -238,18 +242,29 @@ function TrimmingCourseTab({ editTarget: _editTarget, onEditTargetChange }: Trim
   const deferredSearch = useDeferredValue(searchTerm);
 
   const filteredItems = useMemo(() => {
-    const courses = rawCourses ?? [];
-    if (!deferredSearch) return courses;
-    const lower = deferredSearch.toLowerCase();
-    return courses.filter((c) => c.name.toLowerCase().includes(lower));
-  }, [rawCourses, deferredSearch]);
+    let items = rawCourses ?? [];
+    for (const f of activeFilters) {
+      if (f.key === "status" && typeof f.value === "string") {
+        const want = f.value === "active";
+        items = items.filter((c) => f.condition === "is" ? c.isActive === want : c.isActive !== want);
+      }
+    }
+    if (deferredSearch) {
+      const lower = deferredSearch.toLowerCase();
+      items = items.filter((c) => c.name.toLowerCase().includes(lower));
+    }
+    return items;
+  }, [rawCourses, activeFilters, deferredSearch]);
 
   return (
     <div className="flex flex-col gap-4">
-      <SearchFilterBar
+      <NotionFilter
+        properties={[MASTER_STATUS_FILTER]}
+        activeFilters={activeFilters}
+        onFilterChange={setActiveFilters}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        placeholder="コース名で検索..."
+        searchPlaceholder="コース名で検索..."
         count={filteredItems.length}
       />
 
@@ -403,6 +418,7 @@ interface TrimmingOptionTabProps {
 
 function TrimmingOptionTab({ editTarget: _editTarget, onEditTargetChange }: TrimmingOptionTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
 
   const { data: rawOptions } = useGetTrimmingOptions();
 
@@ -410,18 +426,29 @@ function TrimmingOptionTab({ editTarget: _editTarget, onEditTargetChange }: Trim
   const deferredSearch = useDeferredValue(searchTerm);
 
   const filteredItems = useMemo(() => {
-    const options = rawOptions ?? [];
-    if (!deferredSearch) return options;
-    const lower = deferredSearch.toLowerCase();
-    return options.filter((o) => o.name.toLowerCase().includes(lower));
-  }, [rawOptions, deferredSearch]);
+    let items = rawOptions ?? [];
+    for (const f of activeFilters) {
+      if (f.key === "status" && typeof f.value === "string") {
+        const want = f.value === "active";
+        items = items.filter((o) => f.condition === "is" ? o.isActive === want : o.isActive !== want);
+      }
+    }
+    if (deferredSearch) {
+      const lower = deferredSearch.toLowerCase();
+      items = items.filter((o) => o.name.toLowerCase().includes(lower));
+    }
+    return items;
+  }, [rawOptions, activeFilters, deferredSearch]);
 
   return (
     <div className="flex flex-col gap-4">
-      <SearchFilterBar
+      <NotionFilter
+        properties={[MASTER_STATUS_FILTER]}
+        activeFilters={activeFilters}
+        onFilterChange={setActiveFilters}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        placeholder="オプション名で検索..."
+        searchPlaceholder="オプション名で検索..."
         count={filteredItems.length}
       />
 
@@ -465,28 +492,31 @@ const TABS = [
 export function TrimmingSettings() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>("course");
-  const [courseEditTarget, setCourseEditTarget] = useState<TrimmingCourse | "new" | null>(null);
-  const [optionEditTarget, setOptionEditTarget] = useState<TrimmingOption | "new" | null>(null);
-  const [coursePendingDelete, setCoursePendingDelete] = useState<TrimmingCourse | null>(null);
-  const [optionPendingDelete, setOptionPendingDelete] = useState<TrimmingOption | null>(null);
-  const [, startSaveTransition] = useTransition();
 
   const createCourseMutation = useCreateTrimmingCourse();
   const updateCourseMutation = useUpdateTrimmingCourse();
   const deleteCourseMutation = useDeleteTrimmingCourse();
-
   const createOptionMutation = useCreateTrimmingOption();
   const updateOptionMutation = useUpdateTrimmingOption();
   const deleteOptionMutation = useDeleteTrimmingOption();
 
+  const courseCrud = useMasterCRUD<TrimmingCourse>({
+    data: undefined,
+    deleteMutation: deleteCourseMutation,
+    entityLabel: "トリミングコース",
+  });
+
+  const optionCrud = useMasterCRUD<TrimmingOption>({
+    data: undefined,
+    deleteMutation: deleteOptionMutation,
+    entityLabel: "トリミングオプション",
+  });
+
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
-    setCourseEditTarget(null);
-    setOptionEditTarget(null);
-  }, []);
-
-  const handleCourseClose = useCallback(() => setCourseEditTarget(null), []);
-  const handleOptionClose = useCallback(() => setOptionEditTarget(null), []);
+    courseCrud.setEditTarget(null);
+    optionCrud.setEditTarget(null);
+  }, [courseCrud.setEditTarget, optionCrud.setEditTarget]);
 
   const handleCourseSave = useCallback(
     (data: CourseFormData) => {
@@ -495,8 +525,8 @@ export function TrimmingSettings() {
         return;
       }
       const priceValue = data.price !== "" ? Number(data.price) : null;
-      startSaveTransition(() => {
-        if (courseEditTarget !== null && courseEditTarget !== "new") {
+      courseCrud.startSaveTransition(() => {
+        if (courseCrud.editTarget !== null && courseCrud.editTarget !== "new") {
           const req: UpdateTrimmingCourseRequest = {
             name: data.name,
             price: priceValue,
@@ -506,9 +536,9 @@ export function TrimmingSettings() {
             is_active: data.isActive,
           };
           updateCourseMutation.mutate(
-            { id: courseEditTarget.id, req },
+            { id: courseCrud.editTarget.id, req },
             {
-              onSuccess: () => { toast.success("更新しました"); handleCourseClose(); },
+              onSuccess: () => { toast.success("更新しました"); courseCrud.handleClose(); },
               onError: () => toast.error("更新に失敗しました"),
             },
           );
@@ -522,26 +552,14 @@ export function TrimmingSettings() {
             is_active: true,
           };
           createCourseMutation.mutate(req, {
-            onSuccess: () => { toast.success("登録しました"); handleCourseClose(); },
+            onSuccess: () => { toast.success("登録しました"); courseCrud.handleClose(); },
             onError: () => toast.error("登録に失敗しました"),
           });
         }
       });
     },
-    [courseEditTarget, updateCourseMutation, createCourseMutation, handleCourseClose],
+    [courseCrud.editTarget, updateCourseMutation, createCourseMutation, courseCrud.handleClose, courseCrud.startSaveTransition],
   );
-
-  const handleCourseDeleteConfirm = useCallback(() => {
-    if (!coursePendingDelete) return;
-    deleteCourseMutation.mutate(coursePendingDelete.id, {
-      onSuccess: () => {
-        setCoursePendingDelete(null);
-        handleCourseClose();
-        toast.success("削除しました");
-      },
-      onError: () => toast.error("削除に失敗しました"),
-    });
-  }, [coursePendingDelete, deleteCourseMutation, handleCourseClose]);
 
   const handleOptionSave = useCallback(
     (data: OptionFormData) => {
@@ -550,8 +568,8 @@ export function TrimmingSettings() {
         return;
       }
       const priceValue = data.price !== "" ? Number(data.price) : null;
-      startSaveTransition(() => {
-        if (optionEditTarget !== null && optionEditTarget !== "new") {
+      optionCrud.startSaveTransition(() => {
+        if (optionCrud.editTarget !== null && optionCrud.editTarget !== "new") {
           const req: UpdateTrimmingOptionRequest = {
             name: data.name,
             price: priceValue,
@@ -561,9 +579,9 @@ export function TrimmingSettings() {
             is_active: data.isActive,
           };
           updateOptionMutation.mutate(
-            { id: optionEditTarget.id, req },
+            { id: optionCrud.editTarget.id, req },
             {
-              onSuccess: () => { toast.success("更新しました"); handleOptionClose(); },
+              onSuccess: () => { toast.success("更新しました"); optionCrud.handleClose(); },
               onError: () => toast.error("更新に失敗しました"),
             },
           );
@@ -577,29 +595,14 @@ export function TrimmingSettings() {
             is_active: true,
           };
           createOptionMutation.mutate(req, {
-            onSuccess: () => { toast.success("登録しました"); handleOptionClose(); },
+            onSuccess: () => { toast.success("登録しました"); optionCrud.handleClose(); },
             onError: () => toast.error("登録に失敗しました"),
           });
         }
       });
     },
-    [optionEditTarget, updateOptionMutation, createOptionMutation, handleOptionClose],
+    [optionCrud.editTarget, updateOptionMutation, createOptionMutation, optionCrud.handleClose, optionCrud.startSaveTransition],
   );
-
-  const handleOptionDeleteConfirm = useCallback(() => {
-    if (!optionPendingDelete) return;
-    deleteOptionMutation.mutate(optionPendingDelete.id, {
-      onSuccess: () => {
-        setOptionPendingDelete(null);
-        handleOptionClose();
-        toast.success("削除しました");
-      },
-      onError: () => toast.error("削除に失敗しました"),
-    });
-  }, [optionPendingDelete, deleteOptionMutation, handleOptionClose]);
-
-  const coursePanelItem = courseEditTarget !== null && courseEditTarget !== "new" ? courseEditTarget : null;
-  const optionPanelItem = optionEditTarget !== null && optionEditTarget !== "new" ? optionEditTarget : null;
 
   return (
     <>
@@ -612,8 +615,8 @@ export function TrimmingSettings() {
             maxWidth="max-w-full"
             headerAction={
               <PrimaryButton onClick={() => {
-                if (activeTab === "course") setCourseEditTarget("new");
-                else setOptionEditTarget("new");
+                if (activeTab === "course") courseCrud.handleNew();
+                else optionCrud.handleNew();
               }}>
                 <Plus className="mr-1.5 size-4" />
                 新規登録
@@ -639,14 +642,14 @@ export function TrimmingSettings() {
                 </TabsList>
                 <TabsContent value="course" className="mt-4">
                   <TrimmingCourseTab
-                    editTarget={courseEditTarget}
-                    onEditTargetChange={setCourseEditTarget}
+                    editTarget={courseCrud.editTarget}
+                    onEditTargetChange={courseCrud.setEditTarget}
                   />
                 </TabsContent>
                 <TabsContent value="option" className="mt-4">
                   <TrimmingOptionTab
-                    editTarget={optionEditTarget}
-                    onEditTargetChange={setOptionEditTarget}
+                    editTarget={optionCrud.editTarget}
+                    onEditTargetChange={optionCrud.setEditTarget}
                   />
                 </TabsContent>
               </Tabs>
@@ -654,43 +657,43 @@ export function TrimmingSettings() {
           </PageLayout>
         </div>
 
-        {activeTab === "course" && courseEditTarget !== null ? (
+        {activeTab === "course" && courseCrud.isEditing ? (
           <TrimmingCourseSidePanel
-            key={coursePanelItem ? String(coursePanelItem.id) : "new-trimming-course"}
-            item={coursePanelItem}
-            onClose={handleCourseClose}
+            key={courseCrud.panelItem ? String(courseCrud.panelItem.id) : "new-trimming-course"}
+            item={courseCrud.panelItem}
+            onClose={courseCrud.handleClose}
             onSave={handleCourseSave}
-            onDeleteRequest={setCoursePendingDelete}
+            onDeleteRequest={courseCrud.setPendingDelete}
           />
         ) : null}
-        {activeTab === "option" && optionEditTarget !== null ? (
+        {activeTab === "option" && optionCrud.isEditing ? (
           <TrimmingOptionSidePanel
-            key={optionPanelItem ? String(optionPanelItem.id) : "new-trimming-option"}
-            item={optionPanelItem}
-            onClose={handleOptionClose}
+            key={optionCrud.panelItem ? String(optionCrud.panelItem.id) : "new-trimming-option"}
+            item={optionCrud.panelItem}
+            onClose={optionCrud.handleClose}
             onSave={handleOptionSave}
-            onDeleteRequest={setOptionPendingDelete}
+            onDeleteRequest={optionCrud.setPendingDelete}
           />
         ) : null}
       </div>
 
       <ConfirmDialog
-        open={coursePendingDelete !== null}
-        onClose={() => setCoursePendingDelete(null)}
+        open={courseCrud.pendingDelete !== null}
+        onClose={courseCrud.handleDeleteCancel}
         title="トリミングコースを削除しますか？"
-        description={`「${coursePendingDelete?.name}」を削除します。この操作は取り消せません。`}
+        description={`「${courseCrud.pendingDelete?.name}」を削除します。この操作は取り消せません。`}
         confirmLabel="削除"
         variant="destructive"
-        onConfirm={handleCourseDeleteConfirm}
+        onConfirm={courseCrud.handleDeleteConfirm}
       />
       <ConfirmDialog
-        open={optionPendingDelete !== null}
-        onClose={() => setOptionPendingDelete(null)}
+        open={optionCrud.pendingDelete !== null}
+        onClose={optionCrud.handleDeleteCancel}
         title="トリミングオプションを削除しますか？"
-        description={`「${optionPendingDelete?.name}」を削除します。この操作は取り消せません。`}
+        description={`「${optionCrud.pendingDelete?.name}」を削除します。この操作は取り消せません。`}
         confirmLabel="削除"
         variant="destructive"
-        onConfirm={handleOptionDeleteConfirm}
+        onConfirm={optionCrud.handleDeleteConfirm}
       />
     </>
   );
