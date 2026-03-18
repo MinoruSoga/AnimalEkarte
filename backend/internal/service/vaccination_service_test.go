@@ -14,15 +14,15 @@ import (
 
 // mockVaccinationRepository は VaccinationRepository のテスト用モック実装
 type mockVaccinationRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error)
+	findAllFn  func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error)
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
 	createFn   func(ctx context.Context, vaccination *model.Vaccination) error
 	updateFn   func(ctx context.Context, clinicID uint64, vaccination *model.Vaccination) error
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockVaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error) {
-	return m.findAllFn(ctx, clinicID, petID, ownerID, page, limit)
+func (m *mockVaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error) {
+	return m.findAllFn(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
 }
 
 func (m *mockVaccinationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error) {
@@ -141,7 +141,7 @@ func TestVaccinationService_List(t *testing.T) {
 			capturedPetID := (*uint64)(nil)
 			capturedOwnerID := (*uint64)(nil)
 			repo := &mockVaccinationRepository{
-				findAllFn: func(_ context.Context, _ uint64, petID *uint64, ownerID *uint64, _, _ int) ([]model.Vaccination, int64, error) {
+				findAllFn: func(_ context.Context, _ uint64, petID *uint64, ownerID *uint64, _, _ *string, _, _ int) ([]model.Vaccination, int64, error) {
 					capturedPetID = petID
 					capturedOwnerID = ownerID
 					return tt.repoVaccinations, tt.repoTotal, tt.repoErr
@@ -149,7 +149,7 @@ func TestVaccinationService_List(t *testing.T) {
 			}
 			svc := NewVaccinationService(repo)
 
-			vaccinations, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.page, tt.limit)
+			vaccinations, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, nil, tt.page, tt.limit)
 
 			if tt.wantErr {
 				assert.Error(t, err)

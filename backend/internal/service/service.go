@@ -56,7 +56,7 @@ type Services struct {
 // NewServices はリポジトリからすべてのサービスを初期化して返す
 func NewServices(repos *repository.Repositories) *Services {
 	return &Services{
-		AnimalSpecies:          NewAnimalSpeciesService(repos.AnimalSpecies),
+		AnimalSpecies:          NewAnimalSpeciesService(repos.AnimalSpecies, slog.Default()),
 		Owner:                  NewOwnerService(repos.Owner),
 		Pet:                    NewPetService(repos.Pet, repos.Owner, repos.Insurance, slog.Default()),
 		Reservation:            NewReservationService(repos.Reservation),

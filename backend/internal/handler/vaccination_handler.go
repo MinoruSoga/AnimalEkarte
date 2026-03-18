@@ -42,7 +42,18 @@ func (h *Handler) ListVaccinations(c *gin.Context) {
 		ownerID = &id
 	}
 
-	vaccinations, total, err := h.svc.Vaccination.List(c.Request.Context(), clinicID, petID, ownerID, page, limit)
+	startDate, err := parseDateQuery(c, "start_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	endDate, err := parseDateQuery(c, "end_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	vaccinations, total, err := h.svc.Vaccination.List(c.Request.Context(), clinicID, petID, ownerID, startDate, endDate, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return

@@ -12,7 +12,7 @@ import (
 )
 
 type ExaminationRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Examination, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	Create(ctx context.Context, exam *model.Examination) error
 	Update(ctx context.Context, clinicID uint64, exam *model.Examination) error
@@ -27,7 +27,7 @@ func NewExaminationRepository(db *gorm.DB) ExaminationRepository {
 	return &examinationRepository{db: db}
 }
 
-func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Examination, int64, error) {
+func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
 	buildBase := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.Examination{}).
 			Joins("JOIN medical_records ON medical_records.id = exams.medical_record_id").
@@ -40,6 +40,12 @@ func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 		}
 		if status != nil {
 			q = q.Where("exams.status = ?", *status)
+		}
+		if startDate != nil {
+			q = q.Where("exams.date >= ?", *startDate)
+		}
+		if endDate != nil {
+			q = q.Where("exams.date <= ?", *endDate)
 		}
 		return q
 	}

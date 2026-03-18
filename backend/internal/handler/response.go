@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/gin-gonic/gin"
@@ -94,6 +95,19 @@ func camelToSnake(s string) string {
 		b.WriteRune(unicode.ToLower(r))
 	}
 	return b.String()
+}
+
+// parseDateQuery はクエリパラメータから YYYY-MM-DD 形式の日付を安全にパースする。
+// 空文字列の場合は nil を返す。不正な形式の場合はエラーを返す。
+func parseDateQuery(c *gin.Context, key string) (*string, error) {
+	s := c.Query(key)
+	if s == "" {
+		return nil, nil
+	}
+	if _, err := time.Parse("2006-01-02", s); err != nil {
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("%s must be YYYY-MM-DD format", key))
+	}
+	return &s, nil
 }
 
 // extractClinicID はJWT認証済みコンテキストから clinic_id を取得してパースする。

@@ -8,7 +8,7 @@ import (
 )
 
 type ExaminationService interface {
-	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Examination, int64, error)
+	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	Create(ctx context.Context, exam *model.Examination) error
 	Update(ctx context.Context, clinicID uint64, exam *model.Examination) error
@@ -23,8 +23,8 @@ func NewExaminationService(repo repository.ExaminationRepository) ExaminationSer
 	return &examinationService{repo: repo}
 }
 
-func (s *examinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Examination, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, petID, ownerID, status, page, limit)
+func (s *examinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
+	return s.repo.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
 }
 
 func (s *examinationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error) {

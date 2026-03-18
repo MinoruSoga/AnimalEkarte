@@ -153,6 +153,11 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters := rg.Group("/masters")
 
 	masters.GET("/animal-species", h.ListAnimalSpecies)
+	masters.POST("/animal-species", h.CreateAnimalSpecies)
+	masters.PATCH("/animal-species/reorder", h.ReorderAnimalSpecies) // 静的パスを /:id より前に登録
+	masters.GET("/animal-species/:id", h.GetAnimalSpecies)
+	masters.PATCH("/animal-species/:id", h.UpdateAnimalSpecies)
+	masters.DELETE("/animal-species/:id", h.DeleteAnimalSpecies)
 
 	masters.GET("/staffs", h.ListStaffs)
 	masters.POST("/staffs", h.CreateStaff)

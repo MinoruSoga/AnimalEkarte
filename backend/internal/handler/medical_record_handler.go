@@ -128,6 +128,15 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 
 	// 3. ID型の変換: string → uint64
 	var ownerID, petID, doctorID, reservationAppointmentID *uint64
+	if input.OwnerID == nil || *input.OwnerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "owner_id is required"})
+		return
+	}
+	if input.PetID == nil || *input.PetID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "pet_id is required"})
+		return
+	}
+
 	if input.OwnerID != nil && *input.OwnerID != "" {
 		id, err := strconv.ParseUint(*input.OwnerID, 10, 64)
 		if err != nil {
@@ -204,6 +213,13 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 		}
 		if input.Diagnosis1NameID != nil {
 			clinicalPlanInput.DiagnosisNameID = input.Diagnosis1NameID
+		}
+		// v9.1: Diagnosis2 も追加
+		if input.Diagnosis2CategoryID != nil {
+			clinicalPlanInput.Diagnosis2CategoryID = input.Diagnosis2CategoryID
+		}
+		if input.Diagnosis2NameID != nil {
+			clinicalPlanInput.Diagnosis2NameID = input.Diagnosis2NameID
 		}
 		if _, err := h.svc.ClinicalPlan.Update(ctx, record.ID, clinicalPlanInput); err != nil {
 			slog.ErrorContext(ctx, "failed to update clinical plan",

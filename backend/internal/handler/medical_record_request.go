@@ -10,8 +10,8 @@ type createMedicalRecordRequest struct {
 	Date                     *time.Time `json:"date"`                       // optional
 	VisitDate                *string   `json:"visit_date"`                  // FE送信フィールド（"YYYY-MM-DD"形式）
 	VisitType                string    `json:"visit_type"`                  // FE送信フィールド（無視してよい）
-	OwnerID                  *string   `json:"owner_id"`                    // FE送信（string）→ uint64に変換
-	PetID                    *string   `json:"pet_id"`                      // FE送信（string）→ uint64に変換
+	OwnerID                  *string   `json:"owner_id" binding:"required"` // FE送信（string）→ uint64に変換
+	PetID                    *string   `json:"pet_id" binding:"required"`   // FE送信（string）→ uint64に変換
 	DoctorID                 *string   `json:"doctor_id"`                   // FE送信（string）→ uint64に変換
 	ReservationAppointmentID *string   `json:"reservation_appointment_id"`  // FE送信（string）→ uint64に変換
 	Status                   string    `json:"status"`

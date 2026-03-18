@@ -47,7 +47,18 @@ func (h *Handler) ListExaminations(c *gin.Context) {
 		status = &s
 	}
 
-	exams, total, err := h.svc.Examination.List(c.Request.Context(), clinicID, petID, ownerID, status, page, limit)
+	startDate, err := parseDateQuery(c, "start_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	endDate, err := parseDateQuery(c, "end_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	exams, total, err := h.svc.Examination.List(c.Request.Context(), clinicID, petID, ownerID, status, startDate, endDate, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return
