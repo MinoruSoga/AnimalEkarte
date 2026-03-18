@@ -13,7 +13,7 @@ type trimmingCourseResponse struct {
 	Price       *float64  `json:"price,omitempty"`
 	IsActive    bool      `json:"is_active"`
 	Description string    `json:"description"`
-	TargetSize  *string   `json:"target_size,omitempty"`
+	TargetSize  string    `json:"target_size,omitempty"`
 	Duration    *int      `json:"duration,omitempty"`
 	SortOrder   int       `json:"sort_order"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -21,10 +21,9 @@ type trimmingCourseResponse struct {
 }
 
 func toTrimmingCourseResponse(c *model.TrimmingCourse) trimmingCourseResponse {
-	var targetSize *string
+	targetSize := ""
 	if c.TargetSize != nil {
-		s := string(*c.TargetSize)
-		targetSize = &s
+		targetSize = string(*c.TargetSize)
 	}
 	return trimmingCourseResponse{
 		ID:          c.ID,
