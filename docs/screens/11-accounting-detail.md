@@ -54,67 +54,34 @@
 - `medicalRecordId` 存在時: カルテへのリンク（FileTextアイコン）
 - `hospitalizationId` 存在時: 入院詳細へのリンク（BedDoubleアイコン）
 
-## 左カラム: 明細テーブル（`AccountingItemTable`）
+## 表示・フォーム項目（明細一覧）
 
-### テーブル列
+| フィールド | 内容 | 備考 |
+|-----------|------|------|
+| 区分 | `Badge` (診察/検査/処置/手術/処方/フード/物販/その他) | `ItemCategory` 型 |
+| 項目名 | 名称 + 「カルテ連携」バッジ | `source === "medical_record"` 時 |
+| 単価 | `unitPrice` | 三桁区切り表示 |
+| 数量 | `quantity` | |
+| 保険 | 緑点バッジ | `isInsuranceApplicable === true` 時 |
+| 金額 | 小計 (単価 * 数量) | |
+| 削除 | `Trash2` ボタン | `source === "manual"` 時のみ |
 
-| 列 | className / align | 表示内容 |
-|---|---|---|
-| 区分 | `w-[100px]` | `Badge`（`getItemCategoryLabel`） |
-| 項目名 | - | `item.name` + カルテ連携バッジ（`source === "medical_record"` 時） |
-| 単価(税込) | align:right, `w-[100px]` | `¥{unitPrice}` |
-| 数量 | align:center, `w-[80px]` | `item.quantity` |
-| 保険 | align:center, `w-[80px]` | 適用時: 緑●、非適用時: グレー「-」 |
-| 金額 | align:right, `w-[120px]` | `¥{unitPrice × quantity}` |
-| 削除 | `w-[50px]` | 手動追加項目のみ Trash2 ボタン |
-
-### 区分バッジ
-
-| 区分値 | 表示名 |
-|--------|--------|
-| `examination` | 診察 |
-| `test` | 検査 |
-| `procedure` | 処置 |
-| `surgery` | 手術 |
-| `medicine` | 処方 |
-| `food` | フード |
-| `goods` | 物販 |
-| `other` | その他 |
-
-### 明細フッター
-
-税抜小計 / 消費税 / 合計（太字・大文字）
-
-### 手動追加ダイアログ（物販・その他追加）
+## フォーム項目（ペット保険）
 
 | フィールド | 入力部品 | 備考 |
-|---|---|---|
-| 区分 | `Select` | `MANUAL_ITEM_CATEGORY_VALUES`: 療法食・フード / 物販・ケア用品 / その他 |
-| 品目名 | `Input` | placeholder: 例: ロイヤルカナン 3kg |
-| 単価 (税込) | `Input`（type=number） | placeholder: 0 |
+|-----------|----------|------|
+| 保険利用 | `Switch` | |
+| 負担割合 | `Select` | 50% / 70% / 90% / 100% |
+| 保険負担額| 読み取り専用 | 緑背景カード、マイナス表示 |
 
-カルテ連携アイテム（`source === "medical_record"`）および入院連携アイテム（`source === "hospitalization"`）は削除不可。手動追加アイテム（`source === "manual"`）のみ削除可能。
-
-## 右カラム: 入金パネル（`AccountingPaymentPanel`）
-
-### ペット保険カード
+## フォーム項目（決済情報）
 
 | フィールド | 入力部品 | 備考 |
-|---|---|---|
-| 保険ON/OFF | `Switch` | CardHeader内トグル |
-| 負担割合 | `Select` | `INSURANCE_RATIO_VALUES`: 50%/70%/90%/100%（保険ON時のみ表示） |
-| 保険負担額 | 読み取り専用 | 緑背景カード、マイナス表示 |
-
-### 決済情報カード
-
-| フィールド | 入力部品 | 備考 |
-|---|---|---|
-| 請求金額 | 読み取り専用 | 中央配置、4xl太字 |
-| 支払方法 | `Button` グリッド（3cols） | `PAYMENT_METHOD_VALUES`: 現金/カード/電子マネー、選択時は `bg-[#37352F]` |
-| お預かり金額 | `Input`（type=number） | 右寄せ大文字、「円」ラベル付き |
-| クイック入力 | `Button` × 3 | 「丁度」「千円単位」「一万単位」 |
-| お釣り | 読み取り専用 | `bg-[#F7F6F3]` カード、不足時は赤文字 |
-| 会計確定 | `Button`（full-width） | Save アイコン、disabled条件: `changeAmount < 0` or 預り金未入力 or 精算完了済 |
+|-----------|----------|------|
+| 支払方法 | ボタン選択 | 現金 / カード / 電子マネー |
+| お預かり金額| `Input(number)` | 右寄せ、通貨単位付き |
+| クイック入力| `Button` × 3 | 丁度 / 千円単位 / 一万単位 |
+| お釣り | 読み取り専用 | 不足時は赤文字 |
 
 ### 支払方法値
 
@@ -183,7 +150,40 @@
 
 `Accounting`, `AccountingItem`, `PaymentInfo`, `AccountingCalculation`, `DocumentType`, `ItemCategory`, `ManualItemCategory`, `PaymentMethod`, `InsuranceRatio`, `ItemSource`, `TaxRate`
 
-## ユーザーアクション
+## 帳票出力仕様
+
+`[C] AccountingDocument` により、以下の2種類の帳票を出力する。
+
+### 1. 領収書 (`receipt`)
+- **形式**: 80mm幅レシート形式
+- **印字項目**:
+  - 宛名（飼主名 + 「様」）
+  - ペット名
+  - **領収金額**（中央・巨大太字）
+  - 診療費等合計、保険負担額（適用時）、請求金額、お預かり、お釣り
+  - 病院情報（名称、住所、TEL、登録番号）
+
+### 2. 診療明細書 (`statement`)
+- **形式**: A4サイズ形式
+- **印字項目**:
+  - 病院情報、発行日、会計No
+  - 宛名、ペット名、品種
+  - **明細テーブル**: 項目名、カテゴリ、単価、数量、金額
+  - **集計エリア**: 合計金額、10%対象額・税額、8%対象額・税額、保険適用額、最終請求金額
+
+## 機能詳細
+
+### 1. 混在消費税の自動計算
+- **税率別集計**: 各明細に設定された税率（8% または 10%）に基づき、税抜小計および消費税額を個別に算出する。
+- **端数処理**: 現状の実装では切り捨て処理を採用し、`taxBreakdown` オブジェクトで内訳を管理する。
+
+### 2. ペット保険の窓口精算ロジック
+- **マイナス計上**: 保険適用が有効（`hasInsurance: true`）な場合、選択された負担割合（50%〜100%）に基づき、保険負担額をマイナス項目の明細として自動生成する。
+- **請求額連動**: 合計金額から保険負担額を差し引いた額が、最終的な「請求金額」となる。
+
+### 3. 入金と釣銭管理
+- **リアルタイム計算**: 「お預かり金額」の入力に対し、請求金額との差額を即座に算出し、不足がある場合は「不足」として赤文字で表示する。
+- **確定時の不整合防止**: お釣りがマイナス（不足）の状態では「会計確定」ボタンが disabled となり、未収金の発生をUIレベルで防止する。
 
 | アクション | トリガー | 処理内容 | 遷移先 |
 |-----------|---------|---------|--------|
@@ -228,13 +228,10 @@
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| GET | `/api/v1/accountings/:id` | 会計詳細取得 | 未実装 |
-| POST | `/api/v1/accountings` | 会計作成 | 未実装 |
-| PUT | `/api/v1/accountings/:id` | 会計更新 | 未実装 |
-| POST | `/api/v1/accountings/:id/complete` | 会計確定 | 未実装 |
-| GET | `/api/v1/accountings/:id/receipt` | 領収書取得 | 未実装 |
-| GET | `/api/v1/accountings/:id/statement` | 診療明細書取得 | 未実装 |
+| GET | `/api/v1/accountings/:id` | 会計詳細取得 | 実装済 |
+| PATCH | `/api/v1/accountings/:id` | 会計データ更新 | 実装済 |
+| POST | `/api/v1/accountings` | 会計データ作成 | 実装済 |
 
 ## 実装状況
-- フロントエンド(ui-sample): 実装済（LocalStorageによるデータ永続化）
-- バックエンドAPI: 未実装
+- フロントエンド: 実装済（`features/accounting/routes/AccountingDetail.tsx`）
+- バックエンドAPI: 実装済（`handler/accounting_handler.go`）

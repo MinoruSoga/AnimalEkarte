@@ -21,20 +21,20 @@
 └──────────────────────────────────────────────────────┘
 ```
 
-## 表示項目
+## 表示項目（テーブル）
 
 | フィールド名 | 型 | 説明 | ソート | 備考 |
 |------------|-----|------|--------|------|
-| 飼主No | string | 飼主ID番号 | ○ | `owners.id`（`ownerId`） |
-| 飼主名 | string | 飼い主氏名 | ○ | `owners.owner_name`（`ownerName`） |
-| ペット番号 | string | ペットの患者番号 | - | `pets.pet_number`（等幅フォント） |
-| ペット名 | string | ペットの名前 | ○ | `pets.name` |
-| 生死 | enum | 生存/死亡ステータス（StatusBadge） | - | `pets.status` |
-| 種 | string | 犬/猫等 | ○ | `pets.animal_species_id` → `animal_species` |
-| 生年月日 | date | ペットの誕生日 | ○ | `pets.birth_date`（等幅フォント） |
-| 体重 | decimal | 体重(kg) | - | `pets.weight`（等幅フォント） |
-| 環境 | string | 飼育環境 | - | `pets.environment` |
-| 前回来院 | date | 最後に来院した日付 | ○ | `pets.last_visit`（等幅フォント） |
+| 飼主No | string | 飼主ID番号 | ○ | `pet.ownerNumber` |
+| 飼主名 | string | 飼い主氏名 | ○ | `pet.ownerName` |
+| ペット番号 | string | ペットの患者番号 | - | `pet.petNumber`（等幅フォント） |
+| ペット名 | string | ペットの名前 | ○ | `pet.name` |
+| 生死 | string | 生存/死亡ステータス（StatusBadge） | - | `pet.status` |
+| 種 | string | 犬/猫等 | ○ | `pet.species` |
+| 生年月日 | date | ペットの誕生日 | ○ | `pet.birthDate`（等幅フォント） |
+| 体重 | decimal | 体重(kg) | - | `pet.weight`（等幅フォント） |
+| 環境 | string | 飼育環境 | - | `pet.environment` |
+| 前回来院 | date | 最終来院日 | ○ | `pet.lastVisit`（等幅フォント） |
 | 操作 | - | 編集・削除ドロップダウン | - | `RowActionDropdown` |
 
 ## UI コンポーネント
@@ -43,7 +43,7 @@
 |---|---|---|
 | `OwnersList` | `[R]` | メインページ |
 | `PageLayout` | `[S]` | ページコンテナ |
-| `SearchFilterBar` | `[S]` | フリーワード検索（飼主名・ペット名・飼主No・種別） |
+| `NotionFilter` | `[S]` | フリーワード検索（飼主名・ペット名・飼主No・種別） |
 | `DataTable` | `[S]` | テーブルコンテナ |
 | `DataTableRow` | `[S]` | クリックで編集画面へ遷移（`onClick: handleEdit(pet.ownerId)`） |
 | `SortableHeader` | `[S]` | ソート可能なカラムヘッダー |
@@ -55,6 +55,19 @@
 | `usePets` | `[H]` | ペット一覧データ取得・削除 |
 | `useTableSort` | `[H]` | テーブルソート管理 |
 | `usePagination` | `[H]` | ページネーション管理 |
+
+## 機能詳細
+
+### 1. 高速な絞り込み（Deferred Search）
+- **パフォーマンス最適化**: `useDeferredValue` を使用し、検索入力中の頻繁な再レンダリングを抑制。大量のデータ（ペットリスト）に対しても軽快な検索体験を提供する。
+- **検索対象**: 飼主名、ペット名、飼主No、種別の各フィールドを横断的に検索する。
+
+### 2. テーブル制御
+- **ソート機能**: `useTableSort` フックにより、各ヘッダーをクリックすることで昇順/降順の並び替えが可能。初期状態は「飼主No」の降順。
+- **ページネーション**: 1ページあたり20件を表示。
+
+### 3. データ連携
+- **飼主削除の伝播**: 飼主を削除した場合、その飼主に紐づくすべてのペット情報もバックエンドで論理削除（`deleted_at` 更新）される。
 
 ## ユーザーアクション
 
@@ -95,13 +108,12 @@
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| GET | `/api/v1/owners` | 飼い主一覧取得 | 未実装 |
-| GET | `/api/v1/pets` | ペット一覧取得（飼い主情報含む） | 実装済 |
-| DELETE | `/api/v1/pets/:id` | ペット削除 | 実装済 |
+| GET | `/api/v1/pets` | ペット一覧取得（検索パラメータ・飼主情報Preload含む） | 実装済 |
+| DELETE | `/api/v1/owners/:id` | 飼主削除（関連ペット含む） | 実装済 |
 
 ## 実装状況
-- フロントエンド(ui-sample): 実装済
-- バックエンドAPI: 一部実装済（pets）、owners未実装
+- フロントエンド: 実装済（`features/owners/routes/OwnersList.tsx`）
+- バックエンドAPI: 実装済（`handler/pet_handler.go`, `handler/owner_handler.go`）
 
 ## 備考
 - テーブルはペット単位で表示（1ペット＝1行）。飼主が複数ペットを持つ場合は複数行に展開される

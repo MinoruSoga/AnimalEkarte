@@ -5,10 +5,8 @@
 
 > **デザイン・UI共通仕様**:
 > - 操作ボタンはNotion風に統一（メイン: `#038B94`, プライマリ: `#2383E2`）
-> - セレクトボックスは全て `Combobox` (コンボボックス) に統一
 > - 各行の操作アイコンは `MoreHorizontal` + `size-5` を使用
 > - 内部ID（〇〇No, 〇〇ID等）はUI上非表示とする
-> - 会計・入院機能はLocalStorageによるデータ永続化を採用
 
 ---
 
@@ -37,7 +35,7 @@
 **画面構成:**
 - カンバンボード（5カラム: 受付予約 → 受付済 → 診療中 → 会計待ち → 会計済）
 - 各カラムに患者カード（`[C] AppointmentCard`）を配置
-- カード間のドラッグ&ドロップによるステータス遷移（`react-dnd`）
+- カード間のドラッグ&ドロップによるステータス遷移（`dnd-kit`）
 - カードクリックで詳細モーダル（`[C] DashboardDetailModal`）表示
 
 **AppointmentCard 表示項目:**
@@ -215,7 +213,7 @@
 
 **画面構成:**
 - ヘッダー: タイトル + 新規登録ボタン
-- 検索バー（`[S] SearchFilterBar`）+ 件数表示
+- 検索バー（`[S] NotionFilter`）+ 件数表示
 - データテーブル（`[S] DataTable`）: 飼主名、ペット名、生死、種、生年月日、体重、環境、前回来院、操作
 - ページネーション（`[S] Pagination`、20件/ページ）
 - 行アクション: 編集、削除（`[S] RowActionDropdown`）
@@ -329,7 +327,7 @@
 
 **画面構成:**
 - ヘッダー: タイトル + 新規作成ボタン
-- 検索バー（`[S] SearchFilterBar`）
+- 検索バー（`[S] NotionFilter`）
 - データテーブル: 診療日、飼主名、ペット名、種、主訴、担当医、ステータス、操作
 - ページネーション（20件/ページ）
 - 行アクション: 編集、削除
@@ -900,7 +898,7 @@ calcGrandTotal(subtotal, globalDiscountRate, globalDiscountAmount): { tax, total
 
 **画面構成:**
 - ヘッダー: タイトル（Scissors アイコン）+ 新規登録ボタン（`[S] PrimaryButton`）
-- フィルタ: `[S] SearchFilterBar`（キーワード検索「飼主名、ペット名...」）+ 日付範囲フィルタ
+- フィルタ: `[S] NotionFilter`（キーワード検索「飼主名、ペット名...」）+ 日付範囲フィルタ
 - データテーブル（`[S] DataTable`）
 - ページネーション（`[S] Pagination`、20件/ページ）
 - 削除確認ダイアログ（`[S] ConfirmDialog`）
@@ -910,7 +908,7 @@ calcGrandTotal(subtotal, globalDiscountRate, globalDiscountAmount): { tax, total
 |---|---|---|
 | 開始日 | `NotionDatePicker` | `lg:w-[160px]` |
 | 終了日 | `NotionDatePicker` | `lg:w-[160px]`、「〜」で接続 |
-| キーワード | `SearchFilterBar` | 飼主名・ペット名で検索 |
+| キーワード | `NotionFilter` | 飼主名・ペット名で検索 |
 | クリア | `Button`（outline） | 全フィルタリセット |
 
 **テーブル列:**
@@ -937,7 +935,7 @@ calcGrandTotal(subtotal, globalDiscountRate, globalDiscountAmount): { tax, total
 |---|---|---|
 | `TrimmingList` | `[R]` | メインページ |
 | `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | 検索フィルタバー |
+| `NotionFilter` | `[S]` | 検索フィルタバー |
 | `DataTable` / `DataTableRow` | `[S]` | データテーブル |
 | `NotionDatePicker` | `[S]` | 日付ピッカー（×2） |
 | `StatusBadge` | `[S]` | ステータスバッジ |
@@ -1053,7 +1051,7 @@ calcGrandTotal(subtotal, globalDiscountRate, globalDiscountAmount): { tax, total
 
 **画面構成:**
 - ヘッダー: タイトル（TestTube アイコン）+ 「検査データ取込」ボタン（FileSpreadsheet アイコン、outline）
-- 検索バー（`[S] SearchFilterBar`）: 「飼主名、ペット名、検査種別...」
+- 検索バー（`[S] NotionFilter`）: 「飼主名、ペット名、検査種別...」
 - データテーブル（`[S] DataTable`）
 - ページネーション（`[S] Pagination`、20件/ページ）
 
@@ -1081,7 +1079,7 @@ calcGrandTotal(subtotal, globalDiscountRate, globalDiscountAmount): { tax, total
 |---|---|---|
 | `Examinations` | `[R]` | メインページ |
 | `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | 検索フィルタバー |
+| `NotionFilter` | `[S]` | 検索フィルタバー |
 | `DataTable` / `DataTableRow` | `[S]` | データテーブル |
 | `StatusBadge` | `[S]` | ステータスバッジ |
 | `RowActionDropdown` | `[S]` | 行アクションメニュー |
@@ -1107,7 +1105,7 @@ calcGrandTotal(subtotal, globalDiscountRate, globalDiscountAmount): { tax, total
 
 **画面構成:**
 - ヘッダー: タイトル（CreditCard アイコン）+ 新規会計登録ボタン（`[S] PrimaryButton`）
-- 検索バー（`[S] SearchFilterBar`）: 「飼主名、ペット名...」
+- 検索バー（`[S] NotionFilter`）: 「飼主名、ペット名...」
 - データテーブル（`[S] DataTable`）
 - ページネーション（`[S] Pagination`、20件/ページ）
 - 削除確認ダイアログ（`[S] ConfirmDialog`）
@@ -1140,7 +1138,7 @@ calcGrandTotal(subtotal, globalDiscountRate, globalDiscountAmount): { tax, total
 |---|---|---|
 | `Accounting` | `[R]` | メインページ |
 | `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | 検索フィルタバー |
+| `NotionFilter` | `[S]` | 検索フィルタバー |
 | `DataTable` / `DataTableRow` | `[S]` | データテーブル |
 | `PrimaryButton` | `[S]` | 新規作成ボタン |
 | `StatusBadge` | `[S]` | ステータスバッジ |
@@ -1276,7 +1274,7 @@ calcGrandTotal(subtotal, globalDiscountRate, globalDiscountAmount): { tax, total
 
 **画面構成:**
 - ヘッダー: タイトル（Syringe アイコン）+ 「新規登録」ボタン（`[S] PrimaryButton`、Plus アイコン）→ `/medical-records/select-pet`（state: `{ activeTab: "予防接種" }`）
-- 検索バー（`[S] SearchFilterBar`）: 「飼主名、ペット名、予防接種名...」
+- 検索バー（`[S] NotionFilter`）: 「飼主名、ペット名、予防接種名...」
 - データテーブル（`[S] DataTable`）
 - ページネーション（`[S] Pagination`、20件/ページ）
 
@@ -1303,7 +1301,7 @@ calcGrandTotal(subtotal, globalDiscountRate, globalDiscountAmount): { tax, total
 |---|---|---|
 | `VaccinationList` | `[R]` | メインページ |
 | `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | 検索フィルタバー |
+| `NotionFilter` | `[S]` | 検索フィルタバー |
 | `DataTable` / `DataTableRow` | `[S]` | データテーブル |
 | `RowActionDropdown` | `[S]` | 行アクションメニュー |
 | `Pagination` | `[S]` | ページネーション |
@@ -1327,7 +1325,7 @@ calcGrandTotal(subtotal, globalDiscountRate, globalDiscountAmount): { tax, total
 
 **画面構成:**
 - ヘッダー: タイトル（ClipboardCheck アイコン）+ 「新規登録」ボタン（`[S] PrimaryButton`、Plus アイコン）→ `/medical-records/select-pet`（state: `{ activeTab: "定期健診" }`）
-- 検索バー（`[S] SearchFilterBar`）: 「飼主名、ペット名、健診種別...」
+- 検索バー（`[S] NotionFilter`）: 「飼主名、ペット名、健診種別...」
 - データテーブル（`[S] DataTable`）
 - ページネーション（`[S] Pagination`、20件/ページ）
 
@@ -1362,7 +1360,7 @@ calcGrandTotal(subtotal, globalDiscountRate, globalDiscountAmount): { tax, total
 |---|---|---|
 | `CheckupList` | `[R]` | メインページ |
 | `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | 検索フィルタバー |
+| `NotionFilter` | `[S]` | 検索フィルタバー |
 | `DataTable` / `DataTableRow` | `[S]` | データテーブル |
 | `RowActionDropdown` | `[S]` | 行アクションメニュー |
 | `Pagination` | `[S]` | ページネーション |
@@ -1547,7 +1545,7 @@ calcGrandTotal(subtotal, globalDiscountRate, globalDiscountAmount): { tax, total
 
 **画面構成（リストモード）:**
 - ヘッダー: カテゴリ名（`config.IconComponent` 付き）+ 戻るボタン → `/settings` + 新規登録ボタン
-- 検索バー（`[S] SearchFilterBar`）: `showCode` 時は `{config.labels.code}、{config.labels.name}で検索...`、それ以外は `{config.labels.name}で検索...`
+- 検索バー（`[S] NotionFilter`）: `showCode` 時は `{config.labels.code}、{config.labels.name}で検索...`、それ以外は `{config.labels.name}で検索...`
 - データテーブル（`[S] DataTable`）
 
 **ツリー表示（`showParentItem: true` のカテゴリ）:**
@@ -1738,7 +1736,7 @@ calcGrandTotal(subtotal, globalDiscountRate, globalDiscountAmount): { tax, total
 | `SectionWrapper` | `[C]` | セクション共通ラッパー（`SectionPropertyRow` = `NotionPropertyRow` re-export） |
 | `NotionPropertyRow` | `[S]` | Notion風プロパティ行（MasterItemEditForm・全セクション共通） |
 | `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | 検索フィルタバー |
+| `NotionFilter` | `[S]` | 検索フィルタバー |
 | `DataTable` / `DataTableRow` | `[S]` | データテーブル |
 | `PrimaryButton` | `[S]` | 新規登録・保存ボタン |
 | `StatusBadge` | `[S]` | ステータスバッジ |
@@ -1778,7 +1776,7 @@ calcGrandTotal(subtotal, globalDiscountRate, globalDiscountAmount): { tax, total
 
 **画面構成:**
 - ヘッダー: タイトル「在庫管理」（Package アイコン）+ 更新ボタン（RefreshCw アイコン、outline���+ 在庫登録ボタン（`[S] PrimaryButton`）
-- 検索バー（`[S] SearchFilterBar`）: 「品名、保管場所、仕入先で検索...」
+- 検索バー（`[S] NotionFilter`）: 「品名、保管場所、仕入先で検索...」
 - カテゴリフィルタ（`Select`）: 全カテゴリー / 医薬品 / 消耗品 / フード / その他
 - 状態フィルタ（`Select`）: 全ての状態 / 在庫あり / 残りわずか / 在庫切れ
 - データテーブル（`[S] DataTable`）
@@ -1811,7 +1809,7 @@ calcGrandTotal(subtotal, globalDiscountRate, globalDiscountAmount): { tax, total
 |---|---|---|
 | `InventoryList` | `[R]` | メインページ |
 | `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | 検索フィルタバー |
+| `NotionFilter` | `[S]` | 検索フィルタバー |
 | `DataTable` / `DataTableRow` | `[S]` | データテーブル |
 | `SortableHeader` | `[S]` | ソート可能ヘッダー（9列中7列） |
 | `StatusBadge` | `[S]` | ステータスバッジ |
@@ -2084,19 +2082,23 @@ Login
 | 27 | `/inventory/new` | 在庫新規登録 | `InventoryForm` |
 | 28 | `/inventory/:id` | 在庫編集 | `InventoryForm` |
 | 29 | `/shifts` | シフト管理 | `ShiftCalendar` |
-| 30 | `/settings` | マスタ設定トップ | `MasterSettingsIndex` |
-| 31 | `/settings/clinic` | 病院情報設定 | `ClinicSettings` |
-| 32 | `/settings/treatment-items` | 診療項目マスタ (5カテゴリ統合) | `TreatmentItemsSettings` |
-| 33 | `/settings/diagnosis` | 診断マスタ (2カテゴリ統合) | `DiagnosisSettings` |
-| 34 | `/settings/trimming` | トリミングマスタ (2カテゴリ統合) | `TrimmingSettings` |
-| 35 | `/settings/service-type` | 予約区分マスタ | `Settings` |
-| 36 | `/settings/medicine` | 薬剤マスタ | `Settings` |
-| 37 | `/settings/staff` | スタッフマスタ | `Settings` |
-| 38 | `/settings/insurance` | 保険マスタ | `Settings` |
-| 39 | `/settings/hospitalization` | 入院マスタ | `Settings` |
-| 40 | `/settings/cage` | ケージマスタ | `Settings` |
-| 41 | `/dev/tests` | フォーマットテスト (開発用) | `FormatTestRunner` |
-| 42 | `/login` | ログイン | `Login` |
+| 30 | `/estimates` | 見積書一覧 | `EstimateList` |
+| 31 | `/estimates/new` | 見積書新規作成 | `EstimateForm` |
+| 32 | `/estimates/:id` | 見積書詳細 | `EstimateDetail` |
+| 33 | `/estimates/:id/edit` | 見積書編集 | `EstimateForm` |
+| 34 | `/settings` | マスタ設定トップ | `MasterSettingsIndex` |
+| 35 | `/settings/clinic` | 病院情報設定 | `ClinicSettings` |
+| 36 | `/settings/treatment-items` | 診療項目マスタ (5カテゴリ統合) | `TreatmentItemsSettings` |
+| 37 | `/settings/diagnosis` | 診断マスタ (2カテゴリ統合) | `DiagnosisSettings` |
+| 38 | `/settings/trimming` | トリミングマスタ (2カテゴリ統合) | `TrimmingSettings` |
+| 39 | `/settings/service-type` | 予約区分マスタ | `Settings` |
+| 40 | `/settings/medicine` | 薬剤マスタ | `Settings` |
+| 41 | `/settings/staff` | スタッフマスタ | `Settings` |
+| 42 | `/settings/insurance` | 保険マスタ | `Settings` |
+| 43 | `/settings/hospitalization` | 入院マスタ | `Settings` |
+| 44 | `/settings/cage` | ケージマスタ | `Settings` |
+| 45 | `/dev/tests` | フォーマットテスト (開発用) | `FormatTestRunner` |
+| 46 | `/login` | ログイン | `Login` |
 | — | `*` | 404ページ | インライン |
 
 > **注**: マスタ設定ルートは3統合ページ（`TreatmentItemsSettings`/`DiagnosisSettings`/`TrimmingSettings`）+ 6個別ページ（`Settings` コンポーネント, category prop切替）= 9ルートで15カテゴリをカバー。`/login` は認証実装（AUTH.md Phase 1〜3 完了済み）に伴い追加された公開ルート。`/dev/tests` は開発用フォーマットテストランナー。

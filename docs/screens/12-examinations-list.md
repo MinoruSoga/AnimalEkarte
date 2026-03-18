@@ -28,18 +28,18 @@
 └──────────────────────────────────────────────────────┘
 ```
 
-## 表示項目
+## 表示項目（テーブル）
 
-| フィールド名 | 型 | 説明 | 備考 |
-|------------|-----|------|------|
-| 日時 | datetime | 検査実施日時 | `exams.examination_date`（等幅フォント） |
-| 飼主名 | string | 飼い主氏名 | `owners.name` |
-| ペット名 | string | ペット名 | `pets.name` |
-| 検査種別 | string | 検査の種類 | `exams.test_type` |
-| 結果概要 | string | 検査結果の概要 | `exams.result_summary`（truncate、未入力時「-」） |
-| 担当医 | string | 依頼した獣医師名 | `staffs.name`（無効スタッフ時は赤文字＋AlertTriangleアイコン） |
-| ステータス | enum | 依頼中/検査中/完了 | `exams.status` |
-| 操作 | dropdown | 行アクション | 右寄せ |
+| フィールド名 | 型 | 説明 | ソート | 備考 |
+|------------|-----|------|--------|------|
+| 日時 | date | 検査実施日時（等幅フォント） | ○ | `r.date` |
+| 飼主名 | string | 飼い主氏名 | ○ | `r.ownerName` |
+| ペット名 | string | ペット名 | ○ | `r.petName` |
+| 検査種別 | string | 検査の種類 | ○ | `r.testType` |
+| 結果概要 | string | 検査結果の概要（truncate 表示）| - | `r.resultSummary` |
+| 担当医 | string | 依頼した獣医師名 | ○ | `r.doctor` |
+| ステータス | enum | StatusBadge 表示（依頼中/検査中/完了） | ○ | `r.status` |
+| 操作 | - | 詳細ボタン | - | `RowActionButton` |
 
 ## ステータスバッジ色
 
@@ -79,7 +79,7 @@
 |---|---|---|
 | `Examinations` | `[R]` | メインページ |
 | `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | 検索フィルタバー（「飼主名、ペット名、検査種別...」） |
+| `NotionFilter` | `[S]` | 検索フィルタバー（「飼主名、ペット名、検査種別...」） |
 | `DataTable` / `DataTableRow` | `[S]` | データテーブル |
 | `SortableHeader` | `[S]` | ソート可能ヘッダー |
 | `StatusBadge` | `[S]` | ステータスバッジ（`getExaminationStatusColor`） |
@@ -113,7 +113,18 @@
 | status | enum | `exams.status` |
 | medicalRecordId | string | `medical_records.id` |
 
-## ユーザーアクション
+## 機能詳細
+
+### 1. 異常値のハイライト判定
+- **自動判定**: 検査項目の測定値が、マスタで定義された「基準値」の範囲（上限・下限）を外れている場合、一覧の概要や詳細行において赤色（High）または青色（Low）で強調表示する。
+- **サマリー生成**: `resultSummary` には、主要な項目や異常が見つかった項目が優先的にテキストとして抽出される。
+
+### 2. カルテおよび会計との動的連携
+- **ステータス同期**: カルテ側で検査が実施済みにされると、本一覧のステータスも自動的に「完了」へ更新される。
+- **請求連動**: 完了した検査データは、会計画面の明細に自動的に計上される。
+
+### 3. 種別によるUIの切り替え
+- **表示切替**: 血液検査、レントゲン、エコーなど、検査種別（`testType`）に応じて表示されるアイコンや、詳細時のテーブルカラム構成が最適化される。
 
 | アクション | トリガー | 処理内容 | 遷移先 |
 |-----------|---------|---------|--------|
@@ -133,11 +144,12 @@
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| GET | `/api/v1/examinations` | 検査一覧取得 | 未実装 |
+| GET | `/api/v1/examinations` | 検査一覧取得 | 実装済 |
+| DELETE | `/api/v1/examinations/:id` | 検査削除 | 実装済 |
 
 ## 実装状況
-- フロントエンド(ui-sample): 実装済（モックデータ使用）
-- バックエンドAPI: 未実装
+- フロントエンド: 実装済（`features/examinations/routes/Examinations.tsx`）
+- バックエンドAPI: 実装済（`handler/examination_handler.go`）
 
 ## 備考
 

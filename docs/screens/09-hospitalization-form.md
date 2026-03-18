@@ -47,16 +47,24 @@
 ## HospitalizationBasicInfo フォーム項目
 
 | フィールド | 入力部品 | 必須 | 備考 |
-|---|---|---|---|
-| 入院タイプ | `RadioGroup`（入院 / ホテル） | ✅ | `HOSPITALIZATION_TYPE_VALUES` |
-| 期間（開始日） | `NotionDatePicker` | ✅ | Calendar アイコン付き |
-| 期間（終了日） | `NotionDatePicker` | | 変更時、既存治療プランの数量自動調整提案あり |
-| ケージ・個室 | `Select`（cage マスタ連動） | ✅ | `MasterLink` 付き |
+|-----------|----------|------|------|
+| 入院タイプ | `RadioGroup` | ✅ | 入院 / ホテル |
+| 期間（開始） | `Input(date)` | ✅ | `formData.displayDate` |
+| 期間（終了） | `Input(date)` | | |
+| ケージ・個室 | `Select` | ✅ | マスタ連動 |
 | メモ | `Textarea` | | |
 
-### 入院日数変更ダイアログ（`StayDaysAdjustDialog`）
-終了日変更時に、変更前の日数と数量が一致する治療プランが存在する場合に表示。
-新しい日数への一括更新を提案する。
+## 機能詳細
+
+### 1. 入院日数の自動数量調整
+- **インテリジェント調整**: 退院予定日を変更し、入院日数が変わった際、システムは治療プラン内の数量が入院日数と一致している項目を自動検知する。
+- **一括更新提案**: `StayDaysAdjustDialog` を表示し、検知された項目（入院基本料など）の数量を新しい日数に一括で書き換えるかユーザーに確認し、請求漏れや過剰請求を防止する。
+
+### 2. ケージ割り当てロジック
+- **空き状況連動**: ケージ選択肢はマスタから取得される。現在の実装ではシステム的な二重予約ブロックは行わないが、選択時に警告を表示する等の運用補助を行う。
+
+### 3. 入院費の初期計算
+- **マスタ引用**: `TreatmentSearchDialog` を通じて入院プランを選択した際、入院期間に基づいた数量がデフォルトでセットされる。
 
 ## HospitalizationTreatmentTable（治療プラン）
 
@@ -149,10 +157,11 @@
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| POST | `/api/v1/hospitalizations` | 入院作成 | 未実装 |
-| PUT | `/api/v1/hospitalizations/:id` | 入院更新 | 未実装 |
-| GET | `/api/v1/hospitalizations/:id` | 入院詳細取得（編集時） | 未実装 |
+| POST | `/api/v1/hospitalizations` | 入院作成 | 実装済 |
+| PATCH | `/api/v1/hospitalizations/:id` | 入院更新 | 実装済 |
+| GET | `/api/v1/hospitalizations/:id` | 入院詳細取得 | 実装済 |
 
 ## 実装状況
-- フロントエンド(ui-sample): 実装済（LocalStorageによるデータ永続化）
-- バックエンドAPI: 未実装
+- フロントエンド: 実装済（`features/hospitalization/routes/HospitalizationForm.tsx`）
+- バックエンドAPI: 実装済（`handler/hospitalization_handler.go`）
+

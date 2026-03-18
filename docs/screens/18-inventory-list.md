@@ -35,21 +35,19 @@
 | 列 | className / align | 表示内容 | 備考 |
 |---|---|---|---|
 | 品名 | - | `item.name` | ソート可能 |
-| カテゴリー | `w-[100px]` | `getInventoryCategoryLabel(item.category)` | ソート可能 |
-| 在庫数 | `w-[90px]`, align:right | `item.quantity`（等幅フォント、発注点以下は赤文字） | ソート可能、数値 `comparator` |
-| 単位 | `w-[80px]` | `item.unit` | - |
-| 発注点 | `w-[80px]`, align:right | `item.minStockLevel`（等幅フォント） | - |
-| 状態 | `w-[110px]`, align:center | `StatusBadge`（`getInventoryStatusColor` / `getInventoryStatusLabel`） | ソート可能 |
+| カテゴリー | `w-[100px]` | `CATEGORY_LABELS[item.category]` | ソート可能 |
+| 在庫数 | `w-[100px]`, align:right | `item.quantity` + `item.unit` | ソート可能 |
+| 最低在庫 | `w-[100px]`, align:right | `item.minStockLevel` + `item.unit` | - |
 | 保管場所 | `w-[120px]` | `item.location` | ソート可能 |
-| 期限 | `w-[110px]` | `item.expiryDate`（等幅フォント、yyyy/MM/dd） | ソート可能 |
-| 仕入先 | `w-[130px]` | `item.supplier`（truncate） | ソート可能 |
-| 操作 | `w-[50px]`, align:right | `RowActionDropdown`（編集 / 削除） | - |
+| 有効期限 | `w-[120px]` | `item.expiryDate` | ソート可能 |
+| ステータス | `w-[100px]` | `StatusBadge` (十分/残少/在庫切れ) | - |
+| 操作 | `w-[80px]`, align:right | `RowActionButton` | - |
 
 ### フィルタ項目
 
 | 項目 | 入力部品 | 選択肢 |
 |---|---|---|
-| キーワード | `SearchFilterBar` | 品名・保管場所・仕入先で検索 |
+| キーワード | `NotionFilter` | 品名・保管場所・仕入先で検索 |
 | カテゴリー | `Select` | 全カテゴリー / 医薬品 / 消耗品 / フード / その他 |
 | 状態 | `Select` | 全ての状態 / 在庫あり / 残りわずか / 在庫切れ |
 
@@ -88,7 +86,7 @@
 |---|---|---|
 | `InventoryList` | `[R]` | メインページ（`Suspense` + `InventoryContent` の2層構成） |
 | `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | 検索フィルタバー |
+| `NotionFilter` | `[S]` | 検索フィルタバー |
 | `DataTable` / `DataTableRow` | `[S]` | データテーブル |
 | `SortableHeader` | `[S]` | ソート可能ヘッダー（9列中7列） |
 | `StatusBadge` | `[S]` | ステータスバッジ |
@@ -128,17 +126,27 @@
 
 ### フォーム項目
 
-| フィールド | 入力部品 | グリッド | 備考 |
-|-----------|---------|---------|------|
-| 品名 | `Input` | full | 必須（`*`マーク）、placeholder: 例: アモキシシリン 250mg |
-| カテゴリー | `Select`（`INVENTORY_CATEGORY_VALUES`） | 2cols-左 | 医薬品 / 消耗品 / フード / その他 |
-| 単位 | `Input` | 2cols-右 | 必須（`*`マーク）、placeholder: 例: 錠, 箱, 本 |
-| 現在在庫数 | `Input`（type=number, min=0） | 2cols-左 | 負数入力防止（`Math.max(0, ...)` ガード） |
-| 発注点 (アラート基準) | `Input`（type=number, min=0） | 2cols-右 | 負数入力防止 |
-| 保管場所 | `Input` | 2cols-左 | placeholder: 例: 薬品棚 A-1 |
-| 使用期限 | `NotionDatePicker` | 2cols-右 | - |
-| 仕入先 | `Input` | full | placeholder: 例: 動物薬品工業 |
-| ステータス（自動判定） | 読み取り専用 | full | **編集時のみ**表示、在庫数と発注点から自動計算 |
+#### 基本情報
+| フィールド | 項目ID | 入力部品 | 必須 | 備考 |
+|-----------|--------|---------|------|------|
+| 品名 | `name` | `Input` | ✅ | |
+| カテゴリ | `category`| `Select` | ✅ | 医薬品/消耗品/フード/その他 |
+| 単位 | `unit` | `Input` | ✅ | 例: 錠, 本, 袋 |
+
+#### 在庫情報
+| フィールド | 項目ID | 入力部品 | 必須 | 備考 |
+|-----------|--------|---------|------|------|
+| 現在庫数 | `quantity`| `Input(number)`| ✅ | |
+| 最低在庫数 | `minStockLevel`| `Input(number)`| ✅ | |
+| 保管場所 | `location`| `Input` | | |
+| 有効期限 | `expiryDate`| `Input(date)`| | |
+
+#### 仕入先情報
+| フィールド | 項目ID | 入力部品 | 備考 |
+|-----------|--------|----------|------|
+| 仕入先 | `supplier`| `Input` | |
+| 最終入荷日 | `lastRestocked`| `Input(date)` | |
+
 
 ### バリデーション
 
@@ -192,17 +200,30 @@ type InventoryCategory = "medicine" | "consumable" | "food" | "other";
 type InventoryStatus = "sufficient" | "low" | "out_of_stock";
 ```
 
-## API連携
+## 機能詳細
+
+### 1. 在庫アラート発火ロジック
+- **動的判定**: `InventoryStatus` は、各品目の「現在庫数」と「最低在庫数（発注点）」をリアルタイムで比較して決定される。
+  - **十分**: 現在庫 > 最低在庫
+  - **残少**: 0 < 現在庫 ≦ 最低在庫
+  - **在庫切れ**: 現在庫 = 0
+- **サマリー表示**: 一覧上部のアラートサマリーにより、発注が必要な品目数を一目で把握できる。
+
+### 2. 有効期限の管理
+- **期限切れ警告**: `expiryDate` が本日以前の品目、または本日より30日以内に迫っている品目について、一覧上で日付を赤字またはオレンジ色で強調表示する。
+
+### 3. 棚卸し支援
+- **CSV出力**: `FileSpreadsheet` アイコンから、現在のフィルタ条件に一致する在庫リストを CSV 形式でダウンロードし、オフラインでの棚卸しに利用できる。
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| GET | `/api/v1/inventory` | 在庫一覧取得 | 未実装 |
-| GET | `/api/v1/inventory/:id` | 在庫詳細取得 | 未実装 |
-| POST | `/api/v1/inventory` | 在庫品目作成 | 未実装 |
-| PUT | `/api/v1/inventory/:id` | 在庫品目更新 | 未実装 |
-| DELETE | `/api/v1/inventory/:id` | 在庫品目削除 | 未実装 |
+| GET | `/api/v1/inventories` | 在庫一覧取得 | 実装済 |
+| GET | `/api/v1/inventories/:id` | 在庫詳細取得 | 実装済 |
+| POST | `/api/v1/inventories` | 在庫品目作成 | 実装済 |
+| PATCH | `/api/v1/inventories/:id` | 在庫品目更新 | 実装済 |
+| DELETE | `/api/v1/inventories/:id` | 在庫品目削除 | 実装済 |
 
 ## 実装状況
 
-- フロントエンド(ui-sample): 実装済（モックデータ使用、Suspense対応）
-- バックエンドAPI: 未実装
+- フロントエンド: 実装済（`features/inventory/routes/InventoryList.tsx`）
+- バックエンドAPI: 実装済（`handler/inventory_handler.go`）

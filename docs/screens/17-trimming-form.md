@@ -34,37 +34,33 @@
 - `[S] PetSearchForm` + `[S] PetSearchResultsTable` 共通コンポーネントを使用
 - ペット未選択かつ新規モードの場合はペット選択画面へリダイレクト
 
-## 左カラム フォーム項目
+## フォーム項目（左カラム - 施術基本）
 
-| フィールド | 入力部品 | 必須 | 備考 |
-|-----------|---------|------|------|
-| コース選択 | `MasterSelectTrigger` → `MasterSelectModal`（trimming_course マスタ連動） | 必須 | `MasterLink` 付き、選択時に `charge`（料金）自動反映 |
-| スタイルの希望 | `Textarea` | - | `min-h-[80px]` |
-| メモ | `Textarea` | - | `min-h-[80px]` |
-| オプション | `NotionCheckbox` グリッド（2cols） | - | trimming_option マスタ連動、`MasterLink` 付き、各項目に `+¥{price}` 表示 |
-| 希望スタイル画像 | `file input` + プレビュー | - | ドラッグ&ドロップUI、Upload アイコン、×ボタンで削除、`h-[180px]` |
+| フィールド | 項目ID | 入力部品 | 備考 |
+|-----------|--------|----------|------|
+| コース | `courseId` | `MasterSelect` | `trimming_course` マスタ連動 |
+| スタイルの希望| `styleRequest`| `Textarea` | |
+| メモ | `memo` | `Textarea` | |
+| オプション | `optionIds` | `Checkbox` リスト | `trimming_option` マスタ連動 |
+| 希望スタイル画像| `styleImage` | `Upload` | |
 
-## 中カラム フォーム項目
+## フォーム項目（中央カラム - 身体情報・詳細）
 
-| フィールド | 入力部品 | 備考 |
-|-----------|---------|------|
-| BW（体重） | `Input` + `radio`（Kg / g） | `BODY_WEIGHT_UNIT_VALUES`、2カラムグリッド |
-| BT（体温） | `Input` | placeholder: 体温 |
-| USED SHAMPOO | `Input` | placeholder: 使用したシャンプーを入力... |
-| USED RIBBON | `Input` | placeholder: 使用したリボンを入力... |
-| TREATMENT | `Input` | placeholder: 処置内容を入力... |
-| 備考 | `Input` | placeholder: 備考を入力... |
-| 完成画像 | `file input` + プレビュー | Upload アイコン、×ボタンで削除、`h-[180px]` |
+| フィールド | 項目ID | 入力部品 | 備考 |
+|-----------|--------|----------|------|
+| 体重 (BW) | `bw` | `Input` | |
+| 体重単位 | `bwUnit` | `Select` | Kg / g |
+| 体温 (BT) | `bt` | `Input` | |
+| 使用シャンプー| `usedShampoo` | `Input` | |
+| 使用リボン | `usedRibbon` | `Input` | |
+| 備考 | `remarks` | `Textarea` | |
+| 完成画像 | `completedImage`| `Upload` | |
 
-## 右カラム（トリミング履歴）
+## 右カラム（施術履歴）
 
-- タイトル: 「トリミング履歴」
-- `[S] HistoryFilterPanel`: 日付範囲、キーワード検索（「コース名・メモで検索...」）、ソート順（昇順/降順）、クリアボタン
-- 履歴カード表示項目:
-  - 診療日、コース名バッジ
-  - 作成者/更新者・日時
-  - スタイルの希望、メモ、画像セクション（`#`記法）
-- 空状態: 「該当するトリミング履歴がありません」
+- タイトル: 「施術履歴」
+- `HistoryFilterPanel` による絞り込み（スタイル希望、実施日範囲、ソート順）
+- 履歴カードクリックで、その時のスタイル希望・担当医を現在のフォームにコピー可能
 
 ## 担当スタッフ選択（PatientInfoCard 経由）
 
@@ -172,19 +168,27 @@ type SortOrder = "asc" | "desc";
 - 削除（確認ダイアログ → 一覧へ遷移、編集時のみ）
 - 未保存離脱時の保護ダイアログ（`NavigationBlocker`）
 
-## API連携
+## 機能詳細
+
+### 1. 施術画像管理
+- **ビフォーアフター**: 「希望スタイル画像」と「完成画像」の2種類を保存可能。アップロードされた画像は即座にプレビュー表示され、視覚的に施術内容を確認できる。
+- **ファイル管理**: アップロード済み画像はバックエンドのファイルストレージと同期され、削除操作時には物理ファイルも整理される。
+
+### 2. 過去履歴からの「引用」機能
+- **ワンクリック反映**: 右カラムの施術履歴カードにある引用ボタンをクリックすることで、当時の「スタイルの希望」や「担当医」を現在のフォームにコピーできる。
+- **経過観察**: 過去の体重（BW）や体温（BT）の推移を履歴から一覧し、当日の施術プランに反映させることが可能。
+
+### 3. コースとオプションの連動
+- **マスタ引用**: `trimming_course` を選択すると、そのコースの標準単価が自動設定される。
+- **複数オプション**: シャンプー変更やリボン追加などのオプションをチェックボックスで複数選択し、合算した金額を算出する。
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| GET | `/api/v1/trimmings/:id` | トリミング詳細取得 | 未実装 |
-| POST | `/api/v1/trimmings` | トリミング作成 | 未実装 |
-| PUT | `/api/v1/trimmings/:id` | トリミング更新 | 未実装 |
-| DELETE | `/api/v1/trimmings/:id` | トリミング削除 | 未実装 |
-| GET | `/api/v1/master-items?category=trimming_course` | コースマスタ取得 | 実装済 |
-| GET | `/api/v1/master-items?category=trimming_option` | オプションマスタ取得 | 実装済 |
-| GET | `/api/v1/master-items?category=staff` | スタッフマスタ取得 | 実装済 |
+| GET | `/api/v1/trimmings/:id` | トリミング詳細取得 | 実装済 |
+| POST | `/api/v1/trimmings` | トリミング作成 | 実装済 |
+| PATCH | `/api/v1/trimmings/:id` | トリミング更新 | 実装済 |
+| DELETE | `/api/v1/trimmings/:id` | トリミング削除 | 実装済 |
 
 ## 実装状況
-
-- フロントエンド(ui-sample): 実装済（モックデータ使用）
-- バックエンドAPI: 未実装
+- フロントエンド: 実装済（`features/trimming/routes/TrimmingForm.tsx`）
+- バックエンドAPI: 実装済（`handler/trimming_handler.go`）

@@ -303,6 +303,60 @@
 
 ---
 
+## 12. 動物種マスタ (`/settings/animal-species`)
+
+**コンポーネント:** `AnimalSpeciesSettings.tsx`
+
+システム共通の動物種を管理。システム規定値（犬・猫等）は削除不可。
+
+| 項目 | 内容 |
+|------|------|
+| パターン | フラットパターン |
+| テーブルコンポーネント | `DataTable` + `DataTableRow` |
+| D&D | なし |
+
+---
+
+## 13. 役職マスタ (`/settings/job-title`)
+
+**コンポーネント:** `JobTitleSettings.tsx`
+
+| 項目 | 内容 |
+|------|------|
+| パターン | フラットパターン |
+| テーブルコンポーネント | `DataTable` + `SortableJobTitleRow` |
+| D&D | あり |
+
+---
+
+## 14. 主訴区分マスタ (`/settings/interview/chief-complaint`)
+
+**コンポーネント:** `ChiefComplaintSettings.tsx`
+
+問診時に選択する主訴のカテゴリを定義。
+
+| 項目 | 内容 |
+|------|------|
+| パターン | フラットパターン |
+| テーブルコンポーネント | `DataTable` + `SortableChiefComplaintRow` |
+| D&D | あり |
+
+---
+
+## 15. 問診テンプレート (`/settings/interview/templates`)
+
+**コンポーネント:** `InterviewTemplateSettings.tsx`
+
+主訴区分ごとのヒアリングテンプレート（Markdown）を管理。
+
+| 項目 | 内容 |
+|------|------|
+| パターン | フラットパターン |
+| テーブルコンポーネント | `DataTable` + `DataTableRow` |
+| D&D | なし |
+
+---
+
 ## 共有コンポーネント早見表
 
 | コンポーネント | パス | 使用ページ |

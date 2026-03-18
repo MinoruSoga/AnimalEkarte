@@ -387,12 +387,15 @@ import { PageLayout } from "../components/shared/PageLayout";
 ### 検索バー
 
 ```tsx
-import { SearchFilterBar } from "../components/shared/SearchFilterBar";
+import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 
-<SearchFilterBar
+<NotionFilter
+  properties={FILTER_PROPERTIES}
+  activeFilters={activeFilters}
+  onFilterChange={setActiveFilters}
   searchTerm={searchTerm}
   onSearchChange={setSearchTerm}
-  placeholder="コード、名称で検索..."
+  searchPlaceholder="コード、名称で検索..."
   count={filteredItems.length}
 />
 ```

@@ -38,19 +38,19 @@
 | フィールド名 | 型 | 説明 | 備考 |
 |------------|-----|------|------|
 | 時刻 | time | 予約時刻（Clock アイコン付き、等幅フォント） | `appointment.time` |
-| 次回予約バッジ | enum | 「次回予約済」=secondary / 「精算未確認」=destructive+AlertCircle | `nextAppointment` |
-| 飼い主名 | string | 飼い主氏名（太字） | `ownerName` |
-| ペット名 | string | `petType - petName`（Dog アイコン付き） | `petName`, `petType` |
-| 初診/再診 | string | visitType バッジ（初診=青背景 / 再診=スレート背景） | `visitType` |
-| 診療区分 | string | serviceType バッジ（自動アイコン: トリミング→Scissors / 予防接種→Syringe / 手術→Activity / 診療→Stethoscope） | `serviceType` |
-| 担当医 | string | 担当医バッジ（指名時はオレンジ背景＋「指」ラベル、無効スタッフ時は赤背景＋AlertCircle） | `doctor`, `isDesignated` |
+| 次回予約バッジ | enum | 「次回予約済」=secondary / 「精算未確認」=destructive+AlertCircle | `appointment.nextAppointment` |
+| 飼い主名 | string | 飼い主氏名（太字） | `appointment.ownerName` |
+| ペット情報 | string | `petType - petName`（Dog アイコン付き） | `appointment.petName`, `appointment.petType` |
+| 初診/再診 | string | visitType バッジ（初診=青背景 / 再診=スレート背景） | `appointment.visitType` |
+| 診療区分 | string | serviceType バッジ（自動アイコン: トリミング/ワクチン/手術/診療） | `appointment.serviceType` |
+| 担当医 | string | 担当医バッジ（指名時はオレンジ背景＋「指」ラベル） | `appointment.doctor`, `appointment.isDesignated` |
 
 ## 表示項目（DashboardDetailModal）
 
 | セクション | 項目 |
 |-----------|------|
-| ヘッダー | 初診/再診アイコン（初/再）、診療区分名、ステータスバッジ（カラム別カラー） |
-| 時間カード | 時刻（等幅・大文字）、nextAppointment バッジ |
+| ヘッダー | 初診/再診バッジ（初/再）、診療区分名（サービス種別）、ステータスバッジ |
+| 時間カード | 時刻（等幅）、nextAppointment バッジ |
 | 患者情報 | ペット名、ペット種、飼い主名 |
 | 診療詳細 | 担当医（未定表示あり）、指名バッジ |
 
@@ -69,30 +69,27 @@
 | コンポーネント | 種別 | 説明 |
 |---|---|---|
 | `Dashboard` | `[R]` | メインページ |
-| `KanbanColumn` | `[C]` | カラムコンテナ（ドラッグ&ドロップ対応） |
-| `AppointmentCard` | `[C]` | 患者カード（`react-dnd` によるDnD対応） |
+| `KanbanColumn` | `[C]` | カラムコンテナ（dnd-kit 対応） |
+| `AppointmentCard` | `[C]` | 患者カード（dnd-kit 対応） |
 | `DashboardDetailModal` | `[C][M]` | 患者詳細モーダル（ステータス別アクション） |
-| `DashboardSummaryWidget` | `[C]` | 統計サマリーウィジェット（カラム別件数カード＋ネイティブSVGミニスパークライン、ホバーツールチップ） |
-| `HospitalizationAlertWidget` | `[C]` | 入院アラートウィジェット（入院中件数・退院超過アラート・入院管理へのクイックリンク） |
-| `ReservationFormModal` | `[S][M]` | 予約編集モーダル（カード編集時に利用） |
-| `FormHeader` | `[S]` | ページヘッダー（タイトル・日付・アクションボタン） |
+| `DashboardSummaryWidget` | `[C]` | （計画中）統計サマリーウィジェット |
+| `HospitalizationAlertWidget` | `[C]` | （計画中）入院アラートウィジェット |
+| `ReservationFormModal` | `[S][M]` | 予約編集モーダル（共有コンポーネント） |
+| `FormHeader` | `[S]` | ページヘッダー |
 | `ConfirmDialog` | `[S][M]` | 予約取消確認ダイアログ |
-| `useDashboardKanban` | `[H]` | カンバン状態管理（フィルタ・moveCard・advanceStatus・cancelAppointment・updateAppointment） |
-| `useDashboardWeeklyStats` | `[H]` | 週次統計データ収集（localStorage永続化、スパークラインデータ提供） |
+| `useDashboardKanban` | `[H]` | カンバン状態管理（dnd-kit 統合） |
 
 ## ユーザーアクション
 
 | アクション | トリガー | 処理内容 | 遷移先 |
 |-----------|---------|---------|--------|
 | カード詳細表示 | カードクリック | `DashboardDetailModal` を開く | モーダル表示 |
-| ステータス進行 | 詳細モーダルのアクションボタン | カードを次のカラムに移動 | 同画面 |
+| ステータス進行 | 詳細モーダルのアクションボタン | ステータス更新（API連携） | 同画面 |
 | カード編集 | 詳細モーダル「編集」ボタン | `ReservationFormModal` を開く | モーダル表示 |
-| 予約取消 | 詳細モーダル「取り消し」ボタン | `ConfirmDialog` 後、カード削除 | 同画面 |
-| カード移動 | ドラッグ&ドロップ | ステータス変更（`react-dnd` 使用） | 同画面 |
+| 予約取消 | 詳細モーダル「取り消し」ボタン | `ConfirmDialog` 後、ステータスを `cancelled` に更新 | 同画面 |
+| カード移動 | ドラッグ&ドロップ | ステータス更新（dnd-kit 使用） | 同画面 |
 | 新規予約 | ヘッダー「新規予約」ボタン | 予約管理画面へ遷移 | `/reservations` |
-| フィルター | 「フィルター」ボタン | フィルターパネル開閉（slide-in アニメーション） | 同画面 |
-| 受付済に追加 | 受付予約/受付済カラム「+」ボタン | `/reservations` へ遷移 | `/reservations` |
-| カルテ作成 | 詳細モーダル「カルテ作成」ボタン | カルテフォームへ遷移 | `/medical-records/new?petId=xxx` |
+| フィルター | 「フィルター」ボタン | フィルターパネル開閉 | 同画面 |
 
 ## 画面遷移
 
@@ -100,7 +97,6 @@
 |--------|--------|------|
 | サイドバー「ダッシュボード」 | `/` | 常時 |
 | 「新規予約」ボタン | `/reservations` | ボタンクリック |
-| 受付予約/受付済カラム「+」ボタン | `/reservations` | ボタンクリック |
 | 詳細モーダル「カルテ作成」 | `/medical-records/new?petId=xxx` | 診療系サービス |
 | 詳細モーダル「施術記録」 | `/trimming/new?petId=xxx` | トリミング |
 | 詳細モーダル「飼主詳細」 | `/owners/:ownerId` | ボタンクリック |
@@ -109,40 +105,47 @@
 
 | フィルター | 状態 | 動作 |
 |-----------|------|------|
-| 診察区分（初診/再診） | `selectedVisitTypes: AppointmentVisitType[]` | チェックを外したvisitTypeのカードを非表示 |
-| 指名 | `selectedDoctor: string` | "all"=全表示 / 医師名=指名のみ / "医師指名なし"=指名なしのみ |
-| トリミングのみ | `isTrimmingOnly: boolean` | トリミング以外のカードを非表示 |
+| 診察区分（初診/再診） | `selectedVisitTypes: string[]` | フィルタリング |
+| 指名 | `selectedDoctor: string` | "all" / "医師指名なし" / 医師名 でフィルタリング |
+| トリミングのみ | `isTrimmingOnly: boolean` | フィルタリング |
 
 ## 状態管理
 
 | 状態 | 型 | 説明 |
 |------|-----|------|
-| `columns` | `ColumnData[]` | 5カラム分の予約データ（`useDashboardKanban` 管理） |
-| `filteredColumns` | `ColumnData[]` | フィルタ適用後のカンバンデータ（useMemo） |
+| `columns` | `ColumnData[]` | カンバン用データ（`useDashboardKanban` 管理） |
+| `filteredColumns` | `ColumnData[]` | フィルタ適用後のデータ |
 | `modalOpen` | `boolean` | 詳細モーダル表示フラグ |
 | `selectedAppointment` | `Appointment \| null` | 選択中の予約 |
-| `isEditModalOpen` | `boolean` | 編集モーダル表示フラグ |
-| `isFilterOpen` | `boolean` | フィルターパネル表示フラグ |
-| `cancelConfirmOpen` | `boolean` | 取消確認ダイアログ表示フラグ |
 
-## バリデーション・制約
-- 「受付済」から「診療中」へのドラッグ&ドロップは禁止（トーストエラー: 「カルテ作成が必要です」）
-- フィルター適用時、条件に合致しないカードは非表示（フロントエンドフィルタリング）
+## 機能詳細
+
+### 1. カンバン移動制約
+- **ステータス自動更新**: ドラッグ&ドロップによる移動成功時、バックエンドの `reservation.status` を即座に更新する。
+- **特定遷移の禁止**: 「受付済」から「診療中」へ移動しようとした際、対応するカルテが未作成の場合は移動をキャンセルし、「カルテ作成が必要です」というトースト通知を表示する。
+
+### 2. フィルタリングと優先順位
+- **クライアントサイドフィルタ**: 取得済みの予約リストに対し、医師名・診療区分・トリミング限定のフィルタを `useMemo` で高速に適用する。
+- **表示順**: 各カラム内では、予約時刻（`start_time`）の昇順でソートされる。
+
+### 3. リアルタイム性
+- **自動再取得**: `TanStack Query` の `refetchInterval: 30000` により、30秒ごとに最新の受付状況をポーリングする。
+- **楽観的更新**: D&D 操作直後はサーバー応答を待たずに UI 上でカードを移動させ、失敗時のみ元の位置に戻す。
 
 ## データ型
-`Appointment`, `ColumnData`, `DashboardColumnTitle`, `AppointmentVisitType`, `WeeklyChartPoint`, `WeeklyStatsResult`
+`Appointment`, `ColumnData`, `ReservationAppointment`
 
 ## API連携
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| GET | `/api/v1/dashboard/kanban` | 当日のカンバンデータ取得 | 未実装 |
-| PUT | `/api/v1/dashboard/kanban/:appointmentId` | ステータス更新 | 未実装 |
-| GET | `/api/v1/dashboard/stats` | 統計情報 | 未実装 |
+| GET | `/api/v1/reservations` | 当日の予約データ取得（`?date=YYYY-MM-DD`） | 実装済 |
+| PATCH | `/api/v1/reservations/:id` | ステータス更新 | 実装済 |
+| GET | `/api/v1/staffs` | 医師フィルター用スタッフ一覧取得 | 実装済 |
 
 ## 実装状況
-- フロントエンド(ui-sample): 実装済（モックデータ使用）
-- バックエンドAPI: 未実装
+- フロントエンド: 実装済（`features/dashboard`）
+- バックエンドAPI: 予約APIを流用して実現（実装済）
 
 ## 備考
 - スタッフ一覧は `useMasterItems("staff")` で取得し、`status === "active"` のみフィルター

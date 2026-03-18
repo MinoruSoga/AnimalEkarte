@@ -42,20 +42,49 @@
                   → カルテ保存と同時に予防接種記録保存
 ```
 
-## API連携
+## フォーム項目（VaccinationFormFields）
+
+| フィールド | 項目ID | 入力部品 | 備考 |
+|-----------|--------|----------|------|
+| 予防接種名 | `vaccineId` | `Select` | `vaccine` マスタ連動 |
+| 予防接種日 | `date` | `Input(date)` | |
+| 補助説明 | `supplemental`| `Input` | |
+| LOT1〜LOT4 | `lot1`〜`lot4` | `Input` × 4 | |
+| 次回予定設定 | `nextScheduleType`| `RadioGroup` | 3週/4週/1年/以外 |
+| 次回予定日 | `nextDate` | `Input(date)` | |
+| 備考 | `remarks` | `Textarea` | |
+
+## 履歴フィルタ項目（HistorySection）
+
+| フィールド | 項目ID | 入力部品 | 備考 |
+|-----------|--------|----------|------|
+| 実施日(開始) | `filterStartDate`| `Input(date)` | |
+| 実施日(終了) | `filterEndDate` | `Input(date)` | |
+| 検索単語 | `historySearchTerm`| `Input` | |
+| 並び順 | `sortOrder` | `Select` | 降順 / 昇順 |
+
+## 機能詳細
+
+### 1. 次回予定日の自動計算ロジック
+- **間隔の引用**: 選択された予防接種名に基づき、ワクチンマスタ（`vaccines`）から標準的な接種間隔（1年、3週間など）を取得する。
+- **カレンダー連動**: 「次回予定設定」のラジオボタン（3週/4週/1年）を選択すると、今回実施日にその期間を加算した日付が `nextDate` フィールドに自動セットされる。
+
+### 2. LOT番号の複数管理
+- **追跡可能性**: 同一ワクチンでも製造ロットが異なる場合に対応するため、最大4つまでのLOT番号（`lot1`〜`lot4`）を個別に記録し、後のトレーサビリティを確保する。
+
+### 3. 履歴の時系列表示とフィルタ
+- **動的フィルタ**: `HistorySection` において、特定のワクチン名や実施期間で絞り込みを行い、過去の反応や副反応のメモを即座に参照できる。
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| GET | `/api/v1/vaccinations/:id` | ワクチン詳細取得 | 未実装 |
-| POST | `/api/v1/vaccinations` | ワクチン記録作成 | 未実装 |
-| PUT | `/api/v1/vaccinations/:id` | ワクチン記録更新 | 未実装 |
-| DELETE | `/api/v1/vaccinations/:id` | ワクチン記録削除 | 未実装 |
-| GET | `/api/v1/master-items?category=vaccine` | ワクチンマスタ取得 | 実装済 |
+| GET | `/api/v1/vaccinations/:id` | 予防接種詳細取得 | 実装済 |
+| POST | `/api/v1/vaccinations` | 予防接種作成 | 実装済 |
+| PATCH | `/api/v1/vaccinations/:id` | 予防接種更新 | 実装済 |
 
 ## 実装状況
+- フロントエンド: 実装済（`features/vaccinations/routes/VaccinationForm.tsx`）
+- バックエンドAPI: 実装済（`handler/vaccination_handler.go`）
 
-- フロントエンド(ui-sample): 実装済（カルテ内タブ、モックデータ使用）
-- バックエンドAPI: 未実装
 
 ## 備考
 

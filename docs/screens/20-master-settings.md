@@ -34,10 +34,11 @@
 | # | セクション名 | カテゴリキー |
 |---|---|---|
 | 1 | 基本設定 | `clinic` |
-| 2 | 診療関連マスタ | `serviceType`, `consultation`, `examination`, `procedure`, `vaccine`, `medicine`, `diagnosis_category`, `diagnosis_name` |
-| 3 | 入院・ケージ管理 | `hospitalization`, `cage` |
-| 4 | トリミング関連 | `trimming_course`, `trimming_option` |
-| 5 | スタッフ・保険 | `staff`, `insurance` |
+| 2 | カルテ | `treatmentItems` (診察/検査/処置/ワクチン/健診), `diagnosisGroup` (カテゴリ/診断名), `inquiry_template`, `medicine` |
+| 3 | 診療関連マスタ | `serviceType` |
+| 4 | 入院・ケージ管理 | `hospitalization`, `cage` |
+| 5 | トリミング関連 | `trimmingGroup` (コース/オプション) |
+| 6 | スタッフ・保険 | `staff`, `job_title`, `insurance` |
 
 ### カテゴリカード（`CategoryCard`）表示項目
 
@@ -166,7 +167,7 @@
 ### 画面構成（リストモード）
 
 - ヘッダー: カテゴリ名（`config.IconComponent` 付き）+ 戻るボタン → `/settings` + 新規登録ボタン
-- 検索バー（`[S] SearchFilterBar`）: `showCode` 時は `{config.labels.code}、{config.labels.name}で検索...`、それ以外は `{config.labels.name}で検索...`
+- 検索バー（`[S] NotionFilter`）: `showCode` 時は `{config.labels.code}、{config.labels.name}で検索...`、それ以外は `{config.labels.name}で検索...`
 - データテーブル（`[S] DataTable`）
 
 #### テーブル列
@@ -408,7 +409,7 @@
 | `SectionWrapper` | `[C]` | セクション共通ラッパー（`SectionPropertyRow` = `NotionPropertyRow` re-export） |
 | `NotionPropertyRow` | `[S]` | Notion風プロパティ行 |
 | `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | 検索フィルタバー |
+| `NotionFilter` | `[S]` | 検索フィルタバー |
 | `DataTable` / `DataTableRow` | `[S]` | データテーブル |
 | `PrimaryButton` | `[S]` | 新規登録・保存ボタン |
 | `StatusBadge` | `[S]` | ステータスバッジ |
@@ -507,19 +508,30 @@ interface ExaminationItem {
 
 ---
 
-## API連携
+## 機能詳細
+
+### 1. 階層構造の管理（DnD）
+- **循環参照の防止**: ドラッグ&ドロップによる親カテゴリ変更時、自分自身や自分の子孫を親に設定しようとする操作をロジックで無効化する。
+- **一括ソート**: ドラッグ操作が完了するたびに、同じ階層内での並び順（`sort_order`）が更新され、API を通じて保存される。
+
+### 2. サイドパネル編集（Side Peek）
+- **コンテキスト維持**: 一覧画面を維持したまま、Notion 風のサイドパネルで詳細を編集可能。
+- **自動保存とリセット**: 変更がある場合のみ保存ボタンが活性化し、キャンセル時には変更前の状態に戻るロジックを備える。
+
+### 3. マスタ削除の影響範囲
+- **整合性チェック**: 既にカルテや予約で使用されているマスタ項目を削除しようとした場合、物理削除ではなく「無効化（`is_active: false`）」を推奨する、または関連データの存在を警告する。
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
 | GET | `/api/v1/master-items` | マスタ項目一覧取得 | 実装済 |
 | GET | `/api/v1/master-items/:id` | マスタ項目詳細取得 | 実装済 |
 | POST | `/api/v1/master-items` | マスタ項目作成 | 実装済 |
-| PUT | `/api/v1/master-items/:id` | マスタ項目更新 | 実装済 |
+| PATCH | `/api/v1/master-items/:id` | マスタ項目更新 | 実装済 |
 | DELETE | `/api/v1/master-items/:id` | マスタ項目削除 | 実装済 |
-| GET | `/api/v1/clinics` | 病院情報取得 | 実装済 |
-| PUT | `/api/v1/clinics/:id` | 病院情報更新 | 実装済 |
+| GET | `/api/v1/staffs` | スタッフ一覧取得 | 実装済 |
+| PATCH | `/api/v1/staffs/:id` | スタッフ更新 | 実装済 |
 
 ## 実装状況
 
-- フロントエンド(ui-sample): 実装済（16カテゴリ、ツリー表示、D&D、キーボード操作）
-- バックエンドAPI: 実装済（`/api/v1/master-items`）
+- フロントエンド: 実装済（`features/master/routes/MasterSettingsIndex.tsx` 等）
+- バックエンドAPI: 実装済（`handler/master_handler.go`, `handler/staff_handler.go`）

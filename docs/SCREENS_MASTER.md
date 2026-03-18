@@ -233,7 +233,7 @@ interface ClinicInfo {
 #### 画面構成（リストモード）
 
 - ヘッダー: カテゴリ名（`config.IconComponent` 付き）+ 戻るボタン → `/settings` + 新規登録ボタン
-- 検索バー（`[S] SearchFilterBar`）: `showCode` 時は `{config.labels.code}、{config.labels.name}で検索...`、それ以外は `{config.labels.name}で検索...`
+- 検索バー（`[S] NotionFilter`）: `showCode` 時は `{config.labels.code}、{config.labels.name}で検索...`、それ以外は `{config.labels.name}で検索...`
 - データテーブル（`[S] DataTable`）
 
 #### ツリー表示（`showParentItem: true` のカテゴリ）
@@ -502,7 +502,7 @@ interface ClinicInfo {
 | `SectionWrapper` | `[C]` | セクション共通ラッパー |
 | `NotionPropertyRow` | `[S]` | Notion風プロパティ行 |
 | `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | 検索フィルタバー |
+| `NotionFilter` | `[S]` | 検索フィルタバー |
 | `DataTable` / `DataTableRow` | `[S]` | データテーブル |
 | `PrimaryButton` | `[S]` | 新規登録・保存ボタン |
 | `StatusBadge` | `[S]` | ステータスバッジ |

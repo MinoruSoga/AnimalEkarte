@@ -23,19 +23,19 @@
 └──────────────────────────────────────────────────────┘
 ```
 
-## 表示項目
+## 表示項目（テーブル）
 
-| 列 | className | 表示内容 | 備考 |
-|---|---|---|---|
-| 診療日 | `w-[120px]` | `record.date`（等幅フォント） | ソート可能、初期降順 |
-| 飼主名 | - | `record.ownerName` | ソート可能 |
-| ペット名 | - | `record.petName`（上段）+ `record.petNumber`（下段、薄文字） | ソート可能 |
-| 種 | `w-[80px]` | `record.species` | ソート可能 |
-| 体重 | `w-[80px]` | `record.weight` | - |
-| スタイル希望 | `max-w-[200px]` truncate | `record.styleRequest` | - |
-| 担当 | `w-[100px]` | `record.staff`（無効スタッフ時は赤文字 + AlertTriangle） | ソート可能 |
-| ステータス | `w-[100px]` | `StatusBadge`（`getTrimmingStatusColor`） | ソート可能 |
-| 操作 | `w-[100px]`, align:right | `RowActionDropdown`（編集 / 削除） | - |
+| 列名 | 表示内容 | 備考 |
+|------|---------|------|
+| 診療日 | `record.date`（等幅フォント） | 初期降順ソート |
+| 飼主名 | `record.ownerName` | |
+| ペット名 | `record.petName` / `record.petNumber` (二段) | |
+| 種 | `record.species` | |
+| 体重 | `record.weight` | |
+| スタイル希望| `record.styleRequest` (truncate 表示) | |
+| 担当 | `record.staff` (無効スタッフ警告あり) | |
+| ステータス | `StatusBadge` (予約/進行中/完了) | |
+| 操作 | `RowActionDropdown` (編集/削除) | |
 
 ## フィルタ項目
 
@@ -43,7 +43,7 @@
 |---|---|---|
 | 開始日 | `NotionDatePicker` | `lg:w-[160px]` |
 | 終了日 | `NotionDatePicker` | `lg:w-[160px]`、「〜」で接続 |
-| キーワード | `SearchFilterBar` | 飼主名・ペット名で検索 |
+| キーワード | `NotionFilter` | 飼主名・ペット名で検索 |
 | クリア | `Button`（outline） | 全フィルタリセット |
 
 ## ステータスバッジ色
@@ -67,7 +67,7 @@
 |---|---|---|
 | `TrimmingList` | `[R]` | メインページ |
 | `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | 検索フィルタバー |
+| `NotionFilter` | `[S]` | 検索フィルタバー |
 | `DataTable` / `DataTableRow` | `[S]` | データテーブル |
 | `NotionDatePicker` | `[S]` | 日付範囲ピッカー（×2） |
 | `SortableHeader` | `[S]` | ソート可能ヘッダー |
@@ -122,10 +122,10 @@ type SortKey = "date" | "ownerName" | "petName" | "species" | "staff" | "status"
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| GET | `/api/v1/trimmings` | トリミング一覧取得 | 未実装 |
-| DELETE | `/api/v1/trimmings/:id` | トリミング削除 | 未実装 |
+| GET | `/api/v1/trimmings` | トリミング一覧取得 | 実装済 |
+| DELETE | `/api/v1/trimmings/:id` | トリミング削除 | 実装済 |
 
 ## 実装状況
+- フロントエンド: 実装済（`features/trimming/routes/Trimmings.tsx`）
+- バックエンドAPI: 実装済（`handler/trimming_handler.go`）
 
-- フロントエンド(ui-sample): 実装済（モックデータ使用）
-- バックエンドAPI: 未実装

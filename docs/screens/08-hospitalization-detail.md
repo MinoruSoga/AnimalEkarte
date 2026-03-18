@@ -146,7 +146,19 @@
   - ON時: 「退院して会計へ」ボタン、退院後に会計新規作成へ遷移（治療プランを`AccountingItem[]`に変換して`state`経由で渡す）
   - OFF時: 「退院処理を実行」ボタン、一覧画面へ遷移
 
-## ユーザーアクション
+## 機能詳細
+
+### 1. ケアプランの進捗管理
+- **即時ステータス変更**: ケアプラン一覧のポップオーバーからステータス（実施中 ↔ 完了）をトグル操作で切り替えることができ、即座にサーバーへ保存される。
+- **タスク生成**: ケアプランで設定された「タイミング（朝/昼/夜）」に基づき、デイリーレコードセクションに自動的にチェックリストが生成される。
+
+### 2. デイリーログとタイムライン
+- **自動タイムライン**: バイタル、ケアログ、スタッフメモを入力すると、それらが時系列（降順）で統合され、一画面で当日の経過を把握できる。
+- **バイタル履歴**: 入力済みのバイタル値は履歴タブで確認でき、前回値との比較（↑↓）が表示される。
+
+### 3. 退院フローと会計連携
+- **退院処理**: 退院時、ステータスを「退院済」に変更すると同時に、入院期間に応じた治療プラン（入院費等）を会計データへ変換するオプションが提供される。
+- **データ引き継ぎ**: チェックONで退院した場合、カルテと同様に `AccountingItem[]` 形式で請求情報が会計画面へ引き継がれる。
 
 | アクション | トリガー | 処理内容 | 遷移先 |
 |-----------|---------|---------|--------|
@@ -180,21 +192,13 @@
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| GET | `/api/v1/hospitalizations/:id` | 入院詳細取得 | 未実装 |
-| POST | `/api/v1/hospitalizations/:id/discharge` | 退院処理 | 未実装 |
-| GET | `/api/v1/hospitalizations/:id/care-plans` | ケアプラン一覧 | 未実装 |
-| POST | `/api/v1/hospitalizations/:id/care-plans` | ケアプラン追加 | 未実装 |
-| PUT | `/api/v1/care-plans/:id` | ケアプラン更新 | 未実装 |
-| DELETE | `/api/v1/care-plans/:id` | ケアプラン削除 | 未実装 |
-| GET | `/api/v1/hospitalizations/:id/daily-records` | デイリーレコード一覧 | 未実装 |
-| POST | `/api/v1/daily-records/:id/vitals` | バイタル追加 | 未実装 |
-| POST | `/api/v1/daily-records/:id/care-logs` | ケアログ追加 | 未実装 |
-| POST | `/api/v1/daily-records/:id/notes` | スタッフメモ追加 | 未実装 |
-
-## データ型
-
-`Hospitalization`, `CarePlanItem`, `DailyRecord`, `VitalRecord`, `CareLogRecord`, `StaffNoteRecord`, `Task`, `TimelineItem`, `HospDocumentType`
+| GET | `/api/v1/hospitalizations/:id` | 入院詳細取得 | 実装済 |
+| PATCH | `/api/v1/hospitalizations/:id` | 入院データ更新 | 実装済 |
+| GET | `/api/v1/hospitalizations/:id/care-plans` | ケアプラン一覧 | 実装済 |
+| POST | `/api/v1/hospitalizations/:id/care-plans` | ケアプラン追加 | 実装済 |
+| GET | `/api/v1/hospitalizations/:id/daily-records` | 日次記録一覧取得 | 実装済 |
+| POST | `/api/v1/hospitalizations/:id/daily-records` | 日次記録作成 | 実装済 |
 
 ## 実装状況
-- フロントエンド(ui-sample): 実装済（LocalStorageによるデータ永続化）
-- バックエンドAPI: 未実装
+- フロントエンド: 実装済（`features/hospitalization/routes/HospitalizationDetail.tsx`）
+- バックエンドAPI: 実装済（`handler/hospitalization_handler.go` 他）

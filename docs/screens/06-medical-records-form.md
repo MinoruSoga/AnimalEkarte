@@ -47,7 +47,7 @@
 
 | カラム | コンポーネント | 説明 |
 |--------|-------------|------|
-| 左 | `InterviewChiefComplaint` | 主訴入力（Markdown テキストエリア）。テンプレート挿入ボタン（定期検診/予防接種/下痢・嘔吐/皮膚）付き。テンプレート見出し: どんな症状/どこが/いつから/その他・備考/フリースペース |
+| 左 | `InterviewChiefComplaint` | 主訴入力（Markdown テキストエリア）。`chiefComplaintCategoryId`（カテゴリマスタ）選択。テンプレート挿入ボタン付き。 |
 | 中 | `InterviewTreatmentPolicy` | 治療方針（Markdown テキストエリア） |
 | 右 | `InterviewHistory` | カルテ履歴リスト（日付・担当医・診療種別バッジ・タイトル・内容） |
 
@@ -58,83 +58,86 @@
 | コンポーネント | 内容 |
 |-------------|------|
 | `DiagnosisHeaderChiefComplaint` | 主訴の読み取り専用表示 |
-| `DiagnosisHeaderPhysicalExam` | 身体所見 Markdown エリア |
-| `DiagnosisHeaderDiagnosis` | 診断登録フォーム（診断詳細 Markdown・診断1カテゴリ Select・診断名 Select） |
+| `DiagnosisHeaderPhysicalExam` | 身体所見 Markdown エリア（`assessment`） |
+| `DiagnosisHeaderDiagnosis` | 診断登録フォーム（診断詳細 Markdown・診断1/2カテゴリ Select・診断1/2名称 Select） |
 | `TreatmentTable` | 治療プランテーブル（マスタ検索ダイアログ連携） |
 | `TreatmentDetailedSummary` | 集計（小計・税・合計・割引率・値引額） |
 
 ## Tab 3: 治療（`MedicalRecordTreatment`）
 
-- **治療プランテーブル**: `TreatmentTable`（済チェックボックス列あり。チェック→`TreatmentMoveConfirmDialog`→治療済みテーブルへ移動）
-- **治療済みテーブル**: `TreatmentTable`（「プランに戻す」ボタンあり。確認→治療プランへ差し戻し）
-- スクリーンリーダー通知（`useAnnounce`）とフォーカス移動（`completedHeadingRef`）あり
-- **集計**: `TreatmentDetailedSummary`
+**レイアウト:** 治療テーブル（`TreatmentTable`）単一構成
+
+| フィールド | 入力部品 | 備考 |
+|-----------|----------|------|
+| 項目名 | `Input` | `content` |
+| メモ | `Input` | `memo` |
+| 保険 | `Checkbox` | `insurance` |
+| 単価 | `Input(number)` | `unitPrice` |
+| 数量 | `Input(number)` | `quantity` |
+| 値引(率) | `Input(number)` | `discountRate` |
+| 値引(額) | `Input(number)` | `discountAmount` |
+| ステータス | `Select` | 実施中 / 完了 / 中止 |
 
 ## Tab 4: 予防接種（`MedicalRecordVaccination`）
-
-**レイアウト:** 2カラム（lg:6+6）
 
 `VaccinationForm` フォーム項目:
 
 | フィールド | 入力部品 | 備考 |
 |----------|---------|------|
-| 予防接種名 | `MasterSelectModal`（vaccine マスタ連動） | Syringe アイコン、`MasterLink` 付き |
+| 予防接種名 | `Select` | `esophagitis` / `rabies` / `distemper` 等 |
 | 予防接種日 | `NotionDatePicker` | |
-| 担当医 | `Select`（staff マスタ連動、active のみ） | `MasterLink` 付き |
 | 補助説明 | `Input` | |
-| LOT1〜LOT4 | `Input` × 4（4カラムグリッド） | |
-| 次回予防接種予定設定 | `RadioGroup`（`NEXT_SCHEDULE_TYPE_VALUES`） | |
+| LOT1〜LOT4 | `Input` × 4 | 4つのLOT番号入力 |
+| 次回予防接種予定設定 | `RadioGroup` | 3週間後 / 4週間後 / 1年後 / 以外 |
 | 次回予定日 | `NotionDatePicker` | |
 | 備考 | `Textarea` | |
 
-右カラムに `VaccinationHistory`（接種履歴一覧）を表示
-
 ## Tab 5: 定期健診（`MedicalRecordCheckup`）
 
-**レイアウト:** 健診プランテーブル + 実施済みテーブル + 下部2カラム（lg:12グリッド）
+**レイアウト:** インライン編集テーブル（`CheckupsTab`）
 
-- **健診プランテーブル**: `TreatmentTable`（済チェックボックス列あり。チェック→`TreatmentMoveConfirmDialog`→実施済みテーブルへ移動）
-- **実施済みテーブル**: `TreatmentTable`（「プランに戻す」ボタンあり。確認→健診プランへ差し戻し）
-- **左カラム**: `CheckupForm`（健診種別・実施日・結果登録フォーム）
-- **右カラム**: `CheckupHistory`（健診履歴一覧）
-- スクリーンリーダー通知（`useAnnounce`）とフォーカス移動（`planHeadingRef` / `completedHeadingRef`）あり
+| フィールド | 入力部品 | 備考 |
+|-----------|----------|------|
+| 日付 | `Input(date)` | |
+| 健診種別 | `Select` | `checkup` マスタ連動 |
+| 次回予定日 | `Input(date)` | |
+| 結果 | `Input(text)` | |
 
 ## Tab 6: 検査（`MedicalRecordExamination`）
 
-**レイアウト:** 2カラム（lg:6+6）
+**レイアウト:** フィルタバー + 検査結果グループ（`ExaminationGroup`）
 
-`ExaminationForm` フォーム項目:
-
-| フィールド | 入力部品 | 備考 |
-|----------|---------|------|
-| 検査種別 | `MasterSelectModal`（examination マスタ連動） | 必須、FlaskConical アイコン、`MasterLink` 付き |
-| 担当医 | `Select`（staff マスタ連動、active のみ） | `MasterLink` 付き |
-| 検査項目テーブル | `Table`（マスタ連動で自動生成） | 列: 項目名・測定値（Input）・単位・基準値 |
-| 備考・所見 | `Textarea` | |
-| アクション | 「結果を登録」ボタン + 「クリア」ボタン | |
-
-右カラムに `ExaminationHistory`（検査結果履歴）を表示
+| 表示項目 | 説明 |
+|---------|------|
+| 実施日時 | 検査が行われた日時 |
+| 検査機器 | 使用された機器名 |
+| 検査項目テーブル| 項目名、測定値、単位、基準値、判定（H/L） |
 
 ## Tab 7: 画像（`MedicalRecordImage`）
 
-- **フィルタバー**（`ImageGalleryFilter`）: キーワード検索・日付範囲（開始/終了）・ソート順（昇順/降順）・アップロードボタン
-- **検査結果セクション**: 日付別画像グループ（`ImageGalleryGroup`）
+**レイアウト:** フィルタバー + 画像ギャラリー（`ImageGalleryGroup`）
+
+| 表示項目 | 説明 |
+|---------|------|
+| 撮影日時 | 画像が保存された日時 |
+| 画像名 | アップロードされたファイル名 |
+| 画像プレビュー| サムネイル表示、拡大表示対応 |
 
 ## Tab 8: 見積書（`MedicalRecordEstimate`）
 
-- **件名**: `EstimateForm`（件名 Input）
-- **明細テーブル**: `TreatmentTable`（チェックボックス列なし・戻すボタンなし）
-- **集計**: `TreatmentDetailedSummary`（コメント / 備考 2カラム Textarea）
-- **アクション**: 「PDF出力」ボタン
+**レイアウト:** 治療テーブル + 集計サマリー
+
+※表示項目は Tab 3 の治療テーブルと共通。ステータス列は非表示。
 
 ## Tab 9: 会計(医師確認)（`MedicalRecordBillCheck`）
 
-- **明細テーブル**: `TreatmentTable`（治療タブの `completedItems` を自動同期、読み取り専用）
-- **集計**: `TreatmentDetailedSummary`
-- **フローティングアクション**:
-  - 「チェック完了」ボタン: トグル動作（「未チェックに戻す」と切り替え）
-  - 「会計へ進む」（新規カルテで linkedAccountingId なし）/ 「会計を確認」（既存会計あり・緑背景）
-  - 会計遷移時: カルテ明細を `AccountingItem[]` に自動変換してstate経由で渡す（カテゴリ自動推定）
+**レイアウト:** 治療テーブル + 詳細サマリー（全体割引対応）
+
+| 項目 | 入力・表示 |
+|------|-----------|
+| 全体割引率 (%) | `Input(number)` |
+| 全体値引額 (￥) | `Input(number)` |
+| チェック完了 | ボタン（会計ステータスを更新） |
 
 ## VitalInputDialog（バイタル入力ダイアログ）
 
@@ -193,7 +196,22 @@
 | `usePrint` | `[H]` | 印刷状態管理フック |
 | `useUnsavedChanges` | `[H]` | 未保存変更検知 |
 
-## ユーザーアクション
+## 機能詳細
+
+### 1. 治療ステータスのライフサイクル
+- **プランから済みへ**: 「治療プラン」タブで実施した項目にチェックを入れると、確認ダイアログ（`TreatmentMoveConfirmDialog`）を経て「治療（実施済み）」タブへ自動移動する。
+- **差し戻し**: 誤って済みにしてしまった項目は、治療済みテーブルからプランへ差し戻すことが可能。
+
+### 2. 精緻な自動集計（`useMedicalRecordCalculation`）
+- **リアルタイム計算**: 単価、数量、値引率（または値引額）、保険適用の有無を即座に計算し、集計サマリー（小計、消費税、合計）を更新する。
+- **値引ロジック**: 飼主マスタに設定されたデフォルト値引率を初期値として読み込みつつ、項目ごとに個別の調整が可能。
+
+### 3. 会計へのデータ変換と連携
+- **ワンクリック会計**: 「会計へ進む」ボタンにより、カルテ内の「実施済み」明細を `AccountingItem[]` 形式に変換し、ペット情報と共に会計新規作成画面へ引き継ぐ。
+- **重複防止**: 既に会計が作成されている場合は「会計を確認」ボタンに切り替わり、二重請求を防止する。
+
+### 4. 確定処理と読み取り専用
+- **ステータス「確定済」**: カルテを確定すると、以後内容の編集は不可となり、印刷（診断書・処方箋等）のみが可能となる。
 
 | アクション | トリガー | 処理内容 | 遷移先 |
 |-----------|---------|---------|--------|
@@ -254,21 +272,16 @@
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| GET | `/api/v1/medical-records/:id` | カルテ詳細取得 | 未実装 |
-| POST | `/api/v1/medical-records` | カルテ作成 | 未実装 |
-| PUT | `/api/v1/medical-records/:id` | カルテ更新 | 未実装 |
-| DELETE | `/api/v1/medical-records/:id` | カルテ削除 | 未実装 |
-| POST | `/api/v1/medical-records/:id/finalize` | カルテ確定 | 未実装 |
-| GET | `/api/v1/pets/:petId/medical-records` | ペットのカルテ一覧 | 未実装 |
-| GET | `/api/v1/masters/consultations` | 診察マスタ | 未実装 |
-| GET | `/api/v1/masters/procedures` | 処置マスタ | 未実装 |
-| GET | `/api/v1/masters/medicines` | 薬剤マスタ | 未実装 |
-| GET | `/api/v1/masters/examination-types` | 検査種別マスタ | 未実装 |
-| GET | `/api/v1/masters/vaccines` | ワクチンマスタ | 未実装 |
+| GET | `/api/v1/medical-records/:id` | カルテ詳細取得 | 実装済 |
+| POST | `/api/v1/medical-records` | カルテ作成 | 実装済 |
+| PATCH | `/api/v1/medical-records/:id` | カルテ更新 | 実装済 |
+| DELETE | `/api/v1/medical-records/:id` | カルテ削除 | 実装済 |
+| GET | `/api/v1/pets/:id` | 患者情報取得 | 実装済 |
+| GET | `/api/v1/staffs` | スタッフマスタ取得 | 実装済 |
 
 ## 実装状況
-- フロントエンド(ui-sample): 実装済（モックデータ使用）
-- バックエンドAPI: 未実装
+- フロントエンド: 実装済（`features/medical-records/routes/MedicalRecordForm.tsx`）
+- バックエンドAPI: 実装済（`handler/medical_record_handler.go` 他）
 
 ## 備考
 - 旧仕様（SOAPS形式・6タブ）から大幅に変更。現在は9タブ構成で予防接種・検査・画像・会計確認が独立したタブとして存在

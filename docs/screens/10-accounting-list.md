@@ -22,40 +22,24 @@
 └──────────────────────────────────────────────────────┘
 ```
 
-## 表示項目
+## 表示項目（テーブル）
 
-| フィールド名 | 型 | 説明 | DB列 / 備考 |
+| フィールド名 | 型 | 説明 | 備考 |
 |------------|-----|------|------|
-| 日時 | date | 会計予定日 | `billings.scheduled_date`（等幅フォント） |
-| 飼主名 | string | 飼い主氏名 | `owners.name` |
-| ペット名 | string | ペット名 + カルテ連携バッジ | `pets.name`（`medicalRecordId`あり時「カルテ連携」バッジ） |
-| 請求金額 | decimal | 税込請求金額 | `calculateTotal(r)`（等幅・太字・右寄せ） |
-| 支払方法 | enum | 現金/カード/電子マネー | `billings.payment.method` |
-| 保険 | badge | 保険名バッジ | 保険あり時のみ表示（`bg-[#D3E5EF] text-[#183B56]`） |
-| ソース | badge | データソース | `source === "hospitalization"` 時「入院連携」バッジ（cyan） |
-| ステータス | enum | 未収/収済/キャンセル/保留 | `billings.status` |
-| 操作 | dropdown | 行アクション | 右寄せ |
-
-## ステータス値
-
-| 表示名 | 値 | バッジ色 |
-|--------|-----|------|
-| 未収 | `waiting` | 赤（red） |
-| 収済 | `completed` | 緑（green） |
-| キャンセル | `cancelled` | グレー |
-| 保留 | `pending` | 黄（amber） |
+| 日時 | date | 会計予定日（等幅フォント） | `r.scheduledDate` |
+| 飼主名 | string | 飼い主氏名 | `r.ownerName` |
+| ペット名 | string | ペット名 | `r.petName` |
+| 請求金額 | decimal | 税込請求金額（等幅・太字・右寄せ） | `calculateTotal(r)` |
+| 支払方法 | enum | 現金/クレジットカード/電子マネー | `r.payment.method` |
+| ステータス | string | 会計状態（StatusBadge） | `r.status` |
+| 操作 | - | 詳細ボタン | `RowActionButton` |
 
 ## フィルター
 
-### 保険フィルター（`ToggleGroup`）
-
-| 表示名 | 値 |
-|--------|-----|
-| すべて | `all` |
-| 保険あり | `insured` |
-| 保険なし | `uninsured` |
-
-テーブル上部のフィルタバー右端に配置（`INSURANCE_FILTER_VALUES` 型）。
+| 項目 | 選択肢 | 説明 |
+|------|-------|------|
+| ステータス | すべて / 会計待ち / 会計済 / キャンセル | `statusFilter` |
+| フリーワード | - | 飼主名、ペット名で検索 |
 
 ## ソート
 
@@ -78,7 +62,7 @@
 |---|---|---|
 | `Accounting` | `[R]` | メインページ |
 | `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | フリーワード検索（「飼主名、ペット名...」） |
+| `NotionFilter` | `[S]` | フリーワード検索（「飼主名、ペット名...」） |
 | `ToggleGroup` / `ToggleGroupItem` | UI | 保険フィルター |
 | `DataTable` / `DataTableRow` | `[S]` | データテーブル |
 | `SortableHeader` | `[S]` | ソート可能ヘッダー |
@@ -127,9 +111,10 @@
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| GET | `/api/v1/accountings` | 会計一覧取得 | 未実装 |
-| DELETE | `/api/v1/accountings/:id` | 会計削除 | 未実装 |
+| GET | `/api/v1/accountings` | 会計一覧取得 | 実装済 |
+| DELETE | `/api/v1/accountings/:id` | 会計データ削除 | 実装済 |
 
 ## 実装状況
-- フロントエンド(ui-sample): 実装済（LocalStorageによるデータ永続化）
-- バックエンドAPI: 未実装
+- フロントエンド: 実装済（`features/accounting/routes/AccountingList.tsx`）
+- バックエンドAPI: 実装済（`handler/accounting_handler.go`）
+

@@ -31,73 +31,47 @@
 
 ## 表示項目（飼主情報フォーム）
 
-| フィールド名 | 入力部品 | 必須 | 説明 | 備考 |
-|------------|--------|------|------|------|
-| 飼主No | `Input` | - | 飼主ID番号 | `owners.id` |
-| 郵便番号 | `Input` | - | placeholder: 123-4567 | `owners.postal_code` |
-| 会社名 | `Input` | - | 会社名 | `owners.company` |
-| 会員区分 | `Button` グループ | - | `MEMBERSHIP_TYPE_VALUES`（非会員/会員/退亡者/他診/準） | `owners.membership_type` |
-| 飼主名 | `Input` | ✅ | 飼い主の氏名 | `owners.owner_name`、`aria-invalid`+`aria-describedby` 接続 |
-| 住所1 | `Input` | - | 会社住所1 | `owners.address1` |
-| 郵便番号(自宅) | `Input` | - | 自宅郵便番号 | `owners.home_postal_code` |
-| 危険人物 | `Switch` | - | 「該当する」ラベル | `owners.is_dangerous` |
-| 飼主名(カナ) | `Input` | ✅ | 氏名のフリガナ（カタカナ推奨）、placeholder: ハヤシ フミアキ | `owners.owner_name_kana`、`aria-invalid`+`aria-describedby` 接続 |
-| 住所2 | `Input` | - | 会社住所2 | `owners.address2` |
-| 住所1(自宅) | `Input` | - | 自宅住所1 | `owners.home_address1` |
-| 備考・特記事項 | `Textarea` | - | min-h-[140px]、rowspan | `owners.remarks` |
-| 飼主生年月日 | `NotionDatePicker` | - | 飼主の誕生日 | `owners.birth_date` |
-| メールアドレス | `Input`（type=email） | - | メールアドレス | `owners.email` |
-| 住所2(自宅) | `Input` | - | 自宅住所2 | `owners.home_address2` |
-| 電話番号 | `Input` | ✅ | placeholder: 090-1234-5678 | `owners.phone`、`aria-invalid`+`aria-describedby` 接続 |
-| 会社電話番号 | `Input` | - | colspan=2 | `owners.company_phone` |
-| 値引率 (%) | `Input`（type=number） | - | 飼主専用割引率 | `owners.discount_rate` |
-
-## 表示項目（ペット一覧テーブル）
-
-| フィールド名 | 説明 | 備考 |
-|------------|------|------|
-| ペット番号 | ペットの患者番号 | `pets.pet_number` |
-| ペット名 | ペットの名前 | `pets.name` |
-| 生 | 生死ステータス | `pets.status` |
-| 種別 | 犬/猫等 | `pets.animal_species_id` → `animal_species` |
-| 性別 | 雄/雌/不明 | `pets.gender` |
-| 生年月日 | ペットの誕生日 | `pets.birth_date` |
-| 毛色 | 毛の色 | `pets.color` |
-| 体重 | 体重(kg) | `pets.weight` |
-| 環境 | 飼育環境 | `pets.environment` |
-| 備考 | メモ（truncate 表示） | `pets.remarks` |
-| 操作 | ドロップダウンメニュー | `MoreHorizontal size-5` アイコン |
-
-## ペット行ドロップダウンアクション
-
-| アクション | 遷移先 |
-|-----------|--------|
-| 詳細・編集 | `PetEditModal` を開く |
-| 予約作成 | `/reservations?petId=xxx` |
-| カルテ作成 | `/medical-records/new?petId=xxx` |
-| トリミング | `/trimming/new?petId=xxx` |
-| 入院登録 | `/hospitalization/new?petId=xxx` |
-| 会計登録 | `/accounting/new?petId=xxx` |
-| 削除 | `ConfirmDialog` 表示後に削除（destructive スタイル） |
+| フィールド名 | 項目ID | 入力部品 | 必須 | 説明 | 備考 |
+|------------|--------|---------|------|------|------|
+| 飼主No | `ownerId` | `Input` | - | 飼主ID番号 | 編集時無効化 |
+| 郵便番号 | `postalCode` | `Input` | - | 郵便番号（会社） | |
+| 会社名 | `company` | `Input` | - | 会社名 | |
+| 会員区分 | `membershipType` | `Button` | - | 会員区分ボタン | 非会員/会員/退亡者/他診/準 |
+| 飼主名 | `ownerName` | `Input` | ✅ | 飼い主の氏名 | |
+| 住所1 | `address1` | `Input` | - | 会社住所1 | |
+| 郵便番号(自宅)| `homePostalCode`| `Input` | - | 自宅郵便番号 | |
+| 危険人物 | `isDangerous` | `Switch` | - | 危険人物フラグ | |
+| 備考・特記事項| `remarks` | `Textarea` | - | メモ | |
+| 飼主名(カナ) | `ownerNameKana` | `Input` | ✅ | 氏名カナ | |
+| 住所2 | `address2` | `Input` | - | 会社住所2 | |
+| 住所1(自宅) | `homeAddress1` | `Input` | - | 自宅住所1 | |
+| 飼主生年月日 | `birthDate` | `NotionDatePicker` | - | 飼主生年月日 | |
+| メールアドレス| `email` | `Input` | - | メールアドレス | |
+| 住所2(自宅) | `homeAddress2` | `Input` | - | 自宅住所2 | |
+| 電話番号 | `phone` | `Input` | ✅ | 電話番号 | |
+| 会社電話番号 | `companyPhone` | `Input` | - | 会社電話 | |
+| 値引率 (%) | `discountRate` | `Input` | - | 飼主別値引率 | |
 
 ## PetEditModal フォーム項目（3カラムグリッド: md:2, lg:3）
 
-| フィールド | 入力部品 | 必須 | 備考 |
-|----------|---------|------|------|
-| ペット名 | `Input` | ✅ | `aria-invalid`+`aria-describedby` 接続 |
-| ペット名カナ | `Input` | - | |
-| 種 | `Select`（`animal_species` マスタ連動） | ✅ | `pets.animal_species_id` FK |
-| 性別 | `Select`（雄/雌/不明） | ✅ | `PET_GENDER_VALUES` |
-| 生年月日 | `NotionDatePicker` | ✅ | |
-| 品種 | `Input` | - | |
-| 毛色 | `Input` | - | |
-| 避妊去勢日 | `NotionDatePicker` | - | |
-| 入手種別 | `Select`（購入/譲渡/保護/その他） | - | `ACQUISITION_TYPE_VALUES` |
-| 危険度 | `Select`（低/中/高） | - | `DANGER_LEVEL_VALUES` |
-| フード | `Input` | - | |
-| 保険名 | `Select`（`insurances` マスタ連動） | - | `pets.insurance_id` FK |
-| 保険詳細(負担割合) | `Select`（50%/70%/90%/100%/その他） | - | `PET_INSURANCE_RATIO_VALUES` |
-| 備考・特記事項 | `Textarea` | - | |
+| フィールド | 項目ID | 入力部品 | 必須 | 備考 |
+|----------|---------|---------|------|------|
+| ペットNo | `petNumber` | `Input` | - | |
+| ペット名 | `petName` | `Input` | ✅ | |
+| ペット名(カナ)| `petNameKana` | `Input` | - | |
+| 動物種 | `animalSpeciesId`| `Select` | ✅ | マスタ連動 |
+| 性別 | `gender` | `Select` | ✅ | |
+| 生年月日 | `birthDate` | `NotionDatePicker` | - | |
+| 品種 | `breed` | `Input` | - | |
+| 毛色 | `color` | `Input` | - | |
+| 体重(kg) | `weight` | `Input` | - | |
+| 去勢・避妊手術日| `neuteredDate`| `NotionDatePicker`| - | |
+| 入手区分 | `acquisitionType`| `Select` | - | 購入/譲渡/保護/その他 |
+| ペットの危険度| `dangerLevel` | `Select` | - | 低/中/高 |
+| 食べ物 | `food` | `Input` | - | |
+| 飼育環境 | `environment` | `Input` | - | |
+| 保険 | `insuranceId` | `Select` | - | マスタ連動 |
+| 備考・特記事項| `remarks` | `Textarea` | - | |
 
 ## UI コンポーネント
 
@@ -113,6 +87,20 @@
 | `PrimaryButton` | `[S]` | 登録/更新ボタン |
 | `useOwnerForm` | `[H]` | フォーム状態管理・保存・バリデーション |
 | `useUnsavedChanges` | `[H]` | 未保存変更検知（`markDirty` / `markClean` / `isDirty`） |
+
+## 機能詳細
+
+### 1. フォーム離脱防止ガード
+- **未保存検知**: `useUnsavedChanges` フックにより、フォームの変更（`isDirty`）を監視。
+- **ナビゲーションブロック**: 変更がある状態で画面を離れようとすると、`NavigationBlocker` により確認ダイアログが表示される。保存成功時に `markClean()` を呼び出すことでブロックを解除する。
+
+### 2. ペット情報のライフサイクル管理
+- **ローカル管理**: `PetEditModal` での追加・編集・削除の結果は、まず `OwnerForm` の React 状態（`pets` 配列）に一時的に反映される。
+- **一括更新**: 画面最下部の「登録/更新」ボタン押下時に、飼主情報とペット情報の全リストがバックエンドへ送信される。
+
+### 3. 入力支援ロジック
+- **自動ID生成**: 新規登録時、飼主Noはバックエンド側で自動採番される。
+- **日付入力**: `NotionDatePicker` を使用し、カレンダー選択だけでなく、キーボードによるテキスト入力（"2020/01/01"等）にも対応。
 
 ## ユーザーアクション
 
@@ -162,16 +150,17 @@
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| POST | `/api/v1/owners` | 飼い主作成 | 未実装 |
-| PUT | `/api/v1/owners/:id` | 飼い主更新 | 未実装 |
-| GET | `/api/v1/owners/:id` | 飼い主詳細取得 | 未実装 |
+| POST | `/api/v1/owners` | 飼主作成 | 実装済 |
+| PATCH | `/api/v1/owners/:id` | 飼主更新 | 実装済 |
+| GET | `/api/v1/owners/:id` | 飼主詳細取得 | 実装済 |
 | POST | `/api/v1/pets` | ペット作成 | 実装済 |
-| PUT | `/api/v1/pets/:id` | ペット更新 | 実装済 |
+| PATCH | `/api/v1/pets/:id` | ペット更新 | 実装済 |
 | GET | `/api/v1/pets/:id` | ペット詳細取得 | 実装済 |
+| DELETE | `/api/v1/pets/:id` | ペット削除 | 実装済 |
 
 ## 実装状況
-- フロントエンド(ui-sample): 実装済
-- バックエンドAPI: ペットCRUD実装済、飼い主API未実装
+- フロントエンド: 実装済（`features/owners/routes/OwnerForm.tsx`）
+- バックエンドAPI: 実装済（`handler/owner_handler.go`, `handler/pet_handler.go`）
 
 ## 備考
 - 旧仕様と比較して飼主フォームのフィールドが大幅に増加（郵便番号・会社名・会員区分・自宅住所・危険人物フラグ・値引率 等）

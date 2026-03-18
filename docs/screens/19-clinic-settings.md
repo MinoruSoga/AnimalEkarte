@@ -44,48 +44,25 @@
 └──────────────────────────────────────────────────────┘
 ```
 
-## フォームセクション構成
+## フォーム項目（基本情報）
 
-### 基本情報（セクション区切りなし、ページ最上部）
-
-| フィールド | 入力部品 | 必須 | バリデーション |
-|-----------|---------|------|--------------|
-| 病院名 | `NotionPropertyRow` + `propertyInput` | 必須 | 最大50文字 |
-| 支店名 | `NotionPropertyRow` + `propertyInput` | - | 最大50文字 |
-
-### 所在地セクション
-
-| フィールド | 入力部品 | 必須 | バリデーション |
-|-----------|---------|------|--------------|
-| 郵便番号 | `NotionPropertyRow` + `propertyInput` | - | `^\d{3}-\d{4}$` |
-| 住所 | `NotionPropertyRow` + `propertyInput` | - | 最大200文字 |
-
-### 連絡先セクション
-
-| フィールド | 入力部品 | 必須 | バリデーション |
-|-----------|---------|------|--------------|
-| 電話番号 | `NotionPropertyRow` + `propertyInput` | - | 日本形式 |
-| FAX番号 | `NotionPropertyRow` + `propertyInput` | - | 日本形式 |
-| メールアドレス | `NotionPropertyRow` + `propertyInput`（type=email） | - | RFC 5322準拠 |
-| WebサイトURL | `NotionPropertyRow` + `propertyInput` | - | URL形式 |
-
-### その他セクション
-
-| フィールド | 入力部品 | 必須 | バリデーション |
-|-----------|---------|------|--------------|
-| 登録番号 | `NotionPropertyRow` + `propertyInput` | - | 最大100文字（ヘルプテキスト付き） |
-| 院長名 | `NotionPropertyRow` + `propertyInput` | - | 最大50文字 |
-
-## フォームライブラリ
-
-`react-hook-form@7.55.0` を使用。`register` でフィールドを紐付け。
+| フィールド | 項目ID | 入力部品 | 必須 | 備考 |
+|-----------|--------|----------|------|------|
+| 病院名 | `name` | `Input` | ✅ | |
+| 郵便番号 | `postalCode` | `Input` | | |
+| 住所 | `address` | `Input` | | |
+| 電話番号 | `phoneNumber`| `Input` | | |
+| FAX番号 | `faxNumber` | `Input` | | |
+| 登録番号 | `registrationNumber`| `Input`| | |
+| 院長名 | `directorName`| `Input` | | |
+| メールアドレス| `email` | `Input` | | |
+| WebサイトURL | `website` | `Input` | | |
 
 ## アクション
 
 | ボタン | 動作 | 備考 |
 |-------|------|------|
-| キャンセル | `/settings` へ遷移 | `STYLE.sidePeekCancelBtn` |
-| 保存 | `handleSubmit(onSubmit)` → `updateClinicInfo` + `reset` | `isDirty` が false の場合は disabled |
+| 設定を保存 | `handleSubmit(onSubmit)` → `updateClinic` | `isDirty` が false の場合は disabled |
 
 ## コンポーネント構成
 
@@ -144,9 +121,9 @@ interface ClinicInfo {
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
 | GET | `/api/v1/clinics` | 病院情報取得 | 実装済 |
-| PUT | `/api/v1/clinics/:id` | 病院情報更新 | 実装済 |
+| PATCH | `/api/v1/clinics/:id` | 病院情報更新 | 実装済 |
 
 ## 実装状況
+- フロントエンド: 実装済（`features/hospital-settings/routes/ClinicSettings.tsx`）
+- バックエンドAPI: 実装済（`handler/clinic_handler.go`）
 
-- フロントエンド(ui-sample): 実装済（モックデータ使用）
-- バックエンドAPI: 実装済

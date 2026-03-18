@@ -33,27 +33,27 @@
 ページネーション（20件/ページ）
 ```
 
-## 表示項目
+## 表示項目（テーブル）
 
-| フィールド名 | 型 | 説明 | 備考 |
-|------------|-----|------|------|
-| 入院No | string | 入院番号 | `hospitalizations.hospitalization_no` |
-| ペット名 | string | ペット名 | `pets.name` |
-| 種/品種 | string | 動物種と品種 | `pets.species`, `pets.breed` |
-| 飼主名 | string | 飼い主氏名 | `owners.name` |
-| 入院種別 | enum | 入院/ホテル | `hospitalizations.type` |
-| 入院開始日 | date | 入院開始日 | `hospitalizations.start_date` |
-| 退院予定日 | date | 退院予定日 | `hospitalizations.end_date` |
-| ケージ | string | 割り当てケージ名 | `cages.name` |
-| ステータス | enum | 入院中/退院済/予約 | `hospitalizations.status` |
+| フィールド名 | 型 | 説明 | ソート | 備考 |
+|------------|-----|------|--------|------|
+| 入院No | string | 入院受付番号 | ○ | `h.hospitalizationNo` |
+| 飼主名 | string | 飼い主氏名 | - | `h.ownerName` |
+| ペット名 | string | ペット名 | - | `h.petName` |
+| 種 | string | 動物種 | - | `h.species` |
+| タイプ | string | 入院/ホテル（StatusBadge） | - | `h.hospitalizationType` |
+| 入院開始日 | date | 入院開始日 | ○ | `h.startDate` |
+| 退院予定日 | date | 退院予定日 | ○ | `h.endDate` |
+| ステータス | string | 現在の状態（StatusBadge） | ○ | `h.status` |
+| 操作 | - | 詳細表示ボタン | - | `RowActionButton` |
 
 ## フィルタータブ
 
 | タブ名 | フィルター条件 | カウント表示 |
 |--------|--------------|------|
-| 入院中 | status = `入院中` | 件数（等幅フォント） |
-| 予約 | status = `予約` | 件数（等幅フォント） |
-| 退院済 | status = `退院済` | 件数（等幅フォント） |
+| 入院中 | status = `active` | 件数（等幅フォント） |
+| 予約 | status = `reserved` | 件数（等幅フォント） |
+| 退院済 | status = `discharged` | 件数（等幅フォント） |
 | すべて | フィルターなし | 件数（等幅フォント） |
 
 ## ビュー切替の制約
@@ -69,12 +69,11 @@
 | `HospitalizationList` | `[R]` | メインページ |
 | `PageLayout` | `[S]` | ページコンテナ |
 | `Tabs` / `TabsList` / `TabsTrigger` | `[S]` | ステータスフィルタータブ |
-| `SearchFilterBar` | `[S]` | 飼主名・ペット名・入院Noの検索 |
+| `NotionFilter` | `[S]` | 飼主名・ペット名・入院Noの検索 |
 | `ToggleGroup` / `ToggleGroupItem` | UI | ボードビュー/リストビュー切替（LayoutGrid/Listアイコン） |
 | `HospitalizationBoard` | `[C]` | ケージボードビュー（react-dndによるD&D） |
 | `CageDragPreview` | `[C]` | `useDragLayer`によるカスタムドラッグプレビューオーバーレイ |
 | `HospitalizationListView` | `[C]` | リストビュー（テーブル形式） |
-| `Pagination` | `[S]` | ページネーション（リストビュー時、20件/ページ） |
 | `PrimaryButton` | `[S]` | 「新規入院登録」ボタン（Plusアイコン） |
 | `ConfirmDialog` | `[S][M]` | 退院確認ダイアログ |
 
@@ -124,8 +123,8 @@
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| GET | `/api/v1/hospitalizations` | 入院一覧取得 | 未実装 |
+| GET | `/api/v1/hospitalizations` | 入院一覧取得 | 実装済 |
 
 ## 実装状況
-- フロントエンド(ui-sample): 実装済（LocalStorageによるデータ永続化）
-- バックエンドAPI: 未実装
+- フロントエンド: 実装済（`features/hospitalization/routes/HospitalizationList.tsx`）
+- バックエンドAPI: 実装済（`handler/hospitalization_handler.go`）

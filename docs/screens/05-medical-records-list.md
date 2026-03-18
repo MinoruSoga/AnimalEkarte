@@ -20,18 +20,18 @@
 └──────────────────────────────────────────────────────┘
 ```
 
-## 表示項目
+## 表示項目（テーブル）
 
 | フィールド名 | 型 | 説明 | ソート | 備考 |
 |------------|-----|------|--------|------|
-| 診療日 | date | 診察日時（等幅フォント） | ○ | `medical_records.visit_date`（`date`） |
-| 飼主名 | string | 飼い主氏名 | ○ | `owners.name`（`ownerName`） |
-| ペット名 | string | ペット名 | ○ | `pets.name`（`petName`） |
-| 種 | string | 犬/猫等 | ○ | `pets.species` |
-| 訴 | string | 主訴（省略表示 truncate、max-w-[200px]、title属性でフルテキスト） | - | `medical_records.chief_complaint`（`chiefComplaint`） |
-| 関連 | link | 関連会計へのリンク（`CreditCard` アイコン付きボタン）。未リンク時は「—」 | - | `billings` テーブルへの紐付け |
-| 担当医 | string | 担当獣医師名（無効スタッフ時 `AlertTriangle` アイコン + 赤文字警告） | ○ | `staffs.name` |
-| ステータス | enum | StatusBadge 表示 | ○ | `medical_records.status` |
+| 診療日 | date | 診察日時（等幅フォント） | ○ | `r.date` |
+| 飼主名 | string | 飼い主氏名 | ○ | `r.ownerName` |
+| ペット名 | string | ペット名 | ○ | `r.petName` |
+| 種 | string | 動物種（犬/猫等） | ○ | `r.species` |
+| 主訴 | string | 主訴（truncate 表示、title属性付き） | - | `r.chiefComplaint` |
+| 関連 | link | 会計詳細へのリンク（`Receipt` アイコン付きボタン） | - | `r.accountingId` |
+| 担当医 | string | 担当獣医師名 | ○ | `r.doctor` |
+| ステータス | enum | StatusBadge 表示（作成中/確定済） | ○ | `r.status` |
 | 操作 | - | 編集・削除ドロップダウン | - | `RowActionDropdown` |
 
 ## ステータスバッジ色定義
@@ -47,7 +47,7 @@
 |---|---|---|
 | `MedicalRecords` | `[R]` | メインページ |
 | `PageLayout` | `[S]` | ページコンテナ（FileText アイコン付きタイトル） |
-| `SearchFilterBar` | `[S]` | フリーワード検索（飼主名・ペット名・カルテNo・主訴） |
+| `NotionFilter` | `[S]` | フリーワード検索（飼主名・ペット名・カルテNo・主訴） |
 | `DataTable` | `[S]` | テーブルコンテナ |
 | `DataTableRow` | `[S]` | クリックでカルテ詳細へ遷移 |
 | `SortableHeader` | `[S]` | ソート可能なカラムヘッダー |
@@ -61,7 +61,18 @@
 | `useTableSort` | `[H]` | テーブルソート管理 |
 | `usePagination` | `[H]` | ページネーション管理 |
 
-## ユーザーアクション
+## 機能詳細
+
+### 1. 担当医の有効性チェック
+- **マスタ連動**: 各カルテの担当医IDをスタッフマスタと照合。
+- **警告表示**: 担当医が「無効（退職等）」に設定されている場合、一覧上で氏名を赤文字にし、警告アイコン（`AlertTriangle`）を表示して注意を促す。
+
+### 2. 関連データのクイックアクセス
+- **会計連携**: 会計データが存在する場合、`Receipt` アイコンボタンを表示。クリックで直接該当する会計詳細画面へ遷移し、請求・支払い状況を即座に確認できる。
+
+### 3. デフォルトソートと遅延検索
+- **最新優先**: 初期表示は「診療日」の降順（最新のカルテが一番上）。
+- **検索パフォーマンス**: `useDeferredValue` により、大規模なカルテ履歴に対してもスムーズなフィルタリングを実現。
 
 | アクション | トリガー | 処理内容 | 遷移先 |
 |-----------|---------|---------|--------|
@@ -102,12 +113,12 @@
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| GET | `/api/v1/medical-records` | カルテ一覧取得 | 未実装 |
-| DELETE | `/api/v1/medical-records/:id` | カルテ削除 | 未実装 |
+| GET | `/api/v1/medical-records` | カルテ一覧取得 | 実装済 |
+| DELETE | `/api/v1/medical-records/:id` | カルテ削除 | 実装済 |
 
 ## 実装状況
-- フロントエンド(ui-sample): 実装済（モックデータ使用）
-- バックエンドAPI: 未実装
+- フロントエンド: 実装済（`features/medical-records/routes/MedicalRecords.tsx`）
+- バックエンドAPI: 実装済（`handler/medical_record_handler.go`）
 
 ## 備考
 - 旧仕様では「カルテNo」カラムがあったが、現在は列から除外（`SCREENS.md` 記載: 内部ID はUI上非表示）

@@ -22,17 +22,16 @@
 └──────────────────────────────────────────────────────┘
 ```
 
-## 表示項目
+## 表示項目（テーブル）
 
-| 列 | className | 表示内容 | 備考 |
-|---|---|---|---|
-| 実施日 | `w-[120px]` | `r.date`（等幅フォント） | ソート可能 |
-| 飼主名 | - | `r.ownerName` | ソート可能 |
-| ペット名 | - | `r.petName` | ソート可能 |
-| 予防接種名 | - | `r.vaccineName`（太字） | ソート可能 |
-| 担当医 | `w-[100px]` | `r.doctor`（無効スタッフ時は赤文字 + AlertTriangle、未設定時「-」） | ソート可能 |
-| 次回予定 | `w-[140px]` | `r.nextDate`（等幅フォント） | ソート可能 |
-| 操作 | `w-[100px]`, align:right | `RowActionDropdown`（「カルテを開く」のみ） | - |
+| 列名 | 表示内容 | 備考 |
+|------|---------|------|
+| 実施日 | `r.date`（等幅フォント） | |
+| 飼主名 | `r.ownerName` | |
+| ペット名 | `r.petName` | |
+| 予防接種名| `r.vaccineName` | |
+| 次回予定 | `r.nextDate`（等幅フォント） | |
+| 操作 | `RowActionButton` | 詳細ボタン |
 
 ## ユーザーアクション
 
@@ -54,7 +53,7 @@
 |---|---|---|
 | `VaccinationList` | `[R]` | メインページ |
 | `PageLayout` | `[S]` | ページレイアウト |
-| `SearchFilterBar` | `[S]` | 検索フィルタバー |
+| `NotionFilter` | `[S]` | 検索フィルタバー |
 | `DataTable` / `DataTableRow` | `[S]` | データテーブル |
 | `SortableHeader` | `[S]` | ソート可能ヘッダー（全列対応） |
 | `RowActionDropdown` | `[S]` | 行アクションメニュー |
@@ -93,9 +92,9 @@ type SortKey = "date" | "ownerName" | "petName" | "vaccineName" | "doctor" | "ne
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| GET | `/api/v1/vaccinations` | ワクチン記録一覧取得 | 未実装 |
+| GET | `/api/v1/vaccinations` | 予防接種一覧取得 | 実装済 |
+| DELETE | `/api/v1/vaccinations/:id` | 予防接種削除 | 実装済 |
 
 ## 実装状況
-
-- フロントエンド(ui-sample): 実装済（モックデータ使用）
-- バックエンドAPI: 未実装
+- フロントエンド: 実装済（`features/vaccinations/routes/Vaccinations.tsx`）
+- バックエンドAPI: 実装済（`handler/vaccination_handler.go`）
