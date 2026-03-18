@@ -2,6 +2,8 @@ package model
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type InventoryCategory string
@@ -36,6 +38,7 @@ type InventoryItem struct {
 	Status        InventoryStatus   `gorm:"type:inventory_status;default:'sufficient'"      json:"status"`
 	CreatedAt     time.Time         `gorm:"autoCreateTime"                                  json:"created_at"`
 	UpdatedAt     time.Time         `gorm:"autoUpdateTime"                                  json:"updated_at"`
+	DeletedAt     gorm.DeletedAt    `                                                       json:"-" swaggerignore:"true"`
 }
 
 func (InventoryItem) TableName() string { return "inventory_items" }

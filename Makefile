@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset restart-api restart-front build-prod lint lint-fix test test-cover build-go mod-download mod-tidy help codegen codegen-check sync-modules
+.PHONY: up down build logs logs-api logs-front ps db clean reset restart-api restart-front build-prod lint lint-fix test test-cover build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -91,6 +91,10 @@ codegen:
 codegen-check: codegen
 	git diff --exit-code frontend/src/types/generated/
 
+# スキーマ差分チェック（GoモデルとDBの整合性検証）
+schema-check:
+	docker compose exec backend go test ./internal/model/ -run TestSchemaDrift -v
+
 # Goビルド（開発用）
 build-go:
 	docker compose exec backend go build ./cmd/api
@@ -131,6 +135,7 @@ help:
 	@echo "  test-cover    Goテスト実行（カバレッジ付き）"
 	@echo "  codegen       型定義生成（Go model → TypeScript型）"
 	@echo "  codegen-check 型定義の差分チェック（CI用）"
+	@echo "  schema-check  GoモデルとDBスキーマの差分チェック"
 	@echo "  build-go      Goビルド（開発用）"
 	@echo "  mod-download  Goモジュールダウンロード"
 	@echo "  mod-tidy      Goモジュールtidy"
