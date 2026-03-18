@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { CalendarIcon, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { ja } from "date-fns/locale";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import type { DateRange } from "react-day-picker";
@@ -67,6 +67,14 @@ function formatShort(date: Date): string {
   const y = date.getFullYear();
   const m = date.getMonth() + 1;
   const d = date.getDate();
+  return `${y}/${m}/${d}`;
+}
+
+/** Formats a Date as "YYYY/MM/DD" for editable input display. */
+function formatSlash(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
   return `${y}/${m}/${d}`;
 }
 
@@ -170,9 +178,17 @@ function SinglePicker({
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"calendar" | "monthGrid">("calendar");
   const [displayMonth, setDisplayMonth] = useState<Date>(() => new Date());
-  const [textInput, setTextInput] = useState("");
+  const [focused, setFocused] = useState(false);
+  const [inputText, setInputText] = useState("");
 
   const selected = useMemo(() => parseLocalDate(value), [value]);
+
+  // Derive the displayed text: focused → editable YYYY/MM/DD, blurred → Japanese display
+  const displayText = focused
+    ? inputText
+    : selected
+      ? formatDisplay(selected)
+      : "";
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -180,16 +196,17 @@ function SinglePicker({
       if (nextOpen) {
         setView("calendar");
         setDisplayMonth(selected ?? new Date());
-        setTextInput(value ? value.replace(/-/g, "/") : "");
       }
     },
-    [selected, value],
+    [selected],
   );
 
   const handleSelect = useCallback(
     (day: Date | undefined) => {
       if (day) {
-        onChange(formatIso(day));
+        const iso = formatIso(day);
+        onChange(iso);
+        setInputText(formatSlash(day));
       }
       setOpen(false);
     },
@@ -200,27 +217,53 @@ function SinglePicker({
     (e: React.MouseEvent<HTMLSpanElement>) => {
       e.stopPropagation();
       onChange("");
+      setInputText("");
     },
     [onChange],
   );
 
   const handleToday = useCallback(() => {
-    onChange(formatIso(new Date()));
+    const today = new Date();
+    onChange(formatIso(today));
+    setInputText(formatSlash(today));
     setOpen(false);
   }, [onChange]);
 
-  const handleTextKeyDown = useCallback(
+  const commitInput = useCallback(() => {
+    const parsed = parseDateInput(inputText);
+    if (parsed) {
+      onChange(formatIso(parsed));
+      setInputText(formatSlash(parsed));
+    } else if (inputText.trim() === "") {
+      // Empty input: clear the value
+      onChange("");
+      setInputText("");
+    } else {
+      // Invalid input: revert to current value
+      setInputText(selected ? formatSlash(selected) : "");
+    }
+  }, [inputText, onChange, selected]);
+
+  const handleInputKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") {
-        const parsed = parseDateInput(textInput);
-        if (parsed) {
-          onChange(formatIso(parsed));
-          setOpen(false);
-        }
+        e.preventDefault();
+        commitInput();
+        setOpen(false);
       }
     },
-    [textInput, onChange],
+    [commitInput],
   );
+
+  const handleFocus = useCallback(() => {
+    setFocused(true);
+    setInputText(selected ? formatSlash(selected) : "");
+  }, [selected]);
+
+  const handleBlur = useCallback(() => {
+    setFocused(false);
+    commitInput();
+  }, [commitInput]);
 
   const handlePrevMonth = useCallback(() => {
     setDisplayMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -241,34 +284,33 @@ function SinglePicker({
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <button
-          id={id}
-          type="button"
-          className={cn(TRIGGER_BASE, !value && "text-[#37352F]/40", className)}
-        >
-          <span className="flex items-center gap-2 truncate">
-            <CalendarIcon className="h-4 w-4 shrink-0 text-[#37352F]/40" />
-            {selected ? formatDisplay(selected) : placeholder}
-          </span>
+      <PopoverAnchor asChild>
+        <div className={cn(TRIGGER_BASE, !value && !focused && "text-[#37352F]/40", className)}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="shrink-0 cursor-pointer bg-transparent border-none p-0"
+              aria-label="カレンダーを開く"
+            >
+              <CalendarIcon className="h-4 w-4 text-[#37352F]/40" />
+            </button>
+          </PopoverTrigger>
+          <input
+            id={id}
+            type="text"
+            value={displayText}
+            onChange={(e) => setInputText(e.target.value)}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            onKeyDown={handleInputKeyDown}
+            placeholder={placeholder}
+            className="flex-1 min-w-0 bg-transparent outline-none text-sm text-[#37352F] placeholder:text-[#37352F]/40"
+          />
           {value ? <ClearButton onClick={handleClear} /> : null}
-        </button>
-      </PopoverTrigger>
+        </div>
+      </PopoverAnchor>
 
       <PopoverContent className="w-auto p-0" align="start">
-        {/* ── Text input ── */}
-        <div className="px-3 pt-3 pb-1">
-          <input
-            type="text"
-            value={textInput}
-            onChange={(e) => setTextInput(e.target.value)}
-            onKeyDown={handleTextKeyDown}
-            placeholder="YYYY/MM/DD"
-            className="w-full rounded border border-[rgba(55,53,47,0.16)] bg-white px-2.5 py-1.5 text-sm text-[#37352F] outline-none placeholder:text-[#37352F]/30 focus:border-[#37352F]/40 focus:ring-1 focus:ring-[#37352F]/20"
-            autoFocus
-          />
-        </div>
-
         {/* ── Navigation header ── */}
         {view === "calendar" ? (
           <CalendarNav

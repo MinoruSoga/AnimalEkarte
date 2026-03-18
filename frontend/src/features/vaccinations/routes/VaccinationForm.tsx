@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE } from "@/lib/design-tokens";
@@ -53,7 +54,7 @@ interface VaccinationFormFieldsProps {
   vaccineId: string;
   onVaccineIdChange: (v: string) => void;
   date: string;
-  onDateChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onDateChange: (value: string) => void;
   supplemental: string;
   onSupplementalChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   lot1: string;
@@ -67,7 +68,7 @@ interface VaccinationFormFieldsProps {
   nextScheduleType: string;
   onNextScheduleTypeChange: (v: string) => void;
   nextDate: string;
-  onNextDateChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onNextDateChange: (value: string) => void;
   remarks: string;
   onRemarksChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
 }
@@ -117,11 +118,10 @@ const VaccinationFormFields = memo(function VaccinationFormFields({
           </div>
           <div className="flex flex-col gap-1.5">
             <Label className={`text-sm ${C.text60}`}>予防接種日</Label>
-            <Input
-              type="date"
+            <NotionDatePicker
               value={date}
               onChange={onDateChange}
-              className={`h-10 text-sm bg-white ${C.borderMedium} ${C.text}`}
+              placeholder="予防接種日を選択…"
             />
           </div>
         </div>
@@ -202,11 +202,10 @@ const VaccinationFormFields = memo(function VaccinationFormFields({
         {/* Next Date */}
         <div className="flex flex-col gap-1.5">
           <Label className={`text-sm ${C.text60}`}>次回予定日</Label>
-          <Input
-            type="date"
+          <NotionDatePicker
             value={nextDate}
             onChange={onNextDateChange}
-            className={`h-10 text-sm bg-white ${C.borderMedium} ${C.text}`}
+            placeholder="次回予定日を選択…"
           />
         </div>
 
@@ -227,9 +226,9 @@ const VaccinationFormFields = memo(function VaccinationFormFields({
 interface HistorySectionProps {
   selectedPetsCount: number;
   filterStartDate: string;
-  onFilterStartDateChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFilterStartDateChange: (value: string) => void;
   filterEndDate: string;
-  onFilterEndDateChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFilterEndDateChange: (value: string) => void;
   historySearchTerm: string;
   onHistorySearchTermChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   sortOrder: string;
@@ -256,18 +255,18 @@ const HistorySection = memo(function HistorySection({
         <div className="flex flex-col gap-1.5">
           <Label className={`text-sm ${C.text60}`}>実施日</Label>
           <div className="flex items-center gap-2">
-            <Input
-              type="date"
+            <NotionDatePicker
               value={filterStartDate}
               onChange={onFilterStartDateChange}
-              className={`bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}
+              placeholder="開始日"
+              className="flex-1"
             />
             <span className={`${C.text} text-sm`}>〜</span>
-            <Input
-              type="date"
+            <NotionDatePicker
               value={filterEndDate}
               onChange={onFilterEndDateChange}
-              className={`bg-white ${C.borderMedium} h-10 text-sm ${C.text}`}
+              placeholder="終了日"
+              className="flex-1"
             />
           </div>
         </div>
@@ -398,16 +397,16 @@ export function VaccinationForm() {
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
   // Stable event handler callbacks for memo components
-  const handleDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setDate(e.target.value); }, [markDirty, setDate]);
+  const handleDateChange = useCallback((value: string) => { markDirty(); setDate(value); }, [markDirty, setDate]);
   const handleSupplementalChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setSupplemental(e.target.value); }, [markDirty, setSupplemental]);
   const handleLot1Change = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setLot1(e.target.value); }, [markDirty, setLot1]);
   const handleLot2Change = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setLot2(e.target.value); }, [markDirty, setLot2]);
   const handleLot3Change = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setLot3(e.target.value); }, [markDirty, setLot3]);
   const handleLot4Change = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setLot4(e.target.value); }, [markDirty, setLot4]);
-  const handleNextDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { markDirty(); setNextDate(e.target.value); }, [markDirty, setNextDate]);
+  const handleNextDateChange = useCallback((value: string) => { markDirty(); setNextDate(value); }, [markDirty, setNextDate]);
   const handleRemarksChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => { markDirty(); setRemarks(e.target.value); }, [markDirty, setRemarks]);
-  const handleFilterStartDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setFilterStartDate(e.target.value), [setFilterStartDate]);
-  const handleFilterEndDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setFilterEndDate(e.target.value), [setFilterEndDate]);
+  const handleFilterStartDateChange = useCallback((value: string) => setFilterStartDate(value), [setFilterStartDate]);
+  const handleFilterEndDateChange = useCallback((value: string) => setFilterEndDate(value), [setFilterEndDate]);
   const handleHistorySearchTermChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setHistorySearchTerm(e.target.value), [setHistorySearchTerm]);
 
   const handleVaccineIdChange = useCallback((v: string) => { markDirty(); setVaccineId(v); }, [markDirty, setVaccineId]);

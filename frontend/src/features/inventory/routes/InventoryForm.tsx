@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
@@ -58,6 +59,10 @@ export function InventoryForm() {
   const [category, setCategory] = useState<string>(
     existingItem?.category ?? "medicine"
   );
+  const [expiryDate, setExpiryDate] = useState("");
+  const [lastRestocked, setLastRestocked] = useState("");
+  const resolvedExpiry = expiryDate || (existingItem?.expiry_date ? existingItem.expiry_date.slice(0, 10) : "");
+  const resolvedLastRestocked = lastRestocked || (existingItem?.last_restocked ? existingItem.last_restocked.slice(0, 10) : "");
 
   const handleBack = useCallback(() => {
     navigate(paths.inventory.getHref());
@@ -119,13 +124,6 @@ export function InventoryForm() {
       </PageLayout>
     );
   }
-
-  const expiryDateValue = existingItem?.expiry_date
-    ? existingItem.expiry_date.slice(0, 10)
-    : "";
-  const lastRestockedValue = existingItem?.last_restocked
-    ? existingItem.last_restocked.slice(0, 10)
-    : "";
 
   return (
     <PageLayout
@@ -253,11 +251,12 @@ export function InventoryForm() {
               <Label htmlFor="expiryDate" className="text-sm text-[#37352F]">
                 有効期限
               </Label>
-              <Input
+              <input type="hidden" name="expiryDate" value={resolvedExpiry} />
+              <NotionDatePicker
                 id="expiryDate"
-                name="expiryDate"
-                type="date"
-                defaultValue={expiryDateValue}
+                value={resolvedExpiry}
+                onChange={(v) => { markDirty(); setExpiryDate(v); }}
+                placeholder="有効期限を選択…"
                 className="mt-1"
               />
             </div>
@@ -289,11 +288,12 @@ export function InventoryForm() {
               >
                 最終入荷日
               </Label>
-              <Input
+              <input type="hidden" name="lastRestocked" value={resolvedLastRestocked} />
+              <NotionDatePicker
                 id="lastRestocked"
-                name="lastRestocked"
-                type="date"
-                defaultValue={lastRestockedValue}
+                value={resolvedLastRestocked}
+                onChange={(v) => { markDirty(); setLastRestocked(v); }}
+                placeholder="最終入荷日を選択…"
                 className="mt-1"
               />
             </div>

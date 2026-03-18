@@ -2,6 +2,7 @@ import React, { useDeferredValue, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import {
   Select,
   SelectContent,
@@ -50,18 +51,18 @@ export const VaccinationHistory = React.memo(function VaccinationHistory({
         <div className="flex flex-col gap-1.5">
           <Label className="text-sm text-[#37352F]/60">実施日</Label>
           <div className="flex items-center gap-2">
-            <Input
-              type="date"
+            <NotionDatePicker
               value={filterStartDate}
-              onChange={(e) => setFilterStartDate(e.target.value)}
-              className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm flex-1"
+              onChange={setFilterStartDate}
+              placeholder="開始日"
+              className="flex-1"
             />
             <span className="text-[#37352F] text-sm">〜</span>
-            <Input
-              type="date"
+            <NotionDatePicker
               value={filterEndDate}
-              onChange={(e) => setFilterEndDate(e.target.value)}
-              className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm flex-1"
+              onChange={setFilterEndDate}
+              placeholder="終了日"
+              className="flex-1"
             />
           </div>
         </div>

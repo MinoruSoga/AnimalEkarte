@@ -3,8 +3,8 @@ import { Building2, Calendar } from "lucide-react";
 
 // Internal
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -65,16 +65,18 @@ export function HospitalizationBasicInfo({ formData, onChange, cageItems }: Hosp
           期間
         </Label>
         <div className={`flex items-center ${H_STYLES.gap.default}`}>
-          <Input
-            type="date"
+          <NotionDatePicker
             value={formData.displayDate}
-            onChange={(e) => onChange({ displayDate: e.target.value })}
-            className={`flex-1 h-10 ${H_STYLES.text.base} bg-white border-[rgba(55,53,47,0.16)] focus-visible:ring-[#2EAADC]`}
+            onChange={(v) => onChange({ displayDate: v })}
+            placeholder="開始日"
+            className="flex-1"
           />
           <span className="text-[#37352F]/40 text-sm">〜</span>
-          <Input
-            type="date"
-            className={`flex-1 h-10 ${H_STYLES.text.base} bg-white border-[rgba(55,53,47,0.16)] focus-visible:ring-[#2EAADC]`}
+          <NotionDatePicker
+            value=""
+            onChange={() => {}}
+            placeholder="終了日"
+            className="flex-1"
           />
         </div>
       </div>

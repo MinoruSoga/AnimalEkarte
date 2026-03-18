@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PageLayout } from '@/components/shared/PageLayout/PageLayout';
+import { NotionDatePicker } from '@/components/shared/NotionDatePicker/NotionDatePicker';
 import { NavigationBlocker } from '@/components/shared/NavigationBlocker';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useGetEstimate } from '../api/get-estimate';
@@ -121,12 +122,12 @@ function EstimateFormContent({ id }: { id?: string }) {
           <Label htmlFor="validUntil" className="text-sm font-medium text-[#37352F]">
             有効期限
           </Label>
-          <Input
+          <NotionDatePicker
             id="validUntil"
-            type="date"
             value={form.validUntil ? form.validUntil.slice(0, 10) : ''}
-            onChange={e => handleChangeWithDirty('validUntil', e.target.value)}
-            className="h-9 text-sm w-[180px]"
+            onChange={(v) => handleChangeWithDirty('validUntil', v)}
+            placeholder="有効期限を選択…"
+            className="w-[220px]"
           />
         </div>
 

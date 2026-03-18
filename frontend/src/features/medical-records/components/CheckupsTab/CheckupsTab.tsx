@@ -8,6 +8,7 @@ import { toast } from "sonner";
 // Internal
 import { Button } from "@/components/ui/button";
 import { C, STYLE } from "@/lib/design-tokens";
+import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 
 // Relative
 import { useCheckups } from "../../api/checkups";
@@ -81,11 +82,11 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
   return (
     <tr className={`border-b ${C.borderLight} ${C.bgNotice40}`}>
       <td className="px-3 py-2">
-        <input
-          type="date"
+        <NotionDatePicker
           value={form.date ?? ""}
-          onChange={(e) => handleChange("date", e.target.value)}
-          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-full`}
+          onChange={(v) => handleChange("date", v)}
+          placeholder="日付"
+          className="h-8 w-full"
         />
       </td>
       <td className="px-3 py-2">
@@ -105,11 +106,11 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
         </select>
       </td>
       <td className="px-3 py-2">
-        <input
-          type="date"
+        <NotionDatePicker
           value={form.next_date ?? ""}
-          onChange={(e) => handleChange("next_date", e.target.value || null)}
-          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-full`}
+          onChange={(v) => handleChange("next_date", v || null)}
+          placeholder="次回日"
+          className="h-8 w-full"
         />
       </td>
       <td className="px-3 py-2">
@@ -311,11 +312,11 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
         {/* インライン追加フォーム */}
         {isAdding ? (
           <div className={`flex flex-wrap items-center gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
-            <input
-              type="date"
+            <NotionDatePicker
               value={addForm.date}
-              onChange={(e) => handleAddFormChange("date", e.target.value)}
-              className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-32`}
+              onChange={(v) => handleAddFormChange("date", v)}
+              placeholder="日付"
+              className="h-8 w-32"
             />
             <select
               value={addForm.checkup_type_id}
@@ -329,11 +330,11 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
                 </option>
               ))}
             </select>
-            <input
-              type="date"
+            <NotionDatePicker
               value={addForm.next_date}
-              onChange={(e) => handleAddFormChange("next_date", e.target.value)}
-              className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-32`}
+              onChange={(v) => handleAddFormChange("next_date", v)}
+              placeholder="次回日"
+              className="h-8 w-32"
             />
             <input
               autoFocus
