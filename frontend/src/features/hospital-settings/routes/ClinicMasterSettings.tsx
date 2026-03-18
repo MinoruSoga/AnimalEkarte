@@ -11,7 +11,7 @@ import { toast } from "sonner";
 // Internal
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
+import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
@@ -276,10 +276,13 @@ export function ClinicMasterSettings() {
             maxWidth="max-w-full"
           >
             <div className="flex flex-col gap-4">
-              <SearchFilterBar
+              <NotionFilter
+          properties={[]}
+          activeFilters={[]}
+          onFilterChange={() => {}}
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
-                placeholder="院名、電話番号、メールで検索..."
+                searchPlaceholder="院名、電話番号、メールで検索..."
                 count={filteredItems.length}
               />
 

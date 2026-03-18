@@ -185,6 +185,10 @@ export const paths = {
       path: "/settings/clinic",
       getHref: () => "/settings/clinic",
     },
+    animalSpecies: {
+      path: "/settings/animal-species",
+      getHref: () => "/settings/animal-species",
+    },
     staff: {
       path: "/settings/staff",
       getHref: () => "/settings/staff",

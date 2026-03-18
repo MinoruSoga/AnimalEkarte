@@ -111,9 +111,21 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
       toast.error("記録日時は必須です");
       return;
     }
+    const recordedDate = new Date(form.recorded_at);
+    if (recordedDate > new Date()) {
+      toast.error("未来の日時は入力できません");
+      return;
+    }
+
+    const temp = parseNumField(form.temperature);
+    if (temp !== null && (temp < 30 || temp > 45)) {
+      toast.error("体温は30〜45℃の範囲で入力してください");
+      return;
+    }
+
     const input: UpdateVitalInput = {
-      recorded_at: new Date(form.recorded_at).toISOString(),
-      temperature: parseNumField(form.temperature),
+      recorded_at: recordedDate.toISOString(),
+      temperature: temp,
       heart_rate: parseNumField(form.heart_rate),
       respiratory_rate: parseNumField(form.respiratory_rate),
       body_weight: parseNumField(form.body_weight),
@@ -283,9 +295,21 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
       toast.error("記録日時は必須です");
       return;
     }
+    const recordedDate = new Date(addForm.recorded_at);
+    if (recordedDate > new Date()) {
+      toast.error("未来の日時は入力できません");
+      return;
+    }
+
+    const temp = parseNumField(addForm.temperature);
+    if (temp !== null && (temp < 30 || temp > 45)) {
+      toast.error("体温は30〜45℃の範囲で入力してください");
+      return;
+    }
+
     const input: CreateVitalInput = {
-      recorded_at: new Date(addForm.recorded_at).toISOString(),
-      temperature: parseNumField(addForm.temperature),
+      recorded_at: recordedDate.toISOString(),
+      temperature: temp,
       heart_rate: parseNumField(addForm.heart_rate),
       respiratory_rate: parseNumField(addForm.respiratory_rate),
       body_weight: parseNumField(addForm.body_weight),

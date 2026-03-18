@@ -45,6 +45,7 @@ import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
 import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 
@@ -218,6 +219,7 @@ interface OwnerInfoSectionProps {
   onChange: (field: string, value: string | boolean | number) => void;
   onClearError: (field: string) => void;
   onMembershipChange: (type: MembershipType) => void;
+  onPostalCodeLookup: (postalCodeField: string, addressField: string) => void;
 }
 
 const OwnerInfoSection = memo(function OwnerInfoSection({
@@ -227,6 +229,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
   onChange,
   onClearError,
   onMembershipChange,
+  onPostalCodeLookup,
 }: OwnerInfoSectionProps) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -244,13 +247,24 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="postalCode" className={`text-sm ${C.text60}`}>郵便番号</Label>
-        <Input
-          id="postalCode"
-          placeholder="123-4567"
-          value={ownerData.postalCode}
-          onChange={(e) => onChange("postalCode", e.target.value)}
-          className={INPUT_CLS}
-        />
+        <div className="flex gap-1.5">
+          <Input
+            id="postalCode"
+            placeholder="123-4567"
+            value={ownerData.postalCode}
+            onChange={(e) => onChange("postalCode", e.target.value)}
+            className={INPUT_CLS}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0 h-9 text-xs px-2"
+            onClick={() => onPostalCodeLookup("postalCode", "address1")}
+          >
+            検索
+          </Button>
+        </div>
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="company" className={`text-sm ${C.text60}`}>会社名</Label>
@@ -287,13 +301,24 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="homePostalCode" className={`text-sm ${C.text60}`}>郵便番号(自宅)</Label>
-        <Input
-          id="homePostalCode"
-          placeholder="123-4567"
-          value={ownerData.homePostalCode || ""}
-          onChange={(e) => onChange("homePostalCode", e.target.value)}
-          className={INPUT_CLS}
-        />
+        <div className="flex gap-1.5">
+          <Input
+            id="homePostalCode"
+            placeholder="123-4567"
+            value={ownerData.homePostalCode || ""}
+            onChange={(e) => onChange("homePostalCode", e.target.value)}
+            className={INPUT_CLS}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0 h-9 text-xs px-2"
+            onClick={() => onPostalCodeLookup("homePostalCode", "homeAddress1")}
+          >
+            検索
+          </Button>
+        </div>
       </div>
       <div className="space-y-1.5 col-span-2 lg:col-span-1 lg:row-span-3">
         <Label className={`text-sm ${C.text60}`}>危険人物</Label>
@@ -456,6 +481,19 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
     handleInputChange("membershipType", type);
   }, [handleInputChange]);
 
+  // 郵便番号検索
+  const { lookup } = usePostalCodeLookup();
+  const handlePostalCodeLookup = useCallback(
+    async (postalCodeField: string, addressField: string) => {
+      const postalCode = String(ownerData[postalCodeField as keyof OwnerData] ?? "");
+      const result = await lookup(postalCode);
+      if (result) {
+        handleInputChange(addressField, `${result.prefecture}${result.city}${result.town}`);
+      }
+    },
+    [ownerData, lookup, handleInputChange],
+  );
+
   return (
     <PageLayout
       title={isEdit ? "飼主・ペット　編集" : "飼主・ペット　登録"}
@@ -488,6 +526,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
           onChange={handleInputChange}
           onClearError={clearFieldError}
           onMembershipChange={handleMembershipChange}
+          onPostalCodeLookup={handlePostalCodeLookup}
         />
       </div>
 

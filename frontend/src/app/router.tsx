@@ -489,6 +489,15 @@ export const router = createBrowserRouter([
         },
       },
       {
+        path: "/settings/animal-species",
+        lazy: async () => {
+          const { AnimalSpeciesSettings } = await import(
+            "@/features/master/routes/AnimalSpeciesSettings"
+          );
+          return { Component: AnimalSpeciesSettings };
+        },
+      },
+      {
         path: "/settings/trimming",
         lazy: async () => {
           const { TrimmingSettings } = await import(
@@ -554,10 +563,10 @@ export const router = createBrowserRouter([
       {
         path: "/settings/inquiry-templates",
         lazy: async () => {
-          const { InquiryTemplateSettings } = await import(
-            "@/features/master/routes/InquiryTemplateSettings"
+          const { InterviewTemplateSettings } = await import(
+            "@/features/master/routes/InterviewTemplateSettings"
           );
-          return { Component: InquiryTemplateSettings };
+          return { Component: InterviewTemplateSettings };
         },
       },
       {

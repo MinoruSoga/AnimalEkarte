@@ -85,7 +85,7 @@ export function Dashboard() {
         const activeId = active.id as string;
 
         // Use over.data.columnTitle for reliable column detection
-        const targetTitle = (over.data?.columnTitle as string) || (over.id as string).replace("column-", "");
+        const targetTitle = ((over.data?.current as Record<string, unknown>)?.columnTitle as string) || (over.id as string).replace("column-", "");
 
         const sourceColumn = columns.find(col => col.appointments.some(a => a.id === activeId));
         if (!sourceColumn) return;
@@ -124,7 +124,7 @@ export function Dashboard() {
 
         // Use over.data.columnTitle (set in KanbanColumn's useDroppable) for reliable column detection
         // This avoids collision detection ambiguity with closestCorners
-        const targetTitle = (over.data?.columnTitle as string) || (over.id as string).replace("column-", "");
+        const targetTitle = ((over.data?.current as Record<string, unknown>)?.columnTitle as string) || (over.id as string).replace("column-", "");
 
         const sourceColumn = columns.find(col => col.appointments.some(a => a.id === activeId));
         if (!sourceColumn) return;

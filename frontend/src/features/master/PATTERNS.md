@@ -15,7 +15,7 @@
 4. [サイドピーク](#4-サイドピーク)
 5. [ステータス表示](#5-ステータス表示)
 6. [新規登録ボタン](#6-新規登録ボタン)
-7. [SearchFilterBar](#7-searchfilterbar)
+7. [NotionFilter](#7-notionfilter)
 8. [タブ切り替え](#8-タブ切り替え)
 
 ---
@@ -28,7 +28,7 @@ PageLayout
     ├── TabsPrimitive.List      # タブナビゲーション
     └── TabsPrimitive.Content   # タブコンテンツ
         └── XxxTab（コンポーネント）
-            ├── SearchFilterBar + 新規登録ボタン
+            ├── NotionFilter + 新規登録ボタン
             ├── DndContext > SortableContext > DataTable
             └── サイドピーク（isEditing ? <XxxSidePanel /> : null）
 ```
@@ -522,12 +522,12 @@ function NotionStatusPill({ isActive }: { isActive: boolean }) {
 </button>
 ```
 
-**配置**: SearchFilterBar の右端（flex レイアウトで末尾に）
+**配置**: NotionFilter の右端（flex レイアウトで末尾に）
 
 ```tsx
 <div className="flex items-center gap-3">
   <div className="flex-1 min-w-0">
-    <SearchFilterBar ... />
+    <NotionFilter ... />
   </div>
   {/* 新規登録ボタン */}
   <button type="button" onClick={handleCreate} className="...">
@@ -539,26 +539,36 @@ function NotionStatusPill({ isActive }: { isActive: boolean }) {
 
 ---
 
-## 7. SearchFilterBar
+## 7. NotionFilter
 
 ```tsx
-import { SearchFilterBar } from "@/components/shared/SearchFilterBar";
+import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 
-<SearchFilterBar
+<NotionFilter
+  properties={FILTER_PROPERTIES}
+  activeFilters={activeFilters}
+  onFilterChange={setActiveFilters}
   searchTerm={searchTerm}
   onSearchChange={setSearchTerm}
-  placeholder="カテゴリ名で検索..."
-  count={filteredItems.length}   // "8 件" と表示される
+  searchPlaceholder="カテゴリ名で検索..."
+  count={filteredItems.length}
 />
 ```
 
 | Props | 型 | 説明 |
 |-------|-----|------|
-| `searchTerm` | `string` | 検索語（state） |
-| `onSearchChange` | `(v: string) => void` | 変更ハンドラ |
-| `placeholder` | `string?` | 入力プレースホルダー |
+| `properties` | `FilterProperty[]` | フィルタ可能なプロパティ定義 |
+| `activeFilters` | `ActiveFilter[]` | 現在アクティブなフィルタ |
+| `onFilterChange` | `(filters: ActiveFilter[]) => void` | フィルタ変更ハンドラ |
+| `filterLogic` | `"and" \| "or"?` | フィルタ論理（デフォルト: `"and"`） |
+| `onFilterLogicChange` | `(logic: FilterLogic) => void?` | 論理切替ハンドラ |
+| `searchTerm` | `string?` | 検索語（state） |
+| `onSearchChange` | `(v: string) => void?` | 検索変更ハンドラ |
+| `searchPlaceholder` | `string?` | 入力プレースホルダー |
 | `count` | `number?` | 結果件数（`N 件` 表示） |
-| `children` | `ReactNode?` | 追加フィルタUI |
+| `sortProperties` | `SortProperty[]?` | ソート可能なプロパティ |
+| `activeSorts` | `ActiveSort[]?` | アクティブなソート |
+| `onSortChange` | `(sorts: ActiveSort[]) => void?` | ソート変更ハンドラ |
 
 **注意**: `count` は `filteredItems.length`（フィルタ後）を渡す。全件数は渡さない。
 
@@ -632,4 +642,4 @@ export function XxxSettings() {
 - [ ] サイドピークは `isEditing ? <Panel /> : null` で条件レンダー（`&&` 禁止）
 - [ ] `key` プロップでサイドピークをリセット（新規 vs 編集）
 - [ ] URL `?tab=xxx` でタブ状態を管理（`useSearchParams`）
-- [ ] `SearchFilterBar` の `count` にはフィルタ後の件数を渡す
+- [ ] `NotionFilter` の `count` にはフィルタ後の件数を渡す

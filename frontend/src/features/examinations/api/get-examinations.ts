@@ -11,14 +11,24 @@ interface ExaminationsListResponse {
   limit: number;
 }
 
-export const getExaminations = async (): Promise<ExaminationRecord[]> => {
-  const { data } = await axios.get<ExaminationsListResponse>("/v1/examinations");
+export interface ExaminationFilters {
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string; // YYYY-MM-DD
+}
+
+export const getExaminations = async (
+  filters?: ExaminationFilters,
+): Promise<ExaminationRecord[]> => {
+  const params: Record<string, string> = {};
+  if (filters?.startDate) params.start_date = filters.startDate;
+  if (filters?.endDate) params.end_date = filters.endDate;
+  const { data } = await axios.get<ExaminationsListResponse>("/v1/examinations", { params });
   return data.data.map(transformExamination);
 };
 
-export const useGetExaminations = () => {
+export const useGetExaminations = (filters?: ExaminationFilters) => {
   return useQuery({
-    queryKey: ["examinations"],
-    queryFn: getExaminations,
+    queryKey: ["examinations", filters],
+    queryFn: () => getExaminations(filters),
   });
 };

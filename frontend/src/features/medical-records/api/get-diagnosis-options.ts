@@ -13,17 +13,30 @@ export interface DiagnosisNameOption {
   name: string;
 }
 
+interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export const getDiagnosisCategories = async (): Promise<DiagnosisCategoryOption[]> => {
-  const { data } = await axios.get<DiagnosisCategory[]>("/v1/masters/diagnosis-categories");
-  return data.map((item) => ({
+  const { data } = await axios.get<PaginatedResponse<DiagnosisCategory>>(
+    "/v1/masters/diagnosis-categories",
+    { params: { limit: 100 } },
+  );
+  return (data.data ?? []).map((item) => ({
     id: Number(item.id ?? 0),
     name: item.name,
   }));
 };
 
 export const getDiagnosisNames = async (): Promise<DiagnosisNameOption[]> => {
-  const { data } = await axios.get<DiagnosisName[]>("/v1/masters/diagnosis-names");
-  return data.map((item) => ({
+  const { data } = await axios.get<PaginatedResponse<DiagnosisName>>(
+    "/v1/masters/diagnosis-names",
+    { params: { limit: 100 } },
+  );
+  return (data.data ?? []).map((item) => ({
     id: Number(item.id ?? 0),
     name: item.name,
   }));

@@ -108,10 +108,24 @@ export const deleteCage = async (id: string): Promise<void> => {
   await axios.delete(`/v1/masters/cages/${id}`);
 };
 
+export const reorderCages = async (req: { ids: number[] }): Promise<void> => {
+  await axios.patch("/v1/masters/cages/reorder", req);
+};
+
 export const useDeleteCage = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteCage,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["masters", "cages"] });
+    },
+  });
+};
+
+export const useReorderCages = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: reorderCages,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["masters", "cages"] });
     },

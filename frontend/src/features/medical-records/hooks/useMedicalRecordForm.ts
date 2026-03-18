@@ -4,12 +4,12 @@ import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
 import { usePetInfo } from "@/hooks/use-pet";
+import { useOwnerInfo } from "@/hooks/use-owner";
 import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useCreateMedicalRecord } from "../api/create-medical-record";
 import { useUpdateMedicalRecord } from "../api/update-medical-record";
 import { useUpdateInquiry } from "../api/inquiries";
 import { useUpdateTreatmentPlan } from "../api/treatment-plans";
-import { useCreateEstimate } from "../api/estimates";
 import type { CreateMedicalRecordRequest, UpdateMedicalRecordRequest } from "../api/types";
 import type { TreatmentItem } from "../components/TreatmentTable";
 
@@ -63,11 +63,15 @@ export function useMedicalRecordForm(recordId?: string) {
   // Petデータを取得
   const { pet: selectedPet, isLoading: isPetLoading } = usePetInfo(resolvedPetId);
 
+  // Ownerデータを取得（飼主割引率用）
+  const resolvedOwnerId = selectedPet?.ownerId ?? "";
+  const { owner } = useOwnerInfo(resolvedOwnerId);
+  const ownerDiscountRate = owner?.discountRate ?? 0;
+
   const createMutation = useCreateMedicalRecord();
   const updateMutation = useUpdateMedicalRecord();
   const updateInquiryMutation = useUpdateInquiry(recordId ?? "");
   const updateTreatmentPlanMutation = useUpdateTreatmentPlan(recordId ?? "");
-  const createEstimateMutation = useCreateEstimate(recordId ?? "");
 
   // useTransition: save の pending 管理 (rerender-transitions)
   const [isSaveTransitionPending, startSaveTransition] = useTransition();
@@ -87,6 +91,25 @@ export function useMedicalRecordForm(recordId?: string) {
 
   const handleSave = () => {
     if (!selectedPet) return;
+
+    // ── バリデーション ──
+    const isChiefComplaintEmpty = !chiefComplaint || chiefComplaint.trim() === "" || chiefComplaint === DEFAULT_CHIEF_COMPLAINT;
+    const isPlanEmpty = !plan || plan.trim() === "" || plan === DEFAULT_PLAN;
+
+    if (isChiefComplaintEmpty) {
+      toast.error("問診内容（主訴）を入力してください");
+      return;
+    }
+
+    if (isPlanEmpty) {
+      toast.error("診察/治療プランを入力してください");
+      return;
+    }
+
+    if (diagnosis1CategoryId && !diagnosis1NameId) {
+      toast.error("診断名を選択してください");
+      return;
+    }
 
     startSaveTransition(async () => {
       const today = new Date().toISOString().split("T")[0];
@@ -118,10 +141,7 @@ export function useMedicalRecordForm(recordId?: string) {
         }
       } else if (recordId) {
         const mainReq: UpdateMedicalRecordRequest = {
-          chief_complaint: chiefComplaint,
-          plan,
-          assessment,
-          notes: treatmentPolicy,
+          status: "draft",
         };
 
         const inquiriesReq = {
@@ -193,5 +213,7 @@ export function useMedicalRecordForm(recordId?: string) {
     setDiagnosis2CategoryId,
     diagnosis2NameId,
     setDiagnosis2NameId,
+    // 飼主割引率
+    ownerDiscountRate,
   };
 }

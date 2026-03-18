@@ -11,7 +11,7 @@ import { BADGE, C } from "@/lib/design-tokens";
 
 // Relative
 import {
-  useBillingReview,
+  useGetBillingReview,
   useConfirmBillingReview,
   useReturnBillingReview,
 } from "../../api/billing-review";
@@ -50,7 +50,7 @@ export function BillingReviewSection({
 }: BillingReviewSectionProps) {
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
 
-  const { data: review, isLoading } = useBillingReview(medicalRecordId);
+  const { data: review, isLoading } = useGetBillingReview(medicalRecordId);
   const confirmMutation = useConfirmBillingReview(medicalRecordId);
   const returnMutation = useReturnBillingReview(medicalRecordId);
 

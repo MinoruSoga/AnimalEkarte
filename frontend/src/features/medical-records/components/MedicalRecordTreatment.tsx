@@ -7,11 +7,13 @@ import { TreatmentsTab } from "./TreatmentsTab/TreatmentsTab";
 interface MedicalRecordTreatmentProps {
   medicalRecordId: string;
   isNewRecord?: boolean;
+  ownerDiscountRate?: number;
 }
 
 export function MedicalRecordTreatment({
   medicalRecordId,
   isNewRecord = false,
+  ownerDiscountRate = 0,
 }: MedicalRecordTreatmentProps) {
   if (isNewRecord) {
     return (
@@ -21,5 +23,5 @@ export function MedicalRecordTreatment({
     );
   }
 
-  return <TreatmentsTab medicalRecordId={medicalRecordId} />;
+  return <TreatmentsTab medicalRecordId={medicalRecordId} ownerDiscountRate={ownerDiscountRate} />;
 }

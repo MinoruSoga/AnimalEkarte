@@ -88,7 +88,7 @@ const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
 // Section definitions
 // ─────────────────────────────────────────────────
 const MASTER_SECTIONS: SectionDef[] = [
-  { title: "基本設定", keys: ["clinic"] },
+  { title: "基本設定", keys: ["clinic", "animal_species"] },
   {
     title: "カルテ",
     keys: ["treatmentItems", "diagnosisGroup", "inquiry_template", "medicine"],

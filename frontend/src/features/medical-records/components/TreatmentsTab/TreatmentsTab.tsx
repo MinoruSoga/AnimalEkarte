@@ -47,11 +47,12 @@ const ITEM_TYPE_OPTIONS: { value: TreatmentItemType; label: string }[] = [
 
 interface TreatmentsTabProps {
   medicalRecordId: string;
+  ownerDiscountRate?: number;
 }
 
 // ── Component ─────────────────────────────────────────────────────────
 
-export function TreatmentsTab({ medicalRecordId }: TreatmentsTabProps) {
+export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: TreatmentsTabProps) {
   const { data: treatments, isLoading } = useTreatments(medicalRecordId);
   const createMutation = useCreateTreatment(medicalRecordId);
   const updateMutation = useUpdateTreatment(medicalRecordId);
@@ -70,14 +71,23 @@ export function TreatmentsTab({ medicalRecordId }: TreatmentsTabProps) {
   }, [treatments]);
 
   // 合計金額 (selected のみ)
-  const { selectedSubtotal, selectedCount } = useMemo(() => {
+  const { selectedSubtotal, selectedCount, finalTotal } = useMemo(() => {
     const selected = sortedTreatments.filter((t) => t.selected);
     const sub = selected.reduce(
       (sum, t) => sum + t.unit_price * t.quantity - t.discount_amount,
       0
     );
-    return { selectedSubtotal: sub, selectedCount: selected.length };
-  }, [sortedTreatments]);
+    // 飼主割引適用
+    const ownerDiscount = Math.floor(sub * (ownerDiscountRate / 100));
+    const afterDiscount = sub - ownerDiscount;
+    const tax = Math.floor(afterDiscount * 0.1);
+
+    return { 
+      selectedSubtotal: sub, 
+      selectedCount: selected.length,
+      finalTotal: afterDiscount + tax
+    };
+  }, [sortedTreatments, ownerDiscountRate]);
 
   // 全明細の合計
   const totalSubtotal = useMemo(
@@ -287,9 +297,9 @@ export function TreatmentsTab({ medicalRecordId }: TreatmentsTabProps) {
           <div
             className={`flex items-center justify-between text-sm pt-1.5 border-t ${C.borderLight}`}
           >
-            <span className={C.text60}>税込合計 (10%)</span>
+            <span className={C.text60}>税込合計 (10% {ownerDiscountRate > 0 ? `飼主割引${ownerDiscountRate}%適用後` : ""})</span>
             <span className={`font-mono font-semibold text-[#1565C0]`}>
-              ¥{Math.floor(selectedSubtotal * 1.1).toLocaleString()}
+              ¥{finalTotal.toLocaleString()}
             </span>
           </div>
         </div>

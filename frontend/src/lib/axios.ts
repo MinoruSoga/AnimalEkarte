@@ -3,7 +3,7 @@ import Axios, { type InternalAxiosRequestConfig } from "axios";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
 function authRequestInterceptor(config: InternalAxiosRequestConfig) {
-  config.headers = config.headers || {};
+  config.headers ??= new Axios.AxiosHeaders() as typeof config.headers;
   config.headers.Accept = "application/json";
   config.headers["X-Request-ID"] = crypto.randomUUID();
 

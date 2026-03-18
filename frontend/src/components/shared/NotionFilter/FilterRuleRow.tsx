@@ -125,7 +125,7 @@ const InlineSelector = memo(function InlineSelector({
           className="flex items-center gap-1 px-2 py-1 text-sm text-[#37352F] bg-[#F1F1EF] hover:bg-[#E8E7E4] rounded-[3px] transition-colors whitespace-nowrap max-w-[180px] truncate"
         >
           <span className="truncate">{label}</span>
-          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+          <ChevronDown className="h-5 w-5 shrink-0 opacity-50" />
         </button>
       </PopoverTrigger>
       <PopoverContent className={`${popoverWidth} p-1`} align="start">
@@ -452,7 +452,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
         className="ml-auto p-0.5 rounded-[3px] text-[#37352F]/30 hover:text-[#37352F]/60 hover:bg-[#F1F1EF] opacity-0 group-hover:opacity-100 transition-opacity"
         aria-label={`${property?.label ?? filter.key} フィルタを削除`}
       >
-        <X className="h-4 w-4" />
+        <X className="h-5 w-5" />
       </button>
     </div>
   );

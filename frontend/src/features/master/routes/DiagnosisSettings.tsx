@@ -1,7 +1,8 @@
 // React/Framework
-import { useState, useMemo, useCallback, memo, useDeferredValue, useTransition } from "react";
+import { useState, useMemo, useCallback, memo, useDeferredValue } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
+import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 
 // DnD
 import {
@@ -33,7 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
+import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
@@ -267,10 +268,13 @@ function DiagnosisCategoryTab({ editTarget: _editTarget, onEditTargetChange }: D
 
   return (
     <div className="flex flex-col gap-4">
-      <SearchFilterBar
+      <NotionFilter
+          properties={[]}
+          activeFilters={[]}
+          onFilterChange={() => {}}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        placeholder="カテゴリ名で検索..."
+        searchPlaceholder="カテゴリ名で検索..."
         count={filteredItems.length}
       />
 
@@ -355,10 +359,13 @@ function DiagnosisNameTab({ editTarget: _editTarget, onEditTargetChange }: Diagn
 
   return (
     <div className="flex flex-col gap-4">
-      <SearchFilterBar
+      <NotionFilter
+          properties={[]}
+          activeFilters={[]}
+          onFilterChange={() => {}}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        placeholder="診断病名で検索..."
+        searchPlaceholder="診断病名で検索..."
         count={filteredItems.length}
       />
 
@@ -411,29 +418,32 @@ export function DiagnosisSettings() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") ?? "diagnosis_category";
 
-  const [categoryEditTarget, setCategoryEditTarget] = useState<DiagnosisCategory | "new" | null>(null);
-  const [nameEditTarget, setNameEditTarget] = useState<DiagnosisName | "new" | null>(null);
-  const [categoryPendingDelete, setCategoryPendingDelete] = useState<DiagnosisCategory | null>(null);
-  const [namePendingDelete, setNamePendingDelete] = useState<DiagnosisName | null>(null);
-  const [, startSaveTransition] = useTransition();
-
   const { data: rawCategories } = useGetDiagnosisCategories();
+  const { data: rawNames } = useGetDiagnosisNames();
   const createCategoryMutation = useCreateDiagnosisCategory();
   const updateCategoryMutation = useUpdateDiagnosisCategory();
   const deleteCategoryMutation = useDeleteDiagnosisCategory();
-
   const createNameMutation = useCreateDiagnosisName();
   const updateNameMutation = useUpdateDiagnosisName();
   const deleteNameMutation = useDeleteDiagnosisName();
 
+  const catCrud = useMasterCRUD<DiagnosisCategory>({
+    data: rawCategories,
+    deleteMutation: deleteCategoryMutation,
+    entityLabel: "診断カテゴリ",
+  });
+
+  const nameCrud = useMasterCRUD<DiagnosisName>({
+    data: rawNames,
+    deleteMutation: deleteNameMutation,
+    entityLabel: "診断病名",
+  });
+
   const handleTabChange = useCallback((tab: string) => {
     setSearchParams({ tab });
-    setCategoryEditTarget(null);
-    setNameEditTarget(null);
-  }, [setSearchParams]);
-
-  const handleCategoryClose = useCallback(() => setCategoryEditTarget(null), []);
-  const handleNameClose = useCallback(() => setNameEditTarget(null), []);
+    catCrud.setEditTarget(null);
+    nameCrud.setEditTarget(null);
+  }, [setSearchParams, catCrud.setEditTarget, nameCrud.setEditTarget]);
 
   const handleCategorySave = useCallback(
     (data: DiagnosisCategoryFormData) => {
@@ -441,17 +451,17 @@ export function DiagnosisSettings() {
         toast.error("カテゴリ名は必須です");
         return;
       }
-      startSaveTransition(() => {
-        if (categoryEditTarget !== null && categoryEditTarget !== "new") {
+      catCrud.startSaveTransition(() => {
+        if (catCrud.editTarget !== null && catCrud.editTarget !== "new") {
           const req: UpdateDiagnosisCategoryRequest = {
             name: data.name,
             description: data.description || undefined,
             is_active: data.isActive,
           };
           updateCategoryMutation.mutate(
-            { id: categoryEditTarget.id, req },
+            { id: catCrud.editTarget.id, req },
             {
-              onSuccess: () => { toast.success("更新しました"); handleCategoryClose(); },
+              onSuccess: () => { toast.success("更新しました"); catCrud.handleClose(); },
               onError: () => toast.error("更新に失敗しました"),
             },
           );
@@ -462,26 +472,14 @@ export function DiagnosisSettings() {
             is_active: true,
           };
           createCategoryMutation.mutate(req, {
-            onSuccess: () => { toast.success("登録しました"); handleCategoryClose(); },
+            onSuccess: () => { toast.success("登録しました"); catCrud.handleClose(); },
             onError: () => toast.error("登録に失敗しました"),
           });
         }
       });
     },
-    [categoryEditTarget, updateCategoryMutation, createCategoryMutation, handleCategoryClose],
+    [catCrud.editTarget, updateCategoryMutation, createCategoryMutation, catCrud.handleClose, catCrud.startSaveTransition],
   );
-
-  const handleCategoryDeleteConfirm = useCallback(() => {
-    if (!categoryPendingDelete) return;
-    deleteCategoryMutation.mutate(categoryPendingDelete.id, {
-      onSuccess: () => {
-        setCategoryPendingDelete(null);
-        handleCategoryClose();
-        toast.success("削除しました");
-      },
-      onError: () => toast.error("削除に失敗しました"),
-    });
-  }, [categoryPendingDelete, deleteCategoryMutation, handleCategoryClose]);
 
   const handleNameSave = useCallback(
     (data: DiagnosisNameFormData) => {
@@ -493,8 +491,8 @@ export function DiagnosisSettings() {
         toast.error("カテゴリは必須です");
         return;
       }
-      startSaveTransition(() => {
-        if (nameEditTarget !== null && nameEditTarget !== "new") {
+      nameCrud.startSaveTransition(() => {
+        if (nameCrud.editTarget !== null && nameCrud.editTarget !== "new") {
           const req: UpdateDiagnosisNameRequest = {
             name: data.name,
             diagnosis_category_id: Number(data.diagnosisCategoryId),
@@ -502,9 +500,9 @@ export function DiagnosisSettings() {
             is_active: data.isActive,
           };
           updateNameMutation.mutate(
-            { id: nameEditTarget.id, req },
+            { id: nameCrud.editTarget.id, req },
             {
-              onSuccess: () => { toast.success("更新しました"); handleNameClose(); },
+              onSuccess: () => { toast.success("更新しました"); nameCrud.handleClose(); },
               onError: () => toast.error("更新に失敗しました"),
             },
           );
@@ -516,29 +514,14 @@ export function DiagnosisSettings() {
             is_active: true,
           };
           createNameMutation.mutate(req, {
-            onSuccess: () => { toast.success("登録しました"); handleNameClose(); },
+            onSuccess: () => { toast.success("登録しました"); nameCrud.handleClose(); },
             onError: () => toast.error("登録に失敗しました"),
           });
         }
       });
     },
-    [nameEditTarget, updateNameMutation, createNameMutation, handleNameClose],
+    [nameCrud.editTarget, updateNameMutation, createNameMutation, nameCrud.handleClose, nameCrud.startSaveTransition],
   );
-
-  const handleNameDeleteConfirm = useCallback(() => {
-    if (!namePendingDelete) return;
-    deleteNameMutation.mutate(namePendingDelete.id, {
-      onSuccess: () => {
-        setNamePendingDelete(null);
-        handleNameClose();
-        toast.success("削除しました");
-      },
-      onError: () => toast.error("削除に失敗しました"),
-    });
-  }, [namePendingDelete, deleteNameMutation, handleNameClose]);
-
-  const categoryPanelItem = categoryEditTarget !== null && categoryEditTarget !== "new" ? categoryEditTarget : null;
-  const namePanelItem = nameEditTarget !== null && nameEditTarget !== "new" ? nameEditTarget : null;
 
   return (
     <>
@@ -551,8 +534,8 @@ export function DiagnosisSettings() {
             maxWidth="max-w-full"
             headerAction={
               <PrimaryButton onClick={() => {
-                if (activeTab === "diagnosis_category") setCategoryEditTarget("new");
-                else setNameEditTarget("new");
+                if (activeTab === "diagnosis_category") catCrud.handleNew();
+                else nameCrud.handleNew();
               }}>
                 <Plus className="mr-1.5 size-4" />
                 新規登録
@@ -580,58 +563,58 @@ export function DiagnosisSettings() {
               </TabsList>
               <TabsContent value="diagnosis_category" className="mt-4">
                 <DiagnosisCategoryTab
-                  editTarget={categoryEditTarget}
-                  onEditTargetChange={setCategoryEditTarget}
+                  editTarget={catCrud.editTarget}
+                  onEditTargetChange={catCrud.setEditTarget}
                 />
               </TabsContent>
               <TabsContent value="diagnosis_name" className="mt-4">
                 <DiagnosisNameTab
-                  editTarget={nameEditTarget}
-                  onEditTargetChange={setNameEditTarget}
+                  editTarget={nameCrud.editTarget}
+                  onEditTargetChange={nameCrud.setEditTarget}
                 />
               </TabsContent>
             </Tabs>
           </PageLayout>
         </div>
 
-        {activeTab === "diagnosis_category" && categoryEditTarget !== null ? (
+        {activeTab === "diagnosis_category" && catCrud.isEditing ? (
           <DiagnosisCategorySidePanel
-            key={categoryPanelItem ? String(categoryPanelItem.id) : "new-category"}
-            item={categoryPanelItem}
-            onClose={handleCategoryClose}
+            key={catCrud.panelItem ? String(catCrud.panelItem.id) : "new-category"}
+            item={catCrud.panelItem}
+            onClose={catCrud.handleClose}
             onSave={handleCategorySave}
-            onDeleteRequest={setCategoryPendingDelete}
+            onDeleteRequest={catCrud.setPendingDelete}
           />
         ) : null}
-        {activeTab === "diagnosis_name" && nameEditTarget !== null ? (
+        {activeTab === "diagnosis_name" && nameCrud.isEditing ? (
           <DiagnosisNameSidePanel
-            key={namePanelItem ? String(namePanelItem.id) : "new-name"}
-            item={namePanelItem}
+            key={nameCrud.panelItem ? String(nameCrud.panelItem.id) : "new-name"}
+            item={nameCrud.panelItem}
             categories={rawCategories ?? []}
-            onClose={handleNameClose}
+            onClose={nameCrud.handleClose}
             onSave={handleNameSave}
-            onDeleteRequest={setNamePendingDelete}
+            onDeleteRequest={nameCrud.setPendingDelete}
           />
         ) : null}
       </div>
 
       <ConfirmDialog
-        open={categoryPendingDelete !== null}
-        onClose={() => setCategoryPendingDelete(null)}
+        open={catCrud.pendingDelete !== null}
+        onClose={catCrud.handleDeleteCancel}
         title="診断カテゴリを削除しますか？"
-        description={`「${categoryPendingDelete?.name}」を削除します。このカテゴリに属する診断名も影響を受けます。この操作は取り消せません。`}
+        description={`「${catCrud.pendingDelete?.name}」を削除します。このカテゴリに属する診断名も影響を受けます。この操作は取り消せません。`}
         confirmLabel="削除"
         variant="destructive"
-        onConfirm={handleCategoryDeleteConfirm}
+        onConfirm={catCrud.handleDeleteConfirm}
       />
       <ConfirmDialog
-        open={namePendingDelete !== null}
-        onClose={() => setNamePendingDelete(null)}
+        open={nameCrud.pendingDelete !== null}
+        onClose={nameCrud.handleDeleteCancel}
         title="診断病名を削除しますか？"
-        description={`「${namePendingDelete?.name}」を削除します。この操作は取り消せません。`}
+        description={`「${nameCrud.pendingDelete?.name}」を削除します。この操作は取り消せません。`}
         confirmLabel="削除"
         variant="destructive"
-        onConfirm={handleNameDeleteConfirm}
+        onConfirm={nameCrud.handleDeleteConfirm}
       />
     </>
   );

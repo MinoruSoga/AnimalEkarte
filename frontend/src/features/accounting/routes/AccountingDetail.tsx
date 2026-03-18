@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback, useTransition, useEffect, memo } from "react";
+import { useState, useMemo, useCallback, memo, useTransition } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 
 // External
@@ -487,20 +487,10 @@ export function AccountingDetail() {
   }, [baseAccounting, displayItems, completedPayment]);
 
   // 保険・決済の状態（API データ取得後に同期）
-  const [hasInsurance, setHasInsurance] = useState(false);
-  const [insuranceRatio, setInsuranceRatio] = useState("0.5");
-  const [receivedAmount, setReceivedAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("cash");
-
-  const paymentId = baseAccounting?.payment?.method;
-  useEffect(() => {
-    if (!baseAccounting?.payment) return;
-    const p = baseAccounting.payment;
-    setHasInsurance((p.insuranceAmount ?? 0) < 0);
-    setInsuranceRatio(p.insuranceRatio?.toString() ?? "0.5");
-    setReceivedAmount(p.receivedAmount?.toString() ?? "");
-    setPaymentMethod(p.method ?? "cash");
-  }, [paymentId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [hasInsurance, setHasInsurance] = useState(() => (baseAccounting?.payment?.insuranceAmount ?? 0) < 0);
+  const [insuranceRatio, setInsuranceRatio] = useState(() => baseAccounting?.payment?.insuranceRatio?.toString() ?? "0.5");
+  const [receivedAmount, setReceivedAmount] = useState(() => baseAccounting?.payment?.receivedAmount?.toString() ?? "");
+  const [paymentMethod, setPaymentMethod] = useState(() => baseAccounting?.payment?.method ?? "cash");
 
   // 追加アイテム用State
   const [newItemOpen, setNewItemOpen] = useState(false);
@@ -677,7 +667,7 @@ export function AccountingDetail() {
               billingAmount={calculation.billingAmount}
               changeAmount={calculation.changeAmount}
               paymentMethod={paymentMethod}
-              onPaymentMethodChange={setPaymentMethod}
+              onPaymentMethodChange={(v) => setPaymentMethod(v as PaymentMethod)}
               receivedAmount={receivedAmount}
               onReceivedAmountChange={setReceivedAmount}
               onComplete={handleComplete}

@@ -90,7 +90,7 @@ export function HospitalizationForm() {
     handleSave();
   }, [markClean, handleSave]);
 
-  const handleGlobalDiscountChange = useCallback((val: string) => {
+  const handleGlobalDiscountChange = useCallback((val: number) => {
     markDirty();
     setGlobalDiscount(val);
   }, [markDirty, setGlobalDiscount]);

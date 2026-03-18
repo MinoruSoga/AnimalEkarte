@@ -213,7 +213,7 @@ export function ReservationDetailModal({
               </InfoRow>
               <InfoRow label="予約区分">
                 <div className="flex items-center gap-1.5">
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${appointment ? getColor(appointment.type).dot : ""}`} />
+                  <span className="w-2 h-2 rounded-full shrink-0" style={appointment ? getColor(appointment.type).dotStyle : undefined} />
                   <Tag className="size-3 text-[#37352F]/40" />
                   {getReservationTypeName(appointment.type)}
                 </div>

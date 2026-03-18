@@ -2,6 +2,7 @@ export {
   getExaminations,
   useGetExaminations,
 } from "./get-examinations";
+export type { ExaminationFilters } from "./get-examinations";
 export {
   getExamination,
   useGetExamination,

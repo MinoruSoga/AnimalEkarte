@@ -23,6 +23,8 @@ import {
   ClipboardList,
   LogOut,
   User,
+  PawPrint,
+  Briefcase,
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
@@ -187,21 +189,30 @@ export function Sidebar() {
       label: "マスタ設定",
       path: paths.settings.getHref(),
       subItems: [
-        { icon: <Activity      className="size-[18px]" />, label: "予約区分マスタ",   path: paths.settings.serviceType.getHref() },
+        // 基本設定
+        { icon: <Building2    className="size-[18px]" />, label: "医院マスタ",       path: paths.settings.clinic.getHref() },
+        { icon: <PawPrint     className="size-[18px]" />, label: "動物種類マスタ",   path: paths.settings.animalSpecies.getHref() },
+        // カルテ
         {
           icon: <FileText className="size-[18px]" />,
           label: "カルテ",
           subItems: [
-            { icon: <ClipboardList className="size-[18px]" />, label: "治療プランマスタ", path: paths.settings.treatmentItems.getHref() },
-            { icon: <Pill          className="size-[18px]" />, label: "薬剤マスタ",       path: paths.settings.medicine.getHref() },
-            { icon: <Clipboard     className="size-[18px]" />, label: "診断病名マスタ",   path: paths.settings.diagnosis.getHref() },
-            { icon: <ClipboardCheck className="size-[18px]" />, label: "問診マスタ",      path: paths.settings.inquiryTemplates.getHref() },
+            { icon: <ClipboardList  className="size-[18px]" />, label: "診療項目マスタ", path: paths.settings.treatmentItems.getHref() },
+            { icon: <Clipboard      className="size-[18px]" />, label: "診断病名マスタ", path: paths.settings.diagnosis.getHref() },
+            { icon: <ClipboardCheck className="size-[18px]" />, label: "問診マスタ",     path: paths.settings.inquiryTemplates.getHref() },
+            { icon: <Pill           className="size-[18px]" />, label: "薬剤マスタ",     path: paths.settings.medicine.getHref() },
           ],
         },
+        // 診療関連
+        { icon: <Activity     className="size-[18px]" />, label: "予約区分マスタ",   path: paths.settings.serviceType.getHref() },
+        // 入院・ケージ管理
         { icon: <Bed          className="size-[18px]" />, label: "入院マスタ",       path: paths.settings.hospitalization.getHref() },
         { icon: <Building2    className="size-[18px]" />, label: "ケージマスタ",     path: paths.settings.cage.getHref() },
+        // トリミング
         { icon: <Scissors     className="size-[18px]" />, label: "トリミングマスタ", path: paths.settings.trimming.getHref() },
+        // スタッフ・保険
         { icon: <Users        className="size-[18px]" />, label: "スタッフマスタ",   path: paths.settings.staff.getHref() },
+        { icon: <Briefcase    className="size-[18px]" />, label: "職種マスタ",       path: paths.settings.jobTitle.getHref() },
         { icon: <ShieldCheck  className="size-[18px]" />, label: "保険マスタ",       path: paths.settings.insurance.getHref() },
       ],
     },

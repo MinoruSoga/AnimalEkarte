@@ -83,9 +83,9 @@ const SortRuleRow = memo(function SortRuleRow({
         className="flex items-center gap-1 px-2 py-1 text-sm text-[#37352F] bg-[#F1F1EF] hover:bg-[#E8E7E4] rounded-[3px] transition-colors whitespace-nowrap"
       >
         {sort.direction === "asc" ? (
-          <ArrowUp className="h-4 w-4 shrink-0" />
+          <ArrowUp className="h-5 w-5 shrink-0" />
         ) : (
-          <ArrowDown className="h-4 w-4 shrink-0" />
+          <ArrowDown className="h-5 w-5 shrink-0" />
         )}
         {dirLabel}
       </button>
@@ -97,7 +97,7 @@ const SortRuleRow = memo(function SortRuleRow({
         className="p-0.5 rounded-[3px] text-[#37352F]/30 hover:text-[#37352F]/60 hover:bg-[#F1F1EF] opacity-0 group-hover:opacity-100 transition-opacity ml-auto"
         aria-label={`${property?.label ?? sort.key} ソートを削除`}
       >
-        <X className="h-4 w-4" />
+        <X className="h-5 w-5" />
       </button>
     </div>
   );
@@ -171,10 +171,10 @@ export const SortPopover = memo(function SortPopover({
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0 text-[#37352F]/50 hover:text-[#37352F]/80 hover:bg-[#F1F1EF]"
+          className="h-9 w-9 p-0 text-[#37352F]/50 hover:text-[#37352F]/80 hover:bg-[#F1F1EF]"
           aria-label="並べ替え"
         >
-          <ArrowUpDown className="h-5 w-5" />
+          <ArrowUpDown className="h-6 w-6" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[280px] p-0" align="end">
@@ -230,7 +230,7 @@ export const SortPopover = memo(function SortPopover({
                 onClick={() => setAddingSort(true)}
                 className="flex items-center gap-1 mt-1 px-1 py-1 text-sm text-[#37352F]/50 hover:text-[#37352F]/80 hover:bg-[#F1F1EF] rounded-[3px] transition-colors w-full"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-5 w-5" />
                 並べ替えを追加
               </button>
             )

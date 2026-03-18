@@ -1,8 +1,12 @@
 import { useMemo } from "react";
-import { useGetExaminations } from "../api";
+import { useGetExaminations } from "../api/get-examinations";
+import type { ExaminationFilters } from "../api/get-examinations";
 
-export function useExaminationRecords(searchTerm: string) {
-  const { data = [], isLoading, error } = useGetExaminations();
+export function useExaminationRecords(
+  searchTerm: string,
+  filters?: ExaminationFilters,
+) {
+  const { data = [], isLoading, error } = useGetExaminations(filters);
 
   const filteredRecords = useMemo(() => {
     if (!searchTerm) return data;

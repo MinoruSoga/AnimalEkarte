@@ -36,6 +36,7 @@ export const MASTER_CATEGORY_ENDPOINT: Record<string, string> = {
   diagnosisName: "/v1/masters/diagnosis-names",
   checkup: "/v1/masters/checkup-types",
   job_title: "/v1/masters/job-titles",
+  inquiryTemplate: "/v1/masters/inquiry-templates",
 };
 
 export function transformGenericMasterItem(data: GenericMasterBackendItem): MasterItem {

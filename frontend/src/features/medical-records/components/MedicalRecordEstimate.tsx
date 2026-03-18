@@ -6,11 +6,10 @@ import { EstimateForm } from "./EstimateForm";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 
-export function MedicalRecordEstimate({ isNewRecord = false }: { isNewRecord?: boolean }) {
+export function MedicalRecordEstimate({ isNewRecord = false, ownerDiscountRate = 0 }: { isNewRecord?: boolean; ownerDiscountRate?: number }) {
   const [subject, setSubject] = useState("");
   const [comment, setComment] = useState("");
   const [remarks, setRemarks] = useState("");
-  const [globalDiscountRate, setGlobalDiscountRate] = useState(0);
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
 
   // Mock data for Estimate items
@@ -88,10 +87,10 @@ export function MedicalRecordEstimate({ isNewRecord = false }: { isNewRecord?: b
         subtotal={subtotal}
         tax={tax}
         total={total}
-        discountRate={globalDiscountRate}
+        discountRate={ownerDiscountRate}
         discountAmount={globalDiscountAmount}
-        onUpdateDiscountRate={setGlobalDiscountRate}
         onUpdateDiscountAmount={setGlobalDiscountAmount}
+        isDiscountRateReadonly
       />
 
       {/* Comments & Remarks */}

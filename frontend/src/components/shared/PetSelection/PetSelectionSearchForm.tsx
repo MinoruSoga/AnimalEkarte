@@ -18,6 +18,7 @@ interface PetSelectionSearchFormProps {
   searchParams: PetSelectionSearchParams;
   setSearchParams: (params: PetSelectionSearchParams) => void;
   onSearch: () => void;
+  onClear: () => void;
 }
 
 const FIELD_DEFS = [
@@ -31,7 +32,7 @@ const FIELD_DEFS = [
   { id: "address", label: "住所", placeholder: "例: 東京都" },
 ] as const;
 
-export const PetSelectionSearchForm = ({ searchParams, setSearchParams, onSearch }: PetSelectionSearchFormProps) => {
+export const PetSelectionSearchForm = ({ searchParams, setSearchParams, onSearch, onClear }: PetSelectionSearchFormProps) => {
   return (
     <div className="mb-4 rounded-lg bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[rgba(55,53,47,0.16)]">
       <h2 className="mb-2 text-sm font-medium text-[#37352F]">検索条件</h2>
@@ -53,7 +54,15 @@ export const PetSelectionSearchForm = ({ searchParams, setSearchParams, onSearch
           </div>
         ))}
       </div>
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onClear}
+          className="h-11 text-sm border-[rgba(55,53,47,0.16)] text-[#37352F]/60 hover:bg-[#F7F6F3] hover:text-[#37352F]"
+        >
+          クリア
+        </Button>
         <Button
           size="sm"
           onClick={onSearch}

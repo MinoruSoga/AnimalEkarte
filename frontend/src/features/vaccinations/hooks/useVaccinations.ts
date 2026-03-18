@@ -1,8 +1,12 @@
 import { useMemo } from "react";
 import { useGetVaccinations } from "../api/get-vaccinations";
+import type { VaccinationFilters } from "../api/get-vaccinations";
 
-export function useVaccinations(searchTerm: string) {
-  const { data = [], isLoading, error } = useGetVaccinations();
+export function useVaccinations(
+  searchTerm: string,
+  filters?: VaccinationFilters,
+) {
+  const { data = [], isLoading, error } = useGetVaccinations(filters);
 
   const filteredRecords = useMemo(() => {
     if (!searchTerm) return data;

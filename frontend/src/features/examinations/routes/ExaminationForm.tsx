@@ -52,9 +52,9 @@ export function ExaminationForm() {
     }
   }, [location.state, navigate]);
 
-  const handleSetFormData = useCallback<typeof setFormData>((updater) => {
+  const handleSetFormData = useCallback((next: Parameters<typeof setFormData>[0]) => {
     markDirty();
-    setFormData(updater);
+    setFormData(next);
   }, [markDirty, setFormData]);
 
   const handleSaveClick = useCallback(() => {
@@ -103,7 +103,7 @@ export function ExaminationForm() {
                 <Label className="text-sm text-[#37352F]/60">検査種別</Label>
                 <Select 
                     value={formData.testType} 
-                    onValueChange={(v) => handleSetFormData((prev) => ({...prev, testType: v}))}
+                    onValueChange={(v) => handleSetFormData({ testType: v })}
                 >
                   <SelectTrigger className="h-10 text-sm text-[#37352F] bg-white border-[rgba(55,53,47,0.16)]">
                     <SelectValue placeholder="選択してください" />
@@ -121,7 +121,7 @@ export function ExaminationForm() {
                 <Label className="text-sm text-[#37352F]/60">担当医</Label>
                 <Select 
                     value={formData.doctor} 
-                    onValueChange={(v) => handleSetFormData((prev) => ({...prev, doctor: v}))}
+                    onValueChange={(v) => handleSetFormData({ doctor: v })}
                 >
                   <SelectTrigger className="h-10 text-sm text-[#37352F] bg-white border-[rgba(55,53,47,0.16)]">
                     <SelectValue placeholder="選択してください" />
@@ -141,7 +141,7 @@ export function ExaminationForm() {
               <Label className="text-sm text-[#37352F]/60">ステータス</Label>
               <Select 
                 value={formData.status} 
-                onValueChange={(v: "依頼中" | "検査中" | "完了") => handleSetFormData((prev) => ({...prev, status: v}))}
+                onValueChange={(v: "依頼中" | "検査中" | "完了") => handleSetFormData({ status: v })}
               >
                 <SelectTrigger className="h-10 text-sm text-[#37352F] bg-white border-[rgba(55,53,47,0.16)]">
                   <SelectValue placeholder="選択してください" />
@@ -160,7 +160,7 @@ export function ExaminationForm() {
                 className="h-24 text-sm text-[#37352F] bg-white border-[rgba(55,53,47,0.16)] resize-none" 
                 placeholder="検査結果や備考を入力" 
                 value={formData.resultSummary || ""} 
-                onChange={(e) => handleSetFormData((prev) => ({...prev, resultSummary: e.target.value}))}
+                onChange={(e) => handleSetFormData({ resultSummary: e.target.value })}
               />
             </div>
 

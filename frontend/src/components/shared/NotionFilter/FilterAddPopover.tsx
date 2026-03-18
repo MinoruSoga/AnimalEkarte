@@ -289,9 +289,9 @@ export const FilterAddPopover = memo(function FilterAddPopover({
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 gap-1.5 text-sm text-[#37352F]/50 hover:text-[#37352F]/80 hover:bg-[#F1F1EF] px-3"
+          className="h-9 gap-2 text-base text-[#37352F]/50 hover:text-[#37352F]/80 hover:bg-[#F1F1EF] px-3"
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-5 w-5" />
           フィルタを追加
         </Button>
       </PopoverTrigger>

@@ -641,7 +641,7 @@ export const STYLE = {
   searchIcon:
     `absolute left-2.5 top-1/2 -translate-y-1/2 size-5 ${C.text30}`,
   searchCount:
-    `text-sm ${C.text60} whitespace-nowrap`,
+    `text-base ${C.text60} whitespace-nowrap`,
 
   /* ── Pagination ── */
   paginationBtn:

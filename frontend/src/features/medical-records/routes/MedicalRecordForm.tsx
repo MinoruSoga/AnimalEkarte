@@ -65,6 +65,7 @@ export function MedicalRecordForm() {
     setDiagnosis2CategoryId,
     diagnosis2NameId,
     setDiagnosis2NameId,
+    ownerDiscountRate,
   } = useMedicalRecordForm(recordId);
 
   const { user } = useAuth();
@@ -263,6 +264,7 @@ export function MedicalRecordForm() {
               diagnosis2NameId={diagnosis2NameId}
               setDiagnosis2NameId={handleSetDiagnosis2NameId}
               medicalRecordId={recordId}
+              ownerDiscountRate={ownerDiscountRate}
             />
           </div>
         ) : null}
@@ -302,15 +304,15 @@ export function MedicalRecordForm() {
         ) : null}
         {mountedTabs.has("見積書") ? (
           <div style={{ display: activeTab === "見積書" ? "block" : "none" }}>
-            <MedicalRecordEstimate isNewRecord={isNewRecord} />
+            <MedicalRecordEstimate isNewRecord={isNewRecord} ownerDiscountRate={ownerDiscountRate} />
           </div>
         ) : null}
         {mountedTabs.has("会計(医師確認)") ? (
           <div style={{ display: activeTab === "会計(医師確認)" ? "block" : "none" }}>
             <MedicalRecordBillCheck
               isNewRecord={isNewRecord}
-              petId={selectedPet.id}
-              completedItems={treatmentCompletedItems}
+              medicalRecordId={recordId}
+              ownerDiscountRate={ownerDiscountRate}
             />
           </div>
         ) : null}
