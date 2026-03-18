@@ -232,9 +232,9 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       </div>
 
       {/* Content Area */}
-      <div className="mt-4 flex-1 min-h-0">
+      <div className="mt-4 flex-1 flex flex-col">
         {mountedTabs.has("問診") ? (
-          <div className="h-full" style={{ display: activeTab === "問診" ? "block" : "none" }}>
+          <div className={`flex-1 min-h-0 flex flex-col${activeTab === "問診" ? "" : " hidden"}`}>
             <MedicalRecordInterview
               chiefComplaint={chiefComplaint}
               setChiefComplaint={handleSetChiefComplaint}

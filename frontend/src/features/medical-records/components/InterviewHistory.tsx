@@ -7,17 +7,18 @@ import { Search, History, Plus } from "lucide-react";
 // Internal
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import type { InterviewHistoryItem } from "../types";
 
 interface InterviewHistoryProps {
+  className?: string;
   historyItems: InterviewHistoryItem[];
 }
 
 export const InterviewHistory = memo(function InterviewHistory({
+  className,
   historyItems,
 }: InterviewHistoryProps) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -30,7 +31,7 @@ export const InterviewHistory = memo(function InterviewHistory({
   );
 
   return (
-    <Card className={`flex-1 flex flex-col min-h-0 border ${C.borderMedium} bg-white rounded-md overflow-hidden gap-0`}>
+    <div className={`flex flex-col border ${C.borderMedium} bg-white rounded-md overflow-hidden ${className ?? ""}`}>
       <div className={`p-3 border-b ${C.borderLight} ${C.bgPage} flex items-center justify-between h-12 shrink-0`}>
         <div className="flex items-center gap-2">
           <History className={`size-4 ${C.text}`} />
@@ -49,7 +50,7 @@ export const InterviewHistory = memo(function InterviewHistory({
         </div>
       </div>
 
-      <ScrollArea className="flex-1 p-0">
+      <ScrollArea className="flex-1">
         <div className={`divide-y ${C.borderDivider}`}>
           {filteredItems.map((item) => (
             <div
@@ -94,6 +95,6 @@ export const InterviewHistory = memo(function InterviewHistory({
           ) : null}
         </div>
       </ScrollArea>
-    </Card>
+    </div>
   );
 });

@@ -34,9 +34,9 @@ export const PageLayout = ({
         icon={icon}
         action={headerAction}
       />
-      <div className="flex-1 overflow-y-auto w-full">
+      <div className="flex-1 overflow-y-auto w-full flex flex-col">
         <div
-          className={`${maxWidth} ${align === "center" ? "mx-auto" : ""} w-full px-3 py-5`}
+          className={`${maxWidth} ${align === "center" ? "mx-auto" : ""} w-full px-3 py-5 flex-1 flex flex-col`}
         >
           {children}
         </div>

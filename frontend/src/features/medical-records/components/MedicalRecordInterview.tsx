@@ -69,31 +69,30 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
     historyItems && historyItems.length > 0 ? historyItems : DEFAULT_HISTORY_ITEMS;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 pb-16 h-full">
+    <div className="grid grid-cols-1 lg:grid-cols-12 lg:grid-rows-[1fr] gap-3 flex-1 min-h-0">
       {/* Left Column: 主訴情報 (Chief Complaint) */}
-      <div className="col-span-1 lg:col-span-3 flex flex-col gap-3 min-h-0 h-full">
-        <InterviewChiefComplaint
-          chiefComplaint={chiefComplaint}
-          setChiefComplaint={setChiefComplaint}
-          chiefComplaintCategoryId={chiefComplaintCategoryId}
-          setChiefComplaintCategoryId={setChiefComplaintCategoryId}
-          templates={templates}
-          onInsertTemplate={handleInsertTemplate}
-        />
-      </div>
+      <InterviewChiefComplaint
+        className="col-span-1 lg:col-span-3"
+        chiefComplaint={chiefComplaint}
+        setChiefComplaint={setChiefComplaint}
+        chiefComplaintCategoryId={chiefComplaintCategoryId}
+        setChiefComplaintCategoryId={setChiefComplaintCategoryId}
+        templates={templates}
+        onInsertTemplate={handleInsertTemplate}
+      />
 
       {/* Middle Column: 治療方針 (Treatment Policy) */}
-      <div className="col-span-1 lg:col-span-4 flex flex-col gap-3 min-h-0 h-full">
-        <InterviewTreatmentPolicy
-          treatmentPolicy={treatmentPolicy}
-          setTreatmentPolicy={setTreatmentPolicy}
-        />
-      </div>
+      <InterviewTreatmentPolicy
+        className="col-span-1 lg:col-span-4"
+        treatmentPolicy={treatmentPolicy}
+        setTreatmentPolicy={setTreatmentPolicy}
+      />
 
       {/* Right Column: カルテ履歴 (Medical History) */}
-      <div className="col-span-1 lg:col-span-5 flex flex-col gap-3 min-h-0 h-full">
-        <InterviewHistory historyItems={resolvedHistoryItems} />
-      </div>
+      <InterviewHistory
+        className="col-span-1 lg:col-span-5"
+        historyItems={resolvedHistoryItems}
+      />
     </div>
   );
 });

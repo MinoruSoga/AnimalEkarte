@@ -17,13 +17,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { C, LAYOUT } from "@/lib/design-tokens";
 
 // Relative
 import { useGetChiefComplaintCategories } from "../api/get-chief-complaint-categories";
 
 interface InterviewChiefComplaintProps {
+  className?: string;
   chiefComplaint: string;
   setChiefComplaint: (value: string) => void;
   chiefComplaintCategoryId: number | null;
@@ -33,6 +33,7 @@ interface InterviewChiefComplaintProps {
 }
 
 export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
+  className,
   chiefComplaint,
   setChiefComplaint,
   chiefComplaintCategoryId,
@@ -44,14 +45,14 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
   const { data: categories = [], isLoading } = useGetChiefComplaintCategories();
 
   return (
-    <Card className="flex-1 flex flex-col min-h-0 border-none shadow-none bg-transparent gap-0">
-      <CardHeader className="p-0 pb-1.5">
-        <CardTitle className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
+    <div className={`flex flex-col ${className ?? ""}`}>
+      <div className="pb-1.5">
+        <h4 className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
           <FileText className="size-4" />
           主訴情報
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0 flex-1 flex flex-col gap-2 min-h-0">
+        </h4>
+      </div>
+      <div className="flex-1 flex flex-col gap-2 min-h-0">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <Label className={`text-sm ${C.text60}`}>主訴区分</Label>
@@ -114,10 +115,10 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
           <Textarea
             value={chiefComplaint}
             onChange={(e) => setChiefComplaint(e.target.value)}
-            className={`flex-1 resize-none bg-white ${C.borderMedium} text-sm p-3 leading-relaxed font-mono`}
+            className={`flex-1 field-sizing-fixed resize-none bg-white ${C.borderMedium} text-sm p-3 leading-relaxed font-mono`}
           />
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 });
