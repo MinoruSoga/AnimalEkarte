@@ -600,20 +600,20 @@ export const STYLE = {
   /* ── Form Header ── */
   formHeader:
     `sticky top-0 z-10 ${C.bgPage} border-b ${C.borderLight} px-4 flex items-center justify-between gap-2 h-[53px]`,
-  formHeaderTitle: `text-sm ${C.text} leading-tight`,
-  formHeaderDesc:  `text-xs ${C.text50} mt-0.5`,
+  formHeaderTitle: `text-base ${C.text} leading-tight`,
+  formHeaderDesc:  `text-base ${C.text50} mt-0.5`,
 
   /* ── Primary Button ── */
   btnPrimary:
-    `${C.bgAccent} ${C.bgAccentHover} text-white h-11 px-4 text-sm shadow-none border-transparent rounded-[4px] transition-colors`,
+    `${C.bgAccent} ${C.bgAccentHover} text-white h-11 px-4 text-base shadow-none border-transparent rounded-[4px] transition-colors`,
   btnGhost:
     `${C.text60} ${C.hoverText} hover:bg-transparent`,
   btnAccent:
-    `text-white ${C.bgAccent} ${C.bgAccentHover} h-11 px-4 text-sm rounded-[4px] transition-colors shadow-none border-transparent`,
+    `text-white ${C.bgAccent} ${C.bgAccentHover} h-11 px-4 text-base rounded-[4px] transition-colors shadow-none border-transparent`,
   btnDanger:
-    `${C.bgDanger} text-white ${C.hoverBgDanger90} h-11 px-4 text-sm rounded-[4px] transition-colors shadow-none border-transparent`,
+    `${C.bgDanger} text-white ${C.hoverBgDanger90} h-11 px-4 text-base rounded-[4px] transition-colors shadow-none border-transparent`,
   btnOutline:
-    `bg-white ${C.borderMedium} ${C.hoverBgLight} h-11 px-4 text-sm rounded-[4px] shadow-[var(--notion-shadow-btn)] transition-colors`,
+    `bg-white ${C.borderMedium} ${C.hoverBgLight} h-11 px-4 text-base rounded-[4px] shadow-[var(--notion-shadow-btn)] transition-colors`,
 
   /* ── Table ── */
   tableContainer:
@@ -621,7 +621,7 @@ export const STYLE = {
   tableHeaderRow:
     `border-b ${C.borderLight} ${C.bgPage30} h-11`,
   tableHeaderCell:
-    `text-xs font-medium ${C.text70} h-11`,
+    `text-base font-medium ${C.text70} h-11`,
   tableRow:
     `border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors cursor-pointer h-16`,
   tableCell:
@@ -631,13 +631,13 @@ export const STYLE = {
   tableCellMuted:
     `text-base ${C.text70} py-2.5`,
   tableEmpty:
-    `text-center py-12 ${C.text70} text-sm`,
+    `text-center py-12 ${C.text70} text-base`,
   tableActionBtn:
     `h-11 w-11 ${C.text60} ${C.hoverText}`,
 
   /* ── Search Filter Bar ── */
   searchInput:
-    `pl-8 h-11 w-full text-sm ${C.text} ${C.textPlaceholder} ${C.bgPage} border border-transparent rounded-[4px] outline-none transition-colors ${C.hoverBgPageDark} focus:bg-white ${C.focusBorderLight}`,
+    `pl-8 h-11 w-full text-base ${C.text} ${C.textPlaceholder} ${C.bgPage} border border-transparent rounded-[4px] outline-none transition-colors ${C.hoverBgPageDark} focus:bg-white ${C.focusBorderLight}`,
   searchIcon:
     `absolute left-2.5 top-1/2 -translate-y-1/2 size-5 ${C.text30}`,
   searchCount:
@@ -647,9 +647,9 @@ export const STYLE = {
   paginationBtn:
     `h-8 w-8 ${C.text60} ${C.hoverBgPageHalf} rounded-[4px]`,
   paginationBtnActive:
-    `h-8 w-8 ${C.bgPrimary} text-white ${C.hoverBgPrimaryDark} text-sm rounded-[4px]`,
+    `h-8 w-8 ${C.bgPrimary} text-white ${C.hoverBgPrimaryDark} text-base rounded-[4px]`,
   paginationInfo:
-    `text-xs ${C.text50}`,
+    `text-base ${C.text50}`,
 
   /* ── Sidebar ── */
   sidebarContainer:
@@ -667,9 +667,9 @@ export const STYLE = {
   propertyRow:
     `flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px]`,
   propertyLabel:
-    `w-[140px] shrink-0 text-sm ${C.text65} select-none truncate`,
+    `w-[140px] shrink-0 text-base ${C.text65} select-none truncate`,
   propertyInput:
-    `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`,
+    `w-full bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`,
 
   /* ── Side Peek ── */
   sidePeekPanel:
@@ -683,9 +683,9 @@ export const STYLE = {
   sidePeekFooter:
     `flex items-center justify-end gap-2 px-4 py-3 border-t ${C.borderLight} shrink-0`,
   sidePeekCancelBtn:
-    `px-4 py-[7px] text-sm ${C.text65} ${C.hoverBgLight} rounded-[3px] transition-colors cursor-pointer`,
+    `px-4 py-[7px] text-base ${C.text65} ${C.hoverBgLight} rounded-[3px] transition-colors cursor-pointer`,
   sidePeekSaveBtn:
-    `px-5 py-[7px] text-sm text-white ${C.bgAccent} ${C.bgAccentHover} rounded-[3px] transition-colors cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.1)]`,
+    `px-5 py-[7px] text-base text-white ${C.bgAccent} ${C.bgAccentHover} rounded-[3px] transition-colors cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.1)]`,
 
   /* ── Notion Page Icon ── */
   pageIcon:
@@ -697,15 +697,15 @@ export const STYLE = {
 
   /* ── Select Trigger (compact, side peek) ── */
   selectCompact:
-    `h-[30px] text-sm bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-[3px] w-auto max-w-full`,
+    `h-[30px] text-base bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-[3px] w-auto max-w-full`,
 
   /* ── Section heading (uppercase label) ── */
   sectionLabel:
-    `text-xs ${C.text55} uppercase tracking-wide select-none`,
+    `text-base ${C.text55} uppercase tracking-wide select-none`,
 
   /* ── Status Badge ── */
   badge:
-    "text-sm px-2 h-9 font-normal border",
+    "text-base px-2 h-9 font-normal border",
 
   /* ── Ghost Danger (delete buttons in form headers) ── */
   btnDangerGhost:
@@ -713,7 +713,7 @@ export const STYLE = {
 
   /* ── Confirm dialog primary ── */
   confirmPrimary:
-    `${C.bgAccent} text-white ${C.bgAccentHover} h-11 px-4 text-sm rounded-[4px] transition-colors shadow-none border-transparent`,
+    `${C.bgAccent} text-white ${C.bgAccentHover} h-11 px-4 text-base rounded-[4px] transition-colors shadow-none border-transparent`,
 
   /* ── Master settings index row ── */
   settingsRow:
@@ -723,16 +723,16 @@ export const STYLE = {
 
   /* ── Inline Add Row ── */
   inlineAddBtn:
-    `w-full flex items-center gap-2 px-4 py-2.5 text-sm ${C.text40} ${C.hoverText60} ${C.hoverBgPage} rounded-b-md transition-colors cursor-pointer group`,
+    `w-full flex items-center gap-2 px-4 py-2.5 text-base ${C.text40} ${C.hoverText60} ${C.hoverBgPage} rounded-b-md transition-colors cursor-pointer group`,
 
   /* ── Form Controls (standard forms) ── */
   formLabel:
-    `text-sm ${C.text70}`,
+    `text-base ${C.text70}`,
   formInput:
-    `h-11 text-sm bg-white ${C.borderMedium} ${C.text}`,
+    `h-11 text-base bg-white ${C.borderMedium} ${C.text}`,
   /** Lighter border + hover variant — use for SelectTrigger in reservation/form fields */
   formInputLight:
-    `h-11 text-sm bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`,
+    `h-11 text-base bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`,
   /** Error ring for form inputs — use with conditional classnames */
   formInputError:
     "ring-2 ring-red-300 border-red-400",

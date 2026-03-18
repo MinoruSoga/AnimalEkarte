@@ -9,7 +9,7 @@ import { SimpleNoteForm } from "./SimpleNoteForm";
 const VitalDialog = lazy(() => import("./VitalDialog").then((m) => ({ default: m.VitalDialog })));
 const LogDialog = lazy(() => import("./LogDialog").then((m) => ({ default: m.LogDialog })));
 const TaskCompleteDialog = lazy(() => import("./TaskCompleteDialog").then((m) => ({ default: m.TaskCompleteDialog })));
-import { useDailyRecordLogic } from "../../hooks/useDailyRecordLogic";
+import { useDailyRecordLogic } from "../../hooks/use-daily-record-logic";
 import { H_STYLES } from "../../styles";
 import type { DailyRecord, CarePlanItem, CreateVitalDTO, CreateCareLogDTO, Task } from "../../types";
 

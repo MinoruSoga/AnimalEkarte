@@ -1,5 +1,5 @@
-export { useHospitalizations } from "./useHospitalizations";
-export { useHospitalizationList } from "./useHospitalizationList";
-export { useHospitalizationDetail } from "./useHospitalizationDetail";
-export { useHospitalizationForm } from "./useHospitalizationForm";
-export { useDailyRecordLogic } from "./useDailyRecordLogic";
+export { useHospitalizations } from "./use-hospitalizations";
+export { useHospitalizationList } from "./use-hospitalization-list";
+export { useHospitalizationDetail } from "./use-hospitalization-detail";
+export { useHospitalizationForm } from "./use-hospitalization-form";
+export { useDailyRecordLogic } from "./use-daily-record-logic";

@@ -122,7 +122,7 @@ const InlineSelector = memo(function InlineSelector({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1 px-2 py-1 text-sm text-[#37352F] bg-[#F1F1EF] hover:bg-[#E8E7E4] rounded-[3px] transition-colors whitespace-nowrap max-w-[180px] truncate"
+          className="flex items-center gap-1 px-2 py-1 text-base text-[#37352F] bg-[#F1F1EF] hover:bg-[#E8E7E4] rounded-[3px] transition-colors whitespace-nowrap max-w-[180px] truncate"
         >
           <span className="truncate">{label}</span>
           <ChevronDown className="size-5 shrink-0 opacity-50" />
@@ -200,7 +200,7 @@ const DateValueEditor = memo(function DateValueEditor({
         <button
           type="button"
           onClick={() => setShowCalendar(false)}
-          className="text-sm text-[#37352F]/50 hover:text-[#37352F]/80 mb-2"
+          className="text-base text-[#37352F]/50 hover:text-[#37352F]/80 mb-2"
         >
           ← 戻る
         </button>
@@ -229,7 +229,7 @@ const DateValueEditor = memo(function DateValueEditor({
 
   return (
     <div className="p-2 space-y-2">
-      <p className="text-sm text-[#37352F]/50 px-1">相対日付</p>
+      <p className="text-base text-[#37352F]/50 px-1">相対日付</p>
       <div className="flex gap-1.5">
         <select
           value={relPoint}
@@ -238,7 +238,7 @@ const DateValueEditor = memo(function DateValueEditor({
             setRelPoint(p);
             handleRelativeApply(p, relUnit);
           }}
-          className="flex-1 h-8 text-sm border border-[rgba(55,53,47,0.16)] rounded-[3px] px-2 bg-white text-[#37352F]"
+          className="flex-1 h-8 text-base border border-[rgba(55,53,47,0.16)] rounded-[3px] px-2 bg-white text-[#37352F]"
         >
           {RELATIVE_POINT_LABELS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -253,7 +253,7 @@ const DateValueEditor = memo(function DateValueEditor({
             setRelUnit(u);
             handleRelativeApply(relPoint, u);
           }}
-          className="flex-1 h-8 text-sm border border-[rgba(55,53,47,0.16)] rounded-[3px] px-2 bg-white text-[#37352F]"
+          className="flex-1 h-8 text-base border border-[rgba(55,53,47,0.16)] rounded-[3px] px-2 bg-white text-[#37352F]"
         >
           {RELATIVE_UNIT_LABELS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -265,7 +265,7 @@ const DateValueEditor = memo(function DateValueEditor({
       <button
         type="button"
         onClick={() => setShowCalendar(true)}
-        className="w-full text-left px-2 py-1.5 text-sm text-[#37352F]/60 hover:bg-[#F1F1EF] rounded-[3px] transition-colors"
+        className="w-full text-left px-2 py-1.5 text-base text-[#37352F]/60 hover:bg-[#F1F1EF] rounded-[3px] transition-colors"
       >
         カレンダーから選択...
       </button>
@@ -361,7 +361,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
               <button
                 type="button"
                 onClick={() => onLogicChange("and")}
-                className={`w-full text-left px-2 py-1 text-sm rounded-[3px] transition-colors ${
+                className={`w-full text-left px-2 py-1 text-base rounded-[3px] transition-colors ${
                   logic === "and"
                     ? "bg-[#2383E2]/10 text-[#2383E2]"
                     : "text-[#37352F] hover:bg-[#F1F1EF]"
@@ -372,7 +372,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
               <button
                 type="button"
                 onClick={() => onLogicChange("or")}
-                className={`w-full text-left px-2 py-1 text-sm rounded-[3px] transition-colors ${
+                className={`w-full text-left px-2 py-1 text-base rounded-[3px] transition-colors ${
                   logic === "or"
                     ? "bg-[#2383E2]/10 text-[#2383E2]"
                     : "text-[#37352F] hover:bg-[#F1F1EF]"
@@ -382,15 +382,15 @@ export const FilterRuleRow = memo(function FilterRuleRow({
               </button>
             </InlineSelector>
           ) : (
-            <span className="text-sm text-[#37352F]/40 px-1.5">Where</span>
+            <span className="text-base text-[#37352F]/40 px-1.5">Where</span>
           )
         ) : (
-          <span className="text-sm text-[#37352F]/40 px-1.5">{logicLabel}</span>
+          <span className="text-base text-[#37352F]/40 px-1.5">{logicLabel}</span>
         )}
       </div>
 
       {/* Property column */}
-      <span className="text-sm text-[#37352F]/60 px-1 shrink-0 max-w-[140px] truncate">
+      <span className="text-base text-[#37352F]/60 px-1 shrink-0 max-w-[140px] truncate">
         {property?.label ?? filter.key}
       </span>
 
@@ -401,7 +401,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
             key={opt.value}
             type="button"
             onClick={() => handleConditionChange(opt.value)}
-            className={`w-full text-left px-2 py-1 text-sm rounded-[3px] transition-colors ${
+            className={`w-full text-left px-2 py-1 text-base rounded-[3px] transition-colors ${
               filter.condition === opt.value
                 ? "bg-[#2383E2]/10 text-[#2383E2]"
                 : "text-[#37352F] hover:bg-[#F1F1EF]"
@@ -433,7 +433,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
               key={opt.value}
               type="button"
               onClick={() => handleValueChange(opt)}
-              className={`w-full text-left px-2 py-1 text-sm rounded-[3px] transition-colors ${
+              className={`w-full text-left px-2 py-1 text-base rounded-[3px] transition-colors ${
                 filter.value === opt.value
                   ? "bg-[#2383E2]/10 text-[#2383E2]"
                   : "text-[#37352F] hover:bg-[#F1F1EF]"

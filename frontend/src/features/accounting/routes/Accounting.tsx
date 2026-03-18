@@ -252,13 +252,13 @@ export function Accounting() {
           key={r.id}
           onClick={() => handleEdit(r.id)}
         >
-          <TableCell className="font-mono text-sm text-[#37352F] py-2">{r.scheduledDate}</TableCell>
-          <TableCell className="text-sm text-[#37352F] py-2">{r.ownerName}</TableCell>
-          <TableCell className="text-sm text-[#37352F] py-2">{r.petName}</TableCell>
-          <TableCell className="text-right font-mono font-medium text-sm text-[#37352F] py-2">
+          <TableCell className="font-mono text-base text-[#37352F] py-2">{r.scheduledDate}</TableCell>
+          <TableCell className="text-base text-[#37352F] py-2">{r.ownerName}</TableCell>
+          <TableCell className="text-base text-[#37352F] py-2">{r.petName}</TableCell>
+          <TableCell className="text-right font-mono font-medium text-base text-[#37352F] py-2">
             {formatCurrency(calculateTotal(r))}
           </TableCell>
-          <TableCell className="text-center text-sm text-[#37352F] py-2">
+          <TableCell className="text-center text-base text-[#37352F] py-2">
             {r.payment ? PAYMENT_METHOD_LABELS[r.payment.method] : "-"}
           </TableCell>
           <TableCell className="py-2">

@@ -24,13 +24,3 @@ type reorderExaminationTypeRequest struct {
 	IDs []uint64 `json:"ids" binding:"required,min=1"`
 }
 
-type examTypeItemInput struct {
-	Name            string `json:"name"             binding:"required"`
-	InspectionValue string `json:"inspection_value"`
-	NormalValue     string `json:"normal_value"`
-	SortOrder       int    `json:"sort_order"`
-}
-
-type replaceExamTypeItemsRequest struct {
-	Items []examTypeItemInput `json:"items" binding:"required"`
-}

@@ -84,8 +84,8 @@ export function InterviewTemplateSettings() {
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit) => (
         <DataTableRow key={item.id} onClick={() => onEdit(item)}>
-          <TableCell className={`text-sm ${C.text}`}>{item.category}</TableCell>
-          <TableCell className={`font-medium text-sm ${C.text}`}>{item.title}</TableCell>
+          <TableCell className={`text-base ${C.text}`}>{item.category}</TableCell>
+          <TableCell className={`font-medium text-base ${C.text}`}>{item.title}</TableCell>
           <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
           <TableCell className="p-0 text-right"><RowActionButton onClick={() => onEdit(item)} /></TableCell>
         </DataTableRow>

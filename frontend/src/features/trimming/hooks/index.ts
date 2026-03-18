@@ -1,2 +1,2 @@
-export { useTrimmingRecords } from "./useTrimmingRecords";
-export { useTrimmingForm } from "./useTrimmingForm";
+export { useTrimmingRecords } from "./use-trimming-records";
+export { useTrimmingForm } from "./use-trimming-form";

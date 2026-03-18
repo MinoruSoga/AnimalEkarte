@@ -13,11 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
-import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE } from "@/lib/design-tokens";
 
 // Relative
-import { useExaminationForm } from "../hooks/useExaminationForm";
+import { useExaminationForm } from "../hooks/use-examination-form";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { paths } from "@/config/paths";
 

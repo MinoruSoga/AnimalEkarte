@@ -168,13 +168,13 @@ export function EstimateList() {
 
   const renderRow = (estimate: Estimate) => (
     <DataTableRow key={estimate.id} onClick={() => navigate(`/estimates/${estimate.id}`)}>
-      <TableCell className="font-mono text-sm text-[#37352F]/60 py-2">{estimate.estimateNo}</TableCell>
-      <TableCell className="text-sm text-[#37352F] py-2 font-medium">{estimate.title}</TableCell>
-      <TableCell className="text-sm text-[#37352F] py-2">{estimate.ownerName ?? "-"}</TableCell>
-      <TableCell className="text-sm text-[#37352F]/60 py-2">
+      <TableCell className="font-mono text-base text-[#37352F]/60 py-2">{estimate.estimateNo}</TableCell>
+      <TableCell className="text-base text-[#37352F] py-2 font-medium">{estimate.title}</TableCell>
+      <TableCell className="text-base text-[#37352F] py-2">{estimate.ownerName ?? "-"}</TableCell>
+      <TableCell className="text-base text-[#37352F]/60 py-2">
         {estimate.validUntil ? estimate.validUntil.slice(0, 10) : "-"}
       </TableCell>
-      <TableCell className="text-right font-mono font-medium text-sm text-[#37352F] py-2">
+      <TableCell className="text-right font-mono font-medium text-base text-[#37352F] py-2">
         {formatCurrency(estimate.totalAmount)}
       </TableCell>
       <TableCell className="py-2">

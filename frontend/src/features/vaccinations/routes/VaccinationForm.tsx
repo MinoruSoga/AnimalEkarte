@@ -22,11 +22,11 @@ import {
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
-import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE } from "@/lib/design-tokens";
 
 // Relative
-import { useVaccinationForm } from "../hooks/useVaccinationForm";
+import { useVaccinationForm } from "../hooks/use-vaccination-form";
 import { useMasterItems } from "@/hooks/use-master-items";
 
 // Mock Data for History (module-level constant — does not change between renders)

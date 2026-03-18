@@ -24,8 +24,8 @@ const ReservationFormModal = lazy(() =>
     default: m.ReservationFormModal,
   })),
 );
-import { useReservationManagement } from "../hooks/useReservationManagement";
-import { useServiceTypeColorMap } from "@/features/master/hooks/useServiceTypeColorMap";
+import { useReservationManagement } from "../hooks/use-reservation-management";
+import { useServiceTypeColorMap } from "@/features/master/hooks/use-service-type-color-map";
 
 const MonthView = lazy(() =>
   import("../components/MonthView").then((m) => ({ default: m.MonthView })),
@@ -139,7 +139,7 @@ export function ReservationManagement() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-10 px-4 text-sm font-medium"
+                className="h-10 px-4 text-base font-medium"
                 onClick={navigateToday}
               >
                 今日
@@ -161,7 +161,7 @@ export function ReservationManagement() {
           <div className="flex items-center gap-2">
             {/* Doctor Filter */}
             <Select value={doctorFilter} onValueChange={setDoctorFilter}>
-              <SelectTrigger className="w-[160px] bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
+              <SelectTrigger className="w-[160px] bg-white border-[rgba(55,53,47,0.16)] h-10 text-base">
                 <SelectValue placeholder="担当医で絞込" />
               </SelectTrigger>
               <SelectContent>
@@ -178,7 +178,7 @@ export function ReservationManagement() {
               value={view}
               onValueChange={typedSetter(setView, CALENDAR_VIEW_VALUES)}
             >
-              <SelectTrigger className="w-[140px] bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
+              <SelectTrigger className="w-[140px] bg-white border-[rgba(55,53,47,0.16)] h-10 text-base">
                 <SelectValue placeholder="表示切替" />
               </SelectTrigger>
               <SelectContent>
@@ -200,7 +200,7 @@ export function ReservationManagement() {
                 className="w-2.5 h-2.5 rounded-full"
                 style={entry.color.dotStyle}
               />
-              <span className="text-xs text-[#37352F]/60">{entry.name}</span>
+              <span className="text-base text-[#37352F]/60">{entry.name}</span>
             </div>
           ))}
         </div>
@@ -212,7 +212,7 @@ export function ReservationManagement() {
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
                   <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
-                  <p className="mt-2 text-[#37352F]/60 text-sm">
+                  <p className="mt-2 text-[#37352F]/60 text-base">
                     読み込み中...
                   </p>
                 </div>

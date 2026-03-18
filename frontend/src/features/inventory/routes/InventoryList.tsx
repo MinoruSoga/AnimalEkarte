@@ -31,7 +31,7 @@ import {
 } from "@/utils/status-helpers";
 
 // Relative
-import { useInventory } from "../hooks/useInventory";
+import { useInventory } from "../hooks/use-inventory";
 
 // Types
 import type { InventoryItem } from "@/types";
@@ -217,7 +217,7 @@ export function InventoryList() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            className="h-10 text-sm gap-2 bg-white"
+            className="h-10 text-base gap-2 bg-white"
             onClick={() => {}}
           >
             <FileSpreadsheet className="size-4" />
@@ -236,7 +236,7 @@ export function InventoryList() {
         {(summary.lowStock > 0 || summary.outOfStock > 0) ? (
           <div className="flex items-center gap-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <AlertTriangle className="size-5 text-amber-600" />
-            <div className="flex gap-4 text-sm">
+            <div className="flex gap-4 text-base">
               {summary.outOfStock > 0 ? (
                 <span className="text-red-600 font-medium">
                   在庫切れ: {summary.outOfStock}件
@@ -273,22 +273,22 @@ export function InventoryList() {
             emptyMessage="在庫データが見つかりません"
             renderRow={(item) => (
               <DataTableRow key={item.id} onClick={() => handleEdit(item.id)}>
-                <TableCell className="text-sm font-medium text-[#37352F] py-2">
+                <TableCell className="text-base font-medium text-[#37352F] py-2">
                   {item.name}
                 </TableCell>
-                <TableCell className="text-sm text-[#37352F] py-2">
+                <TableCell className="text-base text-[#37352F] py-2">
                   {CATEGORY_LABELS[item.category]}
                 </TableCell>
-                <TableCell className="text-sm text-[#37352F] py-2 text-right font-mono">
+                <TableCell className="text-base text-[#37352F] py-2 text-right font-mono">
                   {item.quantity} {item.unit}
                 </TableCell>
-                <TableCell className="text-sm text-[#37352F]/60 py-2 text-right font-mono">
+                <TableCell className="text-base text-[#37352F]/60 py-2 text-right font-mono">
                   {item.minStockLevel} {item.unit}
                 </TableCell>
-                <TableCell className="text-sm text-[#37352F] py-2">
+                <TableCell className="text-base text-[#37352F] py-2">
                   {item.location ?? "-"}
                 </TableCell>
-                <TableCell className="text-sm text-[#37352F] py-2 font-mono">
+                <TableCell className="text-base text-[#37352F] py-2 font-mono">
                   {item.expiryDate ?? "-"}
                 </TableCell>
                 <TableCell className="py-2">

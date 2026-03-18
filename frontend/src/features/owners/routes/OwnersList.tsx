@@ -21,7 +21,7 @@ import { SortableHeader } from "@/components/shared/SortableHeader";
 import { getPetStatusColor } from "@/utils/status-helpers";
 import { formatDate } from "@/utils/format/date";
 import { formatWeight } from "@/utils/format/number";
-import { usePagination } from "@/hooks/usePagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 // bundle-barrel-imports: バレルindex経由ではなく直接ファイルからimport

@@ -1,2 +1,2 @@
-export { useMedicalRecords } from "./useMedicalRecords";
-export { useMedicalRecordForm } from "./useMedicalRecordForm";
+export { useMedicalRecords } from "./use-medical-records";
+export { useMedicalRecordForm } from "./use-medical-record-form";

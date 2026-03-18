@@ -85,9 +85,9 @@ export function InsuranceSettings() {
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit) => (
         <DataTableRow key={item.id} onClick={() => onEdit(item)}>
-          <TableCell className={`font-medium text-sm ${C.text}`}>{item.name}</TableCell>
-          <TableCell className={`text-sm text-center ${C.text}`}>{item.coverageRate > 0 ? `${item.coverageRate}%` : "-"}</TableCell>
-          <TableCell className={`text-sm ${C.text70}`}>{item.contactPhone || "-"}</TableCell>
+          <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
+          <TableCell className={`text-base text-center ${C.text}`}>{item.coverageRate > 0 ? `${item.coverageRate}%` : "-"}</TableCell>
+          <TableCell className={`text-base ${C.text70}`}>{item.contactPhone || "-"}</TableCell>
           <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
           <TableCell className="p-0 text-right"><RowActionButton onClick={() => onEdit(item)} /></TableCell>
         </DataTableRow>

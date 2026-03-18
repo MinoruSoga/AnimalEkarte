@@ -14,9 +14,9 @@ import {
 } from '@/components/ui/select';
 import { PageLayout } from '@/components/shared/PageLayout/PageLayout';
 import { NavigationBlocker } from '@/components/shared/NavigationBlocker';
-import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useGetEstimate } from '../api/get-estimate';
-import { useEstimateForm } from '../hooks/useEstimateForm';
+import { useEstimateForm } from '../hooks/use-estimate-form';
 import type { EstimateStatus } from '../types';
 
 const STATUS_OPTIONS: { value: EstimateStatus; label: string }[] = [

@@ -91,10 +91,10 @@ export function HospitalizationSettings() {
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit) => (
         <DataTableRow key={item.id} onClick={() => onEdit(item)}>
-          <TableCell className={`font-medium text-sm ${C.text}`}>{item.name}</TableCell>
-          <TableCell className={`text-sm ${C.text70}`}>{item.bodySize ? (BODY_SIZE_LABELS[item.bodySize] ?? item.bodySize) : "-"}</TableCell>
-          <TableCell className={`text-sm ${C.text70}`}>{item.billingUnit ? (BILLING_UNIT_LABELS[item.billingUnit] ?? item.billingUnit) : "-"}</TableCell>
-          <TableCell className={`text-right font-mono text-sm ${C.text}`}>{item.price > 0 ? `¥${item.price.toLocaleString()}` : "-"}</TableCell>
+          <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
+          <TableCell className={`text-base ${C.text70}`}>{item.bodySize ? (BODY_SIZE_LABELS[item.bodySize] ?? item.bodySize) : "-"}</TableCell>
+          <TableCell className={`text-base ${C.text70}`}>{item.billingUnit ? (BILLING_UNIT_LABELS[item.billingUnit] ?? item.billingUnit) : "-"}</TableCell>
+          <TableCell className={`text-right font-mono text-base ${C.text}`}>{item.price > 0 ? `¥${item.price.toLocaleString()}` : "-"}</TableCell>
           <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
           <TableCell className="p-0 text-right"><RowActionButton onClick={() => onEdit(item)} /></TableCell>
         </DataTableRow>

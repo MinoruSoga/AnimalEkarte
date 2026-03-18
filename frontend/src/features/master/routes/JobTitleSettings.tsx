@@ -100,8 +100,8 @@ export function JobTitleSettings() {
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit) => (
         <DataTableRow key={item.id} onClick={() => onEdit(item)}>
-          <TableCell className={`font-medium text-sm ${C.text}`}>{item.name}</TableCell>
-          <TableCell className={`text-sm ${C.text}`}>{item.description || "-"}</TableCell>
+          <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
+          <TableCell className={`text-base ${C.text}`}>{item.description || "-"}</TableCell>
           <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
           <TableCell className="p-0 text-right"><RowActionButton onClick={() => onEdit(item)} /></TableCell>
         </DataTableRow>

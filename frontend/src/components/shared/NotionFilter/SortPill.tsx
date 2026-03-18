@@ -59,7 +59,7 @@ export const SortPill = memo(function SortPill({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1.5 h-8 px-3 text-sm font-medium rounded-[3px] bg-[#FAEBDD] text-[#D9730D] hover:bg-[#F5DCC3] transition-colors whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 h-8 px-3 text-base font-medium rounded-[3px] bg-[#FAEBDD] text-[#D9730D] hover:bg-[#F5DCC3] transition-colors whitespace-nowrap"
         >
           <DirectionIcon className="size-5 shrink-0" />
           <span className="truncate max-w-[140px]">
@@ -74,7 +74,7 @@ export const SortPill = memo(function SortPill({
           <button
             type="button"
             onClick={handleToggle}
-            className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-[#37352F] hover:bg-[#F1F1EF] transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-base text-[#37352F] hover:bg-[#F1F1EF] transition-colors"
           >
             {sort.direction === "asc" ? (
               <ArrowDown className="size-5" />
@@ -88,7 +88,7 @@ export const SortPill = memo(function SortPill({
           <div className="border-t border-[rgba(55,53,47,0.09)] my-1" />
 
           {/* Property change */}
-          <p className="text-xs text-[#37352F]/40 px-3 py-1">
+          <p className="text-base text-[#37352F]/40 px-3 py-1">
             プロパティを変更
           </p>
           <Command>
@@ -99,7 +99,7 @@ export const SortPill = memo(function SortPill({
                 <CommandItem
                   key={prop.key}
                   onSelect={() => handleSelectProperty(prop.key)}
-                  className={`text-sm ${prop.key === sort.key ? "bg-[#2383E2]/10 text-[#2383E2]" : ""}`}
+                  className={`text-base ${prop.key === sort.key ? "bg-[#2383E2]/10 text-[#2383E2]" : ""}`}
                 >
                   {prop.icon ? (
                     <prop.icon className="mr-2 size-5 text-[#37352F]/50" />
@@ -117,7 +117,7 @@ export const SortPill = memo(function SortPill({
           <button
             type="button"
             onClick={handleRemove}
-            className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-[#EB5757] hover:bg-[#EB5757]/5 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-base text-[#EB5757] hover:bg-[#EB5757]/5 transition-colors"
           >
             <X className="size-5" />
             削除

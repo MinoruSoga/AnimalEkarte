@@ -1,6 +1,6 @@
 import { useDeferredValue, useState } from "react";
 import { useNavigate } from "react-router";
-import { useHospitalizations } from "./useHospitalizations";
+import { useHospitalizations } from "./use-hospitalizations";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { HospitalizationFilterStatus, HOSPITALIZATION_FILTER_STATUS } from "../constants";
 

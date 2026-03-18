@@ -1,7 +1,7 @@
 import { memo, useState } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { useSortableList } from "@/hooks/useSortableList";
+import { useSortableList } from "@/hooks/use-sortable-list";
 import PawPrint from "lucide-react/dist/esm/icons/paw-print";
 import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
@@ -77,7 +77,7 @@ export function AnimalSpeciesSettings() {
           <DataTable columns={COLUMNS} data={orderedItems} emptyMessage="動物種類が登録されていません"
             renderRow={(item) => (
               <SortableDataTableRow key={item.id} id={item.id} onClick={() => crud.handleEdit(item)}>
-                <TableCell className={`font-medium text-sm ${C.text}`}>{item.name}</TableCell>
+                <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
                 <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
                 <TableCell className="p-0 text-right"><RowActionButton onClick={() => crud.handleEdit(item)} /></TableCell>
               </SortableDataTableRow>

@@ -309,7 +309,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
             <button
               type="button"
               onClick={handleBack}
-              className="flex items-center gap-1 text-sm text-[#37352F]/50 hover:text-[#37352F]/80 px-1"
+              className="flex items-center gap-1 text-base text-[#37352F]/50 hover:text-[#37352F]/80 px-1"
             >
               <ChevronLeft className="size-4" />
               戻る
@@ -327,7 +327,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
                 <CommandItem
                   key={prop.key}
                   onSelect={() => handleSelectProperty(prop)}
-                  className="text-sm"
+                  className="text-base"
                 >
                   {prop.icon ? (
                     <prop.icon className="mr-2 size-5 text-[#37352F]/50" />
@@ -340,7 +340,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
         ) : step === "condition" ? (
           /* Step 2: Condition selection */
           <div className="py-1">
-            <p className="text-sm text-[#37352F]/40 px-3 py-1.5">
+            <p className="text-base text-[#37352F]/40 px-3 py-1.5">
               {selectedProperty?.label} - 条件
             </p>
             {(
@@ -351,7 +351,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
                 key={cond.value}
                 type="button"
                 onClick={() => handleSelectCondition(cond.value)}
-                className="w-full text-left px-3 py-1.5 text-sm text-[#37352F] hover:bg-[#F1F1EF] transition-colors"
+                className="w-full text-left px-3 py-1.5 text-base text-[#37352F] hover:bg-[#F1F1EF] transition-colors"
               >
                 {cond.label}
               </button>
@@ -367,7 +367,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
                 <CommandItem
                   key={opt.value}
                   onSelect={() => handleSelectValue(opt)}
-                  className="text-sm"
+                  className="text-base"
                 >
                   {opt.label}
                 </CommandItem>
@@ -400,7 +400,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
         ) : step === "date-value" ? (
           /* Step 3b: Date value (relative selector) */
           <div className="py-2 px-3 space-y-2">
-            <p className="text-sm text-[#37352F]/40">相対日付</p>
+            <p className="text-base text-[#37352F]/40">相対日付</p>
             <div className="flex gap-1.5">
               <select
                 value={relPoint}
@@ -409,7 +409,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
                   setRelPoint(p);
                   handleRelativeApply(p, relUnit);
                 }}
-                className="flex-1 h-8 text-sm border border-[rgba(55,53,47,0.16)] rounded-[3px] px-2 bg-white text-[#37352F]"
+                className="flex-1 h-8 text-base border border-[rgba(55,53,47,0.16)] rounded-[3px] px-2 bg-white text-[#37352F]"
               >
                 {RELATIVE_POINT_LABELS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -424,7 +424,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
                   setRelUnit(u);
                   handleRelativeApply(relPoint, u);
                 }}
-                className="flex-1 h-8 text-sm border border-[rgba(55,53,47,0.16)] rounded-[3px] px-2 bg-white text-[#37352F]"
+                className="flex-1 h-8 text-base border border-[rgba(55,53,47,0.16)] rounded-[3px] px-2 bg-white text-[#37352F]"
               >
                 {RELATIVE_UNIT_LABELS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -436,7 +436,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
             <button
               type="button"
               onClick={() => setShowCalendar(true)}
-              className="w-full text-left px-2 py-1.5 text-sm text-[#37352F]/60 hover:bg-[#F1F1EF] rounded-[3px] transition-colors"
+              className="w-full text-left px-2 py-1.5 text-base text-[#37352F]/60 hover:bg-[#F1F1EF] rounded-[3px] transition-colors"
             >
               カレンダーから選択...
             </button>

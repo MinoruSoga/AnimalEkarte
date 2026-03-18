@@ -1,7 +1,7 @@
 import { useState, memo } from "react";
 import { DndContext, DragOverlay, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { useSortableList } from "@/hooks/useSortableList";
+import { useSortableList } from "@/hooks/use-sortable-list";
 import { Plus, Building2, GripVertical } from "lucide-react";
 import { Table, TableBody, TableHeader, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -78,10 +78,10 @@ function CageRowOverlay({ cage }: { cage: Cage }) {
   return (
     <div className={`flex items-center h-12 bg-white border ${C.borderLight} rounded-[4px] shadow-[0_4px_16px_rgba(0,0,0,0.12)] cursor-grabbing`} style={{ width: "100%" }}>
       <div className="w-8 shrink-0 flex items-center justify-center text-[#37352F]/50"><GripVertical className="size-4" /></div>
-      <div className={`flex-1 min-w-0 text-sm font-medium ${C.text} px-3`}>{cage.name}</div>
-      <div className="w-[100px] shrink-0 text-sm text-[#37352F]/65">{CAGE_TYPE_LABELS[cage.cageType]}</div>
-      <div className="w-[90px] shrink-0 text-sm text-[#37352F]/65">{CAGE_SIZE_LABELS[cage.cageSize]}</div>
-      <div className={`w-[120px] shrink-0 text-right pr-4 font-mono text-sm ${C.text}`}>{cage.price != null ? `¥${cage.price.toLocaleString()}` : "-"}</div>
+      <div className={`flex-1 min-w-0 text-base font-medium ${C.text} px-3`}>{cage.name}</div>
+      <div className="w-[100px] shrink-0 text-base text-[#37352F]/65">{CAGE_TYPE_LABELS[cage.cageType]}</div>
+      <div className="w-[90px] shrink-0 text-base text-[#37352F]/65">{CAGE_SIZE_LABELS[cage.cageSize]}</div>
+      <div className={`w-[120px] shrink-0 text-right pr-4 font-mono text-base ${C.text}`}>{cage.price != null ? `¥${cage.price.toLocaleString()}` : "-"}</div>
       <div className="w-[90px] shrink-0 flex justify-center"><NotionStatusPill isActive={cage.isActive} /></div>
       <div className="w-[80px] shrink-0" />
     </div>
@@ -158,10 +158,10 @@ export function CageSettings() {
                 <SortableContext items={sortedCages.map((m) => m.id)} strategy={verticalListSortingStrategy}>
                   {sortedCages.map((item) => (
                     <SortableDataTableRow key={item.id} id={item.id} onClick={() => crud.handleEdit(item)}>
-                      <TableCell className={`font-medium text-sm ${C.text}`}>{item.name}</TableCell>
-                      <TableCell className={`text-sm ${C.text70}`}>{CAGE_TYPE_LABELS[item.cageType] || item.cageType}</TableCell>
-                      <TableCell className={`text-sm ${C.text70}`}>{CAGE_SIZE_LABELS[item.cageSize] || item.cageSize}</TableCell>
-                      <TableCell className={`text-right font-mono text-sm ${C.text} pr-4`}>{item.price != null ? `¥${item.price.toLocaleString()}` : "-"}</TableCell>
+                      <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
+                      <TableCell className={`text-base ${C.text70}`}>{CAGE_TYPE_LABELS[item.cageType] || item.cageType}</TableCell>
+                      <TableCell className={`text-base ${C.text70}`}>{CAGE_SIZE_LABELS[item.cageSize] || item.cageSize}</TableCell>
+                      <TableCell className={`text-right font-mono text-base ${C.text} pr-4`}>{item.price != null ? `¥${item.price.toLocaleString()}` : "-"}</TableCell>
                       <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
                       <TableCell className="p-0 text-right pr-2"><RowActionButton onClick={() => crud.handleEdit(item)} /></TableCell>
                     </SortableDataTableRow>
@@ -175,7 +175,7 @@ export function CageSettings() {
           </DndContext>
         </div>
         <button type="button" onClick={crud.handleNew}
-          className="flex items-center gap-1.5 w-full px-3 py-2.5 text-sm text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]">
+          className="flex items-center gap-1.5 w-full px-3 py-2.5 text-base text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]">
           <Plus className="size-3.5" />新しいケージを追加...
         </button>
       </div>

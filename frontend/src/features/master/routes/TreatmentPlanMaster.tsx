@@ -8,7 +8,7 @@ import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 // Shared hooks
-import { useSortableList } from "@/hooks/useSortableList";
+import { useSortableList } from "@/hooks/use-sortable-list";
 
 // External
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
@@ -223,11 +223,11 @@ function ChildTreatmentRow({
       <TableCell>
         <div className="flex items-center gap-1 pl-[22px]">
           <span className="size-[22px] shrink-0" />
-          <span className={`text-sm ${C.text}`}>{item.name}</span>
+          <span className={`text-base ${C.text}`}>{item.name}</span>
         </div>
       </TableCell>
       <TableCell className="text-right">
-        <span className={`text-sm ${C.text70} font-mono`}>
+        <span className={`text-base ${C.text70} font-mono`}>
           {item.price > 0 ? `¥${item.price.toLocaleString()}` : "-"}
         </span>
       </TableCell>
@@ -398,14 +398,14 @@ function TreatmentTabContent({
                           ) : (
                             <span className="size-[22px] shrink-0" />
                           )}
-                          <span className={`text-sm font-medium ${C.text}`}>{row.item.name}</span>
+                          <span className={`text-base font-medium ${C.text}`}>{row.item.name}</span>
                           {row.item.children.length > 0 ? (
-                            <span className={`text-xs ${C.text25} ml-0.5`}>{row.item.children.length}</span>
+                            <span className={`text-base ${C.text25} ml-0.5`}>{row.item.children.length}</span>
                           ) : null}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className={`text-sm ${C.text70} font-mono`}>
+                        <span className={`text-base ${C.text70} font-mono`}>
                           {row.item.price > 0 ? `¥${row.item.price.toLocaleString()}` : "-"}
                         </span>
                       </TableCell>
@@ -742,7 +742,7 @@ export function TreatmentPlanMaster() {
                   <TabsPrimitive.Trigger
                     key={tab.value}
                     value={tab.value}
-                    className={`h-9 border-b-2 border-b-transparent px-4 text-sm ${C.text60} outline-none transition-colors cursor-pointer
+                    className={`h-9 border-b-2 border-b-transparent px-4 text-base ${C.text60} outline-none transition-colors cursor-pointer
                       data-[state=active]:border-b-[#37352F] data-[state=active]:text-[#37352F] data-[state=active]:font-medium`}
                   >
                     {tab.label}

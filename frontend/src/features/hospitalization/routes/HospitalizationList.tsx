@@ -14,7 +14,7 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 // Relative
 import { HospitalizationBoard } from "../components/HospitalizationBoard";
 import { HospitalizationListView } from "../components/HospitalizationListView";
-import { useHospitalizationList } from "../hooks/useHospitalizationList";
+import { useHospitalizationList } from "../hooks/use-hospitalization-list";
 import { HOSPITALIZATION_FILTER_STATUS } from "../constants";
 
 // Types

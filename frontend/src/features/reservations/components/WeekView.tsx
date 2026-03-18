@@ -10,7 +10,7 @@ import { motion } from "motion/react";
 // Internal
 import { getReservationTypeColor, getReservationTypeName } from "@/utils/status-helpers";
 import { C, PALETTE } from "@/lib/design-tokens";
-import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
 // Types
 import type { ReservationAppointment, ReservationStatus } from "@/types";

@@ -18,7 +18,7 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 
 // Relative
-import { useVaccinations } from "../hooks/useVaccinations";
+import { useVaccinations } from "../hooks/use-vaccinations";
 
 // Types
 import type {
@@ -177,7 +177,7 @@ export function VaccinationList() {
       icon={<Syringe className="size-5 text-[#37352F]" />}
       headerAction={
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="h-10 text-sm gap-2 bg-white" onClick={() => {}}>
+          <Button variant="outline" className="h-10 text-base gap-2 bg-white" onClick={() => {}}>
             <FileSpreadsheet className="size-4" />
             データ取込
           </Button>
@@ -213,11 +213,11 @@ export function VaccinationList() {
                 key={r.id}
                 onClick={() => handleEdit(r.id)}
               >
-                <TableCell className="font-mono text-sm text-[#37352F] py-2">{r.date}</TableCell>
-                <TableCell className="text-sm text-[#37352F] py-2">{r.ownerName}</TableCell>
-                <TableCell className="text-sm text-[#37352F] py-2">{r.petName}</TableCell>
-                <TableCell className="text-sm font-medium text-[#37352F] py-2">{r.vaccineName}</TableCell>
-                <TableCell className="font-mono text-sm text-[#37352F] py-2">{r.nextDate}</TableCell>
+                <TableCell className="font-mono text-base text-[#37352F] py-2">{r.date}</TableCell>
+                <TableCell className="text-base text-[#37352F] py-2">{r.ownerName}</TableCell>
+                <TableCell className="text-base text-[#37352F] py-2">{r.petName}</TableCell>
+                <TableCell className="text-base font-medium text-[#37352F] py-2">{r.vaccineName}</TableCell>
+                <TableCell className="font-mono text-base text-[#37352F] py-2">{r.nextDate}</TableCell>
                 <TableCell className="text-right py-2">
                   <RowActionButton onClick={() => handleEdit(r.id)} />
                 </TableCell>

@@ -27,11 +27,11 @@ import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import type { SortOrder } from "@/types";
 import { useMasterItems } from "@/hooks/use-master-items";
-import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { paths } from "@/config/paths";
 
 // Relative (direct file import, no barrel — bundle-barrel-imports)
-import { useTrimmingForm } from "../hooks/useTrimmingForm";
+import { useTrimmingForm } from "../hooks/use-trimming-form";
 import type { TrimmingFormData } from "@/types/trimming";
 import { useGetTrimmingsByPetId } from "../api/get-trimming";
 

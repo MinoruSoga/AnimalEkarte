@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from "react-router";
 import { Sidebar } from "./Sidebar";
-import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 
 export function Layout() {
   const { isAuthenticated, isLoading } = useAuth();

@@ -15,7 +15,7 @@ import {
 } from "@dnd-kit/sortable";
 
 // Shared hooks
-import { useSortableList } from "@/hooks/useSortableList";
+import { useSortableList } from "@/hooks/use-sortable-list";
 
 // External
 import Plus from "lucide-react/dist/esm/icons/plus";
@@ -297,10 +297,10 @@ function DiagnosisCategoryTab({ editTarget: _editTarget, onEditTargetChange }: D
                 id={item.id}
                 onClick={() => onEditTargetChange(item)}
               >
-                <TableCell className={`font-medium text-sm ${C.text}`}>
+                <TableCell className={`font-medium text-base ${C.text}`}>
                   {item.name}
                 </TableCell>
-                <TableCell className={`text-sm ${C.text70} truncate max-w-[240px]`}>
+                <TableCell className={`text-base ${C.text70} truncate max-w-[240px]`}>
                   {item.description || "-"}
                 </TableCell>
                 <TableCell className="text-center">
@@ -388,10 +388,10 @@ function DiagnosisNameTab({ editTarget: _editTarget, onEditTargetChange }: Diagn
                 id={item.id}
                 onClick={() => onEditTargetChange(item)}
               >
-                <TableCell className={`text-sm ${C.text70}`}>
+                <TableCell className={`text-base ${C.text70}`}>
                   {categoryMap.get(item.diagnosisCategoryId) ?? "-"}
                 </TableCell>
-                <TableCell className={`font-medium text-sm ${C.text}`}>
+                <TableCell className={`font-medium text-base ${C.text}`}>
                   {item.name}
                 </TableCell>
                 <TableCell className="text-center">
@@ -554,7 +554,7 @@ export function DiagnosisSettings() {
                   <TabsPrimitive.Trigger
                     key={tab.value}
                     value={tab.value}
-                    className={`h-9 border-b-2 border-b-transparent px-4 text-sm ${C.text60} outline-none transition-colors cursor-pointer
+                    className={`h-9 border-b-2 border-b-transparent px-4 text-base ${C.text60} outline-none transition-colors cursor-pointer
                       data-[state=active]:border-b-[#37352F] data-[state=active]:text-[#37352F] data-[state=active]:font-medium`}
                   >
                     {tab.label}

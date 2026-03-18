@@ -19,11 +19,11 @@ import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeade
 import { Pagination } from "@/components/shared/Pagination";
 import { C, STYLE } from "@/lib/design-tokens";
 import { getMedicalRecordStatusColor } from "@/utils/status-helpers";
-import { usePagination } from "@/hooks/usePagination";
-import { useStaffValidation } from "@/hooks/useStaffValidation";
+import { usePagination } from "@/hooks/use-pagination";
+import { useStaffValidation } from "@/hooks/use-staff-validation";
 
 // Relative
-import { useMedicalRecords } from "../hooks/useMedicalRecords";
+import { useMedicalRecords } from "../hooks/use-medical-records";
 import { useDeleteMedicalRecord } from "../api/delete-medical-record";
 
 // Types

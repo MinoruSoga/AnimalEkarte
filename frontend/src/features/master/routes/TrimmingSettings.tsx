@@ -95,13 +95,13 @@ const TARGET_SIZE_SELECT_ITEMS = [
 function CombinablePill({ combinable }: { combinable: boolean }) {
   if (combinable) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs bg-[#DDEDEA] text-[#0F7B6C]">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-base bg-[#DDEDEA] text-[#0F7B6C]">
         可
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs bg-[#E3E2E0] text-[#37352F]/60">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-base bg-[#E3E2E0] text-[#37352F]/60">
       不可
     </span>
   );
@@ -196,11 +196,11 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
 
       <PropertyRow label="単価(税込)">
         <div className="flex items-center gap-1">
-          <span className={`text-sm ${C.text65} select-none`}>¥</span>
+          <span className={`text-base ${C.text65} select-none`}>¥</span>
           <input
             type="number"
             min={0}
-            className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
+            className={`w-32 bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
             value={formData.price}
             onChange={(e) =>
               setFormData((prev) => ({ ...prev, price: e.target.value }))
@@ -274,16 +274,16 @@ function TrimmingCourseTab({ editTarget: _editTarget, onEditTargetChange }: Trim
         emptyMessage="トリミングコースが登録されていません"
         renderRow={(item) => (
           <DataTableRow key={item.id} onClick={() => onEditTargetChange(item)}>
-            <TableCell className={`font-medium text-sm ${C.text}`}>
+            <TableCell className={`font-medium text-base ${C.text}`}>
               {item.name}
             </TableCell>
-            <TableCell className={`text-sm ${C.text70}`}>
+            <TableCell className={`text-base ${C.text70}`}>
               {item.targetSize ? TARGET_SIZE_LABELS[item.targetSize] : "-"}
             </TableCell>
-            <TableCell className={`text-sm ${C.text70}`}>
+            <TableCell className={`text-base ${C.text70}`}>
               {item.duration != null ? `${item.duration}分` : "-"}
             </TableCell>
-            <TableCell className={`text-right font-mono text-sm ${C.text}`}>
+            <TableCell className={`text-right font-mono text-base ${C.text}`}>
               {item.price != null ? `¥${item.price.toLocaleString()}` : "-"}
             </TableCell>
             <TableCell className="text-right">
@@ -380,11 +380,11 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
 
       <PropertyRow label="単価(税込)">
         <div className="flex items-center gap-1">
-          <span className={`text-sm ${C.text65} select-none`}>¥</span>
+          <span className={`text-base ${C.text65} select-none`}>¥</span>
           <input
             type="number"
             min={0}
-            className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
+            className={`w-32 bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
             value={formData.price}
             onChange={(e) =>
               setFormData((prev) => ({ ...prev, price: e.target.value }))
@@ -458,16 +458,16 @@ function TrimmingOptionTab({ editTarget: _editTarget, onEditTargetChange }: Trim
         emptyMessage="トリミングオプションが登録されていません"
         renderRow={(item) => (
           <DataTableRow key={item.id} onClick={() => onEditTargetChange(item)}>
-            <TableCell className={`font-medium text-sm ${C.text}`}>
+            <TableCell className={`font-medium text-base ${C.text}`}>
               {item.name}
             </TableCell>
-            <TableCell className={`text-sm ${C.text70}`}>
+            <TableCell className={`text-base ${C.text70}`}>
               {item.duration != null ? `${item.duration}分` : "-"}
             </TableCell>
             <TableCell className="text-center">
               <CombinablePill combinable={item.combinable} />
             </TableCell>
-            <TableCell className={`text-right font-mono text-sm ${C.text}`}>
+            <TableCell className={`text-right font-mono text-base ${C.text}`}>
               {item.price != null ? `¥${item.price.toLocaleString()}` : "-"}
             </TableCell>
             <TableCell className="text-right">
@@ -633,7 +633,7 @@ export function TrimmingSettings() {
                     <TabsPrimitive.Trigger
                       key={tab.value}
                       value={tab.value}
-                      className={`h-9 border-b-2 border-b-transparent px-4 text-sm ${C.text60} outline-none transition-colors cursor-pointer
+                      className={`h-9 border-b-2 border-b-transparent px-4 text-base ${C.text60} outline-none transition-colors cursor-pointer
                         data-[state=active]:border-b-[#37352F] data-[state=active]:text-[#37352F] data-[state=active]:font-medium`}
                     >
                       {tab.label}

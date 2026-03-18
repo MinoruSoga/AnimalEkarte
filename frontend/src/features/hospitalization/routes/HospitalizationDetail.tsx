@@ -10,7 +10,7 @@ import { DischargeAlertDialog } from "../components/DischargeAlertDialog";
 import { HospitalizationDetailActions } from "../components/HospitalizationDetailActions";
 import { HospitalizationDesktopLayout } from "../components/HospitalizationDesktopLayout";
 import { HospitalizationMobileLayout } from "../components/HospitalizationMobileLayout";
-import { useHospitalizationDetail } from "../hooks/useHospitalizationDetail";
+import { useHospitalizationDetail } from "../hooks/use-hospitalization-detail";
 import { paths } from "@/config/paths";
 
 export function HospitalizationDetail() {

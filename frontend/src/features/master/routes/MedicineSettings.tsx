@@ -60,8 +60,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
-import { useReducedMotion } from "@/hooks/useReducedMotion";
-import { useSortableList } from "@/hooks/useSortableList";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { useSortableList } from "@/hooks/use-sortable-list";
 
 // Internal – feature API (direct import, no barrel)
 import {
@@ -101,7 +101,7 @@ const MEDICINE_UNIT_SELECT_ITEMS = (
 );
 
 // Full-width Select trigger — matches Figma (h-[30px], no border, rounded-[3px])
-const SELECT_TRIGGER_FULL = `h-[30px] text-sm bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-[3px] w-full`;
+const SELECT_TRIGGER_FULL = `h-[30px] text-base bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-[3px] w-full`;
 
 // 剤形ラベルマップ
 const DOSAGE_FORM_LABELS: Record<string, string> = {
@@ -154,7 +154,7 @@ function SortableMedicineRow({
       <TableCell className={`${STYLE.tableCell} font-medium ${grouped ? "pl-12!" : "pl-2"}`}>
         {medicine.name}
       </TableCell>
-      <TableCell className={`${STYLE.tableCell} w-[100px] text-center text-sm`}>
+      <TableCell className={`${STYLE.tableCell} w-[100px] text-center text-base`}>
         {medicine.dosageForm ? (DOSAGE_FORM_LABELS[medicine.dosageForm] ?? medicine.dosageForm) : "-"}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} w-[130px] text-right pr-4 font-mono`}>
@@ -210,13 +210,13 @@ function MedicineRowOverlay({
       <div className="w-8 shrink-0 flex items-center justify-center text-[#37352F]/50">
         <GripVertical className="size-4" />
       </div>
-      <div className={`flex-1 min-w-0 text-sm font-medium ${C.text} ${grouped ? "pl-10" : "pl-0"}`}>
+      <div className={`flex-1 min-w-0 text-base font-medium ${C.text} ${grouped ? "pl-10" : "pl-0"}`}>
         {medicine.name}
       </div>
-      <div className="w-[100px] shrink-0 text-center text-sm text-[#37352F]/65">
+      <div className="w-[100px] shrink-0 text-center text-base text-[#37352F]/65">
         {medicine.dosageForm ? (DOSAGE_FORM_LABELS[medicine.dosageForm] ?? medicine.dosageForm) : "-"}
       </div>
-      <div className={`w-[130px] shrink-0 text-right pr-4 font-mono text-sm ${C.text}`}>
+      <div className={`w-[130px] shrink-0 text-right pr-4 font-mono text-base ${C.text}`}>
         {medicine.price > 0 ? `¥${medicine.price.toLocaleString()}` : "-"}
       </div>
       <div className="w-[110px] shrink-0 flex justify-center">
@@ -282,7 +282,7 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
             <PropertyRow label="親カテゴリ">
               {isCategory ? (
                 // カテゴリはルート固定 — 変更不可
-                <span className={`text-sm ${C.text}`}>なし（ルート）</span>
+                <span className={`text-base ${C.text}`}>なし（ルート）</span>
               ) : (
                 <Select
                   value={formData.parentId || "__none__"}
@@ -304,10 +304,10 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
             {/* Price — カテゴリは子項目に設定するため disabled */}
             <PropertyRow label="単価(税込)">
               {isCategory ? (
-                <span className={`text-sm ${C.text35} select-none`}>子項目に金額を設定</span>
+                <span className={`text-base ${C.text35} select-none`}>子項目に金額を設定</span>
               ) : (
                 <div className="flex items-center gap-1">
-                  <span className={`text-sm ${C.text40}`}>¥</span>
+                  <span className={`text-base ${C.text40}`}>¥</span>
                   <input
                     type="number"
                     min={0}
@@ -346,7 +346,7 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
               <div className="flex items-center gap-1.5 py-2 mb-1">
                 <Pill className={`size-3.5 ${C.text40}`} />
                 <span
-                  className={`text-xs font-medium ${C.text50} uppercase tracking-wide select-none`}
+                  className={`text-base font-medium ${C.text50} uppercase tracking-wide select-none`}
                 >
                   薬剤詳細
                 </span>
@@ -758,10 +758,10 @@ export function MedicineSettings() {
                               isCollapsed ? "" : "rotate-90"
                             }`}
                           />
-                          <span className="text-xs font-medium text-[#37352F]/65">
+                          <span className="text-base font-medium text-[#37352F]/65">
                             {header.name}
                           </span>
-                          <span className="text-xs text-[#37352F]/40 ml-0.5">{items.length}</span>
+                          <span className="text-base text-[#37352F]/40 ml-0.5">{items.length}</span>
                         </button>
                         <div className="flex-1" />
                         <button
@@ -857,7 +857,7 @@ export function MedicineSettings() {
       <button
         type="button"
         onClick={() => handleCreate()}
-        className="flex items-center gap-1.5 w-full px-3 py-2.5 text-sm text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]"
+        className="flex items-center gap-1.5 w-full px-3 py-2.5 text-base text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]"
       >
         <Plus className="size-3.5" />
         新しい薬剤を追加...

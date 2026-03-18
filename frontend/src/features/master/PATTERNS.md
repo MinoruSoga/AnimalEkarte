@@ -127,7 +127,7 @@ const COLUMNS = [
 - `@dnd-kit/core` — `DndContext`, `closestCenter`
 - `@dnd-kit/sortable` — `SortableContext`, `useSortable`, `verticalListSortingStrategy`
 - `@dnd-kit/utilities` — `CSS`
-- 共有 hook: `@/hooks/useSortableList`
+- 共有 hook: `@/hooks/use-sortable-list`
 
 ### useSortableList
 

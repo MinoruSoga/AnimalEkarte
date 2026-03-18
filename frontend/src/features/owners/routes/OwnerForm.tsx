@@ -44,13 +44,13 @@ import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { FormFieldError } from "@/components/shared/FormFieldError";
-import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
 import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 
 // Relative
-import { useOwnerForm } from "../hooks/useOwnerForm";
+import { useOwnerForm } from "../hooks/use-owner-form";
 import type { PetMutations } from "@/types/pet";
 import type { PetFormData, OwnerData } from "../types";
 // Lazy-loaded modal — only loaded when first opened (bundle-dynamic-imports)

@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { useListClinics, useUpdateClinic } from "@/features/hospital-settings/api/clinics";
 
 // Feature hooks
-import { useClinicSettingsForm } from "../hooks/useClinicSettingsForm";
+import { useClinicSettingsForm } from "../hooks/use-clinic-settings-form";
 
 export function ClinicSettings() {
   const { data: clinics = [], isLoading } = useListClinics();

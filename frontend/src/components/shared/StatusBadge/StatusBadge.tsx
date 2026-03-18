@@ -10,7 +10,7 @@ export function StatusBadge({ children, className = "", colorClass = "" }: Statu
   return (
     <Badge
       variant="outline"
-      className={`text-sm px-2 h-7 font-normal border ${colorClass} ${className}`}
+      className={`text-base px-2 h-7 font-normal border ${colorClass} ${className}`}
     >
       {children}
     </Badge>

@@ -14,7 +14,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { useAuth } from "@/features/auth";
 
 // Relative
-import { useHospitalizationForm } from "../hooks/useHospitalizationForm";
+import { useHospitalizationForm } from "../hooks/use-hospitalization-form";
 import { useDeleteHospitalization } from "../api/delete-hospitalization";
 import { paths } from "@/config/paths";
 import { useMasterItems } from "@/hooks/use-master-items";
@@ -23,7 +23,7 @@ import { HospitalizationNoteCard } from "../components/HospitalizationNoteCard";
 import { HospitalizationTreatmentTable } from "../components/HospitalizationTreatmentTable";
 import { HospitalizationCostSummary } from "../components/HospitalizationCostSummary";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
-import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE } from "@/lib/design-tokens";
 
 export function HospitalizationForm() {

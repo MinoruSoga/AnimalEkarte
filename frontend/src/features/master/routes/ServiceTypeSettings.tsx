@@ -1,7 +1,7 @@
 import { memo, useState, useCallback, useRef, useEffect } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { useSortableList } from "@/hooks/useSortableList";
+import { useSortableList } from "@/hooks/use-sortable-list";
 import { Activity } from "lucide-react";
 import { toast } from "sonner";
 import { TableCell } from "@/components/ui/table";
@@ -99,13 +99,13 @@ export function ServiceTypeSettings() {
           <DataTable columns={COLUMNS} data={orderedItems} emptyMessage="予約区分が登録されていません"
             renderRow={(item) => (
               <SortableDataTableRow key={item.id} id={item.id} onClick={() => crud.handleEdit(item)}>
-                <TableCell className={`font-medium text-sm ${C.text}`}>
+                <TableCell className={`font-medium text-base ${C.text}`}>
                   <div className="flex items-center gap-2">
                     <span className="size-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
                     {item.name}
                   </div>
                 </TableCell>
-                <TableCell className={`text-sm ${C.text70} truncate max-w-[240px]`}>{item.description || "-"}</TableCell>
+                <TableCell className={`text-base ${C.text70} truncate max-w-[240px]`}>{item.description || "-"}</TableCell>
                 <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
                 <TableCell className="p-0 text-right"><RowActionButton onClick={() => crud.handleEdit(item)} /></TableCell>
               </SortableDataTableRow>

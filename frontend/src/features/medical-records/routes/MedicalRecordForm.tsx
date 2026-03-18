@@ -26,10 +26,10 @@ import { StaffSelectionModal } from "../components/StaffSelectionModal";
 const VitalsModal = lazy(() =>
   import("../components/VitalsModal").then((m) => ({ default: m.VitalsModal }))
 );
-import { useMedicalRecordForm } from "../hooks/useMedicalRecordForm";
+import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
 import { useAuth } from "@/features/auth";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
-import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 
 export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { id: recordId } = useParams();

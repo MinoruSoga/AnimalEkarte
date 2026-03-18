@@ -60,23 +60,6 @@ func toExamTypeResponse(et *model.ExaminationType) examTypeResponse {
 	}
 }
 
-// examTypeSummaryResponse はネストされたレスポンスで使用する検査種別の要約型
-type examTypeSummaryResponse struct {
-	ID   uint64 `json:"id"`
-	Name string `json:"name"`
-}
-
-// toExamTypeSummary は *model.ExaminationType を *examTypeSummaryResponse に変換する。nilの場合はnilを返す。
-func toExamTypeSummary(et *model.ExaminationType) *examTypeSummaryResponse {
-	if et == nil {
-		return nil
-	}
-	return &examTypeSummaryResponse{
-		ID:   et.ID,
-		Name: et.Name,
-	}
-}
-
 func toExamTypeResponseList(items []model.ExaminationType) []examTypeResponse {
 	list := make([]examTypeResponse, 0, len(items))
 	for i := range items {

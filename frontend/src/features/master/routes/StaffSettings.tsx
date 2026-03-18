@@ -145,8 +145,8 @@ export function StaffSettings() {
       filterProperties={STAFF_FILTER_PROPERTIES}
       renderRow={(item, onEdit) => (
         <DataTableRow key={item.id} onClick={() => onEdit(item)}>
-          <TableCell className={`font-medium text-sm ${C.text}`}>{item.name}</TableCell>
-          <TableCell className={`text-sm ${C.text}`}>{STAFF_ROLE_LABELS[item.staffRole]}</TableCell>
+          <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
+          <TableCell className={`text-base ${C.text}`}>{STAFF_ROLE_LABELS[item.staffRole]}</TableCell>
           <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
           <TableCell className="p-0 text-right"><RowActionButton onClick={() => onEdit(item)} /></TableCell>
         </DataTableRow>

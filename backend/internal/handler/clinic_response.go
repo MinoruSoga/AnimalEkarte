@@ -43,12 +43,3 @@ func toClinicResponse(c *model.Clinic) clinicResponse {
 		UpdatedAt:          c.UpdatedAt,
 	}
 }
-
-func toClinicResponseList(clinics []model.Clinic) []clinicResponse {
-	result := make([]clinicResponse, 0, len(clinics))
-	for i := range clinics {
-		result = append(result, toClinicResponse(&clinics[i]))
-	}
-	return result
-}
-

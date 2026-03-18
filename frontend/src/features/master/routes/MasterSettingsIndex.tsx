@@ -115,11 +115,11 @@ function CardRow({ label, description, icon, count, onClick }: CardRowProps) {
     <button type="button" className={STYLE.settingsRow} onClick={onClick}>
       <span className={STYLE.settingsRowIcon}>{icon}</span>
       <div className="flex-1 min-w-0 text-left">
-        <div className={`text-sm font-medium ${C.text} leading-tight`}>{label}</div>
-        <div className={`text-xs ${C.text45} mt-0.5 truncate`}>{description}</div>
+        <div className={`text-base font-medium ${C.text} leading-tight`}>{label}</div>
+        <div className={`text-base ${C.text45} mt-0.5 truncate`}>{description}</div>
       </div>
       {count !== undefined ? (
-        <span className={`text-xs ${C.text40} tabular-nums shrink-0`}>
+        <span className={`text-base ${C.text40} tabular-nums shrink-0`}>
           {count}件
         </span>
       ) : null}
@@ -196,7 +196,7 @@ export function MasterSettingsIndex() {
             マスタ設定
           </h2>
         </div>
-        <p className={`text-sm ${C.text50} mb-6`}>
+        <p className={`text-base ${C.text50} mb-6`}>
           動物病院の各種マスタデータを管理します
         </p>
 
@@ -206,7 +206,7 @@ export function MasterSettingsIndex() {
         {/* Sections */}
         {MASTER_SECTIONS.map((section) => (
           <div key={section.title} className="mb-5">
-            <div className={`px-1 pb-1.5 text-xs ${C.text40} uppercase tracking-wide select-none`}>
+            <div className={`px-1 pb-1.5 text-base ${C.text40} uppercase tracking-wide select-none`}>
               {section.title}
             </div>
             <div className={`bg-white rounded-lg border ${C.borderLight} overflow-hidden divide-y ${C.divideDivider}`}>

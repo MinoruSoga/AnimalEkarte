@@ -27,13 +27,13 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { Pagination } from "@/components/shared/Pagination";
 import { getTrimmingStatusColor } from "@/utils/status-helpers";
-import { usePagination } from "@/hooks/usePagination";
-import { useStaffValidation } from "@/hooks/useStaffValidation";
+import { usePagination } from "@/hooks/use-pagination";
+import { useStaffValidation } from "@/hooks/use-staff-validation";
 import type { TrimmingRecord } from "@/types";
 import { paths } from "@/config/paths";
 
 // Relative (direct file import, no barrel)
-import { useTrimmingRecords } from "../hooks/useTrimmingRecords";
+import { useTrimmingRecords } from "../hooks/use-trimming-records";
 
 type SortKey = "date" | "ownerName" | "petName" | "species" | "staff" | "status";
 
@@ -53,22 +53,22 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
 }: TrimmingTableRowProps) {
   return (
     <DataTableRow onClick={() => onEdit(record.id)}>
-      <TableCell className="font-mono text-sm text-[#37352F] py-2">
+      <TableCell className="font-mono text-base text-[#37352F] py-2">
         {record.date}
       </TableCell>
-      <TableCell className="text-sm text-[#37352F] py-2">{record.ownerName}</TableCell>
+      <TableCell className="text-base text-[#37352F] py-2">{record.ownerName}</TableCell>
       <TableCell className="py-2">
         <div className="flex flex-col">
-          <span className="text-sm text-[#37352F]">{record.petName}</span>
-          <span className="text-sm text-[#37352F]/60">{record.petNumber}</span>
+          <span className="text-base text-[#37352F]">{record.petName}</span>
+          <span className="text-base text-[#37352F]/60">{record.petNumber}</span>
         </div>
       </TableCell>
-      <TableCell className="text-sm text-[#37352F] py-2">{record.species}</TableCell>
-      <TableCell className="text-sm text-[#37352F] py-2">{record.weight}</TableCell>
-      <TableCell className="text-sm text-[#37352F] truncate max-w-[200px] py-2">
+      <TableCell className="text-base text-[#37352F] py-2">{record.species}</TableCell>
+      <TableCell className="text-base text-[#37352F] py-2">{record.weight}</TableCell>
+      <TableCell className="text-base text-[#37352F] truncate max-w-[200px] py-2">
         {record.styleRequest}
       </TableCell>
-      <TableCell className="text-sm text-[#37352F] py-2">
+      <TableCell className="text-base text-[#37352F] py-2">
         <div className="flex items-center gap-1.5">
           {!isValidStaff(record.staff) ? (
             <AlertTriangle className="size-4 text-amber-500" />

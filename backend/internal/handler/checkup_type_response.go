@@ -31,11 +31,3 @@ func toCheckupTypeResponse(ct *model.CheckupType) checkupTypeResponse {
 		UpdatedAt:   ct.UpdatedAt,
 	}
 }
-
-func toCheckupTypeResponseList(items []model.CheckupType) []checkupTypeResponse {
-	list := make([]checkupTypeResponse, 0, len(items))
-	for i := range items {
-		list = append(list, toCheckupTypeResponse(&items[i]))
-	}
-	return list
-}

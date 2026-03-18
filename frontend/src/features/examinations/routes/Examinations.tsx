@@ -19,7 +19,7 @@ import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeade
 import { getExaminationStatusColor } from "@/utils/status-helpers";
 
 // Relative
-import { useExaminationRecords } from "../hooks/useExaminationRecords";
+import { useExaminationRecords } from "../hooks/use-examination-records";
 import { paths } from "@/config/paths";
 
 // Types
