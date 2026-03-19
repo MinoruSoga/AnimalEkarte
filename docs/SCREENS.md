@@ -354,6 +354,7 @@
 | 保険 | `/settings/insurance` | 保険会社マスタ |
 | 問診テンプレート | `/settings/interview/templates` | 問診票テンプレート |
 | 主訴カテゴリ | `/settings/interview/chief-complaint` | 主訴の分類 |
+| 商品マスタ | `/settings/merchandise-items` | 院内販売品等のマスタ |
 
 ---
 
