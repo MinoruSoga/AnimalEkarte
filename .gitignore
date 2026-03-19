@@ -54,5 +54,8 @@ service-account-key.json
 # Issue tracking (local only)
 frontend/issues/
 backend/issues/
+
+# Test results
+test-results/
 .vercel
 .env*.local
