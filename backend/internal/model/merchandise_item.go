@@ -12,7 +12,7 @@ type MerchandiseItem struct {
 	ClinicID  uint64         `gorm:"not null"                                       json:"clinic_id"`
 	Name      string         `gorm:"not null"                                       json:"name"`
 	Category  ItemCategory   `gorm:"type:item_category;not null;default:goods"      json:"category"`
-	UnitPrice float64        `gorm:"type:numeric;not null;default:0"                json:"unit_price"`
+	UnitPrice int64          `gorm:"not null;default:0"                             json:"unit_price"`
 	TaxRate   float64        `gorm:"type:numeric;not null;default:0.10"             json:"tax_rate"`
 	IsActive  bool           `gorm:"default:true"                                   json:"is_active"`
 	SortOrder int            `gorm:"default:0"                                      json:"sort_order"`

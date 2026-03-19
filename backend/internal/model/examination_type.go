@@ -8,7 +8,7 @@ type ExaminationType struct {
 	ID          uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID    uint64    `gorm:"not null"                                       json:"clinic_id"`
 	Name        string    `gorm:"not null"                                       json:"name"`
-	Price       *float64  `gorm:"type:numeric(10,2)"                             json:"price,omitempty"`
+	Price       *int64    `gorm:"type:bigint"                                    json:"price,omitempty"`
 	IsActive    bool      `gorm:"default:true"                                   json:"is_active"`
 	Description string    `gorm:"default:''"                                     json:"description"`
 	ParentID    *uint64   `gorm:"column:parent_id"                               json:"parent_id,omitempty"`
@@ -28,8 +28,10 @@ type ExaminationTypeItem struct {
 	Name            string    `gorm:"not null"                                       json:"name"`
 	InspectionValue string    `gorm:"default:''"                                     json:"inspection_value"`
 	NormalValue     string    `gorm:"default:''"                                     json:"normal_value"`
+	Unit            string    `gorm:"not null;default:''"                            json:"unit"`
 	SortOrder       int       `gorm:"default:0"                                      json:"sort_order"`
 	CreatedAt       time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt       time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }
 
 func (ExaminationTypeItem) TableName() string { return "exam_type_items" }

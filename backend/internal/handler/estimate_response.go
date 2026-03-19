@@ -11,11 +11,11 @@ type estimateItemResponse struct {
 	EstimateID            uint64    `json:"estimate_id"`
 	Name                  string    `json:"name"`
 	Category              string    `json:"category"`
-	UnitPrice             float64   `json:"unit_price"`
+	UnitPrice             int64     `json:"unit_price"`
 	Quantity              float64   `json:"quantity"`
 	TaxRate               float64   `json:"tax_rate"`
 	DiscountRate          float64   `json:"discount_rate"`
-	DiscountAmount        float64   `json:"discount_amount"`
+	DiscountAmount        int64     `json:"discount_amount"`
 	IsInsuranceApplicable bool      `json:"is_insurance_applicable"`
 	SortOrder             int       `json:"sort_order"`
 	CreatedAt             time.Time `json:"created_at"`
@@ -30,11 +30,11 @@ type estimateResponse struct {
 	OwnerID         *uint64                `json:"owner_id,omitempty"`
 	Owner           *ownerSummaryResponse  `json:"owner,omitempty"`
 	Status          string                 `json:"status"`
-	Subtotal        float64                `json:"subtotal"`
-	TaxTotal        float64                `json:"tax_total"`
-	TotalAmount     float64                `json:"total_amount"`
-	InsuranceAmount float64                `json:"insurance_amount"`
-	DiscountAmount  float64                `json:"discount_amount"`
+	Subtotal        int64                  `json:"subtotal"`
+	TaxTotal        int64                  `json:"tax_total"`
+	TotalAmount     int64                  `json:"total_amount"`
+	InsuranceAmount int64                  `json:"insurance_amount"`
+	DiscountAmount  int64                  `json:"discount_amount"`
 	ValidUntil      *time.Time             `json:"valid_until,omitempty"`
 	Comment         string                 `json:"comment"`
 	Notes           string                 `json:"notes"`

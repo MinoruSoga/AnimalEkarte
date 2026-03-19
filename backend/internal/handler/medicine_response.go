@@ -11,7 +11,7 @@ type medicineResponse struct {
 	ClinicID        uint64    `json:"clinic_id"`
 	Name            string    `json:"name"`
 	ParentID        *uint64   `json:"parent_id,omitempty"`
-	Price           *float64  `json:"price,omitempty"`
+	Price           *int64    `json:"price,omitempty"`
 	IsActive        bool      `json:"is_active"`
 	Description     string    `json:"description"`
 	DosageForm      *string   `json:"dosage_form,omitempty"`

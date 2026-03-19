@@ -78,7 +78,7 @@ type BillingItem struct {
 	BillingID             uint64         `gorm:"not null"                                       json:"billing_id"`
 	Category              ItemCategory   `gorm:"type:item_category;not null"                    json:"category"`
 	Name                  string         `gorm:"not null;default:''"                            json:"name"`
-	UnitPrice             float64        `gorm:"type:numeric(10,2);not null;default:0"          json:"unit_price"`
+	UnitPrice             int64          `gorm:"not null;default:0"                             json:"unit_price"`
 	Quantity              float64        `gorm:"type:numeric(10,1);not null;default:1"          json:"quantity"`
 	TaxRate               float64        `gorm:"type:numeric(3,2);default:0.10"                 json:"tax_rate"`
 	IsInsuranceApplicable bool           `gorm:"default:false"                                  json:"is_insurance_applicable"`
@@ -93,16 +93,16 @@ func (BillingItem) TableName() string { return "billing_items" }
 type Payment struct {
 	ID              uint64        `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	BillingID       uint64        `gorm:"not null;uniqueIndex"                           json:"billing_id"`
-	Subtotal        float64       `gorm:"type:numeric(10,2);not null;default:0"          json:"subtotal"`
-	TaxTotal        float64       `gorm:"type:numeric(10,2);not null;default:0"          json:"tax_total"`
-	TotalAmount     float64       `gorm:"type:numeric(10,2);not null;default:0"          json:"total_amount"`
+	Subtotal        int64         `gorm:"not null;default:0"                             json:"subtotal"`
+	TaxTotal        int64         `gorm:"not null;default:0"                             json:"tax_total"`
+	TotalAmount     int64         `gorm:"not null;default:0"                             json:"total_amount"`
 	InsuranceName   string        `gorm:"default:''"                                     json:"insurance_name"`
 	InsuranceRatio  float64       `gorm:"type:numeric(3,2);default:0"                    json:"insurance_ratio"`
-	InsuranceAmount float64       `gorm:"type:numeric(10,2);default:0"                   json:"insurance_amount"`
-	DiscountAmount  float64       `gorm:"type:numeric(10,2);default:0"                   json:"discount_amount"`
-	BillingAmount   float64       `gorm:"type:numeric(10,2);not null;default:0"          json:"billing_amount"`
-	ReceivedAmount  float64       `gorm:"type:numeric(10,2);default:0"                   json:"received_amount"`
-	ChangeAmount    float64       `gorm:"type:numeric(10,2);default:0"                   json:"change_amount"`
+	InsuranceAmount int64         `gorm:"default:0"                                      json:"insurance_amount"`
+	DiscountAmount  int64         `gorm:"default:0"                                      json:"discount_amount"`
+	BillingAmount   int64         `gorm:"not null;default:0"                             json:"billing_amount"`
+	ReceivedAmount  int64         `gorm:"default:0"                                      json:"received_amount"`
+	ChangeAmount    int64         `gorm:"default:0"                                      json:"change_amount"`
 	Method          PaymentMethod `gorm:"type:payment_method;default:'cash'"             json:"method"`
 	CreatedAt       time.Time     `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time     `gorm:"autoUpdateTime"                                 json:"updated_at"`

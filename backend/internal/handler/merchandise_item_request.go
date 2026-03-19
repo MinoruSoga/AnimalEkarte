@@ -4,7 +4,7 @@ package handler
 type createMerchandiseItemRequest struct {
 	Name      string  `json:"name"      binding:"required"`
 	Category  string  `json:"category"  binding:"required,oneof=food goods other"`
-	UnitPrice float64 `json:"unit_price"`
+	UnitPrice int64   `json:"unit_price"`
 	TaxRate   float64 `json:"tax_rate"`
 	IsActive  bool    `json:"is_active"`
 	SortOrder int     `json:"sort_order"`
@@ -19,7 +19,7 @@ type reorderMerchandiseItemRequest struct {
 type updateMerchandiseItemRequest struct {
 	Name      *string  `json:"name"`
 	Category  *string  `json:"category"`
-	UnitPrice *float64 `json:"unit_price"`
+	UnitPrice *int64   `json:"unit_price"`
 	TaxRate   *float64 `json:"tax_rate"`
 	IsActive  *bool    `json:"is_active"`
 	SortOrder *int     `json:"sort_order"`

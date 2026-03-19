@@ -34,7 +34,7 @@ type MedicalRecord struct {
 	ClinicalPlan  *ClinicalPlan  `gorm:"foreignKey:MedicalRecordID"  json:"clinical_plan,omitempty"`
 	Inquiry       *Inquiry       `gorm:"foreignKey:MedicalRecordID"  json:"inquiry,omitempty"`
 	Treatments    []Treatment    `gorm:"foreignKey:MedicalRecordID"  json:"treatments,omitempty"`
-	Vitals        []Vital        `gorm:"foreignKey:MedicalRecordID"  json:"vitals,omitempty"`
+	Vitals        []VitalRecord  `gorm:"foreignKey:MedicalRecordID"  json:"vitals,omitempty"`
 	Exams         []Examination  `gorm:"foreignKey:MedicalRecordID"  json:"exams,omitempty"`
 	Vaccinations  []Vaccination  `gorm:"foreignKey:MedicalRecordID"  json:"vaccinations,omitempty"`
 	Checkups      []Checkup      `gorm:"foreignKey:MedicalRecordID"  json:"checkups,omitempty"`

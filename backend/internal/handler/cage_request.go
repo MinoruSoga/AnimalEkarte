@@ -2,23 +2,23 @@
 package handler
 
 type createCageRequest struct {
-	Name        string   `json:"name"        binding:"required"`
-	CageType    string   `json:"cage_type"   binding:"required"`
-	CageSize    string   `json:"cage_size"   binding:"required"`
-	Price       *float64 `json:"price"`
-	IsActive    bool     `json:"is_active"`
-	Description string   `json:"description"`
-	SortOrder   int      `json:"sort_order"`
+	Name        string `json:"name"        binding:"required"`
+	CageType    string `json:"cage_type"   binding:"required"`
+	CageSize    string `json:"cage_size"   binding:"required"`
+	Price       *int64 `json:"price"`
+	IsActive    bool   `json:"is_active"`
+	Description string `json:"description"`
+	SortOrder   int    `json:"sort_order"`
 }
 
 type updateCageRequest struct {
-	Name        string   `json:"name"`
-	CageType    string   `json:"cage_type"`
-	CageSize    string   `json:"cage_size"`
-	Price       *float64 `json:"price"`
-	IsActive    *bool    `json:"is_active"`
-	Description string   `json:"description"`
-	SortOrder   int      `json:"sort_order"`
+	Name        string `json:"name"`
+	CageType    string `json:"cage_type"`
+	CageSize    string `json:"cage_size"`
+	Price       *int64 `json:"price"`
+	IsActive    *bool  `json:"is_active"`
+	Description string `json:"description"`
+	SortOrder   int    `json:"sort_order"`
 }
 
 // reorderCageRequest はケージ並び替えのバインド struct

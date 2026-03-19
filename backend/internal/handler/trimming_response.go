@@ -12,35 +12,34 @@ type trimmingOptionSummaryResponse struct {
 }
 
 type trimmingCourseSummaryResponse struct {
-	ID    uint64  `json:"id"`
-	Name  string  `json:"name"`
-	Price float64 `json:"price"`
+	ID    uint64 `json:"id"`
+	Name  string `json:"name"`
+	Price int64  `json:"price"`
 }
 
 type trimmingResponse struct {
-	ID             uint64                           `json:"id"`
-	ClinicID       uint64                           `json:"clinic_id"`
-	Date           time.Time                        `json:"date"`
-	PetID          *uint64                          `json:"pet_id,omitempty"`
-	StaffID        *uint64                          `json:"staff_id,omitempty"`
-	CourseID       *uint64                          `json:"course_id,omitempty"`
-	Weight         string                           `json:"weight"`
-	Status         string                           `json:"status"`
-	StyleRequest   string                           `json:"style_request"`
-	BW             string                           `json:"bw"`
-	BWUnit         string                           `json:"bw_unit"`
-	BT             string                           `json:"bt"`
-	UsedShampoo    string                           `json:"used_shampoo"`
-	UsedRibbon     string                           `json:"used_ribbon"`
-	Remarks        string                           `json:"remarks"`
-	StyleImage     string                           `json:"style_image"`
-	CompletedImage string                           `json:"completed_image"`
-	CreatedAt      time.Time                        `json:"created_at"`
-	UpdatedAt      time.Time                        `json:"updated_at"`
-	Pet            *petSummaryResponse              `json:"pet,omitempty"`
-	Staff          *staffSummaryResponse            `json:"staff,omitempty"`
-	Course         *trimmingCourseSummaryResponse   `json:"course,omitempty"`
-	Options        []trimmingOptionSummaryResponse  `json:"options"`
+	ID             uint64                          `json:"id"`
+	ClinicID       uint64                          `json:"clinic_id"`
+	Date           time.Time                       `json:"date"`
+	PetID          *uint64                         `json:"pet_id,omitempty"`
+	StaffID        *uint64                         `json:"staff_id,omitempty"`
+	CourseID       *uint64                         `json:"course_id,omitempty"`
+	Status         string                          `json:"status"`
+	StyleRequest   string                          `json:"style_request"`
+	BW             *float64                        `json:"bw,omitempty"`
+	BWUnit         string                          `json:"bw_unit"`
+	BT             *float64                        `json:"bt,omitempty"`
+	UsedShampoo    string                          `json:"used_shampoo"`
+	UsedRibbon     string                          `json:"used_ribbon"`
+	Remarks        string                          `json:"remarks"`
+	StyleImage     string                          `json:"style_image"`
+	CompletedImage string                          `json:"completed_image"`
+	CreatedAt      time.Time                       `json:"created_at"`
+	UpdatedAt      time.Time                       `json:"updated_at"`
+	Pet            *petSummaryResponse             `json:"pet,omitempty"`
+	Staff          *staffSummaryResponse           `json:"staff,omitempty"`
+	Course         *trimmingCourseSummaryResponse  `json:"course,omitempty"`
+	Options        []trimmingOptionSummaryResponse `json:"options"`
 }
 
 func toTrimmingResponse(t *model.TrimmingRecord) trimmingResponse {
@@ -54,7 +53,7 @@ func toTrimmingResponse(t *model.TrimmingRecord) trimmingResponse {
 
 	var course *trimmingCourseSummaryResponse
 	if t.Course != nil {
-		price := 0.0
+		var price int64
 		if t.Course.Price != nil {
 			price = *t.Course.Price
 		}
@@ -72,7 +71,6 @@ func toTrimmingResponse(t *model.TrimmingRecord) trimmingResponse {
 		PetID:          t.PetID,
 		StaffID:        t.StaffID,
 		CourseID:       t.CourseID,
-		Weight:         t.Weight,
 		Status:         string(t.Status),
 		StyleRequest:   t.StyleRequest,
 		BW:             t.BW,

@@ -19,7 +19,7 @@ type CreateTreatmentInput struct {
 	ProcedureID    *uint64
 	MedicineID     *uint64
 	InventoryID    *uint64
-	UnitPrice      float64
+	UnitPrice      int64
 	Quantity       float64
 	Selected       bool
 	Status         string
@@ -27,7 +27,7 @@ type CreateTreatmentInput struct {
 	Memo           string
 	Insurance      bool
 	DiscountRate   float64
-	DiscountAmount float64
+	DiscountAmount int64
 	SortOrder      int
 }
 
@@ -38,7 +38,7 @@ type UpdateTreatmentInput struct {
 	ProcedureID    *uint64
 	MedicineID     *uint64
 	InventoryID    *uint64
-	UnitPrice      *float64
+	UnitPrice      *int64
 	Quantity       *float64
 	Selected       *bool
 	Status         *string
@@ -46,7 +46,7 @@ type UpdateTreatmentInput struct {
 	Memo           *string
 	Insurance      *bool
 	DiscountRate   *float64
-	DiscountAmount *float64
+	DiscountAmount *int64
 	SortOrder      *int
 }
 

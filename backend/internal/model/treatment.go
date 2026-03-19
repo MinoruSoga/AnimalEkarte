@@ -34,7 +34,7 @@ type Treatment struct {
 	ProcedureID     *uint64           `                                                      json:"procedure_id,omitempty"`
 	MedicineID      *uint64           `                                                      json:"medicine_id,omitempty"`
 	InventoryID     *uint64           `                                                      json:"inventory_id,omitempty"`
-	UnitPrice       float64           `gorm:"type:numeric(10,2);default:0"                   json:"unit_price"`
+	UnitPrice       int64             `gorm:"default:0"                                      json:"unit_price"`
 	Quantity        float64           `gorm:"type:numeric(10,1);default:1"                   json:"quantity"`
 	Selected        bool              `gorm:"default:false"                                  json:"selected"`
 	Status          TreatmentStatus   `gorm:"type:treatment_status;default:'pending'"          json:"status"`
@@ -42,7 +42,7 @@ type Treatment struct {
 	Memo            string            `gorm:"default:''"                                     json:"memo"`
 	Insurance       bool              `gorm:"default:false"                                  json:"insurance"`
 	DiscountRate    float64           `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
-	DiscountAmount  float64           `gorm:"type:numeric(10,2);default:0"                   json:"discount_amount"`
+	DiscountAmount  int64             `gorm:"default:0"                                      json:"discount_amount"`
 	SortOrder       int               `gorm:"default:0"                                      json:"sort_order"`
 	DeletedAt       gorm.DeletedAt    `                                                      json:"-" swaggerignore:"true"`
 	CreatedAt       time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`

@@ -8,12 +8,11 @@ type createTrimmingRequest struct {
 	PetID          *uint64    `json:"pet_id"`
 	StaffID        *uint64    `json:"staff_id"`
 	CourseID       *uint64    `json:"course_id"`
-	Weight         string     `json:"weight"`
 	Status         string     `json:"status"`
 	StyleRequest   string     `json:"style_request"`
-	BW             string     `json:"bw"`
+	BW             *float64   `json:"bw"`
 	BWUnit         string     `json:"bw_unit"`
-	BT             string     `json:"bt"`
+	BT             *float64   `json:"bt"`
 	UsedShampoo    string     `json:"used_shampoo"`
 	UsedRibbon     string     `json:"used_ribbon"`
 	Remarks        string     `json:"remarks"`
@@ -28,12 +27,11 @@ type updateTrimmingRequest struct {
 	PetID          *uint64    `json:"pet_id"`
 	StaffID        *uint64    `json:"staff_id"`
 	CourseID       *uint64    `json:"course_id"`
-	Weight         *string    `json:"weight"`
 	Status         *string    `json:"status"`
 	StyleRequest   *string    `json:"style_request"`
-	BW             *string    `json:"bw"`
+	BW             **float64  `json:"bw"`
 	BWUnit         *string    `json:"bw_unit"`
-	BT             *string    `json:"bt"`
+	BT             **float64  `json:"bt"`
 	UsedShampoo    *string    `json:"used_shampoo"`
 	UsedRibbon     *string    `json:"used_ribbon"`
 	Remarks        *string    `json:"remarks"`

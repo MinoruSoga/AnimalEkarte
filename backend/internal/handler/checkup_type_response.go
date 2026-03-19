@@ -10,7 +10,7 @@ type checkupTypeResponse struct {
 	ID          uint64    `json:"id"`
 	ClinicID    uint64    `json:"clinic_id"`
 	Name        string    `json:"name"`
-	Price       *float64  `json:"price,omitempty"`
+	Price       *int64    `json:"price,omitempty"`
 	IsActive    bool      `json:"is_active"`
 	Description string    `json:"description"`
 	SortOrder   int       `json:"sort_order"`

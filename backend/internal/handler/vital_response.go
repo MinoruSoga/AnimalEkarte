@@ -9,7 +9,7 @@ import (
 
 type vitalResponse struct {
 	ID              string    `json:"id"`
-	MedicalRecordID string    `json:"medical_record_id"`
+	MedicalRecordID *string   `json:"medical_record_id,omitempty"`
 	RecordedAt      time.Time `json:"recorded_at"`
 	StaffID         *string   `json:"staff_id,omitempty"`
 	Temperature     *float64  `json:"temperature,omitempty"`
@@ -20,10 +20,9 @@ type vitalResponse struct {
 	CreatedAt       time.Time `json:"created_at"`
 }
 
-func toVitalResponse(v *model.Vital) vitalResponse {
+func toVitalResponse(v *model.VitalRecord) vitalResponse {
 	r := vitalResponse{
 		ID:              strconv.FormatUint(v.ID, 10),
-		MedicalRecordID: strconv.FormatUint(v.MedicalRecordID, 10),
 		RecordedAt:      v.RecordedAt,
 		Temperature:     v.Temperature,
 		HeartRate:       v.HeartRate,
@@ -31,6 +30,10 @@ func toVitalResponse(v *model.Vital) vitalResponse {
 		Weight:          v.Weight,
 		Notes:           v.Notes,
 		CreatedAt:       v.CreatedAt,
+	}
+	if v.MedicalRecordID != nil {
+		s := strconv.FormatUint(*v.MedicalRecordID, 10)
+		r.MedicalRecordID = &s
 	}
 	if v.StaffID != nil {
 		s := strconv.FormatUint(*v.StaffID, 10)

@@ -2,7 +2,7 @@ package handler
 
 type createExaminationTypeRequest struct {
 	Name        string   `json:"name"        binding:"required"`
-	Price       *float64 `json:"price"`
+	Price       *int64 `json:"price"`
 	IsActive    bool     `json:"is_active"`
 	Description string   `json:"description"`
 	ParentID    *uint64  `json:"parent_id"`
@@ -11,7 +11,7 @@ type createExaminationTypeRequest struct {
 
 type updateExaminationTypeRequest struct {
 	Name          string   `json:"name"`
-	Price         *float64 `json:"price"`
+	Price         *int64 `json:"price"`
 	IsActive      *bool    `json:"is_active"`
 	Description   string   `json:"description"`
 	ParentID      *uint64  `json:"parent_id"`

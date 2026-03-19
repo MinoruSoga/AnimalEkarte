@@ -13,9 +13,9 @@ import (
 
 // VitalRepository はバイタル記録のデータアクセスインターフェース
 type VitalRepository interface {
-	ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.Vital, error)
-	FindByID(ctx context.Context, id uint64) (*model.Vital, error)
-	Create(ctx context.Context, vital *model.Vital) error
+	ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.VitalRecord, error)
+	FindByID(ctx context.Context, id uint64) (*model.VitalRecord, error)
+	Create(ctx context.Context, vital *model.VitalRecord) error
 	Update(ctx context.Context, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, id uint64) error
 }
@@ -29,8 +29,8 @@ func NewVitalRepository(db *gorm.DB) VitalRepository {
 	return &vitalRepository{db: db}
 }
 
-func (r *vitalRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.Vital, error) {
-	vitals := make([]model.Vital, 0)
+func (r *vitalRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.VitalRecord, error) {
+	vitals := make([]model.VitalRecord, 0)
 	if err := r.db.WithContext(ctx).
 		Where("medical_record_id = ?", medicalRecordID).
 		Order("recorded_at ASC").
@@ -40,8 +40,8 @@ func (r *vitalRepository) ListByMedicalRecordID(ctx context.Context, medicalReco
 	return vitals, nil
 }
 
-func (r *vitalRepository) FindByID(ctx context.Context, id uint64) (*model.Vital, error) {
-	var vital model.Vital
+func (r *vitalRepository) FindByID(ctx context.Context, id uint64) (*model.VitalRecord, error) {
+	var vital model.VitalRecord
 	if err := r.db.WithContext(ctx).First(&vital, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperrors.WrapNotFound("vital", fmt.Sprintf("%d", id))
@@ -51,7 +51,7 @@ func (r *vitalRepository) FindByID(ctx context.Context, id uint64) (*model.Vital
 	return &vital, nil
 }
 
-func (r *vitalRepository) Create(ctx context.Context, vital *model.Vital) error {
+func (r *vitalRepository) Create(ctx context.Context, vital *model.VitalRecord) error {
 	if err := r.db.WithContext(ctx).Create(vital).Error; err != nil {
 		return apperrors.Wrap(err, "create vital")
 	}
@@ -60,7 +60,7 @@ func (r *vitalRepository) Create(ctx context.Context, vital *model.Vital) error 
 
 func (r *vitalRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
-		Model(&model.Vital{}).
+		Model(&model.VitalRecord{}).
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
@@ -75,7 +75,7 @@ func (r *vitalRepository) Update(ctx context.Context, id uint64, fields map[stri
 func (r *vitalRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).
 		Where("id = ?", id).
-		Delete(&model.Vital{})
+		Delete(&model.VitalRecord{})
 	if result.Error != nil {
 		return apperrors.Wrap(result.Error, "delete vital")
 	}

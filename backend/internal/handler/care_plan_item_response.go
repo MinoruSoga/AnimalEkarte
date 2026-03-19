@@ -19,7 +19,7 @@ type carePlanItemResponse struct {
 	MedicineID            *string   `json:"medicine_id,omitempty"`
 	ProcedureID           *string   `json:"procedure_id,omitempty"`
 	HospitalizationPlanID *string   `json:"hospitalization_plan_id,omitempty"`
-	UnitPrice             float64   `json:"unit_price"`
+	UnitPrice             int64     `json:"unit_price"`
 	Category              string    `json:"category"`
 	SortOrder             int       `json:"sort_order"`
 	CreatedAt             time.Time `json:"created_at"`

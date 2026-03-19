@@ -34,9 +34,9 @@ type UpdateVitalInput struct {
 
 // VitalService はバイタル記録のビジネスロジックインターフェース
 type VitalService interface {
-	List(ctx context.Context, medicalRecordID uint64) ([]model.Vital, error)
-	Create(ctx context.Context, medicalRecordID uint64, input *CreateVitalInput) (*model.Vital, error)
-	Update(ctx context.Context, medicalRecordID, vitalID uint64, input *UpdateVitalInput) (*model.Vital, error)
+	List(ctx context.Context, medicalRecordID uint64) ([]model.VitalRecord, error)
+	Create(ctx context.Context, medicalRecordID uint64, input *CreateVitalInput) (*model.VitalRecord, error)
+	Update(ctx context.Context, medicalRecordID, vitalID uint64, input *UpdateVitalInput) (*model.VitalRecord, error)
 	Delete(ctx context.Context, medicalRecordID, vitalID uint64) error
 }
 
@@ -49,13 +49,13 @@ func NewVitalService(repo repository.VitalRepository) VitalService {
 	return &vitalService{repo: repo}
 }
 
-func (s *vitalService) List(ctx context.Context, medicalRecordID uint64) ([]model.Vital, error) {
+func (s *vitalService) List(ctx context.Context, medicalRecordID uint64) ([]model.VitalRecord, error) {
 	return s.repo.ListByMedicalRecordID(ctx, medicalRecordID)
 }
 
-func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input *CreateVitalInput) (*model.Vital, error) {
-	vital := &model.Vital{
-		MedicalRecordID: medicalRecordID,
+func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input *CreateVitalInput) (*model.VitalRecord, error) {
+	vital := &model.VitalRecord{
+		MedicalRecordID: &medicalRecordID,
 		RecordedAt:      input.RecordedAt,
 		StaffID:         input.StaffID,
 		Temperature:     input.Temperature,
@@ -73,13 +73,13 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 	return vital, nil
 }
 
-func (s *vitalService) Update(ctx context.Context, medicalRecordID, vitalID uint64, input *UpdateVitalInput) (*model.Vital, error) {
+func (s *vitalService) Update(ctx context.Context, medicalRecordID, vitalID uint64, input *UpdateVitalInput) (*model.VitalRecord, error) {
 	// 所属確認: このvitalIDがmedicalRecordIDに属しているか検証
 	existing, err := s.repo.FindByID(ctx, vitalID)
 	if err != nil {
 		return nil, err
 	}
-	if existing.MedicalRecordID != medicalRecordID {
+	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
 		return nil, apperrors.WrapNotFound("vital", "not found in medical record")
 	}
 
@@ -102,7 +102,7 @@ func (s *vitalService) Delete(ctx context.Context, medicalRecordID, vitalID uint
 	if err != nil {
 		return err
 	}
-	if existing.MedicalRecordID != medicalRecordID {
+	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
 		return apperrors.WrapNotFound("vital", "not found in medical record")
 	}
 	if err := s.repo.Delete(ctx, vitalID); err != nil {

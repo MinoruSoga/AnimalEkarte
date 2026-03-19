@@ -15,12 +15,11 @@ type CreateTrimmingInput struct {
 	PetID          *uint64
 	StaffID        *uint64
 	CourseID       *uint64
-	Weight         string
 	Status         model.TrimmingStatus
 	StyleRequest   string
-	BW             string
+	BW             *float64
 	BWUnit         model.BodyWeightUnit
-	BT             string
+	BT             *float64
 	UsedShampoo    string
 	UsedRibbon     string
 	Remarks        string
@@ -36,12 +35,11 @@ type UpdateTrimmingInput struct {
 	PetID          *uint64
 	StaffID        *uint64
 	CourseID       *uint64
-	Weight         *string
 	Status         *model.TrimmingStatus
 	StyleRequest   *string
-	BW             *string
+	BW             **float64
 	BWUnit         *model.BodyWeightUnit
-	BT             *string
+	BT             **float64
 	UsedShampoo    *string
 	UsedRibbon     *string
 	Remarks        *string
@@ -89,7 +87,6 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 		PetID:          input.PetID,
 		StaffID:        input.StaffID,
 		CourseID:       input.CourseID,
-		Weight:         input.Weight,
 		Status:         status,
 		StyleRequest:   input.StyleRequest,
 		BW:             input.BW,
@@ -128,9 +125,6 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 	}
 	if input.CourseID != nil {
 		existing.CourseID = input.CourseID
-	}
-	if input.Weight != nil {
-		existing.Weight = *input.Weight
 	}
 	if input.Status != nil {
 		existing.Status = *input.Status

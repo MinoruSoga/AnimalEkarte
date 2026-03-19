@@ -58,7 +58,7 @@ export interface BillingItem {
   billing_id: number /* uint64 */;
   category: ItemCategory;
   name: string;
-  unit_price: number /* float64 */;
+  unit_price: number /* int64 */;
   quantity: number /* float64 */;
   tax_rate: number /* float64 */;
   is_insurance_applicable: boolean;
@@ -69,16 +69,16 @@ export interface BillingItem {
 export interface Payment {
   id: number /* uint64 */;
   billing_id: number /* uint64 */;
-  subtotal: number /* float64 */;
-  tax_total: number /* float64 */;
-  total_amount: number /* float64 */;
+  subtotal: number /* int64 */;
+  tax_total: number /* int64 */;
+  total_amount: number /* int64 */;
   insurance_name: string;
   insurance_ratio: number /* float64 */;
-  insurance_amount: number /* float64 */;
-  discount_amount: number /* float64 */;
-  billing_amount: number /* float64 */;
-  received_amount: number /* float64 */;
-  change_amount: number /* float64 */;
+  insurance_amount: number /* int64 */;
+  discount_amount: number /* int64 */;
+  billing_amount: number /* int64 */;
+  received_amount: number /* int64 */;
+  change_amount: number /* int64 */;
   method: PaymentMethod;
   created_at: string;
   updated_at: string;
@@ -148,7 +148,7 @@ export interface Cage {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   cage_type: CageType;
@@ -163,6 +163,7 @@ export interface Cage {
 
 export interface Checkup {
   id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
   medical_record_id: number /* uint64 */;
   pet_id?: number /* uint64 */;
   checkup_type_id: number /* uint64 */;
@@ -188,7 +189,7 @@ export interface CheckupType {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   interval: string;
@@ -347,7 +348,7 @@ export interface Consultation {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   time_condition: string;
@@ -413,11 +414,11 @@ export interface Estimate {
   title: string;
   owner_id?: number /* uint64 */;
   status: EstimateStatus;
-  subtotal: number /* float64 */;
-  tax_total: number /* float64 */;
-  total_amount: number /* float64 */;
-  insurance_amount: number /* float64 */;
-  discount_amount: number /* float64 */;
+  subtotal: number /* int64 */;
+  tax_total: number /* int64 */;
+  total_amount: number /* int64 */;
+  insurance_amount: number /* int64 */;
+  discount_amount: number /* int64 */;
   valid_until?: string;
   comment: string;
   notes: string;
@@ -440,17 +441,18 @@ export interface EstimateItem {
   estimate_id: number /* uint64 */;
   name: string;
   category: ItemCategory;
-  unit_price: number /* float64 */;
+  unit_price: number /* int64 */;
   quantity: number /* float64 */;
   tax_rate: number /* float64 */;
   discount_rate: number /* float64 */;
-  discount_amount: number /* float64 */;
+  discount_amount: number /* int64 */;
   is_insurance_applicable: boolean;
   consultation_id?: number /* uint64 */;
   procedure_id?: number /* uint64 */;
   medicine_id?: number /* uint64 */;
   sort_order: number /* int */;
   created_at: string;
+  updated_at: string;
   /**
    * Relations
    */
@@ -472,6 +474,7 @@ export const ExaminationResultStatusHigh: ExaminationResultStatus = "high";
 export const ExaminationResultStatusLow: ExaminationResultStatus = "low";
 export interface Examination {
   id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
   medical_record_id: number /* uint64 */;
   pet_id?: number /* uint64 */;
   exam_type_id: number /* uint64 */;
@@ -518,7 +521,7 @@ export interface ExaminationType {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   parent_id?: number /* uint64 */;
@@ -536,8 +539,10 @@ export interface ExaminationTypeItem {
   name: string;
   inspection_value: string;
   normal_value: string;
+  unit: string;
   sort_order: number /* int */;
   created_at: string;
+  updated_at: string;
 }
 
 //////////
@@ -603,7 +608,7 @@ export interface CarePlanItem {
   medicine_id?: number /* uint64 */;
   procedure_id?: number /* uint64 */;
   hospitalization_plan_id?: number /* uint64 */;
-  unit_price: number /* float64 */;
+  unit_price: number /* int64 */;
   category: string;
   sort_order: number /* int */;
   created_at: string;
@@ -622,11 +627,11 @@ export interface TreatmentPlan {
   treatment_content: string;
   memo: string;
   insurance: boolean;
-  unit_price: number /* float64 */;
+  unit_price: number /* int64 */;
   quantity: number /* float64 */;
   discount_rate: number /* float64 */;
-  discount_amount: number /* float64 */;
-  subtotal: number /* float64 */;
+  discount_amount: number /* int64 */;
+  subtotal: number /* int64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -638,6 +643,7 @@ export interface TreatmentPlan {
 }
 export interface DailyRecord {
   id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
   hospitalization_id: number /* uint64 */;
   date: string;
   created_at: string;
@@ -648,22 +654,6 @@ export interface DailyRecord {
   vital_records?: VitalRecord[];
   care_log_records?: CareLogRecord[];
   staff_note_records?: StaffNoteRecord[];
-}
-export interface VitalRecord {
-  id: number /* uint64 */;
-  daily_record_id: number /* uint64 */;
-  time: string;
-  temperature?: number /* float64 */;
-  heart_rate?: number /* int */;
-  respiration_rate?: number /* int */;
-  weight?: number /* float64 */;
-  notes: string;
-  staff_id?: number /* uint64 */;
-  created_at: string;
-  /**
-   * Relations
-   */
-  staff?: Staff;
 }
 export type CareLogType = string;
 export const CareLogTypeFood: CareLogType = "food";
@@ -685,6 +675,7 @@ export interface CareLogRecord {
   staff_id?: number /* uint64 */;
   notes: string;
   created_at: string;
+  updated_at: string;
   /**
    * Relations
    */
@@ -697,6 +688,7 @@ export interface StaffNoteRecord {
   content: string;
   staff_id?: number /* uint64 */;
   created_at: string;
+  updated_at: string;
   /**
    * Relations
    */
@@ -717,7 +709,7 @@ export interface HospitalizationPlan {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   body_size?: BodySize;
@@ -882,7 +874,7 @@ export interface MedicalRecord {
   clinical_plan?: ClinicalPlan;
   inquiry?: Inquiry;
   treatments?: Treatment[];
-  vitals?: Vital[];
+  vitals?: VitalRecord[];
   exams?: Examination[];
   vaccinations?: Vaccination[];
   checkups?: Checkup[];
@@ -910,7 +902,7 @@ export interface Medicine {
   clinic_id: number /* uint64 */;
   name: string;
   parent_id?: number /* uint64 */;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   dosage_form?: DosageForm;
@@ -937,7 +929,7 @@ export interface MerchandiseItem {
   clinic_id: number /* uint64 */;
   name: string;
   category: ItemCategory;
-  unit_price: number /* float64 */;
+  unit_price: number /* int64 */;
   tax_rate: number /* float64 */;
   is_active: boolean;
   sort_order: number /* int */;
@@ -1045,7 +1037,7 @@ export interface Procedure {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   duration?: number /* int */;
@@ -1228,7 +1220,7 @@ export interface Treatment {
   procedure_id?: number /* uint64 */;
   medicine_id?: number /* uint64 */;
   inventory_id?: number /* uint64 */;
-  unit_price: number /* float64 */;
+  unit_price: number /* int64 */;
   quantity: number /* float64 */;
   selected: boolean;
   status: TreatmentStatus;
@@ -1236,7 +1228,7 @@ export interface Treatment {
   memo: string;
   insurance: boolean;
   discount_rate: number /* float64 */;
-  discount_amount: number /* float64 */;
+  discount_amount: number /* int64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -1257,9 +1249,6 @@ export type TrimmingStatus = string;
 export const TrimmingStatusCompleted: TrimmingStatus = "completed";
 export const TrimmingStatusReserved: TrimmingStatus = "reserved";
 export const TrimmingStatusInProgress: TrimmingStatus = "in_progress";
-export type BodyWeightUnit = string;
-export const BodyWeightUnitKg: BodyWeightUnit = "Kg";
-export const BodyWeightUnitG: BodyWeightUnit = "g";
 export interface TrimmingRecord {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -1267,12 +1256,11 @@ export interface TrimmingRecord {
   pet_id?: number /* uint64 */;
   staff_id?: number /* uint64 */;
   course_id?: number /* uint64 */;
-  weight: string;
   status: TrimmingStatus;
   style_request: string;
-  bw: string;
+  bw?: number /* float64 */;
   bw_unit: BodyWeightUnit;
-  bt: string;
+  bt?: number /* float64 */;
   used_shampoo: string;
   used_ribbon: string;
   remarks: string;
@@ -1293,6 +1281,8 @@ export interface TrimmingRecordOption {
   trimming_record_id: number /* uint64 */;
   option_id: number /* uint64 */;
   sort_order: number /* int */;
+  created_at: string;
+  updated_at: string;
 }
 
 //////////
@@ -1307,7 +1297,7 @@ export interface TrimmingCourse {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   target_size?: TargetSize;
@@ -1320,7 +1310,7 @@ export interface TrimmingOption {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   duration?: number /* int */;
@@ -1376,7 +1366,7 @@ export interface Vaccine {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   name: string;
-  price?: number /* float64 */;
+  price?: number /* int64 */;
   is_active: boolean;
   description: string;
   species?: VaccineSpecies;
@@ -1391,23 +1381,26 @@ export interface Vaccine {
 //////////
 // source: vital.go
 
-/**
- * Vital は外来バイタル記録
- */
-export interface Vital {
-  id: number /* uint64 */;
-  medical_record_id: number /* uint64 */;
-  recorded_at: string;
-  staff_id?: number /* uint64 */;
-  temperature?: number /* float64 */;
-  heart_rate?: number /* int */;
-  respiration_rate?: number /* int */;
-  weight?: number /* float64 */;
-  notes: string;
-  created_at: string;
-  /**
-   * Relations
-   */
-  medical_record?: MedicalRecord;
-  staff?: Staff;
+export type BodyWeightUnit = string;
+export const BodyWeightUnitKg: BodyWeightUnit = "Kg";
+export const BodyWeightUnitLbs: BodyWeightUnit = "Lbs";
+export interface VitalRecord {
+  ID: number /* uint64 */;
+  PetID: number /* uint64 */;
+  MedicalRecordID?: number /* uint64 */;
+  DailyRecordID?: number /* uint64 */;
+  RecordedAt: string;
+  StaffID?: number /* uint64 */;
+  Temperature?: number /* float64 */;
+  HeartRate?: number /* int */;
+  RespirationRate?: number /* int */;
+  Weight?: number /* float64 */;
+  WeightUnit: BodyWeightUnit;
+  Notes: string;
+  CreatedAt: string;
+  UpdatedAt: string;
+  Pet?: Pet;
+  MedicalRecord?: MedicalRecord;
+  DailyRecord?: DailyRecord;
+  Staff?: Staff;
 }

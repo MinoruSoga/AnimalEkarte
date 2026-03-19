@@ -10,7 +10,7 @@ type trimmingCourseResponse struct {
 	ID          uint64    `json:"id"`
 	ClinicID    uint64    `json:"clinic_id"`
 	Name        string    `json:"name"`
-	Price       *float64  `json:"price,omitempty"`
+	Price       *int64    `json:"price,omitempty"`
 	IsActive    bool      `json:"is_active"`
 	Description string    `json:"description"`
 	TargetSize  string    `json:"target_size,omitempty"`
@@ -52,7 +52,7 @@ type trimmingOptionResponse struct {
 	ID          uint64    `json:"id"`
 	ClinicID    uint64    `json:"clinic_id"`
 	Name        string    `json:"name"`
-	Price       *float64  `json:"price,omitempty"`
+	Price       *int64    `json:"price,omitempty"`
 	IsActive    bool      `json:"is_active"`
 	Description string    `json:"description"`
 	Duration    *int      `json:"duration,omitempty"`

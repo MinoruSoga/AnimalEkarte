@@ -11,7 +11,7 @@ type billingItemResponse struct {
 	BillingID             uint64    `json:"billing_id"`
 	Category              string    `json:"category"`
 	Name                  string    `json:"name"`
-	UnitPrice             float64   `json:"unit_price"`
+	UnitPrice             int64     `json:"unit_price"`
 	Quantity              float64   `json:"quantity"`
 	TaxRate               float64   `json:"tax_rate"`
 	IsInsuranceApplicable bool      `json:"is_insurance_applicable"`
@@ -23,16 +23,16 @@ type billingItemResponse struct {
 type paymentResponse struct {
 	ID              uint64    `json:"id"`
 	BillingID       uint64    `json:"billing_id"`
-	Subtotal        float64   `json:"subtotal"`
-	TaxTotal        float64   `json:"tax_total"`
-	TotalAmount     float64   `json:"total_amount"`
+	Subtotal        int64     `json:"subtotal"`
+	TaxTotal        int64     `json:"tax_total"`
+	TotalAmount     int64     `json:"total_amount"`
 	InsuranceName   string    `json:"insurance_name"`
 	InsuranceRatio  float64   `json:"insurance_ratio"`
-	InsuranceAmount float64   `json:"insurance_amount"`
-	DiscountAmount  float64   `json:"discount_amount"`
-	BillingAmount   float64   `json:"billing_amount"`
-	ReceivedAmount  float64   `json:"received_amount"`
-	ChangeAmount    float64   `json:"change_amount"`
+	InsuranceAmount int64     `json:"insurance_amount"`
+	DiscountAmount  int64     `json:"discount_amount"`
+	BillingAmount   int64     `json:"billing_amount"`
+	ReceivedAmount  int64     `json:"received_amount"`
+	ChangeAmount    int64     `json:"change_amount"`
 	Method          string    `json:"method"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`

@@ -27,7 +27,7 @@ const (
 type CreateMerchandiseItemInput struct {
 	Name      string
 	Category  string
-	UnitPrice float64
+	UnitPrice int64
 	TaxRate   float64
 	IsActive  bool
 	SortOrder int
@@ -37,7 +37,7 @@ type CreateMerchandiseItemInput struct {
 type UpdateMerchandiseItemInput struct {
 	Name      *string
 	Category  *string
-	UnitPrice *float64
+	UnitPrice *int64
 	TaxRate   *float64
 	IsActive  *bool
 	SortOrder *int

@@ -1,13 +1,26 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v21.0（全テーブルのMermaidダイアグラムを完全版に更新）
-更新日: 2026-03-15
+バージョン: v22.0（migration との差分同期）
+更新日: 2026-03-19
 状態: Production Ready
 
 本ドキュメントは、Animal Ekarteの全55テーブルとそのリレーションを定義します。
 PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 
 ---
+
+## 変更概要（v21.0 → v22.0）
+
+| 変更内容 | 詳細 |
+|---------|------|
+| checkups・exams・daily_records に clinic_id FK 追加 | migration との差分同期。mermaid図・詳細テーブル・FK関係一覧を更新 |
+| exam_type_items に unit・updated_at 追加 | migration との差分同期 |
+| user_permissions に UNIQUE制約コメント追加 | (user_id, clinic_id, permission) UNIQUE 制約を明記 |
+| vital_records に updated_at 追加、CHECK制約詳細を記載 | migration との差分同期 |
+| care_log_records・staff_note_records・estimate_items に updated_at 追加 | migration との差分同期 |
+| trimming_record_options に created_at・updated_at 追加 | migration との差分同期 |
+| 金額型 numeric → integer に統一 | treatments, treatment_plans, estimates, estimate_items, billing_items, care_plan_items, マスタテーブルの price カラム |
+| vaccinations・trimming_records・checkups・exams の pet_id FK: SET NULL → RESTRICT | migration との差分同期 |
 
 ## 変更概要（v20.0 → v21.0）
 
@@ -121,7 +134,7 @@ PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 | `examination_types` → `exam_types` | 検査種別マスタ |
 | `examination_type_items` → `exam_type_items` | 検査項目定義マスタ |
 | `treatment_items` → `treatments` | 治療項目 |
-| `vital_entries` → `vitals` | バイタル（外来） |
+| `vital_entries` / `vitals` → `vital_records` | バイタル記録（外来・入院統合） |
 | `vaccination_records` → `vaccinations` | 予防接種記録 |
 | `checkup_records` → `checkups` | 健診記録 |
 | `accountings` → `billings` | 会計 |
@@ -167,7 +180,7 @@ v10.0 にて24テーブルへの `clinic_id` 追加完了（003_add_clinic_id.sq
 | 見積書 | `estimates` + `estimate_items` | v7.0追加 |
 | 会計（医師確認） | `billing_reviews` | v7.0追加 |
 | 会計情報 | `billings` + `billing_items` + `payments` | 既存 |
-| 生体情報 | `vitals` | 既存 |
+| 生体情報 | `vital_records` | 外来・入院統合 |
 | ペット情報 | `pets`（参照） | 既存 |
 
 ---
@@ -208,7 +221,7 @@ v10.0 にて24テーブルへの `clinic_id` 追加完了（003_add_clinic_id.sq
 | 30 | `clinical_plans` | 診療 | 診察所見・診断・治療方針（診察/治療タブ） |
 | 31 | `inquiries` | 診療 | 問診情報（カルテ問診タブ） |
 | 32 | `treatments` | 診療 | 処置・診察・薬剤明細 |
-| 33 | `vitals` | 診療 | バイタル記録（外来） |
+| 33 | `vital_records` | 診療・入院 | バイタル記録（外来・入院統合） |
 | 34 | `exams` | 診療 | 検査記録 |
 | 35 | `exam_items` | 診療 | 検査記録の検査結果項目 |
 | 36 | `vaccinations` | 診療 | ワクチン接種記録 |
@@ -222,7 +235,7 @@ v10.0 にて24テーブルへの `clinic_id` 追加完了（003_add_clinic_id.sq
 | 44 | `daily_records` | 入院 | 入院日次記録 |
 | 45 | `care_plan_items` | 入院 | ケアプラン項目 |
 | 46 | `care_log_records` | 入院 | ケアログ |
-| 47 | `vital_records` | 入院 | バイタル記録（入院） |
+| 47 | （`vitals` と統合 → `vital_records`） | - | - |
 | 48 | `staff_note_records` | 入院 | スタッフノート |
 | 49 | `treatment_plans` | 診療 | 治療プラン（外来・入院共用） |
 | 50 | `trimming_records` | トリミング | トリミング記録 |
@@ -302,7 +315,7 @@ erDiagram
         uuid id PK
         uuid user_id FK
         uuid clinic_id FK
-        permission_type permission
+        permission_type permission "UK: user_id+clinic_id+permission"
         uuid granted_by FK
         timestamptz granted_at
     }
@@ -418,7 +431,7 @@ erDiagram
         text name
         bigint parent_id FK
         boolean is_active
-        numeric price
+        integer price
         text description
         integer sort_order
         timestamptz created_at
@@ -432,7 +445,9 @@ erDiagram
         integer sort_order
         text inspection_value
         text normal_value
+        text unit
         timestamptz created_at
+        timestamptz updated_at
     }
 
     vaccines {
@@ -443,7 +458,7 @@ erDiagram
         boolean is_active
         vaccine_species species
         uuid inventory_id FK
-        numeric price
+        integer price
         text description
         text interval
         integer sort_order
@@ -459,7 +474,7 @@ erDiagram
         boolean is_active
         dosage_form dosage_form
         uuid inventory_id FK
-        numeric price
+        integer price
         text description
         medicine_unit medicine_unit
         integer default_quantity
@@ -488,7 +503,7 @@ erDiagram
         boolean is_active
         cage_type cage_type
         cage_size cage_size
-        numeric price
+        integer price
         text description
         integer sort_order
         timestamptz created_at
@@ -513,7 +528,7 @@ erDiagram
         text name
         bigint parent_id FK
         boolean is_active
-        numeric price
+        integer price
         text description
         text time_condition
         integer duration
@@ -529,7 +544,7 @@ erDiagram
         bigint parent_id FK
         boolean is_active
         anesthesia_type anesthesia
-        numeric price
+        integer price
         text description
         integer duration
         integer sort_order
@@ -544,7 +559,7 @@ erDiagram
         boolean is_active
         body_size body_size
         billing_unit billing_unit
-        numeric price
+        integer price
         text description
         integer sort_order
         timestamptz created_at
@@ -557,7 +572,7 @@ erDiagram
         text name
         boolean is_active
         target_size target_size
-        numeric price
+        integer price
         text description
         integer duration
         integer sort_order
@@ -571,7 +586,7 @@ erDiagram
         text name
         boolean is_active
         boolean combinable
-        numeric price
+        integer price
         text description
         integer duration
         integer sort_order
@@ -609,7 +624,7 @@ erDiagram
         bigint parent_id FK
         boolean is_active
         text interval
-        numeric price
+        integer price
         text description
         text target_age
         integer sort_order
@@ -677,7 +692,7 @@ erDiagram
         uuid procedure_id FK
         uuid medicine_id FK
         uuid inventory_id FK
-        numeric unit_price
+        integer unit_price
         integer quantity
         boolean selected
         treatment_status status
@@ -685,27 +700,32 @@ erDiagram
         text memo
         boolean insurance
         numeric discount_rate
-        numeric discount_amount
+        integer discount_amount
         integer sort_order
         timestamptz deleted_at
     }
 
-    vitals {
+    vital_records {
         uuid id PK
-        uuid medical_record_id FK
+        uuid pet_id FK
+        uuid medical_record_id FK "外来時"
+        uuid daily_record_id FK "入院時"
         timestamptz recorded_at
         uuid staff_id FK
         numeric temperature
         integer heart_rate
-        numeric weight
         integer respiration_rate
+        numeric weight
+        body_weight_unit weight_unit
         text notes
         timestamptz created_at
+        timestamptz updated_at
     }
 
     exams {
         uuid id PK
         uuid medical_record_id FK
+        uuid clinic_id FK
         uuid pet_id FK
         uuid exam_type_id FK
         uuid doctor_id FK
@@ -758,6 +778,7 @@ erDiagram
     checkups {
         uuid id PK
         uuid medical_record_id FK
+        uuid clinic_id FK
         uuid pet_id FK
         uuid checkup_type_id FK
         date date
@@ -815,11 +836,11 @@ erDiagram
         text title
         uuid owner_id FK
         estimate_status status
-        numeric subtotal
-        numeric tax_total
-        numeric total_amount
-        numeric insurance_amount
-        numeric discount_amount
+        integer subtotal
+        integer tax_total
+        integer total_amount
+        integer insurance_amount
+        integer discount_amount
         date valid_until
         text comment
         text notes
@@ -834,17 +855,18 @@ erDiagram
         uuid estimate_id FK
         text name
         item_category category
-        numeric unit_price
+        integer unit_price
         integer quantity
         numeric tax_rate
         numeric discount_rate
-        numeric discount_amount
+        integer discount_amount
         boolean is_insurance_applicable
         uuid consultation_id FK
         uuid procedure_id FK
         uuid medicine_id FK
         integer sort_order
         timestamptz created_at
+        timestamptz updated_at
     }
 
     billing_reviews {
@@ -903,6 +925,7 @@ erDiagram
     daily_records {
         uuid id PK
         uuid hospitalization_id FK
+        uuid clinic_id FK
         date date
         timestamptz created_at
         timestamptz updated_at
@@ -920,7 +943,7 @@ erDiagram
         text name
         text description
         text notes
-        numeric unit_price
+        integer unit_price
         item_category category
         integer sort_order
         timestamptz created_at
@@ -937,27 +960,17 @@ erDiagram
         text value
         text notes
         timestamptz created_at
-    }
-
-    vital_records {
-        uuid id PK
-        uuid daily_record_id FK
-        time time
-        uuid staff_id FK
-        numeric temperature
-        integer heart_rate
-        integer respiration_rate
-        numeric weight
-        text notes
-        timestamptz created_at
+        timestamptz updated_at
     }
 
     staff_note_records {
         uuid id PK
         uuid daily_record_id FK
-        text time
+        time time
         uuid staff_id FK
         text content
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     treatment_plans {
@@ -965,13 +978,13 @@ erDiagram
         uuid medical_record_id FK
         uuid hospitalization_id FK
         text treatment_content
-        numeric unit_price
+        integer unit_price
         integer quantity
         text memo
         boolean insurance
         numeric discount_rate
-        numeric discount_amount
-        numeric subtotal
+        integer discount_amount
+        integer subtotal
         integer sort_order
         timestamptz created_at
         timestamptz updated_at
@@ -987,13 +1000,12 @@ erDiagram
         uuid staff_id FK
         uuid course_id FK
         trimming_status status
-        numeric weight
         text style_request
-        text bw
-        text bw_unit
-        numeric bt
-        boolean used_shampoo
-        boolean used_ribbon
+        numeric bw "体重"
+        body_weight_unit bw_unit
+        numeric bt "体温(℃)"
+        text used_shampoo
+        text used_ribbon
         text remarks
         text style_image
         text completed_image
@@ -1007,6 +1019,8 @@ erDiagram
         uuid trimming_record_id FK
         uuid option_id FK
         integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     %% ===== 会計 =====
@@ -1035,7 +1049,7 @@ erDiagram
         uuid billing_id FK
         item_category category
         text name
-        numeric unit_price
+        integer unit_price
         integer quantity
         numeric tax_rate
         boolean is_insurance_applicable
@@ -1048,17 +1062,17 @@ erDiagram
     payments {
         uuid id PK
         uuid billing_id FK
-        numeric total_amount
-        numeric billing_amount
+        integer total_amount
+        integer billing_amount
         payment_method method
-        numeric subtotal
-        numeric tax_total
+        integer subtotal
+        integer tax_total
         text insurance_name
-        numeric insurance_ratio
-        numeric insurance_amount
-        numeric discount_amount
-        numeric received_amount
-        numeric change_amount
+        numeric insurance_ratio "小数(0.7等)"
+        integer insurance_amount
+        integer discount_amount
+        integer received_amount
+        integer change_amount
         timestamptz created_at
         timestamptz updated_at
     }
@@ -1117,8 +1131,9 @@ erDiagram
     medicines ||--o{ treatments : "medicine_id"
     inventory_items ||--o{ treatments : "inventory_id"
 
-    medical_records ||--o{ vitals : "medical_record_id"
-    staffs ||--o{ vitals : "staff_id"
+    pets ||--o{ vital_records : "pet_id"
+    medical_records ||--o{ vital_records : "medical_record_id"
+    staffs ||--o{ vital_records : "staff_id"
 
     medical_records ||--o{ exams : "medical_record_id"
     pets ||--o{ exams : "pet_id"
@@ -1177,7 +1192,6 @@ erDiagram
     daily_records ||--o{ staff_note_records : "daily_record_id"
 
     staffs ||--o{ care_log_records : "staff_id"
-    staffs ||--o{ vital_records : "staff_id"
     staffs ||--o{ staff_note_records : "staff_id"
 
     medicines ||--o{ care_plan_items : "medicine_id"
@@ -1202,7 +1216,10 @@ erDiagram
     %% シフト
     staffs ||--o{ shift_entries : "staff_id"
 
-    %% clinic_id マルチテナント（v10.0）
+    %% clinic_id マルチテナント（v10.0 + v22.0追加分）
+    clinics ||--o{ checkups : "clinic_id"
+    clinics ||--o{ exams : "clinic_id"
+    clinics ||--o{ daily_records : "clinic_id"
     clinics ||--o{ medical_records : "clinic_id"
     clinics ||--o{ owners : "clinic_id"
     clinics ||--o{ pets : "clinic_id"
@@ -1410,6 +1427,8 @@ erDiagram
 - `clinic_id` → `clinics.id` (RESTRICT)
 - `granted_by` → `user_accounts.id` (SET NULL)
 
+**UNIQUE制約:** `(user_id, clinic_id, permission)` — 同一ユーザー・医院・権限の重複登録防止
+
 ---
 
 ### コア
@@ -1600,7 +1619,7 @@ erDiagram
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 検査種別名 |
 | parent_id | bigint | YES | NULL | 親検査種別ID FK → exam_types(id) SET NULL |
-| price | numeric | YES | | 価格 |
+| price | integer | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | sort_order | integer | YES | 0 | 並び順 |
@@ -1626,8 +1645,10 @@ erDiagram
 | name | text | NO | | 検査項目名 |
 | inspection_value | text | YES | '' | 検査値（テンプレート） |
 | normal_value | text | YES | '' | 正常値 |
+| unit | text | YES | '' | 単位 |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:** `exam_type_id` → `exam_types.id` (CASCADE)
 
@@ -1643,7 +1664,7 @@ erDiagram
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | ワクチン名 |
 | parent_id | bigint | YES | NULL | 親ワクチンID FK → vaccines(id) SET NULL |
-| price | numeric | YES | | 価格 |
+| price | integer | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | species | vaccine_species | YES | | 対象動物種 |
@@ -1672,7 +1693,7 @@ erDiagram
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 薬剤名 |
 | parent_id | bigint | YES | NULL | 親薬剤ID（カテゴリ medicine を参照）FK → medicines(id) SET NULL |
-| price | numeric | YES | | 価格 |
+| price | integer | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | dosage_form | dosage_form | YES | | 剤形 |
@@ -1725,7 +1746,7 @@ erDiagram
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | ケージ名 |
-| price | numeric | YES | | 価格 |
+| price | integer | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | cage_type | cage_type | NO | | ケージ種別 |
@@ -1774,7 +1795,7 @@ erDiagram
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 診察項目名 |
 | parent_id | bigint | YES | NULL | 親診察項目ID FK → consultations(id) SET NULL |
-| price | numeric | YES | | 価格 |
+| price | integer | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | time_condition | text | YES | '' | 時間条件 |
@@ -1801,7 +1822,7 @@ erDiagram
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 処置項目名 |
 | parent_id | bigint | YES | NULL | 親処置項目ID FK → procedures(id) SET NULL |
-| price | numeric | YES | | 価格 |
+| price | integer | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | duration | integer | YES | | 所要時間目安(分) |
@@ -1827,7 +1848,7 @@ erDiagram
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | プラン名 |
-| price | numeric | YES | | 価格 |
+| price | integer | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | body_size | body_size | YES | | 体格区分 |
@@ -1852,7 +1873,7 @@ erDiagram
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | コース名 |
-| price | numeric | YES | | 価格 |
+| price | integer | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | target_size | target_size | YES | | 対象サイズ |
@@ -1877,7 +1898,7 @@ erDiagram
 | id | uuid | NO | uuid_generate_v4() | PK |
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | オプション名 |
-| price | numeric | YES | | 価格 |
+| price | integer | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | duration | integer | YES | | 追加所要時間(分) |
@@ -1949,7 +1970,7 @@ erDiagram
 | clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 健診種別名 |
 | parent_id | bigint | YES | NULL | 親健診種別ID FK → checkup_types(id) SET NULL |
-| price | numeric | YES | | 価格 |
+| price | integer | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
 | interval | text | YES | '' | 推奨間隔 |
@@ -2121,10 +2142,10 @@ erDiagram
 | content | text | NO | '' | 内容 |
 | memo | text | YES | '' | メモ |
 | insurance | boolean | YES | false | 保険適用フラグ |
-| unit_price | numeric | YES | 0 | 単価 |
+| unit_price | integer | YES | 0 | 単価 |
 | quantity | integer | YES | 1 | 数量 |
 | discount_rate | numeric | YES | 0 | 割引率 |
-| discount_amount | numeric | YES | 0 | 割引額 |
+| discount_amount | integer | YES | 0 | 割引額 |
 | inventory_id | uuid | YES | | inventory_items.id FK |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
@@ -2142,25 +2163,37 @@ erDiagram
 
 ---
 
-#### `vitals`
+#### `vital_records`
 
-用途: 外来診療時のバイタル記録（体温・心拍数・体重等）。カルテに紐づく。
+用途: バイタル記録（外来・入院統合）。`pet_id` を主軸に、外来時は `medical_record_id`、入院時は `daily_record_id` を持つ。
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| medical_record_id | uuid | NO | | medical_records.id FK |
+| id | bigint | NO | BIGSERIAL | PK |
+| pet_id | bigint | NO | | pets.id FK |
+| medical_record_id | bigint | YES | | medical_records.id FK（外来時） |
+| daily_record_id | bigint | YES | | daily_records.id FK（入院時） |
 | recorded_at | timestamptz | NO | now() | 測定日時 |
-| staff_id | uuid | YES | | staffs.id FK |
+| staff_id | bigint | YES | | staffs.id FK |
 | temperature | numeric | YES | | 体温（℃） |
 | heart_rate | integer | YES | | 心拍数（bpm） |
 | respiration_rate | integer | YES | | 呼吸数（回/分） |
 | weight | numeric | YES | | 体重（kg） |
-| notes | text | YES | '' | 備考 |
-| created_at | timestamptz | YES | now() | 作成日時 |
+| notes | text | NO | '' | 備考 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
+
+**CHECK制約:**
+- `(medical_record_id IS NOT NULL) OR (daily_record_id IS NOT NULL)` — 外来か入院どちらか必須
+- `chk_vital_temperature` — temperature IS NULL OR (temperature >= 30.0 AND temperature <= 50.0)
+- `chk_vital_heart_rate` — heart_rate IS NULL OR (heart_rate > 0 AND heart_rate < 500)
+- `chk_vital_respiration` — respiration_rate IS NULL OR (respiration_rate > 0 AND respiration_rate < 200)
+- `chk_vital_weight` — weight IS NULL OR weight > 0
 
 **FK:**
+- `pet_id` → `pets.id` (CASCADE)
 - `medical_record_id` → `medical_records.id` (CASCADE)
+- `daily_record_id` → `daily_records.id` (CASCADE)
 - `staff_id` → `staffs.id` (SET NULL)
 
 ---
@@ -2173,6 +2206,7 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | medical_record_id | uuid | NO  | | medical_records.id FK |
+| clinic_id | uuid | NO | | clinics.id FK（所属医院） |
 | pet_id | uuid | YES | | pets.id FK（ペット単位検索用。medical_record_id 経由でも辿れるが、JOIN 削減のため意図的に保持） |
 | date | date | NO | | 検査日 |
 | exam_type_id | uuid | NO | | exam_types.id FK |
@@ -2186,7 +2220,8 @@ erDiagram
 
 **FK:**
 - `medical_record_id` → `medical_records.id` (CASCADE)
-- `pet_id` → `pets.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
+- `pet_id` → `pets.id` (RESTRICT)
 - `exam_type_id` → `exam_types.id` (RESTRICT)
 - `doctor_id` → `staffs.id` (SET NULL)
 
@@ -2245,7 +2280,7 @@ erDiagram
 
 **FK:**
 - `medical_record_id` → `medical_records.id` (CASCADE)
-- `pet_id` → `pets.id` (SET NULL)
+- `pet_id` → `pets.id` (RESTRICT)
 - `vaccine_id` → `vaccines.id` (RESTRICT)
 - `doctor_id` → `staffs.id` (SET NULL)
 
@@ -2259,6 +2294,7 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | medical_record_id | uuid | NO  | | medical_records.id FK |
+| clinic_id | uuid | NO | | clinics.id FK（所属医院） |
 | pet_id | uuid | YES | | pets.id FK（ペット単位検索用。medical_record_id 経由でも辿れるが、JOIN 削減のため意図的に保持） |
 | checkup_type_id | uuid | NO | | checkup_types.id FK |
 | date | date | NO | | 健診日 |
@@ -2271,7 +2307,8 @@ erDiagram
 
 **FK:**
 - `medical_record_id` → `medical_records.id` (CASCADE)
-- `pet_id` → `pets.id` (SET NULL)
+- `clinic_id` → `clinics.id` (RESTRICT)
+- `pet_id` → `pets.id` (RESTRICT)
 - `checkup_type_id` → `checkup_types.id` (RESTRICT)
 - `doctor_id` → `staffs.id` (SET NULL)
 
@@ -2318,11 +2355,11 @@ erDiagram
 | title | text | YES | '' | 件名 |
 | owner_id | uuid | YES | - | FK → owners(id) SET NULL |
 | status | estimate_status | YES | 'draft' | draft/sent/approved/rejected |
-| subtotal | numeric | NO | 0 | 小計 |
-| tax_total | numeric | NO | 0 | 税合計 |
-| total_amount | numeric | NO | 0 | 合計金額 |
-| insurance_amount | numeric | YES | 0 | 保険適用額 |
-| discount_amount | numeric | YES | 0 | 値引き額 |
+| subtotal | integer | NO | 0 | 小計 |
+| tax_total | integer | NO | 0 | 税合計 |
+| total_amount | integer | NO | 0 | 合計金額 |
+| insurance_amount | integer | YES | 0 | 保険適用額 |
+| discount_amount | integer | YES | 0 | 値引き額 |
 | valid_until | date | YES | - | 有効期限 |
 | comment | text | YES | '' | コメント |
 | notes | text | YES | '' | 備考 |
@@ -2347,17 +2384,18 @@ erDiagram
 | estimate_id | uuid | NO | - | FK → estimates(id) CASCADE |
 | name | text | NO | '' | 項目名 |
 | category | item_category | NO | - | 区分 |
-| unit_price | numeric | NO | 0 | 単価 |
+| unit_price | integer | NO | 0 | 単価 |
 | quantity | integer | NO | 1 | 数量 |
 | tax_rate | numeric | YES | 0.10 | 税率 |
 | discount_rate | numeric | YES | 0 | 割引率 |
-| discount_amount | numeric | YES | 0 | 値引額 |
+| discount_amount | integer | YES | 0 | 値引額 |
 | is_insurance_applicable | boolean | YES | false | 保険適用可否 |
 | consultation_id | uuid | YES | - | FK → consultations(id) SET NULL |
 | procedure_id | uuid | YES | - | FK → procedures(id) SET NULL |
 | medicine_id | uuid | YES | - | FK → medicines(id) SET NULL |
 | sort_order | integer | YES | 0 | 表示順 |
 | created_at | timestamptz | YES | now() | |
+| updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK**: estimate_id → estimates(id) CASCADE, consultation_id → consultations(id) SET NULL, procedure_id → procedures(id) SET NULL, medicine_id → medicines(id) SET NULL
 
@@ -2472,11 +2510,14 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | uuid | NO | uuid_generate_v4() | PK |
 | hospitalization_id | uuid | NO | | hospitalizations.id FK |
+| clinic_id | uuid | NO | | clinics.id FK（所属医院） |
 | date | date | NO | | 日付 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
-**FK:** `hospitalization_id` → `hospitalizations.id` (CASCADE)
+**FK:**
+- `hospitalization_id` → `hospitalizations.id` (CASCADE)
+- `clinic_id` → `clinics.id` (RESTRICT)
 
 **インデックス:** `(hospitalization_id, date)` UNIQUE
 
@@ -2499,7 +2540,7 @@ erDiagram
 | medicine_id | uuid | YES | | medicines.id FK |
 | procedure_id | uuid | YES | | procedures.id FK |
 | hospitalization_plan_id | uuid | YES | | hospitalization_plans.id FK |
-| unit_price | numeric | YES | 0 | 単価 |
+| unit_price | integer | YES | 0 | 単価 |
 | category | text | YES | '' | カテゴリ |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
@@ -2530,29 +2571,7 @@ erDiagram
 | staff_id | uuid | YES | | staffs.id FK |
 | notes | text | YES | '' | 備考 |
 | created_at | timestamptz | YES | now() | 作成日時 |
-
-**FK:**
-- `daily_record_id` → `daily_records.id` (CASCADE)
-- `staff_id` → `staffs.id` (SET NULL)
-
----
-
-#### `vital_records`
-
-用途: 入院中のバイタル記録（日次記録に紐づく）。
-
-| カラム名 | 型 | NULL | デフォルト | 説明 |
-|---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| daily_record_id | uuid | NO | | daily_records.id FK |
-| time | time | NO | | 測定時刻 |
-| temperature | numeric | YES | | 体温（℃） |
-| heart_rate | integer | YES | | 心拍数（bpm） |
-| respiration_rate | integer | YES | | 呼吸数（回/分） |
-| weight | numeric | YES | | 体重（kg） |
-| notes | text | YES | '' | 備考 |
-| staff_id | uuid | YES | | staffs.id FK |
-| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
 - `daily_record_id` → `daily_records.id` (CASCADE)
@@ -2572,6 +2591,7 @@ erDiagram
 | content | text | NO | '' | 内容 |
 | staff_id | uuid | YES | | staffs.id FK |
 | created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
 - `daily_record_id` → `daily_records.id` (CASCADE)
@@ -2591,11 +2611,11 @@ erDiagram
 | treatment_content | text | NO | '' | 治療内容 |
 | memo | text | YES | '' | メモ |
 | insurance | boolean | YES | false | 保険適用フラグ |
-| unit_price | numeric | YES | 0 | 単価 |
+| unit_price | integer | YES | 0 | 単価 |
 | quantity | integer | YES | 1 | 数量 |
 | discount_rate | numeric | YES | 0 | 割引率 |
-| discount_amount | numeric | YES | 0 | 割引額 |
-| subtotal | numeric | YES | 0 | 小計 |
+| discount_amount | integer | YES | 0 | 割引額 |
+| subtotal | integer | YES | 0 | 小計 |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
@@ -2642,7 +2662,7 @@ erDiagram
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
-- `pet_id` → `pets.id` (SET NULL)
+- `pet_id` → `pets.id` (RESTRICT)
 - `staff_id` → `staffs.id` (SET NULL)
 - `course_id` → `trimming_courses.id` (SET NULL)
 
@@ -2660,6 +2680,8 @@ erDiagram
 | trimming_record_id | uuid | NO | | trimming_records.id FK |
 | option_id | uuid | NO | | trimming_options.id FK |
 | sort_order | integer | YES | 0 | 並び順 |
+| created_at | timestamptz | YES | now() | 作成日時 |
+| updated_at | timestamptz | YES | now() | 更新日時 |
 
 **FK:**
 - `trimming_record_id` → `trimming_records.id` (CASCADE)
@@ -2718,7 +2740,7 @@ erDiagram
 | billing_id | uuid | NO | | billings.id FK |
 | category | item_category | NO | | 明細カテゴリ |
 | name | text | NO | '' | 項目名 |
-| unit_price | numeric | NO | 0 | 単価 |
+| unit_price | integer | NO | 0 | 単価 |
 | quantity | integer | NO | 1 | 数量 |
 | tax_rate | numeric | YES | 0.10 | 税率 |
 | is_insurance_applicable | boolean | YES | false | 保険適用フラグ |
@@ -2873,14 +2895,16 @@ FK なし（システム共通マスタ）
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
 | checkup_type_id | checkup_types.id | RESTRICT |
+| clinic_id | clinics.id | RESTRICT |
 | doctor_id | staffs.id | SET NULL |
 | medical_record_id | medical_records.id | CASCADE |
-| pet_id | pets.id | SET NULL |
+| pet_id | pets.id | RESTRICT |
 
 ### daily_records
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
+| clinic_id | clinics.id | RESTRICT |
 | hospitalization_id | hospitalizations.id | CASCADE |
 
 ### diagnosis_names
@@ -2901,10 +2925,11 @@ FK なし（システム共通マスタ）
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
+| clinic_id | clinics.id | RESTRICT |
 | doctor_id | staffs.id | SET NULL |
 | exam_type_id | exam_types.id | RESTRICT |
 | medical_record_id | medical_records.id | CASCADE |
-| pet_id | pets.id | SET NULL |
+| pet_id | pets.id | RESTRICT |
 
 ### exam_type_items
 
@@ -3017,7 +3042,7 @@ FK なし（システム共通マスタ）
 | ----------- | ------- | -------- |
 | clinic_id | clinics.id | RESTRICT |
 | course_id | trimming_courses.id | RESTRICT |
-| pet_id | pets.id | SET NULL |
+| pet_id | pets.id | RESTRICT |
 | staff_id | staffs.id | RESTRICT |
 
 ### cages
@@ -3156,22 +3181,18 @@ FK なし（システム共通マスタ）
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
+| clinic_id | clinics.id | RESTRICT |
 | doctor_id | staffs.id | SET NULL |
 | medical_record_id | medical_records.id | CASCADE |
-| pet_id | pets.id | SET NULL |
+| pet_id | pets.id | RESTRICT |
 | vaccine_id | vaccines.id | RESTRICT |
-
-### vitals
-
-| FK元カラム | 参照先 | 削除時 |
-| ----------- | ------- | -------- |
-| medical_record_id | medical_records.id | CASCADE |
-| staff_id | staffs.id | SET NULL |
 
 ### vital_records
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
+| pet_id | pets.id | CASCADE |
+| medical_record_id | medical_records.id | CASCADE |
 | daily_record_id | daily_records.id | CASCADE |
 | staff_id | staffs.id | SET NULL |
 
@@ -3219,7 +3240,9 @@ FK なし（システム共通マスタ）
 ```sql
 -- medical_records 子テーブル FK インデックス
 CREATE INDEX idx_treatments_medical_record_id ON treatments(medical_record_id);
-CREATE INDEX idx_vitals_medical_record_id ON vitals(medical_record_id);
+CREATE INDEX idx_vital_records_pet_id ON vital_records(pet_id);
+CREATE INDEX idx_vital_records_medical_record_id ON vital_records(medical_record_id);
+CREATE INDEX idx_vital_records_daily_record_id ON vital_records(daily_record_id);
 CREATE INDEX idx_exams_medical_record_id ON exams(medical_record_id);
 CREATE INDEX idx_exams_pet_id ON exams(pet_id);
 CREATE INDEX idx_vaccinations_medical_record_id ON vaccinations(medical_record_id);
@@ -3252,7 +3275,7 @@ CREATE INDEX idx_reservation_appointments_doctor_id ON reservation_appointments(
 
 -- 担当医 FK インデックス（staffs）
 CREATE INDEX idx_treatments_doctor_id ON treatments(doctor_id);
-CREATE INDEX idx_vitals_staff_id ON vitals(staff_id);
+CREATE INDEX idx_vital_records_staff_id ON vital_records(staff_id);
 CREATE INDEX idx_trimming_records_staff_id ON trimming_records(staff_id);
 ```
 
@@ -3343,7 +3366,7 @@ CREATE INDEX idx_trimming_records_clinic_date
 |------------------|------------|-----------|
 | GET /medical-records/:id | medical_records + inquiries + clinical_plans | 初期表示（必須） |
 | GET /medical-records/:id/treatments | treatment_plans + treatments | Tab2/3 開時 |
-| GET /medical-records/:id/vitals | vitals | Tab1 詳細展開時 |
+| GET /medical-records/:id/vitals | vital_records | Tab1 詳細展開時 |
 | GET /medical-records/:id/exams | exams + exam_items | Tab4 開時 |
 | GET /medical-records/:id/billing | estimates + billing_reviews | Tab7/8 開時 |
 

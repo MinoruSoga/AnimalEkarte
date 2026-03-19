@@ -27,11 +27,11 @@ type CreateEstimateInput struct {
 	Title           string
 	OwnerID         *uint64
 	Status          model.EstimateStatus
-	Subtotal        float64
-	TaxTotal        float64
-	TotalAmount     float64
-	InsuranceAmount float64
-	DiscountAmount  float64
+	Subtotal        int64
+	TaxTotal        int64
+	TotalAmount     int64
+	InsuranceAmount int64
+	DiscountAmount  int64
 	ValidUntil      *time.Time
 	Comment         string
 	Notes           string
@@ -42,11 +42,11 @@ type CreateEstimateInput struct {
 type UpdateEstimateInput struct {
 	Title           *string
 	Status          *model.EstimateStatus
-	Subtotal        *float64
-	TaxTotal        *float64
-	TotalAmount     *float64
-	InsuranceAmount *float64
-	DiscountAmount  *float64
+	Subtotal        *int64
+	TaxTotal        *int64
+	TotalAmount     *int64
+	InsuranceAmount *int64
+	DiscountAmount  *int64
 	ValidUntil      *time.Time
 	ClearValidUntil bool
 	Comment         *string

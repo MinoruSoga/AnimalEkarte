@@ -32,7 +32,7 @@ const (
 type CreateMedicineInput struct {
 	Name            string
 	ParentID        *uint64
-	Price           *float64
+	Price           *int64
 	IsActive        bool
 	Description     string
 	DosageForm      *string // nil = 未指定, "tablet" 等 = 値セット
@@ -47,7 +47,7 @@ type UpdateMedicineInput struct {
 	Name            *string
 	ParentID        *uint64 // nil = 未指定（ClearParentID=false 時）
 	ClearParentID   bool    // true = parent_id を NULL にクリア
-	Price           *float64
+	Price           *int64
 	IsActive        *bool
 	Description     *string
 	DosageForm      *string  // nil = 未指定, "" = NULL クリア, "tablet" = 値セット

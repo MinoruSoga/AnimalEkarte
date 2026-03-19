@@ -28,7 +28,7 @@ type Medicine struct {
 	ClinicID        uint64        `gorm:"not null"                                       json:"clinic_id"`
 	Name            string        `gorm:"not null"                                       json:"name"`
 	ParentID        *uint64       `gorm:"column:parent_id"                               json:"parent_id,omitempty"`
-	Price           *float64      `gorm:"type:numeric(10,2)"                             json:"price,omitempty"`
+	Price           *int64        `gorm:"type:bigint"                                    json:"price,omitempty"`
 	IsActive        bool          `gorm:"default:true"                                   json:"is_active"`
 	Description     string        `gorm:"default:''"                                     json:"description"`
 	DosageForm      *DosageForm   `gorm:"type:dosage_form"                               json:"dosage_form,omitempty"`

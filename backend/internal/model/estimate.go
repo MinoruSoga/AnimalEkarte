@@ -25,11 +25,11 @@ type Estimate struct {
 	Title           string         `gorm:"default:''"                                     json:"title"`
 	OwnerID         *uint64        `                                                      json:"owner_id,omitempty"`
 	Status          EstimateStatus `gorm:"type:estimate_status;default:'draft'"           json:"status"`
-	Subtotal        float64        `gorm:"type:numeric(10,2);default:0"                   json:"subtotal"`
-	TaxTotal        float64        `gorm:"type:numeric(10,2);default:0"                   json:"tax_total"`
-	TotalAmount     float64        `gorm:"type:numeric(10,2);default:0"                   json:"total_amount"`
-	InsuranceAmount float64        `gorm:"type:numeric(10,2);default:0"                   json:"insurance_amount"`
-	DiscountAmount  float64        `gorm:"type:numeric(10,2);default:0"                   json:"discount_amount"`
+	Subtotal        int64          `gorm:"default:0"                                      json:"subtotal"`
+	TaxTotal        int64          `gorm:"default:0"                                      json:"tax_total"`
+	TotalAmount     int64          `gorm:"default:0"                                      json:"total_amount"`
+	InsuranceAmount int64          `gorm:"default:0"                                      json:"insurance_amount"`
+	DiscountAmount  int64          `gorm:"default:0"                                      json:"discount_amount"`
 	ValidUntil      *time.Time     `gorm:"type:date"                                      json:"valid_until,omitempty"`
 	Comment         string         `gorm:"default:''"                                     json:"comment"`
 	Notes           string         `gorm:"default:''"                                     json:"notes"`
@@ -53,17 +53,18 @@ type EstimateItem struct {
 	EstimateID            uint64       `gorm:"not null"                                       json:"estimate_id"`
 	Name                  string       `gorm:"not null;default:''"                            json:"name"`
 	Category              ItemCategory `gorm:"type:item_category;not null"                    json:"category"`
-	UnitPrice             float64      `gorm:"type:numeric(10,2);default:0"                   json:"unit_price"`
+	UnitPrice             int64        `gorm:"default:0"                                      json:"unit_price"`
 	Quantity              float64      `gorm:"type:numeric(10,1);default:1"                   json:"quantity"`
 	TaxRate               float64      `gorm:"type:numeric(3,2);default:0.10"                 json:"tax_rate"`
 	DiscountRate          float64      `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
-	DiscountAmount        float64      `gorm:"type:numeric(10,2);default:0"                   json:"discount_amount"`
+	DiscountAmount        int64        `gorm:"default:0"                                      json:"discount_amount"`
 	IsInsuranceApplicable bool         `gorm:"default:false"                                  json:"is_insurance_applicable"`
 	ConsultationID        *uint64      `                                                      json:"consultation_id,omitempty"`
 	ProcedureID           *uint64      `                                                      json:"procedure_id,omitempty"`
 	MedicineID            *uint64      `                                                      json:"medicine_id,omitempty"`
 	SortOrder             int          `gorm:"default:0"                                      json:"sort_order"`
 	CreatedAt             time.Time    `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt             time.Time    `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
 	Consultation *Consultation `gorm:"foreignKey:ConsultationID" json:"consultation,omitempty"`

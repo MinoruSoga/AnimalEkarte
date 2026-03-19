@@ -23,7 +23,7 @@ type CreateCarePlanItemInput struct {
 	MedicineID            *uint64
 	ProcedureID           *uint64
 	HospitalizationPlanID *uint64
-	UnitPrice             float64
+	UnitPrice             int64
 	Category              string
 	SortOrder             int
 }
@@ -39,7 +39,7 @@ type UpdateCarePlanItemInput struct {
 	MedicineID            *uint64
 	ProcedureID           *uint64
 	HospitalizationPlanID *uint64
-	UnitPrice             *float64
+	UnitPrice             *int64
 	Category              *string
 	SortOrder             *int
 }

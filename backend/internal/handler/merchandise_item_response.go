@@ -11,7 +11,7 @@ type merchandiseItemResponse struct {
 	ClinicID  uint64    `json:"clinic_id"`
 	Name      string    `json:"name"`
 	Category  string    `json:"category"`
-	UnitPrice float64   `json:"unit_price"`
+	UnitPrice int64     `json:"unit_price"`
 	TaxRate   float64   `json:"tax_rate"`
 	IsActive  bool      `json:"is_active"`
 	SortOrder int       `json:"sort_order"`

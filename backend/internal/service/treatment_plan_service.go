@@ -13,11 +13,11 @@ type CreateTreatmentPlanInput struct {
 	TreatmentContent string
 	Memo             string
 	Insurance        bool
-	UnitPrice        float64
+	UnitPrice        int64
 	Quantity         float64
 	DiscountRate     float64
-	DiscountAmount   float64
-	Subtotal         float64
+	DiscountAmount   int64
+	Subtotal         int64
 	SortOrder        int
 }
 
@@ -25,11 +25,11 @@ type UpdateTreatmentPlanInput struct {
 	TreatmentContent *string
 	Memo             *string
 	Insurance        *bool
-	UnitPrice        *float64
+	UnitPrice        *int64
 	Quantity         *float64
 	DiscountRate     *float64
-	DiscountAmount   *float64
-	Subtotal         *float64
+	DiscountAmount   *int64
+	Subtotal         *int64
 	SortOrder        *int
 }
 
@@ -64,7 +64,7 @@ func (s *treatmentPlanService) Create(ctx context.Context, medicalRecordID, hosp
 		if qty == 0 {
 			qty = 1
 		}
-		subtotal = input.UnitPrice*qty*(1-input.DiscountRate/100) - input.DiscountAmount
+		subtotal = int64(float64(input.UnitPrice)*qty*(1-input.DiscountRate/100)) - input.DiscountAmount
 	}
 
 	plan := &model.TreatmentPlan{

@@ -34,7 +34,7 @@ type CreateCareLogRecordInput struct {
 
 // CreateStaffNoteRecordInput はスタッフメモ記録作成のサービス入力DTO
 type CreateStaffNoteRecordInput struct {
-	Time    string
+	Time    time.Time
 	Content string
 	StaffID *uint64
 }
@@ -71,9 +71,10 @@ func (s *dailyRecordService) AddVitalRecord(ctx context.Context, hospitalization
 		return nil, err
 	}
 
+	dailyID := daily.ID
 	vr := &model.VitalRecord{
-		DailyRecordID:   daily.ID,
-		Time:            input.Time,
+		DailyRecordID:   &dailyID,
+		RecordedAt:      input.Time,
 		Temperature:     input.Temperature,
 		HeartRate:       input.HeartRate,
 		RespirationRate: input.RespirationRate,

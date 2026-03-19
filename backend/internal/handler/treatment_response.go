@@ -15,7 +15,7 @@ type treatmentResponse struct {
 	ProcedureID     *string   `json:"procedure_id,omitempty"`
 	MedicineID      *string   `json:"medicine_id,omitempty"`
 	InventoryID     *string   `json:"inventory_id,omitempty"`
-	UnitPrice       float64   `json:"unit_price"`
+	UnitPrice       int64     `json:"unit_price"`
 	Quantity        float64   `json:"quantity"`
 	Selected        bool      `json:"selected"`
 	Status          string    `json:"status"`
@@ -23,7 +23,7 @@ type treatmentResponse struct {
 	Memo            string    `json:"memo"`
 	Insurance       bool      `json:"insurance"`
 	DiscountRate    float64   `json:"discount_rate"`
-	DiscountAmount  float64   `json:"discount_amount"`
+	DiscountAmount  int64     `json:"discount_amount"`
 	SortOrder       int       `json:"sort_order"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
