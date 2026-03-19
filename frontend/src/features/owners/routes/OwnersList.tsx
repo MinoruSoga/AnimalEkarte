@@ -259,10 +259,10 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
     navigate(`/owners/${ownerId}`);
   }, [navigate]);
 
-  // 行クリック → ペット編集モーダルを開く
+  // 行クリック → 飼主編集・ペット一覧ページに遷移
   const handleRowClick = useCallback((pet: Pet) => {
-    setSelectedPet(pet);
-  }, []);
+    navigate(paths.owners.detail.getHref(pet.ownerId));
+  }, [navigate]);
 
   // PetEditModal の保存ハンドラ
   const handlePetSave = useCallback((formData: PetFormData) => {
