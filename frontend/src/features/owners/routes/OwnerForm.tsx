@@ -114,7 +114,10 @@ const PetTableRow = memo(function PetTableRow({
   const backFrom = ownerId ? `/owners/${ownerId}` : "/owners";
 
   return (
-    <TableRow className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12`}>
+    <TableRow
+      className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12 cursor-pointer`}
+      onClick={() => onEdit(pet)}
+    >
       <TableCell className={STYLE.tableCell}>{pet.petNumber}</TableCell>
       <TableCell className={STYLE.tableCell}>{pet.petName}</TableCell>
       <TableCell className={STYLE.tableCell}>{pet.status}</TableCell>
@@ -132,7 +135,7 @@ const PetTableRow = memo(function PetTableRow({
         {pet.remarks}
       </TableCell>
       <TableCell className="py-2">
-        <div className="flex gap-1 justify-end">
+        <div className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
           <DropdownMenu>
             <DropdownMenuTrigger
               className={`inline-flex items-center justify-center rounded-[4px] cursor-pointer ${STYLE.tableActionBtn} ${C.hoverBgLight}`}
