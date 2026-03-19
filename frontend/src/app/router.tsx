@@ -543,6 +543,15 @@ export const router = createBrowserRouter([
         },
       },
       {
+        path: "/settings/merchandise-items",
+        lazy: async () => {
+          const { MerchandiseItemSettings } = await import(
+            "@/features/master/routes/MerchandiseItemSettings"
+          );
+          return { Component: MerchandiseItemSettings };
+        },
+      },
+      {
         path: "/settings/insurance",
         lazy: async () => {
           const { InsuranceSettings } = await import(

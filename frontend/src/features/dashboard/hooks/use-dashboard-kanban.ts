@@ -110,6 +110,13 @@ export function useDashboardKanban() {
     }));
   }, [columns, selectedVisitTypes, selectedDoctor, isTrimmingOnly]);
 
+  // rerender-dependencies: filteredColumns（オブジェクト配列）をuseRefで保持し、
+  // moveCard/advanceStatus の deps から除外する
+  const filteredColumnsRef = useRef(filteredColumns);
+  useEffect(() => {
+    filteredColumnsRef.current = filteredColumns;
+  }, [filteredColumns]);
+
   const toggleVisitType = useCallback((type: string) => {
     setSelectedVisitTypes(prev =>
       prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
@@ -130,8 +137,8 @@ export function useDashboardKanban() {
       return false;
     }
 
-    const sourceColFiltered = filteredColumns.find(col => col.title === sourceColumn);
-    const targetColFiltered = filteredColumns.find(col => col.title === targetColumn);
+    const sourceColFiltered = filteredColumnsRef.current.find(col => col.title === sourceColumn);
+    const targetColFiltered = filteredColumnsRef.current.find(col => col.title === targetColumn);
 
     if (!sourceColFiltered || !targetColFiltered) {
       return false;
@@ -183,7 +190,7 @@ export function useDashboardKanban() {
 
       let realHoverIndex = targetCol.appointments.length;
 
-      if (hoverIndex < targetColFiltered.appointments.length) {
+      if (targetColFiltered && hoverIndex < targetColFiltered.appointments.length) {
         const referenceCard = targetColFiltered.appointments[hoverIndex];
         const refIndex = targetCol.appointments.findIndex(app => app.id === referenceCard.id);
         if (refIndex !== -1) {
@@ -196,10 +203,10 @@ export function useDashboardKanban() {
       return newColumns;
     });
     return true;
-  }, [filteredColumns, updateStatusMutation]);
+  }, [updateStatusMutation]);
 
   const advanceStatus = useCallback((appointment: Appointment) => {
-    const currentColumnTitle = filteredColumns.find(c => c.appointments.some(a => a.id === appointment.id))?.title;
+    const currentColumnTitle = filteredColumnsRef.current.find(c => c.appointments.some(a => a.id === appointment.id))?.title;
     if (!currentColumnTitle) return;
 
     let nextColumnTitle = "";
@@ -271,7 +278,7 @@ export function useDashboardKanban() {
       }
       return newColumns;
     });
-  }, [filteredColumns, updateStatusMutation]);
+  }, [updateStatusMutation]);
 
   const cancelAppointment = useCallback((appointmentId: string) => {
     // API でキャンセルステータスに更新

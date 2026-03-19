@@ -26,7 +26,7 @@ import {
   PawPrint,
   Briefcase,
 } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, memo } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { paths } from "@/config/paths";
@@ -42,7 +42,7 @@ interface SidebarItemProps {
   level?: number;
 }
 
-const SidebarItem = ({ item, collapsed = false, level = 0 }: SidebarItemProps) => {
+const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level = 0 }: SidebarItemProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
@@ -151,7 +151,7 @@ const SidebarItem = ({ item, collapsed = false, level = 0 }: SidebarItemProps) =
       ) : null}
     </div>
   );
-};
+});
 
 /* ================================================================== */
 /*  Sidebar                                                            */
@@ -214,6 +214,7 @@ export function Sidebar() {
         { icon: <Users        className="size-[18px]" />, label: "スタッフマスタ",   path: paths.settings.staff.getHref() },
         { icon: <Briefcase    className="size-[18px]" />, label: "職種マスタ",       path: paths.settings.jobTitle.getHref() },
         { icon: <ShieldCheck  className="size-[18px]" />, label: "保険マスタ",       path: paths.settings.insurance.getHref() },
+        { icon: <Package      className="size-[18px]" />, label: "物販マスタ",       path: paths.settings.merchandiseItems.getHref() },
       ],
     },
   ], []);

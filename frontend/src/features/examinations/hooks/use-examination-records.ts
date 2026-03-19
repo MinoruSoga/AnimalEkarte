@@ -2,22 +2,22 @@ import { useMemo } from "react";
 import { useGetExaminations } from "../api/get-examinations";
 import type { ExaminationFilters } from "../api/get-examinations";
 
-export function useExaminationRecords(
+export function useFilterExaminationRecords(
   searchTerm: string,
   filters?: ExaminationFilters,
 ) {
-  const { data = [], isLoading, error } = useGetExaminations(filters);
+  const { data: examinationsData = [], isLoading, error } = useGetExaminations(filters);
 
   const filteredRecords = useMemo(() => {
-    if (!searchTerm) return data;
+    if (!searchTerm) return examinationsData;
     const lowerTerm = searchTerm.toLowerCase();
-    return data.filter(
+    return examinationsData.filter(
       (r) =>
         r.ownerName.toLowerCase().includes(lowerTerm) ||
         r.petName.toLowerCase().includes(lowerTerm) ||
         r.testType.toLowerCase().includes(lowerTerm)
     );
-  }, [data, searchTerm]);
+  }, [examinationsData, searchTerm]);
 
   return { data: filteredRecords, isLoading, error };
 }

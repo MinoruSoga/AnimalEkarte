@@ -233,6 +233,10 @@ export const paths = {
       path: "/settings/inquiry-templates",
       getHref: () => "/settings/inquiry-templates",
     },
+    merchandiseItems: {
+      path: "/settings/merchandise-items",
+      getHref: () => "/settings/merchandise-items",
+    },
     interview: {
       chiefComplaint: {
         path: "/settings/interview/chief-complaint",

@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useCallback, memo, type ChangeEvent } from "react";
+import { useState, useCallback, memo, useMemo, type ChangeEvent } from "react";
 
 // External
 import { Pencil, Trash2, Plus, Check, X } from "lucide-react";
@@ -168,6 +168,17 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [addForm, setAddForm] = useState<AddFormState>(EMPTY_ADD_FORM);
 
+  // js-cache-function-results: checkupTypes 由来の option リストをキャッシュ
+  const checkupTypeOptions = useMemo(
+    () =>
+      checkupTypes.map((type: CheckupTypeItem) => (
+        <option key={type.id} value={type.id}>
+          {type.name}
+        </option>
+      )),
+    [checkupTypes],
+  );
+
   // ── handlers ──
 
   const handleAddFormChange = useCallback(
@@ -324,11 +335,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
               className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-32`}
             >
               <option value="">選択</option>
-              {checkupTypes.map((type: CheckupTypeItem) => (
-                <option key={type.id} value={type.id}>
-                  {type.name}
-                </option>
-              ))}
+              {checkupTypeOptions}
             </select>
             <NotionDatePicker
               value={addForm.next_date}

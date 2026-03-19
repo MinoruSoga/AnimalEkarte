@@ -1,4 +1,4 @@
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useCallback } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -175,6 +175,25 @@ export function useMedicalRecordForm(recordId?: string) {
     });
   };
 
+  // 飼主変更ハンドラ
+  const handleChangeOwner = useCallback(
+    (newOwner: { id: string; name: string }) => {
+      if (!recordId) return;
+      startSaveTransition(async () => {
+        try {
+          await updateMutation.mutateAsync({
+            id: recordId,
+            req: { owner_id: Number(newOwner.id) } as UpdateMedicalRecordRequest,
+          });
+          toast.success(`飼主を ${newOwner.name} に変更しました`);
+        } catch (error) {
+          handleApiError(error, "飼主変更");
+        }
+      });
+    },
+    [recordId, updateMutation, startSaveTransition],
+  );
+
   // petIdがなく新規作成の場合はselect-petへリダイレクト（呼び出し元で判定）
   const shouldRedirectToSelectPet = isNewRecord && !petId;
 
@@ -215,5 +234,7 @@ export function useMedicalRecordForm(recordId?: string) {
     setDiagnosis2NameId,
     // 飼主割引率
     ownerDiscountRate,
+    // 飼主変更
+    handleChangeOwner,
   };
 }

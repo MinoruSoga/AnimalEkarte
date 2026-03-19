@@ -21,6 +21,8 @@ interface VaccinationFormState {
   remarks: string;
 }
 
+const DEFAULT_NEXT_SCHEDULE_TYPE = "4weeks" as const;
+
 const DEFAULT_FORM: VaccinationFormState = {
   vaccineId: "",
   date: "",
@@ -29,7 +31,7 @@ const DEFAULT_FORM: VaccinationFormState = {
   lot2: "",
   lot3: "",
   lot4: "",
-  nextScheduleType: "4weeks",
+  nextScheduleType: DEFAULT_NEXT_SCHEDULE_TYPE,
   nextDate: "",
   remarks: "",
 };

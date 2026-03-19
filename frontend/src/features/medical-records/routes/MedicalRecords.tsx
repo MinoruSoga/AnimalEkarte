@@ -23,7 +23,7 @@ import { usePagination } from "@/hooks/use-pagination";
 import { useStaffValidation } from "@/hooks/use-staff-validation";
 
 // Relative
-import { useMedicalRecords } from "../hooks/use-medical-records";
+import { useFilterMedicalRecords } from "../hooks/use-medical-records";
 import { useDeleteMedicalRecord } from "../api/delete-medical-record";
 
 // Types
@@ -48,7 +48,7 @@ export function MedicalRecords() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const deferredSearch = useDeferredValue(searchTerm);
-  const { data: filteredRecords, isLoading, isError } = useMedicalRecords(deferredSearch);
+  const { data: filteredRecords, isLoading, isError } = useFilterMedicalRecords(deferredSearch);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
   const { mutate: deleteRecord } = useDeleteMedicalRecord();
   const { isValidStaff } = useStaffValidation();

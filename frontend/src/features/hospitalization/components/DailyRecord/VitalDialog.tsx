@@ -1,5 +1,5 @@
 // React/Framework
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // External
 import { format } from "date-fns";
@@ -34,10 +34,8 @@ export function VitalDialog({ open, onOpenChange, onSave }: VitalDialogProps) {
         notes: "",
         time: getCurrentTime()
     }));
-    const [prevOpen, setPrevOpen] = useState(false);
-
-    if (open !== prevOpen) {
-        setPrevOpen(open);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- ダイアログ open 時にフォームをリセット
+    useEffect(() => {
         if (open) {
             setForm({
                 temperature: "",
@@ -48,7 +46,7 @@ export function VitalDialog({ open, onOpenChange, onSave }: VitalDialogProps) {
                 time: getCurrentTime()
             });
         }
-    }
+    }, [open]);
 
     const handleSave = () => {
         onSave({

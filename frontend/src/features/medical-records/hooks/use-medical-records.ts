@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useGetMedicalRecords } from "../api/get-medical-records";
 
-export function useMedicalRecords(searchTerm: string) {
+export function useFilterMedicalRecords(searchTerm: string) {
   const { data: records = [], isLoading, isError } = useGetMedicalRecords();
 
   const filteredRecords = useMemo(() => {

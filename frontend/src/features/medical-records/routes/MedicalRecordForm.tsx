@@ -26,6 +26,9 @@ import { StaffSelectionModal } from "../components/StaffSelectionModal";
 const VitalsModal = lazy(() =>
   import("../components/VitalsModal").then((m) => ({ default: m.VitalsModal }))
 );
+const OwnerSearchModal = lazy(() =>
+  import("@/components/shared/OwnerSearchModal/OwnerSearchModal").then((m) => ({ default: m.OwnerSearchModal }))
+);
 import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
 import { useAuth } from "@/features/auth";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
@@ -66,6 +69,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     diagnosis2NameId,
     setDiagnosis2NameId,
     ownerDiscountRate,
+    handleChangeOwner,
   } = useMedicalRecordForm(recordId);
 
   const { user } = useAuth();
@@ -78,6 +82,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isVitalsOpen, setIsVitalsOpen] = useState(false);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
+  const [isOwnerSearchOpen, setIsOwnerSearchOpen] = useState(false);
   // 一度マウントしたタブを記録してhide/show方式で管理
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(["問診"]));
 
@@ -202,6 +207,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           serviceTypeLabel="診療種別"
           onServiceTypeClick={() => setServiceType(serviceType)}
           onStaffClick={() => setIsStaffModalOpen(true)}
+          onOwnerClick={!isNewRecord ? () => setIsOwnerSearchOpen(true) : undefined}
           petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
           insuranceName={selectedPet.insuranceName || "保険情報未登録"}
           insuranceDetails={selectedPet.insuranceDetails || "-"}
@@ -397,6 +403,18 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         onSelect={handleSelectStaff}
         onOpenChange={handleStaffModalOpenChange}
       />
+
+      {/* Owner Search Modal (edit mode only) */}
+      {!isNewRecord && recordId ? (
+        <Suspense fallback={null}>
+          <OwnerSearchModal
+            open={isOwnerSearchOpen}
+            onOpenChange={setIsOwnerSearchOpen}
+            currentOwnerName={selectedPet?.ownerName}
+            onSelect={handleChangeOwner}
+          />
+        </Suspense>
+      ) : null}
     </PageLayout>
   );
 });

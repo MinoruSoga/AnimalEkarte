@@ -2,22 +2,22 @@ import { useMemo } from "react";
 import { useGetVaccinations } from "../api/get-vaccinations";
 import type { VaccinationFilters } from "../api/get-vaccinations";
 
-export function useVaccinations(
+export function useFilterVaccinations(
   searchTerm: string,
   filters?: VaccinationFilters,
 ) {
-  const { data = [], isLoading, error } = useGetVaccinations(filters);
+  const { data: vaccinationsData = [], isLoading, error } = useGetVaccinations(filters);
 
   const filteredRecords = useMemo(() => {
-    if (!searchTerm) return data;
+    if (!searchTerm) return vaccinationsData;
     const lowerTerm = searchTerm.toLowerCase();
-    return data.filter(
+    return vaccinationsData.filter(
       (r) =>
         r.ownerName.toLowerCase().includes(lowerTerm) ||
         r.petName.toLowerCase().includes(lowerTerm) ||
         r.vaccineName.toLowerCase().includes(lowerTerm)
     );
-  }, [data, searchTerm]);
+  }, [vaccinationsData, searchTerm]);
 
   return { data: filteredRecords, isLoading, error };
 }

@@ -158,7 +158,7 @@ export function InventoryList() {
   }, [navigate]);
 
   const handleEdit = useCallback((id: string) => {
-    navigate(`/inventory/${id}`);
+    navigate(paths.inventory.detail.getHref(id));
   }, [navigate]);
 
   const columns = useMemo(() => [

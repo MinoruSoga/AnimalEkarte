@@ -18,7 +18,7 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 
 // Relative
-import { useVaccinations } from "../hooks/use-vaccinations";
+import { useFilterVaccinations } from "../hooks/use-vaccinations";
 
 // Types
 import type {
@@ -67,7 +67,7 @@ export function VaccinationList() {
     };
   }, [activeFilters]);
 
-  const { data: filteredRecords } = useVaccinations(deferredSearchTerm, filters);
+  const { data: filteredRecords } = useFilterVaccinations(deferredSearchTerm, filters);
 
   // ── Sort logic driven by activeSorts ──
   const handleSortChange = useCallback((sorts: ActiveSort[]) => {

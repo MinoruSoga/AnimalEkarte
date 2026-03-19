@@ -2,7 +2,8 @@ import { useMemo, useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { Hospitalization } from "@/types";
-import { getHospitalizations, updateHospitalization } from "../api";
+import { getHospitalizations } from "../api/get-hospitalizations";
+import { updateHospitalization } from "../api/update-hospitalization";
 import type { UpdateHospitalizationRequest } from "../api/types";
 import { HospitalizationFilterStatus, HOSPITALIZATION_STATUS } from "../constants";
 

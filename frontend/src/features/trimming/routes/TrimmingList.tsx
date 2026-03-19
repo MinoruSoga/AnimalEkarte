@@ -33,7 +33,7 @@ import type { TrimmingRecord } from "@/types";
 import { paths } from "@/config/paths";
 
 // Relative (direct file import, no barrel)
-import { useTrimmingRecords } from "../hooks/use-trimming-records";
+import { useFilterTrimmingRecords } from "../hooks/use-trimming-records";
 
 type SortKey = "date" | "ownerName" | "petName" | "species" | "staff" | "status";
 
@@ -137,7 +137,7 @@ export function TrimmingList() {
     | undefined;
   const deferredDate = { from: dateFilter?.from ?? "", to: dateFilter?.to ?? "" };
 
-  const { data: filteredRecords, isLoading, error, deleteRecord } = useTrimmingRecords(deferredKeyword, deferredDate);
+  const { data: filteredRecords, isLoading, error, deleteRecord } = useFilterTrimmingRecords(deferredKeyword, deferredDate);
   const { isValidStaff } = useStaffValidation();
 
   // ── Sort logic driven by activeSorts ──

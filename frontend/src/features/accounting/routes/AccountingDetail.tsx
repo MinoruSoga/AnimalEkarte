@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useMemo, useCallback, memo, useTransition } from "react";
+import { useState, useMemo, useCallback, memo, useTransition, lazy, Suspense, useDeferredValue } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 
 // External
@@ -47,7 +47,12 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 // Relative
 import { useGetAccountingDetail } from "../api/get-accounting";
 import { updateAccounting } from "../api/update-accounting";
-import { AccountingDocument } from "../components/AccountingDocument";
+import { useGetAllMerchandiseItems } from "../api/get-merchandise-items";
+import type { FrontendMerchandiseItem } from "../api/get-merchandise-items";
+// bundle-dynamic-imports: 191行のコンポーネントを遅延ロード
+const AccountingDocument = lazy(() =>
+  import("../components/AccountingDocument").then((m) => ({ default: m.AccountingDocument }))
+);
 import { paths } from "@/config/paths";
 
 // Types
@@ -75,9 +80,16 @@ interface ItemListCardProps {
   totalAmount: number;
   newItemOpen: boolean;
   onNewItemOpenChange: (open: boolean) => void;
-  onAddItem: (name: string, price: string, category: string) => void;
+  onAddItem: (name: string, price: string, category: string, taxRate?: number) => void;
   onDeleteItem: (id: string) => void;
 }
+
+const MERCHANDISE_CATEGORY_OPTIONS = [
+  { value: "all", label: "すべて" },
+  { value: "food", label: "フード" },
+  { value: "goods", label: "物販" },
+  { value: "other", label: "その他" },
+];
 
 const ItemListCard = memo(function ItemListCard({
   items,
@@ -89,16 +101,31 @@ const ItemListCard = memo(function ItemListCard({
   onAddItem,
   onDeleteItem,
 }: ItemListCardProps) {
-  const [newItemName, setNewItemName] = useState("");
-  const [newItemPrice, setNewItemPrice] = useState("");
-  const [newItemCategory, setNewItemCategory] = useState("goods");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [merchandiseSearch, setMerchandiseSearch] = useState("");
+  const deferredMerchandiseSearch = useDeferredValue(merchandiseSearch);
 
-  const handleAdd = useCallback(() => {
-    if (!newItemName || !newItemPrice) return;
-    onAddItem(newItemName, newItemPrice, newItemCategory);
-    setNewItemName("");
-    setNewItemPrice("");
-  }, [newItemName, newItemPrice, newItemCategory, onAddItem]);
+  // マスタデータ取得
+  const { data: merchandiseItems = [] } = useGetAllMerchandiseItems();
+
+  const filteredMerchandise = useMemo(() => {
+    let result = merchandiseItems.filter((item) => item.isActive);
+    if (categoryFilter !== "all") {
+      result = result.filter((item) => item.category === categoryFilter);
+    }
+    if (deferredMerchandiseSearch) {
+      const lower = deferredMerchandiseSearch.toLowerCase();
+      result = result.filter((item) => item.name.toLowerCase().includes(lower));
+    }
+    return result;
+  }, [merchandiseItems, categoryFilter, deferredMerchandiseSearch]);
+
+  const handleSelectMerchandise = useCallback(
+    (item: FrontendMerchandiseItem) => {
+      onAddItem(item.name, String(item.unitPrice), item.category, item.taxRate);
+    },
+    [onAddItem],
+  );
 
   return (
     <Card className="flex-1 flex flex-col overflow-hidden">
@@ -111,46 +138,68 @@ const ItemListCard = memo(function ItemListCard({
               物販・その他追加
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-lg max-h-[70vh] flex flex-col">
             <DialogHeader>
-              <DialogTitle>明細追加</DialogTitle>
-              <DialogDescription>手動で明細項目を追加します。</DialogDescription>
+              <DialogTitle>物販・その他追加</DialogTitle>
+              <DialogDescription>マスタから品目を選択してください。</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>区分</Label>
-                <Select value={newItemCategory} onValueChange={setNewItemCategory}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="food">療法食・フード</SelectItem>
-                    <SelectItem value="goods">物販・ケア用品</SelectItem>
-                    <SelectItem value="other">その他</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>品目名</Label>
-                <Input
-                  value={newItemName}
-                  onChange={(e) => setNewItemName(e.target.value)}
-                  placeholder="例: ロイヤルカナン 3kg"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>単価 (税込)</Label>
-                <Input
-                  type="number"
-                  value={newItemPrice}
-                  onChange={(e) => setNewItemPrice(e.target.value)}
-                  placeholder="0"
-                />
-              </div>
+            <div className="flex items-center gap-2 py-2">
+              <Input
+                autoFocus
+                value={merchandiseSearch}
+                onChange={(e) => setMerchandiseSearch(e.target.value)}
+                placeholder="品目名で検索..."
+                className="flex-1 h-9"
+              />
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[120px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MERCHANDISE_CATEGORY_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <DialogFooter>
-              <Button onClick={handleAdd}>追加</Button>
-            </DialogFooter>
+            <div className="flex-1 overflow-auto min-h-[200px] border rounded-md">
+              {filteredMerchandise.length > 0 ? (
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b bg-muted/50 text-xs">
+                      <th className="px-3 py-2 text-left font-medium">品目名</th>
+                      <th className="px-3 py-2 text-left font-medium w-[70px]">区分</th>
+                      <th className="px-3 py-2 text-right font-medium w-[90px]">単価</th>
+                      <th className="px-3 py-2 text-right font-medium w-[60px]">税率</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredMerchandise.map((item) => (
+                      <tr
+                        key={item.id}
+                        onClick={() => handleSelectMerchandise(item)}
+                        className="border-b cursor-pointer hover:bg-muted/30 transition-colors"
+                      >
+                        <td className="px-3 py-2 text-sm font-medium">{item.name}</td>
+                        <td className="px-3 py-2 text-sm text-muted-foreground">
+                          {CATEGORY_LABEL_MAP[item.category] ?? item.category}
+                        </td>
+                        <td className="px-3 py-2 text-sm text-right font-mono">
+                          ¥{item.unitPrice.toLocaleString()}
+                        </td>
+                        <td className="px-3 py-2 text-sm text-right text-muted-foreground">
+                          {item.taxRate === 0.1 ? "10%" : item.taxRate === 0.08 ? "8%" : `${item.taxRate * 100}%`}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="flex items-center justify-center h-full text-sm text-muted-foreground py-8">
+                  該当する品目がありません
+                </div>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
       </CardHeader>
@@ -555,14 +604,14 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
     };
   }, [accounting, hasInsurance, insuranceRatio, receivedAmount]);
 
-  const handleAddItem = useCallback((name: string, price: string, category: string) => {
+  const handleAddItem = useCallback((name: string, price: string, category: string, taxRate?: number) => {
     const newItem: AccountingItem = {
       id: `manual_${crypto.randomUUID()}`,
       category: category as ItemCategory,
       name,
       unitPrice: parseInt(price, 10),
       quantity: 1,
-      taxRate: 0.1,
+      taxRate: taxRate ?? 0.1,
       isInsuranceApplicable: false,
       source: "manual",
     };
@@ -700,12 +749,14 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
             <div className="flex-1 bg-gray-100 overflow-auto p-8 flex items-center justify-center">
               <div className="shadow-lg transform scale-100 origin-top">
                 {accounting.payment ? (
-                  <AccountingDocument
-                    type={previewType}
-                    accounting={accounting}
-                    paymentInfo={accounting.payment}
-                    clinic={clinicForDocument}
-                  />
+                  <Suspense fallback={<div className="p-8 text-center text-sm text-gray-400">読み込み中...</div>}>
+                    <AccountingDocument
+                      type={previewType}
+                      accounting={accounting}
+                      paymentInfo={accounting.payment}
+                      clinic={clinicForDocument}
+                    />
+                  </Suspense>
                 ) : null}
               </div>
             </div>
@@ -732,12 +783,14 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
             `}
           </style>
           <div className="p-8">
-            <AccountingDocument
-              type={previewType}
-              accounting={accounting}
-              paymentInfo={accounting.payment}
-              clinic={clinicForDocument}
-            />
+            <Suspense fallback={null}>
+              <AccountingDocument
+                type={previewType}
+                accounting={accounting}
+                paymentInfo={accounting.payment}
+                clinic={clinicForDocument}
+              />
+            </Suspense>
           </div>
         </div>
       ) : null}

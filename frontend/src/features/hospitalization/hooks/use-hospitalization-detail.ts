@@ -7,7 +7,8 @@ import type {
   CreateVitalDTO,
   CreateCareLogDTO,
 } from "../types";
-import { useGetHospitalization, useUpdateHospitalization } from "../api";
+import { useGetHospitalization } from "../api/get-hospitalization";
+import { useUpdateHospitalization } from "../api/update-hospitalization";
 
 export const useHospitalizationDetail = (hospitalizationId?: string) => {
   const {

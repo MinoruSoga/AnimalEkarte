@@ -1,2 +1,2 @@
-export { useVaccinations } from "./use-vaccinations";
+export { useFilterVaccinations } from "./use-vaccinations";
 export { useVaccinationForm } from "./use-vaccination-form";

@@ -65,23 +65,15 @@ export function useServiceTypeColorMap() {
 
   const activeEntries = useMemo<ServiceTypeEntry[]>(() => {
     if (!serviceTypes || serviceTypes.length === 0) {
-      console.warn('[useServiceTypeColorMap] No service types loaded');
       return [];
     }
 
-    const entries = serviceTypes
+    return serviceTypes
       .filter((st) => st.isActive)
-      .map((st) => {
-        const color = st.color ? hexToStyle(st.color) : DEFAULT_COLOR;
-        console.debug(`[useServiceTypeColorMap] ${st.name}: color=${st.color}, dotStyle=`, color.dotStyle);
-        return {
-          name: st.name,
-          color,
-        };
-      });
-
-    console.log('[useServiceTypeColorMap] activeEntries:', entries.length, entries);
-    return entries;
+      .map((st) => ({
+        name: st.name,
+        color: st.color ? hexToStyle(st.color) : DEFAULT_COLOR,
+      }));
   }, [serviceTypes]);
 
   const colorMap = useMemo(

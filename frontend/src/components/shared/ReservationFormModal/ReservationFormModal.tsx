@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 
 // External
 import { Calendar, CalendarCheck, PawPrint, X, Search } from "lucide-react";
@@ -37,7 +37,7 @@ interface ReservationFormModalProps {
 }
 
 
-function StepIndicator({ step, label, active }: { step: number; label: string; active: boolean }) {
+const StepIndicator = memo(function StepIndicator({ step, label, active }: { step: number; label: string; active: boolean }) {
   return (
     <div className={`flex items-center gap-1.5 text-xs ${active ? "text-blue-600" : "text-[#37352F]/30"}`}>
       <span
@@ -50,9 +50,9 @@ function StepIndicator({ step, label, active }: { step: number; label: string; a
       {label}
     </div>
   );
-}
+});
 
-function SelectedPetChip({ pet, onRemove }: { pet: Pet; onRemove: () => void }) {
+const SelectedPetChip = memo(function SelectedPetChip({ pet, onRemove }: { pet: Pet; onRemove: () => void }) {
   return (
     <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-[rgba(55,53,47,0.12)] shadow-sm">
       <PawPrint className="h-4 w-4 text-[#37352F]/60 flex-shrink-0" />
@@ -71,7 +71,7 @@ function SelectedPetChip({ pet, onRemove }: { pet: Pet; onRemove: () => void }) 
       </button>
     </div>
   );
-}
+});
 
 export function ReservationFormModal({
   isOpen,

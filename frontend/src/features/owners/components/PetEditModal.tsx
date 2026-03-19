@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, lazy, Suspense } from "react";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +33,10 @@ import { useGetInsurances } from "../api/get-insurances";
 
 import { isOneOf } from "@/lib/type-utils";
 
+const OwnerSearchModal = lazy(() =>
+  import("@/components/shared/OwnerSearchModal/OwnerSearchModal").then((m) => ({ default: m.OwnerSearchModal }))
+);
+
 const LABEL_CLS = `text-sm ${C.text60}`;
 const INPUT_CLS = STYLE.formInput;
 
@@ -56,6 +60,7 @@ interface PetEditModalProps {
   ownerName?: string;
   petData?: PetFormData;
   onSave: (data: PetFormData) => void;
+  onChangeOwner?: (newOwner: { id: string; name: string }) => void;
 }
 
 export function PetEditModal({
@@ -64,6 +69,7 @@ export function PetEditModal({
   ownerName = "飼主名",
   petData,
   onSave,
+  onChangeOwner,
 }: PetEditModalProps) {
   const { data: animalSpeciesList = [], isLoading: isLoadingSpecies } = useGetAnimalSpecies();
   const { data: insuranceList = [], isLoading: isLoadingInsurances } = useGetInsurances();
@@ -172,19 +178,42 @@ export function PetEditModal({
   };
 
   const isEdit = !!petData?.id;
+  const [isOwnerSearchOpen, setIsOwnerSearchOpen] = useState(false);
+
+  const handleOwnerChange = useCallback(
+    (newOwner: { id: string; name: string }) => {
+      setIsOwnerSearchOpen(false);
+      onChangeOwner?.(newOwner);
+    },
+    [onChangeOwner],
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={`${LAYOUT.modal.xl} overflow-y-auto`}>
         <DialogHeader>
-          <DialogTitle className={`text-sm font-bold ${C.text}`}>
-            {isEdit ? `${ownerName}のペット情報編集` : `${ownerName}のペット新規登録`}
-          </DialogTitle>
-          <DialogDescription className={`text-sm ${C.text60}`}>
-            {isEdit
-              ? "ペットの情報を編集してください。"
-              : "ペットの基本情報を入力してください。"}
-          </DialogDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle className={`text-sm font-bold ${C.text}`}>
+                {isEdit ? `${ownerName}のペット情報編集` : `${ownerName}のペット新規登録`}
+              </DialogTitle>
+              <DialogDescription className={`text-sm ${C.text60}`}>
+                {isEdit
+                  ? "ペットの情報を編集してください。"
+                  : "ペットの基本情報を入力してください。"}
+              </DialogDescription>
+            </div>
+            {isEdit && onChangeOwner ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsOwnerSearchOpen(true)}
+                className={`h-8 text-xs ${C.borderMedium}`}
+              >
+                飼主変更
+              </Button>
+            ) : null}
+          </div>
         </DialogHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -480,6 +509,18 @@ export function PetEditModal({
           </Button>
         </div>
       </DialogContent>
+
+      {/* Owner Search Modal (edit mode only) */}
+      {isEdit && onChangeOwner ? (
+        <Suspense fallback={null}>
+          <OwnerSearchModal
+            open={isOwnerSearchOpen}
+            onOpenChange={setIsOwnerSearchOpen}
+            currentOwnerName={ownerName}
+            onSelect={handleOwnerChange}
+          />
+        </Suspense>
+      ) : null}
     </Dialog>
   );
 }

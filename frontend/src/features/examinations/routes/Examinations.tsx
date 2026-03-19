@@ -19,7 +19,7 @@ import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeade
 import { getExaminationStatusColor } from "@/utils/status-helpers";
 
 // Relative
-import { useExaminationRecords } from "../hooks/use-examination-records";
+import { useFilterExaminationRecords } from "../hooks/use-examination-records";
 import { paths } from "@/config/paths";
 
 // Types
@@ -81,7 +81,7 @@ export function Examinations() {
     };
   }, [activeFilters]);
 
-  const { data: filteredRecords, isLoading } = useExaminationRecords(deferredSearch, filters);
+  const { data: filteredRecords, isLoading } = useFilterExaminationRecords(deferredSearch, filters);
 
   // ── Sort logic driven by activeSorts ──
   const handleSortChange = useCallback((sorts: ActiveSort[]) => {

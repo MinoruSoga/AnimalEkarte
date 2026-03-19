@@ -7,13 +7,13 @@ interface DateRange {
   to: string;
 }
 
-export function useTrimmingRecords(searchTerm: string, dateRange: DateRange) {
-  const { data = [], isLoading, error } = useGetTrimmings();
+export function useFilterTrimmingRecords(searchTerm: string, dateRange: DateRange) {
+  const { data: trimmingRecords = [], isLoading, error } = useGetTrimmings();
   const deleteMutation = useDeleteTrimming();
   const { from, to } = dateRange; // プリミティブを抽出 (rerender-dependencies)
 
   const filteredRecords = useMemo(() => {
-    return data.filter((r) => {
+    return trimmingRecords.filter((r) => {
       const matchesKeyword =
         searchTerm === "" ||
         r.ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -27,7 +27,7 @@ export function useTrimmingRecords(searchTerm: string, dateRange: DateRange) {
 
       return matchesKeyword && matchesDate;
     });
-  }, [data, searchTerm, from, to]); // オブジェクトではなくプリミティブを使用
+  }, [trimmingRecords, searchTerm, from, to]); // オブジェクトではなくプリミティブを使用
 
   const deleteRecord = useCallback((id: string) => {
     deleteMutation.mutate(id);

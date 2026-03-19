@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useTransition } from "react";
+import { useState, useEffect, useCallback, useTransition, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -81,6 +81,12 @@ export function ShiftFormDialog({
   const deleteShift = useDeleteShift();
   const [isSavePending, startSaveTransition] = useTransition();
 
+  // rerender-dependencies: editShift/form はオブジェクト。useRef で保持し deps から除外
+  const editShiftRef = useRef(editShift);
+  useEffect(() => { editShiftRef.current = editShift; }, [editShift]);
+  const formRef = useRef(form);
+  useEffect(() => { formRef.current = form; }, [form]);
+
   const handleShiftTypeChange = useCallback((value: string) => {
     setForm((prev) => ({ ...prev, shiftType: value as ShiftType }));
   }, []);
@@ -96,39 +102,42 @@ export function ShiftFormDialog({
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
+      const currentForm = formRef.current;
+      const currentEditShift = editShiftRef.current;
       startSaveTransition(async () => {
-        if (isEdit && editShift) {
+        if (isEdit && currentEditShift) {
           const input: UpdateShiftInput = {
-            shift_type: form.shiftType,
-            start_time: form.startTime || undefined,
-            end_time: form.endTime || undefined,
-            note: form.note || undefined,
+            shift_type: currentForm.shiftType,
+            start_time: currentForm.startTime || undefined,
+            end_time: currentForm.endTime || undefined,
+            note: currentForm.note || undefined,
           };
-          await updateShift.mutateAsync({ id: editShift.id, input });
+          await updateShift.mutateAsync({ id: currentEditShift.id, input });
         } else {
           const input: CreateShiftInput = {
             staff_id: staffId,
             date,
-            shift_type: form.shiftType,
-            start_time: form.startTime || undefined,
-            end_time: form.endTime || undefined,
-            note: form.note || undefined,
+            shift_type: currentForm.shiftType,
+            start_time: currentForm.startTime || undefined,
+            end_time: currentForm.endTime || undefined,
+            note: currentForm.note || undefined,
           };
           await createShift.mutateAsync(input);
         }
         onClose();
       });
     },
-    [isEdit, editShift, form, staffId, date, updateShift, createShift, onClose, startSaveTransition],
+    [isEdit, staffId, date, updateShift, createShift, onClose, startSaveTransition],
   );
 
   const handleDelete = useCallback(() => {
-    if (!editShift) return;
+    const currentEditShift = editShiftRef.current;
+    if (!currentEditShift) return;
     startSaveTransition(async () => {
-      await deleteShift.mutateAsync(editShift.id);
+      await deleteShift.mutateAsync(currentEditShift.id);
       onClose();
     });
-  }, [editShift, deleteShift, onClose, startSaveTransition]);
+  }, [deleteShift, onClose, startSaveTransition]);
 
   const formattedDate = date
     ? new Date(date + "T00:00:00").toLocaleDateString("ja-JP", {

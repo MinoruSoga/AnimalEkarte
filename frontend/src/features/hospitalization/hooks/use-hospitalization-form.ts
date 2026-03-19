@@ -7,12 +7,13 @@ import type { TreatmentPlan } from "@/types";
 import type { Pet } from "@/types";
 import type { HospitalizationFormData } from "../types";
 import { usePetSelection } from "@/hooks/use-pet-selection";
+
+const MS_PER_DAY = 86_400_000;
+const DEFAULT_HOSPITALIZATION_DAYS = 7;
 import { usePetInfo } from "@/hooks/use-pet";
-import {
-  createHospitalization,
-  updateHospitalization,
-  useGetHospitalizationRaw,
-} from "../api";
+import { createHospitalization } from "../api/create-hospitalization";
+import { updateHospitalization } from "../api/update-hospitalization";
+import { useGetHospitalizationRaw } from "../api/get-hospitalization";
 
 export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
   const navigate = useNavigate();
@@ -40,7 +41,7 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
     nextVisit: "",
     weight: "",
     displayDate: "",
-    endDate: new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
+    endDate: new Date(Date.now() + DEFAULT_HOSPITALIZATION_DAYS * MS_PER_DAY).toISOString().split("T")[0],
     memo: "",
     ownerRequest: "",
     staffNotes: "",
@@ -103,7 +104,7 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
       displayDate: hospitalizationData.start_date,
       endDate: hospitalizationData.end_date
         ? hospitalizationData.end_date.split("T")[0]
-        : new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
+        : new Date(Date.now() + DEFAULT_HOSPITALIZATION_DAYS * MS_PER_DAY).toISOString().split("T")[0],
       memo: hospitalizationData.memo ?? "",
       ownerRequest: hospitalizationData.owner_request ?? "",
       staffNotes: hospitalizationData.staff_notes ?? "",
@@ -249,7 +250,7 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
           toast.success("入院情報を更新しました");
         } else {
           const startISO = (formData.displayDate || today) + "T00:00:00Z";
-          const endISO = (formData.endDate || new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0]) + "T00:00:00Z";
+          const endISO = (formData.endDate || new Date(Date.now() + DEFAULT_HOSPITALIZATION_DAYS * MS_PER_DAY).toISOString().split("T")[0]) + "T00:00:00Z";
           await createHospitalization({
             pet_id: pet.id,
             owner_id: pet.ownerId || "",
