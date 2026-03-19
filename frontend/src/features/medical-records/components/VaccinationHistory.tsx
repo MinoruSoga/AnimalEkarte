@@ -19,7 +19,7 @@ interface HistoryItem {
 }
 
 interface VaccinationHistoryProps {
-  historyItems: HistoryItem[];
+  historyItems: readonly HistoryItem[];
 }
 
 export const VaccinationHistory = React.memo(function VaccinationHistory({

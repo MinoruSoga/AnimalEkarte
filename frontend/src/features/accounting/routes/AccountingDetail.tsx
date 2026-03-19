@@ -182,7 +182,7 @@ const ItemListCard = memo(function ItemListCard({
                       >
                         <td className="px-3 py-2 text-sm font-medium">{item.name}</td>
                         <td className="px-3 py-2 text-sm text-muted-foreground">
-                          {CATEGORY_LABEL_MAP[item.category] ?? item.category}
+                          {CATEGORY_LABELS[item.category as ItemCategory] ?? item.category}
                         </td>
                         <td className="px-3 py-2 text-sm text-right font-mono">
                           ¥{item.unitPrice.toLocaleString()}
@@ -611,7 +611,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
       name,
       unitPrice: parseInt(price, 10),
       quantity: 1,
-      taxRate: taxRate ?? 0.1,
+      taxRate: (taxRate === 0.08 ? 0.08 : 0.1) as 0.1 | 0.08,
       isInsuranceApplicable: false,
       source: "manual",
     };
