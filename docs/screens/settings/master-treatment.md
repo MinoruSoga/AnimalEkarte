@@ -36,11 +36,13 @@ Radix UI の Tabs を用いて、5つのカテゴリに分けて管理します�
 | 備考 | `description`| `PropInput` | - | |
 
 ## API連携
-タブごとに異なる CRUD エンドポイントが割り当てられています（例: 診察の場合）。
+タブごとに異なる CRUD エンドポイントが割り当てられています。
 | メソッド | エンドポイント | 用途 |
 |---------|--------------|------|
-| GET | `/api/v1/consultations` | 一覧取得 |
-| POST | `/api/v1/consultations` | 作成 |
-| PATCH | `/api/v1/consultations/:id` | 更新 |
-| DELETE | `/api/v1/consultations/:id` | 削除 |
-| PUT | `/api/v1/consultations/reorder` | 並び順一括保存 |
+| GET | `/api/v1/masters/consultations` | 一覧取得 |
+| POST | `/api/v1/masters/consultations` | 作成 |
+| PATCH | `/api/v1/masters/consultations/:id` | 更新 |
+| DELETE | `/api/v1/masters/consultations/:id` | 削除 |
+| PATCH | `/api/v1/masters/consultations/reorder` | 並び順一括保存 |
+
+※ 他のタブも同様に `/api/v1/masters/examination-types`, `/api/v1/masters/procedures`, `/api/v1/masters/vaccines`, `/api/v1/masters/checkup-types` を使用。

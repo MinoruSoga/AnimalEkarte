@@ -24,26 +24,27 @@
 ### フォーム項目（コース）
 | フィールド | 項目ID | 入力部品 | 必須 | 備考 |
 |-----------|--------|---------|------|------|
-| コース名 | `name` | `Input` | ✅ | |
+| コース名 | `name` | `Input` | ✅ | タイトルエリア |
 | ステータス | `isActive` | `StatusToggleButton` | - | |
 | 対象サイズ | `targetSize` | `Select` | - | 指定なし / 小型犬 / 中型犬... |
 | 所要時間 | `duration` | `PropInput(number)`| - | 単位: 分 |
-| 単価(税込) | `price` | `Input(number)` | - | |
+| 単価(税込) | `price` | `MoneyInput` | - | |
 | 備考 | `description`| `PropInput` | - | |
 
 ### フォーム項目（オプション）
 | フィールド | 項目ID | 入力部品 | 必須 | 備考 |
 |-----------|--------|---------|------|------|
-| オプション名| `name` | `Input` | ✅ | |
+| オプション名| `name` | `Input` | ✅ | タイトルエリア |
 | ステータス | `isActive` | `StatusToggleButton` | - | |
 | 所要時間 | `duration` | `PropInput(number)`| - | 単位: 分 |
-| 組合せ可否 | `combinable`| ボタン | - | トグルで切り替え |
-| 単価(税込) | `price` | `Input(number)` | - | |
+| 組合せ可否 | `combinable`| トグルボタン | - | |
+| 単価(税込) | `price` | `MoneyInput` | - | |
 | 備考 | `description`| `PropInput` | - | |
 
 ## API連携
-| メソッド | エンドポイント | 用途 |
-|---------|--------------|------|
-| GET | `/api/v1/trimming-courses` | コース一覧取得 |
-| GET | `/api/v1/trimming-options` | オプション一覧取得 |
-| POST | `/api/v1/trimming-courses` | コース作成 |
+| メソッド | エンドポイント | 用途 | 状態 |
+|---------|--------------|------|------|
+| GET | `/api/v1/masters/trimming-courses` | コース一覧取得 | 実装済 |
+| GET | `/api/v1/masters/trimming-options` | オプション一覧取得 | 実装済 |
+| POST | `/api/v1/masters/trimming-courses` | コース作成 | 実装済 |
+| PATCH | `/api/v1/masters/trimming-courses/reorder` | 並び順一括保存 | 実装済 |

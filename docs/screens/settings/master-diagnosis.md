@@ -39,6 +39,6 @@
 ## API連携
 | メソッド | エンドポイント | 用途 |
 |---------|--------------|------|
-| GET | `/api/v1/diagnosis-categories` | カテゴリ一覧取得 |
-| POST | `/api/v1/diagnosis-names` | 病名作成 |
-| PUT | `/api/v1/diagnosis-names/reorder`| 病名並び順一括保存 |
+| GET | `/api/v1/masters/diagnosis-categories` | カテゴリ一覧取得 |
+| POST | `/api/v1/masters/diagnosis-names` | 病名作成 |
+| PATCH | `/api/v1/masters/diagnosis-names/reorder`| 病名並び順一括保存 |

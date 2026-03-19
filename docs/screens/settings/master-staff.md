@@ -15,16 +15,17 @@
 | フィールド | 説明 | 備考 |
 |-----------|------|------|
 | 氏名 | スタッフのフルネーム | |
-| 職種 | 役割ラベル（日本語） | |
+| 職種 | 役割ラベル（日本語） | job_title マスタから解決 |
 | ステータス | `NotionStatusPill` | 有効/無効 |
+| 操作 | `RowActionButton` | 編集 |
 
 ### 編集項目（サイドパネル）
 | フィールド | 項目ID | 入力部品 | 必須 | 備考 |
 |-----------|--------|---------|------|------|
-| 氏名 | `name` | `Input` | ✅ | |
+| 氏名 | `name` | `Input` | ✅ | タイトルエリア |
 | ステータス | `isActive` | `StatusToggleButton` | - | |
-| 職種 | `staffRole` | `Select` | ✅ | 獣医師/看護師/トリマー/受付/運営管理者 |
-| 資格番号 | `licenseNumber`| `Input` | - | |
+| 職種 | `jobTitleId` | `Select` | ✅ | 獣医師/看護師/トリマー/受付/運営管理者 |
+| 資格番号 | `licenseNumber`| `PropInput` | - | |
 
 ### アカウント設定（新規登録時のみ表示）
 | フィールド | 項目ID | 入力部品 | 必須 | 備考 |
@@ -38,9 +39,9 @@
 - 削除時は `ConfirmDialog` による警告を表示。
 
 ## API連携
-| メソッド | エンドポイント | 用途 |
-|---------|--------------|------|
-| GET | `/api/v1/staffs` | スタッフ一覧取得 |
-| POST | `/api/v1/staffs` | スタッフ作成（＋アカウント作成） |
-| PATCH | `/api/v1/staffs/:id` | スタッフ情報更新 |
-| DELETE | `/api/v1/staffs/:id` | スタッフ削除 |
+| メソッド | エンドポイント | 用途 | 状態 |
+|---------|--------------|------|------|
+| GET | `/api/v1/masters/staffs` | スタッフ一覧取得 | 実装済 |
+| POST | `/api/v1/masters/staffs` | スタッフ作成（＋アカウント作成） | 実装済 |
+| PATCH | `/api/v1/masters/staffs/:id` | スタッフ情報更新 | 実装済 |
+| DELETE | `/api/v1/masters/staffs/:id` | スタッフ削除 | 実装済 |

@@ -37,7 +37,6 @@ make up
 |---------|-----|
 | Frontend | http://localhost:3000 |
 | Backend API | http://localhost:8080 |
-| Swagger UI | http://localhost:8080/swagger/index.html |
 | PostgreSQL | localhost:5434 |
 
 ## 開発コマンド
@@ -64,7 +63,6 @@ make lint            # Go リンター実行
 make lint-fix        # Go リンター実行（自動修正）
 make test            # Go テスト実行
 make test-cover      # Go テスト実行（カバレッジ付き）
-make swagger         # Swagger ドキュメント生成
 ```
 
 > **⚠️ npm / go コマンドはローカルで直接実行しないこと。必ず Docker 経由で実行する。**

@@ -19,8 +19,8 @@
 |-----------|--------|---------|------|------|
 | 薬品名 | `name` | `Input` | ✅ | タイトルエリアで編集 |
 | 親カテゴリ | `parentId` | `Select` | - | 既存のカテゴリ薬（単価0円のもの）から選択 |
-| 単価(税込) | `price` | `Input(number)`| - | カテゴリの場合は入力不可 |
-| ステータス | `isActive` | `NotionStatusPill`| - | 有効/無効の切り替え |
+| 単価(税込) | `price` | `MoneyInput`| - | カテゴリの場合は入力不可 |
+| ステータス | `isActive` | `StatusToggleButton`| - | 有効/無効の切り替え |
 | 備考 | `description`| `PropInput` | - | |
 
 ### 薬剤詳細セクション
@@ -36,10 +36,10 @@
 - **カテゴリ移動**: ドラッグした行を別のカテゴリ行の範囲にドロップすることで `parentId` を更新。
 
 ## API連携
-| メソッド | エンドポイント | 用途 |
-|---------|--------------|------|
-| GET | `/api/v1/master-items?category=medicine` | 全薬剤取得 |
-| POST | `/api/v1/master-items` | 薬剤作成 |
-| PATCH | `/api/v1/master-items/:id` | 薬剤/カテゴリ更新 |
-| DELETE | `/api/v1/master-items/:id` | 薬剤削除 |
-| PUT | `/api/v1/master-items/reorder` | 並び順一括保存 |
+| メソッド | エンドポイント | 用途 | 状態 |
+|---------|--------------|------|------|
+| GET | `/api/v1/masters/medicines` | 全薬剤取得 | 実装済 |
+| POST | `/api/v1/masters/medicines` | 薬剤作成 | 実装済 |
+| PATCH | `/api/v1/masters/medicines/:id` | 薬剤/カテゴリ更新 | 実装済 |
+| DELETE | `/api/v1/masters/medicines/:id` | 薬剤削除 | 実装済 |
+| PATCH | `/api/v1/masters/medicines/reorder` | 並び順一括保存 | 実装済 |
