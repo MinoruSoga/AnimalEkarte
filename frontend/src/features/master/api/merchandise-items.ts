@@ -58,8 +58,9 @@ export type { CreateMerchandiseItemRequest, UpdateMerchandiseItemRequest, Reorde
 const QUERY_KEY = ["masters", "merchandise-items"] as const;
 
 export const getAllMerchandiseItems = async (): Promise<FrontendMerchandiseItem[]> => {
-  const { data } = await axios.get<MerchandiseItem[]>("/v1/masters/merchandise-items");
-  return data.map(transformMerchandiseItem);
+  const { data } = await axios.get<MerchandiseItem[] | { data: MerchandiseItem[] }>("/v1/masters/merchandise-items");
+  const items = Array.isArray(data) ? data : data.data;
+  return items.map(transformMerchandiseItem);
 };
 
 export const useGetAllMerchandiseItems = () => {

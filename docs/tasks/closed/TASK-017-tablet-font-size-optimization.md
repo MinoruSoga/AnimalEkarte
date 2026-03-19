@@ -1,7 +1,7 @@
 # TASK-017: 全一覧ページのフォントサイズをタブレット最適化（最低 text-base）
 
 **作成日**: 2026-03-18
-**ステータス**: Open
+**ステータス**: Closed
 **依頼元**: ユーザー
 
 ---
@@ -27,10 +27,10 @@
 
 | # | サブタスク | 領域 | イシュー | 依存 | 完了 |
 |---|----------|------|---------|------|------|
-| 1 | design-tokens.ts の STYLE プリセット更新 | FE | FE-067 | - | [ ] |
-| 2 | 共有コンポーネントの text-xs/text-sm 置換 | FE | FE-068 | #1 | [ ] |
-| 3 | 一覧ページの text-xs/text-sm 置換 | FE | FE-069 | #1 | [ ] |
-| 4 | マスタ設定ページの text-xs/text-sm 置換 | FE | FE-070 | #1 | [ ] |
+| 1 | design-tokens.ts の STYLE プリセット更新 | FE | FE-067 | - | [x] |
+| 2 | 共有コンポーネントの text-xs/text-sm 置換 | FE | FE-068 | #1 | [x] |
+| 3 | 一覧ページの text-xs/text-sm 置換 | FE | FE-069 | #1 | [x] |
+| 4 | マスタ設定ページの text-xs/text-sm 置換 | FE | FE-070 | #1 | [x] |
 
 ## 受入条件（Acceptance Criteria）
 

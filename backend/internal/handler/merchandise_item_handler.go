@@ -12,26 +12,23 @@ import (
 )
 
 // ListMerchandiseItems godoc
+// マスタ API は全件取得（ページネーションなし）で配列を直接返す。
+// 他のマスタ API（cages, staffs 等）と同じパターン。
 func (h *Handler) ListMerchandiseItems(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
 	}
 
-	page, limit, err := parsePagination(c)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-
 	category := c.Query("category") // optional category filter
 
-	items, total, err := h.svc.MerchandiseItem.List(c.Request.Context(), clinicID, page, limit, category)
+	// page=1, limit=10000 で全件取得（マスタデータは件数が限定的）
+	items, _, err := h.svc.MerchandiseItem.List(c.Request.Context(), clinicID, 1, 10000, category)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, newPaginatedResponse(toMerchandiseItemResponseList(items), total, page, limit))
+	c.JSON(http.StatusOK, toMerchandiseItemResponseList(items))
 }
 
 // GetMerchandiseItem godoc

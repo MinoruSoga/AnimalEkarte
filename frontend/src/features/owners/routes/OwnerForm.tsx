@@ -16,6 +16,7 @@ import {
   CreditCard,
   Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 
 // Internal
 import { Button } from "@/components/ui/button";
@@ -458,6 +459,24 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
     navigate(paths.owners.getHref());
   };
 
+  // FE-085: ペットの飼主変更ハンドラ
+  const handlePetChangeOwner = useCallback(
+    (newOwner: { id: string; name: string }) => {
+      if (!editingPet?.id || !petMutations) return;
+      petMutations.updatePetMutate(
+        { id: editingPet.id, req: { owner_id: Number(newOwner.id) } },
+        {
+          onSuccess: () => {
+            toast.success(`飼主を ${newOwner.name} に変更しました`);
+            setPetModalOpen(false);
+          },
+          onError: () => toast.error("飼主変更に失敗しました"),
+        },
+      );
+    },
+    [editingPet, petMutations, setPetModalOpen],
+  );
+
   // rerender-functional-setstate: setOwnerData・markDirty は両方安定した参照なので
   // useCallback で handleInputChange を安定化できる → MembershipTypeButtons memo の前提条件
   const handleInputChange = useCallback((field: string, value: string | boolean | number) => {
@@ -593,6 +612,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
           ownerName={ownerData.ownerName || "新規飼主"}
           petData={editingPet ?? undefined}
           onSave={handleSavePet}
+          onChangeOwner={handlePetChangeOwner}
         />
       </Suspense>
 
