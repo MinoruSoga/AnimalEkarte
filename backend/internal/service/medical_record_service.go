@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -17,11 +18,21 @@ type MedicalRecordService interface {
 }
 
 type medicalRecordService struct {
-	repo repository.MedicalRecordRepository
+	repo      repository.MedicalRecordRepository
+	ownerRepo repository.OwnerRepository
+	petRepo   repository.PetRepository
 }
 
-func NewMedicalRecordService(repo repository.MedicalRecordRepository) MedicalRecordService {
-	return &medicalRecordService{repo: repo}
+func NewMedicalRecordService(
+	repo repository.MedicalRecordRepository,
+	ownerRepo repository.OwnerRepository,
+	petRepo repository.PetRepository,
+) MedicalRecordService {
+	return &medicalRecordService{
+		repo:      repo,
+		ownerRepo: ownerRepo,
+		petRepo:   petRepo,
+	}
 }
 
 func (s *medicalRecordService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error) {
@@ -41,6 +52,20 @@ func (s *medicalRecordService) Create(ctx context.Context, record *model.Medical
 }
 
 func (s *medicalRecordService) Update(ctx context.Context, record *model.MedicalRecord) error {
+	// owner_id 変更時: クリニック所属確認
+	if record.OwnerID != nil {
+		if _, err := s.ownerRepo.FindByID(ctx, record.ClinicID, *record.OwnerID); err != nil {
+			return apperrors.WrapInvalidInput("owner not found in this clinic")
+		}
+	}
+
+	// pet_id 変更時: クリニック所属確認
+	if record.PetID != nil {
+		if _, err := s.petRepo.FindByID(ctx, record.ClinicID, *record.PetID); err != nil {
+			return apperrors.WrapInvalidInput("pet not found in this clinic")
+		}
+	}
+
 	return s.repo.Update(ctx, record)
 }
 
