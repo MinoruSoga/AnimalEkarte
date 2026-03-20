@@ -269,7 +269,7 @@ SELECT setval(pg_get_serial_sequence('reservation_appointments', 'id'), (SELECT 
 -- course_id: 1=シャンプーコース, 2=爪切り・ブラッシング, 3=サマーカット, 4=全体カット
 -- staff: 6=鈴木一郎(トリマー), 12=高橋さくら(トリマー)
 -- -----------------------------------------------------------------------------
-INSERT INTO trimming_records (id, clinic_id, date, pet_id, weight, style_request, staff_id, status, course_id) VALUES
+INSERT INTO trimming_records (id, clinic_id, date, pet_id, bw, style_request, staff_id, status, course_id) VALUES
     (1, 3, '2025-10-10', 1,  '26.5', 'サマーカット希望',        6,  'completed',   3),
     (2, 3, '2025-10-15', 2,  '15.2', 'ふんわりカット',          12, 'reserved',    4),
     (3, 3, '2025-10-12', 3,  '4.2',  '毛玉カット',              6,  'in_progress', 1),
@@ -382,18 +382,20 @@ ON CONFLICT (id) DO UPDATE SET
     updated_at      = now();
 
 -- -----------------------------------------------------------------------------
--- 11. vitals（002 の体重・記録日時を修正）
+-- 11. vital_records（002 の体重・記録日時を修正）
 -- 003 の medical_records 修正後の正しいペット体重に合わせる
 -- id=1-3: Iris(ゴールデンレトリーバー 26.5kg), id=4: Max(ラブラドール 15.2kg)
 -- id=5: ミケ(3.8kg) は変更なし
+-- pet_id: mr2→pet1(Iris), mr2→pet1(Iris), mr3→pet10, mr4→pet5, mr5→pet14
 -- -----------------------------------------------------------------------------
-INSERT INTO vitals (id, medical_record_id, recorded_at, staff_id, temperature, heart_rate, respiration_rate, weight, notes) VALUES
-    (1, 3, '2026-01-20 09:15:00+09', 1, 38.5, 80,  20, 26.5, '皮膚の搔痒感あり。体重良好。'),
-    (2, 2, '2025-12-15 10:00:00+09', 2, 38.8, 82,  22, 26.0, '体重前回比-500g'),
-    (3, 3, '2026-01-20 09:30:00+09', 1, 38.3, 78,  20, 26.5, '左耳を気にしている'),
-    (4, 4, '2025-11-05 11:00:00+09', 1, 39.1, 95,  24, 15.0, '軽度脱水。CRT 2秒'),
-    (5, 5, '2025-09-15 14:30:00+09', 2, 38.2, 160, 30,  3.8, '粘膜色やや蒼白')
+INSERT INTO vital_records (id, pet_id, medical_record_id, recorded_at, staff_id, temperature, heart_rate, respiration_rate, weight, notes) VALUES
+    (1, 1,  3, '2026-01-20 09:15:00+09', 1, 38.5, 80,  20, 26.5, '皮膚の搔痒感あり。体重良好。'),
+    (2, 1,  2, '2025-12-15 10:00:00+09', 2, 38.8, 82,  22, 26.0, '体重前回比-500g'),
+    (3, 10, 3, '2026-01-20 09:30:00+09', 1, 38.3, 78,  20, 26.5, '左耳を気にしている'),
+    (4, 5,  4, '2025-11-05 11:00:00+09', 1, 39.1, 95,  24, 15.0, '軽度脱水。CRT 2秒'),
+    (5, 14, 5, '2025-09-15 14:30:00+09', 2, 38.2, 160, 30,  3.8, '粘膜色やや蒼白')
 ON CONFLICT (id) DO UPDATE SET
+    pet_id            = EXCLUDED.pet_id,
     medical_record_id = EXCLUDED.medical_record_id,
     recorded_at       = EXCLUDED.recorded_at,
     temperature       = EXCLUDED.temperature,
@@ -402,4 +404,4 @@ ON CONFLICT (id) DO UPDATE SET
     weight            = EXCLUDED.weight,
     notes             = EXCLUDED.notes;
 
-SELECT setval(pg_get_serial_sequence('vitals', 'id'), (SELECT MAX(id) FROM vitals));
+SELECT setval(pg_get_serial_sequence('vital_records', 'id'), (SELECT MAX(id) FROM vital_records));

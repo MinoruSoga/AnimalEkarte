@@ -37,7 +37,8 @@ func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID
 		q = q.Where("trimming_records.pet_id = ?", petID)
 	}
 	if ownerID != nil {
-		q = q.Joins("JOIN pets ON pets.id = trimming_records.pet_id").Where("pets.owner_id = ?", *ownerID)
+		q = q.Select("trimming_records.*").
+			Joins("JOIN pets ON pets.id = trimming_records.pet_id").Where("pets.owner_id = ?", *ownerID)
 	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count trimming records")
@@ -49,7 +50,7 @@ func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID
 		Preload("Staff").
 		Preload("Course").
 		Preload("Options").
-		Offset((page-1)*limit).Limit(limit).Order("date DESC, created_at DESC").
+		Offset((page - 1) * limit).Limit(limit).Order("date DESC, created_at DESC").
 		Find(&trimmings).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find trimming records")
 	}

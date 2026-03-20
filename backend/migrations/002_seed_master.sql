@@ -60,7 +60,7 @@ INSERT INTO staffs (id, clinic_id, name, is_active, staff_role, license_number, 
     (3,  3, '渡辺 博',     true, 'manager',      '',        5, 3),
     (4,  3, '佐藤 花子',   true, 'nurse',        '',        2, 4),
     (5,  3, '伊藤 さくら', true, 'nurse',        '',        2, 5),
-    (6,  3, '鈴木 一郎',   true, 'trimmer',      '',        3, 6),
+    (6,  3, '木村 健太',   true, 'trimmer',      '',        3, 6),
     (7,  3, '田中 美咲',   true, 'reception',    '',        4, 7),
     -- デモアカウント用スタッフ（八王子院）
     (8,  3, '田中 太郎',   true, 'veterinarian', 'V-20001', 1, 1),
@@ -612,17 +612,17 @@ ON CONFLICT DO NOTHING;
 SELECT setval(pg_get_serial_sequence('clinical_plans', 'id'), (SELECT MAX(id) FROM clinical_plans));
 
 -- =============================================================================
--- G. vitals（バイタル: 5件）
+-- G. vital_records（バイタル: 5件）
 -- =============================================================================
-INSERT INTO vitals (id, medical_record_id, recorded_at, staff_id, temperature, heart_rate, respiration_rate, weight, notes) VALUES
-    (1, 3, '2026-02-15 09:15:00+09', 1, 38.5, 100, 22, 9.5,  '皮膚の搔痒感あり'),
-    (2, 2, '2026-02-20 10:00:00+09', 2, 38.8, 140, 28, 3.7,  '体重前回比-100g'),
-    (3, 3, '2026-02-28 09:30:00+09', 1, 38.3, 90,  20, 5.5,  '左耳を気にしている'),
-    (4, 4, '2026-03-05 11:00:00+09', 1, 39.1, 110, 26, 27.8, '軽度脱水。CRT 2秒'),
-    (5, 5, '2026-03-10 14:30:00+09', 2, 38.2, 160, 30, 3.8,  '粘膜色やや蒼白')
+INSERT INTO vital_records (id, pet_id, medical_record_id, recorded_at, staff_id, temperature, heart_rate, respiration_rate, weight, notes) VALUES
+    (1, 1,  1, '2026-02-15 09:15:00+09', 1, 38.5, 100, 22, 9.5,  '皮膚の搔痒感あり'),
+    (2, 3,  2, '2026-02-20 10:00:00+09', 2, 38.8, 140, 28, 3.7,  '体重前回比-100g'),
+    (3, 10, 3, '2026-02-28 09:30:00+09', 1, 38.3, 90,  20, 5.5,  '左耳を気にしている'),
+    (4, 5,  4, '2026-03-05 11:00:00+09', 1, 39.1, 110, 26, 27.8, '軽度脱水。CRT 2秒'),
+    (5, 14, 5, '2026-03-10 14:30:00+09', 2, 38.2, 160, 30, 3.8,  '粘膜色やや蒼白')
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('vitals', 'id'), (SELECT MAX(id) FROM vitals));
+SELECT setval(pg_get_serial_sequence('vital_records', 'id'), (SELECT MAX(id) FROM vital_records));
 
 -- =============================================================================
 -- H. treatments（治療明細: 8件）

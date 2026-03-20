@@ -30,8 +30,7 @@ func NewExaminationRepository(db *gorm.DB) ExaminationRepository {
 func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
 	buildBase := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.Examination{}).
-			Joins("JOIN medical_records ON medical_records.id = exams.medical_record_id").
-			Where("medical_records.clinic_id = ?", clinicID)
+			Where("exams.clinic_id = ?", clinicID)
 		if petID != nil {
 			q = q.Where("exams.pet_id = ?", *petID)
 		}

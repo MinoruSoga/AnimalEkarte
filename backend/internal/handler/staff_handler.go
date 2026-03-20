@@ -271,11 +271,11 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PATCH("/job-titles/:id", h.UpdateJobTitle)
 	masters.DELETE("/job-titles/:id", h.DeleteJobTitle)
 
-	masters.GET("/chief-complaints", h.ListChiefComplaints)
-	masters.POST("/chief-complaints", h.CreateChiefComplaint)
-	masters.GET("/chief-complaints/:id", h.GetChiefComplaint)
-	masters.PATCH("/chief-complaints/:id", h.UpdateChiefComplaint)
-	masters.DELETE("/chief-complaints/:id", h.DeleteChiefComplaint)
+	masters.GET("/chief-complaint-categories", h.ListChiefComplaints)
+	masters.POST("/chief-complaint-categories", h.CreateChiefComplaint)
+	masters.GET("/chief-complaint-categories/:id", h.GetChiefComplaint)
+	masters.PATCH("/chief-complaint-categories/:id", h.UpdateChiefComplaint)
+	masters.DELETE("/chief-complaint-categories/:id", h.DeleteChiefComplaint)
 
 	masters.GET("/inquiry-templates", h.ListInquiryTemplates)
 	masters.POST("/inquiry-templates", h.CreateInquiryTemplate)
