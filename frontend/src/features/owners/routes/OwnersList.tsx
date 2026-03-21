@@ -232,9 +232,14 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
     sorted.sort((a, b) => {
       for (const sort of activeSorts) {
         const key = sort.key as SortKey;
-        const aVal = String(a[key] ?? "");
-        const bVal = String(b[key] ?? "");
-        const cmp = aVal.localeCompare(bVal, "ja");
+        let cmp: number;
+        if (key === "ownerNumber") {
+          cmp = Number(a[key] ?? 0) - Number(b[key] ?? 0);
+        } else {
+          const aVal = String(a[key] ?? "");
+          const bVal = String(b[key] ?? "");
+          cmp = aVal.localeCompare(bVal, "ja");
+        }
         if (cmp !== 0) return sort.direction === "asc" ? cmp : -cmp;
       }
       return 0;

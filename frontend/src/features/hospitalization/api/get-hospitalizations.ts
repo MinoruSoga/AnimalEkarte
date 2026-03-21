@@ -4,11 +4,18 @@ import type { Hospitalization } from "@/types";
 import { transformHospitalization } from "./transforms";
 import type { BackendHospitalization } from "./types";
 
+interface HospitalizationPaginatedResponse {
+  data: BackendHospitalization[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export const getHospitalizations = async (): Promise<Hospitalization[]> => {
-  const { data } = await axios.get<BackendHospitalization[]>(
+  const { data } = await axios.get<HospitalizationPaginatedResponse>(
     "/v1/hospitalizations"
   );
-  return data.map(transformHospitalization);
+  return data.data.map(transformHospitalization);
 };
 
 export const useGetHospitalizations = () => {

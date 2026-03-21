@@ -168,7 +168,7 @@ export function useReservationManagement() {
             start_time: data.start.toISOString(),
             end_time: data.end.toISOString(),
             visit_type: data.visitType || "first",
-            service_type: data.type || "",
+            service_type_id: Number(data.type || 0),
             doctor_id: targetDoctor,
             is_designated: data.isDesignated ?? false,
             status: data.status || ("confirmed" as const),

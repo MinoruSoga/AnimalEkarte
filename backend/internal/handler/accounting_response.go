@@ -38,25 +38,37 @@ type paymentResponse struct {
 	UpdatedAt       time.Time `json:"updated_at"`
 }
 
+type accountingOwnerSummary struct {
+	ID        uint64 `json:"id"`
+	OwnerName string `json:"owner_name"`
+}
+
+type accountingPetSummary struct {
+	ID   uint64 `json:"id"`
+	Name string `json:"name"`
+}
+
 type accountingResponse struct {
-	ID                uint64                `json:"id"`
-	ClinicID          uint64                `json:"clinic_id"`
-	MedicalRecordID   *uint64               `json:"medical_record_id,omitempty"`
-	HospitalizationID *uint64               `json:"hospitalization_id,omitempty"`
-	OwnerID           *uint64               `json:"owner_id,omitempty"`
-	PetID             *uint64               `json:"pet_id,omitempty"`
-	Subtotal          int                   `json:"subtotal"`
-	TaxTotal          int                   `json:"tax_total"`
-	TotalAmount       int                   `json:"total_amount"`
-	HasInsurance      bool                  `json:"has_insurance"`
-	Status            string                `json:"status"`
-	ScheduledDate     time.Time             `json:"scheduled_date"`
-	CompletedAt       *time.Time            `json:"completed_at,omitempty"`
-	Memo              string                `json:"memo"`
-	Items             []billingItemResponse `json:"items,omitempty"`
-	Payments          []paymentResponse     `json:"payments,omitempty"`
-	CreatedAt         time.Time             `json:"created_at"`
-	UpdatedAt         time.Time             `json:"updated_at"`
+	ID                uint64                  `json:"id"`
+	ClinicID          uint64                  `json:"clinic_id"`
+	MedicalRecordID   *uint64                 `json:"medical_record_id,omitempty"`
+	HospitalizationID *uint64                 `json:"hospitalization_id,omitempty"`
+	OwnerID           *uint64                 `json:"owner_id,omitempty"`
+	PetID             *uint64                 `json:"pet_id,omitempty"`
+	Owner             *accountingOwnerSummary `json:"owner,omitempty"`
+	Pet               *accountingPetSummary   `json:"pet,omitempty"`
+	Subtotal          int                     `json:"subtotal"`
+	TaxTotal          int                     `json:"tax_total"`
+	TotalAmount       int                     `json:"total_amount"`
+	HasInsurance      bool                    `json:"has_insurance"`
+	Status            string                  `json:"status"`
+	ScheduledDate     time.Time               `json:"scheduled_date"`
+	CompletedAt       *time.Time              `json:"completed_at,omitempty"`
+	Memo              string                  `json:"memo"`
+	Items             []billingItemResponse   `json:"items,omitempty"`
+	Payments          []paymentResponse       `json:"payments,omitempty"`
+	CreatedAt         time.Time               `json:"created_at"`
+	UpdatedAt         time.Time               `json:"updated_at"`
 }
 
 func toBillingItemResponse(item *model.BillingItem) billingItemResponse {
@@ -104,6 +116,23 @@ func toAccountingResponse(b *model.Billing) accountingResponse {
 	for i := range b.Payments {
 		payments = append(payments, toPaymentResponse(&b.Payments[i]))
 	}
+
+	var owner *accountingOwnerSummary
+	if b.Owner != nil {
+		owner = &accountingOwnerSummary{
+			ID:        b.Owner.ID,
+			OwnerName: b.Owner.OwnerName,
+		}
+	}
+
+	var pet *accountingPetSummary
+	if b.Pet != nil {
+		pet = &accountingPetSummary{
+			ID:   b.Pet.ID,
+			Name: b.Pet.Name,
+		}
+	}
+
 	return accountingResponse{
 		ID:                b.ID,
 		ClinicID:          b.ClinicID,
@@ -111,6 +140,8 @@ func toAccountingResponse(b *model.Billing) accountingResponse {
 		HospitalizationID: b.HospitalizationID,
 		OwnerID:           b.OwnerID,
 		PetID:             b.PetID,
+		Owner:             owner,
+		Pet:               pet,
 		Subtotal:          b.Subtotal,
 		TaxTotal:          b.TaxTotal,
 		TotalAmount:       b.TotalAmount,

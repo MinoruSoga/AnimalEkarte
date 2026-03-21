@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatDate } from "@/utils/format/date";
 import type { Pet } from "@/types";
 
 interface PetSelectionResultsTableProps {
@@ -76,7 +77,7 @@ export const PetSelectionResultsTable = ({ pets, onSelect }: PetSelectionResults
                 <TableCell className="font-mono text-sm text-[#37352F] whitespace-nowrap py-2">{pet.birthDate || "-"}</TableCell>
                 <TableCell className="font-mono text-sm text-[#37352F] whitespace-nowrap py-2">{pet.weight || "-"}</TableCell>
                 <TableCell className="text-sm text-[#37352F] whitespace-nowrap py-2">{pet.environment || "-"}</TableCell>
-                <TableCell className="font-mono text-sm text-[#37352F] whitespace-nowrap py-2">{pet.lastVisit || "-"}</TableCell>
+                <TableCell className="font-mono text-sm text-[#37352F] whitespace-nowrap py-2">{formatDate(pet.lastVisit)}</TableCell>
                 <TableCell className="whitespace-nowrap py-2" onClick={(e) => e.stopPropagation()}>
                   <Button
                     size="sm"

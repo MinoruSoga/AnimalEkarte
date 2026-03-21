@@ -27,13 +27,13 @@ export const transformToCreateRequest = (
   ownerId: string
 ): CreateReservationRequest => {
   return {
-    pet_id: petId,
-    owner_id: ownerId,
+    pet_id: Number(petId),
+    owner_id: Number(ownerId),
     start_time: data.start ? data.start.toISOString() : "",
     end_time: data.end ? data.end.toISOString() : "",
     visit_type: data.visitType ?? "first",
-    service_type: data.type ?? "",
-    doctor_id: data.doctor || undefined,
+    service_type_id: Number(data.type ?? 0),
+    doctor_id: data.doctor ? Number(data.doctor) : undefined,
     is_designated: data.isDesignated ?? false,
     notes: data.notes,
   };

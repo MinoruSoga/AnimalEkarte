@@ -196,7 +196,7 @@ export const ReservationFormFields = ({
             </SelectTrigger>
             <SelectContent>
               {serviceTypes.map((item) => (
-                <SelectItem key={item.id} value={item.name}>
+                <SelectItem key={item.id} value={String(item.id)}>
                   {item.name}
                 </SelectItem>
               ))}
@@ -271,7 +271,7 @@ export const ReservationFormFields = ({
           <SelectContent>
             {activeStaff.length > 0 ? (
               activeStaff.map((s) => (
-                <SelectItem key={s.id} value={s.name}>
+                <SelectItem key={s.id} value={String(s.id)}>
                   {s.name}
                 </SelectItem>
               ))
