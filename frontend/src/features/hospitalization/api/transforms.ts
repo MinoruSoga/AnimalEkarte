@@ -1,5 +1,6 @@
 import type { Hospitalization as FrontendHospitalization } from "@/types";
 import type { BackendHospitalization } from "./types";
+import { formatDate } from "@/utils/format/date";
 
 export const transformHospitalization = (
   hosp: BackendHospitalization
@@ -21,8 +22,8 @@ export const transformHospitalization = (
     petName: hosp.pet?.name ?? "",
     species: hosp.pet?.animal_species?.name ?? "",
     hospitalizationType: typeMap[hosp.hospitalization_type] ?? "入院",
-    startDate: hosp.start_date,
-    endDate: hosp.end_date,
+    startDate: formatDate(hosp.start_date),
+    endDate: formatDate(hosp.end_date),
     status: statusMap[hosp.status] ?? "予約",
     cageId: hosp.cage_id ? String(hosp.cage_id) : undefined,
   };
