@@ -103,7 +103,6 @@ export function useReservationManagement() {
         end: addHours(start, 1),
         status: "confirmed",
         visitType: "first",
-        type: "診療",
         doctor: "",
         isDesignated: false,
         petId,
@@ -126,7 +125,6 @@ export function useReservationManagement() {
         end: addHours(date, 1),
         status: "confirmed",
         visitType: "first",
-        type: "診療",
         doctor: "",
         isDesignated: false,
       };

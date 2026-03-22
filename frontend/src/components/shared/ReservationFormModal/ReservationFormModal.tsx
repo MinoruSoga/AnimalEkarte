@@ -123,8 +123,7 @@ export function ReservationFormModal({
         start: defaultStart,
         end: defaultEnd,
         visitType: "first",
-        type: "診療",
-        doctor: "医師A",
+        doctor: "",
         isDesignated: false,
         status: "confirmed",
       });
