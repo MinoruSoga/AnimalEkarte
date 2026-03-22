@@ -241,7 +241,7 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
       try {
         if (isEdit && id) {
           await updateHospitalization(id, {
-            type: formData.hospitalizationType === "入院" ? "hospitalization" : "hotel",
+            hospitalization_type: formData.hospitalizationType === "入院" ? "hospitalization" : "hotel",
             owner_request: formData.ownerRequest,
             staff_notes: formData.staffNotes,
             memo: formData.memo,
@@ -254,7 +254,7 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
           await createHospitalization({
             pet_id: pet.id,
             owner_id: pet.ownerId || "",
-            type: formData.hospitalizationType === "入院" ? "hospitalization" : "hotel",
+            hospitalization_type: formData.hospitalizationType === "入院" ? "hospitalization" : "hotel",
             start_date: startISO,
             end_date: endISO,
             owner_request: formData.ownerRequest,
