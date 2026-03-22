@@ -265,7 +265,7 @@
 | ケージ選択 | -- | |
 | 入院理由入力 | -- | |
 | ケアプラン設定 | -- | |
-| DB保存 | -- | |
+| DB保存 | OK | HTTP 201確認 ✅（pet_id/owner_id/cage_id number型修正済み） |
 
 ### 7.3 入院詳細 `/hospitalization/:id`
 | テスト項目 | 結果 | 備考 |
