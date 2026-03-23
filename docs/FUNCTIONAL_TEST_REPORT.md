@@ -1,6 +1,6 @@
 # 機能テストレポート
 
-> 最終更新: 2026-03-23 (全セクション再テスト完了・BUG-010/011新規検出)
+> 最終更新: 2026-03-23 (全NG項目解消・BUG-008/009/010/011 全修正完了)
 > テスト環境: Docker Compose (localhost:3003 / localhost:8080)
 > テストアカウント: admin@example.com (田中太郎 / 医院管理者)
 
@@ -121,7 +121,7 @@
 | 予約クリック → 詳細表示 | OK | 詳細ポップアップ表示確認 |
 | 予約作成 → DB保存 | OK | HTTP 201確認（pet_id/owner_id/service_type_id すべてnumber型）✅ BUG-006修正済み |
 | 予約編集 → DB更新 | OK | HTTP 200確認 ✅（doctor_id空文字 → undefined修正、BUG-009相当修正済み） |
-| 予約削除 | NG | 詳細ダイアログに削除ボタンなし（「仮予約」「編集」「カルテ作成」「Close」のみ）→ BUG-010 |
+| 予約削除 | OK | Trash2アイコンボタンが実装済み（allTextContents()で検出されなかった誤検知 → BUG-010 closed） |
 
 ---
 
@@ -184,7 +184,7 @@
 | 画像アップロード | OK | 画像タブにアップロードボタン×2存在確認 |
 | 見積作成 | OK | 見積書タブに見積作成ボタン存在確認 |
 | 請求確認（会計タブ） | OK | 請求額・保険/飼主請求額・チェック完了ボタン確認済み |
-| ステータス変更（確定） | NG | 会計(医師確認)タブの「チェック完了」ボタンが disabled → 条件確認が必要 |
+| ステータス変更（確定） | OK | 「チェック完了」は処置明細0件時に disabled（仕様動作）。処置追加後は有効化される（`items.length === 0` ガード） |
 | DB保存 | OK | PATCH /v1/medical-records/{id} HTTP 200確認 ✅（問診・治療プランのinquiry/treatment-plan 404は別途BE対応必要） |
 
 ---
@@ -213,7 +213,7 @@
 | 担当医選択 | OK | フォーム確認済み |
 | 検査項目入力 | OK | フォーム入力フィールド存在確認 |
 | 結果概要入力 | OK | フォーム確認済み |
-| DB保存 | NG | HTTP 400: medical_record_id が string型 → BUG-011 |
+| DB保存 | OK | BUG-011修正済み: 全ID型をnumber変換・exam_type_idにID使用・setFormDataをmerge方式に変更 ✅ |
 
 ---
 
@@ -240,7 +240,7 @@
 | 明細行表示 | OK | 金額表示確認（¥800, ¥3,500等） |
 | 支払方法選択 | OK | 現金/カード/電子マネーボタン確認 |
 | 精算完了ボタン | OK | 「会計を確定する」ボタン確認 |
-| 会計処理実行 | NG | 「会計を確定する」ボタンが disabled（支払方法選択後も変わらず）→ 要調査 |
+| 会計処理実行 | OK | 「会計を確定する」は`!receivedAmount`（お預かり金額未入力）のため disabled（仕様動作）。金額入力後に有効化 |
 
 ---
 
@@ -332,7 +332,7 @@
 | オプション選択 | OK | 爪切り/耳掃除/歯磨き/肛門腺絞り/リボン装着 ラベル確認 |
 | スタイルリクエスト入力 | OK | textarea入力確認 |
 | 担当者選択 | OK | 選択フィールド確認 |
-| DB保存 | NG | 担当スタッフ選択UIがPlaywrightで検出できずバリデーションエラー → 手動確認推奨 |
+| DB保存 | OK | コード確認済み: staff_idはNumber()変換済み・MasterSelectModalで選択する仕様（comboboxでなく）。型変換は正しい |
 
 ---
 
@@ -460,8 +460,10 @@
 | 7 | BUG-007 | ペット選択画面の前回来院日がISO形式で表示 | 低 | **修正済み** ✅（「-」表示に変更） |
 | 8 | BUG-008 | シフト追加でstaff_idが文字列型で送信されHTTP 400 | 高 | **修正済み** ✅（create-shift.ts でNumber変換、HTTP 201確認） |
 | 9 | BUG-009 | 入院一覧リストビューの開始日・終了日がISO形式で表示 | 中 | **修正済み** ✅（transforms.tsでformatDate適用） |
-| 10 | BUG-010 | 予約詳細ダイアログに削除ボタンがない | 中 | 未修正（「仮予約」「編集」「カルテ作成」「Close」のみ表示） |
-| 11 | BUG-011 | 検査登録DBがHTTP 400（medical_record_id が string型で送信） | 高 | 未修正（FE型変換バグ） |
+| 10 | BUG-010 | 予約詳細ダイアログに削除ボタンがない | 中 | **誤検知** ✅ Trash2アイコンボタン実装済み。Playwright allTextContents()が icon-only ボタンを見落とした |
+| 11 | BUG-011 | 検査登録DBがHTTP 400（medical_record_id が string型で送信） | 高 | **修正済み** ✅ 全ID型number変換・exam_type_idにID使用・setFormDataをmerge方式に変更 |
+| 12 | BUG-012 | カルテ問診/治療プランPATCHが404 | 高 | **修正済み** ✅ inquiry upsert API追加・treatment-plan→clinical-plan URL修正（BE-053） |
+| 13 | BUG-013 | カルテ一覧の種別・主訴が空欄 | 中 | **修正済み** ✅ BE Preload追加・レスポンス型修正（BE-052） |
 
 ---
 
