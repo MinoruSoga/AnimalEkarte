@@ -23,7 +23,7 @@ export interface UpdateReservationRequest {
   end_time?: string;
   visit_type?: string;
   service_type_id?: number;
-  doctor_id?: string;
+  doctor_id?: number;
   is_designated?: boolean;
   status?: string;
   notes?: string;
