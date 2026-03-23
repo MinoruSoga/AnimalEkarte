@@ -36,6 +36,7 @@ type Repositories struct {
 	Vaccination            VaccinationRepository
 	JobTitle               JobTitleRepository
 	ChiefComplaintCategory ChiefComplaintCategoryRepository
+	Inquiry                InquiryRepository
 	InquiryTemplate        InquiryTemplateRepository
 	Company                CompanyRepository
 	BillingReview          BillingReviewRepository
@@ -85,6 +86,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		Vaccination:            NewVaccinationRepository(db),
 		JobTitle:               NewJobTitleRepository(db),
 		ChiefComplaintCategory: NewChiefComplaintCategoryRepository(db),
+		Inquiry:                NewInquiryRepository(db),
 		InquiryTemplate:        NewInquiryTemplateRepository(db),
 		Company:                NewCompanyRepository(db),
 		BillingReview:          NewBillingReviewRepository(db),

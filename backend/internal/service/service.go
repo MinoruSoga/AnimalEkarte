@@ -38,6 +38,7 @@ type Services struct {
 	Vaccination            VaccinationService
 	JobTitle               JobTitleService
 	ChiefComplaintCategory ChiefComplaintCategoryService
+	Inquiry                InquiryService
 	InquiryTemplate        InquiryTemplateService
 	Company                CompanyService
 	BillingReview          BillingReviewService
@@ -87,6 +88,7 @@ func NewServices(repos *repository.Repositories) *Services {
 		Vaccination:            NewVaccinationService(repos.Vaccination),
 		JobTitle:               NewJobTitleService(repos.JobTitle),
 		ChiefComplaintCategory: NewChiefComplaintCategoryService(repos.ChiefComplaintCategory),
+		Inquiry:                NewInquiryService(repos.Inquiry),
 		InquiryTemplate:        NewInquiryTemplateService(repos.InquiryTemplate),
 		Company:                NewCompanyService(repos.Company),
 		BillingReview:          NewBillingReviewService(repos.BillingReview),

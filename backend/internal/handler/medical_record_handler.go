@@ -204,8 +204,8 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 	// 6. ClinicalPlan の自動作成・更新（chief_complaint, plan, assessment, diagnosis_* が送られた場合）
 	if input.Plan != nil || input.Assessment != nil || input.Diagnosis1CategoryID != nil || input.Diagnosis1NameID != nil {
 		clinicalPlanInput := &service.UpdateClinicalPlanInput{
-			TreatmentPolicy: input.Plan,          // plan → TreatmentPolicy
-			DiagnosisDetails: input.Assessment,   // assessment → DiagnosisDetails
+			TreatmentPolicy:  input.Plan,       // plan → TreatmentPolicy
+			DiagnosisDetails: input.Assessment, // assessment → DiagnosisDetails
 		}
 		// Diagnosis1 を優先（複数診断の場合は拡張必要）
 		if input.Diagnosis1CategoryID != nil {
@@ -318,4 +318,5 @@ func (h *Handler) RegisterMedicalRecordRoutes(rg *gin.RouterGroup) {
 	h.RegisterTreatmentPlanMedicalRecordRoutes(records)
 	h.RegisterClinicalPlanRoutes(records)
 	h.RegisterCheckupRoutes(records)
+	h.RegisterInquiryRoutes(records)
 }
