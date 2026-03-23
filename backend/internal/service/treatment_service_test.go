@@ -109,7 +109,7 @@ func TestTreatmentService_List(t *testing.T) {
 
 func TestTreatmentService_Create(t *testing.T) {
 	procedureID := uint64(1)
-	unitPrice := 10000.0
+	unitPrice := int64(10000)
 	discountRate := 0.1
 	quantity := 1.0
 
@@ -207,7 +207,7 @@ func TestTreatmentService_Create(t *testing.T) {
 }
 
 func TestTreatmentService_Update(t *testing.T) {
-	newUnitPrice := 15000.0
+	newUnitPrice := int64(15000)
 	newQuantity := 2.0
 	newStatus := string(model.TreatmentStatusCompleted)
 	newMemo := "Updated treatment"

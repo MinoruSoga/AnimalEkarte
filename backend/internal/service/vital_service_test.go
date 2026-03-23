@@ -15,22 +15,22 @@ import (
 // ---- Vital モック ----
 
 type mockVitalRepository struct {
-	listByMedicalRecordIDFn func(ctx context.Context, medicalRecordID uint64) ([]model.Vital, error)
-	findByIDFn              func(ctx context.Context, vitalID uint64) (*model.Vital, error)
-	createFn                func(ctx context.Context, vital *model.Vital) error
+	listByMedicalRecordIDFn func(ctx context.Context, medicalRecordID uint64) ([]model.VitalRecord, error)
+	findByIDFn              func(ctx context.Context, vitalID uint64) (*model.VitalRecord, error)
+	createFn                func(ctx context.Context, vital *model.VitalRecord) error
 	updateFn                func(ctx context.Context, vitalID uint64, fields map[string]any) error
 	deleteFn                func(ctx context.Context, vitalID uint64) error
 }
 
-func (m *mockVitalRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.Vital, error) {
+func (m *mockVitalRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.VitalRecord, error) {
 	return m.listByMedicalRecordIDFn(ctx, medicalRecordID)
 }
 
-func (m *mockVitalRepository) FindByID(ctx context.Context, vitalID uint64) (*model.Vital, error) {
+func (m *mockVitalRepository) FindByID(ctx context.Context, vitalID uint64) (*model.VitalRecord, error) {
 	return m.findByIDFn(ctx, vitalID)
 }
 
-func (m *mockVitalRepository) Create(ctx context.Context, vital *model.Vital) error {
+func (m *mockVitalRepository) Create(ctx context.Context, vital *model.VitalRecord) error {
 	return m.createFn(ctx, vital)
 }
 
@@ -46,19 +46,19 @@ func (m *mockVitalRepository) Delete(ctx context.Context, vitalID uint64) error 
 
 func TestVitalService_List(t *testing.T) {
 	tests := []struct {
-		name              string
-		medicalRecordID   uint64
-		repoVitals        []model.Vital
-		repoErr           error
-		wantLen           int
-		wantErr           bool
+		name            string
+		medicalRecordID uint64
+		repoVitals      []model.VitalRecord
+		repoErr         error
+		wantLen         int
+		wantErr         bool
 	}{
 		{
 			name:            "returns vitals for medical record",
 			medicalRecordID: 1,
-			repoVitals: []model.Vital{
-				{ID: 1, MedicalRecordID: 1, Temperature: ptrFloat(37.5), HeartRate: ptrInt(80)},
-				{ID: 2, MedicalRecordID: 1, Temperature: ptrFloat(37.3), HeartRate: ptrInt(78)},
+			repoVitals: []model.VitalRecord{
+				{ID: 1, MedicalRecordID: ptrUint64(1), Temperature: ptrFloat(37.5), HeartRate: ptrInt(80)},
+				{ID: 2, MedicalRecordID: ptrUint64(1), Temperature: ptrFloat(37.3), HeartRate: ptrInt(78)},
 			},
 			repoErr: nil,
 			wantLen: 2,
@@ -67,7 +67,7 @@ func TestVitalService_List(t *testing.T) {
 		{
 			name:            "returns empty list when no vitals exist",
 			medicalRecordID: 999,
-			repoVitals:      []model.Vital{},
+			repoVitals:      []model.VitalRecord{},
 			repoErr:         nil,
 			wantLen:         0,
 			wantErr:         false,
@@ -84,7 +84,7 @@ func TestVitalService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVitalRepository{
-				listByMedicalRecordIDFn: func(_ context.Context, _ uint64) ([]model.Vital, error) {
+				listByMedicalRecordIDFn: func(_ context.Context, _ uint64) ([]model.VitalRecord, error) {
 					return tt.repoVitals, tt.repoErr
 				},
 			}
@@ -157,7 +157,7 @@ func TestVitalService_Create(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVitalRepository{
-				createFn: func(_ context.Context, _ *model.Vital) error {
+				createFn: func(_ context.Context, _ *model.VitalRecord) error {
 					return tt.repoErr
 				},
 			}
@@ -171,7 +171,7 @@ func TestVitalService_Create(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, vital)
-				assert.Equal(t, tt.medicalRecordID, vital.MedicalRecordID)
+				assert.Equal(t, ptrUint64(tt.medicalRecordID), vital.MedicalRecordID)
 			}
 		})
 	}
@@ -187,7 +187,7 @@ func TestVitalService_Update(t *testing.T) {
 		medicalRecordID uint64
 		vitalID         uint64
 		input           *UpdateVitalInput
-		repoVital       *model.Vital
+		repoVital       *model.VitalRecord
 		findByIDErr     error
 		updateErr       error
 		wantErr         bool
@@ -200,11 +200,11 @@ func TestVitalService_Update(t *testing.T) {
 				Temperature: &updatedTemperature,
 				HeartRate:   &updatedHeartRate,
 			},
-			repoVital: &model.Vital{
-				ID:                1,
-				MedicalRecordID:   1,
-				Temperature:       &updatedTemperature,
-				HeartRate:         &updatedHeartRate,
+			repoVital: &model.VitalRecord{
+				ID:              1,
+				MedicalRecordID: ptrUint64(1),
+				Temperature:     &updatedTemperature,
+				HeartRate:       &updatedHeartRate,
 			},
 			findByIDErr: nil,
 			updateErr:   nil,
@@ -215,9 +215,9 @@ func TestVitalService_Update(t *testing.T) {
 			medicalRecordID: 1,
 			vitalID:         1,
 			input:           &UpdateVitalInput{},
-			repoVital: &model.Vital{
+			repoVital: &model.VitalRecord{
 				ID:              1,
-				MedicalRecordID: 1,
+				MedicalRecordID: ptrUint64(1),
 			},
 			findByIDErr: nil,
 			updateErr:   nil,
@@ -230,9 +230,9 @@ func TestVitalService_Update(t *testing.T) {
 			input: &UpdateVitalInput{
 				Notes: &updatedNotes,
 			},
-			repoVital: &model.Vital{
+			repoVital: &model.VitalRecord{
 				ID:              999,
-				MedicalRecordID: 2, // Different medical record
+				MedicalRecordID: ptrUint64(2), // Different medical record
 			},
 			findByIDErr: nil,
 			updateErr:   nil,
@@ -257,9 +257,9 @@ func TestVitalService_Update(t *testing.T) {
 			input: &UpdateVitalInput{
 				Temperature: &updatedTemperature,
 			},
-			repoVital: &model.Vital{
+			repoVital: &model.VitalRecord{
 				ID:              1,
-				MedicalRecordID: 1,
+				MedicalRecordID: ptrUint64(1),
 			},
 			findByIDErr: nil,
 			updateErr:   errors.New("db error"),
@@ -272,9 +272,9 @@ func TestVitalService_Update(t *testing.T) {
 			input: &UpdateVitalInput{
 				Notes: &updatedNotes,
 			},
-			repoVital: &model.Vital{
+			repoVital: &model.VitalRecord{
 				ID:              1,
-				MedicalRecordID: 1,
+				MedicalRecordID: ptrUint64(1),
 				Notes:           updatedNotes,
 			},
 			findByIDErr: nil,
@@ -286,7 +286,7 @@ func TestVitalService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVitalRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.Vital, error) {
+				findByIDFn: func(_ context.Context, _ uint64) (*model.VitalRecord, error) {
 					return tt.repoVital, tt.findByIDErr
 				},
 				updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
@@ -312,7 +312,7 @@ func TestVitalService_Delete(t *testing.T) {
 		name            string
 		medicalRecordID uint64
 		vitalID         uint64
-		repoVital       *model.Vital
+		repoVital       *model.VitalRecord
 		findByIDErr     error
 		deleteErr       error
 		wantErr         bool
@@ -321,9 +321,9 @@ func TestVitalService_Delete(t *testing.T) {
 			name:            "deletes vital successfully",
 			medicalRecordID: 1,
 			vitalID:         1,
-			repoVital: &model.Vital{
+			repoVital: &model.VitalRecord{
 				ID:              1,
-				MedicalRecordID: 1,
+				MedicalRecordID: ptrUint64(1),
 			},
 			findByIDErr: nil,
 			deleteErr:   nil,
@@ -333,9 +333,9 @@ func TestVitalService_Delete(t *testing.T) {
 			name:            "returns not found error when vital does not belong to medical record",
 			medicalRecordID: 1,
 			vitalID:         999,
-			repoVital: &model.Vital{
+			repoVital: &model.VitalRecord{
 				ID:              999,
-				MedicalRecordID: 2, // Different medical record
+				MedicalRecordID: ptrUint64(2), // Different medical record
 			},
 			findByIDErr: nil,
 			deleteErr:   nil,
@@ -354,9 +354,9 @@ func TestVitalService_Delete(t *testing.T) {
 			name:            "returns error when delete fails",
 			medicalRecordID: 1,
 			vitalID:         1,
-			repoVital: &model.Vital{
+			repoVital: &model.VitalRecord{
 				ID:              1,
-				MedicalRecordID: 1,
+				MedicalRecordID: ptrUint64(1),
 			},
 			findByIDErr: nil,
 			deleteErr:   errors.New("db error"),
@@ -367,7 +367,7 @@ func TestVitalService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVitalRepository{
-				findByIDFn: func(_ context.Context, _ uint64) (*model.Vital, error) {
+				findByIDFn: func(_ context.Context, _ uint64) (*model.VitalRecord, error) {
 					return tt.repoVital, tt.findByIDErr
 				},
 				deleteFn: func(_ context.Context, _ uint64) error {

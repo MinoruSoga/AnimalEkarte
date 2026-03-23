@@ -63,7 +63,7 @@ func allModels() []any {
 		&model.MedicalRecord{},
 		&model.ClinicalPlan{},
 		&model.Consultation{},
-		&model.Vital{},
+		&model.VitalRecord{},
 		&model.Treatment{},
 		&model.Examination{},
 		&model.ExaminationItem{},
@@ -315,11 +315,15 @@ func TestSchemaDrift(t *testing.T) {
 }
 
 // toSnakeCase はPascalCaseをsnake_caseに変換する。
+// 連続する大文字（ID, URL等）は一つの単語として扱う。
+// 例: MedicalRecordID → medical_record_id（medical_record_i_d ではない）
 func toSnakeCase(s string) string {
+	runes := []rune(s)
 	var result strings.Builder
-	for i, r := range s {
+	for i, r := range runes {
 		if r >= 'A' && r <= 'Z' {
-			if i > 0 {
+			// 先行文字が小文字の場合のみアンダースコアを挿入
+			if i > 0 && runes[i-1] >= 'a' && runes[i-1] <= 'z' {
 				result.WriteByte('_')
 			}
 			result.WriteRune(r + 32) // toLower

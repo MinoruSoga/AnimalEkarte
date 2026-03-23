@@ -118,7 +118,7 @@ func TestCageService_List(t *testing.T) {
 }
 
 func TestCageService_GetByID(t *testing.T) {
-	price := 5000.0
+	price := int64(5000)
 	tests := []struct {
 		name     string
 		id       uint64
@@ -184,7 +184,7 @@ func TestCageService_GetByID(t *testing.T) {
 }
 
 func TestCageService_Create(t *testing.T) {
-	price := 3000.0
+	price := int64(3000)
 	tests := []struct {
 		name    string
 		cage    *model.Cage
@@ -249,7 +249,7 @@ func TestCageService_Create(t *testing.T) {
 }
 
 func TestCageService_Update(t *testing.T) {
-	price := 4500.0
+	price := int64(4500)
 	tests := []struct {
 		name    string
 		cage    *model.Cage
