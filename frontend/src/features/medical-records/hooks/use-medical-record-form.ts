@@ -151,12 +151,12 @@ export function useMedicalRecordForm(recordId?: string) {
         };
 
         const treatmentPlanReq = {
-          plan: plan !== DEFAULT_PLAN ? plan : undefined,
-          assessment: assessment !== DEFAULT_ASSESSMENT ? assessment : undefined,
-          diagnosis_1_category_id: diagnosis1CategoryId,
-          diagnosis_1_name_id: diagnosis1NameId,
-          diagnosis_2_category_id: diagnosis2CategoryId,
-          diagnosis_2_name_id: diagnosis2NameId,
+          treatment_policy: plan !== DEFAULT_PLAN ? plan : undefined,
+          diagnosis_details: assessment !== DEFAULT_ASSESSMENT ? assessment : undefined,
+          diagnosis_category_id: diagnosis1CategoryId ?? undefined,
+          diagnosis_name_id: diagnosis1NameId ?? undefined,
+          diagnosis_2_category_id: diagnosis2CategoryId ?? undefined,
+          diagnosis_2_name_id: diagnosis2NameId ?? undefined,
         };
 
         try {
