@@ -8,10 +8,10 @@ export type BackendExaminationItem = ExaminationItem;
 export type BackendExamination = Examination;
 
 export interface CreateExaminationRequest {
-  medical_record_id: string;
-  pet_id?: string | null;
-  exam_type_id: string;
-  doctor_id?: string | null;
+  medical_record_id: number;
+  pet_id?: number | null;
+  exam_type_id: number;
+  doctor_id?: number | null;
   date: string;
   machine?: string;
   result_summary?: string;

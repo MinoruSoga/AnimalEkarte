@@ -236,7 +236,9 @@ export interface ExaminationRecord {
   ownerName: string;
   petName: string;
   testType: string;
+  testTypeId?: string;
   doctor: string;
+  doctorId?: string;
   status: "依頼中" | "検査中" | "完了";
   resultSummary?: string;
   machine?: string;

@@ -11,10 +11,11 @@ import {
 } from "../api";
 import type { CreateExaminationRequest, UpdateExaminationRequest } from "../api";
 
-export function useExaminationForm(id?: string) {
+export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
+  const medicalRecordId = medicalRecordIdParam ?? searchParams.get("medicalRecordId") ?? "";
   const isEdit = !!id;
 
   // Pet Search State
@@ -40,7 +41,7 @@ export function useExaminationForm(id?: string) {
       : { status: "依頼中" as const, ownerName: "", petName: "", ...localOverrides };
 
   const setFormData = (next: Partial<ExaminationRecord>) => {
-    setLocalOverrides(next);
+    setLocalOverrides((prev) => ({ ...prev, ...next }));
   };
 
   // New mode: populate pet selection from petId query param
@@ -83,9 +84,10 @@ export function useExaminationForm(id?: string) {
         const pet = selectedPets[0];
         if (!pet) return;
         const req: CreateExaminationRequest = {
-          medical_record_id: "",
-          pet_id: pet.id,
-          exam_type_id: formDataWithPet.testType ?? "",
+          medical_record_id: Number(medicalRecordId) || 0,
+          pet_id: Number(pet.id) || null,
+          exam_type_id: Number(formDataWithPet.testTypeId) || 0,
+          doctor_id: formDataWithPet.doctorId ? Number(formDataWithPet.doctorId) : null,
           date: formDataWithPet.date ?? new Date().toISOString(),
           result_summary: formDataWithPet.resultSummary,
           machine: formDataWithPet.machine,

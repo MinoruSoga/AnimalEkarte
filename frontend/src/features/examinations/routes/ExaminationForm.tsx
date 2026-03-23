@@ -27,6 +27,7 @@ export function ExaminationForm() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
+  const medicalRecordId = searchParams.get("medicalRecordId");
   
   const { data: examTypes } = useMasterItems("examination");
   const { data: staffList } = useMasterItems("staff");
@@ -38,7 +39,7 @@ export function ExaminationForm() {
       handleSave,
       isEdit,
       isSaving,
-  } = useExaminationForm(id);
+  } = useExaminationForm(id, medicalRecordId ?? undefined);
 
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
@@ -102,16 +103,19 @@ export function ExaminationForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className={`text-sm ${C.text60}`}>検査種別</Label>
-                <Select 
-                    value={formData.testType} 
-                    onValueChange={(v) => handleSetFormData({ testType: v })}
+                <Select
+                    value={formData.testTypeId ?? ""}
+                    onValueChange={(v) => {
+                      const item = examTypes.find((e) => e.id === v);
+                      handleSetFormData({ testTypeId: v, testType: item?.name ?? v });
+                    }}
                 >
                   <SelectTrigger className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
                     <SelectValue placeholder="選択してください" />
                   </SelectTrigger>
                   <SelectContent>
                     {examTypes.map((item) => (
-                        <SelectItem key={item.id} value={item.name}>
+                        <SelectItem key={item.id} value={item.id}>
                             {item.name}
                         </SelectItem>
                     ))}
@@ -120,16 +124,19 @@ export function ExaminationForm() {
               </div>
               <div className="space-y-1.5">
                 <Label className={`text-sm ${C.text60}`}>担当医</Label>
-                <Select 
-                    value={formData.doctor} 
-                    onValueChange={(v) => handleSetFormData({ doctor: v })}
+                <Select
+                    value={formData.doctorId ?? ""}
+                    onValueChange={(v) => {
+                      const staff = staffList.find((s) => s.id === v);
+                      handleSetFormData({ doctorId: v, doctor: staff?.name ?? v });
+                    }}
                 >
                   <SelectTrigger className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
                     <SelectValue placeholder="選択してください" />
                   </SelectTrigger>
                   <SelectContent>
                     {staffList.map((staff) => (
-                        <SelectItem key={staff.id} value={staff.name}>
+                        <SelectItem key={staff.id} value={staff.id}>
                             {staff.name}
                         </SelectItem>
                     ))}
