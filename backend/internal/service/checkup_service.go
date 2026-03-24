@@ -31,9 +31,19 @@ type UpdateCheckupInput struct {
 	Result        *string
 }
 
+// ListCheckupsByClinicInput はクリニック横断一覧取得の入力DTO
+type ListCheckupsByClinicInput struct {
+	ClinicID      uint64
+	StartDate     *string
+	EndDate       *string
+	NextStartDate *string
+	NextEndDate   *string
+}
+
 // CheckupService は健診記録のビジネスロジックを定義するインターフェース
 type CheckupService interface {
 	List(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error)
+	ListByClinic(ctx context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, error)
 	Create(ctx context.Context, medicalRecordID uint64, input *CreateCheckupInput) (*model.Checkup, error)
 	Update(ctx context.Context, medicalRecordID, checkupID uint64, input *UpdateCheckupInput) (*model.Checkup, error)
 	Delete(ctx context.Context, medicalRecordID, checkupID uint64) error
@@ -50,6 +60,16 @@ func NewCheckupService(repo repository.CheckupRepository) CheckupService {
 
 func (s *checkupService) List(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error) {
 	return s.repo.ListByMedicalRecordID(ctx, medicalRecordID)
+}
+
+func (s *checkupService) ListByClinic(ctx context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, error) {
+	slog.InfoContext(ctx, "listing checkups by clinic", slog.Uint64("clinic_id", input.ClinicID))
+	return s.repo.ListByClinic(ctx, input.ClinicID, repository.CheckupFilters{
+		StartDate:     input.StartDate,
+		EndDate:       input.EndDate,
+		NextStartDate: input.NextStartDate,
+		NextEndDate:   input.NextEndDate,
+	})
 }
 
 func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, input *CreateCheckupInput) (*model.Checkup, error) {

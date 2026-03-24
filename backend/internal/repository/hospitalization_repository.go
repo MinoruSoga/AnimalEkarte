@@ -44,8 +44,8 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count hospitalizations")
 	}
-	if err := q.Preload("Pet").Preload("Owner").Preload("Cage").Preload("Doctor").
-		Offset((page-1)*limit).Limit(limit).Order("start_date DESC, created_at DESC").
+	if err := q.Preload("Pet.AnimalSpecies").Preload("Owner").Preload("Cage").Preload("Doctor").
+		Offset((page - 1) * limit).Limit(limit).Order("start_date DESC, created_at DESC").
 		Find(&hospitalizations).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find hospitalizations")
 	}
@@ -55,7 +55,7 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64
 func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
 	var hospitalization model.Hospitalization
 	if err := r.db.WithContext(ctx).
-		Preload("Pet").
+		Preload("Pet.AnimalSpecies").
 		Preload("Owner").
 		Preload("Cage").
 		Preload("Doctor").

@@ -111,6 +111,43 @@ func (h *Handler) DeleteCheckup(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// ListGlobalCheckups は GET /v1/checkups — クリニック横断の健診記録一覧を返す
+func (h *Handler) ListGlobalCheckups(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
+	input := service.ListCheckupsByClinicInput{
+		ClinicID: clinicID,
+	}
+	if v := c.Query("start_date"); v != "" {
+		input.StartDate = &v
+	}
+	if v := c.Query("end_date"); v != "" {
+		input.EndDate = &v
+	}
+	if v := c.Query("next_start_date"); v != "" {
+		input.NextStartDate = &v
+	}
+	if v := c.Query("next_end_date"); v != "" {
+		input.NextEndDate = &v
+	}
+
+	checkups, err := h.svc.Checkup.ListByClinic(c.Request.Context(), input)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": toCheckupGlobalResponseList(checkups)})
+}
+
+// RegisterGlobalCheckupRoutes は /checkups トップレベルルートを登録する
+func (h *Handler) RegisterGlobalCheckupRoutes(rg *gin.RouterGroup) {
+	checkups := rg.Group("/checkups")
+	checkups.GET("", h.ListGlobalCheckups)
+}
+
 // RegisterCheckupRoutes は健診記録関連のルートを登録する
 func (h *Handler) RegisterCheckupRoutes(rg *gin.RouterGroup) {
 	rg.GET("/:id/checkups", h.ListCheckups)

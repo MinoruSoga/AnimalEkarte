@@ -11,8 +11,17 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// CheckupFilters はクリニック横断一覧のフィルタ条件
+type CheckupFilters struct {
+	StartDate     *string
+	EndDate       *string
+	NextStartDate *string
+	NextEndDate   *string
+}
+
 type CheckupRepository interface {
 	ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error)
+	ListByClinic(ctx context.Context, clinicID uint64, filters CheckupFilters) ([]model.Checkup, error)
 	FindByID(ctx context.Context, id uint64) (*model.Checkup, error)
 	Create(ctx context.Context, checkup *model.Checkup) error
 	Update(ctx context.Context, id uint64, fields map[string]any) error
@@ -25,6 +34,31 @@ type checkupRepository struct {
 
 func NewCheckupRepository(db *gorm.DB) CheckupRepository {
 	return &checkupRepository{db: db}
+}
+
+func (r *checkupRepository) ListByClinic(ctx context.Context, clinicID uint64, filters CheckupFilters) ([]model.Checkup, error) {
+	checkups := make([]model.Checkup, 0)
+	q := r.db.WithContext(ctx).
+		Where("clinic_id = ?", clinicID).
+		Preload("CheckupType").
+		Preload("Doctor").
+		Preload("MedicalRecord.Pet.Owner")
+	if filters.StartDate != nil {
+		q = q.Where("date >= ?", *filters.StartDate)
+	}
+	if filters.EndDate != nil {
+		q = q.Where("date <= ?", *filters.EndDate)
+	}
+	if filters.NextStartDate != nil {
+		q = q.Where("next_date >= ?", *filters.NextStartDate)
+	}
+	if filters.NextEndDate != nil {
+		q = q.Where("next_date <= ?", *filters.NextEndDate)
+	}
+	if err := q.Order("date DESC").Find(&checkups).Error; err != nil {
+		return nil, apperrors.Wrap(err, "list checkups by clinic")
+	}
+	return checkups, nil
 }
 
 func (r *checkupRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.Checkup, error) {
