@@ -2,6 +2,9 @@
 import { useState, useDeferredValue, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
 
+// Hooks
+import { useSortableData } from "@/hooks/use-sortable-data";
+
 // External
 import { Plus, TestTube, FileSpreadsheet, Calendar, CircleDot } from "lucide-react";
 
@@ -19,6 +22,7 @@ import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeade
 import { getExaminationStatusColor } from "@/utils/status-helpers";
 import { usePagination } from "@/hooks/use-pagination";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
+import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 
 // Relative
 import { useFilterExaminationRecords } from "../hooks/use-examination-records";
@@ -29,10 +33,7 @@ import type {
   FilterProperty,
   ActiveFilter,
   SortProperty,
-  ActiveSort,
 } from "@/components/shared/NotionFilter/types";
-
-type SortKey = "date" | "ownerName" | "petName" | "testType" | "doctor" | "status";
 
 const FILTER_PROPERTIES: FilterProperty[] = [
   {
@@ -68,7 +69,6 @@ export function Examinations() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
-  const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
   const isFiltering = searchTerm !== deferredSearch;
 
@@ -85,48 +85,8 @@ export function Examinations() {
 
   const { data: filteredRecords, isLoading } = useFilterExaminationRecords(deferredSearch, filters);
 
-  // ── Sort logic driven by activeSorts ──
-  const handleSortChange = useCallback((sorts: ActiveSort[]) => {
-    setActiveSorts(sorts);
-  }, []);
-
-  const toggleSort = useCallback((key: SortKey) => {
-    setActiveSorts((prev) => {
-      const existing = prev.find((s) => s.key === key);
-      if (!existing) {
-        return [{ key, direction: "asc" as const }];
-      }
-      if (existing.direction === "asc") {
-        return prev.map((s) => s.key === key ? { ...s, direction: "desc" as const } : s);
-      }
-      return prev.filter((s) => s.key !== key);
-    });
-  }, []);
-
-  const directionFor = useCallback(
-    (key: SortKey): "ascending" | "descending" | "none" => {
-      const sort = activeSorts.find((s) => s.key === key);
-      if (!sort) return "none";
-      return sort.direction === "asc" ? "ascending" : "descending";
-    },
-    [activeSorts],
-  );
-
-  const sortedData = useMemo(() => {
-    if (activeSorts.length === 0) return [...filteredRecords];
-    const sorted = [...filteredRecords];
-    sorted.sort((a, b) => {
-      for (const sort of activeSorts) {
-        const key = sort.key as SortKey;
-        const aVal = String(a[key] ?? "");
-        const bVal = String(b[key] ?? "");
-        const cmp = aVal.localeCompare(bVal, "ja");
-        if (cmp !== 0) return sort.direction === "asc" ? cmp : -cmp;
-      }
-      return 0;
-    });
-    return sorted;
-  }, [filteredRecords, activeSorts]);
+  const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
+    useSortableData(filteredRecords);
 
   const pagination = usePagination(sortedData, {
     pageSize: 20,
@@ -232,10 +192,10 @@ export function Examinations() {
           count={isLoading ? undefined : filteredRecords.length}
           sortProperties={EXAMINATION_SORT_PROPERTIES}
           activeSorts={activeSorts}
-          onSortChange={handleSortChange}
+          onSortChange={setActiveSorts}
         />
 
-        <div className={isFiltering ? "opacity-60 transition-opacity duration-150" : "transition-opacity duration-150"}>
+        <FilteringIndicator isFiltering={isFiltering}>
           <DataTable
             columns={columns}
             data={pagination.paginatedData}
@@ -264,7 +224,7 @@ export function Examinations() {
               </DataTableRow>
             )}
           />
-        </div>
+        </FilteringIndicator>
 
         {pagination.totalPages > 1 ? (
           <Pagination

@@ -21,6 +21,7 @@ import BedDouble from "lucide-react/dist/esm/icons/bed-double";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { C } from "@/lib/design-tokens";
+import { getVisitTypeColor } from "@/utils/constants/status-colors";
 
 // Types
 import type { Appointment } from "@/types";
@@ -73,6 +74,7 @@ export const AppointmentCard = memo(function AppointmentCard({
 
   const isTrimming = appointment.serviceType.includes("トリミング");
   const isHospitalization = appointment.serviceType.includes("入院");
+  const visitColor = getVisitTypeColor(appointment.visitType);
 
   const handleKarteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -140,7 +142,7 @@ export const AppointmentCard = memo(function AppointmentCard({
           <div className="flex items-center flex-wrap gap-1 pt-0.5">
             <Badge
               variant="secondary"
-              className={`text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-notion-sm)] ${appointment.visitType === "初診" ? `bg-[#D3E5EF]/60 text-[#183B56]/90 border-[#B8D4E3]/50` : `bg-[#F7F6F3]/60 text-[#37352F]/90 border-[rgba(55,53,47,0.09)]/50`}`}
+              className={`text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-notion-sm)] ${visitColor.badgeBg} ${visitColor.badgeText} ${visitColor.badgeBorder}`}
             >
               {appointment.visitType}
             </Badge>

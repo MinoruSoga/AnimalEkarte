@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import type { Accounting } from "../types";
 import { transformToAccounting } from "./transforms";
 import type { BackendAccounting } from "./types";
@@ -19,7 +20,7 @@ export const getAccountingDetail = async (id: string): Promise<Accounting> => {
 
 export const useGetAccountingDetail = (id: string | undefined) => {
   return useQuery({
-    queryKey: ["accounting-detail", id],
+    queryKey: queryKeys.accountings.detail(id ?? ""),
     queryFn: () => getAccountingDetail(id!),
     enabled: !!id,
   });

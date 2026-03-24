@@ -5,11 +5,10 @@ import { useState } from "react";
 import { format } from "date-fns";
 
 // Internal
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 
 // Relative
 import { H_STYLES } from "../../styles";
@@ -80,36 +79,33 @@ export function LogDialog({ open, onOpenChange, type, onSave }: LogDialogProps) 
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>{getTitle()}</DialogTitle>
-                    <DialogDescription>{getDescription()}</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                        <Label>記録時刻</Label>
-                        <Input type="time" value={form.time} onChange={e => setForm({...form, time: e.target.value})} className={H_STYLES.text.base} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>内容・量</Label>
-                        <Input 
-                            placeholder={getPlaceholder()} 
-                            value={form.value} 
-                            onChange={e => setForm({...form, value: e.target.value})} 
-                            className={H_STYLES.text.base}
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>詳細メモ</Label>
-                        <Textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className={H_STYLES.text.base} />
-                    </div>
+        <FormDialog
+            open={open}
+            onClose={() => onOpenChange(false)}
+            title={getTitle()}
+            description={getDescription()}
+            onSave={handleSave}
+            saveLabel="記録"
+        >
+            <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                    <Label>記録時刻</Label>
+                    <Input type="time" value={form.time} onChange={e => setForm({...form, time: e.target.value})} className={H_STYLES.text.base} />
                 </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)} className={H_STYLES.button.action}>キャンセル</Button>
-                    <Button onClick={handleSave} className={`bg-[#2EAADC] text-white ${H_STYLES.button.action}`}>記録</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                <div className="space-y-2">
+                    <Label>内容・量</Label>
+                    <Input
+                        placeholder={getPlaceholder()}
+                        value={form.value}
+                        onChange={e => setForm({...form, value: e.target.value})}
+                        className={H_STYLES.text.base}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label>詳細メモ</Label>
+                    <Textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className={H_STYLES.text.base} />
+                </div>
+            </div>
+        </FormDialog>
     );
 }

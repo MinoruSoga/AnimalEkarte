@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { Accounting } from "../types";
 import { transformToAccounting } from "./transforms";
@@ -28,9 +29,8 @@ export const useUpdateAccounting = () => {
       req: UpdateAccountingRequest;
     }) => updateAccounting(id, req),
     onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ["accountings"] });
-      queryClient.invalidateQueries({ queryKey: ["accounting", id] });
-      queryClient.invalidateQueries({ queryKey: ["accounting-detail", id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accountings.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(id) });
     },
     onError: (error) => {
       handleApiError(error, "更新");

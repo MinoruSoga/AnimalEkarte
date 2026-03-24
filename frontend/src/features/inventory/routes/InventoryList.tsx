@@ -2,6 +2,9 @@
 import { useState, useDeferredValue, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
 
+// Hooks
+import { useSortableData } from "@/hooks/use-sortable-data";
+
 // External
 import { Plus, Package, FileSpreadsheet, AlertTriangle, CircleDot, FolderOpen } from "lucide-react";
 
@@ -10,7 +13,6 @@ import type {
   FilterProperty,
   ActiveFilter,
   SortProperty,
-  ActiveSort,
 } from "@/components/shared/NotionFilter/types";
 
 // Internal
@@ -31,6 +33,7 @@ import {
 } from "@/utils/status-helpers";
 import { usePagination } from "@/hooks/use-pagination";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
+import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 
 // Relative
 import { useInventory } from "../hooks/use-inventory";
@@ -40,8 +43,6 @@ import type { InventoryItem } from "@/types";
 
 type CategoryFilter = InventoryItem["category"] | "all";
 type StatusFilter = InventoryItem["status"] | "all";
-type SortKey = "name" | "category" | "quantity" | "status";
-
 const CATEGORY_LABELS: Record<InventoryItem["category"], string> = {
   medicine: "医薬品",
   consumable: "消耗品",
@@ -88,7 +89,6 @@ export function InventoryList() {
   const [searchTerm, setSearchTerm] = useState("");
   const deferredSearch = useDeferredValue(searchTerm);
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
-  const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
   const isFiltering = searchTerm !== deferredSearch;
 
   const categoryFilter = activeFilters.find((f) => f.key === "category");
@@ -107,53 +107,8 @@ export function InventoryList() {
     statusFilter,
   });
 
-  // ── Sort logic driven by activeSorts ──
-  const handleSortChange = useCallback((sorts: ActiveSort[]) => {
-    setActiveSorts(sorts);
-  }, []);
-
-  const toggleSort = useCallback((key: SortKey) => {
-    setActiveSorts((prev) => {
-      const existing = prev.find((s) => s.key === key);
-      if (!existing) {
-        return [{ key, direction: "asc" as const }];
-      }
-      if (existing.direction === "asc") {
-        return prev.map((s) => s.key === key ? { ...s, direction: "desc" as const } : s);
-      }
-      return prev.filter((s) => s.key !== key);
-    });
-  }, []);
-
-  const directionFor = useCallback(
-    (key: SortKey): "ascending" | "descending" | "none" => {
-      const sort = activeSorts.find((s) => s.key === key);
-      if (!sort) return "none";
-      return sort.direction === "asc" ? "ascending" : "descending";
-    },
-    [activeSorts],
-  );
-
-  const sortedData = useMemo(() => {
-    if (activeSorts.length === 0) return [...filteredItems];
-    const sorted = [...filteredItems];
-    sorted.sort((a, b) => {
-      for (const sort of activeSorts) {
-        const key = sort.key as SortKey;
-        if (key === "quantity") {
-          const numCmp = a.quantity - b.quantity;
-          if (numCmp !== 0) return sort.direction === "asc" ? numCmp : -numCmp;
-          continue;
-        }
-        const aVal = String(a[key] ?? "");
-        const bVal = String(b[key] ?? "");
-        const cmp = aVal.localeCompare(bVal, "ja");
-        if (cmp !== 0) return sort.direction === "asc" ? cmp : -cmp;
-      }
-      return 0;
-    });
-    return sorted;
-  }, [filteredItems, activeSorts]);
+  const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
+    useSortableData(filteredItems, { numericKeys: ["quantity"] });
 
   const pagination = usePagination(sortedData, {
     pageSize: 20,
@@ -269,11 +224,11 @@ export function InventoryList() {
           count={filteredItems.length}
           sortProperties={INVENTORY_SORT_PROPERTIES}
           activeSorts={activeSorts}
-          onSortChange={handleSortChange}
+          onSortChange={setActiveSorts}
         />
 
         {/* Table */}
-        <div className={isFiltering ? "opacity-60 transition-opacity duration-150" : "transition-opacity duration-150"}>
+        <FilteringIndicator isFiltering={isFiltering}>
           <DataTable
             columns={columns}
             data={pagination.paginatedData}
@@ -309,7 +264,7 @@ export function InventoryList() {
               </DataTableRow>
             )}
           />
-        </div>
+        </FilteringIndicator>
 
         {pagination.totalPages > 1 ? (
           <Pagination

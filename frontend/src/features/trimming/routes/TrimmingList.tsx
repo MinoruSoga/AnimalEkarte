@@ -2,6 +2,10 @@
 import { useState, useCallback, useDeferredValue, useMemo, memo } from "react";
 import { useNavigate } from "react-router";
 
+// Hooks
+import { useSortableData } from "@/hooks/use-sortable-data";
+import { useModalState } from "@/hooks/use-modal-state";
+
 // External
 import { Plus, Scissors, AlertTriangle, Edit, Trash2, Calendar } from "lucide-react";
 import { toast } from "sonner";
@@ -11,7 +15,6 @@ import type {
   FilterProperty,
   ActiveFilter,
   SortProperty,
-  ActiveSort,
 } from "@/components/shared/NotionFilter/types";
 
 // Internal
@@ -25,7 +28,9 @@ import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
 import { Pagination } from "@/components/shared/Pagination";
+import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { getTrimmingStatusColor } from "@/utils/status-helpers";
 import { usePagination } from "@/hooks/use-pagination";
 import { useStaffValidation } from "@/hooks/use-staff-validation";
@@ -34,8 +39,6 @@ import { paths } from "@/config/paths";
 
 // Relative (direct file import, no barrel)
 import { useFilterTrimmingRecords } from "../hooks/use-trimming-records";
-
-type SortKey = "date" | "ownerName" | "petName" | "species" | "staff" | "status";
 
 // rerender-memo + js-cache-function-results: renderRow インライン closure を memo コンポーネントに抽出
 interface TrimmingTableRowProps {
@@ -125,7 +128,6 @@ export function TrimmingList() {
   const navigate = useNavigate();
   const [searchKeyword, setSearchKeyword] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
-  const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
 
   // rerender-transitions: 検索は useDeferredValue で遅延
   const deferredKeyword = useDeferredValue(searchKeyword);
@@ -140,48 +142,8 @@ export function TrimmingList() {
   const { data: filteredRecords, isLoading, error, deleteRecord } = useFilterTrimmingRecords(deferredKeyword, deferredDate);
   const { isValidStaff } = useStaffValidation();
 
-  // ── Sort logic driven by activeSorts ──
-  const handleSortChange = useCallback((sorts: ActiveSort[]) => {
-    setActiveSorts(sorts);
-  }, []);
-
-  const toggleSort = useCallback((key: SortKey) => {
-    setActiveSorts((prev) => {
-      const existing = prev.find((s) => s.key === key);
-      if (!existing) {
-        return [{ key, direction: "asc" as const }];
-      }
-      if (existing.direction === "asc") {
-        return prev.map((s) => s.key === key ? { ...s, direction: "desc" as const } : s);
-      }
-      return prev.filter((s) => s.key !== key);
-    });
-  }, []);
-
-  const directionFor = useCallback(
-    (key: SortKey): "ascending" | "descending" | "none" => {
-      const sort = activeSorts.find((s) => s.key === key);
-      if (!sort) return "none";
-      return sort.direction === "asc" ? "ascending" : "descending";
-    },
-    [activeSorts],
-  );
-
-  const sortedData = useMemo(() => {
-    if (activeSorts.length === 0) return [...filteredRecords];
-    const sorted = [...filteredRecords];
-    sorted.sort((a, b) => {
-      for (const sort of activeSorts) {
-        const key = sort.key as SortKey;
-        const aVal = String(a[key] ?? "");
-        const bVal = String(b[key] ?? "");
-        const cmp = aVal.localeCompare(bVal, "ja");
-        if (cmp !== 0) return sort.direction === "asc" ? cmp : -cmp;
-      }
-      return 0;
-    });
-    return sorted;
-  }, [filteredRecords, activeSorts]);
+  const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
+    useSortableData(filteredRecords);
 
   const {
     currentPage,
@@ -194,30 +156,32 @@ export function TrimmingList() {
     nextPage,
   } = usePagination(sortedData, { pageSize: 10 });
 
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+  const deleteModal = useModalState<{ id: string; label: string }>();
 
   const handleEdit = useCallback((id: string) => {
     navigate(`/trimming/${id}`, { state: { from: "/trimming" } });
   }, [navigate]);
 
+  // rerender-dependencies: deleteModal のメソッドを primitive に抽出して deps を安定化
+  const openDeleteModal = deleteModal.open;
+  const closeDeleteModal = deleteModal.close;
+  const deleteTargetId = deleteModal.item?.id;
+  const deleteTargetLabel = deleteModal.item?.label;
+
   const handleDeleteClick = useCallback((record: TrimmingRecord) => {
-    setDeleteTarget({
+    openDeleteModal({
       id: record.id,
       label: `${record.ownerName} - ${record.petName}`,
     });
-  }, []);
-
-  // rerender-dependencies: deleteTarget (object) から primitive を抽出して deps を安定化
-  const deleteTargetId = deleteTarget?.id;
-  const deleteTargetLabel = deleteTarget?.label;
+  }, [openDeleteModal]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (deleteTargetId && deleteTargetLabel) {
       deleteRecord(deleteTargetId);
       toast.success("削除しました", { description: deleteTargetLabel });
-      setDeleteTarget(null);
+      closeDeleteModal();
     }
-  }, [deleteTargetId, deleteTargetLabel, deleteRecord]);
+  }, [deleteTargetId, deleteTargetLabel, deleteRecord, closeDeleteModal]);
 
   const handleNew = useCallback(() => {
     navigate(paths.trimming.selectPet.getHref());
@@ -292,12 +256,8 @@ export function TrimmingList() {
     { header: "操作", className: "w-[100px]", align: "right" as const },
   ], [directionFor, toggleSort]);
 
-  if (isLoading) return (
-    <div className="flex justify-center items-center p-8">
-      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
-    </div>
-  );
-  if (error) return <div className="p-4 text-red-600">データの取得に失敗しました</div>;
+  if (isLoading) return <LoadingFallback />;
+  if (error) return <ErrorFallback />;
 
   return (
     <PageLayout
@@ -323,11 +283,11 @@ export function TrimmingList() {
           count={filteredRecords.length}
           sortProperties={TRIMMING_SORT_PROPERTIES}
           activeSorts={activeSorts}
-          onSortChange={handleSortChange}
+          onSortChange={setActiveSorts}
         />
 
         {/* Table */}
-        <div className={isFiltering ? "opacity-60 transition-opacity duration-150" : "transition-opacity duration-150"}>
+        <FilteringIndicator isFiltering={isFiltering}>
           <DataTable
             columns={columns}
             data={paginatedData}
@@ -341,7 +301,7 @@ export function TrimmingList() {
               />
             )}
           />
-        </div>
+        </FilteringIndicator>
 
         {/* Pagination */}
         <Pagination
@@ -358,10 +318,10 @@ export function TrimmingList() {
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
-        open={deleteTarget !== null}
-        onClose={() => setDeleteTarget(null)}
+        open={deleteModal.isOpen}
+        onClose={deleteModal.close}
         title="削除確認"
-        description={`${deleteTarget?.label} を削除してもよろしいですか？`}
+        description={`${deleteModal.item?.label} を削除してもよろしいですか？`}
         confirmLabel="削除"
         variant="destructive"
         onConfirm={handleDeleteConfirm}

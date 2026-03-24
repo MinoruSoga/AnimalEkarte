@@ -1,6 +1,10 @@
 // React/Framework
-import { type ReactNode, useState, useCallback, useMemo, useDeferredValue } from "react";
+import { type ReactNode, useState, useCallback, useDeferredValue } from "react";
 import { useNavigate } from "react-router";
+
+// Hooks
+import { useSortableData } from "@/hooks/use-sortable-data";
+import { useModalState } from "@/hooks/use-modal-state";
 
 // External
 import { Plus, FileText, Edit, Trash2, Receipt, AlertTriangle } from "lucide-react";
@@ -16,7 +20,9 @@ import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
 import { Pagination } from "@/components/shared/Pagination";
+import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { C, STYLE } from "@/lib/design-tokens";
 import { getMedicalRecordStatusColor } from "@/utils/status-helpers";
 import { usePagination } from "@/hooks/use-pagination";
@@ -29,10 +35,7 @@ import { useDeleteMedicalRecord } from "../api/delete-medical-record";
 // Types
 import type {
   SortProperty,
-  ActiveSort,
 } from "@/components/shared/NotionFilter/types";
-
-type SortKey = "date" | "ownerName" | "petName" | "species" | "doctor" | "status";
 
 // rendering-hoist-jsx: 静的ソートプロパティ定義
 const MEDICAL_RECORD_SORT_PROPERTIES: SortProperty[] = [
@@ -49,53 +52,12 @@ export function MedicalRecords() {
   const [searchTerm, setSearchTerm] = useState("");
   const deferredSearch = useDeferredValue(searchTerm);
   const { data: filteredRecords, isLoading, isError } = useFilterMedicalRecords(deferredSearch);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
+  const deleteModal = useModalState<{ id: string; label: string }>();
   const { mutate: deleteRecord } = useDeleteMedicalRecord();
   const { isValidStaff } = useStaffValidation();
-  const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
 
-  // ── Sort logic driven by activeSorts ──
-  const handleSortChange = useCallback((sorts: ActiveSort[]) => {
-    setActiveSorts(sorts);
-  }, []);
-
-  const toggleSort = useCallback((key: SortKey) => {
-    setActiveSorts((prev) => {
-      const existing = prev.find((s) => s.key === key);
-      if (!existing) {
-        return [{ key, direction: "asc" as const }];
-      }
-      if (existing.direction === "asc") {
-        return prev.map((s) => s.key === key ? { ...s, direction: "desc" as const } : s);
-      }
-      return prev.filter((s) => s.key !== key);
-    });
-  }, []);
-
-  const directionFor = useCallback(
-    (key: SortKey): "ascending" | "descending" | "none" => {
-      const sort = activeSorts.find((s) => s.key === key);
-      if (!sort) return "none";
-      return sort.direction === "asc" ? "ascending" : "descending";
-    },
-    [activeSorts],
-  );
-
-  const sortedData = useMemo(() => {
-    if (activeSorts.length === 0) return [...filteredRecords];
-    const sorted = [...filteredRecords];
-    sorted.sort((a, b) => {
-      for (const sort of activeSorts) {
-        const key = sort.key as SortKey;
-        const aVal = String(a[key] ?? "");
-        const bVal = String(b[key] ?? "");
-        const cmp = aVal.localeCompare(bVal, "ja");
-        if (cmp !== 0) return sort.direction === "asc" ? cmp : -cmp;
-      }
-      return 0;
-    });
-    return sorted;
-  }, [filteredRecords, activeSorts]);
+  const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
+    useSortableData(filteredRecords);
 
   const {
     paginatedData,
@@ -118,12 +80,8 @@ export function MedicalRecords() {
     );
   }, [navigate]);
 
-  if (isLoading) return (
-    <div className="flex justify-center items-center p-8">
-      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
-    </div>
-  );
-  if (isError) return <div className="p-4 text-red-600">データの取得に失敗しました</div>;
+  if (isLoading) return <LoadingFallback />;
+  if (isError) return <ErrorFallback />;
 
   const COLUMNS: { header: ReactNode; className?: string; align?: "left" | "center" | "right" }[] = [
     {
@@ -177,11 +135,11 @@ export function MedicalRecords() {
           count={filteredRecords.length}
           sortProperties={MEDICAL_RECORD_SORT_PROPERTIES}
           activeSorts={activeSorts}
-          onSortChange={handleSortChange}
+          onSortChange={setActiveSorts}
         />
 
         {/* Table */}
-        <div className={isFiltering ? "opacity-60 transition-opacity duration-150" : "transition-opacity duration-150"}>
+        <FilteringIndicator isFiltering={isFiltering}>
           <DataTable
             columns={COLUMNS}
             data={paginatedData}
@@ -241,7 +199,7 @@ export function MedicalRecords() {
                         label: "削除",
                         icon: Trash2,
                         onClick: () =>
-                          setDeleteTarget({
+                          deleteModal.open({
                             id: r.id,
                             label: `${r.recordNo} ${r.petName}`,
                           }),
@@ -253,7 +211,7 @@ export function MedicalRecords() {
               </DataTableRow>
             )}
           />
-        </div>
+        </FilteringIndicator>
 
         {totalPages > 1 ? (
           <Pagination
@@ -270,16 +228,16 @@ export function MedicalRecords() {
       </div>
 
       <ConfirmDialog
-        open={deleteTarget !== null}
-        onClose={() => setDeleteTarget(null)}
+        open={deleteModal.isOpen}
+        onClose={deleteModal.close}
         onConfirm={() => {
-          if (deleteTarget) {
-            deleteRecord(deleteTarget.id);
+          if (deleteModal.item) {
+            deleteRecord(deleteModal.item.id);
           }
-          setDeleteTarget(null);
+          deleteModal.close();
         }}
         title="カルテを削除しますか？"
-        description={`「${deleteTarget?.label ?? ""}」を削除します。関連する治療・検査データも削除されます。この操作は元に戻せません。`}
+        description={`「${deleteModal.item?.label ?? ""}」を削除します。関連する治療・検査データも削除されます。この操作は元に戻せません。`}
         confirmLabel="削除"
         variant="destructive"
       />

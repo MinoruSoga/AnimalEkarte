@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 import { CreateCareLogDTO, Task } from "../../types";
 import { DailyRecord } from "@/types";
 import { H_STYLES } from "../../styles";
@@ -49,45 +48,40 @@ export function TaskCompleteDialog({ open, onOpenChange, task, onConfirm }: Task
             notes: `${task.name} (${task.description}) 実施 ${form.notes ? `\n${form.notes}` : ""}`,
             staff: "担当医"
         });
-        
+
         onOpenChange(false);
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>処置の実施記録</DialogTitle>
-                    <DialogDescription>
-                        以下の処置を実施として記録します。
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                    <div className="bg-[#F7F6F3] p-3 rounded-md border border-[rgba(55,53,47,0.09)]">
-                        <div className={`font-bold text-[#37352F] ${H_STYLES.text.base}`}>{task?.name}</div>
-                        <div className={`text-[#37352F]/60 ${H_STYLES.text.sm}`}>{task?.description}</div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label>実施時刻</Label>
-                        <Input type="time" value={form.time} onChange={e => setForm(prev => ({...prev, time: e.target.value}))} className={H_STYLES.text.base} />
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label>実施メモ (任意)</Label>
-                        <Textarea 
-                            placeholder="特記事項があれば入力..."
-                            value={form.notes} 
-                            onChange={e => setForm(prev => ({...prev, notes: e.target.value}))}
-                            className={H_STYLES.text.base}
-                        />
-                    </div>
+        <FormDialog
+            open={open}
+            onClose={() => onOpenChange(false)}
+            title="処置の実施記録"
+            description="以下の処置を実施として記録します。"
+            onSave={handleConfirm}
+            saveLabel="実施記録を保存"
+        >
+            <div className="space-y-4 py-4">
+                <div className="bg-[#F7F6F3] p-3 rounded-md border border-[rgba(55,53,47,0.09)]">
+                    <div className={`font-bold text-[#37352F] ${H_STYLES.text.base}`}>{task?.name}</div>
+                    <div className={`text-[#37352F]/60 ${H_STYLES.text.sm}`}>{task?.description}</div>
                 </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)} className={H_STYLES.button.action}>キャンセル</Button>
-                    <Button onClick={handleConfirm} className={`bg-[#2EAADC] text-white ${H_STYLES.button.action}`}>実施記録を保存</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+
+                <div className="space-y-2">
+                    <Label>実施時刻</Label>
+                    <Input type="time" value={form.time} onChange={e => setForm(prev => ({...prev, time: e.target.value}))} className={H_STYLES.text.base} />
+                </div>
+
+                <div className="space-y-2">
+                    <Label>実施メモ (任意)</Label>
+                    <Textarea
+                        placeholder="特記事項があれば入力..."
+                        value={form.notes}
+                        onChange={e => setForm(prev => ({...prev, notes: e.target.value}))}
+                        className={H_STYLES.text.base}
+                    />
+                </div>
+            </div>
+        </FormDialog>
     );
 }

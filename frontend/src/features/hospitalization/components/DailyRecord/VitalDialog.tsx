@@ -5,11 +5,10 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 
 // Internal
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 
 // Relative
 import { H_STYLES } from "../../styles";
@@ -56,51 +55,46 @@ export function VitalDialog({ open, onOpenChange, onSave }: VitalDialogProps) {
             respirationRate: form.respirationRate ? Number(form.respirationRate) : undefined,
             weight: form.weight ? Number(form.weight) : undefined,
             notes: form.notes,
-            staff: "担当医" // In a real app, get from auth context
+            staff: "担当医"
         });
         onOpenChange(false);
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>バイタル記録</DialogTitle>
-                    <DialogDescription>
-                        患者のバイタルサインを記録してください。
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid grid-cols-2 gap-4 py-4">
-                    <div className="col-span-2 space-y-2">
-                        <Label>記録時刻</Label>
-                        <Input type="time" value={form.time} onChange={e => setForm(prev => ({...prev, time: e.target.value}))} className={H_STYLES.text.base} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>体温 (℃)</Label>
-                        <Input type="number" step="0.1" value={form.temperature} onChange={e => setForm(prev => ({...prev, temperature: e.target.value}))} className={H_STYLES.text.base} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>体重 (kg)</Label>
-                        <Input type="number" step="0.01" value={form.weight} onChange={e => setForm(prev => ({...prev, weight: e.target.value}))} className={H_STYLES.text.base} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>心拍数 (/min)</Label>
-                        <Input type="number" value={form.heartRate} onChange={e => setForm(prev => ({...prev, heartRate: e.target.value}))} className={H_STYLES.text.base} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>呼吸数 (/min)</Label>
-                        <Input type="number" value={form.respirationRate} onChange={e => setForm(prev => ({...prev, respirationRate: e.target.value}))} className={H_STYLES.text.base} />
-                    </div>
-                    <div className="col-span-2 space-y-2">
-                        <Label>メモ</Label>
-                        <Textarea value={form.notes} onChange={e => setForm(prev => ({...prev, notes: e.target.value}))} className={H_STYLES.text.base} />
-                    </div>
+        <FormDialog
+            open={open}
+            onClose={() => onOpenChange(false)}
+            title="バイタル記録"
+            description="患者のバイタルサインを記録してください。"
+            onSave={handleSave}
+            saveLabel="記録"
+        >
+            <div className="grid grid-cols-2 gap-4 py-4">
+                <div className="col-span-2 space-y-2">
+                    <Label>記録時刻</Label>
+                    <Input type="time" value={form.time} onChange={e => setForm(prev => ({...prev, time: e.target.value}))} className={H_STYLES.text.base} />
                 </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)} className={H_STYLES.button.action}>キャンセル</Button>
-                    <Button onClick={handleSave} className={`bg-[#2EAADC] text-white ${H_STYLES.button.action}`}>記録</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                <div className="space-y-2">
+                    <Label>体温 (℃)</Label>
+                    <NumberInput step={0.1} value={form.temperature} onChange={v => setForm(prev => ({...prev, temperature: v}))} className={H_STYLES.text.base} suffix="℃" />
+                </div>
+                <div className="space-y-2">
+                    <Label>体重 (kg)</Label>
+                    <NumberInput step={0.01} value={form.weight} onChange={v => setForm(prev => ({...prev, weight: v}))} className={H_STYLES.text.base} suffix="kg" />
+                </div>
+                <div className="space-y-2">
+                    <Label>心拍数 (/min)</Label>
+                    <NumberInput value={form.heartRate} onChange={v => setForm(prev => ({...prev, heartRate: v}))} className={H_STYLES.text.base} suffix="/min" />
+                </div>
+                <div className="space-y-2">
+                    <Label>呼吸数 (/min)</Label>
+                    <NumberInput value={form.respirationRate} onChange={v => setForm(prev => ({...prev, respirationRate: v}))} className={H_STYLES.text.base} suffix="/min" />
+                </div>
+                <div className="col-span-2 space-y-2">
+                    <Label>メモ</Label>
+                    <Textarea value={form.notes} onChange={e => setForm(prev => ({...prev, notes: e.target.value}))} className={H_STYLES.text.base} />
+                </div>
+            </div>
+        </FormDialog>
     );
 }

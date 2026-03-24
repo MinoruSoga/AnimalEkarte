@@ -1,5 +1,7 @@
 import { useState, useMemo, useDeferredValue, useCallback } from "react";
 import { useNavigate } from "react-router";
+import { useModalState } from "@/hooks/use-modal-state";
+import { formatCurrency } from "@/utils/format/number";
 import { Plus, FileText, Trash2, ExternalLink, CircleDot, Calendar } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -50,8 +52,6 @@ const SORT_PROPERTIES: SortProperty[] = [
   { key: "totalAmount", label: "合計金額" },
 ];
 
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY" }).format(amount);
 
 const COLUMNS = [
   { header: "見積番号", className: "w-[140px]" },
@@ -68,7 +68,7 @@ export function EstimateList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const deleteModal = useModalState<string>();
 
   const deferredSearch = useDeferredValue(searchTerm);
 
@@ -157,10 +157,10 @@ export function EstimateList() {
   }, [estimates, activeFilters, deferredSearch, activeSorts]);
 
   const handleDeleteConfirm = useCallback(() => {
-    if (deleteTargetId == null) return;
-    deleteEstimate(deleteTargetId);
-    setDeleteTargetId(null);
-  }, [deleteTargetId, deleteEstimate]);
+    if (deleteModal.item == null) return;
+    deleteEstimate(deleteModal.item);
+    deleteModal.close();
+  }, [deleteModal.item, deleteModal.close, deleteEstimate]);
 
   const handleSortChange = useCallback((sorts: ActiveSort[]) => {
     setActiveSorts(sorts);
@@ -197,7 +197,7 @@ export function EstimateList() {
               label: "削除",
               icon: Trash2,
               variant: "destructive",
-              onClick: () => setDeleteTargetId(estimate.id),
+              onClick: () => deleteModal.open(estimate.id),
             },
           ]}
         />
@@ -251,8 +251,8 @@ export function EstimateList() {
       </div>
 
       <ConfirmDialog
-        open={deleteTargetId != null}
-        onClose={() => setDeleteTargetId(null)}
+        open={deleteModal.isOpen}
+        onClose={deleteModal.close}
         onConfirm={handleDeleteConfirm}
         title="見積書を削除しますか?"
         description="この操作は取り消せません。"

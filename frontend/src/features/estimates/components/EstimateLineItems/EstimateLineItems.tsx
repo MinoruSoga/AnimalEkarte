@@ -1,4 +1,6 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { formatCurrency } from '@/utils/format/number';
+import { calcLineItemAmount } from '@/utils/line-item-helpers';
 import type { EstimateLineItem } from '../../types';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -11,9 +13,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   goods: '物品',
   other: 'その他',
 };
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(amount);
 
 interface EstimateLineItemsProps {
   items: EstimateLineItem[];
@@ -59,7 +58,7 @@ export function EstimateLineItems({
               .slice()
               .sort((a, b) => a.sortOrder - b.sortOrder)
               .map((item, idx) => {
-                const lineTotal = item.unitPrice * item.quantity - item.discountAmount;
+                const { total: lineTotal } = calcLineItemAmount(item);
                 return (
                   <TableRow key={item.id} className="text-sm text-[#37352F]">
                     <TableCell className="text-[#37352F]/40 py-2">{idx + 1}</TableCell>

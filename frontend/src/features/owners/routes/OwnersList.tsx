@@ -2,6 +2,10 @@
 import { useState, useMemo, useCallback, useTransition, useDeferredValue, lazy, Suspense } from "react";
 import { useNavigate, useLoaderData, useRevalidator } from "react-router";
 
+// Hooks
+import { useSortableData } from "@/hooks/use-sortable-data";
+import { useModalState } from "@/hooks/use-modal-state";
+
 // External
 import { Plus, Pencil, Trash2, PawPrint, Heart } from "lucide-react";
 import { toast } from "sonner";
@@ -17,6 +21,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { Pagination } from "@/components/shared/Pagination";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { SortableHeader } from "@/components/shared/SortableHeader";
 import { getPetStatusColor } from "@/utils/status-helpers";
 import { formatDate } from "@/utils/format/date";
@@ -43,10 +48,7 @@ import type {
   FilterProperty,
   ActiveFilter,
   SortProperty,
-  ActiveSort,
 } from "@/components/shared/NotionFilter/types";
-
-type SortKey = "ownerNumber" | "ownerName" | "name" | "species" | "birthDate" | "lastVisit";
 
 // rendering-hoist-jsx: 静的ソートプロパティ定義
 const OWNER_SORT_PROPERTIES: SortProperty[] = [
@@ -123,16 +125,12 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const { pets } = useLoaderData<OwnersLoaderData>();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
-  const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
   // rerender-transitions: 入力は即座に反映しつつ、全件フィルタリングは
   // ブラウザがアイドル時まで遅延させてタイプ中の UI ブロッキングを防ぐ
   const deferredSearchTerm = useDeferredValue(searchTerm);
-  const [pendingDeleteOwner, setPendingDeleteOwner] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
+  const deleteModal = useModalState<{ id: string; name: string }>();
   const [isDeleting, startDeleteTransition] = useTransition();
-  const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
+  const petModal = useModalState<Pet>();
   const [_isPetSaving, startPetSaveTransition] = useTransition();
 
   const filteredPets = useMemo(() => {
@@ -196,56 +194,8 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
     return result;
   }, [pets, activeFilters, deferredSearchTerm]);
 
-  // ── Sort logic driven by activeSorts ──
-  const handleSortChange = useCallback((sorts: ActiveSort[]) => {
-    setActiveSorts(sorts);
-  }, []);
-
-  // SortableHeader integration: toggle sort via activeSorts
-  const toggleSort = useCallback((key: SortKey) => {
-    setActiveSorts((prev) => {
-      const existing = prev.find((s) => s.key === key);
-      if (!existing) {
-        // Add new sort (replace all - single sort for table header clicks)
-        return [{ key, direction: "asc" as const }];
-      }
-      if (existing.direction === "asc") {
-        return prev.map((s) => s.key === key ? { ...s, direction: "desc" as const } : s);
-      }
-      // Remove sort (was desc -> none)
-      return prev.filter((s) => s.key !== key);
-    });
-  }, []);
-
-  const directionFor = useCallback(
-    (key: SortKey): "ascending" | "descending" | "none" => {
-      const sort = activeSorts.find((s) => s.key === key);
-      if (!sort) return "none";
-      return sort.direction === "asc" ? "ascending" : "descending";
-    },
-    [activeSorts],
-  );
-
-  const sortedData = useMemo(() => {
-    if (activeSorts.length === 0) return [...filteredPets];
-    const sorted = [...filteredPets];
-    sorted.sort((a, b) => {
-      for (const sort of activeSorts) {
-        const key = sort.key as SortKey;
-        let cmp: number;
-        if (key === "ownerNumber") {
-          cmp = Number(a[key] ?? 0) - Number(b[key] ?? 0);
-        } else {
-          const aVal = String(a[key] ?? "");
-          const bVal = String(b[key] ?? "");
-          cmp = aVal.localeCompare(bVal, "ja");
-        }
-        if (cmp !== 0) return sort.direction === "asc" ? cmp : -cmp;
-      }
-      return 0;
-    });
-    return sorted;
-  }, [filteredPets, activeSorts]);
+  const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
+    useSortableData(filteredPets, { numericKeys: ["ownerNumber"] });
 
   const pagination = usePagination(sortedData, {
     pageSize: 20,
@@ -271,7 +221,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
 
   // PetEditModal の保存ハンドラ
   const handlePetSave = useCallback((formData: PetFormData) => {
-    if (!selectedPet || !onUpdatePet) return;
+    if (!petModal.item || !onUpdatePet) return;
     startPetSaveTransition(async () => {
       try {
         const req = transformUpdatePetRequest({
@@ -292,22 +242,22 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
           insuranceId: formData.insuranceId,
           remarks: formData.remarks,
         });
-        await onUpdatePet(selectedPet.id, req);
+        await onUpdatePet(petModal.item.id, req);
         toast.success("ペット情報を更新しました");
-        setSelectedPet(null);
+        petModal.close();
         revalidator.revalidate();
       } catch (error: unknown) {
         handleApiError(error, "更新");
       }
     });
-  }, [selectedPet, onUpdatePet, revalidator]);
+  }, [petModal.item, petModal.close, onUpdatePet, revalidator]);
 
   const handleDeleteRequest = useCallback((ownerId: string, ownerName: string) => {
-    setPendingDeleteOwner({ id: ownerId, name: ownerName });
-  }, []);
+    deleteModal.open({ id: ownerId, name: ownerName });
+  }, [deleteModal.open]);
 
   // rerender-dependencies: object依存を避け primitive の id のみを dep に使用
-  const pendingDeleteOwnerId = pendingDeleteOwner?.id ?? null;
+  const pendingDeleteOwnerId = deleteModal.item?.id ?? null;
 
   const handleConfirmDelete = useCallback(() => {
     if (!pendingDeleteOwnerId) return;
@@ -316,13 +266,13 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
       try {
         await deleteOwner(pendingDeleteOwnerId);
         toast.success("飼主を削除しました");
-        setPendingDeleteOwner(null);
+        deleteModal.close();
         revalidator.revalidate();
       } catch {
         toast.error("削除に失敗しました");
       }
     });
-  }, [pendingDeleteOwnerId, revalidator]);
+  }, [pendingDeleteOwnerId, deleteModal.close, revalidator]);
 
   // rerender-memo: renderRow を安定化してインラインクロージャ生成を排除
   const renderRow = useCallback((pet: (typeof filteredPets)[number]) => (
@@ -476,20 +426,20 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
           count={filteredPets.length}
           sortProperties={OWNER_SORT_PROPERTIES}
           activeSorts={activeSorts}
-          onSortChange={handleSortChange}
+          onSortChange={setActiveSorts}
         />
 
         {/* Table */}
         {/* rerender-memo: renderRow を useCallback で安定化し DataTable の不要な再レンダリングを防ぐ */}
         {/* rerender-transitions: isFiltering 中は opacity を落としてフィルタ遅延を視覚化 */}
-        <div className={isFiltering ? "opacity-60 transition-opacity duration-150" : "transition-opacity duration-150"}>
+        <FilteringIndicator isFiltering={isFiltering}>
           <DataTable
             columns={columns}
             data={pagination.paginatedData}
             emptyMessage="データが見つかりません"
             renderRow={renderRow}
           />
-        </div>
+        </FilteringIndicator>
 
         {/* Pagination */}
         {pagination.totalPages > 1 ? (
@@ -508,26 +458,26 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
 
       {/* Delete Confirm Dialog */}
       <ConfirmDialog
-        open={!!pendingDeleteOwner}
-        onClose={() => !isDeleting && setPendingDeleteOwner(null)}
+        open={deleteModal.isOpen}
+        onClose={() => { if (!isDeleting) deleteModal.close(); }}
         onConfirm={handleConfirmDelete}
         title="飼主を削除しますか？"
-        description={`飼主「${pendingDeleteOwner?.name}」とこの飼主に関連するすべてのペット情報が削除されます。この操作は取り消すことができません。`}
+        description={`飼主「${deleteModal.item?.name}」とこの飼主に関連するすべてのペット情報が削除されます。この操作は取り消すことができません。`}
         confirmLabel={isDeleting ? "削除中..." : "削除"}
         cancelLabel="キャンセル"
         variant="destructive"
       />
 
       {/* ペット編集モーダル */}
-      {selectedPet ? (
+      {petModal.item ? (
         <Suspense fallback={null}>
           <PetEditModal
-            open={!!selectedPet}
+            open={petModal.isOpen}
             onOpenChange={(open) => {
-              if (!open) setSelectedPet(null);
+              if (!open) petModal.close();
             }}
-            ownerName={selectedPet.ownerName}
-            petData={petToFormData(selectedPet)}
+            ownerName={petModal.item.ownerName}
+            petData={petToFormData(petModal.item)}
             onSave={handlePetSave}
           />
         </Suspense>

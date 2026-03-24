@@ -24,6 +24,11 @@ import { RESERVATION_STATUS_VALUES } from "../types";
 import { getReservationTypeName, getReservationStatusLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
 import { useServiceTypeColorMap } from "@/features/master/hooks/use-service-type-color-map";
+import {
+  RESERVATION_STATUS_COLORS,
+  getReservationStatusColor,
+  getVisitTypeColor,
+} from "@/utils/constants/status-colors";
 
 interface ReservationDetailModalProps {
   isOpen: boolean;
@@ -35,23 +40,7 @@ interface ReservationDetailModalProps {
   appointment: ReservationAppointment | null;
 }
 
-interface StatusOption {
-  value: ReservationStatus;
-  label: string;
-  dotColor: string;
-  bgColor: string;
-  textColor: string;
-}
-
-const STATUS_OPTIONS: StatusOption[] = [
-  { value: "confirmed", label: "予約確定", dotColor: "bg-emerald-500", bgColor: "bg-emerald-50", textColor: "text-emerald-700" },
-  { value: "pending", label: "仮予約", dotColor: "bg-sky-500", bgColor: "bg-sky-50", textColor: "text-sky-700" },
-  { value: "checked_in", label: "受付済", dotColor: "bg-blue-500", bgColor: "bg-blue-50", textColor: "text-blue-700" },
-  { value: "in_consultation", label: "診療中", dotColor: "bg-violet-500", bgColor: "bg-violet-50", textColor: "text-violet-700" },
-  { value: "accounting", label: "会計待ち", dotColor: "bg-amber-500", bgColor: "bg-amber-50", textColor: "text-amber-700" },
-  { value: "completed", label: "完了", dotColor: "bg-gray-400", bgColor: "bg-gray-50", textColor: "text-gray-600" },
-  { value: "cancelled", label: "キャンセル", dotColor: "bg-red-500", bgColor: "bg-red-50", textColor: "text-red-700" },
-];
+// STATUS_OPTIONS は RESERVATION_STATUS_COLORS に集約済み（status-colors.ts）
 
 interface ActionConfig {
   label: string;
@@ -69,12 +58,7 @@ const DEFAULT_ACTION_CONFIG: ActionConfig = {
   Icon: FilePlus2,
 };
 
-function getVisitTypeAccent(visitType: string): { border: string; bg: string; text: string; dot: string } {
-  if (visitType === "first") {
-    return { border: "border-red-200", bg: "bg-red-50", text: "text-red-700", dot: "bg-red-500" };
-  }
-  return { border: "border-blue-200", bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500" };
-}
+// getVisitTypeAccent は getVisitTypeColor に集約済み（status-colors.ts）
 
 function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -99,8 +83,8 @@ export function ReservationDetailModal({
   if (!appointment) return null;
 
   const actionConfig = ACTION_CONFIG_MAP[appointment.type] ?? DEFAULT_ACTION_CONFIG;
-  const visitAccent = getVisitTypeAccent(appointment.visitType);
-  const currentStatus = STATUS_OPTIONS.find(o => o.value === appointment.status);
+  const visitAccent = getVisitTypeColor(appointment.visitType);
+  const currentStatus = getReservationStatusColor(appointment.status);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -125,10 +109,10 @@ export function ReservationDetailModal({
 
         <div className="px-5 pt-3 pb-4 space-y-4">
           {/* Status Selector */}
-          {onStatusChange && currentStatus ? (
-            <div className={`flex items-center justify-between rounded-lg border px-3 py-2 ${currentStatus.bgColor} ${currentStatus.textColor} border-transparent`}>
+          {onStatusChange ? (
+            <div className={`flex items-center justify-between rounded-lg border px-3 py-2 ${currentStatus.bg} ${currentStatus.text} border-transparent`}>
               <div className="flex items-center gap-2 text-sm">
-                <span className={`w-2 h-2 rounded-full ${currentStatus.dotColor}`} />
+                <span className={`w-2 h-2 rounded-full ${currentStatus.dot}`} />
                 <span>{getReservationStatusLabel(appointment.status)}</span>
               </div>
               <Select
@@ -142,11 +126,11 @@ export function ReservationDetailModal({
                   <SelectValue placeholder="変更" />
                 </SelectTrigger>
                 <SelectContent>
-                  {STATUS_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value} className="text-sm">
+                  {(Object.entries(RESERVATION_STATUS_COLORS) as [ReservationStatus, typeof RESERVATION_STATUS_COLORS[ReservationStatus]][]).map(([value, colors]) => (
+                    <SelectItem key={value} value={value} className="text-sm">
                       <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${opt.dotColor}`} />
-                        {opt.label}
+                        <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
+                        {colors.label}
                       </div>
                     </SelectItem>
                   ))}

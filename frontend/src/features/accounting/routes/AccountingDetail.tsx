@@ -56,6 +56,7 @@ const AccountingDocument = lazy(() =>
   import("../components/AccountingDocument").then((m) => ({ default: m.AccountingDocument }))
 );
 import { paths } from "@/config/paths";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 
 // Types
 import type { Accounting, AccountingItem, PaymentInfo, ItemCategory, PaymentMethod } from "../types";
@@ -406,16 +407,13 @@ const PaymentCard = memo(function PaymentCard({
 
           <div className="space-y-2">
             <Label>お預かり金額</Label>
-            <div className="relative">
-              <Input
-                type="number"
-                className="h-14 text-xl font-bold text-right pr-10"
-                placeholder="0"
-                value={receivedAmount}
-                onChange={(e) => onReceivedAmountChange(e.target.value)}
-              />
-              <span className="absolute right-3 top-4 text-gray-400">円</span>
-            </div>
+            <NumberInput
+              className="h-14 text-xl font-bold"
+              value={receivedAmount}
+              onChange={onReceivedAmountChange}
+              suffix="円"
+              align="right"
+            />
             <div className="flex gap-2 justify-end">
               <Button
                 variant="outline"

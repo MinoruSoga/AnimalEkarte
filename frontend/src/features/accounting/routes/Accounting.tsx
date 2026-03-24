@@ -2,6 +2,9 @@
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { useNavigate, useLoaderData } from "react-router";
 
+// Hooks
+import { useSortableData } from "@/hooks/use-sortable-data";
+
 // External
 import { Plus, CreditCard, CircleDot, FileText } from "lucide-react";
 
@@ -20,6 +23,8 @@ import { getAccountingStatusColor } from "@/utils/status-helpers";
 import { paths } from "@/config/paths";
 import { usePagination } from "@/hooks/use-pagination";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
+import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
+import { formatCurrency } from "@/utils/format/number";
 
 // Types
 import type { Accounting as AccountingType, AccountingStatus, PaymentMethod } from "../types";
@@ -28,10 +33,7 @@ import type {
   FilterProperty,
   ActiveFilter,
   SortProperty,
-  ActiveSort,
 } from "@/components/shared/NotionFilter/types";
-
-type SortKey = "scheduledDate" | "ownerName" | "petName" | "totalAmount" | "status";
 
 // ── 静的定数（rendering-hoist-jsx）──────────────────────────
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
@@ -70,12 +72,6 @@ const ACCOUNTING_SORT_PROPERTIES: SortProperty[] = [
   { key: "status", label: "ステータス" },
 ];
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("ja-JP", {
-    style: "currency",
-    currency: "JPY",
-  }).format(amount);
-}
 
 function calculateTotal(accounting: AccountingType) {
   if (accounting.payment) return accounting.payment.totalAmount;
@@ -93,7 +89,6 @@ export function Accounting() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
-  const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
   const isFiltering = searchTerm !== deferredSearch;
 
@@ -133,57 +128,13 @@ export function Accounting() {
     return result;
   }, [accountings, activeFilters, deferredSearch]);
 
-  // ── Sort logic driven by activeSorts ──
-  const handleSortChange = useCallback((sorts: ActiveSort[]) => {
-    setActiveSorts(sorts);
+  const getSortValue = useCallback((item: AccountingType, key: string) => {
+    if (key === "totalAmount") return calculateTotal(item);
+    return String(item[key as keyof AccountingType] ?? "");
   }, []);
 
-  const toggleSort = useCallback((key: SortKey) => {
-    setActiveSorts((prev) => {
-      const existing = prev.find((s) => s.key === key);
-      if (!existing) {
-        return [{ key, direction: "asc" as const }];
-      }
-      if (existing.direction === "asc") {
-        return prev.map((s) => s.key === key ? { ...s, direction: "desc" as const } : s);
-      }
-      return prev.filter((s) => s.key !== key);
-    });
-  }, []);
-
-  const directionFor = useCallback(
-    (key: SortKey): "ascending" | "descending" | "none" => {
-      const sort = activeSorts.find((s) => s.key === key);
-      if (!sort) return "none";
-      return sort.direction === "asc" ? "ascending" : "descending";
-    },
-    [activeSorts],
-  );
-
-  const sortedData = useMemo(() => {
-    if (activeSorts.length === 0) return [...filteredRecords];
-    const sorted = [...filteredRecords];
-    sorted.sort((a, b) => {
-      for (const sort of activeSorts) {
-        const key = sort.key as SortKey;
-        let aVal: string;
-        let bVal: string;
-        if (key === "totalAmount") {
-          aVal = String(calculateTotal(a));
-          bVal = String(calculateTotal(b));
-          const numCmp = Number(aVal) - Number(bVal);
-          if (numCmp !== 0) return sort.direction === "asc" ? numCmp : -numCmp;
-          continue;
-        }
-        aVal = String(a[key] ?? "");
-        bVal = String(b[key] ?? "");
-        const cmp = aVal.localeCompare(bVal, "ja");
-        if (cmp !== 0) return sort.direction === "asc" ? cmp : -cmp;
-      }
-      return 0;
-    });
-    return sorted;
-  }, [filteredRecords, activeSorts]);
+  const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
+    useSortableData(filteredRecords, { getSortValue });
 
   const pagination = usePagination(sortedData, {
     pageSize: 20,
@@ -323,17 +274,17 @@ export function Accounting() {
           count={filteredRecords.length}
           sortProperties={ACCOUNTING_SORT_PROPERTIES}
           activeSorts={activeSorts}
-          onSortChange={handleSortChange}
+          onSortChange={setActiveSorts}
         />
 
-        <div style={{ opacity: isFiltering ? 0.7 : 1, transition: "opacity 150ms" }}>
+        <FilteringIndicator isFiltering={isFiltering}>
           <DataTable
             columns={columns}
             data={pagination.paginatedData}
             emptyMessage="会計データが見つかりません"
             renderRow={renderRow}
           />
-        </div>
+        </FilteringIndicator>
 
         {pagination.totalPages > 1 ? (
           <Pagination

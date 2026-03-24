@@ -1,6 +1,9 @@
 // React/Framework
 import React, { memo, useMemo } from "react";
 
+// Shared
+import { calcLineItemAmount } from "@/utils/line-item-helpers";
+
 // External
 import { Circle, X, Trash2, PlusCircle } from "lucide-react";
 
@@ -166,10 +169,7 @@ export const TreatmentTable = memo(function TreatmentTable({
                 />
               </Cell>
               <Cell align="right" className="font-mono font-medium px-2">
-                {(
-                  item.unitPrice * item.quantity -
-                  item.discountAmount
-                ).toLocaleString()}
+                {calcLineItemAmount(item).total.toLocaleString()}
               </Cell>
               <Cell align="center" last>
                 <Button
