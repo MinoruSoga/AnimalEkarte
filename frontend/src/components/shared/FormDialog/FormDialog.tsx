@@ -24,6 +24,10 @@ export interface FormDialogProps {
   /** 保存中フラグ（ボタンを disabled にする） */
   isPending?: boolean;
   className?: string;
+  /** 保存ボタンの追加 className（danger 色等の変更に使用） */
+  saveClassName?: string;
+  /** 保存ボタンの disabled 条件（isPending に加えて） */
+  isSaveDisabled?: boolean;
 }
 
 /**
@@ -43,6 +47,8 @@ export function FormDialog({
   cancelLabel = "キャンセル",
   isPending = false,
   className,
+  saveClassName,
+  isSaveDisabled,
 }: FormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -64,9 +70,10 @@ export function FormDialog({
             {cancelLabel}
           </Button>
           <Button
+            variant="primary"
             onClick={onSave}
-            disabled={isPending}
-            className="bg-[#2EAADC] text-white h-11 px-4 text-sm font-medium"
+            disabled={isPending || isSaveDisabled}
+            className={saveClassName}
           >
             {isPending ? "保存中..." : saveLabel}
           </Button>

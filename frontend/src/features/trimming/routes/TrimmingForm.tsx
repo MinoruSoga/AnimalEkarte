@@ -25,6 +25,7 @@ import { MasterLink } from "@/components/shared/MasterLink";
 import { MasterSelectTrigger } from "@/components/shared/MasterSelectModal";
 import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import type { SortOrder } from "@/types";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
@@ -205,10 +206,9 @@ const MiddleColumn = memo(function MiddleColumn({
       <div>
         <Label className="text-sm text-[#37352F]/60 mb-2 block">体重 (BW)</Label>
         <div className="flex gap-2">
-          <Input
-            type="number"
+          <NumberInput
             value={formData.bw}
-            onChange={(e) => onFormChange({ bw: e.target.value })}
+            onChange={(v) => onFormChange({ bw: v })}
             placeholder="体重"
             className="flex-1 text-sm"
           />
@@ -228,12 +228,12 @@ const MiddleColumn = memo(function MiddleColumn({
 
       <div>
         <Label className="text-sm text-[#37352F]/60 mb-2 block">体温 (BT)</Label>
-        <Input
-          type="number"
-          step="0.1"
+        <NumberInput
+          step={0.1}
           value={formData.bt}
-          onChange={(e) => onFormChange({ bt: e.target.value })}
+          onChange={(v) => onFormChange({ bt: v })}
           placeholder="体温"
+          suffix="℃"
           className="text-sm"
         />
       </div>

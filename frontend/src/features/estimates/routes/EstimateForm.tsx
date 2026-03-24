@@ -15,6 +15,7 @@ import {
 import { PageLayout } from '@/components/shared/PageLayout/PageLayout';
 import { NotionDatePicker } from '@/components/shared/NotionDatePicker/NotionDatePicker';
 import { NavigationBlocker } from '@/components/shared/NavigationBlocker';
+import { NumberInput } from '@/components/shared/NumberInput/NumberInput';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useGetEstimate } from '../api/get-estimate';
 import { useEstimateForm } from '../hooks/use-estimate-form';
@@ -137,12 +138,12 @@ function EstimateFormContent({ id }: { id?: string }) {
             <Label htmlFor="subtotal" className="text-sm font-medium text-[#37352F]">
               小計（税抜）
             </Label>
-            <Input
+            <NumberInput
               id="subtotal"
-              type="number"
               min={0}
               value={form.subtotal}
-              onChange={e => handleChangeWithDirty('subtotal', Number(e.target.value))}
+              onChange={v => handleChangeWithDirty('subtotal', Number(v))}
+              suffix="円"
               className="h-9 text-sm"
             />
           </div>
@@ -150,12 +151,12 @@ function EstimateFormContent({ id }: { id?: string }) {
             <Label htmlFor="taxTotal" className="text-sm font-medium text-[#37352F]">
               消費税
             </Label>
-            <Input
+            <NumberInput
               id="taxTotal"
-              type="number"
               min={0}
               value={form.taxTotal}
-              onChange={e => handleChangeWithDirty('taxTotal', Number(e.target.value))}
+              onChange={v => handleChangeWithDirty('taxTotal', Number(v))}
+              suffix="円"
               className="h-9 text-sm"
             />
           </div>
@@ -163,12 +164,12 @@ function EstimateFormContent({ id }: { id?: string }) {
             <Label htmlFor="insuranceAmount" className="text-sm font-medium text-[#37352F]">
               保険適用額
             </Label>
-            <Input
+            <NumberInput
               id="insuranceAmount"
-              type="number"
               min={0}
               value={form.insuranceAmount}
-              onChange={e => handleChangeWithDirty('insuranceAmount', Number(e.target.value))}
+              onChange={v => handleChangeWithDirty('insuranceAmount', Number(v))}
+              suffix="円"
               className="h-9 text-sm"
             />
           </div>
@@ -176,12 +177,12 @@ function EstimateFormContent({ id }: { id?: string }) {
             <Label htmlFor="discountAmount" className="text-sm font-medium text-[#37352F]">
               割引額
             </Label>
-            <Input
+            <NumberInput
               id="discountAmount"
-              type="number"
               min={0}
               value={form.discountAmount}
-              onChange={e => handleChangeWithDirty('discountAmount', Number(e.target.value))}
+              onChange={v => handleChangeWithDirty('discountAmount', Number(v))}
+              suffix="円"
               className="h-9 text-sm"
             />
           </div>
@@ -189,12 +190,12 @@ function EstimateFormContent({ id }: { id?: string }) {
             <Label htmlFor="totalAmount" className="text-sm font-medium text-[#37352F]">
               合計金額
             </Label>
-            <Input
+            <NumberInput
               id="totalAmount"
-              type="number"
               min={0}
               value={form.totalAmount}
-              onChange={e => handleChangeWithDirty('totalAmount', Number(e.target.value))}
+              onChange={v => handleChangeWithDirty('totalAmount', Number(v))}
+              suffix="円"
               className="h-9 text-sm"
             />
           </div>

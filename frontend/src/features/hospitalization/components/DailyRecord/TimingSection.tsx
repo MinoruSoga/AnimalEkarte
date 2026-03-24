@@ -68,7 +68,8 @@ export function TimingSection({ title, icon: Icon, tasks, colorClass, onTaskClic
                             ) : (
                                 <Button 
                                     size="sm" 
-                                    className={`bg-[#2EAADC] hover:bg-[#2EAADC]/90 text-white shadow-sm flex-shrink-0 ${H_STYLES.button.action}`}
+                                    variant="primary"
+                                    className={`shadow-sm flex-shrink-0 ${H_STYLES.button.action}`}
                                     onClick={() => onTaskClick(task)}
                                 >
                                     実施する

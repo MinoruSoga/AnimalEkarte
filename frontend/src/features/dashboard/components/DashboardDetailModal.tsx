@@ -29,6 +29,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { C, STYLE } from "@/lib/design-tokens";
+import {
+  DASHBOARD_STATUS_COLORS,
+  DASHBOARD_STATUS_COLOR_FALLBACK,
+} from "@/utils/constants/status-colors";
 
 // Types
 import type { Appointment } from "@/types";
@@ -43,13 +47,6 @@ const RELATED_BTN_KARTE      = `${RELATED_BTN_BASE} ${C.accent} bg-[#D3E5EF]/40 
 const RELATED_BTN_ACCOUNTING = `${RELATED_BTN_BASE} ${C.textStatusGreen} bg-[#DDEDEA]/40 hover:bg-[#DDEDEA] ${C.borderStatusGreen}`;
 const RELATED_BTN_HOSPITAL   = `${RELATED_BTN_BASE} ${C.textStatusPurple} bg-[#EEE0F7]/40 hover:bg-[#EEE0F7] ${C.borderStatusPurple}`;
 
-const STATUS_COLOR: Record<string, string> = {
-  "受付予約": `${C.bgAccentLight} ${C.textAccentDark} ${C.borderAccentLight}`,
-  "受付済":   `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreen}`,
-  "診療中":   `${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderStatusPurple}`,
-  "会計待ち": `${C.bgWarning50} ${C.textWarningIcon} ${C.borderWarning20}`,
-  "会計済":   `${C.bgActive} ${C.text} ${C.borderLight}`,
-};
 
 interface RelatedPagesProps {
   isTrimming: boolean;
@@ -374,7 +371,7 @@ export const DashboardDetailModal = memo(function DashboardDetailModal({
               </DialogTitle>
             </div>
             {currentStatus ? (
-              <Badge variant="outline" className={`${STATUS_COLOR[currentStatus] ?? "bg-gray-100 text-gray-600 border-gray-200"} px-3 py-1 text-sm font-medium border shrink-0`}>
+              <Badge variant="outline" className={`${DASHBOARD_STATUS_COLORS[currentStatus] ?? DASHBOARD_STATUS_COLOR_FALLBACK} px-3 py-1 text-sm font-medium border shrink-0`}>
                 {currentStatus}
               </Badge>
             ) : null}

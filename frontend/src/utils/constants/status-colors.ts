@@ -1,7 +1,8 @@
 /**
- * 予約ステータス・診察区分のカラー定数集約ファイル。
- * ReservationDetailModal / AppointmentCard のインライン定義を統合。
+ * 予約ステータス・診察区分・ダッシュボードのカラー定数集約ファイル。
+ * ReservationDetailModal / AppointmentCard / DashboardDetailModal のインライン定義を統合。
  */
+import { C } from "@/lib/design-tokens";
 
 // ──────────────────────────────────────────────
 // 予約ステータスカラーマップ
@@ -70,3 +71,19 @@ export function getVisitTypeColor(visitType: string) {
   }
   return VISIT_TYPE_COLORS["再診"];
 }
+
+// ──────────────────────────────────────────────
+// ダッシュボード表示用 日本語ステータスカラーマップ
+// ──────────────────────────────────────────────
+
+/** DashboardDetailModal のステータスバッジカラー（日本語キー） */
+export const DASHBOARD_STATUS_COLORS: Record<string, string> = {
+  "受付予約": `${C.bgAccentLight} ${C.textAccentDark} ${C.borderAccentLight}`,
+  "受付済":   `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreen}`,
+  "診療中":   `${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderStatusPurple}`,
+  "会計待ち": `${C.bgWarning50} ${C.textWarningIcon} ${C.borderWarning20}`,
+  "会計済":   `${C.bgActive} ${C.text} ${C.borderLight}`,
+};
+
+/** DASHBOARD_STATUS_COLORS 未定義ステータスのフォールバッククラス */
+export const DASHBOARD_STATUS_COLOR_FALLBACK = "bg-gray-100 text-gray-600 border-gray-200";

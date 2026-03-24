@@ -45,6 +45,7 @@ import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { FormFieldError } from "@/components/shared/FormFieldError";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
 import { C, STYLE } from "@/lib/design-tokens";
@@ -411,13 +412,13 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="discountRate" className={`text-sm ${C.text60}`}>値引率 (%)</Label>
-        <Input
+        <NumberInput
           id="discountRate"
-          type="number"
-          min="0"
-          max="100"
+          min={0}
+          max={100}
           value={ownerData.discountRate || ""}
-          onChange={(e) => onChange("discountRate", Number(e.target.value))}
+          onChange={(v) => onChange("discountRate", Number(v))}
+          suffix="%"
           className={INPUT_CLS}
         />
       </div>

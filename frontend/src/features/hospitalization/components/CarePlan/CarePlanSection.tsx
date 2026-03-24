@@ -55,7 +55,7 @@ export const CarePlanSection = memo(function CarePlanSection({ plans, onAdd, onU
         <div className={H_STYLES.layout.section_mb}>
             <div className="flex items-center justify-between mb-2">
                 <h3 className={`${H_STYLES.text.lg} text-[#37352F]`}>入院治療プラン</h3>
-                <Button onClick={handleOpenCreate} className={`gap-2 bg-[#2EAADC] hover:bg-[#2EAADC]/90 text-white ${H_STYLES.button.action}`}>
+                <Button variant="primary" onClick={handleOpenCreate} className={`gap-2 ${H_STYLES.button.action}`}>
                     <Plus className={H_STYLES.button.icon} />
                     プラン追加
                 </Button>

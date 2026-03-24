@@ -8,6 +8,7 @@ import { Activity, Plus, Thermometer, Heart, Wind, Weight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import {
     Dialog,
     DialogContent,
@@ -174,14 +175,13 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
                                 <Label htmlFor="vital-temp" className="text-xs">
                                     体温 (℃)
                                 </Label>
-                                <Input
+                                <NumberInput
                                     id="vital-temp"
-                                    name="temperature"
-                                    type="number"
-                                    step="0.1"
+                                    step={0.1}
                                     value={form.temperature}
-                                    onChange={handleChange}
+                                    onChange={(v) => setForm((prev) => ({ ...prev, temperature: v }))}
                                     placeholder="38.5"
+                                    suffix="℃"
                                     className="mt-1"
                                 />
                             </div>
@@ -189,13 +189,12 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
                                 <Label htmlFor="vital-hr" className="text-xs">
                                     心拍数 (bpm)
                                 </Label>
-                                <Input
+                                <NumberInput
                                     id="vital-hr"
-                                    name="heart_rate"
-                                    type="number"
                                     value={form.heart_rate}
-                                    onChange={handleChange}
+                                    onChange={(v) => setForm((prev) => ({ ...prev, heart_rate: v }))}
                                     placeholder="80"
+                                    suffix="/min"
                                     className="mt-1"
                                 />
                             </div>
@@ -203,13 +202,12 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
                                 <Label htmlFor="vital-rr" className="text-xs">
                                     呼吸数 (回/分)
                                 </Label>
-                                <Input
+                                <NumberInput
                                     id="vital-rr"
-                                    name="respiration_rate"
-                                    type="number"
                                     value={form.respiration_rate}
-                                    onChange={handleChange}
+                                    onChange={(v) => setForm((prev) => ({ ...prev, respiration_rate: v }))}
                                     placeholder="20"
+                                    suffix="/min"
                                     className="mt-1"
                                 />
                             </div>
@@ -217,14 +215,13 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
                                 <Label htmlFor="vital-weight" className="text-xs">
                                     体重 (kg)
                                 </Label>
-                                <Input
+                                <NumberInput
                                     id="vital-weight"
-                                    name="weight"
-                                    type="number"
-                                    step="0.01"
+                                    step={0.01}
                                     value={form.weight}
-                                    onChange={handleChange}
+                                    onChange={(v) => setForm((prev) => ({ ...prev, weight: v }))}
                                     placeholder="5.2"
+                                    suffix="kg"
                                     className="mt-1"
                                 />
                             </div>

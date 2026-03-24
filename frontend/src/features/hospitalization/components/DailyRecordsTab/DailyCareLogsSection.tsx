@@ -23,13 +23,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from "@/components/ui/dialog";
+import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 
 // Types
 import type { ApiCareLogRecord, CreateCareLogRecordRequest } from "../../api/daily-records-types";
@@ -112,10 +106,6 @@ export function DailyCareLogsSection({
         setIsOpen(true);
     }, []);
 
-    const handleClose = useCallback(() => {
-        setIsOpen(false);
-    }, []);
-
     const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setForm((prev) => ({ ...prev, [name]: value }));
@@ -191,84 +181,76 @@ export function DailyCareLogsSection({
                 </div>
             )}
 
-            <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle>ケアログ追加</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-3 py-2">
-                        <div>
-                            <Label htmlFor="carelog-time" className="text-xs">
-                                時刻 <span className="text-red-500">*</span>
-                            </Label>
-                            <Input
-                                id="carelog-time"
-                                name="time"
-                                type="time"
-                                value={form.time}
-                                onChange={handleChange}
-                                className="mt-1"
-                            />
-                        </div>
-                        <div>
-                            <Label className="text-xs">種別</Label>
-                            <Select value={form.type} onValueChange={handleTypeChange}>
-                                <SelectTrigger className="mt-1">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {(Object.keys(CARE_LOG_TYPE_LABELS) as CareLogType[]).map(
-                                        (t) => (
-                                            <SelectItem key={t} value={t}>
-                                                {CARE_LOG_TYPE_LABELS[t]}
-                                            </SelectItem>
-                                        )
-                                    )}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <Label htmlFor="carelog-value" className="text-xs">
-                                値 / 量
-                            </Label>
-                            <Input
-                                id="carelog-value"
-                                name="value"
-                                value={form.value}
-                                onChange={handleChange}
-                                placeholder="例: 100%, 通常便"
-                                className="mt-1"
-                            />
-                        </div>
-                        <div>
-                            <Label htmlFor="carelog-notes" className="text-xs">
-                                メモ
-                            </Label>
-                            <Textarea
-                                id="carelog-notes"
-                                name="notes"
-                                value={form.notes}
-                                onChange={handleChange}
-                                placeholder="特記事項"
-                                rows={2}
-                                className="mt-1 resize-none"
-                            />
-                        </div>
+            <FormDialog
+                open={isOpen}
+                onClose={() => setIsOpen(false)}
+                title="ケアログ追加"
+                onSave={handleSubmit}
+                saveLabel="追加"
+                isPending={isPending}
+                isSaveDisabled={!form.time}
+                className="max-w-sm"
+            >
+                <div className="space-y-3 py-2">
+                    <div>
+                        <Label htmlFor="carelog-time" className="text-xs">
+                            時刻 <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                            id="carelog-time"
+                            name="time"
+                            type="time"
+                            value={form.time}
+                            onChange={handleChange}
+                            className="mt-1"
+                        />
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={handleClose} size="sm">
-                            キャンセル
-                        </Button>
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={!form.time || isPending}
-                            size="sm"
-                        >
-                            保存
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    <div>
+                        <Label className="text-xs">種別</Label>
+                        <Select value={form.type} onValueChange={handleTypeChange}>
+                            <SelectTrigger className="mt-1">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {(Object.keys(CARE_LOG_TYPE_LABELS) as CareLogType[]).map(
+                                    (t) => (
+                                        <SelectItem key={t} value={t}>
+                                            {CARE_LOG_TYPE_LABELS[t]}
+                                        </SelectItem>
+                                    )
+                                )}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <Label htmlFor="carelog-value" className="text-xs">
+                            値 / 量
+                        </Label>
+                        <Input
+                            id="carelog-value"
+                            name="value"
+                            value={form.value}
+                            onChange={handleChange}
+                            placeholder="例: 100%, 通常便"
+                            className="mt-1"
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="carelog-notes" className="text-xs">
+                            メモ
+                        </Label>
+                        <Textarea
+                            id="carelog-notes"
+                            name="notes"
+                            value={form.notes}
+                            onChange={handleChange}
+                            placeholder="特記事項"
+                            rows={2}
+                            className="mt-1 resize-none"
+                        />
+                    </div>
+                </div>
+            </FormDialog>
         </div>
     );
 }

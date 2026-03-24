@@ -2,7 +2,7 @@
 import React from "react";
 
 // Internal
-import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 
 interface TreatmentDetailedSummaryProps {
   subtotal: number;
@@ -62,23 +62,24 @@ export const TreatmentDetailedSummary = React.memo(function TreatmentDetailedSum
             ) : (
               <>
                 <span className="text-sm text-[#37352F]/60">割引率</span>
-                <Input
-                  className="w-16 h-10 text-right text-sm bg-white border-[rgba(55,53,47,0.16)]"
+                <NumberInput
+                  className="w-16 h-10"
                   value={discountRate}
-                  onChange={(e) => onUpdateDiscountRate?.(Number(e.target.value))}
-                  type="number"
+                  onChange={(v) => onUpdateDiscountRate?.(Number(v))}
+                  suffix="%"
+                  align="right"
                 />
-                <span className="text-sm text-[#37352F]">%</span>
               </>
             )}
           </div>
           <div className="p-2 border-r border-[rgba(55,53,47,0.16)] h-full flex items-center justify-end gap-1">
-            <span className="text-sm text-[#37352F]/60">値引額 ￥</span>
-            <Input
-              className="w-20 h-10 text-right text-sm bg-white border-[rgba(55,53,47,0.16)]"
+            <span className="text-sm text-[#37352F]/60">値引額</span>
+            <NumberInput
+              className="w-20 h-10"
               value={discountAmount}
-              onChange={(e) => onUpdateDiscountAmount(Number(e.target.value))}
-              type="number"
+              onChange={(v) => onUpdateDiscountAmount(Number(v))}
+              suffix="円"
+              align="right"
             />
           </div>
           <div className="p-2 text-right text-[#37352F] border-r border-[rgba(55,53,47,0.16)] h-full flex items-center justify-end font-mono font-medium">

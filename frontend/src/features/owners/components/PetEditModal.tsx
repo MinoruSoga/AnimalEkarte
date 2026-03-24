@@ -21,6 +21,7 @@ import { toast } from "sonner";
 
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { FormFieldError } from "@/components/shared/FormFieldError";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
   PET_GENDER_VALUES,
@@ -361,15 +362,15 @@ export function PetEditModal({
               <Label htmlFor="weight" className={LABEL_CLS}>
                 体重(kg)
               </Label>
-              <Input
+              <NumberInput
                 id="weight"
-                type="number"
-                min="0"
-                step="0.1"
+                min={0}
+                step={0.1}
                 value={formData.weight || ""}
-                onChange={(e) =>
-                  setFormData(prev => ({ ...prev, weight: e.target.value }))
+                onChange={(v) =>
+                  setFormData(prev => ({ ...prev, weight: v }))
                 }
+                suffix="kg"
                 className={INPUT_CLS}
               />
             </div>

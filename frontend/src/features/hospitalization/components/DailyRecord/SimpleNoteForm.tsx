@@ -51,7 +51,8 @@ export function SimpleNoteForm({ onSave }: SimpleNoteFormProps) {
                     size="sm" 
                     onClick={handleSubmit}
                     disabled={!note.trim()}
-                    className={`bg-[#2EAADC] hover:bg-[#2EAADC]/90 text-white gap-2 shadow-sm ${H_STYLES.button.action}`}
+                    variant="primary"
+                    className={`gap-2 shadow-sm ${H_STYLES.button.action}`}
                 >
                     <Send className={H_STYLES.button.icon} />
                     記録

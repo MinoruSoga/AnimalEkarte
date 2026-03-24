@@ -1,7 +1,7 @@
 # TASK-025: UI共通化リファクタリング第2弾
 
 **作成日**: 2026-03-25
-**ステータス**: Open
+**ステータス**: Closed
 **依頼元**: ボタンやフォームなどをできる限りすべてのページで共通化する
 
 ---
@@ -22,10 +22,10 @@ TASK-024（FormDialog共有化・ステータスカラーマップ統一・Edita
 
 | # | サブタスク | 領域 | イシュー | 依存 | 完了 |
 |---|-----------|------|---------|------|------|
-| 1 | `NumberInput` を全 feature に適用（14ファイル） | FE | FE-108 | - | [ ] |
-| 2 | シンプルダイアログ3件を `FormDialog` に移行 | FE | FE-109 | - | [ ] |
-| 3 | ボタンカラー直書きを Button variant 拡充で統一 | FE | FE-110 | - | [ ] |
-| 4 | `DashboardDetailModal` の `STATUS_COLOR` を `status-colors.ts` に統合 | FE | FE-111 | - | [ ] |
+| 1 | `NumberInput` を全 feature に適用（14ファイル） | FE | FE-108 | - | [x] |
+| 2 | シンプルダイアログ3件を `FormDialog` に移行 | FE | FE-109 | - | [x] |
+| 3 | ボタンカラー直書きを Button variant 拡充で統一 | FE | FE-110 | - | [x] |
+| 4 | `DashboardDetailModal` の `STATUS_COLOR` を `status-colors.ts` に統合 | FE | FE-111 | - | [x] |
 
 ## 受入条件（Acceptance Criteria）
 
