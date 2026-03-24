@@ -337,16 +337,18 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               削除
             </Button>
           ) : null}
-          <Button
-            variant="outline"
-            onClick={() => setIsVitalsOpen(true)}
-            disabled={isNewRecord}
-            title={isNewRecord ? "カルテを保存してから利用できます" : undefined}
-            className="h-10 text-sm px-4"
-          >
-            <HeartPulse className="h-4 w-4" />
-            バイタル記録
-          </Button>
+          {activeTab !== "見積書" ? (
+            <Button
+              variant="outline"
+              onClick={() => setIsVitalsOpen(true)}
+              disabled={isNewRecord}
+              title={isNewRecord ? "カルテを保存してから利用できます" : undefined}
+              className="h-10 text-sm px-4"
+            >
+              <HeartPulse className="h-4 w-4" />
+              バイタル記録
+            </Button>
+          ) : null}
           <Button
             onClick={handleSaveClick}
             disabled={isSaving}

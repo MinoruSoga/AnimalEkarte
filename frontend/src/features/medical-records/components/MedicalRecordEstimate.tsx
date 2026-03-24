@@ -1,5 +1,4 @@
 import React, { memo, useState, useMemo, useCallback } from "react";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { EstimateForm } from "./EstimateForm";
@@ -117,21 +116,6 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({ isNew
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex justify-end gap-2 mt-2">
-        <Button
-          size="sm"
-          className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white min-w-[70px] h-10 text-sm shadow-sm border-transparent"
-        >
-          保存
-        </Button>
-        <Button
-          size="sm"
-          className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white min-w-[70px] h-10 text-sm shadow-sm border-transparent"
-        >
-          PDF出力
-        </Button>
-      </div>
     </div>
   );
 });

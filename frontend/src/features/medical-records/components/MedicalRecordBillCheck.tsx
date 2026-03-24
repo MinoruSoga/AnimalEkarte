@@ -1,14 +1,21 @@
-import React, { memo, useState, useMemo, useCallback } from "react";
+import React, { lazy, memo, Suspense, useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
-import { useTreatments, useUpdateTreatment } from "../api/treatments";
+import { useTreatments, useCreateTreatment, useUpdateTreatment } from "../api/treatments";
 import { useGetBillingReview, useConfirmBillingReview, useReturnBillingReview } from "../api/billing-review";
-import type { UpdateTreatmentInput } from "../types";
+import type { CreateTreatmentInput, UpdateTreatmentInput, TreatmentItemType } from "../types";
 import { useAuth } from "@/features/auth";
 import { CheckCircle2, RotateCcw } from "lucide-react";
 import { C } from "@/lib/design-tokens";
+import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
+
+const TreatmentSearchDialog = lazy(() =>
+  import("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog").then((m) => ({
+    default: m.TreatmentSearchDialog,
+  }))
+);
 
 interface BillCheckProps {
   isNewRecord?: boolean;
@@ -19,10 +26,12 @@ interface BillCheckProps {
 export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isNewRecord = false, medicalRecordId = "", ownerDiscountRate = 0 }: BillCheckProps) {
   const { user } = useAuth();
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   // ── API ──
   const { data: treatments = [] } = useTreatments(medicalRecordId);
   const { data: billingReview } = useGetBillingReview(medicalRecordId);
+  const createTreatmentMutation = useCreateTreatment(medicalRecordId);
   const updateTreatmentMutation = useUpdateTreatment(medicalRecordId);
   const confirmMutation = useConfirmBillingReview(medicalRecordId);
   const returnMutation = useReturnBillingReview(medicalRecordId);
@@ -67,6 +76,23 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
       input: { selected: false } 
     });
   }, [updateTreatmentMutation]);
+
+  const handleSelectTreatment = useCallback((item: TreatmentMasterItem) => {
+    const nextOrder = treatments.length > 0 ? Math.max(...treatments.map((t) => t.sort_order)) + 1 : 0;
+    const input: CreateTreatmentInput = {
+      item_type: (item.category === "薬品" ? "medicine" : item.category === "処置" ? "procedure" : "other") as TreatmentItemType,
+      content: item.name,
+      memo: item.category,
+      unit_price: item.unitPrice,
+      quantity: 1,
+      selected: true,
+      insurance: true,
+      discount_amount: 0,
+      sort_order: nextOrder,
+    };
+    createTreatmentMutation.mutate(input);
+    setIsSearchOpen(false);
+  }, [treatments, createTreatmentMutation]);
 
   const handleConfirm = useCallback(() => {
     confirmMutation.mutate({
@@ -139,6 +165,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
         items={items}
         onUpdate={handleUpdateItem}
         onRemove={handleRemoveItem}
+        onOpenSearch={() => setIsSearchOpen(true)}
         showStatus={false}
       />
 
@@ -177,6 +204,14 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
           </Button>
         )}
       </div>
+
+      <Suspense fallback={null}>
+        <TreatmentSearchDialog
+          open={isSearchOpen}
+          onOpenChange={setIsSearchOpen}
+          onSelect={handleSelectTreatment}
+        />
+      </Suspense>
     </div>
   );
 });
