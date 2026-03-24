@@ -1,7 +1,8 @@
 import { memo } from "react";
-import { Plus, Trash2, FileText } from "lucide-react";
+import { Plus, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { TreatmentPlan } from "@/types";
 import { H_STYLES } from "../styles";
 
@@ -94,12 +95,7 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
                   {plan.subtotal.toLocaleString()}
                 </td>
                 <td className="px-3 py-1 text-center">
-                  <button
-                    onClick={() => onRemove(plan.id)}
-                    className="text-[#37352F]/40 hover:text-[#E03E3E] transition-colors"
-                  >
-                    <Trash2 className={H_STYLES.button.icon} />
-                  </button>
+                  <DeleteIconButton onClick={() => onRemove(plan.id)} />
                 </td>
               </tr>
             ))}

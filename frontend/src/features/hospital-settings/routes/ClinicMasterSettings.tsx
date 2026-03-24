@@ -11,12 +11,13 @@ import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 
 // External
-import { Plus, Building2, X, Trash2 } from "lucide-react";
+import { Plus, Building2, X } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -350,13 +351,7 @@ export function ClinicMasterSettings() {
               </span>
               <div className="flex items-center gap-1">
                 {selectedItem ? (
-                  <button
-                    type="button"
-                    onClick={() => setPendingDelete(selectedItem)}
-                    className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
+                  <DeleteIconButton onClick={() => setPendingDelete(selectedItem)} />
                 ) : null}
                 <button
                   type="button"

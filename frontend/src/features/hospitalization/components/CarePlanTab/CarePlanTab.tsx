@@ -2,10 +2,11 @@
 import { useState, useCallback, useMemo } from "react";
 
 // External
-import { Pill, Stethoscope, Utensils, ClipboardList, MoreHorizontal, Pencil, Trash2, Plus, Loader2 } from "lucide-react";
+import { Pill, Stethoscope, Utensils, ClipboardList, MoreHorizontal, Pencil, Plus, Loader2 } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { Input } from "@/components/ui/input";
 import {
     Select,
@@ -210,20 +211,11 @@ function ItemRow({ item, onEdit, onDelete, isDeleting }: ItemRowProps) {
                 >
                     <Pencil className="h-3.5 w-3.5" />
                 </Button>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50"
+                <DeleteIconButton
                     onClick={() => onDelete(item.id)}
                     disabled={isDeleting}
-                    aria-label="削除"
-                >
-                    {isDeleting ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                        <Trash2 className="h-3.5 w-3.5" />
-                    )}
-                </Button>
+                    className="size-7"
+                />
             </div>
         </div>
     );

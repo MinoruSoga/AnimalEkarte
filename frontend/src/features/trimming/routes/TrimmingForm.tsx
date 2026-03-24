@@ -515,8 +515,8 @@ export function TrimmingForm() {
           {mode === "edit" ? (
             <Button
               onClick={() => setDeleteConfirmOpen(true)}
-              variant="ghost"
-              className="h-10 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-[6px] text-sm px-4"
+              variant="ghost-danger"
+              className="h-10 rounded-[6px] text-sm px-4"
               disabled={isDeleting}
             >
               <Trash2 className="mr-1.5 size-4" />

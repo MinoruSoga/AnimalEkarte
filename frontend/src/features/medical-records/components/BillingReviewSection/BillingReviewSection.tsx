@@ -31,11 +31,11 @@ const STATUS_LABELS: Record<BillingReviewStatus, string> = {
   returned: "差し戻し",
 };
 
-const STATUS_BADGE_CLASS: Record<BillingReviewStatus, string> = {
-  pending: BADGE.yellow,
-  confirmed: BADGE.green,
-  returned: BADGE.red,
-};
+function getBillingReviewStatusColor(s: BillingReviewStatus): string {
+  if (s === "confirmed") return BADGE.green;
+  if (s === "returned") return BADGE.red;
+  return BADGE.yellow;
+}
 
 type StatusIconComponent = typeof Clock;
 
@@ -84,7 +84,7 @@ export function BillingReviewSection({
   }
 
   const status = review.status as BillingReviewStatus;
-  const badgeClass = STATUS_BADGE_CLASS[status];
+  const badgeClass = getBillingReviewStatusColor(status);
   const StatusIcon = STATUS_ICON[status];
   const label = STATUS_LABELS[status];
   const isConfirmDisabled =

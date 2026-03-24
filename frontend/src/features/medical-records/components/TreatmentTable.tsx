@@ -5,10 +5,11 @@ import React, { memo, useMemo } from "react";
 import { calcLineItemAmount } from "@/utils/line-item-helpers";
 
 // External
-import { Circle, X, Trash2, PlusCircle } from "lucide-react";
+import { Circle, X, PlusCircle } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -172,14 +173,10 @@ export const TreatmentTable = memo(function TreatmentTable({
                 {calcLineItemAmount(item).total.toLocaleString()}
               </Cell>
               <Cell align="center" last>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                <DeleteIconButton
                   onClick={() => onRemove(item.id)}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                />
               </Cell>
             </div>
           ))}

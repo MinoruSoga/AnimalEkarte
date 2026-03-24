@@ -1,9 +1,10 @@
 import { memo } from "react";
 // External
-import { Edit2, Trash2, Utensils, Pill, ClipboardList, Stethoscope, CheckCircle2 } from "lucide-react";
+import { Edit2, Utensils, Pill, ClipboardList, Stethoscope, CheckCircle2 } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 
 // Relative
 import { H_STYLES } from "../../styles";
@@ -80,9 +81,7 @@ export const CarePlanItemRow = memo(function CarePlanItemRow({ plan, onEdit, onD
                     <Button variant="ghost" size="sm" onClick={() => onEdit(plan)} className="h-9 w-9 p-0 bg-gray-50 hover:bg-gray-100">
                         <Edit2 className="h-4 w-4 text-[#37352F]/60 hover:text-[#37352F]" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => onDelete(plan.id)} className="h-9 w-9 p-0 bg-gray-50 hover:bg-red-50 hover:text-red-600">
-                        <Trash2 className="h-4 w-4 text-[#37352F]/60 hover:text-red-600" />
-                    </Button>
+                    <DeleteIconButton onClick={() => onDelete(plan.id)} />
                 </div>
             </div>
         </div>

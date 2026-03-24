@@ -60,11 +60,11 @@ export function EstimateDetail() {
             編集
           </Button>
           <Button
-            variant="outline"
+            variant="ghost-danger"
             size="sm"
             onClick={() => setShowDeleteDialog(true)}
             disabled={isDeleting}
-            className="h-9 gap-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+            className="h-9 gap-1.5 text-sm border border-red-200"
           >
             <Trash2 className="size-4" />
             削除

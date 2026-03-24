@@ -329,9 +329,9 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         <div className="fixed bottom-6 right-6 z-50 flex gap-2">
           {!isNewRecord && activeTab === "問診" ? (
             <Button
-              variant="outline"
+              variant="ghost-danger"
               onClick={() => setIsDeleteConfirmOpen(true)}
-              className={`${C.borderDanger} ${C.danger} ${C.hoverBgDanger5} h-10 text-sm px-4`}
+              className={`border ${C.borderDanger} h-10 text-sm px-4`}
             >
               <Trash2 className="h-4 w-4" />
               削除

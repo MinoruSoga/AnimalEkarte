@@ -2,11 +2,12 @@
 import { useState, useCallback, memo } from "react";
 
 // External
-import { Pencil, Trash2, Plus, Check, X } from "lucide-react";
+import { Pencil, Plus, Check, X } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
 import { Button } from "@/components/ui/button";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { C, STYLE } from "@/lib/design-tokens";
 
 // rendering-hoist-jsx: design token は定数なので module-level に巻き上げ
@@ -426,14 +427,10 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
                         >
                           <Pencil className="size-3.5" />
                         </button>
-                        <button
+                        <DeleteIconButton
                           onClick={() => setDeletingId(vital.id)}
                           disabled={deleteMutation.isPending}
-                          className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverTextDanger} ${C.hoverBgDanger5} transition-colors`}
-                          title="削除"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
+                        />
                       </div>
                     </td>
                   </tr>

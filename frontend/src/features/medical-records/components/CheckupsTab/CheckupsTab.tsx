@@ -2,11 +2,12 @@
 import { useState, useCallback, memo, useMemo, type ChangeEvent } from "react";
 
 // External
-import { Pencil, Trash2, Plus, Check, X } from "lucide-react";
+import { Pencil, Plus, Check, X } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
 import { Button } from "@/components/ui/button";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { C, STYLE } from "@/lib/design-tokens";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 
@@ -303,14 +304,10 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
                         >
                           <Pencil className="size-3.5" />
                         </button>
-                        <button
+                        <DeleteIconButton
                           onClick={() => handleDelete(checkup.id)}
                           disabled={deleteMutation.isPending}
-                          className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverTextDanger} ${C.hoverBgDanger5} transition-colors`}
-                          title="削除"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
+                        />
                       </div>
                     </td>
                   </tr>

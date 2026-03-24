@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
-import { Calendar, Clock, Stethoscope, FileText, Trash2, Pencil, Scissors, Building2, FilePlus2, PawPrint, Tag } from "lucide-react";
+import { Calendar, Clock, Stethoscope, FileText, Pencil, Scissors, Building2, FilePlus2, PawPrint, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import type { ReservationAppointment, ReservationStatus } from "../types";
 import { RESERVATION_STATUS_VALUES } from "../types";
 import { getReservationTypeName, getReservationStatusLabel } from "@/utils/status-helpers";
@@ -220,14 +221,7 @@ export function ReservationDetailModal({
         <DialogFooter className="px-5 py-3 bg-[#FAFAF8] flex flex-row items-center border-t border-[rgba(55,53,47,0.06)]">
           <div className="flex-1">
             {onDelete ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-9 w-9 p-0 text-[#37352F]/30 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                onClick={() => onDelete(appointment)}
-              >
-                <Trash2 className="size-4" />
-              </Button>
+              <DeleteIconButton onClick={() => onDelete(appointment)} />
             ) : null}
           </div>
           <div className="flex gap-2">

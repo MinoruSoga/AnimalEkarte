@@ -2,10 +2,11 @@
 import { memo, useState, useCallback, useRef, useEffect } from "react";
 
 // External
-import { ChevronUp, ChevronDown, Trash2, Shield } from "lucide-react";
+import { ChevronUp, ChevronDown, Shield } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { C, BADGE } from "@/lib/design-tokens";
@@ -345,15 +346,10 @@ export const TreatmentRow = memo(function TreatmentRow({
           >
             <ChevronDown className="size-3.5" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={`size-7 ${C.danger} ${C.hoverBgDanger5} hover:text-[#EB5757]`}
+          <DeleteIconButton
             onClick={handleDelete}
-            title="削除"
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
+            className="size-7"
+          />
         </div>
       </td>
     </tr>

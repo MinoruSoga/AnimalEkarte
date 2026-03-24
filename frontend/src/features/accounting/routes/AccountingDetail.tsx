@@ -3,7 +3,7 @@ import { useState, useMemo, useCallback, memo, useTransition, lazy, Suspense, us
 import { useParams, useNavigate, useLocation } from "react-router";
 
 // External
-import { Plus, Trash2, Save, CreditCard, Printer, FileText } from "lucide-react";
+import { Plus, Save, CreditCard, Printer, FileText } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -57,6 +57,7 @@ const AccountingDocument = lazy(() =>
 );
 import { paths } from "@/config/paths";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 
 // Types
 import type { Accounting, AccountingItem, PaymentInfo, ItemCategory, PaymentMethod } from "../types";
@@ -255,14 +256,7 @@ const ItemListCard = memo(function ItemListCard({
                 </TableCell>
                 <TableCell>
                   {item.source === "manual" ? (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => onDeleteItem(item.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <DeleteIconButton onClick={() => onDeleteItem(item.id)} />
                   ) : null}
                 </TableCell>
               </TableRow>
