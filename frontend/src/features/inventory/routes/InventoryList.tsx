@@ -29,6 +29,8 @@ import {
   getInventoryStatusColor,
   getInventoryStatusLabel,
 } from "@/utils/status-helpers";
+import { usePagination } from "@/hooks/use-pagination";
+import { Pagination } from "@/components/shared/Pagination/Pagination";
 
 // Relative
 import { useInventory } from "../hooks/use-inventory";
@@ -153,6 +155,11 @@ export function InventoryList() {
     return sorted;
   }, [filteredItems, activeSorts]);
 
+  const pagination = usePagination(sortedData, {
+    pageSize: 20,
+    resetKey: deferredSearch,
+  });
+
   const handleCreate = useCallback(() => {
     navigate(paths.inventory.new.getHref());
   }, [navigate]);
@@ -269,7 +276,7 @@ export function InventoryList() {
         <div className={isFiltering ? "opacity-60 transition-opacity duration-150" : "transition-opacity duration-150"}>
           <DataTable
             columns={columns}
-            data={sortedData}
+            data={pagination.paginatedData}
             emptyMessage="在庫データが見つかりません"
             renderRow={(item) => (
               <DataTableRow key={item.id} onClick={() => handleEdit(item.id)}>
@@ -303,6 +310,19 @@ export function InventoryList() {
             )}
           />
         </div>
+
+        {pagination.totalPages > 1 ? (
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalCount={pagination.totalCount}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.goToPage}
+            onPrev={pagination.prevPage}
+            onNext={pagination.nextPage}
+          />
+        ) : null}
       </div>
     </PageLayout>
   );

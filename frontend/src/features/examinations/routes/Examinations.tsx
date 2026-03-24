@@ -17,6 +17,8 @@ import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { getExaminationStatusColor } from "@/utils/status-helpers";
+import { usePagination } from "@/hooks/use-pagination";
+import { Pagination } from "@/components/shared/Pagination/Pagination";
 
 // Relative
 import { useFilterExaminationRecords } from "../hooks/use-examination-records";
@@ -126,6 +128,11 @@ export function Examinations() {
     return sorted;
   }, [filteredRecords, activeSorts]);
 
+  const pagination = usePagination(sortedData, {
+    pageSize: 20,
+    resetKey: deferredSearch,
+  });
+
   const handleCreate = useCallback(() => {
     navigate(paths.examinations.selectPet.getHref());
   }, [navigate]);
@@ -231,7 +238,7 @@ export function Examinations() {
         <div className={isFiltering ? "opacity-60 transition-opacity duration-150" : "transition-opacity duration-150"}>
           <DataTable
             columns={columns}
-            data={sortedData}
+            data={pagination.paginatedData}
             emptyMessage="検査データが見つかりません"
             renderRow={(r) => (
               <DataTableRow
@@ -258,6 +265,19 @@ export function Examinations() {
             )}
           />
         </div>
+
+        {pagination.totalPages > 1 ? (
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalCount={pagination.totalCount}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.goToPage}
+            onPrev={pagination.prevPage}
+            onNext={pagination.nextPage}
+          />
+        ) : null}
       </div>
     </PageLayout>
   );

@@ -18,6 +18,8 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { getAccountingStatusColor } from "@/utils/status-helpers";
 import { paths } from "@/config/paths";
+import { usePagination } from "@/hooks/use-pagination";
+import { Pagination } from "@/components/shared/Pagination/Pagination";
 
 // Types
 import type { Accounting as AccountingType, AccountingStatus, PaymentMethod } from "../types";
@@ -183,6 +185,11 @@ export function Accounting() {
     return sorted;
   }, [filteredRecords, activeSorts]);
 
+  const pagination = usePagination(sortedData, {
+    pageSize: 20,
+    resetKey: deferredSearch,
+  });
+
   const handleCreate = useCallback(() => {
     navigate(paths.accounting.selectPet.getHref());
   }, [navigate]);
@@ -322,11 +329,24 @@ export function Accounting() {
         <div style={{ opacity: isFiltering ? 0.7 : 1, transition: "opacity 150ms" }}>
           <DataTable
             columns={columns}
-            data={sortedData}
+            data={pagination.paginatedData}
             emptyMessage="会計データが見つかりません"
             renderRow={renderRow}
           />
         </div>
+
+        {pagination.totalPages > 1 ? (
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalCount={pagination.totalCount}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.goToPage}
+            onPrev={pagination.prevPage}
+            onNext={pagination.nextPage}
+          />
+        ) : null}
       </div>
     </PageLayout>
   );

@@ -10,6 +10,8 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { usePagination } from "@/hooks/use-pagination";
+import { Pagination } from "@/components/shared/Pagination/Pagination";
 
 // Relative
 import { HospitalizationBoard } from "../components/HospitalizationBoard";
@@ -76,6 +78,11 @@ export function HospitalizationList() {
     return sorted;
   }, [filteredHospitalizations, activeSorts]);
 
+  const pagination = usePagination(sortedHospitalizations, {
+    pageSize: 20,
+    resetKey: `${searchTerm}:${statusFilter}`,
+  });
+
   return (
     <PageLayout
       title="入院・ホテル管理"
@@ -135,10 +142,24 @@ export function HospitalizationList() {
                 onMovePet={movePet}
             />
         ) : (
-            <HospitalizationListView
-                hospitalizations={sortedHospitalizations}
-                onNavigate={handleNavigateToForm}
-            />
+            <>
+              <HospitalizationListView
+                  hospitalizations={pagination.paginatedData}
+                  onNavigate={handleNavigateToForm}
+              />
+              {pagination.totalPages > 1 ? (
+                <Pagination
+                  currentPage={pagination.currentPage}
+                  totalPages={pagination.totalPages}
+                  totalCount={pagination.totalCount}
+                  startIndex={pagination.startIndex}
+                  endIndex={pagination.endIndex}
+                  onPageChange={pagination.goToPage}
+                  onPrev={pagination.prevPage}
+                  onNext={pagination.nextPage}
+                />
+              ) : null}
+            </>
         )}
       </div>
     </PageLayout>
