@@ -284,7 +284,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         ) : null}
         {mountedTabs.has("予防接種") ? (
           <div style={{ display: activeTab === "予防接種" ? "block" : "none" }}>
-            <MedicalRecordVaccination />
+            <MedicalRecordVaccination petId={selectedPet?.id} />
           </div>
         ) : null}
         {mountedTabs.has("定期健診") ? (
@@ -300,17 +300,17 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         ) : null}
         {mountedTabs.has("検査") ? (
           <div style={{ display: activeTab === "検査" ? "block" : "none" }}>
-            <MedicalRecordExamination isNewRecord={isNewRecord} />
+            <MedicalRecordExamination isNewRecord={isNewRecord} petId={selectedPet?.id} />
           </div>
         ) : null}
         {mountedTabs.has("画像") ? (
           <div style={{ display: activeTab === "画像" ? "block" : "none" }}>
-            <MedicalRecordImage isNewRecord={isNewRecord} />
+            <MedicalRecordImage isNewRecord={isNewRecord} medicalRecordId={recordId} />
           </div>
         ) : null}
         {mountedTabs.has("見積書") ? (
           <div style={{ display: activeTab === "見積書" ? "block" : "none" }}>
-            <MedicalRecordEstimate isNewRecord={isNewRecord} ownerDiscountRate={ownerDiscountRate} />
+            <MedicalRecordEstimate isNewRecord={isNewRecord} ownerDiscountRate={ownerDiscountRate} medicalRecordId={recordId} />
           </div>
         ) : null}
         {mountedTabs.has("会計(医師確認)") ? (

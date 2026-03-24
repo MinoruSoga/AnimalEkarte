@@ -19,11 +19,13 @@ interface HistoryItem {
 }
 
 interface VaccinationHistoryProps {
-  historyItems: readonly HistoryItem[];
+  historyItems: HistoryItem[];
+  isLoading?: boolean;
 }
 
 export const VaccinationHistory = React.memo(function VaccinationHistory({
   historyItems,
+  isLoading = false,
 }: VaccinationHistoryProps) {
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
@@ -113,7 +115,16 @@ export const VaccinationHistory = React.memo(function VaccinationHistory({
 
         {/* Scrollable Rows */}
         <div className="flex-1 overflow-y-auto">
-          {filteredItems.map((item) => (
+          {isLoading ? (
+            <div className="flex items-center justify-center h-24 text-sm text-[#37352F]/40">
+              読み込み中...
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="flex items-center justify-center h-24 text-sm text-[#37352F]/40">
+              接種記録がありません
+            </div>
+          ) : null}
+          {!isLoading && filteredItems.map((item) => (
             <div
               key={item.id}
               className="flex items-center border-b border-[rgba(55,53,47,0.16)] bg-white text-sm text-[#37352F] h-12 hover:bg-[#F7F6F3]/50 transition-colors"
