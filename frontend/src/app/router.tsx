@@ -358,6 +358,17 @@ export const router = createBrowserRouter([
         ],
       },
 
+      // ── Checkups ─────────────────────────────────────────────────
+      {
+        path: "/checkups",
+        lazy: async () => {
+          const { CheckupsList } = await import(
+            "@/features/checkups/routes/CheckupsList"
+          );
+          return { Component: CheckupsList };
+        },
+      },
+
       // ── Inventory ────────────────────────────────────────────────
       {
         path: "/inventory",

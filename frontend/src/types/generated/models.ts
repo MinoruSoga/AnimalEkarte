@@ -475,7 +475,7 @@ export const ExaminationResultStatusLow: ExaminationResultStatus = "low";
 export interface Examination {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
-  medical_record_id: number /* uint64 */;
+  medical_record_id?: number /* uint64 */;
   pet_id?: number /* uint64 */;
   exam_type_id: number /* uint64 */;
   doctor_id?: number /* uint64 */;

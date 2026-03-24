@@ -46,8 +46,10 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 
 // Relative
 import { useGetAccountingDetail } from "../api/get-accounting";
+import { createAccounting } from "../api/create-accounting";
 import { updateAccounting } from "../api/update-accounting";
 import { useGetAllMerchandiseItems } from "../api/get-merchandise-items";
+import { useGetPet } from "@/features/pets/api/get-pet";
 import type { FrontendMerchandiseItem } from "../api/get-merchandise-items";
 // bundle-dynamic-imports: 191行のコンポーネントを遅延ロード
 const AccountingDocument = lazy(() =>
@@ -494,27 +496,32 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
   // 既存データは API から取得
   const { data: fetchedAccounting, isLoading } = useGetAccountingDetail(id);
 
+  // 新規作成時のペット情報取得（URL の petId から owner 情報を解決するため）
+  const newPetId = useMemo(() => {
+    if (id) return "";
+    return new URLSearchParams(location.search).get("petId") ?? "";
+  }, [id, location.search]);
+  const { data: newPetData } = useGetPet(newPetId);
+
   // 新規作成の場合は location.state から items を引き継ぐ（派生データ）
   const baseAccounting = useMemo<Accounting | null>(() => {
     if (id) {
       return fetchedAccounting ?? null;
     }
-    const searchParams = new URLSearchParams(location.search);
-    const petId = searchParams.get("petId");
     const stateItems = locationState?.accountingItems ?? [];
     return {
       id: "acc_new",
-      ownerId: "",
-      ownerName: "新規 飼い主様",
-      petId: petId ?? "",
-      petName: "新規 ペットちゃん",
-      petSpecies: "犬",
+      ownerId: newPetData?.ownerId ?? "",
+      ownerName: newPetData?.ownerName ?? "飼い主様",
+      petId: newPetId,
+      petName: newPetData?.name ?? "ペット",
+      petSpecies: newPetData?.species ?? "犬",
       status: "waiting",
       scheduledDate: new Date().toISOString().split("T")[0],
       items: stateItems,
       payment: undefined,
     };
-  }, [id, fetchedAccounting, locationState, location.search]);
+  }, [id, fetchedAccounting, locationState, newPetId, newPetData]);
 
   // ユーザー操作による追加・削除を管理するローカル明細
   const [localItems, setLocalItems] = useState<AccountingItem[] | null>(null);
@@ -626,7 +633,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
   }, []);
 
   const handleComplete = useCallback(() => {
-    if (!accounting || !calculation || !id) return;
+    if (!accounting || !calculation) return;
 
     const paymentInfo: PaymentInfo = {
       subtotal: calculation.subtotal,
@@ -643,6 +650,37 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
 
     startSaveTransition(async () => {
       try {
+        if (!id) {
+          // 新規会計: まず作成してから完了状態に更新
+          const created = await createAccounting({
+            pet_id: Number(accounting.petId),
+            owner_id: Number(accounting.ownerId),
+            scheduled_date: accounting.scheduledDate,
+            subtotal: calculation.subtotal,
+            tax_total: calculation.taxTotal,
+            total_amount: calculation.totalAmount,
+          });
+          await updateAccounting(created.id, {
+            status: "completed",
+            subtotal: calculation.subtotal,
+            tax_total: calculation.taxTotal,
+            total_amount: calculation.totalAmount,
+            insurance_ratio: hasInsurance ? parseFloat(insuranceRatio) : null,
+            insurance_amount:
+              calculation.insuranceAmount !== 0 ? calculation.insuranceAmount : null,
+            billing_amount: calculation.billingAmount,
+            received_amount: calculation.received,
+            change_amount: calculation.changeAmount,
+            payment_method: paymentMethod as PaymentMethod,
+            completed_at: new Date().toISOString(),
+          });
+          queryClient.invalidateQueries({ queryKey: ["accountings"] });
+          toast.success("会計を登録・完了しました");
+          navigate(paths.accounting.detail.getHref(created.id));
+          return;
+        }
+
+        // 既存会計: 直接更新
         await updateAccounting(id, {
           status: "completed",
           subtotal: calculation.subtotal,
@@ -666,7 +704,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
         toast.error("会計の更新に失敗しました");
       }
     });
-  }, [accounting, calculation, paymentMethod, hasInsurance, insuranceRatio, id, queryClient]);
+  }, [accounting, calculation, paymentMethod, hasInsurance, insuranceRatio, id, queryClient, navigate]);
 
   const handlePrint = useCallback((type: "receipt" | "statement") => {
     setPreviewType(type);

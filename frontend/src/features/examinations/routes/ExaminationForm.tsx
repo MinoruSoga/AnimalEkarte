@@ -1,5 +1,5 @@
 // React/Framework
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
@@ -37,9 +37,13 @@ export function ExaminationForm() {
       setFormData,
       petSelection,
       handleSave,
+      handleDelete,
       isEdit,
       isSaving,
+      isDeleting,
   } = useExaminationForm(id, medicalRecordId ?? undefined);
+
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
@@ -174,14 +178,35 @@ export function ExaminationForm() {
 
             <div className="flex justify-end gap-2 pt-2">
               {isEdit ? (
-                <Button variant="ghost" className={`h-10 text-sm ${STYLE.btnDangerGhost} mr-auto`}>
+                <Button
+                  variant="ghost"
+                  className={`h-10 text-sm ${STYLE.btnDangerGhost} mr-auto`}
+                  onClick={() => setIsDeleteConfirmOpen(true)}
+                  disabled={isDeleting}
+                >
                     <Trash2 className="mr-1.5 size-4" />
-                    削除
+                    {isDeleting ? "削除中..." : "削除"}
                 </Button>
               ) : null}
               <Button variant="outline" onClick={handleBack} className="h-10 text-sm">キャンセル</Button>
               <Button className={`${C.bgAccent} ${C.bgAccentHover} text-white h-10 text-sm`} onClick={handleSaveClick} disabled={isSaving}>{isSaving ? "保存中..." : "保存"}</Button>
             </div>
+            {isDeleteConfirmOpen ? (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl">
+                  <h3 className="text-base font-semibold mb-2">検査記録を削除しますか？</h3>
+                  <p className="text-sm text-gray-500 mb-4">この操作は取り消せません。</p>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)} className="h-9 text-sm">キャンセル</Button>
+                    <Button
+                      variant="destructive"
+                      className="h-9 text-sm"
+                      onClick={() => { markClean(); handleDelete(() => navigate(paths.examinations.getHref())); setIsDeleteConfirmOpen(false); }}
+                    >削除する</Button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
       </div>
     </PageLayout>

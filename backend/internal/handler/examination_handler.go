@@ -87,6 +87,11 @@ func (h *Handler) GetExamination(c *gin.Context) {
 
 // CreateExamination godoc
 func (h *Handler) CreateExamination(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	var input createExaminationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
@@ -94,6 +99,7 @@ func (h *Handler) CreateExamination(c *gin.Context) {
 	}
 
 	exam := &model.Examination{
+		ClinicID:        clinicID,
 		MedicalRecordID: input.MedicalRecordID,
 		PetID:           input.PetID,
 		ExamTypeID:      input.ExamTypeID,

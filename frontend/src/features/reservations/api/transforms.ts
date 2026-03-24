@@ -9,7 +9,7 @@ export const transformReservation = (
     id: String(reservation.id ?? 0),
     start: new Date(reservation.start_time),
     end: new Date(reservation.end_time),
-    ownerName: reservation.owner?.owner_name ?? "",
+    ownerName: reservation.owner?.owner_name ?? reservation.pet?.owner?.owner_name ?? "",
     petName: reservation.pet?.name ?? "",
     visitType: (reservation.visit_type as "first" | "revisit") ?? "first",
     type: reservation.service_type?.name ?? "",

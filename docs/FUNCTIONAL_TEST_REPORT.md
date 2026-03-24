@@ -1,6 +1,6 @@
 # 機能テストレポート
 
-> 最終更新: 2026-03-23 (全NG項目解消・BUG-008/009/010/011 全修正完了)
+> 最終更新: 2026-03-24 (全機能再テスト完了・BUG-012〜017 検出 → BUG-012/013/014/015(FE)/016/017 修正済みクローズ・BE-055 残対応)
 > テスト環境: Docker Compose (localhost:3003 / localhost:8080)
 > テストアカウント: admin@example.com (田中太郎 / 医院管理者)
 
@@ -194,7 +194,12 @@
 ### 5.1 検査一覧 `/examinations`
 | テスト項目 | 結果 | 備考 |
 |-----------|------|------|
-| データ一覧表示 | OK | DB 0件 = UI 0件（シードデータなし、エラーなし） |
+| データ一覧表示 | OK | DB 1件 = UI 1件（検査登録後確認） |
+| 日時 表示 | OK | `2026-03-23T00:00:00Z` → `2026-03-23` に修正済み |
+| 飼主名 表示 | OK | `吉田 誠` 正しく表示（Pet.Owner Preload + owner_name フィールド修正済み） |
+| ペット名 表示 | OK | `シロ` 正しく表示 |
+| 検査種別 表示 | OK | `血液検査（CBC）` 正しく表示 |
+| ステータス 表示 | OK | `検査中`（日本語）正しく表示（EN→JA transforms修正済み） |
 | フィルタ追加 | OK | ボタン存在 |
 | 検索機能 | OK | ボタン存在 |
 | 検査データ取込ボタン | OK | 存在 |
@@ -213,7 +218,11 @@
 | 担当医選択 | OK | フォーム確認済み |
 | 検査項目入力 | OK | フォーム入力フィールド存在確認 |
 | 結果概要入力 | OK | フォーム確認済み |
-| DB保存 | OK | BUG-011修正済み: 全ID型をnumber変換・exam_type_idにID使用・setFormDataをmerge方式に変更 ✅ |
+| DB保存（新規） | OK | BUG-011修正済み: 全ID型をnumber変換・exam_type_idにID使用・setFormDataをmerge方式に変更 ✅ |
+| DB保存（編集・PATCH） | OK | BUG-012修正済み: clinic_id直接検索 + ステータスJA→EN変換（`検査中`→`in_progress`） ✅ |
+| 編集フォームでデータ読込 | OK | `血液検査（CBC）` / `依頼中` 正しく初期表示 |
+| 削除ボタン → 確認ダイアログ | OK | 「検査記録を削除しますか？」モーダル表示確認 |
+| 削除確認 → DB削除・一覧遷移 | OK | DELETE HTTP 204 確認・「検査記録を削除しました」トースト・一覧0件表示 |
 
 ---
 
@@ -253,7 +262,9 @@
 | ケージボード表示（グリッド） | OK | 8ケージ表示（DBマスタ8件と一致） |
 | Board/List 表示切替 | OK | ラジオボタンあり |
 | ケージ名・ステータス表示 | OK | ケージ名+ステータス表示 |
-| 件数表示（リストビュー） | OK | **BUG-005テストアーティファクト確認済み** ✅ リストビュー7件・YYYY/MM/DD形式表示正常 |
+| 件数表示（リストビュー） | OK | **BUG-005テストアーティファクト確認済み** ✅ リストビュー8件表示正常 |
+| リストビュー「入院No」カラム | OK | BUG-015部分修正 ✅ `String(hosp.id)` に変更 |
+| リストビュー「種」カラム | NG | **BE-055** 対応待ち: Pet.AnimalSpecies Preload未実装（BE側修正必要） |
 | ボードビューのデータ表示 | OK | API 7件取得確認、ボードビューには患者名表示確認 |
 | 新規入院登録ボタン | OK | 存在確認 |
 
@@ -336,7 +347,16 @@
 
 ---
 
-## 10. 在庫管理 (inventory)
+## 10. 定期健診 (checkups)
+
+### 10.1 定期健診一覧 `/checkups`
+| テスト項目 | 結果 | 備考 |
+|-----------|------|------|
+| ページ表示 | OK | BUG-017修正済み ✅ `CheckupsList.tsx` プレースホルダー作成・router.tsx ルート追加。BE-054（クリニック横断一覧API）は別途対応待ち |
+
+---
+
+## 11. 在庫管理 (inventory)
 
 ### 10.1 在庫一覧 `/inventory`
 | テスト項目 | 結果 | 備考 |
@@ -464,6 +484,21 @@
 | 11 | BUG-011 | 検査登録DBがHTTP 400（medical_record_id が string型で送信） | 高 | **修正済み** ✅ 全ID型number変換・exam_type_idにID使用・setFormDataをmerge方式に変更 |
 | 12 | BUG-012 | カルテ問診/治療プランPATCHが404 | 高 | **修正済み** ✅ inquiry upsert API追加・treatment-plan→clinical-plan URL修正（BE-053） |
 | 13 | BUG-013 | カルテ一覧の種別・主訴が空欄 | 中 | **修正済み** ✅ BE Preload追加・レスポンス型修正（BE-052） |
+| 14 | BUG-014 | 検査管理 GET/PATCH/DELETE 404/500（medical_record_id NULL時にINNER JOIN失敗） | 高 | **修正済み** ✅ examination_repository.go の3メソッドを `exams.clinic_id = ?` 直接検索に変更 |
+| 15 | BUG-015 | 検査管理 ステータス日本語値をAPIに送信しDB enum エラー（500） | 高 | **修正済み** ✅ transforms.ts EN→JA・types.ts EN enum・use-examination-form.ts JA→EN変換追加 |
+| 16 | BUG-016 | 検査一覧の日時フォーマット（ISO形式）・飼主名空欄・ステータス英語表示 | 中 | **修正済み** ✅ transforms.ts で date.split("T")[0]・Pet.Owner Preload・owner_name フィールド修正 |
+| 17 | BUG-017 | 検査削除ボタンが機能しない（handleDelete undefined / Vite HMR キャッシュ問題） | 中 | **修正済み** ✅ use-examination-form.ts に handleDelete/isDeleting 追加・ExaminationForm.tsx に確認ダイアログ実装 |
+
+### 2026-03-24 全機能再テスト — 新規検出バグ（未修正・`docs/tasks/open/` 管理）
+
+| # | チケットID | タイトル | 重要度 | 状態 | チケット |
+|---|-----------|---------|--------|------|---------|
+| 1 | OPEN-BUG-012 | 予約詳細ポップアップに飼主名が表示されない | 中 | **修正済み** ✅ transforms.ts に `pet?.owner?.owner_name` フォールバック追加 | [BUG-012](../docs/tasks/closed/BUG-012-reservation-detail-popup-missing-owner-name.md) |
+| 2 | OPEN-BUG-013 | 新規会計登録「会計を確定する」ボタンが機能しない | クリティカル | **修正済み** ✅ `!id` ガード除去・createAccounting→updateAccounting フロー実装・types.ts pet_id/owner_id を number に修正 | [BUG-013](../docs/tasks/closed/BUG-013-accounting-new-confirm-button-noop.md) |
+| 3 | OPEN-BUG-014 | ペット選択画面の日付フォーマット不統一（生年月日YYYY-MM-DD・前回来院YYYY/MM/DD） | 低 | **修正済み** ✅ `PetSelectionResultsTable.tsx` birthDate に `formatDate()` 適用 | [BUG-014](../docs/tasks/closed/BUG-014-pet-selection-date-format-inconsistency.md) |
+| 4 | OPEN-BUG-015 | 入院・ホテル管理リストビューで「入院No」「種」カラムが全件空欄 | 中 | **部分修正** ⚠️ 入院No: `String(hosp.id)` に変更済み ✅ / 種: BE-055（Pet.AnimalSpecies Preload追加）待ち ❌ | [BUG-015](../docs/tasks/closed/BUG-015-hospitalization-list-missing-columns.md) |
+| 5 | OPEN-BUG-016 | 予防接種編集画面の右パネル「予防接種履歴」でペット未選択状態 | 中 | **修正済み** ✅ `existingVaccination.petId` → `useGetPet` → `setSelectedPets` の editMode useEffect 追加 | [BUG-016](../docs/tasks/closed/BUG-016-vaccination-edit-history-panel-no-pet.md) |
+| 6 | OPEN-BUG-017 | 定期健診 `/checkups` ページが「ページが見つかりません」（ルート未実装） | クリティカル | **修正済み** ✅ `CheckupsList.tsx` プレースホルダー作成・router.tsx にルート追加。BE-054（API実装）は別途対応 | [BUG-017](../docs/tasks/closed/BUG-017-checkups-page-not-found.md) |
 
 ---
 
@@ -484,6 +519,7 @@
 | 一覧表示（DB突合） | OK | 全10件完全一致 |
 | 新規予約モーダル表示 | OK | 患者選択→予約詳細の2ステップ |
 | 予約クリック→詳細表示 | OK | ポップアップ表示確認 |
+| 詳細ポップアップ 飼主名表示 | OK | BUG-012修正済み ✅ transforms.ts `pet?.owner?.owner_name` フォールバック追加 |
 | 予約作成→DB保存 | OK | HTTP 201、pet_id/owner_id/service_type_id すべてnumber型確認 ✅ |
 
 ### カルテ管理
@@ -499,24 +535,31 @@
 |------|------|------|
 | 一覧表示（飼主名・ペット名） | OK | BUG-004修正済み、全データ正常表示 |
 | 会計詳細（明細・支払） | OK | 明細ヘッダ・金額・支払方法ボタン・精算ボタン確認 |
+| 新規会計登録→「会計を確定する」 | OK | BUG-013修正済み ✅ createAccounting→updateAccounting フロー実装 |
 
 ### 検査管理
 | 操作 | 結果 | 備考 |
 |------|------|------|
 | ペット選択→新規フォーム | OK | 19件表示、検索フォーム |
 | 新規検査フォーム | OK | 患者情報カード・検査種別・担当医・ステータス・備考 |
+| 新規登録→DB保存 | OK | BUG-011/015修正済み、HTTP 201確認 |
+| 編集（PATCH）→DB更新 | OK | BUG-014/015修正済み、HTTP 200確認 |
+| 削除（確認ダイアログ→DELETE） | OK | BUG-017修正済み、HTTP 204・トースト・一覧遷移確認 |
 
 ### 予防接種
 | 操作 | 結果 | 備考 |
 |------|------|------|
 | ペット選択→登録フォーム遷移 | OK | 19件表示 |
 | フォーム表示 | OK | ワクチン種別・実施日・次回予定フィールド確認 |
+| 新規登録→DB保存 | OK | 狂犬病ワクチン・2026-03-24・HTTP 201・一覧9件に増加確認 |
+| 編集画面→右パネル履歴 | OK | BUG-016修正済み ✅ editMode useEffect で petId → selectedPets 設定 |
 
 ### トリミング
 | 操作 | 結果 | 備考 |
 |------|------|------|
 | ペット選択→登録フォーム遷移 | OK | 19件表示 |
 | コース・担当者選択フィールド | OK | 存在確認 |
+| 新規登録→DB保存 | OK | シャンプー&ブロー・木村健太・HTTP 201・一覧10件に増加確認 |
 
 ### マスタ設定（動物種類で代表テスト）
 | 操作 | 結果 | 備考 |

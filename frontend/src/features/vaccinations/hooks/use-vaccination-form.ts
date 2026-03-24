@@ -48,7 +48,10 @@ export function useVaccinationForm(id?: string) {
 
   // API hooks
   const { data: existingVaccination } = useGetVaccination(id ?? "");
+  // 編集時: レコードに紐づくペットIDを解決するため、existingVaccination.petId から取得
+  const editPetId = isEdit ? (existingVaccination?.petId ?? "") : "";
   const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
+  const { data: petFromEdit } = useGetPet(editPetId);
   const createMutation = useCreateVaccination();
   const updateMutation = useUpdateVaccination();
 
@@ -94,6 +97,13 @@ export function useVaccinationForm(id?: string) {
       }
     }
   }, [isEdit, petId, petFromQuery, isPetLoading, setSelectedPets, navigate]);
+
+  // Edit mode: populate pet selection from the vaccination record's pet_id
+  useEffect(() => {
+    if (isEdit && petFromEdit) {
+      setSelectedPets([petFromEdit]);
+    }
+  }, [isEdit, petFromEdit, setSelectedPets]);
 
   const handleSave = () => {
     startSaveTransition(() => {

@@ -256,6 +256,7 @@ export interface ExaminationItem {
 // Vaccination Types
 export interface VaccinationRecord {
   id: string;
+  petId?: string;
   ownerName: string;
   petName: string;
   vaccineId: string;

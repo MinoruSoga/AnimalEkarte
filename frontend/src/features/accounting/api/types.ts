@@ -13,9 +13,9 @@ export type BackendPayment = Payment;
 
 // API リクエスト型（models.ts から導出）
 export interface CreateAccountingRequest {
-  pet_id: string;
-  owner_id: string;
-  medical_record_id?: string | null;
+  pet_id: number;
+  owner_id: number;
+  medical_record_id?: number | null;
   scheduled_date: string;
   subtotal?: number | null;
   tax_total?: number | null;

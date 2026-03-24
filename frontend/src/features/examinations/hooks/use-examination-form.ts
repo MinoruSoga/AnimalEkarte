@@ -1,4 +1,5 @@
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useCallback } from "react";
+import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router";
 import type { ExaminationRecord } from "@/types";
 import { paths } from "@/config/paths";
@@ -8,9 +9,17 @@ import {
   useGetExamination,
   useCreateExamination,
   useUpdateExamination,
+  useDeleteExamination,
 } from "../api";
 import type { CreateExaminationRequest, UpdateExaminationRequest } from "../api";
 
+const EXAM_STATUS_JA_TO_EN: Record<string, "pending" | "in_progress" | "completed"> = {
+  "依頼中": "pending",
+  "検査中": "in_progress",
+  "完了": "completed",
+};
+
+// v2: added handleDelete, isDeleting
 export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -27,9 +36,11 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
   const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
   const createMutation = useCreateExamination();
   const updateMutation = useUpdateExamination();
+  const deleteMutation = useDeleteExamination();
 
-  // useTransition: save の pending 管理 (rerender-transitions)
+  // useTransition: save/delete の pending 管理 (rerender-transitions)
   const [isSaveTransitionPending, startSaveTransition] = useTransition();
+  const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
 
   // Local overrides applied on top of server data (only tracks user edits in edit mode)
   const [localOverrides, setLocalOverrides] = useState<Partial<ExaminationRecord>>({});
@@ -71,7 +82,7 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
     startSaveTransition(() => {
       if (isEdit && id) {
         const req: UpdateExaminationRequest = {
-          status: formDataWithPet.status,
+          status: formDataWithPet.status ? EXAM_STATUS_JA_TO_EN[formDataWithPet.status] : undefined,
           result_summary: formDataWithPet.resultSummary,
           machine: formDataWithPet.machine,
           date: formDataWithPet.date,
@@ -84,7 +95,7 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
         const pet = selectedPets[0];
         if (!pet) return;
         const req: CreateExaminationRequest = {
-          medical_record_id: Number(medicalRecordId) || 0,
+          medical_record_id: medicalRecordId ? Number(medicalRecordId) : null,
           pet_id: Number(pet.id) || null,
           exam_type_id: Number(formDataWithPet.testTypeId) || 0,
           doctor_id: formDataWithPet.doctorId ? Number(formDataWithPet.doctorId) : null,
@@ -99,14 +110,29 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
     });
   };
 
+  const handleDelete = useCallback((onSuccess?: () => void) => {
+    if (!isEdit || !id) return;
+    startDeleteTransition(() => {
+      deleteMutation.mutate(id, {
+        onSuccess: () => {
+          toast.success("検査記録を削除しました");
+          onSuccess?.();
+        },
+      });
+    });
+  }, [isEdit, id, deleteMutation, startDeleteTransition]);
+
   const isSaving = createMutation.isPending || updateMutation.isPending || isSaveTransitionPending;
+  const isDeleting = deleteMutation.isPending || isDeleteTransitionPending;
 
   return {
     formData: formDataWithPet,
     setFormData,
     petSelection,
     handleSave,
+    handleDelete,
     isEdit,
     isSaving,
+    isDeleting,
   };
 }

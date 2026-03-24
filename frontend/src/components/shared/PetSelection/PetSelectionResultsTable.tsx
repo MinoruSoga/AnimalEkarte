@@ -74,7 +74,7 @@ export const PetSelectionResultsTable = ({ pets, onSelect }: PetSelectionResults
                   ) : null}
                 </TableCell>
                 <TableCell className="text-sm text-[#37352F] whitespace-nowrap py-2">{pet.species}</TableCell>
-                <TableCell className="font-mono text-sm text-[#37352F] whitespace-nowrap py-2">{pet.birthDate || "-"}</TableCell>
+                <TableCell className="font-mono text-sm text-[#37352F] whitespace-nowrap py-2">{formatDate(pet.birthDate)}</TableCell>
                 <TableCell className="font-mono text-sm text-[#37352F] whitespace-nowrap py-2">{pet.weight || "-"}</TableCell>
                 <TableCell className="text-sm text-[#37352F] whitespace-nowrap py-2">{pet.environment || "-"}</TableCell>
                 <TableCell className="font-mono text-sm text-[#37352F] whitespace-nowrap py-2">{formatDate(pet.lastVisit)}</TableCell>

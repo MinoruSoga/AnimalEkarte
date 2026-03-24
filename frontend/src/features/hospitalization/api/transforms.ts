@@ -17,7 +17,7 @@ export const transformHospitalization = (
 
   return {
     id: String(hosp.id ?? 0),
-    hospitalizationNo: "",
+    hospitalizationNo: String(hosp.id ?? ""),
     ownerName: hosp.owner?.owner_name ?? "",
     petName: hosp.pet?.name ?? "",
     species: hosp.pet?.animal_species?.name ?? "",
