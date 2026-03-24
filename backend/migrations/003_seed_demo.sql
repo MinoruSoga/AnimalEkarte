@@ -78,7 +78,23 @@ INSERT INTO owners (id, clinic_id, owner_name, owner_name_kana, birth_date, comp
     -- 30058: 山本 健太
     (17, 3, '山本 健太', 'ヤマモト ケンタ', '1998-09-12', '',
      '206-0802', '東京都稲城市東長沼2-8-3', '', '090-1234-9876', '',
-     'kenta.yamamoto@example.com', '', false, 0, 'non_member')
+     'kenta.yamamoto@example.com', '', false, 0, 'non_member'),
+    -- ページネーションテスト用追加オーナー (id 18-22)
+    (18, 3, '青木 麻衣', 'アオキ マイ', '1993-03-10', '',
+     '150-0002', '東京都渋谷区渋谷2-1-1', '', '090-1111-1111', '',
+     'mai.aoki@example.com', '', false, 0, 'non_member'),
+    (19, 3, '橋本 俊介', 'ハシモト シュンスケ', '1980-07-25', '',
+     '130-0001', '東京都墨田区吾妻橋1-3-5', '', '080-2222-2222', '',
+     'shunsuke.h@example.com', '', false, 0, 'member'),
+    (20, 3, '福田 裕子', 'フクダ ユウコ', '1977-11-14', '',
+     '145-0062', '東京都大田区北千束2-5-8', '', '090-3333-3333', '',
+     'yuko.fukuda@example.com', '', false, 5, 'member'),
+    (21, 3, '石川 大輔', 'イシカワ ダイスケ', '1989-04-02', '',
+     '167-0041', '東京都杉並区善福寺3-2-6', '', '080-4444-4444', '',
+     'daisuke.ishikawa@example.com', '', false, 0, 'non_member'),
+    (22, 3, '村田 奈々', 'ムラタ ナナ', '1996-09-19', '',
+     '182-0021', '東京都調布市調布ヶ丘1-4-7', '', '090-5555-5555', '',
+     'nana.murata@example.com', '', false, 0, 'non_member')
 ON CONFLICT (id) DO UPDATE SET
     phone           = EXCLUDED.phone,
     owner_name      = EXCLUDED.owner_name,
@@ -134,7 +150,17 @@ INSERT INTO pets (id, clinic_id, owner_id, pet_number, name, pet_name_kana, anim
     -- id:18 佐々木 亮 → チビ 猫 (owner_id=16, 1頭目)
     (18, 3, 16, '16-1', 'チビ',        'チビ',     2, 'female','alive', '2022-06-20', 'ミックス猫',                 'サビ',            3.5, NULL,         'low',    NULL, '',               '',               NULL),
     -- id:19 山本 健太 → ポチ 犬 (owner_id=17, 1頭目)
-    (19, 3, 17, '17-1', 'ポチ',        'ポチ',     1, 'male',  'alive', '2017-02-14', 'ダックスフンド',             'チョコ',          7.8, '2018-03-01', 'low',    NULL, '',               '',               NULL)
+    (19, 3, 17, '17-1', 'ポチ',        'ポチ',     1, 'male',  'alive', '2017-02-14', 'ダックスフンド',             'チョコ',          7.8, '2018-03-01', 'low',    NULL, '',               '',               NULL),
+    -- id:20-28 ページネーションテスト用追加データ
+    (20, 3, 18, '18-1', 'モカ',        'モカ',     2, 'female','alive', '2022-05-10', NULL, NULL,  4.1, NULL, 'low', NULL, '', '', NULL),
+    (21, 3, 18, '18-2', 'クルミ',      'クルミ',   1, 'male',  'alive', '2020-08-20', NULL, NULL,  8.3, NULL, 'low', NULL, '', '', NULL),
+    (22, 3, 19, '19-1', 'ハル',        'ハル',     1, 'male',  'alive', '2019-03-15', NULL, NULL, 12.5, NULL, 'low', NULL, '', '', NULL),
+    (23, 3, 19, '19-2', 'ユキ',        'ユキ',     2, 'female','alive', '2021-12-01', NULL, NULL,  3.8, NULL, 'low', NULL, '', '', NULL),
+    (24, 3, 20, '20-1', 'ピーチ',      'ピーチ',   2, 'female','alive', '2023-01-07', NULL, NULL,  3.2, NULL, 'low', NULL, '', '', NULL),
+    (25, 3, 21, '21-1', 'コタ',        'コタ',     1, 'male',  'alive', '2018-09-23', NULL, NULL, 22.0, NULL, 'low', NULL, '', '', NULL),
+    (26, 3, 21, '21-2', 'アン',        'アン',     2, 'female','alive', '2020-04-11', NULL, NULL,  4.5, NULL, 'low', NULL, '', '', NULL),
+    (27, 3, 22, '22-1', 'ゴマ',        'ゴマ',     2, 'male',  'alive', '2022-11-30', NULL, NULL,  5.0, NULL, 'low', NULL, '', '', NULL),
+    (28, 3, 22, '22-2', 'マル',        'マル',     1, 'female','alive', '2021-06-18', NULL, NULL,  9.7, NULL, 'low', NULL, '', '', NULL)
 ON CONFLICT (id) DO UPDATE SET
     owner_id           = EXCLUDED.owner_id,
     pet_number         = EXCLUDED.pet_number,
