@@ -1,6 +1,6 @@
 # 機能テストレポート
 
-> 最終更新: 2026-03-24 (全機能再テスト完了・BUG-012〜017 検出 → BUG-012/013/014/015(FE)/016/017 修正済みクローズ・BE-055 残対応)
+> 最終更新: 2026-03-24 (カルテ詳細全9タブ詳細機能テスト完了・Tab5定期健診バグ3件修正・Tab8/9バグ発見・FE-092〜097イシュー作成)
 > テスト環境: Docker Compose (localhost:3003 / localhost:8080)
 > テストアカウント: admin@example.com (田中太郎 / 医院管理者)
 
@@ -169,21 +169,19 @@
 ### 4.3 カルテ登録・編集 `/medical-records/new`, `/medical-records/:id`
 | テスト項目 | 結果 | 備考 |
 |-----------|------|------|
-| 患者情報カード表示 | OK | ペット名/飼主名/生年月日/保険情報表示確認 |
-| タブ表示（9タブ） | OK | 問診/診察・治療プラン/治療/予防接種/定期健診/検査/画像/見積書/会計 |
-| バイタル記録（体温/心拍/呼吸/体重） | OK | バイタル記録フィールド存在確認 |
-| 主訴入力 | OK | 主訴情報フィールド存在確認 |
-| 身体検査所見入力 | OK | （診察/治療プランタブ）確認済み |
-| 診断（診断カテゴリ/診断名選択） | OK | 「皮膚・被毛」「アトピー性皮膚炎」確認済み |
-| 治療方針入力 | OK | 治療方針フィールド確認済み |
-| 処置追加（明細追加ボタン） | OK | 明細追加ボタン存在確認 |
-| 処置追加UI | OK | テストアーティファクト確認済み ✅「行を追加（検索）」→ 治療プラン検索ダイアログ表示（診察/検査/処置/予防/入院/薬剤カテゴリ一覧） |
-| 処方追加 | OK | 「行を追加」→ 治療プラン検索ダイアログ表示確認 |
-| 検査追加 | OK | 検査タブに追加ボタン存在確認 |
-| ワクチン追加 | OK | 予防接種タブに追加ボタン存在確認 |
-| 画像アップロード | OK | 画像タブにアップロードボタン×2存在確認 |
-| 見積作成 | OK | 見積書タブに見積作成ボタン存在確認 |
-| 請求確認（会計タブ） | OK | 請求額・保険/飼主請求額・チェック完了ボタン確認済み |
+| 患者情報カード表示 | OK | ペット名/飼主名/生年月日/保険情報表示確認（吉田 誠/シロ/犬） |
+| タブ表示（9タブ） | OK | 問診/診察・治療プラン/治療/予防接種/定期健診/検査/画像/見積書/会計(医師確認) 全9タブ表示確認 |
+| **Tab1「問診」** | OK | 主訴情報・定型文挿入ボタン・主訴詳細テキストエリア・右パネル（過去カルテ）正常表示 |
+| **Tab2「診察/治療プラン」** | OK | 主訴転記・診察PE入力・診断1/2セレクト（「皮膚・被毛」「アトピー性皮膚炎」）・身体検査所見・治療方針 正常表示 |
+| **Tab3「治療」** | OK | 明細テーブル（治療内容/単価/数量/小計/操作）・「+ 明細を追加」ボタン・合計計算欄 正常表示 |
+| **Tab4「予防接種」** | NG | 表示OK・右パネル表示OK。ただし MOCK_HISTORY_ITEMS 使用・API未統合（FE-092） |
+| **Tab5「定期健診」** | OK | POST/PATCH/DELETE 全API動作確認。日付形式バグ3件修正済み（date format / clinic_id FK / response format） |
+| **Tab6「検査」** | NG | MOCK_EXAM_GROUPS 使用・APIコールなし。「詳細を表示」「検査取り込み」ボタン未実装（FE-093） |
+| **Tab7「画像」** | NG | モックデータ使用・APIコールなし。「画像アップロード」未実装（FE-094） |
+| **Tab8「見積書」** | NG | 行追加OK・自動計算OK（¥5,990+消費税¥599=¥6,589）。フォーム内「保存」「PDF出力」ボタンのonClick未実装。フローティングバーのz-index重複でバイタル記録が誤起動（FE-095/096） |
+| **Tab9「会計(医師確認)」** | NG | 「チェック完了」API正常(POST /billing-review/confirm 200)・「確認を取り消す」正常。「行を追加」はno-op（onAddRow未渡し）（FE-097） |
+| バイタル記録（体温/心拍/呼吸/体重） | OK | バイタル記録ボタン存在確認 |
+| 処置追加UI | OK | 「行を追加（検索）」→ 治療プラン検索ダイアログ表示（診察/検査/処置/予防/入院/薬剤カテゴリ一覧） |
 | ステータス変更（確定） | OK | 「チェック完了」は処置明細0件時に disabled（仕様動作）。処置追加後は有効化される（`items.length === 0` ガード） |
 | DB保存 | OK | PATCH /v1/medical-records/{id} HTTP 200確認 ✅（問診・治療プランのinquiry/treatment-plan 404は別途BE対応必要） |
 
@@ -262,10 +260,10 @@
 | ケージボード表示（グリッド） | OK | 8ケージ表示（DBマスタ8件と一致） |
 | Board/List 表示切替 | OK | ラジオボタンあり |
 | ケージ名・ステータス表示 | OK | ケージ名+ステータス表示 |
-| 件数表示（リストビュー） | OK | **BUG-005テストアーティファクト確認済み** ✅ リストビュー8件表示正常 |
-| リストビュー「入院No」カラム | OK | BUG-015部分修正 ✅ `String(hosp.id)` に変更 |
-| リストビュー「種」カラム | OK | BE-055修正済み ✅ `Preload("Pet.AnimalSpecies")` 追加 |
-| ボードビューのデータ表示 | OK | API 7件取得確認、ボードビューには患者名表示確認 |
+| 件数表示（リストビュー） | OK | リストビュー2件（入院中タブ）正常表示確認 |
+| リストビュー「入院No」カラム | OK | BUG-015完全修正済み ✅ 入院No 1/6 正しく表示 |
+| リストビュー「種」カラム | OK | BE-055完全修正済み ✅ 犬/猫 正しく表示（Preload("Pet.AnimalSpecies")） |
+| ボードビューのデータ表示 | OK | ルナ(猫)/ジロウ(犬) ボードビューに患者名・飼主名・種表示確認 |
 | 新規入院登録ボタン | OK | 存在確認 |
 
 ### 7.2 入院登録・編集
@@ -352,7 +350,9 @@
 ### 10.1 定期健診一覧 `/checkups`
 | テスト項目 | 結果 | 備考 |
 |-----------|------|------|
-| ページ表示 | OK | BUG-017修正済み ✅ `CheckupsList.tsx` プレースホルダー作成・router.tsx ルート追加。BE-054（クリニック横断一覧API）は別途対応待ち |
+| ページ表示 | OK | BUG-017修正済み ✅ `CheckupsList.tsx` プレースホルダー作成・router.tsx ルート追加 |
+| データ一覧表示（テーブル） | OK | BE-054実装済み ✅ `GET /v1/checkups` API実装・飼主名/ペット名/健診種別/実施日/次回予定/結果・所見/担当医 テーブル表示（0件はシードデータなしのため正常） |
+| 検索機能（フィールド） | OK | 「ペット名・飼主名・種別で検索...」フィールド存在確認 |
 
 ---
 
@@ -496,9 +496,9 @@
 | 1 | OPEN-BUG-012 | 予約詳細ポップアップに飼主名が表示されない | 中 | **修正済み** ✅ transforms.ts に `pet?.owner?.owner_name` フォールバック追加 | [BUG-012](../docs/tasks/closed/BUG-012-reservation-detail-popup-missing-owner-name.md) |
 | 2 | OPEN-BUG-013 | 新規会計登録「会計を確定する」ボタンが機能しない | クリティカル | **修正済み** ✅ `!id` ガード除去・createAccounting→updateAccounting フロー実装・types.ts pet_id/owner_id を number に修正 | [BUG-013](../docs/tasks/closed/BUG-013-accounting-new-confirm-button-noop.md) |
 | 3 | OPEN-BUG-014 | ペット選択画面の日付フォーマット不統一（生年月日YYYY-MM-DD・前回来院YYYY/MM/DD） | 低 | **修正済み** ✅ `PetSelectionResultsTable.tsx` birthDate に `formatDate()` 適用 | [BUG-014](../docs/tasks/closed/BUG-014-pet-selection-date-format-inconsistency.md) |
-| 4 | OPEN-BUG-015 | 入院・ホテル管理リストビューで「入院No」「種」カラムが全件空欄 | 中 | **部分修正** ⚠️ 入院No: `String(hosp.id)` に変更済み ✅ / 種: BE-055（Pet.AnimalSpecies Preload追加）待ち ❌ | [BUG-015](../docs/tasks/closed/BUG-015-hospitalization-list-missing-columns.md) |
+| 4 | OPEN-BUG-015 | 入院・ホテル管理リストビューで「入院No」「種」カラムが全件空欄 | 中 | **完全修正済み** ✅ 入院No: `String(hosp.id)` 変更済み・種: BE-055 `Preload("Pet.AnimalSpecies")` 追加済み（犬/猫 表示確認） | [BUG-015](../docs/tasks/closed/BUG-015-hospitalization-list-missing-columns.md) |
 | 5 | OPEN-BUG-016 | 予防接種編集画面の右パネル「予防接種履歴」でペット未選択状態 | 中 | **修正済み** ✅ `existingVaccination.petId` → `useGetPet` → `setSelectedPets` の editMode useEffect 追加 | [BUG-016](../docs/tasks/closed/BUG-016-vaccination-edit-history-panel-no-pet.md) |
-| 6 | OPEN-BUG-017 | 定期健診 `/checkups` ページが「ページが見つかりません」（ルート未実装） | クリティカル | **修正済み** ✅ `CheckupsList.tsx` プレースホルダー作成・router.tsx にルート追加。BE-054（API実装）は別途対応 | [BUG-017](../docs/tasks/closed/BUG-017-checkups-page-not-found.md) |
+| 6 | OPEN-BUG-017 | 定期健診 `/checkups` ページが「ページが見つかりません」（ルート未実装） | クリティカル | **完全修正済み** ✅ `CheckupsList.tsx` 実装・router.tsx ルート追加・BE-054 `GET /v1/checkups` API実装済み | [BUG-017](../docs/tasks/closed/BUG-017-checkups-page-not-found.md) |
 
 ---
 

@@ -809,9 +809,9 @@ CREATE TABLE treatments (
     updated_at        timestamptz         NOT NULL DEFAULT now(),
     deleted_at        timestamptz,
     CONSTRAINT chk_treatment_item_ref CHECK (
-        (item_type = 'consultation' AND consultation_id IS NOT NULL AND procedure_id IS NULL AND medicine_id IS NULL) OR
-        (item_type = 'procedure'    AND procedure_id IS NOT NULL AND consultation_id IS NULL AND medicine_id IS NULL) OR
-        (item_type = 'medicine'     AND medicine_id IS NOT NULL AND consultation_id IS NULL AND procedure_id IS NULL) OR
+        (item_type = 'consultation' AND procedure_id IS NULL AND medicine_id IS NULL) OR
+        (item_type = 'procedure'    AND consultation_id IS NULL AND medicine_id IS NULL) OR
+        (item_type = 'medicine'     AND consultation_id IS NULL AND procedure_id IS NULL) OR
         (item_type = 'other'        AND consultation_id IS NULL AND procedure_id IS NULL AND medicine_id IS NULL)
     ),
     CONSTRAINT chk_treatment_quantity CHECK (quantity > 0)

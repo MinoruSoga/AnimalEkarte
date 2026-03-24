@@ -8,16 +8,16 @@ import (
 )
 
 type checkupResponse struct {
-	ID              string     `json:"id"`
-	MedicalRecordID string     `json:"medical_record_id"`
-	CheckupTypeID   string     `json:"checkup_type_id"`
-	PetID           *string    `json:"pet_id,omitempty"`
-	Date            time.Time  `json:"date"`
-	NextDate        *time.Time `json:"next_date,omitempty"`
-	DoctorID        *string    `json:"doctor_id,omitempty"`
-	Result          string     `json:"result"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID              string  `json:"id"`
+	MedicalRecordID string  `json:"medical_record_id"`
+	CheckupTypeID   string  `json:"checkup_type_id"`
+	PetID           *string `json:"pet_id,omitempty"`
+	Date            string  `json:"date"`
+	NextDate        *string `json:"next_date,omitempty"`
+	DoctorID        *string `json:"doctor_id,omitempty"`
+	Result          string  `json:"result"`
+	CreatedAt       string  `json:"created_at"`
+	UpdatedAt       string  `json:"updated_at"`
 
 	// Nested
 	CheckupType *checkupTypeResponse  `json:"checkup_type,omitempty"`
@@ -29,11 +29,14 @@ func toCheckupResponse(c *model.Checkup) checkupResponse {
 		ID:              strconv.FormatUint(c.ID, 10),
 		MedicalRecordID: strconv.FormatUint(c.MedicalRecordID, 10),
 		CheckupTypeID:   strconv.FormatUint(c.CheckupTypeID, 10),
-		Date:            c.Date,
-		NextDate:        c.NextDate,
+		Date:            c.Date.Format("2006-01-02"),
 		Result:          c.Result,
-		CreatedAt:       c.CreatedAt,
-		UpdatedAt:       c.UpdatedAt,
+		CreatedAt:       c.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:       c.UpdatedAt.Format(time.RFC3339),
+	}
+	if c.NextDate != nil {
+		nd := c.NextDate.Format("2006-01-02")
+		r.NextDate = &nd
 	}
 	if c.PetID != nil {
 		s := strconv.FormatUint(*c.PetID, 10)

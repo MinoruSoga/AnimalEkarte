@@ -21,22 +21,24 @@ interface PaginatedResponse<T> {
 }
 
 export const getDiagnosisCategories = async (): Promise<DiagnosisCategoryOption[]> => {
-  const { data } = await axios.get<PaginatedResponse<DiagnosisCategory>>(
+  const { data } = await axios.get<DiagnosisCategory[] | PaginatedResponse<DiagnosisCategory>>(
     "/v1/masters/diagnosis-categories",
     { params: { limit: 100 } },
   );
-  return (data.data ?? []).map((item) => ({
+  const items = Array.isArray(data) ? data : (data.data ?? []);
+  return items.map((item) => ({
     id: Number(item.id ?? 0),
     name: item.name,
   }));
 };
 
 export const getDiagnosisNames = async (): Promise<DiagnosisNameOption[]> => {
-  const { data } = await axios.get<PaginatedResponse<DiagnosisName>>(
+  const { data } = await axios.get<DiagnosisName[] | PaginatedResponse<DiagnosisName>>(
     "/v1/masters/diagnosis-names",
     { params: { limit: 100 } },
   );
-  return (data.data ?? []).map((item) => ({
+  const items = Array.isArray(data) ? data : (data.data ?? []);
+  return items.map((item) => ({
     id: Number(item.id ?? 0),
     name: item.name,
   }));

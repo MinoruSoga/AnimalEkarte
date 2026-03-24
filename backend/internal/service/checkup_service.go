@@ -13,6 +13,7 @@ import (
 
 // CreateCheckupInput は健診記録作成の入力DTO
 type CreateCheckupInput struct {
+	ClinicID      uint64
 	CheckupTypeID uint64
 	PetID         *uint64
 	Date          time.Time
@@ -74,6 +75,7 @@ func (s *checkupService) ListByClinic(ctx context.Context, input ListCheckupsByC
 
 func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, input *CreateCheckupInput) (*model.Checkup, error) {
 	checkup := &model.Checkup{
+		ClinicID:        input.ClinicID,
 		MedicalRecordID: medicalRecordID,
 		CheckupTypeID:   input.CheckupTypeID,
 		PetID:           input.PetID,
