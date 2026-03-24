@@ -373,7 +373,7 @@ CREATE TYPE account_status AS ENUM ('active', 'inactive', 'locked');
 
 | カラム | 型 | 制約 | 説明 |
 |--------|-----|------|------|
-| `id` | `UUID` | `PK DEFAULT gen_random_uuid()` | クリニックID |
+| `id` | `BIGINT` | `PK DEFAULT -` | クリニックID |
 | `name` | `TEXT` | `NOT NULL` | 医院名 |
 | `branch_name` | `TEXT` | `DEFAULT ''` | 支院名 |
 | `postal_code` | `TEXT` | `DEFAULT ''` | 郵便番号 |
@@ -391,7 +391,7 @@ CREATE TYPE account_status AS ENUM ('active', 'inactive', 'locked');
 
 ```sql
 CREATE TABLE clinics (
-  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id                  BIGINT PRIMARY KEY DEFAULT -,
   name                TEXT NOT NULL,
   branch_name         TEXT DEFAULT '',
   postal_code         TEXT DEFAULT '',
@@ -417,7 +417,7 @@ CREATE TABLE clinics (
 
 | カラム | 型 | 制約 | 説明 |
 |--------|-----|------|------|
-| `id` | `UUID` | `PK DEFAULT gen_random_uuid()` | ユーザーID |
+| `id` | `BIGINT` | `PK DEFAULT -` | ユーザーID |
 | `email` | `TEXT` | `NOT NULL UNIQUE` | メールアドレス（ログインID） |
 | `display_name` | `TEXT` | `NOT NULL` | 表示名 |
 | `display_name_kana` | `TEXT` | | 表示名カナ |
@@ -425,14 +425,14 @@ CREATE TABLE clinics (
 | `job_title` | `job_title` | | 職種（`system_admin` は NULL 可） |
 | `status` | `account_status` | `NOT NULL DEFAULT 'active'` | アカウントステータス |
 | `avatar_url` | `TEXT` | | アバター画像URL |
-| `staff_master_id` | `UUID` | `FK → master_items.id` | 既存スタッフマスタへの紐付け |
+| `staff_master_id` | `BIGINT` | `FK → master_items.id` | 既存スタッフマスタへの紐付け |
 | `last_login_at` | `TIMESTAMPTZ` | | 最終ログイン日時 |
 | `created_at` | `TIMESTAMPTZ` | `DEFAULT now()` | 作成日時 |
 | `updated_at` | `TIMESTAMPTZ` | `DEFAULT now()` | 更新日時 |
 
 ```sql
 CREATE TABLE user_accounts (
-  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id               BIGINT PRIMARY KEY DEFAULT -,
   email            TEXT NOT NULL UNIQUE,
   display_name     TEXT NOT NULL,
   display_name_kana TEXT,
@@ -440,7 +440,7 @@ CREATE TABLE user_accounts (
   job_title        job_title,
   status           account_status NOT NULL DEFAULT 'active',
   avatar_url       TEXT,
-  staff_master_id  UUID REFERENCES master_items(id) ON DELETE SET NULL,
+  staff_master_id  BIGINT REFERENCES master_items(id) ON DELETE SET NULL,
   last_login_at    TIMESTAMPTZ,
   created_at       TIMESTAMPTZ DEFAULT now(),
   updated_at       TIMESTAMPTZ DEFAULT now()
@@ -455,18 +455,18 @@ CREATE TABLE user_accounts (
 
 | カラム | 型 | 制約 | 説明 |
 |--------|-----|------|------|
-| `id` | `UUID` | `PK DEFAULT gen_random_uuid()` | 所属ID |
-| `user_id` | `UUID` | `FK → user_accounts.id NOT NULL` | ユーザーID |
-| `clinic_id` | `UUID` | `FK → clinics.id NOT NULL` | クリニックID |
+| `id` | `BIGINT` | `PK DEFAULT -` | 所属ID |
+| `user_id` | `BIGINT` | `FK → user_accounts.id NOT NULL` | ユーザーID |
+| `clinic_id` | `BIGINT` | `FK → clinics.id NOT NULL` | クリニックID |
 | `is_main` | `BOOLEAN` | `NOT NULL DEFAULT false` | メインクリニックフラグ |
 | `joined_at` | `TIMESTAMPTZ` | `DEFAULT now()` | 所属開始日時 |
 | `created_at` | `TIMESTAMPTZ` | `DEFAULT now()` | 作成日時 |
 
 ```sql
 CREATE TABLE user_clinic_memberships (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id    UUID NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
-  clinic_id  UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+  id         BIGINT PRIMARY KEY DEFAULT -,
+  user_id    BIGINT NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
+  clinic_id  BIGINT NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   is_main    BOOLEAN NOT NULL DEFAULT false,
   joined_at  TIMESTAMPTZ DEFAULT now(),
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -485,20 +485,20 @@ CREATE UNIQUE INDEX idx_user_clinic_main
 
 | カラム | 型 | 制約 | 説明 |
 |--------|-----|------|------|
-| `id` | `UUID` | `PK DEFAULT gen_random_uuid()` | 権限レコードID |
-| `user_id` | `UUID` | `FK → user_accounts.id NOT NULL` | ユーザーID |
-| `clinic_id` | `UUID` | `FK → clinics.id NOT NULL` | クリニックID |
+| `id` | `BIGINT` | `PK DEFAULT -` | 権限レコードID |
+| `user_id` | `BIGINT` | `FK → user_accounts.id NOT NULL` | ユーザーID |
+| `clinic_id` | `BIGINT` | `FK → clinics.id NOT NULL` | クリニックID |
 | `permission` | `permission_type` | `NOT NULL` | 権限種別 |
-| `granted_by` | `UUID` | `FK → user_accounts.id` | 権限付与者 |
+| `granted_by` | `BIGINT` | `FK → user_accounts.id` | 権限付与者 |
 | `granted_at` | `TIMESTAMPTZ` | `DEFAULT now()` | 付与日時 |
 
 ```sql
 CREATE TABLE user_permissions (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id     UUID NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
-  clinic_id   UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+  id          BIGINT PRIMARY KEY DEFAULT -,
+  user_id     BIGINT NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
+  clinic_id   BIGINT NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   permission  permission_type NOT NULL,
-  granted_by  UUID REFERENCES user_accounts(id) ON DELETE SET NULL,
+  granted_by  BIGINT REFERENCES user_accounts(id) ON DELETE SET NULL,
   granted_at  TIMESTAMPTZ DEFAULT now(),
   UNIQUE(user_id, clinic_id, permission)
 );
@@ -514,10 +514,10 @@ CREATE TABLE user_permissions (
 
 ```sql
 -- 例: owners テーブル
-ALTER TABLE owners ADD COLUMN clinic_id UUID NOT NULL REFERENCES clinics(id);
+ALTER TABLE owners ADD COLUMN clinic_id BIGINT NOT NULL REFERENCES clinics(id);
 
 -- 例: medical_records テーブル
-ALTER TABLE medical_records ADD COLUMN clinic_id UUID NOT NULL REFERENCES clinics(id);
+ALTER TABLE medical_records ADD COLUMN clinic_id BIGINT NOT NULL REFERENCES clinics(id);
 
 -- （以下、全27テーブルに同様の ALTER TABLE を実施）
 ```
@@ -536,7 +536,7 @@ ALTER TABLE medical_records ADD COLUMN clinic_id UUID NOT NULL REFERENCES clinic
 
 | 現状 | 移行後 |
 |---|---|
-| `clinic_info` テーブル（シングルトン、PK なし） | `clinics` テーブル（複数レコード対応、UUID PK） |
+| `clinic_info` テーブル（シングルトン、PK なし） | `clinics` テーブル（複数レコード対応、BIGINT PK） |
 | フロントエンド: `features/clinic/api/store.ts` でインメモリ管理 | フロントエンド: `currentClinicId` コンテキストで選択中クリニックを管理 |
 
 ### 6.4 インデックス
@@ -580,7 +580,7 @@ ERD.md の設計を認証・認可モデルに基づき拡充。
 ```sql
 -- 現在のユーザーIDを取得
 CREATE OR REPLACE FUNCTION auth.current_user_id()
-RETURNS UUID AS $$
+RETURNS BIGINT AS $$
   SELECT id FROM user_accounts WHERE id = auth.uid()
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
@@ -592,7 +592,7 @@ $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 -- 指定クリニックでの権限チェック
 CREATE OR REPLACE FUNCTION auth.has_permission(
-  p_clinic_id UUID,
+  p_clinic_id BIGINT,
   p_permission permission_type
 )
 RETURNS BOOLEAN AS $$
@@ -616,7 +616,7 @@ RETURNS BOOLEAN AS $$
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 -- 指定クリニックへの所属チェック
-CREATE OR REPLACE FUNCTION auth.is_member_of(p_clinic_id UUID)
+CREATE OR REPLACE FUNCTION auth.is_member_of(p_clinic_id BIGINT)
 RETURNS BOOLEAN AS $$
   SELECT EXISTS (
     SELECT 1 FROM user_accounts ua

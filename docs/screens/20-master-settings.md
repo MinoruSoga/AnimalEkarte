@@ -79,14 +79,17 @@
 
 ## API連携
 
-| メソッド | エンドポイント | 用途 | 状態 |
-|---------|--------------|------|------|
-| GET | `/api/v1/master-items` | マスタ項目一覧取得 | 実装済 |
-| POST | `/api/v1/master-items` | マスタ項目作成 | 実装済 |
-| PATCH | `/api/v1/master-items/:id` | マスタ項目更新 | 実装済 |
-| DELETE | `/api/v1/master-items/:id` | マスタ項目削除 | 実装済 |
-| GET | `/api/v1/staffs` | スタッフ一覧取得 | 実装済 |
-| PATCH | `/api/v1/staffs/:id` | スタッフ更新 | 実装済 |
+個別マスタごとに `/api/v1/masters/...` のエンドポイントが割り当てられています。
+
+| メソッド | エンドポイント（例） | 用途 |
+|---------|-------------------|------|
+| GET | `/api/v1/masters/animal-species` | 一覧取得 |
+| POST | `/api/v1/masters/animal-species` | 新規作成 |
+| PATCH | `/api/v1/masters/animal-species/:id` | 更新 |
+| DELETE | `/api/v1/masters/animal-species/:id` | 削除 |
+| PATCH | `/api/v1/masters/animal-species/reorder` | 並び順保存 |
+
+※ スタッフマスタのみ `/api/v1/masters/staffs` を使用します。
 
 ## 実装状況
 

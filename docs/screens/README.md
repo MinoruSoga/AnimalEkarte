@@ -29,6 +29,7 @@
 | 16 | トリミング一覧 | [16-trimming-list.md](./16-trimming-list.md) | トリミング予約と施術状況の一覧 |
 | 17 | トリミング登録/編集 | [17-trimming-form.md](./17-trimming-form.md) | 施術内容・スタイル希望・画像の記録 |
 | 18 | 在庫管理 | [18-inventory-list.md](./18-inventory-list.md) | 薬品・消耗品の在庫数とアラート管理 |
+| 27 | 在庫登録/編集 | [27-inventory-form.md](./27-inventory-form.md) | 在庫品目の入力・更新 |
 | 19 | 病院情報設定 | [19-clinic-settings.md](./19-clinic-settings.md) | 医院名、住所、インボイス番号等の設定 |
 | 20 | マスタ設定トップ | [20-master-settings.md](./20-master-settings.md) | システム全体の各種マスタ管理 |
 | 21 | ログイン | [21-login.md](./21-login.md) | ユーザー認証と初期遷移 |
