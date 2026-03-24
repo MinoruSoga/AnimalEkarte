@@ -87,7 +87,7 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
           ? "bg-[#038B94]/8 text-[#37352F] border-l-2 border-l-[#038B94]"
           : "text-[#37352F]/65 hover:bg-[#37352F]/4 hover:text-[#37352F]",
         collapsed ? "justify-center" : "",
-        level > 0 ? "pl-8" : "",
+        level === 1 ? "pl-8" : level > 1 ? "pl-14" : "",
       ].join(" ")}
     >
       <div className={`size-[18px] flex items-center justify-center shrink-0${level > 0 && !item.icon ? " invisible" : ""}`}>

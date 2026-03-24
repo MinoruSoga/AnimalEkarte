@@ -209,6 +209,13 @@
 
 ---
 
+## 15. 商品マスタ (`/settings/merchandise-items`)
+
+**コンポーネント:** `MerchandiseItemSettings.tsx`
+**API:** `/api/v1/masters/merchandise-items`
+
+---
+
 ## 共有コンポーネント早見表
 
 | コンポーネント | パス |
