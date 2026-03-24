@@ -15,6 +15,11 @@
 | 薬剤 | [master-medicine.md](./master-medicine.md) | カテゴリ別薬剤単価と剤形管理 |
 | 診断 | [master-diagnosis.md](./master-diagnosis.md) | 診断カテゴリと具体的な病名の紐付け |
 | トリミング | [master-trimming.md](./master-trimming.md) | コースとオプションの組合せ・単価管理 |
+| 物販 | [master-merchandise.md](./master-merchandise.md) | フードやグッズ等の名称・単価・税率管理 |
+| ケージ | [master-cage.md](./master-cage.md) | 入院用ケージのエリア・サイズ・料金管理 |
+| 問診・テンプレート | [master-interview.md](./master-interview.md) | 主訴カテゴリと問診票テンプレート定型文 |
+| 保険 | [master-insurance.md](./master-insurance.md) | ペット保険会社の補償率・連絡先管理 |
+| 基礎マスタ | [master-basics.md](./master-basics.md) | 動物種、職能、予約区分、入院プラン等の共通設定 |
 
 ---
 

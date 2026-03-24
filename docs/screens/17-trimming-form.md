@@ -1,194 +1,36 @@
 # トリミング登録/編集 仕様書
 
 ## 概要
-
-- **画面の目的**: トリミング施術記録の新規登録・編集
+- **画面の目的**: トリミング施術記録の新規登録・編集。
 - **URLパターン**:
-  - ペット選択: `/trimming/select-pet`（`[R] TrimmingPetSelection`）
   - 新規: `/trimming/new?petId=xxx`
   - 編集: `/trimming/:id`
 - **アクセス権限**: 認証済ユーザー全員
 
-## 画面レイアウト
+## 画面構成（3カラム）
+- **ヘッダー**: `PatientInfoCard` (ペット・担当スタッフ情報)、保存・削除ボタン
+- **左カラム (施術基本)**:
+  - コース選択 (`MasterSelectModal`)
+  - スタイルの希望テキスト
+  - オプション（チェックボックス形式）
+  - 希望スタイル画像アップロード
+- **中カラム (身体情報・詳細)**:
+  - 体重 (BW)、体温 (BT)
+  - 使用シャンプー、使用リボン
+  - 備考テキスト
+  - 完成画像アップロード
+- **右カラム (施術履歴)**:
+  - 過去のトリミング履歴一覧（検索・フィルタ・ソート対応）
+  - 履歴からの「引用（コピー）」機能
 
-```
-┌──────────────────────────────────────────────────────────┐
-│ トリミング登録/編集 [Scissors]  [削除(編集時)]  [保存]     │
-├──────────────────────────────────────────────────────────┤
-│ PatientInfoCard（患者情報・担当スタッフ・サービス区分）    │
-├──────────────────────────────────────────────────────────┤
-│ 3カラムレイアウト（lg:grid-cols-3 gap-3）                 │
-│                                                          │
-│ [左カラム]         [中カラム]         [右カラム]           │
-│  コース選択         BW / BT           トリミング履歴        │
-│  スタイルの希望     USED SHAMPOO      HistoryFilterPanel   │
-│  メモ              USED RIBBON        履歴カード一覧        │
-│  オプション         TREATMENT                              │
-│  希望スタイル画像   備考                                   │
-│                   完成画像                                │
-└──────────────────────────────────────────────────────────┘
-```
+## 主な機能
+- **履歴引用**: 過去のスタイル希望や担当スタッフ情報を、ワンクリックで現在のフォームへ反映可能。
+- **マスタ連携**: コースやオプション情報をマスタから取得し、標準料金や所要時間を自動管理。
+- **画像管理**: 施術前後の画像を個別に保存し、視覚的なカルテとして管理。
 
-## ペット選択（`/trimming/select-pet`）
-
-- `[S] PetSearchForm` + `[S] PetSearchResultsTable` 共通コンポーネントを使用
-- ペット未選択かつ新規モードの場合はペット選択画面へリダイレクト
-
-## フォーム項目（左カラム - 施術基本）
-
-| フィールド | 項目ID | 入力部品 | 備考 |
-|-----------|--------|----------|------|
-| コース | `courseId` | `MasterSelect` | `trimming_course` マスタ連動 |
-| スタイルの希望| `styleRequest`| `Textarea` | |
-| メモ | `memo` | `Textarea` | |
-| オプション | `optionIds` | `Checkbox` リスト | `trimming_option` マスタ連動 |
-| 希望スタイル画像| `styleImage` | `Upload` | |
-
-## フォーム項目（中央カラム - 身体情報・詳細）
-
-| フィールド | 項目ID | 入力部品 | 備考 |
-|-----------|--------|----------|------|
-| 体重 (BW) | `bw` | `Input` | |
-| 体重単位 | `bwUnit` | `Select` | Kg / g |
-| 体温 (BT) | `bt` | `Input` | |
-| 使用シャンプー| `usedShampoo` | `Input` | |
-| 使用リボン | `usedRibbon` | `Input` | |
-| 備考 | `remarks` | `Textarea` | |
-| 完成画像 | `completedImage`| `Upload` | |
-
-## 右カラム（施術履歴）
-
-- タイトル: 「施術履歴」
-- `HistoryFilterPanel` による絞り込み（スタイル希望、実施日範囲、ソート順）
-- 履歴カードクリックで、その時のスタイル希望・担当医を現在のフォームにコピー可能
-
-## 担当スタッフ選択（PatientInfoCard 経由）
-
-- `PatientInfoCard` の担当スタッフをクリックで `MasterSelectModal`（staff マスタ連動、active のみ）を表示
-- タイトル: 「担当スタッフを選択」
-
-## バリデーション
-
-| フィールド | ルール | エラー表示 |
-|-----------|--------|-----------|
-| 担当スタッフ | 必須 | `toast.warning` で保存ブロック + `FormFieldError`（`role="alert"`、`aria-describedby` 接続） |
-| コース | 必須 | `FormFieldError`（`role="alert"`、`aria-describedby` 接続） |
-
-## ヘッダーアクション
-
-| ボタン | 表示条件 | 動作 |
-|-------|---------|------|
-| 削除 | 編集時のみ | `ConfirmDialog` → 一覧へ遷移 |
-| 保存 | 常時 | `handleSave()` → バリデーション → `markClean()` |
-
-## コンポーネント構成
-
-| コンポーネント | 種別 | 説明 |
-|---|---|---|
-| `TrimmingForm` | `[R]` | メインページ |
-| `TrimmingPetSelection` | `[R]` | ペット選択ページ |
-| `PatientInfoCard` | `[S]` | 患者情報カード（担当スタッフ・サービス区分表示） |
-| `MasterSelectModal` | `[S][M]` | コース・スタッフ選択モーダル |
-| `MasterSelectTrigger` | `[S]` | コース選択トリガーボタン |
-| `HistoryFilterPanel` | `[S]` | 履歴フィルタパネル |
-| `MasterLink` | `[S]` | マスタ設定へのリンク |
-| `NavigationBlocker` | `[S]` | フォーム離脱保護 |
-| `ConfirmDialog` | `[S][M]` | 削除確認ダイアログ |
-| `FormFieldError` | `[S]` | フィールドエラー表示（`role="alert"`） |
-| `NotionCheckbox` | `[S]` | チェックボックス |
-| `useTrimmingForm` | `[H]` | フォーム状態管理 |
-| `useUnsavedChanges` | `[H]` | 未保存変更検知 |
-| `useMasterItems` | `[H]` | マスタデータ取得（trimming_course / trimming_option / staff） |
-
-## 状態管理
-
-| 状態 | 型 | 説明 |
-|---|---|---|
-| `formData` | `TrimmingFormData` | フォーム全体の状態 |
-| `styleImagePreview` | `string \| null` | 希望スタイル画像プレビューURL |
-| `completedImagePreview` | `string \| null` | 完成画像プレビューURL |
-| `courseModalOpen` | `boolean` | コース選択モーダル表示状態 |
-| `staffModalOpen` | `boolean` | スタッフ選択モーダル表示状態 |
-| `deleteConfirmOpen` | `boolean` | 削除確認ダイアログ表示状態 |
-| `isDirty` | `boolean` | 未保存変更フラグ（`useUnsavedChanges`） |
-| 履歴フィルタ各種 | `string` / `SortOrder` | historyFilterStartDate, End, searchTerm, sortOrder |
-
-## データ型
-
-```typescript
-interface TrimmingFormData {
-  styleRequest: string;
-  memo: string;
-  bw: string;
-  bwUnit: "Kg" | "g";
-  bt: string;
-  usedShampoo: string;
-  usedRibbon: string;
-  treatment: string;
-  remarks: string;
-  charge: string;
-  courseId: string;
-  optionIds: string[];
-  staffName: string;
-  styleImage: File | null;
-  completedImage: File | null;
-}
-
-interface TrimmingHistoryItem {
-  id: string;
-  date: string;
-  createdBy: string;
-  createdAt: string;
-  updatedBy: string;
-  updatedAt: string;
-  course: string;
-  styleRequest: string;
-  memo: string;
-}
-
-type BodyWeightUnit = "Kg" | "g";
-type SortOrder = "asc" | "desc";
-```
-
-## アクセシビリティ
-
-- 担当医エラー: `PatientInfoCard.staffAriaDescribedBy` → `FormFieldError`（`role="alert"`）と `aria-describedby` 接続
-- コース選択エラー: `MasterSelectTrigger.ariaDescribedBy` → `FormFieldError` と `aria-describedby` 接続
-- `MasterSelectTrigger`: 選択済み・未選択状態ともに `<button>` 要素（キーボード操作対応）
-
-## ユーザー操作
-
-- コース選択（マスタモーダル）→ 料金自動反映
-- オプション複数選択（チェックボックス）→ 各 `+¥{price}` 表示
-- 体重単位切替（Kg/g ラジオ）
-- スタイル画像・完成画像のアップロード/削除
-- 担当スタッフ選択（PatientInfoCard クリック）
-- トリミング履歴の検索・日付範囲フィルタ・ソート
-- 保存（バリデーション → トースト → 一覧へ遷移）
-- 削除（確認ダイアログ → 一覧へ遷移、編集時のみ）
-- 未保存離脱時の保護ダイアログ（`NavigationBlocker`）
-
-## 機能詳細
-
-### 1. 施術画像管理
-- **ビフォーアフター**: 「希望スタイル画像」と「完成画像」の2種類を保存可能。アップロードされた画像は即座にプレビュー表示され、視覚的に施術内容を確認できる。
-- **ファイル管理**: アップロード済み画像はバックエンドのファイルストレージと同期され、削除操作時には物理ファイルも整理される。
-
-### 2. 過去履歴からの「引用」機能
-- **ワンクリック反映**: 右カラムの施術履歴カードにある引用ボタンをクリックすることで、当時の「スタイルの希望」や「担当医」を現在のフォームにコピーできる。
-- **経過観察**: 過去の体重（BW）や体温（BT）の推移を履歴から一覧し、当日の施術プランに反映させることが可能。
-
-### 3. コースとオプションの連動
-- **マスタ引用**: `trimming_course` を選択すると、そのコースの標準単価が自動設定される。
-- **複数オプション**: シャンプー変更やリボン追加などのオプションをチェックボックスで複数選択し、合算した金額を算出する。
-
-| メソッド | エンドポイント | 用途 | 状態 |
-|---------|--------------|------|------|
-| GET | `/api/v1/trimmings/:id` | トリミング詳細取得 | 実装済 |
-| POST | `/api/v1/trimmings` | トリミング作成 | 実装済 |
-| PATCH | `/api/v1/trimmings/:id` | トリミング更新 | 実装済 |
-| DELETE | `/api/v1/trimmings/:id` | トリミング削除 | 実装済 |
-
-## 実装状況
-- フロントエンド: 実装済（`features/trimming/routes/TrimmingForm.tsx`）
-- バックエンドAPI: 実装済（`handler/trimming_handler.go`）
+## API連携
+| メソッド | エンドポイント | 用途 |
+|---------|--------------|------|
+| GET | `/api/v1/trimmings/:id` | トリミング詳細取得 |
+| POST | `/api/v1/trimmings` | トリミング作成 |
+| PATCH | `/api/v1/trimmings/:id` | トリミング更新 |

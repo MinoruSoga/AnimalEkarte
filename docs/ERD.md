@@ -1,6 +1,6 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v22.0（migration との差分同期）
+バージョン: v23.0（ID型の実装同期）
 更新日: 2026-03-19
 状態: Production Ready
 
@@ -8,6 +8,13 @@
 PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 
 ---
+
+## 変更概要（v22.0 → v23.0）
+
+| 変更内容 | 詳細 |
+|---------|------|
+| ID型を bigint に統一 | 実装コード（Go uint64 / PostgreSQL BIGSERIAL）に合わせて、全ての PK/FK の型を uuid から bigint に修正 |
+| デフォルト値の修正 | uuid_generate_v4() 等の記述を削除し、DB側の連番（BIGSERIAL）に準拠 |
 
 ## 変更概要（v21.0 → v22.0）
 
@@ -77,7 +84,7 @@ PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 | 変更内容 | 詳細 |
 |---------|------|
 | `animal_species` テーブル追加 | ペット種類マスタ。`pet_species` ENUM を廃止しマスタテーブル化 |
-| `pets.species` FK化 | `pet_species ENUM` → `animal_species_id uuid FK → animal_species(id) RESTRICT` |
+| `pets.species` FK化 | `pet_species ENUM` → `animal_species_id bigint FK → animal_species(id) RESTRICT` |
 | `pet_species` ENUM 削除 | マスタ化により不要 |
 | テーブル総数 | 53 → 54 |
 
@@ -269,7 +276,7 @@ erDiagram
     }
 
     clinics {
-        uuid id PK
+        bigint id PK
         bigint company_id FK
         text name
         boolean is_active
@@ -288,13 +295,13 @@ erDiagram
 
     %% ===== 認証 =====
     user_accounts {
-        uuid id PK
+        bigint id PK
         text email
         text display_name
         user_type user_type
-        uuid job_title_id FK
+        bigint job_title_id FK
         account_status status
-        uuid staff_id FK
+        bigint staff_id FK
         text display_name_kana
         text avatar_url
         text password_hash
@@ -304,26 +311,26 @@ erDiagram
     }
 
     user_clinic_memberships {
-        uuid id PK
-        uuid user_id FK
-        uuid clinic_id FK
+        bigint id PK
+        bigint user_id FK
+        bigint clinic_id FK
         boolean is_main
         timestamptz joined_at
     }
 
     user_permissions {
-        uuid id PK
-        uuid user_id FK
-        uuid clinic_id FK
+        bigint id PK
+        bigint user_id FK
+        bigint clinic_id FK
         permission_type permission "UK: user_id+clinic_id+permission"
-        uuid granted_by FK
+        bigint granted_by FK
         timestamptz granted_at
     }
 
     %% ===== コア =====
     owners {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text owner_name
         text phone
         text email
@@ -346,14 +353,14 @@ erDiagram
     }
 
     pets {
-        uuid id PK
-        uuid clinic_id FK
-        uuid owner_id FK
-        uuid animal_species_id FK
+        bigint id PK
+        bigint clinic_id FK
+        bigint owner_id FK
+        bigint animal_species_id FK
         text name
         pet_gender gender
         pet_status status
-        uuid insurance_id FK
+        bigint insurance_id FK
         text pet_number
         text pet_name_kana
         date birth_date
@@ -375,7 +382,7 @@ erDiagram
 
     %% ===== マスタ =====
     animal_species {
-        uuid id PK
+        bigint id PK
         text name
         boolean is_active
         integer sort_order
@@ -384,12 +391,12 @@ erDiagram
     }
 
     staffs {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text name
         boolean is_active
         staff_role staff_role
-        uuid job_title_id FK
+        bigint job_title_id FK
         text license_number
         integer sort_order
         timestamptz created_at
@@ -398,8 +405,8 @@ erDiagram
     }
 
     job_titles {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text name
         text description
         int sort_order
@@ -409,8 +416,8 @@ erDiagram
     }
 
     inventory_items {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text name
         inventory_category category
         integer quantity
@@ -426,8 +433,8 @@ erDiagram
     }
 
     exam_types {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text name
         bigint parent_id FK
         boolean is_active
@@ -439,8 +446,8 @@ erDiagram
     }
 
     exam_type_items {
-        uuid id PK
-        uuid exam_type_id FK
+        bigint id PK
+        bigint exam_type_id FK
         text name
         integer sort_order
         text inspection_value
@@ -451,13 +458,13 @@ erDiagram
     }
 
     vaccines {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text name
         bigint parent_id FK
         boolean is_active
         vaccine_species species
-        uuid inventory_id FK
+        bigint inventory_id FK
         integer price
         text description
         text interval
@@ -467,13 +474,13 @@ erDiagram
     }
 
     medicines {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text name
         bigint parent_id FK
         boolean is_active
         dosage_form dosage_form
-        uuid inventory_id FK
+        bigint inventory_id FK
         integer price
         text description
         medicine_unit medicine_unit
@@ -484,8 +491,8 @@ erDiagram
     }
 
     insurances {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text name
         boolean is_active
         integer coverage_rate
@@ -497,8 +504,8 @@ erDiagram
     }
 
     cages {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text name
         boolean is_active
         cage_type cage_type
@@ -511,8 +518,8 @@ erDiagram
     }
 
     service_types {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text name
         boolean is_active
         text color
@@ -523,8 +530,8 @@ erDiagram
     }
 
     consultations {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text name
         bigint parent_id FK
         boolean is_active
@@ -538,8 +545,8 @@ erDiagram
     }
 
     procedures {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text name
         bigint parent_id FK
         boolean is_active
@@ -553,8 +560,8 @@ erDiagram
     }
 
     hospitalization_plans {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text name
         boolean is_active
         body_size body_size
@@ -567,8 +574,8 @@ erDiagram
     }
 
     trimming_courses {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text name
         boolean is_active
         target_size target_size
@@ -581,8 +588,8 @@ erDiagram
     }
 
     trimming_options {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text name
         boolean is_active
         boolean combinable
@@ -595,8 +602,8 @@ erDiagram
     }
 
     diagnosis_categories {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text name
         boolean is_active
         text description
@@ -606,20 +613,20 @@ erDiagram
     }
 
     diagnosis_names {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text name
         boolean is_active
         text description
-        uuid diagnosis_category_id FK
+        bigint diagnosis_category_id FK
         integer sort_order
         timestamptz created_at
         timestamptz updated_at
     }
 
     checkup_types {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text name
         bigint parent_id FK
         boolean is_active
@@ -634,8 +641,8 @@ erDiagram
     }
 
     chief_complaint_categories {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text name
         text description
         boolean is_active
@@ -645,8 +652,8 @@ erDiagram
     }
 
     inquiry_templates {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text category
         text title
         text content
@@ -658,14 +665,14 @@ erDiagram
 
     %% ===== 診療 =====
     medical_records {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text record_no
         date date
-        uuid owner_id FK
-        uuid pet_id FK
-        uuid doctor_id FK
-        uuid reservation_appointment_id FK
+        bigint owner_id FK
+        bigint pet_id FK
+        bigint doctor_id FK
+        bigint reservation_appointment_id FK
         medical_record_status status
         timestamptz created_at
         timestamptz updated_at
@@ -673,11 +680,11 @@ erDiagram
     }
 
     clinical_plans {
-        uuid id PK
-        uuid medical_record_id FK
+        bigint id PK
+        bigint medical_record_id FK
         text physical_exam
-        uuid diagnosis_category_id FK
-        uuid diagnosis_name_id FK
+        bigint diagnosis_category_id FK
+        bigint diagnosis_name_id FK
         text diagnosis_details
         text treatment_policy
         timestamptz created_at
@@ -685,13 +692,13 @@ erDiagram
     }
 
     treatments {
-        uuid id PK
-        uuid medical_record_id FK
+        bigint id PK
+        bigint medical_record_id FK
         treatment_item_type item_type
-        uuid consultation_id FK
-        uuid procedure_id FK
-        uuid medicine_id FK
-        uuid inventory_id FK
+        bigint consultation_id FK
+        bigint procedure_id FK
+        bigint medicine_id FK
+        bigint inventory_id FK
         integer unit_price
         integer quantity
         boolean selected
@@ -706,12 +713,12 @@ erDiagram
     }
 
     vital_records {
-        uuid id PK
-        uuid pet_id FK
-        uuid medical_record_id FK "外来時"
-        uuid daily_record_id FK "入院時"
+        bigint id PK
+        bigint pet_id FK
+        bigint medical_record_id FK "外来時"
+        bigint daily_record_id FK "入院時"
         timestamptz recorded_at
-        uuid staff_id FK
+        bigint staff_id FK
         numeric temperature
         integer heart_rate
         integer respiration_rate
@@ -723,12 +730,12 @@ erDiagram
     }
 
     exams {
-        uuid id PK
-        uuid medical_record_id FK
-        uuid clinic_id FK
-        uuid pet_id FK
-        uuid exam_type_id FK
-        uuid doctor_id FK
+        bigint id PK
+        bigint medical_record_id FK
+        bigint clinic_id FK
+        bigint pet_id FK
+        bigint exam_type_id FK
+        bigint doctor_id FK
         examination_status status
         date date
         text result_summary
@@ -739,9 +746,9 @@ erDiagram
     }
 
     exam_items {
-        uuid id PK
-        uuid exam_id FK
-        uuid exam_type_item_id FK
+        bigint id PK
+        bigint exam_id FK
+        bigint exam_type_item_id FK
         text name
         text inspection_value
         examination_result_status status
@@ -755,13 +762,13 @@ erDiagram
     }
 
     vaccinations {
-        uuid id PK
-        uuid medical_record_id FK
-        uuid pet_id FK
-        uuid vaccine_id FK
+        bigint id PK
+        bigint medical_record_id FK
+        bigint pet_id FK
+        bigint vaccine_id FK
         date date
-        uuid doctor_id FK
-        uuid clinic_id FK
+        bigint doctor_id FK
+        bigint clinic_id FK
         date next_date
         text next_schedule_type
         text supplemental
@@ -776,13 +783,13 @@ erDiagram
     }
 
     checkups {
-        uuid id PK
-        uuid medical_record_id FK
-        uuid clinic_id FK
-        uuid pet_id FK
-        uuid checkup_type_id FK
+        bigint id PK
+        bigint medical_record_id FK
+        bigint clinic_id FK
+        bigint pet_id FK
+        bigint checkup_type_id FK
         date date
-        uuid doctor_id FK
+        bigint doctor_id FK
         text result
         date next_date
         timestamptz created_at
@@ -791,9 +798,9 @@ erDiagram
     }
 
     inquiries {
-        uuid id PK
-        uuid medical_record_id FK
-        uuid chief_complaint_category_id FK
+        bigint id PK
+        bigint medical_record_id FK
+        bigint chief_complaint_category_id FK
         text chief_complaint
         text history
         text current_medications
@@ -805,14 +812,14 @@ erDiagram
         water_intake_level water_intake
         text owner_observations
         text notes
-        uuid staff_id FK
+        bigint staff_id FK
         timestamptz created_at
         timestamptz updated_at
     }
 
     record_images {
-        uuid id PK
-        uuid medical_record_id FK
+        bigint id PK
+        bigint medical_record_id FK
         text image_url
         text thumbnail_url
         text file_name
@@ -821,20 +828,20 @@ erDiagram
         medical_image_type image_type
         text description
         timestamptz taken_at
-        uuid exam_id FK
-        uuid staff_id FK
+        bigint exam_id FK
+        bigint staff_id FK
         integer sort_order
         timestamptz created_at
         timestamptz updated_at
     }
 
     estimates {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         text estimate_no
-        uuid medical_record_id FK
+        bigint medical_record_id FK
         text title
-        uuid owner_id FK
+        bigint owner_id FK
         estimate_status status
         integer subtotal
         integer tax_total
@@ -844,15 +851,15 @@ erDiagram
         date valid_until
         text comment
         text notes
-        uuid created_by FK
+        bigint created_by FK
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
     }
 
     estimate_items {
-        uuid id PK
-        uuid estimate_id FK
+        bigint id PK
+        bigint estimate_id FK
         text name
         item_category category
         integer unit_price
@@ -861,21 +868,21 @@ erDiagram
         numeric discount_rate
         integer discount_amount
         boolean is_insurance_applicable
-        uuid consultation_id FK
-        uuid procedure_id FK
-        uuid medicine_id FK
+        bigint consultation_id FK
+        bigint procedure_id FK
+        bigint medicine_id FK
         integer sort_order
         timestamptz created_at
         timestamptz updated_at
     }
 
     billing_reviews {
-        uuid id PK
-        uuid medical_record_id FK
+        bigint id PK
+        bigint medical_record_id FK
         billing_review_status status
-        uuid confirmed_by FK
+        bigint confirmed_by FK
         timestamptz confirmed_at
-        uuid returned_by FK
+        bigint returned_by FK
         timestamptz returned_at
         text return_reason
         text memo
@@ -885,15 +892,15 @@ erDiagram
 
     %% ===== 予約 =====
     reservation_appointments {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         timestamptz start_time
         timestamptz end_time
-        uuid pet_id FK
-        uuid service_type_id FK
-        uuid doctor_id FK
+        bigint pet_id FK
+        bigint service_type_id FK
+        bigint doctor_id FK
         reservation_status status
-        uuid owner_id FK
+        bigint owner_id FK
         visit_type visit_type
         boolean is_designated
         text notes
@@ -904,15 +911,15 @@ erDiagram
 
     %% ===== 入院 =====
     hospitalizations {
-        uuid id PK
-        uuid clinic_id FK
-        uuid owner_id FK
-        uuid pet_id FK
+        bigint id PK
+        bigint clinic_id FK
+        bigint owner_id FK
+        bigint pet_id FK
         hospitalization_type hospitalization_type
         date start_date
         date end_date
-        uuid cage_id FK
-        uuid doctor_id FK
+        bigint cage_id FK
+        bigint doctor_id FK
         hospitalization_status status
         text memo
         text owner_request
@@ -923,22 +930,22 @@ erDiagram
     }
 
     daily_records {
-        uuid id PK
-        uuid hospitalization_id FK
-        uuid clinic_id FK
+        bigint id PK
+        bigint hospitalization_id FK
+        bigint clinic_id FK
         date date
         timestamptz created_at
         timestamptz updated_at
     }
 
     care_plan_items {
-        uuid id PK
-        uuid hospitalization_id FK
+        bigint id PK
+        bigint hospitalization_id FK
         care_plan_type type
         plan_timing timing
-        uuid medicine_id FK
-        uuid procedure_id FK
-        uuid hospitalization_plan_id FK
+        bigint medicine_id FK
+        bigint procedure_id FK
+        bigint hospitalization_plan_id FK
         care_plan_status status
         text name
         text description
@@ -951,10 +958,10 @@ erDiagram
     }
 
     care_log_records {
-        uuid id PK
-        uuid daily_record_id FK
+        bigint id PK
+        bigint daily_record_id FK
         care_log_type type
-        uuid staff_id FK
+        bigint staff_id FK
         time time
         care_log_status status
         text value
@@ -964,19 +971,19 @@ erDiagram
     }
 
     staff_note_records {
-        uuid id PK
-        uuid daily_record_id FK
+        bigint id PK
+        bigint daily_record_id FK
         time time
-        uuid staff_id FK
+        bigint staff_id FK
         text content
         timestamptz created_at
         timestamptz updated_at
     }
 
     treatment_plans {
-        uuid id PK
-        uuid medical_record_id FK
-        uuid hospitalization_id FK
+        bigint id PK
+        bigint medical_record_id FK
+        bigint hospitalization_id FK
         text treatment_content
         integer unit_price
         integer quantity
@@ -993,12 +1000,12 @@ erDiagram
 
     %% ===== トリミング =====
     trimming_records {
-        uuid id PK
-        uuid clinic_id FK
+        bigint id PK
+        bigint clinic_id FK
         date date
-        uuid pet_id FK
-        uuid staff_id FK
-        uuid course_id FK
+        bigint pet_id FK
+        bigint staff_id FK
+        bigint course_id FK
         trimming_status status
         text style_request
         numeric bw "体重"
@@ -1015,9 +1022,9 @@ erDiagram
     }
 
     trimming_record_options {
-        uuid id PK
-        uuid trimming_record_id FK
-        uuid option_id FK
+        bigint id PK
+        bigint trimming_record_id FK
+        bigint option_id FK
         integer sort_order
         timestamptz created_at
         timestamptz updated_at
@@ -1025,12 +1032,12 @@ erDiagram
 
     %% ===== 会計 =====
     billings {
-        uuid id PK
-        uuid clinic_id FK
-        uuid medical_record_id FK
-        uuid hospitalization_id FK
-        uuid owner_id FK
-        uuid pet_id FK
+        bigint id PK
+        bigint clinic_id FK
+        bigint medical_record_id FK
+        bigint hospitalization_id FK
+        bigint owner_id FK
+        bigint pet_id FK
         integer subtotal
         integer tax_total
         integer total_amount
@@ -1045,8 +1052,8 @@ erDiagram
     }
 
     billing_items {
-        uuid id PK
-        uuid billing_id FK
+        bigint id PK
+        bigint billing_id FK
         item_category category
         text name
         integer unit_price
@@ -1060,8 +1067,8 @@ erDiagram
     }
 
     payments {
-        uuid id PK
-        uuid billing_id FK
+        bigint id PK
+        bigint billing_id FK
         integer total_amount
         integer billing_amount
         payment_method method
@@ -1079,9 +1086,9 @@ erDiagram
 
     %% ===== シフト =====
     shift_entries {
-        uuid id PK
-        uuid clinic_id FK
-        uuid staff_id FK
+        bigint id PK
+        bigint clinic_id FK
+        bigint staff_id FK
         date date
         shift_type shift_type
         time start_time
@@ -1317,7 +1324,7 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
+| id | bigint | NO | - | PK (BIGSERIAL) |
 | name | text | NO | | 法人名 |
 | postal_code | text | YES | '' | 郵便番号 |
 | address | text | YES | '' | 住所 |
@@ -1339,7 +1346,7 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
+| id | bigint | NO | - | PK (BIGSERIAL) |
 | company_id | bigint | NO | | company.id FK |
 | name | text | NO | | 医院名 |
 | postal_code | text | YES | '' | 郵便番号 |
@@ -1367,16 +1374,16 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
+| id | bigint | NO | - | PK (BIGSERIAL) |
 | email | text | NO | | メールアドレス（UNIQUE） |
 | password_hash | text | NO | | bcryptハッシュ化パスワード（JSON非公開） |
 | display_name | text | NO | | 表示名 |
 | display_name_kana | text | YES | '' | 表示名カナ |
 | user_type | user_type | NO | 'staff' | ユーザー種別 |
-| job_title_id | uuid | YES | NULL | job_titles.id FK（職種） |
+| job_title_id | bigint | YES | NULL | job_titles.id FK（職種） |
 | status | account_status | YES | 'active' | アカウント状態 |
 | avatar_url | text | YES | '' | アバター画像URL |
-| staff_id | uuid | YES | | staffs.id FK |
+| staff_id | bigint | YES | | staffs.id FK |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
@@ -1393,9 +1400,9 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| user_id | uuid | NO | | user_accounts.id FK |
-| clinic_id | uuid | NO | | clinics.id FK |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| user_id | bigint | NO | | user_accounts.id FK |
+| clinic_id | bigint | NO | | clinics.id FK |
 | is_main | boolean | YES | false | 主所属医院フラグ |
 | joined_at | timestamptz | YES | now() | 所属開始日時 |
 
@@ -1415,11 +1422,11 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| user_id | uuid | NO | | user_accounts.id FK |
-| clinic_id | uuid | NO | | clinics.id FK |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| user_id | bigint | NO | | user_accounts.id FK |
+| clinic_id | bigint | NO | | clinics.id FK |
 | permission | permission_type | NO | | 権限種別 |
-| granted_by | uuid | YES | | 付与者 user_accounts.id FK |
+| granted_by | bigint | YES | | 付与者 user_accounts.id FK |
 | granted_at | timestamptz | YES | now() | 付与日時 |
 
 **FK:**
@@ -1441,8 +1448,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | owner_name | text | NO | | 飼い主名 |
 | owner_name_kana | text | YES | '' | 飼い主名カナ |
 | birth_date | date | YES | | 生年月日 |
@@ -1477,13 +1484,13 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| owner_id | uuid | NO | | owners.id FK |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| owner_id | bigint | NO | | owners.id FK |
 | pet_number | text | YES | '' | ペット番号 |
 | name | text | NO | | ペット名 |
 | pet_name_kana | text | YES | '' | ペット名カナ |
-| animal_species_id | uuid | NO | | animal_species.id FK（種類） |
+| animal_species_id | bigint | NO | | animal_species.id FK（種類） |
 | gender | pet_gender | YES | '不明' | 性別 |
 | status | pet_status | YES | '生存' | 生存状態 |
 | birth_date | date | YES | | 誕生日 |
@@ -1497,7 +1504,7 @@ erDiagram
 | environment | text | YES | '' | 飼育環境 |
 | phone | text | YES | '' | ペット専用電話 |
 | last_visit | date | YES | | 最終来院日 |
-| insurance_id | uuid | YES | | insurances.id FK |
+| insurance_id | bigint | YES | | insurances.id FK |
 | remarks | text | YES | '' | 備考 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
@@ -1523,7 +1530,7 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
+| id | bigint | NO | - | PK (BIGSERIAL) |
 | name | text | NO | | 種類名（犬・猫・鳥・その他 等） |
 | is_active | boolean | YES | true | 状態 |
 | sort_order | integer | YES | 0 | 並び順 |
@@ -1541,13 +1548,13 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | スタッフ名 |
 | is_active | boolean | YES | true | 状態 |
 | staff_role | staff_role | NO | | 役割 |
 | license_number | text | YES | '' | 免許番号 |
-| job_title_id | uuid | YES | - | job_titles.id FK（職種） |
+| job_title_id | bigint | YES | - | job_titles.id FK（職種） |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
@@ -1567,8 +1574,8 @@ erDiagram
 
 | カラム | 型 | NULL | デフォルト | 説明 |
 |--------|-----|------|-----------|------|
-| id | uuid | NO | gen_random_uuid() | PK |
-| clinic_id | uuid | NO | - | clinics.id FK（所属医院） |
+| id | bigint | NO | - | PK |
+| clinic_id | bigint | NO | - | clinics.id FK（所属医院） |
 | name | text | NO | '' | 職種名（例: 獣医師, 看護師） |
 | description | text | YES | '' | 説明 |
 | sort_order | int | NO | 0 | 表示順 |
@@ -1587,8 +1594,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 品目名 |
 | category | inventory_category | NO | | カテゴリ |
 | quantity | integer | YES | 0 | 在庫数量 |
@@ -1615,8 +1622,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 検査種別名 |
 | parent_id | bigint | YES | NULL | 親検査種別ID FK → exam_types(id) SET NULL |
 | price | integer | YES | | 価格 |
@@ -1640,8 +1647,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| exam_type_id | uuid | NO | | exam_types.id FK |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| exam_type_id | bigint | NO | | exam_types.id FK |
 | name | text | NO | | 検査項目名 |
 | inspection_value | text | YES | '' | 検査値（テンプレート） |
 | normal_value | text | YES | '' | 正常値 |
@@ -1660,8 +1667,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | ワクチン名 |
 | parent_id | bigint | YES | NULL | 親ワクチンID FK → vaccines(id) SET NULL |
 | price | integer | YES | | 価格 |
@@ -1669,7 +1676,7 @@ erDiagram
 | description | text | YES | '' | 説明 |
 | species | vaccine_species | YES | | 対象動物種 |
 | interval | text | YES | '' | 接種間隔 |
-| inventory_id | uuid | YES | | inventory_items.id FK |
+| inventory_id | bigint | YES | | inventory_items.id FK |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
@@ -1689,8 +1696,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 薬剤名 |
 | parent_id | bigint | YES | NULL | 親薬剤ID（カテゴリ medicine を参照）FK → medicines(id) SET NULL |
 | price | integer | YES | | 価格 |
@@ -1698,7 +1705,7 @@ erDiagram
 | description | text | YES | '' | 説明 |
 | dosage_form | dosage_form | YES | | 剤形 |
 | medicine_unit | medicine_unit | YES | | 単位 |
-| inventory_id | uuid | YES | | inventory_items.id FK |
+| inventory_id | bigint | YES | | inventory_items.id FK |
 | default_quantity | integer | YES | 1 | デフォルト数量 |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
@@ -1719,8 +1726,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 保険名 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
@@ -1743,8 +1750,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | ケージ名 |
 | price | integer | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
@@ -1768,8 +1775,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | サービス種別名 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
@@ -1791,8 +1798,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 診察項目名 |
 | parent_id | bigint | YES | NULL | 親診察項目ID FK → consultations(id) SET NULL |
 | price | integer | YES | | 価格 |
@@ -1818,8 +1825,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 処置項目名 |
 | parent_id | bigint | YES | NULL | 親処置項目ID FK → procedures(id) SET NULL |
 | price | integer | YES | | 価格 |
@@ -1845,8 +1852,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | プラン名 |
 | price | integer | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
@@ -1870,8 +1877,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | コース名 |
 | price | integer | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
@@ -1895,8 +1902,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | オプション名 |
 | price | integer | YES | | 価格 |
 | is_active | boolean | YES | true | 状態 |
@@ -1920,8 +1927,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | カテゴリ名 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
@@ -1942,12 +1949,12 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 診断名 |
 | is_active | boolean | YES | true | 状態 |
 | description | text | YES | '' | 説明 |
-| diagnosis_category_id | uuid | NO | | diagnosis_categories.id FK |
+| diagnosis_category_id | bigint | NO | | diagnosis_categories.id FK |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
@@ -1966,8 +1973,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 健診種別名 |
 | parent_id | bigint | YES | NULL | 親健診種別ID FK → checkup_types(id) SET NULL |
 | price | integer | YES | | 価格 |
@@ -1994,8 +2001,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 区分名 |
 | description | text | YES | '' | 説明 |
 | is_active | boolean | YES | true | 状態 |
@@ -2016,8 +2023,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO | - | FK → clinics(id) RESTRICT（所属医院） |
 | category | text | NO | '' | 使用フィールド区分（chief_complaint / history / current_medications / allergy_info / notes 等） |
 | title | text | NO | | 定型文タイトル |
 | content | text | NO | '' | 定型文本文 |
@@ -2046,14 +2053,14 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | record_no | text | NO | | カルテ番号（clinic_id + record_no UNIQUE） |
 | date | date | NO | | 診療日 |
-| owner_id | uuid | YES | | FK → owners(id) RESTRICT |
-| pet_id | uuid | YES | | FK → pets(id) RESTRICT |
-| doctor_id | uuid | YES | | FK → staffs(id) SET NULL（担当医師） |
-| reservation_appointment_id | uuid | YES | NULL | reservation_appointments.id FK SET NULL（紐づく予約） |
+| owner_id | bigint | YES | | FK → owners(id) RESTRICT |
+| pet_id | bigint | YES | | FK → pets(id) RESTRICT |
+| doctor_id | bigint | YES | | FK → staffs(id) SET NULL（担当医師） |
+| reservation_appointment_id | bigint | YES | NULL | reservation_appointments.id FK SET NULL（紐づく予約） |
 | status | medical_record_status | YES | '作成中' | カルテ状態 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
@@ -2076,11 +2083,11 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| medical_record_id | uuid | NO | | FK → medical_records(id) CASCADE（UNIQUE） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| medical_record_id | bigint | NO | | FK → medical_records(id) CASCADE（UNIQUE） |
 | physical_exam | text | YES | '' | 身体検査所見（O: Objective） |
-| diagnosis_category_id | uuid | YES | | FK → diagnosis_categories(id) SET NULL（診断カテゴリ） |
-| diagnosis_name_id | uuid | YES | | FK → diagnosis_names(id) SET NULL（診断病名） |
+| diagnosis_category_id | bigint | YES | | FK → diagnosis_categories(id) SET NULL（診断カテゴリ） |
+| diagnosis_name_id | bigint | YES | | FK → diagnosis_names(id) SET NULL（診断病名） |
 | diagnosis_details | text | YES | '' | 診断詳細（A: Assessment） |
 | treatment_policy | text | YES | '' | 治療方針（P: Plan） |
 | created_at | timestamptz | YES | now() | 作成日時 |
@@ -2101,9 +2108,9 @@ erDiagram
 
 | カラム | 型 | NULL | デフォルト | 説明 |
 |--------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| medical_record_id | uuid | NO | - | FK → medical_records(id) CASCADE, UNIQUE |
-| chief_complaint_category_id | uuid | YES | - | FK → chief_complaint_categories(id) SET NULL（主訴区分） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| medical_record_id | bigint | NO | - | FK → medical_records(id) CASCADE, UNIQUE |
+| chief_complaint_category_id | bigint | YES | - | FK → chief_complaint_categories(id) SET NULL（主訴区分） |
 | chief_complaint | text | YES | '' | 主訴 |
 | history | text | YES | '' | 既往歴・現病歴 |
 | current_medications | text | YES | '' | 現在の投薬状況 |
@@ -2115,7 +2122,7 @@ erDiagram
 | water_intake | water_intake_level | YES | - | 飲水量レベル |
 | owner_observations | text | YES | '' | 飼主の気になる点 |
 | notes | text | YES | '' | その他メモ |
-| staff_id | uuid | YES | - | FK → staffs(id) SET NULL（問診担当） |
+| staff_id | bigint | YES | - | FK → staffs(id) SET NULL（問診担当） |
 | created_at | timestamptz | YES | now() | |
 | updated_at | timestamptz | YES | now() | |
 
@@ -2131,12 +2138,12 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| medical_record_id | uuid | NO | | medical_records.id FK |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| medical_record_id | bigint | NO | | medical_records.id FK |
 | item_type | treatment_item_type | NO | 'other' | 明細種別 |
-| consultation_id | uuid | YES | | consultations.id FK |
-| procedure_id | uuid | YES | | procedures.id FK |
-| medicine_id | uuid | YES | | medicines.id FK |
+| consultation_id | bigint | YES | | consultations.id FK |
+| procedure_id | bigint | YES | | procedures.id FK |
+| medicine_id | bigint | YES | | medicines.id FK |
 | selected | boolean | YES | false | 選択フラグ |
 | status | treatment_status | YES | 'pending' | 処置状態 |
 | content | text | NO | '' | 内容 |
@@ -2146,7 +2153,7 @@ erDiagram
 | quantity | integer | YES | 1 | 数量 |
 | discount_rate | numeric | YES | 0 | 割引率 |
 | discount_amount | integer | YES | 0 | 割引額 |
-| inventory_id | uuid | YES | | inventory_items.id FK |
+| inventory_id | bigint | YES | | inventory_items.id FK |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
@@ -2204,13 +2211,13 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| medical_record_id | uuid | NO  | | medical_records.id FK |
-| clinic_id | uuid | NO | | clinics.id FK（所属医院） |
-| pet_id | uuid | YES | | pets.id FK（ペット単位検索用。medical_record_id 経由でも辿れるが、JOIN 削減のため意図的に保持） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| medical_record_id | bigint | NO  | | medical_records.id FK |
+| clinic_id | bigint | NO | | clinics.id FK（所属医院） |
+| pet_id | bigint | YES | | pets.id FK（ペット単位検索用。medical_record_id 経由でも辿れるが、JOIN 削減のため意図的に保持） |
 | date | date | NO | | 検査日 |
-| exam_type_id | uuid | NO | | exam_types.id FK |
-| doctor_id | uuid | YES | | staffs.id FK |
+| exam_type_id | bigint | NO | | exam_types.id FK |
+| doctor_id | bigint | YES | | staffs.id FK |
 | status | examination_status | YES | 'pending' | 検査状態 |
 | result_summary | text | YES | '' | 検査結果サマリ |
 | machine | text | YES | '' | 使用機器 |
@@ -2233,9 +2240,9 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| exam_id | uuid | NO | | exams.id FK |
-| exam_type_item_id | uuid | YES | | exam_type_items.id FK（検査項目定義への参照） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| exam_id | bigint | NO | | exams.id FK |
+| exam_type_item_id | bigint | YES | | exam_type_items.id FK（検査項目定義への参照） |
 | name | text | NO | '' | 検査項目名 |
 | inspection_value | text | YES | '' | 検査値 |
 | normal_value | text | YES | '' | 正常値 |
@@ -2259,15 +2266,15 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| medical_record_id | uuid | YES | | medical_records.id FK（NULL = カルテなしの単独接種） |
-| pet_id | uuid | YES | | pets.id FK（ペット単位検索用。medical_record_id 経由でも辿れるが、JOIN 削減のため意図的に保持） |
-| vaccine_id | uuid | NO | | vaccines.id FK |
-| clinic_id | uuid | NO | | clinics.id FK（接種医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| medical_record_id | bigint | YES | | medical_records.id FK（NULL = カルテなしの単独接種） |
+| pet_id | bigint | YES | | pets.id FK（ペット単位検索用。medical_record_id 経由でも辿れるが、JOIN 削減のため意図的に保持） |
+| vaccine_id | bigint | NO | | vaccines.id FK |
+| clinic_id | bigint | NO | | clinics.id FK（接種医院） |
 | date | date | NO | | 接種日 |
 | next_date | date | YES | | 次回接種予定日 |
 | next_schedule_type | next_schedule_type | YES | | 次回スケジュール種別 |
-| doctor_id | uuid | YES | | staffs.id FK |
+| doctor_id | bigint | YES | | staffs.id FK |
 | supplemental | text | YES | '' | 補足情報 |
 | lot1 | text | YES | '' | ロット番号1 |
 | lot2 | text | YES | '' | ロット番号2 |
@@ -2292,14 +2299,14 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| medical_record_id | uuid | NO  | | medical_records.id FK |
-| clinic_id | uuid | NO | | clinics.id FK（所属医院） |
-| pet_id | uuid | YES | | pets.id FK（ペット単位検索用。medical_record_id 経由でも辿れるが、JOIN 削減のため意図的に保持） |
-| checkup_type_id | uuid | NO | | checkup_types.id FK |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| medical_record_id | bigint | NO  | | medical_records.id FK |
+| clinic_id | bigint | NO | | clinics.id FK（所属医院） |
+| pet_id | bigint | YES | | pets.id FK（ペット単位検索用。medical_record_id 経由でも辿れるが、JOIN 削減のため意図的に保持） |
+| checkup_type_id | bigint | NO | | checkup_types.id FK |
 | date | date | NO | | 健診日 |
 | next_date | date | YES | | 次回健診予定日 |
-| doctor_id | uuid | YES | | staffs.id FK |
+| doctor_id | bigint | YES | | staffs.id FK |
 | result | text | YES | '' | 健診結果 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
@@ -2320,8 +2327,8 @@ erDiagram
 
 | カラム | 型 | NULL | デフォルト | 説明 |
 |--------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| medical_record_id | uuid | NO | - | FK → medical_records(id) CASCADE |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| medical_record_id | bigint | NO | - | FK → medical_records(id) CASCADE |
 | image_url | text | NO | '' | 画像URL（オブジェクトストレージ） |
 | thumbnail_url | text | YES | '' | サムネイルURL |
 | file_name | text | NO | '' | 元ファイル名 |
@@ -2330,8 +2337,8 @@ erDiagram
 | image_type | medical_image_type | NO | 'other' | 画像種別 |
 | description | text | YES | '' | 説明・所見メモ |
 | taken_at | timestamptz | YES | - | 撮影日時 |
-| exam_id | uuid | YES | - | FK → exams(id) SET NULL |
-| staff_id | uuid | YES | - | FK → staffs(id) SET NULL（撮影者） |
+| exam_id | bigint | YES | - | FK → exams(id) SET NULL |
+| staff_id | bigint | YES | - | FK → staffs(id) SET NULL（撮影者） |
 | sort_order | integer | YES | 0 | 表示順 |
 | created_at | timestamptz | YES | now() | |
 | updated_at | timestamptz | NO | now() | 更新日時 |
@@ -2348,12 +2355,12 @@ erDiagram
 
 | カラム | 型 | NULL | デフォルト | 説明 |
 |--------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO | - | clinics.id FK（所属医院、RESTRICT） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO | - | clinics.id FK（所属医院、RESTRICT） |
 | estimate_no | text | NO | - | 見積書番号（clinic_id + estimate_no UNIQUE） |
-| medical_record_id | uuid | YES | - | FK → medical_records(id) SET NULL |
+| medical_record_id | bigint | YES | - | FK → medical_records(id) SET NULL |
 | title | text | YES | '' | 件名 |
-| owner_id | uuid | YES | - | FK → owners(id) SET NULL |
+| owner_id | bigint | YES | - | FK → owners(id) SET NULL |
 | status | estimate_status | YES | 'draft' | draft/sent/approved/rejected |
 | subtotal | integer | NO | 0 | 小計 |
 | tax_total | integer | NO | 0 | 税合計 |
@@ -2363,7 +2370,7 @@ erDiagram
 | valid_until | date | YES | - | 有効期限 |
 | comment | text | YES | '' | コメント |
 | notes | text | YES | '' | 備考 |
-| created_by | uuid | YES | - | FK → staffs(id) SET NULL（作成者） |
+| created_by | bigint | YES | - | FK → staffs(id) SET NULL（作成者） |
 | created_at | timestamptz | YES | now() | |
 | updated_at | timestamptz | YES | now() | |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
@@ -2380,8 +2387,8 @@ erDiagram
 
 | カラム | 型 | NULL | デフォルト | 説明 |
 |--------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| estimate_id | uuid | NO | - | FK → estimates(id) CASCADE |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| estimate_id | bigint | NO | - | FK → estimates(id) CASCADE |
 | name | text | NO | '' | 項目名 |
 | category | item_category | NO | - | 区分 |
 | unit_price | integer | NO | 0 | 単価 |
@@ -2390,9 +2397,9 @@ erDiagram
 | discount_rate | numeric | YES | 0 | 割引率 |
 | discount_amount | integer | YES | 0 | 値引額 |
 | is_insurance_applicable | boolean | YES | false | 保険適用可否 |
-| consultation_id | uuid | YES | - | FK → consultations(id) SET NULL |
-| procedure_id | uuid | YES | - | FK → procedures(id) SET NULL |
-| medicine_id | uuid | YES | - | FK → medicines(id) SET NULL |
+| consultation_id | bigint | YES | - | FK → consultations(id) SET NULL |
+| procedure_id | bigint | YES | - | FK → procedures(id) SET NULL |
+| medicine_id | bigint | YES | - | FK → medicines(id) SET NULL |
 | sort_order | integer | YES | 0 | 表示順 |
 | created_at | timestamptz | YES | now() | |
 | updated_at | timestamptz | YES | now() | 更新日時 |
@@ -2409,12 +2416,12 @@ erDiagram
 
 | カラム | 型 | NULL | デフォルト | 説明 |
 |--------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| medical_record_id | uuid | NO | - | FK → medical_records(id) CASCADE, UNIQUE |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| medical_record_id | bigint | NO | - | FK → medical_records(id) CASCADE, UNIQUE |
 | status | billing_review_status | YES | 'pending' | pending/confirmed/returned |
-| confirmed_by | uuid | YES | - | FK → staffs(id) SET NULL（確認医師） |
+| confirmed_by | bigint | YES | - | FK → staffs(id) SET NULL（確認医師） |
 | confirmed_at | timestamptz | YES | - | 確認日時 |
-| returned_by | uuid | YES | - | FK → staffs(id) SET NULL（差戻し者） |
+| returned_by | bigint | YES | - | FK → staffs(id) SET NULL（差戻し者） |
 | returned_at | timestamptz | YES | - | 差戻し日時 |
 | return_reason | text | YES | '' | 差戻し理由 |
 | memo | text | YES | '' | メモ |
@@ -2437,15 +2444,15 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | start_time | timestamptz | NO | | 開始日時 |
 | end_time | timestamptz | NO | | 終了日時 |
-| owner_id | uuid | YES | | owners.id FK |
-| pet_id | uuid | YES | | pets.id FK |
+| owner_id | bigint | YES | | owners.id FK |
+| pet_id | bigint | YES | | pets.id FK |
 | visit_type | visit_type | NO | 'revisit' | 来院種別 |
-| service_type_id | uuid | NO  | | service_types.id FK |
-| doctor_id | uuid | YES | | staffs.id FK |
+| service_type_id | bigint | NO  | | service_types.id FK |
+| doctor_id | bigint | YES | | staffs.id FK |
 | is_designated | boolean | YES | false | 担当医指名フラグ |
 | status | reservation_status | YES | 'pending' | 予約状態 |
 | notes | text | YES | '' | 備考 |
@@ -2474,16 +2481,16 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| owner_id | uuid | NO  | | owners.id FK |
-| pet_id | uuid | NO  | | pets.id FK |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| owner_id | bigint | NO  | | owners.id FK |
+| pet_id | bigint | NO  | | pets.id FK |
 | hospitalization_type | hospitalization_type | NO | | 入院種別 |
 | start_date | date | NO | | 入院開始日 |
 | end_date | date | NO | | 入院終了日 |
 | status | hospitalization_status | YES | '予約' | 入院状態 |
-| cage_id | uuid | YES | | cages.id FK |
-| doctor_id | uuid | YES | | staffs.id FK |
+| cage_id | bigint | YES | | cages.id FK |
+| doctor_id | bigint | YES | | staffs.id FK |
 | memo | text | YES | '' | メモ |
 | owner_request | text | YES | '' | 飼い主要望 |
 | staff_notes | text | YES | '' | スタッフメモ |
@@ -2508,9 +2515,9 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| hospitalization_id | uuid | NO | | hospitalizations.id FK |
-| clinic_id | uuid | NO | | clinics.id FK（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| hospitalization_id | bigint | NO | | hospitalizations.id FK |
+| clinic_id | bigint | NO | | clinics.id FK（所属医院） |
 | date | date | NO | | 日付 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
@@ -2529,17 +2536,17 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| hospitalization_id | uuid | NO | | hospitalizations.id FK |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| hospitalization_id | bigint | NO | | hospitalizations.id FK |
 | type | care_plan_type | NO | | ケアプラン種別 |
 | name | text | NO | '' | 項目名 |
 | description | text | YES | '' | 説明 |
 | timing | plan_timing[] | YES | '{}' | 実施タイミング（配列） |
 | status | care_plan_status | YES | 'active' | 状態 |
 | notes | text | YES | '' | 備考 |
-| medicine_id | uuid | YES | | medicines.id FK |
-| procedure_id | uuid | YES | | procedures.id FK |
-| hospitalization_plan_id | uuid | YES | | hospitalization_plans.id FK |
+| medicine_id | bigint | YES | | medicines.id FK |
+| procedure_id | bigint | YES | | procedures.id FK |
+| hospitalization_plan_id | bigint | YES | | hospitalization_plans.id FK |
 | unit_price | integer | YES | 0 | 単価 |
 | category | text | YES | '' | カテゴリ |
 | sort_order | integer | YES | 0 | 並び順 |
@@ -2562,13 +2569,13 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| daily_record_id | uuid | NO | | daily_records.id FK |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| daily_record_id | bigint | NO | | daily_records.id FK |
 | time | time | NO | | 実施時刻 |
 | type | care_log_type | NO | | ケアログ種別 |
 | status | care_log_status | NO | 'completed' | 実施状態 |
 | value | text | YES | '' | 値（量・回数等） |
-| staff_id | uuid | YES | | staffs.id FK |
+| staff_id | bigint | YES | | staffs.id FK |
 | notes | text | YES | '' | 備考 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
@@ -2585,11 +2592,11 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| daily_record_id | uuid | NO | | daily_records.id FK |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| daily_record_id | bigint | NO | | daily_records.id FK |
 | time | text | NO | '' | 記録時刻 |
 | content | text | NO | '' | 内容 |
-| staff_id | uuid | YES | | staffs.id FK |
+| staff_id | bigint | YES | | staffs.id FK |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
 
@@ -2605,9 +2612,9 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| medical_record_id | uuid | YES | | medical_records.id FK（外来カルテ） |
-| hospitalization_id | uuid | YES | | hospitalizations.id FK（入院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| medical_record_id | bigint | YES | | medical_records.id FK（外来カルテ） |
+| hospitalization_id | bigint | YES | | hospitalizations.id FK（入院） |
 | treatment_content | text | NO | '' | 治療内容 |
 | memo | text | YES | '' | メモ |
 | insurance | boolean | YES | false | 保険適用フラグ |
@@ -2639,15 +2646,15 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | date | date | NO | | トリミング日 |
-| pet_id | uuid | YES | | pets.id FK |
+| pet_id | bigint | YES | | pets.id FK |
 | weight | text | YES | '' | 体重 |
 | style_request | text | YES | '' | スタイルリクエスト |
-| staff_id | uuid | YES | | staffs.id FK |
+| staff_id | bigint | YES | | staffs.id FK |
 | status | trimming_status | YES | 'reserved' | 状態 |
-| course_id | uuid | YES | | trimming_courses.id FK |
+| course_id | bigint | YES | | trimming_courses.id FK |
 | bw | text | YES | '' | 体重測定値 |
 | bw_unit | body_weight_unit | YES | 'Kg' | 体重単位 |
 | bt | text | YES | '' | 体温 |
@@ -2676,9 +2683,9 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| trimming_record_id | uuid | NO | | trimming_records.id FK |
-| option_id | uuid | NO | | trimming_options.id FK |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| trimming_record_id | bigint | NO | | trimming_records.id FK |
+| option_id | bigint | NO | | trimming_options.id FK |
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
@@ -2701,12 +2708,12 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| medical_record_id | uuid | YES | | medical_records.id FK（UNIQUE） |
-| hospitalization_id | uuid | YES | | hospitalizations.id FK |
-| owner_id | uuid | YES | | owners.id FK（飼主単位検索用。意図的な非正規化） |
-| pet_id | uuid | YES | | pets.id FK（ペット単位検索用。意図的な非正規化） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| medical_record_id | bigint | YES | | medical_records.id FK（UNIQUE） |
+| hospitalization_id | bigint | YES | | hospitalizations.id FK |
+| owner_id | bigint | YES | | owners.id FK（飼主単位検索用。意図的な非正規化） |
+| pet_id | bigint | YES | | pets.id FK（ペット単位検索用。意図的な非正規化） |
 | subtotal | integer | NO | 0 | 小計（税抜） |
 | tax_total | integer | NO | 0 | 消費税額 |
 | total_amount | integer | NO | 0 | 合計（税込） |
@@ -2736,8 +2743,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| billing_id | uuid | NO | | billings.id FK |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| billing_id | bigint | NO | | billings.id FK |
 | category | item_category | NO | | 明細カテゴリ |
 | name | text | NO | '' | 項目名 |
 | unit_price | integer | NO | 0 | 単価 |
@@ -2759,8 +2766,8 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| billing_id | uuid | NO | | billings.id FK（UNIQUE） |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| billing_id | bigint | NO | | billings.id FK（UNIQUE） |
 | subtotal | numeric | NO | 0 | 小計 |
 | tax_total | numeric | NO | 0 | 消費税合計 |
 | total_amount | numeric | NO | 0 | 合計金額 |
@@ -2789,9 +2796,9 @@ erDiagram
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| id | uuid | NO | uuid_generate_v4() | PK |
-| clinic_id | uuid | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
-| staff_id | uuid | NO | | staffs.id FK |
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| staff_id | bigint | NO | | staffs.id FK |
 | date | date | NO | | 日付 |
 | shift_type | shift_type | NO | | シフト種別 |
 | start_time | time | YES | | 開始時刻 |

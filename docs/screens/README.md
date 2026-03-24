@@ -35,6 +35,8 @@
 | 22 | 見積書一覧 | [22-estimate-list.md](./22-estimate-list.md) | 作成済み見積書の管理 |
 | 23 | 見積書作成・編集 | [23-estimate-form.md](./23-estimate-form.md) | 概算見積の算出と発行 |
 | 24 | シフト管理カレンダー | [24-shift-calendar.md](./24-shift-calendar.md) | スタッフ勤務シフトの可視化・管理 |
+| 25 | 定期健診一覧 | [25-checkups-list.md](./25-checkups-list.md) | 全ペットの定期健診記録の参照 |
+| 26 | 見積書詳細 | [26-estimate-detail.md](./26-estimate-detail.md) | 見積内容の確認と管理 |
 
 ## マスタ設定詳細
 
@@ -44,5 +46,5 @@
 
 ## 共通要素
 
-- [共通ダイアログ・トースト](./common-dialogs.md)
+- [共通ダイアログ・共有コンポーネント](./common-dialogs.md)
 - [フォーム・バリデーション共通仕様](../FORMS_SPECIFICATION.md)
