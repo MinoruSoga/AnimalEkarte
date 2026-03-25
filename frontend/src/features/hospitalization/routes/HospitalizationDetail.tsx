@@ -8,8 +8,8 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 // Relative
 import { DischargeAlertDialog } from "../components/DischargeAlertDialog";
 import { HospitalizationDetailActions } from "../components/HospitalizationDetailActions";
-import { HospitalizationDesktopLayout } from "../components/HospitalizationDesktopLayout";
-import { HospitalizationMobileLayout } from "../components/HospitalizationMobileLayout";
+import { HospitalizationExpandedView } from "../components/HospitalizationExpandedView";
+import { HospitalizationTabbedView } from "../components/HospitalizationTabbedView";
 import { useHospitalizationDetail } from "../hooks/use-hospitalization-detail";
 import { paths } from "@/config/paths";
 
@@ -68,8 +68,8 @@ export function HospitalizationDetail() {
             maxWidth="max-w-[1600px]"
         >
             <div>
-                <HospitalizationDesktopLayout {...commonProps} />
-                <HospitalizationMobileLayout {...commonProps} />
+                <HospitalizationExpandedView {...commonProps} />
+                <HospitalizationTabbedView {...commonProps} />
             </div>
 
             <DischargeAlertDialog 

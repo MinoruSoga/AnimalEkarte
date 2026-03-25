@@ -25,7 +25,7 @@ import type {
     CreateCareLogDTO
 } from "../types";
 
-interface HospitalizationMobileLayoutProps {
+interface HospitalizationTabbedViewProps {
     hospitalization: Hospitalization;
     plans: CarePlanItem[];
     records: DailyRecord[];
@@ -36,7 +36,7 @@ interface HospitalizationMobileLayoutProps {
     onAddLog: (date: string, data: CreateCareLogDTO) => void;
 }
 
-export const HospitalizationMobileLayout = memo(function HospitalizationMobileLayout({
+export const HospitalizationTabbedView = memo(function HospitalizationTabbedView({
     hospitalization,
     plans,
     records,
@@ -45,7 +45,7 @@ export const HospitalizationMobileLayout = memo(function HospitalizationMobileLa
     onDeletePlan,
     onAddVital,
     onAddLog
-}: HospitalizationMobileLayoutProps) {
+}: HospitalizationTabbedViewProps) {
     const latestWeight = useMemo(() => {
         // Find latest weight from records
         const allVitals = records.flatMap(r => 
