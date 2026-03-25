@@ -14,11 +14,11 @@ import (
 
 // mockAccountingRepository は AccountingRepository のテスト用モック実装
 type mockAccountingRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
-	createFn   func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
-	updateFn   func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
+	findAllFn      func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
+	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+	createFn       func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
+	updateFieldsFn func(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
+	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
@@ -33,8 +33,8 @@ func (m *mockAccountingRepository) Create(ctx context.Context, clinicID uint64, 
 	return m.createFn(ctx, clinicID, accounting)
 }
 
-func (m *mockAccountingRepository) Update(ctx context.Context, clinicID uint64, accounting *model.Billing) error {
-	return m.updateFn(ctx, clinicID, accounting)
+func (m *mockAccountingRepository) UpdateFields(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
+	return m.updateFieldsFn(ctx, clinicID, billingID, fields)
 }
 
 func (m *mockAccountingRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -250,16 +250,14 @@ func TestAccountingService_GetByID(t *testing.T) {
 func TestAccountingService_Create(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
-		name     string
-		clinicID uint64
-		billing  *model.Billing
-		repoErr  error
-		wantErr  bool
+		name    string
+		input   CreateAccountingInput
+		repoErr error
+		wantErr bool
 	}{
 		{
-			name:     "creates billing successfully",
-			clinicID: 1,
-			billing: &model.Billing{
+			name: "creates billing successfully",
+			input: CreateAccountingInput{
 				ClinicID:      1,
 				ScheduledDate: now,
 				Status:        model.BillingStatusWaiting,
@@ -268,9 +266,16 @@ func TestAccountingService_Create(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:     "returns error on repository failure",
-			clinicID: 1,
-			billing: &model.Billing{
+			name: "returns validation error when scheduled_date is zero",
+			input: CreateAccountingInput{
+				ClinicID: 1,
+			},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns error on repository failure",
+			input: CreateAccountingInput{
 				ClinicID:      1,
 				ScheduledDate: now,
 			},
@@ -288,12 +293,14 @@ func TestAccountingService_Create(t *testing.T) {
 			}
 			svc := NewAccountingService(repo)
 
-			err := svc.Create(context.Background(), tt.clinicID, tt.billing)
+			billing, err := svc.Create(context.Background(), tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, billing)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, billing)
 			}
 		})
 	}
@@ -301,47 +308,60 @@ func TestAccountingService_Create(t *testing.T) {
 
 func TestAccountingService_Update(t *testing.T) {
 	now := time.Now()
+	status := model.BillingStatusCompleted
 	tests := []struct {
-		name     string
-		clinicID uint64
-		billing  *model.Billing
-		repoErr  error
-		wantErr  bool
-		wantNF   bool
+		name    string
+		input   UpdateAccountingInput
+		repoRet *model.Billing
+		repoErr error
+		wantErr bool
+		wantNF  bool
 	}{
 		{
-			name:     "updates billing successfully",
-			clinicID: 1,
-			billing: &model.Billing{
+			name: "updates billing successfully",
+			input: UpdateAccountingInput{
 				ID:            1,
 				ClinicID:      1,
-				ScheduledDate: now,
-				Status:        model.BillingStatusCompleted,
+				ScheduledDate: &now,
+				Status:        &status,
 			},
+			repoRet: &model.Billing{ID: 1, ClinicID: 1, ScheduledDate: now, Status: status},
 			repoErr: nil,
 			wantErr: false,
 			wantNF:  false,
 		},
 		{
-			name:     "returns not found error when billing does not exist",
-			clinicID: 1,
-			billing: &model.Billing{
-				ID:            999,
-				ClinicID:      1,
-				ScheduledDate: now,
+			name: "returns error when no fields to update",
+			input: UpdateAccountingInput{
+				ID:       1,
+				ClinicID: 1,
+				// 全フィールドが nil
 			},
+			repoRet: nil,
+			repoErr: nil,
+			wantErr: true,
+			wantNF:  false,
+		},
+		{
+			name: "returns not found error when billing does not exist",
+			input: UpdateAccountingInput{
+				ID:       999,
+				ClinicID: 1,
+				Status:   &status,
+			},
+			repoRet: nil,
 			repoErr: apperrors.WrapNotFound("billing", "999"),
 			wantErr: true,
 			wantNF:  true,
 		},
 		{
-			name:     "returns error on repository failure",
-			clinicID: 1,
-			billing: &model.Billing{
-				ID:            1,
-				ClinicID:      1,
-				ScheduledDate: now,
+			name: "returns error on repository failure",
+			input: UpdateAccountingInput{
+				ID:       1,
+				ClinicID: 1,
+				Status:   &status,
 			},
+			repoRet: nil,
 			repoErr: errors.New("db error"),
 			wantErr: true,
 			wantNF:  false,
@@ -351,21 +371,23 @@ func TestAccountingService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockAccountingRepository{
-				updateFn: func(_ context.Context, _ uint64, _ *model.Billing) error {
-					return tt.repoErr
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+					return tt.repoRet, tt.repoErr
 				},
 			}
 			svc := NewAccountingService(repo)
 
-			err := svc.Update(context.Background(), tt.clinicID, tt.billing)
+			billing, err := svc.Update(context.Background(), tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, billing)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
 				}
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, billing)
 			}
 		})
 	}

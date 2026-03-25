@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -28,7 +30,7 @@ func (h *Handler) ListMedicalRecords(c *gin.Context) {
 	if petIDStr := c.Query("pet_id"); petIDStr != "" {
 		id, err := strconv.ParseUint(petIDStr, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pet_id"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid pet_id"))
 			return
 		}
 		petID = &id
@@ -38,7 +40,7 @@ func (h *Handler) ListMedicalRecords(c *gin.Context) {
 	if s := c.Query("owner_id"); s != "" {
 		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid owner_id"))
 			return
 		}
 		ownerID = &id
@@ -71,7 +73,7 @@ func (h *Handler) GetMedicalRecord(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	record, err := h.svc.MedicalRecord.GetByID(c.Request.Context(), clinicID, id)
@@ -82,21 +84,9 @@ func (h *Handler) GetMedicalRecord(c *gin.Context) {
 	c.JSON(http.StatusOK, record)
 }
 
-// CreateMedicalRecord godoc
-// FE↔BE契約統一: visit_date (string) + date (time.Time) 両対応、record_no自動生成、ID型変換、ClinicalPlan自動作成
-func (h *Handler) CreateMedicalRecord(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	var input createMedicalRecordRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
-		return
-	}
-
-	ctx := c.Request.Context()
-
+// buildMedicalRecord はリクエストから MedicalRecord モデルを組み立てる純粋関数。
+// 日付解決・必須フィールド検証・string→uint64 変換・ステータス検証を行う。
+func buildMedicalRecord(clinicID uint64, input createMedicalRecordRequest) (*model.MedicalRecord, error) {
 	// 1. 日付の解決: date (time.Time) または visit_date (string "YYYY-MM-DD")
 	var recordDate time.Time
 	if input.Date != nil {
@@ -104,59 +94,51 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 	} else if input.VisitDate != nil && *input.VisitDate != "" {
 		parsed, err := time.Parse("2006-01-02", *input.VisitDate)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid visit_date format (expected YYYY-MM-DD)"})
-			return
+			return nil, apperrors.WrapInvalidInput("invalid visit_date format (expected YYYY-MM-DD)")
 		}
 		recordDate = parsed
 	} else {
 		recordDate = time.Now()
 	}
 
-	// 2. ID型の変換: string → uint64
-	var ownerID, petID, doctorID, reservationAppointmentID *uint64
+	// 2. 必須フィールド検証
 	if input.OwnerID == nil || *input.OwnerID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "owner_id is required"})
-		return
+		return nil, apperrors.WrapInvalidInput("owner_id is required")
 	}
 	if input.PetID == nil || *input.PetID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "pet_id is required"})
-		return
+		return nil, apperrors.WrapInvalidInput("pet_id is required")
 	}
 
-	if input.OwnerID != nil && *input.OwnerID != "" {
-		id, err := strconv.ParseUint(*input.OwnerID, 10, 64)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id (must be numeric)"})
-			return
+	// 3. ID型の変換: string → uint64
+	parseOptionalID := func(s *string, field string) (*uint64, error) {
+		if s == nil || *s == "" {
+			return nil, nil
 		}
-		ownerID = &id
-	}
-	if input.PetID != nil && *input.PetID != "" {
-		id, err := strconv.ParseUint(*input.PetID, 10, 64)
+		id, err := strconv.ParseUint(*s, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pet_id (must be numeric)"})
-			return
+			return nil, apperrors.WrapInvalidInput("invalid " + field + " (must be numeric)")
 		}
-		petID = &id
-	}
-	if input.DoctorID != nil && *input.DoctorID != "" {
-		id, err := strconv.ParseUint(*input.DoctorID, 10, 64)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid doctor_id (must be numeric)"})
-			return
-		}
-		doctorID = &id
-	}
-	if input.ReservationAppointmentID != nil && *input.ReservationAppointmentID != "" {
-		id, err := strconv.ParseUint(*input.ReservationAppointmentID, 10, 64)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid reservation_appointment_id (must be numeric)"})
-			return
-		}
-		reservationAppointmentID = &id
+		return &id, nil
 	}
 
-	// 3. MedicalRecord モデル組み立て（RecordNoはservice層で自動生成）
+	ownerID, err := parseOptionalID(input.OwnerID, "owner_id")
+	if err != nil {
+		return nil, err
+	}
+	petID, err := parseOptionalID(input.PetID, "pet_id")
+	if err != nil {
+		return nil, err
+	}
+	doctorID, err := parseOptionalID(input.DoctorID, "doctor_id")
+	if err != nil {
+		return nil, err
+	}
+	reservationAppointmentID, err := parseOptionalID(input.ReservationAppointmentID, "reservation_appointment_id")
+	if err != nil {
+		return nil, err
+	}
+
+	// 4. モデル組み立て（RecordNo は service 層で自動生成）
 	record := &model.MedicalRecord{
 		ClinicID:                 clinicID,
 		RecordNo:                 input.RecordNo,
@@ -172,46 +154,64 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 			model.MedicalRecordStatusFinalized,
 		)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status: " + err.Error()})
-			return
+			return nil, apperrors.WrapInvalidInput("invalid status: " + err.Error())
 		}
 		record.Status = status
 	}
+	return record, nil
+}
 
-	// 5. MedicalRecord 作成
+// createClinicalPlanIfNeeded は plan/assessment/diagnosis フィールドが存在する場合に
+// ClinicalPlan を best-effort で作成・更新する。失敗してもカルテ作成は完了済みのためエラーログのみ。
+func (h *Handler) createClinicalPlanIfNeeded(ctx context.Context, recordID uint64, input createMedicalRecordRequest) {
+	if input.Plan == nil && input.Assessment == nil && input.Diagnosis1CategoryID == nil && input.Diagnosis1NameID == nil {
+		return
+	}
+	clinicalPlanInput := &service.UpdateClinicalPlanInput{
+		TreatmentPolicy:  input.Plan,
+		DiagnosisDetails: input.Assessment,
+	}
+	if input.Diagnosis1CategoryID != nil {
+		clinicalPlanInput.DiagnosisCategoryID = input.Diagnosis1CategoryID
+	}
+	if input.Diagnosis1NameID != nil {
+		clinicalPlanInput.DiagnosisNameID = input.Diagnosis1NameID
+	}
+	if input.Diagnosis2CategoryID != nil {
+		clinicalPlanInput.Diagnosis2CategoryID = input.Diagnosis2CategoryID
+	}
+	if input.Diagnosis2NameID != nil {
+		clinicalPlanInput.Diagnosis2NameID = input.Diagnosis2NameID
+	}
+	if _, err := h.svc.ClinicalPlan.Update(ctx, recordID, clinicalPlanInput); err != nil {
+		slog.ErrorContext(ctx, "failed to update clinical plan",
+			slog.String("error", err.Error()),
+			slog.Uint64("medical_record_id", recordID))
+	}
+}
+
+// CreateMedicalRecord godoc
+func (h *Handler) CreateMedicalRecord(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	var input createMedicalRecordRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+	record, err := buildMedicalRecord(clinicID, input)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	ctx := c.Request.Context()
 	if err := h.svc.MedicalRecord.Create(ctx, record); err != nil {
 		RespondError(c, err)
 		return
 	}
-
-	// 6. ClinicalPlan の自動作成・更新（chief_complaint, plan, assessment, diagnosis_* が送られた場合）
-	if input.Plan != nil || input.Assessment != nil || input.Diagnosis1CategoryID != nil || input.Diagnosis1NameID != nil {
-		clinicalPlanInput := &service.UpdateClinicalPlanInput{
-			TreatmentPolicy:  input.Plan,       // plan → TreatmentPolicy
-			DiagnosisDetails: input.Assessment, // assessment → DiagnosisDetails
-		}
-		// Diagnosis1 を優先（複数診断の場合は拡張必要）
-		if input.Diagnosis1CategoryID != nil {
-			clinicalPlanInput.DiagnosisCategoryID = input.Diagnosis1CategoryID
-		}
-		if input.Diagnosis1NameID != nil {
-			clinicalPlanInput.DiagnosisNameID = input.Diagnosis1NameID
-		}
-		// v9.1: Diagnosis2 も追加
-		if input.Diagnosis2CategoryID != nil {
-			clinicalPlanInput.Diagnosis2CategoryID = input.Diagnosis2CategoryID
-		}
-		if input.Diagnosis2NameID != nil {
-			clinicalPlanInput.Diagnosis2NameID = input.Diagnosis2NameID
-		}
-		if _, err := h.svc.ClinicalPlan.Update(ctx, record.ID, clinicalPlanInput); err != nil {
-			slog.ErrorContext(ctx, "failed to update clinical plan",
-				slog.String("error", err.Error()),
-				slog.Uint64("medical_record_id", record.ID))
-			// ClinicalPlan 作成失敗は医療記録は作成済みなので、エラーログのみ
-		}
-	}
-
+	h.createClinicalPlanIfNeeded(ctx, record.ID, input)
 	c.JSON(http.StatusCreated, record)
 }
 
@@ -223,12 +223,12 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var input updateMedicalRecordRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -250,7 +250,7 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 			model.MedicalRecordStatusFinalized,
 		)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status: " + err.Error()})
+			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
 			return
 		}
 		record.Status = status
@@ -272,7 +272,7 @@ func (h *Handler) DeleteMedicalRecord(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.MedicalRecord.Delete(c.Request.Context(), clinicID, id); err != nil {

@@ -15,7 +15,7 @@ type AccountingRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
-	Update(ctx context.Context, clinicID uint64, accounting *model.Billing) error
+	UpdateFields(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -113,19 +113,26 @@ func (r *accountingRepository) Create(ctx context.Context, clinicID uint64, acco
 	return nil
 }
 
-func (r *accountingRepository) Update(ctx context.Context, clinicID uint64, accounting *model.Billing) error {
-	accounting.ClinicID = clinicID
+// UpdateFields は指定フィールドのみを更新し、更新後のレコードを返す。
+// map[string]any を使うことで GORM のゼロ値スキップ問題を回避する。
+func (r *accountingRepository) UpdateFields(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Billing{}).
-		Where("id = ? AND clinic_id = ?", accounting.ID, clinicID).
-		Updates(accounting)
+		Where("clinic_id = ? AND id = ?", clinicID, billingID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update billing")
+		return nil, apperrors.Wrap(result.Error, fmt.Sprintf("update billing id=%d", billingID))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("billing", fmt.Sprintf("%d", accounting.ID))
+		return nil, apperrors.WrapNotFound("billing", fmt.Sprintf("%d", billingID))
 	}
-	return nil
+	var billing model.Billing
+	if err := r.db.WithContext(ctx).
+		Preload("Items").Preload("Payments").Preload("Refunds").Preload("Owner").Preload("Pet").
+		First(&billing, "clinic_id = ? AND id = ?", clinicID, billingID).Error; err != nil {
+		return nil, apperrors.Wrap(err, fmt.Sprintf("find billing after update id=%d", billingID))
+	}
+	return &billing, nil
 }
 
 func (r *accountingRepository) Delete(ctx context.Context, clinicID, id uint64) error {

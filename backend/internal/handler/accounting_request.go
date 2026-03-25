@@ -19,19 +19,20 @@ type createAccountingRequest struct {
 }
 
 // updateAccountingRequest は会計更新リクエスト。
+// nil フィールドは更新しない（GORM ゼロ値スキップ問題を回避するためポインタ型を使用）。
 type updateAccountingRequest struct {
 	MedicalRecordID   *uint64    `json:"medical_record_id"`
 	HospitalizationID *uint64    `json:"hospitalization_id"`
 	OwnerID           *uint64    `json:"owner_id"`
 	PetID             *uint64    `json:"pet_id"`
-	Subtotal          int        `json:"subtotal"`
-	TaxTotal          int        `json:"tax_total"`
-	TotalAmount       int        `json:"total_amount"`
-	HasInsurance      bool       `json:"has_insurance"`
-	Status            string     `json:"status"`
+	Subtotal          *int       `json:"subtotal"`
+	TaxTotal          *int       `json:"tax_total"`
+	TotalAmount       *int       `json:"total_amount"`
+	HasInsurance      *bool      `json:"has_insurance"`
+	Status            *string    `json:"status"`
 	ScheduledDate     *time.Time `json:"scheduled_date"`
 	CompletedAt       *time.Time `json:"completed_at"`
-	Memo              string     `json:"memo"`
+	Memo              *string    `json:"memo"`
 }
 
 // createBillingItemRequest は明細作成リクエスト。
