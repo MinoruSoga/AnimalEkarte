@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -60,9 +59,5 @@ func (h *Handler) CreateRefund(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-
-	slog.InfoContext(ctx, "refund created",
-		slog.Uint64("billing_id", billingID),
-		slog.Int64("amount", req.Amount))
 	c.JSON(http.StatusCreated, toRefundResponse(refund))
 }

@@ -1,12 +1,12 @@
 package handler
 
 import (
-	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -26,7 +26,7 @@ func (h *Handler) ListHospitalizations(c *gin.Context) {
 	if s := c.Query("pet_id"); s != "" {
 		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pet_id"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid pet_id"))
 			return
 		}
 		petID = &id
@@ -35,7 +35,7 @@ func (h *Handler) ListHospitalizations(c *gin.Context) {
 	if s := c.Query("owner_id"); s != "" {
 		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid owner_id"))
 			return
 		}
 		ownerID = &id
@@ -73,7 +73,7 @@ func (h *Handler) GetHospitalization(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	hospitalization, err := h.svc.Hospitalization.GetByID(c.Request.Context(), clinicID, id)
@@ -92,7 +92,7 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 	}
 	var input createHospitalizationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -101,7 +101,7 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 		model.HospitalizationTypeHotel,
 	)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid hospitalization_type: " + err.Error()})
+		RespondError(c, apperrors.WrapInvalidInput("invalid hospitalization_type: "+err.Error()))
 		return
 	}
 
@@ -125,7 +125,7 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 			model.HospitalizationStatusReserved,
 		)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status: " + err.Error()})
+			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
 			return
 		}
 		hospitalization.Status = status
@@ -136,9 +136,6 @@ func (h *Handler) CreateHospitalization(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	slog.InfoContext(ctx, "hospitalization created",
-		slog.Uint64("hospitalization_id", hospitalization.ID),
-		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
 	c.JSON(http.StatusCreated, hospitalization)
 }
 
@@ -150,12 +147,12 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var input updateHospitalizationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -180,7 +177,7 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 			model.HospitalizationTypeHotel,
 		)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid hospitalization_type: " + err.Error()})
+			RespondError(c, apperrors.WrapInvalidInput("invalid hospitalization_type: "+err.Error()))
 			return
 		}
 		hospitalization.HospitalizationType = hospType
@@ -198,7 +195,7 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 			model.HospitalizationStatusReserved,
 		)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status: " + err.Error()})
+			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
 			return
 		}
 		hospitalization.Status = status
@@ -209,9 +206,6 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	slog.InfoContext(ctx, "hospitalization updated",
-		slog.Uint64("hospitalization_id", hospitalization.ID),
-		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
 	c.JSON(http.StatusOK, hospitalization)
 }
 
@@ -223,7 +217,7 @@ func (h *Handler) DeleteHospitalization(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.Hospitalization.Delete(c.Request.Context(), clinicID, id); err != nil {

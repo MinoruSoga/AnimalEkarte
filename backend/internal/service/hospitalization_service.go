@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -32,11 +33,23 @@ func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uint6
 }
 
 func (s *hospitalizationService) Create(ctx context.Context, hospitalization *model.Hospitalization) error {
-	return s.repo.Create(ctx, hospitalization)
+	if err := s.repo.Create(ctx, hospitalization); err != nil {
+		return err
+	}
+	slog.InfoContext(ctx, "hospitalization created",
+		slog.Uint64("hospitalization_id", hospitalization.ID),
+		slog.Uint64("clinic_id", hospitalization.ClinicID))
+	return nil
 }
 
 func (s *hospitalizationService) Update(ctx context.Context, hospitalization *model.Hospitalization) error {
-	return s.repo.Update(ctx, hospitalization)
+	if err := s.repo.Update(ctx, hospitalization); err != nil {
+		return err
+	}
+	slog.InfoContext(ctx, "hospitalization updated",
+		slog.Uint64("hospitalization_id", hospitalization.ID),
+		slog.Uint64("clinic_id", hospitalization.ClinicID))
+	return nil
 }
 
 func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64) error {

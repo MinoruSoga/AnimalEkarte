@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -130,7 +129,7 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 			model.ReservationStatusCompleted,
 		)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status: " + err.Error()})
+			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
 			return
 		}
 		reservation.Status = status
@@ -141,9 +140,6 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	slog.InfoContext(ctx, "reservation created",
-		slog.Uint64("reservation_id", reservation.ID),
-		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
 	c.JSON(http.StatusCreated, reservation)
 }
 
@@ -155,12 +151,12 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var input updateReservationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -217,7 +213,7 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 			model.ReservationStatusCompleted,
 		)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status: " + err.Error()})
+			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
 			return
 		}
 		reservation.Status = status
@@ -231,9 +227,6 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	slog.InfoContext(ctx, "reservation updated",
-		slog.Uint64("reservation_id", reservation.ID),
-		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
 	c.JSON(http.StatusOK, reservation)
 }
 
@@ -245,7 +238,7 @@ func (h *Handler) DeleteReservation(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.Reservation.Delete(c.Request.Context(), clinicID, id); err != nil {

@@ -39,7 +39,7 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 
 	// 返金可能残額チェック（過剰返金防止）
 	if len(billing.Payments) > 0 {
-		alreadyRefunded, err := s.repo.SumByBillingID(ctx, billingID)
+		alreadyRefunded, err := s.repo.SumByBillingID(ctx, clinicID, billingID)
 		if err != nil {
 			return nil, fmt.Errorf("sum refunds: %w", err)
 		}

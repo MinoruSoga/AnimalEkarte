@@ -14,7 +14,7 @@ import (
 type RefundRepository interface {
 	Create(ctx context.Context, refund *model.BillingRefund) error
 	FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error)
-	SumByBillingID(ctx context.Context, billingID uint64) (int64, error)
+	SumByBillingID(ctx context.Context, clinicID, billingID uint64) (int64, error)
 }
 
 type refundRepository struct {
@@ -44,11 +44,11 @@ func (r *refundRepository) FindByBillingID(ctx context.Context, clinicID, billin
 	return refunds, nil
 }
 
-func (r *refundRepository) SumByBillingID(ctx context.Context, billingID uint64) (int64, error) {
+func (r *refundRepository) SumByBillingID(ctx context.Context, clinicID, billingID uint64) (int64, error) {
 	var total int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.BillingRefund{}).
-		Where("billing_id = ?", billingID).
+		Where("clinic_id = ? AND billing_id = ?", clinicID, billingID).
 		Select("COALESCE(SUM(amount), 0)").
 		Scan(&total).Error; err != nil {
 		return 0, apperrors.Wrap(err, fmt.Sprintf("sum refunds for billing_id=%d", billingID))

@@ -281,7 +281,7 @@ func TestCreateMedicalRecord(t *testing.T) {
 					require.NotNil(t, record.PetID)
 					assert.Equal(t, uint64(20), *record.PetID)
 					assert.Equal(t, 2026, record.Date.Year())
-					assert.NotEmpty(t, record.RecordNo) // 自動生成される
+					// RecordNo の自動生成は service 層の責務のためここでは検証しない
 					return nil
 				},
 			},
@@ -289,13 +289,14 @@ func TestCreateMedicalRecord(t *testing.T) {
 			wantStatus: http.StatusCreated,
 		},
 		{
+			// RecordNo の自動生成は service 層の責務。
+			// handler は RecordNo を空のまま service に渡し、service が生成する。
 			name:     "auto-generates record_no when not provided",
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
 			mrSvc: &mockMedicalRecordService{
 				createFn: func(_ context.Context, record *model.MedicalRecord) error {
-					assert.NotEmpty(t, record.RecordNo)
-					assert.Contains(t, record.RecordNo, "MR-")
+					assert.Empty(t, record.RecordNo) // handler は空で渡す（service が生成）
 					return nil
 				},
 			},

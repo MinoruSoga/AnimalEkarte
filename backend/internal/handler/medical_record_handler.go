@@ -1,9 +1,7 @@
 package handler
 
 import (
-	"fmt"
 	"log/slog"
-	"math/rand"
 	"net/http"
 	"strconv"
 	"time"
@@ -13,23 +11,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
-
-// generateRecordNo は "MR-YYYYMMDD-{clinicID}-{random6}" 形式のカルテ番号を生成
-func generateRecordNo(date time.Time, clinicID uint64) string {
-	datePart := date.Format("20060102")
-	randomPart := generateRandomString(6) // 6字のランダム文字列
-	return fmt.Sprintf("MR-%s-%d-%s", datePart, clinicID, randomPart)
-}
-
-// generateRandomString は指定長のランダムな英数字文字列を生成
-func generateRandomString(length int) string {
-	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[rand.Intn(len(charset))]
-	}
-	return string(b)
-}
 
 // ListMedicalRecords godoc
 func (h *Handler) ListMedicalRecords(c *gin.Context) {
@@ -131,13 +112,7 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 		recordDate = time.Now()
 	}
 
-	// 2. record_no の自動生成（送信されていなければ）
-	recordNo := input.RecordNo
-	if recordNo == "" {
-		recordNo = generateRecordNo(recordDate, clinicID)
-	}
-
-	// 3. ID型の変換: string → uint64
+	// 2. ID型の変換: string → uint64
 	var ownerID, petID, doctorID, reservationAppointmentID *uint64
 	if input.OwnerID == nil || *input.OwnerID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "owner_id is required"})
@@ -181,10 +156,10 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 		reservationAppointmentID = &id
 	}
 
-	// 4. MedicalRecord モデル組み立て
+	// 3. MedicalRecord モデル組み立て（RecordNoはservice層で自動生成）
 	record := &model.MedicalRecord{
 		ClinicID:                 clinicID,
-		RecordNo:                 recordNo,
+		RecordNo:                 input.RecordNo,
 		Date:                     recordDate,
 		OwnerID:                  ownerID,
 		PetID:                    petID,
@@ -208,9 +183,6 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	slog.InfoContext(ctx, "medical record created",
-		slog.Uint64("record_id", record.ID),
-		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
 
 	// 6. ClinicalPlan の自動作成・更新（chief_complaint, plan, assessment, diagnosis_* が送られた場合）
 	if input.Plan != nil || input.Assessment != nil || input.Diagnosis1CategoryID != nil || input.Diagnosis1NameID != nil {
@@ -289,9 +261,6 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	slog.InfoContext(ctx, "medical record updated",
-		slog.Uint64("record_id", record.ID),
-		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
 	c.JSON(http.StatusOK, record)
 }
 

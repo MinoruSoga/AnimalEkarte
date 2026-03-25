@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -26,7 +27,7 @@ func (h *Handler) ListVaccinations(c *gin.Context) {
 	if s := c.Query("pet_id"); s != "" {
 		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pet_id"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid pet_id"))
 			return
 		}
 		petID = &id
@@ -36,7 +37,7 @@ func (h *Handler) ListVaccinations(c *gin.Context) {
 	if s := c.Query("owner_id"); s != "" {
 		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid owner_id"))
 			return
 		}
 		ownerID = &id
@@ -69,7 +70,7 @@ func (h *Handler) GetVaccination(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	vaccination, err := h.svc.Vaccination.GetByID(c.Request.Context(), clinicID, id)
@@ -89,7 +90,7 @@ func (h *Handler) CreateVaccination(c *gin.Context) {
 
 	var input createVaccinationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -128,12 +129,12 @@ func (h *Handler) UpdateVaccination(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var input updateVaccinationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
@@ -188,7 +189,7 @@ func (h *Handler) DeleteVaccination(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.Vaccination.Delete(c.Request.Context(), clinicID, id); err != nil {

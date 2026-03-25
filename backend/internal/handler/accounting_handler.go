@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -123,9 +122,6 @@ func (h *Handler) CreateAccounting(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	slog.InfoContext(ctx, "accounting created",
-		slog.Uint64("billing_id", billing.ID),
-		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
 	c.JSON(http.StatusCreated, toAccountingResponse(billing))
 }
 
@@ -173,9 +169,6 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	slog.InfoContext(ctx, "accounting updated",
-		slog.Uint64("billing_id", billing.ID),
-		slog.String("clinic_id", strconv.FormatUint(clinicID, 10)))
 	c.JSON(http.StatusOK, toAccountingResponse(billing))
 }
 
@@ -186,7 +179,7 @@ func (h *Handler) DeleteAccounting(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.Accounting.Delete(c.Request.Context(), clinicID, id); err != nil {
