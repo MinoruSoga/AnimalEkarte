@@ -34,6 +34,7 @@ import type {
   ActiveFilter,
   SortProperty,
 } from "@/components/shared/NotionFilter/types";
+import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
 
 // rendering-hoist-jsx: 静的フィルタプロパティ（検査種別は動的オプションのためコンポーネント内で構築）
 const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
@@ -48,6 +49,8 @@ const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
     label: "ステータス",
     type: "select",
     icon: CircleDot,
+    // exams.status DEFAULT 'pending' — 空値は存在しない
+    conditions: CONDITIONS_NO_EMPTY,
     options: [
       { value: "pending", label: "依頼中" },
       { value: "in_progress", label: "検査中" },
@@ -96,8 +99,10 @@ export function Examinations() {
       .map((d) => ({ value: d, label: d }));
     return [
       ...STATIC_FILTER_PROPERTIES,
-      { key: "testType", label: "検査種別", type: "select" as const, icon: FlaskConical, options: testTypeOptions },
-      { key: "doctor", label: "担当医", type: "select" as const, icon: User, options: doctorOptions },
+      // testType は nullable（未設定の検査依頼あり）
+      { key: "testType", label: "検査種別", type: "select" as const, icon: FlaskConical, conditions: CONDITIONS_WITH_EMPTY, options: testTypeOptions },
+      // exams.doctor_id nullable（未割当あり）
+      { key: "doctor", label: "担当医", type: "select" as const, icon: User, conditions: CONDITIONS_WITH_EMPTY, options: doctorOptions },
     ];
   }, [allExaminations]);
 

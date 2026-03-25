@@ -296,11 +296,14 @@ export const FilterRuleRow = memo(function FilterRuleRow({
   const filterType = property?.type ?? "select";
   const isDateRange = filterType === "date-range";
 
-  // Condition options for this property type
-  const conditionOptions = useMemo(
-    () => FILTER_CONDITIONS[filterType] ?? FILTER_CONDITIONS.select,
-    [filterType],
-  );
+  // Condition options: property.conditions が指定されていればそれを優先
+  const conditionOptions = useMemo(() => {
+    if (property?.conditions && property.conditions.length > 0) {
+      const base = FILTER_CONDITIONS[filterType] ?? FILTER_CONDITIONS.select;
+      return base.filter((c) => property.conditions!.includes(c.value));
+    }
+    return FILTER_CONDITIONS[filterType] ?? FILTER_CONDITIONS.select;
+  }, [filterType, property?.conditions]);
 
   const currentConditionLabel = useMemo(
     () => getConditionLabel(filter.condition, filterType),

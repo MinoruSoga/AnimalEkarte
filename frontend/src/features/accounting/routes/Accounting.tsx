@@ -37,6 +37,7 @@ import type {
   FilterProperty,
   ActiveFilter,
   SortProperty,
+  CONDITIONS_NO_EMPTY,
 } from "@/components/shared/NotionFilter/types";
 
 // ── 静的定数（rendering-hoist-jsx）──────────────────────────
@@ -65,6 +66,8 @@ const FILTER_PROPERTIES: FilterProperty[] = [
     label: "ステータス",
     type: "select",
     icon: CircleDot,
+    // DEFAULT 'waiting' — 空値は存在しない
+    conditions: CONDITIONS_NO_EMPTY,
     options: [
       { value: "waiting", label: "会計待ち" },
       { value: "completed", label: "会計済" },
@@ -76,6 +79,8 @@ const FILTER_PROPERTIES: FilterProperty[] = [
     label: "支払方法",
     type: "select",
     icon: CreditCard,
+    // payments.method DEFAULT 'cash' — 空値は存在しない
+    conditions: CONDITIONS_NO_EMPTY,
     options: [
       { value: "cash", label: "現金" },
       { value: "credit_card", label: "クレジットカード" },

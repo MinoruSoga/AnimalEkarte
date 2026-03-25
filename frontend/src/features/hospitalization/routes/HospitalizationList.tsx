@@ -28,6 +28,7 @@ import type {
   SortProperty,
   ActiveSort,
 } from "@/components/shared/NotionFilter/types";
+import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
 
 type SortKey = "startDate" | "ownerName" | "petName" | "species" | "status";
 
@@ -50,6 +51,8 @@ const HOSPITALIZATION_STATIC_FILTER_PROPERTIES: FilterProperty[] = [
     label: "入院区分",
     type: "select",
     icon: Building2,
+    // hospitalizations.hospitalization_type NOT NULL — 空値は存在しない
+    conditions: CONDITIONS_NO_EMPTY,
     options: [
       { value: "入院", label: "入院" },
       { value: "ホテル", label: "ホテル" },
@@ -87,7 +90,8 @@ export function HospitalizationList() {
       .map((s) => ({ value: s, label: s }));
     return [
       ...HOSPITALIZATION_STATIC_FILTER_PROPERTIES,
-      { key: "species", label: "種", type: "select" as const, icon: PawPrint, options: speciesOptions },
+      // pets.animal_species_id NOT NULL — 空値は存在しない
+      { key: "species", label: "種", type: "select" as const, icon: PawPrint, conditions: CONDITIONS_NO_EMPTY, options: speciesOptions },
     ];
   }, [filteredHospitalizations]);
 

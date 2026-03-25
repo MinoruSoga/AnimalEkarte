@@ -32,6 +32,7 @@ import type {
   ActiveFilter,
   SortProperty,
 } from "@/components/shared/NotionFilter/types";
+import { CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
 
 // rendering-hoist-jsx: 静的フィルタプロパティ（担当医は動的オプションのためコンポーネント内で構築）
 const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
@@ -79,7 +80,8 @@ export function VaccinationList() {
       .map((d) => ({ value: d, label: d }));
     return [
       ...STATIC_FILTER_PROPERTIES,
-      { key: "doctor", label: "担当医", type: "select" as const, icon: User, options: doctorOptions },
+      // vaccinations.doctor_id nullable（未割当あり）
+      { key: "doctor", label: "担当医", type: "select" as const, icon: User, conditions: CONDITIONS_WITH_EMPTY, options: doctorOptions },
     ];
   }, [allVaccinations]);
 

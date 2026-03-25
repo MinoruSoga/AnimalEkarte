@@ -16,6 +16,7 @@ import type {
   ActiveFilter,
   SortProperty,
 } from "@/components/shared/NotionFilter/types";
+import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
@@ -118,6 +119,8 @@ const TRIMMING_STATIC_FILTER_PROPERTIES: FilterProperty[] = [
     label: "ステータス",
     type: "select",
     icon: CircleDot,
+    // trimming_records.status DEFAULT 'reserved' — 空値は存在しない
+    conditions: CONDITIONS_NO_EMPTY,
     options: [
       { value: "予約", label: "予約" },
       { value: "進行中", label: "進行中" },
@@ -164,8 +167,10 @@ export function TrimmingList() {
       .map((s) => ({ value: s, label: s }));
     return [
       ...TRIMMING_STATIC_FILTER_PROPERTIES,
-      { key: "species", label: "種", type: "select" as const, icon: PawPrint, options: speciesOptions },
-      { key: "staff", label: "担当", type: "select" as const, icon: User, options: staffOptions },
+      // pets.animal_species_id NOT NULL — 空値は存在しない
+      { key: "species", label: "種", type: "select" as const, icon: PawPrint, conditions: CONDITIONS_NO_EMPTY, options: speciesOptions },
+      // staff_id ON DELETE SET NULL — 空値（未割当）あり
+      { key: "staff", label: "担当", type: "select" as const, icon: User, conditions: CONDITIONS_WITH_EMPTY, options: staffOptions },
     ];
   }, [allTrimmings]);
 

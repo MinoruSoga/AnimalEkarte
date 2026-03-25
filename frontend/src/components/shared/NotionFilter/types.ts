@@ -16,6 +16,13 @@ export interface FilterProperty {
   type: FilterType;
   options?: FilterOption[];
   icon?: LucideIcon;
+  /**
+   * 利用可能な条件を上書きする。
+   * 未指定の場合は FILTER_CONDITIONS[type] のデフォルトを使用。
+   * DB 制約（NOT NULL / DEFAULT 値あり）により空が存在しないフィールドでは
+   * is_empty / is_not_empty を除いた配列を渡すこと。
+   */
+  conditions?: FilterCondition[];
 }
 
 // ─── Filter Conditions ──────────────────────────────────────
@@ -37,6 +44,13 @@ interface ConditionOption {
   value: FilterCondition;
   label: string;
 }
+
+/**
+ * よく使う条件セットの定数。
+ * フィールド定義の conditions フィールドで参照する。
+ */
+export const CONDITIONS_NO_EMPTY: FilterCondition[] = ["is", "is_not"];
+export const CONDITIONS_WITH_EMPTY: FilterCondition[] = ["is", "is_not", "is_empty", "is_not_empty"];
 
 /** プロパティ型ごとに使える条件を定義 */
 export const FILTER_CONDITIONS: Record<FilterType, ConditionOption[]> = {

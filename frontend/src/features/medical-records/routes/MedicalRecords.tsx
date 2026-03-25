@@ -38,6 +38,7 @@ import type {
   ActiveFilter,
   SortProperty,
 } from "@/components/shared/NotionFilter/types";
+import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
 import type { MedicalRecordFilters } from "../api/get-medical-records";
 
 // rendering-hoist-jsx: 静的フィルタプロパティ（担当医・種は動的オプションのためコンポーネント内で構築）
@@ -53,6 +54,8 @@ const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
     label: "ステータス",
     type: "select",
     icon: CircleDot,
+    // medical_records.status DEFAULT 'draft' — 空値は存在しない
+    conditions: CONDITIONS_NO_EMPTY,
     options: [
       { value: "作成中", label: "作成中" },
       { value: "確定済", label: "確定済" },
@@ -99,8 +102,10 @@ export function MedicalRecords() {
       .map((s) => ({ value: s, label: s }));
     return [
       ...STATIC_FILTER_PROPERTIES,
-      { key: "doctor", label: "担当医", type: "select" as const, icon: User, options: doctorOptions },
-      { key: "species", label: "種", type: "select" as const, icon: PawPrint, options: speciesOptions },
+      // medical_records.doctor_id nullable（未割当あり）
+      { key: "doctor", label: "担当医", type: "select" as const, icon: User, conditions: CONDITIONS_WITH_EMPTY, options: doctorOptions },
+      // pets.animal_species_id NOT NULL — 空値は存在しない
+      { key: "species", label: "種", type: "select" as const, icon: PawPrint, conditions: CONDITIONS_NO_EMPTY, options: speciesOptions },
     ];
   }, [allRecords]);
   const deleteModal = useModalState<{ id: string; label: string }>();
