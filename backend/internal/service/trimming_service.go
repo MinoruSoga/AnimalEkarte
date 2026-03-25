@@ -49,7 +49,7 @@ type UpdateTrimmingInput struct {
 }
 
 type TrimmingService interface {
-	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error)
+	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.TrimmingRecord, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.TrimmingRecord, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.TrimmingRecord, error)
@@ -64,8 +64,8 @@ func NewTrimmingService(repo repository.TrimmingRepository) TrimmingService {
 	return &trimmingService{repo: repo}
 }
 
-func (s *trimmingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error) {
-	return s.repo.FindAll(ctx, clinicID, petID, ownerID, page, limit)
+func (s *trimmingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.TrimmingRecord, int64, error) {
+	return s.repo.FindAll(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
 }
 
 func (s *trimmingService) GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error) {

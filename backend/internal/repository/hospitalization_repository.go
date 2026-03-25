@@ -12,7 +12,7 @@ import (
 )
 
 type HospitalizationRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	Create(ctx context.Context, hospitalization *model.Hospitalization) error
 	Update(ctx context.Context, hospitalization *model.Hospitalization) error
@@ -27,7 +27,7 @@ func NewHospitalizationRepository(db *gorm.DB) HospitalizationRepository {
 	return &hospitalizationRepository{db: db}
 }
 
-func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error) {
+func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error) {
 	hospitalizations := make([]model.Hospitalization, 0)
 	var total int64
 
@@ -40,6 +40,12 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64
 	}
 	if status != nil {
 		q = q.Where("status = ?", *status)
+	}
+	if startDate != nil {
+		q = q.Where("hospitalizations.start_date >= ?", *startDate)
+	}
+	if endDate != nil {
+		q = q.Where("hospitalizations.start_date <= ?", *endDate)
 	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count hospitalizations")

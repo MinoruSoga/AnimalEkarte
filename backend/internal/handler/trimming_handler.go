@@ -43,7 +43,18 @@ func (h *Handler) ListTrimmings(c *gin.Context) {
 		ownerID = &id
 	}
 
-	trimmings, total, err := h.svc.Trimming.List(c.Request.Context(), clinicID, petID, ownerID, page, limit)
+	startDate, err := parseDateQuery(c, "start_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	endDate, err := parseDateQuery(c, "end_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	trimmings, total, err := h.svc.Trimming.List(c.Request.Context(), clinicID, petID, ownerID, startDate, endDate, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return

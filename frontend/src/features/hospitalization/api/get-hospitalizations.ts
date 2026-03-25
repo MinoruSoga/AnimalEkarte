@@ -11,16 +11,25 @@ interface HospitalizationPaginatedResponse {
   limit: number;
 }
 
-export const getHospitalizations = async (): Promise<Hospitalization[]> => {
+export interface HospitalizationFilters {
+  startDate?: string; // YYYY-MM-DD（入院開始日の範囲）
+  endDate?: string;   // YYYY-MM-DD
+}
+
+export const getHospitalizations = async (filters?: HospitalizationFilters): Promise<Hospitalization[]> => {
+  const params: Record<string, string> = {};
+  if (filters?.startDate) params.start_date = filters.startDate;
+  if (filters?.endDate) params.end_date = filters.endDate;
   const { data } = await axios.get<HospitalizationPaginatedResponse>(
-    "/v1/hospitalizations"
+    "/v1/hospitalizations",
+    { params },
   );
   return data.data.map(transformHospitalization);
 };
 
-export const useGetHospitalizations = () => {
+export const useGetHospitalizations = (filters?: HospitalizationFilters) => {
   return useQuery({
-    queryKey: ["hospitalizations"],
-    queryFn: getHospitalizations,
+    queryKey: ["hospitalizations", filters],
+    queryFn: () => getHospitalizations(filters),
   });
 };

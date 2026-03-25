@@ -17,11 +17,13 @@ import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { HospitalizationBoard } from "../components/HospitalizationBoard";
 import { HospitalizationListView } from "../components/HospitalizationListView";
 import { useHospitalizationList } from "../hooks/use-hospitalization-list";
-import { HOSPITALIZATION_FILTER_STATUS } from "../constants";
+import { useGetHospitalizations } from "../api/get-hospitalizations";
+import { HOSPITALIZATION_FILTER_STATUS, HOSPITALIZATION_STATUS } from "../constants";
 
 // Types
 import type { HospitalizationFilterStatus } from "../constants";
 import type { Hospitalization } from "@/types";
+import type { HospitalizationFilters } from "../api/get-hospitalizations";
 import type {
   FilterProperty,
   ActiveFilter,
@@ -74,7 +76,6 @@ export function HospitalizationList() {
     searchTerm, setSearchTerm,
     statusFilter, setStatusFilter,
     viewMode, setViewMode,
-    filteredHospitalizations,
     cages,
     movePet,
     handleNavigateToForm
@@ -83,9 +84,23 @@ export function HospitalizationList() {
   const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
 
+  // rerender-dependencies: activeFilters から日付フィルタを抽出してサーバーサイドフィルタに渡す
+  const dateFilters = useMemo<HospitalizationFilters>(() => {
+    const dateFilter = activeFilters.find((f) => f.key === "startDate")?.value as
+      | { from?: string; to?: string }
+      | undefined;
+    return {
+      startDate: dateFilter?.from,
+      endDate: dateFilter?.to,
+    };
+  }, [activeFilters]);
+
+  // サーバーサイド日付フィルタ適用済みデータを取得
+  const { data: allHospitalizations = [] } = useGetHospitalizations(dateFilters);
+
   // js-cache-function-results: ロード済みデータから種の選択肢を動的生成
   const filterProperties = useMemo<FilterProperty[]>(() => {
-    const speciesOptions = Array.from(new Set(filteredHospitalizations.map((h) => h.species).filter(Boolean)))
+    const speciesOptions = Array.from(new Set(allHospitalizations.map((h) => h.species).filter(Boolean)))
       .sort()
       .map((s) => ({ value: s, label: s }));
     return [
@@ -93,15 +108,36 @@ export function HospitalizationList() {
       // pets.animal_species_id NOT NULL — 空値は存在しない
       { key: "species", label: "種", type: "select" as const, icon: PawPrint, conditions: CONDITIONS_NO_EMPTY, options: speciesOptions },
     ];
-  }, [filteredHospitalizations]);
+  }, [allHospitalizations]);
 
   const handleSortChange = useCallback((sorts: ActiveSort[]) => {
     setActiveSorts(sorts);
   }, []);
 
-  // 入院区分・入院日フィルタ（クライアントサイド）
+  // 入院区分・ステータス・テキスト検索・種フィルタ（クライアントサイド、日付フィルタはサーバーサイドに移行済み）
   const typeFilteredHospitalizations = useMemo(() => {
-    let result = filteredHospitalizations;
+    let result = allHospitalizations;
+
+    // Status フィルタ（タブ）
+    if (statusFilter !== "all") {
+      result = result.filter((h) => {
+        if (statusFilter === "active") return h.status === HOSPITALIZATION_STATUS.ACTIVE || h.status === HOSPITALIZATION_STATUS.TEMP_DISCHARGE;
+        if (statusFilter === "discharged") return h.status === HOSPITALIZATION_STATUS.DISCHARGED;
+        if (statusFilter === "reserved") return h.status === HOSPITALIZATION_STATUS.RESERVED;
+        return true;
+      });
+    }
+
+    // テキスト検索
+    if (searchTerm) {
+      const lowerTerm = searchTerm.toLowerCase();
+      result = result.filter(
+        (h) =>
+          h.ownerName.toLowerCase().includes(lowerTerm) ||
+          h.petName.toLowerCase().includes(lowerTerm) ||
+          h.hospitalizationNo.toLowerCase().includes(lowerTerm),
+      );
+    }
 
     // 入院区分フィルタ
     const typeFilter = activeFilters.find((f) => f.key === "hospitalizationType");
@@ -110,21 +146,8 @@ export function HospitalizationList() {
         switch (typeFilter.condition) {
           case "is":           return h.hospitalizationType === typeFilter.value;
           case "is_not":       return h.hospitalizationType !== typeFilter.value;
-          case "is_empty":     return !h.hospitalizationType;
-          case "is_not_empty": return !!h.hospitalizationType;
           default:             return h.hospitalizationType === typeFilter.value;
         }
-      });
-    }
-
-    // 入院日フィルタ（date-range）
-    const dateFilter = activeFilters.find((f) => f.key === "startDate")?.value as
-      | { from?: string; to?: string }
-      | undefined;
-    if (dateFilter?.from || dateFilter?.to) {
-      result = result.filter((h) => {
-        const d = h.startDate?.slice(0, 10) ?? "";
-        return (!dateFilter.from || d >= dateFilter.from) && (!dateFilter.to || d <= dateFilter.to);
       });
     }
 
@@ -143,7 +166,7 @@ export function HospitalizationList() {
     }
 
     return result;
-  }, [filteredHospitalizations, activeFilters]);
+  }, [allHospitalizations, statusFilter, searchTerm, activeFilters]);
 
   // Sort data for list view
   const sortedHospitalizations = useMemo(() => {

@@ -40,6 +40,7 @@ import { paths } from "@/config/paths";
 
 // Relative (direct file import, no barrel)
 import { useFilterTrimmingRecords } from "../hooks/use-trimming-records";
+import type { TrimmingFilters } from "../api/get-trimmings";
 
 // rerender-memo + js-cache-function-results: renderRow インライン closure を memo コンポーネントに抽出
 interface TrimmingTableRowProps {
@@ -148,13 +149,18 @@ export function TrimmingList() {
   const deferredKeyword = useDeferredValue(searchKeyword);
   const isFiltering = searchKeyword !== deferredKeyword;
 
-  // activeFilters から日付を抽出
-  const dateFilter = activeFilters.find((f) => f.key === "date")?.value as
-    | { from?: string; to?: string }
-    | undefined;
-  const deferredDate = { from: dateFilter?.from ?? "", to: dateFilter?.to ?? "" };
+  // rerender-dependencies: activeFilters から日付フィルタを抽出してサーバーサイドフィルタに渡す
+  const filters = useMemo<TrimmingFilters>(() => {
+    const dateFilter = activeFilters.find((f) => f.key === "date")?.value as
+      | { from?: string; to?: string }
+      | undefined;
+    return {
+      startDate: dateFilter?.from,
+      endDate: dateFilter?.to,
+    };
+  }, [activeFilters]);
 
-  const { data: filteredRecords, allTrimmings, isLoading, error, deleteRecord } = useFilterTrimmingRecords(deferredKeyword, deferredDate, activeFilters);
+  const { data: filteredRecords, allTrimmings, isLoading, error, deleteRecord } = useFilterTrimmingRecords(deferredKeyword, filters, activeFilters);
   const { isValidStaff } = useStaffValidation();
 
   // js-cache-function-results: ロード済みデータから種・担当の選択肢を動的生成

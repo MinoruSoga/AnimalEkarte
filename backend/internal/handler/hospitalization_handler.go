@@ -46,7 +46,18 @@ func (h *Handler) ListHospitalizations(c *gin.Context) {
 		status = &s
 	}
 
-	hospitalizations, total, err := h.svc.Hospitalization.List(c.Request.Context(), clinicID, petID, ownerID, status, page, limit)
+	startDate, err := parseDateQuery(c, "start_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	endDate, err := parseDateQuery(c, "end_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	hospitalizations, total, err := h.svc.Hospitalization.List(c.Request.Context(), clinicID, petID, ownerID, status, startDate, endDate, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return

@@ -14,7 +14,7 @@ import (
 
 // mockTrimmingRepository は TrimmingRepository のテスト用モック実装
 type mockTrimmingRepository struct {
-	findAllFn    func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error)
+	findAllFn    func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.TrimmingRecord, int64, error)
 	findByIDFn   func(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error)
 	createFn     func(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
 	updateFn     func(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
@@ -22,8 +22,8 @@ type mockTrimmingRepository struct {
 	setOptionsFn func(ctx context.Context, recordID uint64, optionIDs []uint64) error
 }
 
-func (m *mockTrimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error) {
-	return m.findAllFn(ctx, clinicID, petID, ownerID, page, limit)
+func (m *mockTrimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.TrimmingRecord, int64, error) {
+	return m.findAllFn(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
 }
 
 func (m *mockTrimmingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error) {
@@ -145,13 +145,13 @@ func TestTrimmingService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingRepository{
-				findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _, _ int) ([]model.TrimmingRecord, int64, error) {
+				findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.TrimmingRecord, int64, error) {
 					return tt.repoData, tt.repoTotal, tt.repoErr
 				},
 			}
 			svc := NewTrimmingService(repo)
 
-			trimmings, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.page, tt.limit)
+			trimmings, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, nil, tt.page, tt.limit)
 
 			if tt.wantErr {
 				assert.Error(t, err)

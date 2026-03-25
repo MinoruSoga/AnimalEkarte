@@ -2,20 +2,15 @@ import { useMemo, useCallback } from "react";
 import { useGetTrimmings } from "../api/get-trimmings";
 import { useDeleteTrimming } from "../api/delete-trimming";
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
-
-interface DateRange {
-  from: string;
-  to: string;
-}
+import type { TrimmingFilters } from "../api/get-trimmings";
 
 export function useFilterTrimmingRecords(
   searchTerm: string,
-  dateRange: DateRange,
+  filters?: TrimmingFilters,
   activeFilters?: ActiveFilter[],
 ) {
-  const { data: trimmingRecords = [], isLoading, error } = useGetTrimmings();
+  const { data: trimmingRecords = [], isLoading, error } = useGetTrimmings(filters);
   const deleteMutation = useDeleteTrimming();
-  const { from, to } = dateRange; // プリミティブを抽出 (rerender-dependencies)
 
   const filteredRecords = useMemo(() => {
     let result = trimmingRecords;
@@ -62,21 +57,13 @@ export function useFilterTrimmingRecords(
       });
     }
 
-    return result.filter((r) => {
-      const matchesKeyword =
-        searchTerm === "" ||
-        r.ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.petName.toLowerCase().includes(searchTerm.toLowerCase());
-
-      // appointment_date はISO文字列なので日付部分（YYYY-MM-DD）で比較
-      const recordDate = r.date.slice(0, 10);
-      const matchesDate =
-        (!from || recordDate >= from) &&
-        (!to || recordDate <= to);
-
-      return matchesKeyword && matchesDate;
-    });
-  }, [trimmingRecords, searchTerm, from, to, activeFilters]);
+    // テキスト検索（日付フィルタはサーバーサイドに移行済み）
+    return result.filter((r) =>
+      searchTerm === "" ||
+      r.ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.petName.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
+  }, [trimmingRecords, searchTerm, activeFilters]);
 
   const deleteRecord = useCallback((id: string) => {
     deleteMutation.mutate(id);

@@ -12,7 +12,7 @@ import (
 )
 
 type TrimmingRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.TrimmingRecord, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error)
 	Create(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
 	Update(ctx context.Context, clinicID uint64, trimming *model.TrimmingRecord) error
@@ -28,7 +28,7 @@ func NewTrimmingRepository(db *gorm.DB) TrimmingRepository {
 	return &trimmingRepository{db: db}
 }
 
-func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.TrimmingRecord, int64, error) {
+func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.TrimmingRecord, int64, error) {
 	trimmings := make([]model.TrimmingRecord, 0)
 	var total int64
 
@@ -39,6 +39,12 @@ func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID
 	if ownerID != nil {
 		q = q.Select("trimming_records.*").
 			Joins("JOIN pets ON pets.id = trimming_records.pet_id").Where("pets.owner_id = ?", *ownerID)
+	}
+	if startDate != nil {
+		q = q.Where("trimming_records.date >= ?", *startDate)
+	}
+	if endDate != nil {
+		q = q.Where("trimming_records.date <= ?", *endDate)
 	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count trimming records")

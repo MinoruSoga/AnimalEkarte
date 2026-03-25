@@ -14,15 +14,15 @@ import (
 
 // mockHospitalizationRepository は HospitalizationRepository のテスト用モック実装
 type mockHospitalizationRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error)
+	findAllFn  func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error)
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	createFn   func(ctx context.Context, hospitalization *model.Hospitalization) error
 	updateFn   func(ctx context.Context, hospitalization *model.Hospitalization) error
 	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockHospitalizationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Hospitalization, int64, error) {
-	return m.findAllFn(ctx, clinicID, petID, ownerID, status, page, limit)
+func (m *mockHospitalizationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error) {
+	return m.findAllFn(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
 }
 
 func (m *mockHospitalizationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
@@ -145,13 +145,13 @@ func TestHospitalizationService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockHospitalizationRepository{
-				findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _ *string, _, _ int) ([]model.Hospitalization, int64, error) {
+				findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _, _, _ *string, _, _ int) ([]model.Hospitalization, int64, error) {
 					return tt.repoItems, tt.repoTotal, tt.repoErr
 				},
 			}
 			svc := NewHospitalizationService(repo)
 
-			items, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, tt.page, tt.limit)
+			items, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, nil, nil, tt.page, tt.limit)
 
 			if tt.wantErr {
 				assert.Error(t, err)
