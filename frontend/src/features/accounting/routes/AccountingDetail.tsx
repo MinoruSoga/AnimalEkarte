@@ -512,12 +512,14 @@ const PaymentCard = memo(function PaymentCard({
 // ── 返金セクション ──────────────────────────────────────
 interface RefundSectionProps {
   billingId: string;
+  totalAmount: number;
   isRefunding: boolean;
   onRefund: (amount: number, reason: string) => void;
 }
 
 const RefundSection = memo(function RefundSection({
   billingId,
+  totalAmount,
   isRefunding,
   onRefund,
 }: RefundSectionProps) {
@@ -527,6 +529,7 @@ const RefundSection = memo(function RefundSection({
   const { data: refunds = [] } = useGetRefunds(billingId);
 
   const totalRefunded = refunds.reduce((sum, r) => sum + r.amount, 0);
+  const refundableAmount = totalAmount - totalRefunded;
 
   const handleSubmit = useCallback(() => {
     const amount = parseInt(refundAmount, 10);
@@ -544,6 +547,9 @@ const RefundSection = memo(function RefundSection({
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <RotateCcw className="h-4 w-4 text-orange-500" />
             返金管理
+            <span className="text-xs font-normal text-muted-foreground">
+              残額 ¥{refundableAmount.toLocaleString()}
+            </span>
             {totalRefunded > 0 ? (
               <span className="text-xs font-normal text-orange-600 bg-orange-50 px-2 py-0.5 rounded">
                 合計 ¥{totalRefunded.toLocaleString()} 返金済
@@ -552,7 +558,12 @@ const RefundSection = memo(function RefundSection({
           </CardTitle>
           <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 text-xs">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                disabled={refundableAmount <= 0}
+              >
                 <Plus className="mr-1 h-3 w-3" />
                 返金を登録
               </Button>
@@ -970,6 +981,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
             {id && accounting.status === "completed" ? (
               <RefundSection
                 billingId={id}
+                totalAmount={accounting.payment?.totalAmount ?? 0}
                 isRefunding={isRefunding}
                 onRefund={handleRefund}
               />
