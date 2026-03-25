@@ -1,5 +1,5 @@
 // React/Framework
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
@@ -20,6 +20,169 @@ import { C, STYLE } from "@/lib/design-tokens";
 import { useExaminationForm } from "../hooks/use-examination-form";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { paths } from "@/config/paths";
+import type { ExaminationRecord } from "@/types";
+
+// rendering-hoist-jsx: ステータス選択肢は静的なのでモジュール定数に巻き上げ
+const EXAM_STATUS_ITEMS = (
+  <>
+    <SelectItem value="依頼中">依頼中</SelectItem>
+    <SelectItem value="検査中">検査中</SelectItem>
+    <SelectItem value="完了">完了</SelectItem>
+  </>
+);
+
+// rerender-memo: フォームフィールドセクションを独立 memo 化
+// PatientInfoCard の再レンダーや isDeleteConfirmOpen の変化では再レンダーしない
+interface FormFieldsSectionProps {
+  formData: Partial<ExaminationRecord>;
+  examTypes: { id: string; name: string }[];
+  staffList: { id: string; name: string }[];
+  isEdit: boolean;
+  isSaving: boolean;
+  isDeleting: boolean;
+  onSetFormData: (next: Partial<ExaminationRecord>) => void;
+  onBack: () => void;
+  onSaveClick: () => void;
+  onDeleteClick: () => void;
+}
+
+const FormFieldsSection = memo(function FormFieldsSection({
+  formData,
+  examTypes,
+  staffList,
+  isEdit,
+  isSaving,
+  isDeleting,
+  onSetFormData,
+  onBack,
+  onSaveClick,
+  onDeleteClick,
+}: FormFieldsSectionProps) {
+  return (
+    <div className={`bg-white p-4 rounded-lg border ${C.borderMedium} space-y-4 shadow-sm`}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <Label className={`text-sm ${C.text60}`}>検査種別</Label>
+          <Select
+            value={formData.testTypeId ?? ""}
+            onValueChange={(v) => {
+              const item = examTypes.find((e) => e.id === v);
+              onSetFormData({ testTypeId: v, testType: item?.name ?? v });
+            }}
+          >
+            <SelectTrigger className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
+              <SelectValue placeholder="選択してください" />
+            </SelectTrigger>
+            <SelectContent>
+              {examTypes.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {item.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className={`text-sm ${C.text60}`}>担当医</Label>
+          <Select
+            value={formData.doctorId ?? ""}
+            onValueChange={(v) => {
+              const staff = staffList.find((s) => s.id === v);
+              onSetFormData({ doctorId: v, doctor: staff?.name ?? v });
+            }}
+          >
+            <SelectTrigger className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
+              <SelectValue placeholder="選択してください" />
+            </SelectTrigger>
+            <SelectContent>
+              {staffList.map((staff) => (
+                <SelectItem key={staff.id} value={staff.id}>
+                  {staff.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className={`text-sm ${C.text60}`}>ステータス</Label>
+        <Select
+          value={formData.status}
+          onValueChange={(v: "依頼中" | "検査中" | "完了") => onSetFormData({ status: v })}
+        >
+          <SelectTrigger className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
+            <SelectValue placeholder="選択してください" />
+          </SelectTrigger>
+          <SelectContent>
+            {EXAM_STATUS_ITEMS}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className={`text-sm ${C.text60}`}>備考・所見</Label>
+        <Textarea
+          className={`h-24 text-sm ${C.text} bg-white ${C.borderMedium} resize-none`}
+          placeholder="検査結果や備考を入力"
+          value={formData.resultSummary || ""}
+          onChange={(e) => onSetFormData({ resultSummary: e.target.value })}
+        />
+      </div>
+
+      <div className="flex justify-end gap-2 pt-2">
+        {isEdit ? (
+          <Button
+            variant="ghost"
+            className={`h-10 text-sm ${STYLE.btnDangerGhost} mr-auto`}
+            onClick={onDeleteClick}
+            disabled={isDeleting}
+          >
+            <Trash2 className="mr-1.5 size-4" />
+            {isDeleting ? "削除中..." : "削除"}
+          </Button>
+        ) : null}
+        <Button variant="outline" onClick={onBack} className="h-10 text-sm">キャンセル</Button>
+        <Button
+          className={`${C.bgAccent} ${C.bgAccentHover} text-white h-10 text-sm`}
+          onClick={onSaveClick}
+          disabled={isSaving}
+        >
+          {isSaving ? "保存中..." : "保存"}
+        </Button>
+      </div>
+    </div>
+  );
+});
+
+// rerender-memo: 削除確認モーダルを独立 memo 化
+// フォームフィールドの変更では再レンダーしない
+interface DeleteConfirmModalProps {
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+const DeleteConfirmModal = memo(function DeleteConfirmModal({
+  onCancel,
+  onConfirm,
+}: DeleteConfirmModalProps) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl">
+        <h3 className="text-base font-semibold mb-2">検査記録を削除しますか？</h3>
+        <p className="text-sm text-gray-500 mb-4">この操作は取り消せません。</p>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onCancel} className="h-9 text-sm">キャンセル</Button>
+          <Button
+            variant="destructive"
+            className="h-9 text-sm"
+            onClick={onConfirm}
+          >削除する</Button>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 export function ExaminationForm() {
   const navigate = useNavigate();
@@ -28,19 +191,19 @@ export function ExaminationForm() {
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
   const medicalRecordId = searchParams.get("medicalRecordId");
-  
+
   const { data: examTypes } = useMasterItems("examination");
   const { data: staffList } = useMasterItems("staff");
-  
+
   const {
-      formData,
-      setFormData,
-      petSelection,
-      handleSave,
-      handleDelete,
-      isEdit,
-      isSaving,
-      isDeleting,
+    formData,
+    setFormData,
+    petSelection,
+    handleSave,
+    handleDelete,
+    isEdit,
+    isSaving,
+    isDeleting,
   } = useExaminationForm(id, medicalRecordId ?? undefined);
 
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -58,6 +221,7 @@ export function ExaminationForm() {
     }
   }, [location.state, navigate]);
 
+  // rerender-memo: memo'd セクションに渡すハンドラを useCallback で安定化
   const handleSetFormData = useCallback((next: Parameters<typeof setFormData>[0]) => {
     markDirty();
     setFormData(next);
@@ -68,9 +232,23 @@ export function ExaminationForm() {
     handleSave();
   }, [markClean, handleSave]);
 
+  const handleDeleteClick = useCallback(() => {
+    setIsDeleteConfirmOpen(true);
+  }, []);
+
+  const handleDeleteCancel = useCallback(() => {
+    setIsDeleteConfirmOpen(false);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(() => {
+    markClean();
+    handleDelete(() => navigate(paths.examinations.getHref()));
+    setIsDeleteConfirmOpen(false);
+  }, [markClean, handleDelete, navigate]);
+
   useEffect(() => {
     if (!selectedPet && !isEdit && !petId) {
-        navigate(paths.examinations.selectPet.getHref());
+      navigate(paths.examinations.selectPet.getHref());
     }
   }, [selectedPet, isEdit, navigate, petId]);
 
@@ -86,128 +264,44 @@ export function ExaminationForm() {
     >
       <NavigationBlocker when={isDirty && !isSaving} />
       <div className="flex flex-col gap-4">
-          {/* Patient Info Card */}
-          {selectedPet ? (
-              <PatientInfoCard
-                ownerName={selectedPet.ownerName}
-                petName={`${selectedPet.name}${selectedPet.species ? `(${selectedPet.species})` : ""}`}
-                petNumber={selectedPet.petNumber || selectedPet.id}
-                weight={selectedPet.weight || "-"}
-                staffName="医師A"
-                serviceType="検査"
-                petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
-                insuranceName={selectedPet.insuranceName || "保険情報未登録"}
-                insuranceDetails={selectedPet.insuranceDetails || "-"}
-                nextVisitDate="-"
-                nextVisitContent="-"
-              />
-          ) : null}
+        {/* rerender-memo: PatientInfoCard — フォームフィールド変更では再レンダーしない */}
+        {selectedPet ? (
+          <PatientInfoCard
+            ownerName={selectedPet.ownerName}
+            petName={`${selectedPet.name}${selectedPet.species ? `(${selectedPet.species})` : ""}`}
+            petNumber={selectedPet.petNumber || selectedPet.id}
+            weight={selectedPet.weight || "-"}
+            staffName="医師A"
+            serviceType="検査"
+            petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
+            insuranceName={selectedPet.insuranceName || "保険情報未登録"}
+            insuranceDetails={selectedPet.insuranceDetails || "-"}
+            nextVisitDate="-"
+            nextVisitContent="-"
+          />
+        ) : null}
 
-          <div className={`bg-white p-4 rounded-lg border ${C.borderMedium} space-y-4 shadow-sm`}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className={`text-sm ${C.text60}`}>検査種別</Label>
-                <Select
-                    value={formData.testTypeId ?? ""}
-                    onValueChange={(v) => {
-                      const item = examTypes.find((e) => e.id === v);
-                      handleSetFormData({ testTypeId: v, testType: item?.name ?? v });
-                    }}
-                >
-                  <SelectTrigger className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
-                    <SelectValue placeholder="選択してください" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {examTypes.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                            {item.name}
-                        </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className={`text-sm ${C.text60}`}>担当医</Label>
-                <Select
-                    value={formData.doctorId ?? ""}
-                    onValueChange={(v) => {
-                      const staff = staffList.find((s) => s.id === v);
-                      handleSetFormData({ doctorId: v, doctor: staff?.name ?? v });
-                    }}
-                >
-                  <SelectTrigger className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
-                    <SelectValue placeholder="選択してください" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {staffList.map((staff) => (
-                        <SelectItem key={staff.id} value={staff.id}>
-                            {staff.name}
-                        </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+        {/* rerender-memo: FormFieldsSection — isDeleteConfirmOpen の変化では再レンダーしない */}
+        <FormFieldsSection
+          formData={formData}
+          examTypes={examTypes}
+          staffList={staffList}
+          isEdit={isEdit}
+          isSaving={isSaving}
+          isDeleting={isDeleting}
+          onSetFormData={handleSetFormData}
+          onBack={handleBack}
+          onSaveClick={handleSaveClick}
+          onDeleteClick={handleDeleteClick}
+        />
 
-            <div className="space-y-1.5">
-              <Label className={`text-sm ${C.text60}`}>ステータス</Label>
-              <Select 
-                value={formData.status} 
-                onValueChange={(v: "依頼中" | "検査中" | "完了") => handleSetFormData({ status: v })}
-              >
-                <SelectTrigger className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
-                  <SelectValue placeholder="選択してください" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="依頼中">依頼中</SelectItem>
-                  <SelectItem value="検査中">検査中</SelectItem>
-                  <SelectItem value="完了">完了</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className={`text-sm ${C.text60}`}>備考・所見</Label>
-              <Textarea 
-                className={`h-24 text-sm ${C.text} bg-white ${C.borderMedium} resize-none`} 
-                placeholder="検査結果や備考を入力" 
-                value={formData.resultSummary || ""} 
-                onChange={(e) => handleSetFormData({ resultSummary: e.target.value })}
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              {isEdit ? (
-                <Button
-                  variant="ghost"
-                  className={`h-10 text-sm ${STYLE.btnDangerGhost} mr-auto`}
-                  onClick={() => setIsDeleteConfirmOpen(true)}
-                  disabled={isDeleting}
-                >
-                    <Trash2 className="mr-1.5 size-4" />
-                    {isDeleting ? "削除中..." : "削除"}
-                </Button>
-              ) : null}
-              <Button variant="outline" onClick={handleBack} className="h-10 text-sm">キャンセル</Button>
-              <Button className={`${C.bgAccent} ${C.bgAccentHover} text-white h-10 text-sm`} onClick={handleSaveClick} disabled={isSaving}>{isSaving ? "保存中..." : "保存"}</Button>
-            </div>
-            {isDeleteConfirmOpen ? (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl">
-                  <h3 className="text-base font-semibold mb-2">検査記録を削除しますか？</h3>
-                  <p className="text-sm text-gray-500 mb-4">この操作は取り消せません。</p>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)} className="h-9 text-sm">キャンセル</Button>
-                    <Button
-                      variant="destructive"
-                      className="h-9 text-sm"
-                      onClick={() => { markClean(); handleDelete(() => navigate(paths.examinations.getHref())); setIsDeleteConfirmOpen(false); }}
-                    >削除する</Button>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-          </div>
+        {/* rerender-memo: DeleteConfirmModal — フォームフィールド変更では再レンダーしない */}
+        {isDeleteConfirmOpen ? (
+          <DeleteConfirmModal
+            onCancel={handleDeleteCancel}
+            onConfirm={handleDeleteConfirm}
+          />
+        ) : null}
       </div>
     </PageLayout>
   );

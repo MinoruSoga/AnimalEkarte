@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 // External
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -32,7 +32,22 @@ export const KanbanColumn = memo(function KanbanColumn({
     data: { columnTitle: data.title },
   });
 
-  const itemIds = data.appointments.map(appt => appt.id);
+  const itemIds = useMemo(
+    () => data.appointments.map(appt => appt.id),
+    [data.appointments]
+  );
+
+  const appointmentItems = useMemo(
+    () => data.appointments.map((appointment) => (
+      <AppointmentCard
+        key={appointment.id}
+        appointment={appointment}
+        columnTitle={data.title}
+        onCardClick={onCardClick}
+      />
+    )),
+    [data.appointments, data.title, onCardClick]
+  );
 
   return (
     <div
@@ -48,14 +63,7 @@ export const KanbanColumn = memo(function KanbanColumn({
       </div>
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         <div className="flex flex-col gap-2 flex-1 overflow-y-auto min-h-[100px] lg:min-h-[50px]">
-          {data.appointments.map((appointment) => (
-            <AppointmentCard
-              key={appointment.id}
-              appointment={appointment}
-              columnTitle={data.title}
-              onCardClick={onCardClick}
-            />
-          ))}
+          {appointmentItems}
           {/* Spacer for drop target at end of column */}
           <div className="flex-1 min-h-[2rem]" />
         </div>

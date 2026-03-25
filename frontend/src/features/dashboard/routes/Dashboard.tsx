@@ -42,6 +42,7 @@ export function Dashboard() {
     const {
         columns,
         filteredColumns,
+        isUpdatingStatus,
         staffs,
         moveCard,
         advanceStatus,
@@ -349,7 +350,7 @@ export function Dashboard() {
             <div className="flex-1 overflow-hidden p-5 pt-4">
                 <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
                     {/* タブレット: 2-3列グリッド、デスクトップ: 5列flex */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:flex gap-4 h-full w-full overflow-y-auto lg:overflow-x-auto lg:overflow-y-hidden pb-2 bg-transparent">
+                    <div className={`grid grid-cols-2 md:grid-cols-3 lg:flex gap-4 h-full w-full overflow-y-auto lg:overflow-x-auto lg:overflow-y-hidden pb-2 bg-transparent transition-opacity${isUpdatingStatus ? " opacity-70 pointer-events-none" : ""}`}>
                         {columnElements}
                     </div>
                 </DndContext>

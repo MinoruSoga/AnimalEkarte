@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect, useTransition } from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { Appointment, ColumnData } from "@/types";
@@ -41,6 +41,9 @@ export function useDashboardKanban() {
   const { data: apiColumns, isLoading } = useDashboardData(today);
   const { data: staffs } = useGetStaffs();
   const updateStatusMutation = useUpdateAppointmentStatus();
+  // rerender-transitions: API mutation の pending 管理に useTransition を使用
+  // （useState(false) + setIsPending パターンは try-finally でリセット漏れが起きるため禁止）
+  const [isUpdatingStatus, startUpdateStatusTransition] = useTransition();
 
   // staffId → スタッフ名のMap（APIレスポンス変換で使用）
   // staffs が undefined（ローディング中）の場合は空配列で buildStaffMap を呼ぶ。
@@ -158,16 +161,16 @@ export function useDashboardKanban() {
     if (sourceColumn !== targetColumn) {
       const newStatus = COLUMN_TITLE_TO_STATUS[targetColumn];
       if (newStatus) {
-        updateStatusMutation.mutate(
-          { id: draggedCard.id, status: newStatus },
-          {
-            onError: (error: unknown) => {
-              handleApiError(error, "更新");
-              // rerender-defer-reads: refで最新値を参照（依存配列から除外するため）
-              setColumns(apiColumnDataRef.current);
-            },
+        // rerender-transitions: API 書き込みを useTransition でラップして pending 状態を管理
+        startUpdateStatusTransition(async () => {
+          try {
+            await updateStatusMutation.mutateAsync({ id: draggedCard.id, status: newStatus });
+          } catch (error: unknown) {
+            handleApiError(error, "更新");
+            // rerender-defer-reads: refで最新値を参照（依存配列から除外するため）
+            setColumns(apiColumnDataRef.current);
           }
-        );
+        });
       }
     }
 
@@ -203,7 +206,7 @@ export function useDashboardKanban() {
       return newColumns;
     });
     return true;
-  }, [updateStatusMutation]);
+  }, [updateStatusMutation, startUpdateStatusTransition]);
 
   const advanceStatus = useCallback((appointment: Appointment) => {
     const currentColumnTitle = filteredColumnsRef.current.find(c => c.appointments.some(a => a.id === appointment.id))?.title;
@@ -216,18 +219,6 @@ export function useDashboardKanban() {
       case "診療中": nextColumnTitle = "会計待ち"; break;
       case "会計待ち": nextColumnTitle = "会計済"; break;
       case "会計済":
-        // API でステータスを completed に更新してリストから削除
-        updateStatusMutation.mutate(
-          { id: appointment.id, status: "completed" },
-          {
-            onSuccess: () => {
-              toast.success("手続きを完了し、リストから削除しました");
-            },
-            onError: (error: unknown) => {
-              handleApiError(error, "更新");
-            },
-          }
-        );
         // 楽観的: ローカルからも除外
         setColumns(prev => {
           const newColumns = prev.map(col => ({ ...col, appointments: [...col.appointments] }));
@@ -240,6 +231,15 @@ export function useDashboardKanban() {
           }
           return newColumns;
         });
+        // rerender-transitions: API 書き込みを useTransition でラップして pending 状態を管理
+        startUpdateStatusTransition(async () => {
+          try {
+            await updateStatusMutation.mutateAsync({ id: appointment.id, status: "completed" });
+            toast.success("手続きを完了し、リストから削除しました");
+          } catch (error: unknown) {
+            handleApiError(error, "更新");
+          }
+        });
         return;
       default: return;
     }
@@ -247,16 +247,16 @@ export function useDashboardKanban() {
     // API でステータス更新
     const newStatus = COLUMN_TITLE_TO_STATUS[nextColumnTitle];
     if (newStatus) {
-      updateStatusMutation.mutate(
-        { id: appointment.id, status: newStatus },
-        {
-          onError: (error: unknown) => {
-            handleApiError(error, "更新");
-            // rerender-defer-reads: refで最新値を参照
-            setColumns(apiColumnDataRef.current);
-          },
+      // rerender-transitions: API 書き込みを useTransition でラップして pending 状態を管理
+      startUpdateStatusTransition(async () => {
+        try {
+          await updateStatusMutation.mutateAsync({ id: appointment.id, status: newStatus });
+        } catch (error: unknown) {
+          handleApiError(error, "更新");
+          // rerender-defer-reads: refで最新値を参照
+          setColumns(apiColumnDataRef.current);
         }
-      );
+      });
     }
 
     // 楽観的 UI 更新
@@ -278,21 +278,9 @@ export function useDashboardKanban() {
       }
       return newColumns;
     });
-  }, [updateStatusMutation]);
+  }, [updateStatusMutation, startUpdateStatusTransition]);
 
   const cancelAppointment = useCallback((appointmentId: string) => {
-    // API でキャンセルステータスに更新
-    updateStatusMutation.mutate(
-      { id: appointmentId, status: "cancelled" },
-      {
-        onError: (error: unknown) => {
-          handleApiError(error, "取り消し");
-          // rerender-defer-reads: refで最新値を参照
-          setColumns(apiColumnDataRef.current);
-        },
-      }
-    );
-
     // 楽観的: ローカルからも除外
     setColumns(prev => {
       const newColumns = prev.map(col => ({ ...col, appointments: [...col.appointments] }));
@@ -305,7 +293,17 @@ export function useDashboardKanban() {
       }
       return prev;
     });
-  }, [updateStatusMutation]);
+    // rerender-transitions: API 書き込みを useTransition でラップして pending 状態を管理
+    startUpdateStatusTransition(async () => {
+      try {
+        await updateStatusMutation.mutateAsync({ id: appointmentId, status: "cancelled" });
+      } catch (error: unknown) {
+        handleApiError(error, "取り消し");
+        // rerender-defer-reads: refで最新値を参照
+        setColumns(apiColumnDataRef.current);
+      }
+    });
+  }, [updateStatusMutation, startUpdateStatusTransition]);
 
   const updateAppointment = useCallback((updatedAppointment: Appointment) => {
     setColumns(prev => {
@@ -329,6 +327,7 @@ export function useDashboardKanban() {
     columns,  // ローカル状態（ポーリング影響を避けるためドラッグハンドラで使用）
     filteredColumns,
     isLoading,
+    isUpdatingStatus,
     staffs: staffs ?? [],
     moveCard,
     advanceStatus,

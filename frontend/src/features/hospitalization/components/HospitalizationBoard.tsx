@@ -31,7 +31,7 @@ interface CageCardProps {
     onNavigateToForm: (id?: string) => void;
 }
 
-const CageCard = ({ cage, occupant, onNavigateToForm }: CageCardProps) => {
+const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm }: CageCardProps) {
     const {
         attributes,
         listeners,
@@ -113,7 +113,7 @@ const CageCard = ({ cage, occupant, onNavigateToForm }: CageCardProps) => {
             </Card>
         </div>
     );
-};
+});
 
 export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, hospitalizations, onNavigateToForm, onMovePet }: HospitalizationBoardProps) {
   const sensors = useSensors(
