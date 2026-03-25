@@ -6,7 +6,7 @@ import { useNavigate } from "react-router";
 import { useSortableData } from "@/hooks/use-sortable-data";
 
 // External
-import { Plus, Syringe, FileSpreadsheet, Calendar } from "lucide-react";
+import { Plus, Syringe, FileSpreadsheet, Calendar, User } from "lucide-react";
 
 // Internal
 import { paths } from "@/config/paths";
@@ -33,7 +33,8 @@ import type {
   SortProperty,
 } from "@/components/shared/NotionFilter/types";
 
-const FILTER_PROPERTIES: FilterProperty[] = [
+// rendering-hoist-jsx: 静的フィルタプロパティ（担当医は動的オプションのためコンポーネント内で構築）
+const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
   {
     key: "date",
     label: "日付",
@@ -69,7 +70,18 @@ export function VaccinationList() {
     };
   }, [activeFilters]);
 
-  const { data: filteredRecords } = useFilterVaccinations(deferredSearchTerm, filters);
+  const { data: filteredRecords, allVaccinations } = useFilterVaccinations(deferredSearchTerm, filters, activeFilters);
+
+  // js-cache-function-results: ロード済みデータから担当医の選択肢を動的生成
+  const filterProperties = useMemo<FilterProperty[]>(() => {
+    const doctorOptions = Array.from(new Set(allVaccinations.map((r) => r.doctor).filter(Boolean)))
+      .sort()
+      .map((d) => ({ value: d, label: d }));
+    return [
+      ...STATIC_FILTER_PROPERTIES,
+      { key: "doctor", label: "担当医", type: "select" as const, icon: User, options: doctorOptions },
+    ];
+  }, [allVaccinations]);
 
   const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
     useSortableData(filteredRecords);
@@ -158,7 +170,7 @@ export function VaccinationList() {
     >
       <div className="flex flex-col gap-4">
         <NotionFilter
-          properties={FILTER_PROPERTIES}
+          properties={filterProperties}
           activeFilters={activeFilters}
           onFilterChange={setActiveFilters}
           searchTerm={searchTerm}

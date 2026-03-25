@@ -7,7 +7,7 @@ import { useSortableData } from "@/hooks/use-sortable-data";
 import { useModalState } from "@/hooks/use-modal-state";
 
 // External
-import { Plus, Scissors, AlertTriangle, Edit, Trash2, Calendar, CircleDot } from "lucide-react";
+import { Plus, Scissors, AlertTriangle, Edit, Trash2, Calendar, CircleDot, PawPrint, User } from "lucide-react";
 import { toast } from "sonner";
 
 // Types
@@ -105,7 +105,8 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
   );
 });
 
-const TRIMMING_FILTER_PROPERTIES: FilterProperty[] = [
+// rendering-hoist-jsx: 静的フィルタプロパティ（種・担当は動的オプションのためコンポーネント内で構築）
+const TRIMMING_STATIC_FILTER_PROPERTIES: FilterProperty[] = [
   {
     key: "date",
     label: "日付",
@@ -150,8 +151,23 @@ export function TrimmingList() {
     | undefined;
   const deferredDate = { from: dateFilter?.from ?? "", to: dateFilter?.to ?? "" };
 
-  const { data: filteredRecords, isLoading, error, deleteRecord } = useFilterTrimmingRecords(deferredKeyword, deferredDate, activeFilters);
+  const { data: filteredRecords, allTrimmings, isLoading, error, deleteRecord } = useFilterTrimmingRecords(deferredKeyword, deferredDate, activeFilters);
   const { isValidStaff } = useStaffValidation();
+
+  // js-cache-function-results: ロード済みデータから種・担当の選択肢を動的生成
+  const filterProperties = useMemo<FilterProperty[]>(() => {
+    const speciesOptions = Array.from(new Set(allTrimmings.map((r) => r.species).filter(Boolean)))
+      .sort()
+      .map((s) => ({ value: s, label: s }));
+    const staffOptions = Array.from(new Set(allTrimmings.map((r) => r.staff).filter(Boolean)))
+      .sort()
+      .map((s) => ({ value: s, label: s }));
+    return [
+      ...TRIMMING_STATIC_FILTER_PROPERTIES,
+      { key: "species", label: "種", type: "select" as const, icon: PawPrint, options: speciesOptions },
+      { key: "staff", label: "担当", type: "select" as const, icon: User, options: staffOptions },
+    ];
+  }, [allTrimmings]);
 
   const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
     useSortableData(filteredRecords);
@@ -285,7 +301,7 @@ export function TrimmingList() {
       <div className="flex flex-col gap-4">
         {/* Filters */}
         <NotionFilter
-          properties={TRIMMING_FILTER_PROPERTIES}
+          properties={filterProperties}
           activeFilters={activeFilters}
           onFilterChange={setActiveFilters}
           searchTerm={searchKeyword}

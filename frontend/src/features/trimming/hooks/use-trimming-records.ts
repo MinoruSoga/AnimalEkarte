@@ -34,6 +34,34 @@ export function useFilterTrimmingRecords(
       });
     }
 
+    // species フィルタ（クライアントサイド）
+    const speciesFilter = activeFilters?.find((f) => f.key === "species");
+    if (speciesFilter && typeof speciesFilter.value === "string") {
+      result = result.filter((r) => {
+        switch (speciesFilter.condition) {
+          case "is":           return r.species === speciesFilter.value;
+          case "is_not":       return r.species !== speciesFilter.value;
+          case "is_empty":     return !r.species;
+          case "is_not_empty": return !!r.species;
+          default:             return r.species === speciesFilter.value;
+        }
+      });
+    }
+
+    // staff フィルタ（クライアントサイド）
+    const staffFilter = activeFilters?.find((f) => f.key === "staff");
+    if (staffFilter && typeof staffFilter.value === "string") {
+      result = result.filter((r) => {
+        switch (staffFilter.condition) {
+          case "is":           return r.staff === staffFilter.value;
+          case "is_not":       return r.staff !== staffFilter.value;
+          case "is_empty":     return !r.staff;
+          case "is_not_empty": return !!r.staff;
+          default:             return r.staff === staffFilter.value;
+        }
+      });
+    }
+
     return result.filter((r) => {
       const matchesKeyword =
         searchTerm === "" ||
@@ -54,5 +82,5 @@ export function useFilterTrimmingRecords(
     deleteMutation.mutate(id);
   }, [deleteMutation]);
 
-  return { data: filteredRecords, isLoading, error, deleteRecord };
+  return { data: filteredRecords, allTrimmings: trimmingRecords, isLoading, error, deleteRecord };
 }
