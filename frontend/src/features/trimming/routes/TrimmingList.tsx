@@ -68,9 +68,9 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
           <span className="text-base text-[#37352F]/60">{record.petNumber}</span>
         </div>
       </TableCell>
-      <TableCell className="text-base text-[#37352F] py-2">{record.species}</TableCell>
-      <TableCell className="text-base text-[#37352F] py-2">{record.weight}</TableCell>
-      <TableCell className="text-base text-[#37352F] truncate max-w-[200px] py-2">
+      <TableCell className="text-base text-[#37352F] py-2 hidden lg:table-cell">{record.species}</TableCell>
+      <TableCell className="text-base text-[#37352F] py-2 hidden lg:table-cell">{record.weight}</TableCell>
+      <TableCell className="text-base text-[#37352F] truncate max-w-[200px] py-2 hidden lg:table-cell">
         {record.styleRequest}
       </TableCell>
       <TableCell className="text-base text-[#37352F] py-2">
@@ -267,10 +267,10 @@ export function TrimmingList() {
           onToggle={() => toggleSort("species")}
         />
       ),
-      className: "w-[80px]",
+      className: "w-[80px] hidden lg:table-cell",
     },
-    { header: "体重", className: "w-[80px]" },
-    { header: "スタイル希望" },
+    { header: "体重", className: "w-[80px] hidden lg:table-cell" },
+    { header: "スタイル希望", className: "hidden lg:table-cell" },
     {
       header: (
         <SortableHeader

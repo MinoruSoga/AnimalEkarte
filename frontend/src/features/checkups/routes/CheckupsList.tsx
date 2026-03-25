@@ -127,9 +127,9 @@ export function CheckupsList() {
             onToggle={() => toggleSort("nextDate")}
           />
         ),
-        className: "w-[120px]",
+        className: "w-[120px] hidden lg:table-cell",
       },
-      { header: "結果・所見" },
+      { header: "結果・所見", className: "hidden lg:table-cell" },
       { header: "担当医", className: "w-[100px]" },
     ],
     [directionFor, toggleSort],
@@ -171,10 +171,10 @@ export function CheckupsList() {
                 <TableCell className="text-base text-[#37352F] py-2">{c.ownerName || "-"}</TableCell>
                 <TableCell className="text-base text-[#37352F] py-2">{c.petName || "-"}</TableCell>
                 <TableCell className="text-base text-[#37352F] py-2">{c.checkupTypeName || "-"}</TableCell>
-                <TableCell className="font-mono text-base text-[#37352F] py-2">
+                <TableCell className="font-mono text-base text-[#37352F] py-2 hidden lg:table-cell">
                   {c.nextDate ? formatDate(c.nextDate) : "-"}
                 </TableCell>
-                <TableCell className="text-base text-[#37352F] py-2 max-w-xs truncate">
+                <TableCell className="text-base text-[#37352F] py-2 max-w-xs truncate hidden lg:table-cell">
                   {c.result || "-"}
                 </TableCell>
                 <TableCell className="text-base text-[#37352F] py-2">{c.doctorName || "-"}</TableCell>

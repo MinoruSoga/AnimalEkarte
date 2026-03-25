@@ -285,19 +285,19 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
       key={pet.id}
       onClick={() => handleRowClick(pet)}
     >
-      <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
+      <TableCell className={`${STYLE.tableCell} whitespace-nowrap hidden lg:table-cell`}>
         {pet.ownerNumber ?? "-"}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
         {pet.ownerName}
       </TableCell>
-      <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap`}>
+      <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap hidden lg:table-cell`}>
         {pet.petNumber || "-"}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
         {pet.name}
       </TableCell>
-      <TableCell className="whitespace-nowrap py-2">
+      <TableCell className="whitespace-nowrap py-2 hidden lg:table-cell">
         {/* rendering-conditional-render: && は空文字をそのまま描画するためternaryを使用 */}
         {pet.status ? (
           <StatusBadge colorClass={getPetStatusColor(pet.status)}>
@@ -308,16 +308,16 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
         {pet.species}
       </TableCell>
-      <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap`}>
+      <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap hidden lg:table-cell`}>
         {formatDate(pet.birthDate)}
       </TableCell>
-      <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap`}>
+      <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap hidden lg:table-cell`}>
         {formatWeight(pet.weight)}
       </TableCell>
-      <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
+      <TableCell className={`${STYLE.tableCell} whitespace-nowrap hidden lg:table-cell`}>
         {pet.environment || "-"}
       </TableCell>
-      <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap`}>
+      <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap hidden lg:table-cell`}>
         {formatDate(pet.lastVisit)}
       </TableCell>
       <TableCell className="whitespace-nowrap py-2 text-right">
@@ -349,7 +349,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
           onToggle={() => toggleSort("ownerNumber")}
         />
       ),
-      className: "w-[100px]",
+      className: "w-[100px] hidden lg:table-cell",
     },
     {
       header: (
@@ -361,7 +361,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
       ),
       className: "w-[180px]",
     },
-    { header: "ペット番号", className: "w-[100px]" },
+    { header: "ペット番号", className: "w-[100px] hidden lg:table-cell" },
     {
       header: (
         <SortableHeader
@@ -372,7 +372,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
       ),
       className: "w-[120px]",
     },
-    { header: "生死", className: "w-[60px]" },
+    { header: "生死", className: "w-[60px] hidden lg:table-cell" },
     {
       header: (
         <SortableHeader
@@ -391,10 +391,10 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
           onToggle={() => toggleSort("birthDate")}
         />
       ),
-      className: "w-[100px]",
+      className: "w-[100px] hidden lg:table-cell",
     },
-    { header: "体重", className: "w-[80px]" },
-    { header: "環境", className: "w-[120px]" },
+    { header: "体重", className: "w-[80px] hidden lg:table-cell" },
+    { header: "環境", className: "w-[120px] hidden lg:table-cell" },
     {
       header: (
         <SortableHeader
@@ -403,7 +403,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
           onToggle={() => toggleSort("lastVisit")}
         />
       ),
-      className: "w-[100px]",
+      className: "w-[100px] hidden lg:table-cell",
     },
     { header: "操作", className: "w-[100px]", align: "right" as const },
   ], [directionFor, toggleSort]);

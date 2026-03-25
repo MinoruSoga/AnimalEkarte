@@ -214,7 +214,7 @@ export function Accounting() {
           onToggle={() => toggleSort("scheduledDate")}
         />
       ),
-      className: "w-[140px]",
+      className: "w-[120px]",
     },
     {
       header: (
@@ -255,7 +255,7 @@ export function Accounting() {
       ),
       className: "w-[100px]",
     },
-    { header: "カルテ", className: "w-[80px]", align: "center" as const },
+    { header: "カルテ", className: "w-[80px] hidden lg:table-cell", align: "center" as const },
     { header: "操作", className: "w-[100px]", align: "right" as const },
   ], [directionFor, toggleSort]);
 
@@ -282,7 +282,7 @@ export function Accounting() {
               {statusLabel}
             </StatusBadge>
           </TableCell>
-          <TableCell className="text-center py-2">
+          <TableCell className="text-center py-2 hidden lg:table-cell">
             {r.medicalRecordId ? (
               <Button
                 variant="ghost"

@@ -152,10 +152,10 @@ export function MedicalRecords() {
     },
     {
       header: <SortableHeader label="種" direction={directionFor("species")} onToggle={() => toggleSort("species")} />,
-      className: "w-[80px]",
+      className: "w-[80px] hidden lg:table-cell",
     },
     { header: "主訴" },
-    { header: "関連", className: "w-[100px]" },
+    { header: "関連", className: "w-[100px] hidden lg:table-cell" },
     {
       header: <SortableHeader label="担当医" direction={directionFor("doctor")} onToggle={() => toggleSort("doctor")} />,
       className: "w-[100px]",
@@ -208,11 +208,11 @@ export function MedicalRecords() {
                 <TableCell className={STYLE.tableCellMono}>{r.date}</TableCell>
                 <TableCell className={STYLE.tableCell}>{r.ownerName}</TableCell>
                 <TableCell className={STYLE.tableCell}>{r.petName}</TableCell>
-                <TableCell className={STYLE.tableCell}>{r.species}</TableCell>
-                <TableCell className={`text-sm ${C.text} max-w-[200px] truncate py-2`} title={r.chiefComplaint}>
+                <TableCell className={`${STYLE.tableCell} hidden lg:table-cell`}>{r.species}</TableCell>
+                <TableCell className={`text-base ${C.text} max-w-[200px] truncate py-2.5`} title={r.chiefComplaint}>
                   {r.chiefComplaint}
                 </TableCell>
-                <TableCell className="py-2">
+                <TableCell className="py-2.5 hidden lg:table-cell">
                   {r.accountingId ? (
                     <button
                       onClick={(e) => {
@@ -238,12 +238,12 @@ export function MedicalRecords() {
                     ) : null}
                   </div>
                 </TableCell>
-                <TableCell className="py-2">
+                <TableCell className="py-2.5">
                   <StatusBadge colorClass={getMedicalRecordStatusColor(r.status)}>
                     {r.status}
                   </StatusBadge>
                 </TableCell>
-                <TableCell className="text-right py-2">
+                <TableCell className="text-right py-2.5">
                   <RowActionDropdown
                     actions={[
                       {

@@ -161,7 +161,7 @@ export function Examinations() {
         />
       ),
     },
-    { header: "結果概要" },
+    { header: "結果概要", className: "hidden lg:table-cell" },
     {
       header: (
         <SortableHeader
@@ -180,7 +180,7 @@ export function Examinations() {
           onToggle={() => toggleSort("status")}
         />
       ),
-      className: "w-[80px]",
+      className: "w-[100px]",
     },
     { header: "操作", className: "w-[80px]", align: "right" as const },
   ], [directionFor, toggleSort]);
@@ -227,20 +227,20 @@ export function Examinations() {
                 key={r.id}
                 onClick={() => handleEdit(r.id)}
               >
-                <TableCell className="font-mono text-sm text-[#37352F] py-2">{r.date}</TableCell>
-                <TableCell className="text-sm text-[#37352F] py-2">{r.ownerName}</TableCell>
-                <TableCell className="text-sm text-[#37352F] py-2">{r.petName}</TableCell>
-                <TableCell className="text-sm font-medium text-[#37352F] py-2">{r.testType}</TableCell>
-                <TableCell className="text-sm text-muted-foreground truncate max-w-[200px] py-2">
+                <TableCell className="font-mono text-base text-[#37352F] py-2.5">{r.date}</TableCell>
+                <TableCell className="text-base text-[#37352F] py-2.5">{r.ownerName}</TableCell>
+                <TableCell className="text-base text-[#37352F] py-2.5">{r.petName}</TableCell>
+                <TableCell className="text-base font-medium text-[#37352F] py-2.5">{r.testType}</TableCell>
+                <TableCell className="text-base text-muted-foreground truncate max-w-[200px] py-2.5 hidden lg:table-cell">
                   {r.resultSummary || "-"}
                 </TableCell>
-                <TableCell className="text-sm text-[#37352F] py-2">{r.doctor}</TableCell>
-                <TableCell className="py-2">
+                <TableCell className="text-base text-[#37352F] py-2.5">{r.doctor}</TableCell>
+                <TableCell className="py-2.5">
                   <StatusBadge colorClass={getExaminationStatusColor(r.status)}>
                     {r.status}
                   </StatusBadge>
                 </TableCell>
-                <TableCell className="text-right py-2">
+                <TableCell className="text-right py-2.5">
                   <RowActionButton onClick={() => handleEdit(r.id)} />
                 </TableCell>
               </DataTableRow>

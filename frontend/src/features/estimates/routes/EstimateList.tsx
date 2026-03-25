@@ -62,8 +62,8 @@ const COLUMNS = [
   { header: "飼主名", className: "w-[130px]" },
   { header: "有効期限", className: "w-[110px]" },
   { header: "合計金額", align: "right" as const },
-  { header: "ステータス", className: "w-[110px]" },
-  { header: "操作", className: "w-[60px]", align: "right" as const },
+  { header: "ステータス", className: "w-[100px]" },
+  { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
 export function EstimateList() {

@@ -160,9 +160,9 @@ export function InventoryList() {
       className: "w-[100px]",
       align: "right" as const,
     },
-    { header: "最低在庫", className: "w-[100px]", align: "right" as const },
+    { header: "最低在庫", className: "w-[100px] hidden lg:table-cell", align: "right" as const },
     { header: "保管場所", className: "w-[120px]" },
-    { header: "有効期限", className: "w-[120px]" },
+    { header: "有効期限", className: "w-[120px] hidden lg:table-cell" },
     {
       header: (
         <SortableHeader
@@ -249,13 +249,13 @@ export function InventoryList() {
                 <TableCell className="text-base text-[#37352F] py-2 text-right font-mono">
                   {item.quantity} {item.unit}
                 </TableCell>
-                <TableCell className="text-base text-[#37352F]/60 py-2 text-right font-mono">
+                <TableCell className="text-base text-[#37352F]/60 py-2 text-right font-mono hidden lg:table-cell">
                   {item.minStockLevel} {item.unit}
                 </TableCell>
                 <TableCell className="text-base text-[#37352F] py-2">
                   {item.location ?? "-"}
                 </TableCell>
-                <TableCell className="text-base text-[#37352F] py-2 font-mono">
+                <TableCell className="text-base text-[#37352F] py-2 font-mono hidden lg:table-cell">
                   {item.expiryDate ?? "-"}
                 </TableCell>
                 <TableCell className="py-2">
