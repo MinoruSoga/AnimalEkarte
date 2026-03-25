@@ -50,11 +50,12 @@ const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
     type: "select",
     icon: CircleDot,
     // exams.status DEFAULT 'pending' — 空値は存在しない
+    // transform で EN→JA 変換済のためフィルタ値も日本語で指定
     conditions: CONDITIONS_NO_EMPTY,
     options: [
-      { value: "pending", label: "依頼中" },
-      { value: "in_progress", label: "検査中" },
-      { value: "completed", label: "完了" },
+      { value: "依頼中", label: "依頼中" },
+      { value: "検査中", label: "検査中" },
+      { value: "完了", label: "完了" },
     ],
   },
 ];
