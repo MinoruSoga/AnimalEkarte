@@ -22,7 +22,7 @@ export function useSortableData<T extends object>(
 ) {
   const [activeSorts, setActiveSorts] = useState<ActiveSortItem[]>([]);
 
-  const toggleSort = useCallback((key: keyof T & string) => {
+  const toggleSort = useCallback((key: string) => {
     setActiveSorts((prev) => {
       const existing = prev.find((s) => s.key === key);
       if (!existing) return [{ key, direction: "asc" as const }];
@@ -36,7 +36,7 @@ export function useSortableData<T extends object>(
   }, []);
 
   const directionFor = useCallback(
-    (key: keyof T & string): "ascending" | "descending" | "none" => {
+    (key: string): "ascending" | "descending" | "none" => {
       const sort = activeSorts.find((s) => s.key === key);
       if (!sort) return "none";
       return sort.direction === "asc" ? "ascending" : "descending";
@@ -52,7 +52,7 @@ export function useSortableData<T extends object>(
     const sorted = [...data];
     sorted.sort((a, b) => {
       for (const sort of activeSorts) {
-        const key = sort.key as keyof T & string;
+        const key = sort.key;
         let cmp = 0;
 
         if (getSortValue) {
