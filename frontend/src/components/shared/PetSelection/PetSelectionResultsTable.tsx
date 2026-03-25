@@ -17,7 +17,7 @@ interface PetSelectionResultsTableProps {
   onSelect: (pet: Pet) => void;
 }
 
-export const PetSelectionResultsTable = ({ pets, onSelect }: PetSelectionResultsTableProps) => {
+export function PetSelectionResultsTable({ pets, onSelect }: PetSelectionResultsTableProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -102,4 +102,4 @@ export const PetSelectionResultsTable = ({ pets, onSelect }: PetSelectionResults
       </div>
     </div>
   );
-};
+}

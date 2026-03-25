@@ -13,7 +13,7 @@ interface PageLayoutProps {
   align?: "center" | "left";
 }
 
-export const PageLayout = ({
+export function PageLayout({
   children,
   title,
   description: _description,
@@ -23,7 +23,7 @@ export const PageLayout = ({
   maxWidth = "max-w-[1440px]",
   className,
   align = "center",
-}: PageLayoutProps) => {
+}: PageLayoutProps) {
   return (
     <div
       className={`flex flex-col h-full bg-[#F7F6F3] overflow-hidden ${className || ""}`}
@@ -43,4 +43,4 @@ export const PageLayout = ({
       </div>
     </div>
   );
-};
+}

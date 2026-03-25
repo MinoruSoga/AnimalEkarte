@@ -14,7 +14,7 @@ interface PetSelectionProps {
   listClassName?: string;
 }
 
-export const PetSelection = ({
+export function PetSelection({
   searchQuery,
   onSearchChange,
   filteredPets,
@@ -22,7 +22,7 @@ export const PetSelection = ({
   onTogglePet,
   className,
   listClassName,
-}: PetSelectionProps) => {
+}: PetSelectionProps) {
   return (
     <div className={cn("flex flex-col gap-2 border rounded-lg p-2 bg-white", className)}>
       <div>
@@ -103,4 +103,4 @@ export const PetSelection = ({
       ) : null}
     </div>
   );
-};
+}

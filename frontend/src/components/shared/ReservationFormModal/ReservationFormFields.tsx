@@ -59,12 +59,12 @@ interface ReservationFormFieldsProps {
   onClearError?: (field: string) => void;
 }
 
-export const ReservationFormFields = ({
+export function ReservationFormFields({
   formData,
   onChange,
   validationErrors,
   onClearError: _onClearError,
-}: ReservationFormFieldsProps) => {
+}: ReservationFormFieldsProps) {
   const { data: serviceTypes } = useMasterItems("serviceType");
   const { data: staffItems } = useMasterItems("staff");
   const activeStaff = staffItems.filter((s) => s.status === "active");
@@ -297,4 +297,4 @@ export const ReservationFormFields = ({
       </div>
     </div>
   );
-};
+}
