@@ -13,6 +13,8 @@ interface ClinicFormData {
   directorName: string;
   email: string;
   website: string;
+  standardTaxRate: number;
+  reducedTaxRate: number;
 }
 
 const DEFAULT_FORM: ClinicFormData = {
@@ -25,6 +27,8 @@ const DEFAULT_FORM: ClinicFormData = {
   directorName: "",
   email: "",
   website: "",
+  standardTaxRate: 0.1,
+  reducedTaxRate: 0.08,
 };
 
 function clinicToFormData(clinic: TransformedClinic): ClinicFormData {
@@ -38,6 +42,8 @@ function clinicToFormData(clinic: TransformedClinic): ClinicFormData {
     directorName: clinic.directorName,
     email: clinic.email,
     website: clinic.website,
+    standardTaxRate: clinic.standardTaxRate,
+    reducedTaxRate: clinic.reducedTaxRate,
   };
 }
 
@@ -52,6 +58,8 @@ function formDataToRequest(data: ClinicFormData): UpdateClinicRequest {
     director_name: data.directorName,
     email: data.email,
     website: data.website,
+    standard_tax_rate: data.standardTaxRate,
+    reduced_tax_rate: data.reducedTaxRate,
   };
 }
 
@@ -73,6 +81,13 @@ export function useClinicSettingsForm(clinic: TransformedClinic | null) {
     [],
   );
 
+  const handleTaxRateChange = useCallback(
+    (field: "standardTaxRate" | "reducedTaxRate", value: number) => {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+    },
+    [],
+  );
+
   const resetToClinic = useCallback((c: TransformedClinic) => {
     const data = clinicToFormData(c);
     setFormData(data);
@@ -87,6 +102,7 @@ export function useClinicSettingsForm(clinic: TransformedClinic | null) {
   return {
     formData,
     handleInputChange,
+    handleTaxRateChange,
     isDirty,
     isSavePending,
     startSaveTransition,

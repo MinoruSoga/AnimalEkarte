@@ -2,13 +2,19 @@ import type { Accounting, AccountingItem, PaymentInfo } from "../types";
 import type { BackendAccounting, BackendAccountingItem } from "./types";
 
 function transformAccountingItem(item: BackendAccountingItem): AccountingItem {
+  const unitPrice = item.unit_price ?? 0;
+  const quantity = item.quantity ?? 1;
+  const taxRate = item.tax_rate ?? 0.1;
   return {
     id: String(item.id ?? 0),
     category: item.category as AccountingItem["category"],
     name: item.name,
-    unitPrice: item.unit_price ?? 0,
-    quantity: item.quantity,
-    taxRate: (item.tax_rate === 0.08 ? 0.08 : 0.1) as 0.1 | 0.08,
+    unitPrice,
+    quantity,
+    taxType: item.tax_type ?? "excluded",
+    taxRate,
+    taxAmount: item.tax_amount ?? 0,
+    subtotal: item.subtotal ?? Math.round(unitPrice * quantity),
     isInsuranceApplicable: item.is_insurance_applicable,
     source: item.source as "medical_record" | "manual",
   };

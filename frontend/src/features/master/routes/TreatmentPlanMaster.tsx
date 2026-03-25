@@ -2,6 +2,8 @@
 import { useState, useMemo, useCallback, memo, useDeferredValue } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
+import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
+import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 
 // DnD
 import { DndContext, closestCenter } from "@dnd-kit/core";
@@ -79,6 +81,7 @@ import {
 
 // Types
 import type { TreatmentItem } from "@/lib/transforms/treatment";
+import type { TaxType } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -91,6 +94,8 @@ type TreatmentFormData = {
   price: number;
   description: string;
   isActive: boolean;
+  taxType: TaxType;
+  taxRate: number;
 };
 
 type MutateCallbacks = {
@@ -175,6 +180,8 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
     price: item?.price ?? 0,
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,
+    taxType: (item?.taxType ?? "excluded") as TaxType,
+    taxRate: item?.taxRate ?? 0.1,
   }));
 
   return (
@@ -195,6 +202,18 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
         value={formData.price}
         onChange={(v) => setFormData((prev) => ({ ...prev, price: v }))}
       />
+      <PropertyRow label="課税区分">
+        <TaxTypeSelector
+          value={formData.taxType}
+          onChange={(v) => setFormData((prev) => ({ ...prev, taxType: v }))}
+        />
+      </PropertyRow>
+      <PropertyRow label="税率">
+        <TaxRateSelector
+          value={formData.taxRate}
+          onChange={(v) => setFormData((prev) => ({ ...prev, taxRate: v }))}
+        />
+      </PropertyRow>
       <PropertyRow label="備考">
         <PropInput
           value={formData.description}
@@ -511,6 +530,8 @@ export function TreatmentPlanMaster() {
             price: data.price,
             description: data.description || undefined,
             is_active: data.isActive,
+            tax_type: data.taxType,
+            tax_rate: data.taxRate,
           },
           { onSuccess: () => cb.onSuccess(), onError: () => cb.onError() },
         ),
@@ -523,6 +544,8 @@ export function TreatmentPlanMaster() {
               price: data.price,
               description: data.description || undefined,
               is_active: data.isActive,
+              tax_type: data.taxType,
+              tax_rate: data.taxRate,
             },
           },
           { onSuccess: () => cb.onSuccess(), onError: () => cb.onError() },
@@ -583,6 +606,8 @@ export function TreatmentPlanMaster() {
             price: data.price,
             description: data.description || undefined,
             is_active: data.isActive,
+            tax_type: data.taxType,
+            tax_rate: data.taxRate,
           },
           { onSuccess: () => cb.onSuccess(), onError: () => cb.onError() },
         ),
@@ -595,6 +620,8 @@ export function TreatmentPlanMaster() {
               price: data.price,
               description: data.description || undefined,
               is_active: data.isActive,
+              tax_type: data.taxType,
+              tax_rate: data.taxRate,
             },
           },
           { onSuccess: () => cb.onSuccess(), onError: () => cb.onError() },

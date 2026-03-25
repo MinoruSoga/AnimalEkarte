@@ -18,6 +18,8 @@ export interface UpdateClinicRequest {
   email?: string;
   website?: string;
   logo_url?: string;
+  standard_tax_rate?: number;
+  reduced_tax_rate?: number;
 }
 
 export interface CreateStaffRequest {

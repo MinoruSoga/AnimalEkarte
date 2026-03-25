@@ -7,7 +7,7 @@ import { useSortableData } from "@/hooks/use-sortable-data";
 import { useModalState } from "@/hooks/use-modal-state";
 
 // External
-import { Plus, FileText, Edit, Trash2, Receipt, AlertTriangle, Calendar, CircleDot } from "lucide-react";
+import { Plus, FileText, Edit, Trash2, Receipt, AlertTriangle, Calendar, CircleDot, User, PawPrint } from "lucide-react";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
@@ -40,8 +40,8 @@ import type {
 } from "@/components/shared/NotionFilter/types";
 import type { MedicalRecordFilters } from "../api/get-medical-records";
 
-// rendering-hoist-jsx: 静的フィルタプロパティ定義
-const FILTER_PROPERTIES: FilterProperty[] = [
+// rendering-hoist-jsx: 静的フィルタプロパティ（担当医・種は動的オプションのためコンポーネント内で構築）
+const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
   {
     key: "date",
     label: "診療日",
@@ -87,7 +87,22 @@ export function MedicalRecords() {
     };
   }, [activeFilters]);
 
-  const { data: filteredRecords, isLoading, isError } = useFilterMedicalRecords(deferredSearch, apiFilters, activeFilters);
+  const { data: filteredRecords, allRecords, isLoading, isError } = useFilterMedicalRecords(deferredSearch, apiFilters, activeFilters);
+
+  // js-cache-function-results: ロード済みレコードから担当医・種の選択肢を動的生成
+  const filterProperties = useMemo<FilterProperty[]>(() => {
+    const doctorOptions = Array.from(new Set(allRecords.map((r) => r.doctor).filter(Boolean)))
+      .sort()
+      .map((d) => ({ value: d, label: d }));
+    const speciesOptions = Array.from(new Set(allRecords.map((r) => r.species).filter(Boolean)))
+      .sort()
+      .map((s) => ({ value: s, label: s }));
+    return [
+      ...STATIC_FILTER_PROPERTIES,
+      { key: "doctor", label: "担当医", type: "select" as const, icon: User, options: doctorOptions },
+      { key: "species", label: "種", type: "select" as const, icon: PawPrint, options: speciesOptions },
+    ];
+  }, [allRecords]);
   const deleteModal = useModalState<{ id: string; label: string }>();
   const { mutate: deleteRecord } = useDeleteMedicalRecord();
   const { isValidStaff } = useStaffValidation();
@@ -162,7 +177,7 @@ export function MedicalRecords() {
       <div className="flex flex-col gap-4 flex-1 min-h-0">
         {/* Search */}
         <NotionFilter
-          properties={FILTER_PROPERTIES}
+          properties={filterProperties}
           activeFilters={activeFilters}
           onFilterChange={setActiveFilters}
           searchTerm={searchTerm}

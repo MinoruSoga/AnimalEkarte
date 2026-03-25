@@ -27,6 +27,34 @@ export function useFilterMedicalRecords(
       });
     }
 
+    // doctor フィルタ（クライアントサイド）
+    const doctorFilter = activeFilters?.find((f) => f.key === "doctor");
+    if (doctorFilter && typeof doctorFilter.value === "string") {
+      result = result.filter((r) => {
+        switch (doctorFilter.condition) {
+          case "is":           return r.doctor === doctorFilter.value;
+          case "is_not":       return r.doctor !== doctorFilter.value;
+          case "is_empty":     return !r.doctor;
+          case "is_not_empty": return !!r.doctor;
+          default:             return r.doctor === doctorFilter.value;
+        }
+      });
+    }
+
+    // species フィルタ（クライアントサイド）
+    const speciesFilter = activeFilters?.find((f) => f.key === "species");
+    if (speciesFilter && typeof speciesFilter.value === "string") {
+      result = result.filter((r) => {
+        switch (speciesFilter.condition) {
+          case "is":           return r.species === speciesFilter.value;
+          case "is_not":       return r.species !== speciesFilter.value;
+          case "is_empty":     return !r.species;
+          case "is_not_empty": return !!r.species;
+          default:             return r.species === speciesFilter.value;
+        }
+      });
+    }
+
     // テキスト検索
     if (!searchTerm) return result;
     const lowerTerm = searchTerm.toLowerCase();
@@ -39,5 +67,5 @@ export function useFilterMedicalRecords(
     );
   }, [records, searchTerm, activeFilters]);
 
-  return { data: filteredRecords, isLoading, isError };
+  return { data: filteredRecords, allRecords: records, isLoading, isError };
 }

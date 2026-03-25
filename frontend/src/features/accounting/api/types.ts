@@ -4,12 +4,27 @@ import type {
   BillingStatus,
   Payment,
   PaymentMethod,
+  TaxType,
 } from "@/types/generated/models";
 
 // Backend 型エイリアス
 export type BackendAccounting = Billing;
-export type BackendAccountingItem = BillingItem;
 export type BackendPayment = Payment;
+
+// BillingItem のレスポンス型（BE handler が計算して返す追加フィールドを含む）
+export interface BackendAccountingItem extends BillingItem {
+  tax_amount?: number;
+  subtotal?: number;
+}
+
+// BillingItem の更新リクエスト
+export interface UpdateBillingItemRequest {
+  unit_price?: number;
+  quantity?: number;
+  tax_type?: TaxType;
+  tax_rate?: number;
+  is_insurance_applicable?: boolean;
+}
 
 // API リクエスト型（models.ts から導出）
 export interface CreateAccountingRequest {

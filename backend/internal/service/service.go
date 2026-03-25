@@ -53,6 +53,7 @@ type Services struct {
 	Checkup                CheckupService
 	Estimate               EstimateService
 	MerchandiseItem        MerchandiseItemService
+	BillingItem            BillingItemService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す
@@ -103,5 +104,6 @@ func NewServices(repos *repository.Repositories) *Services {
 		Checkup:                NewCheckupService(repos.Checkup),
 		Estimate:               NewEstimateService(repos.Estimate),
 		MerchandiseItem:        NewMerchandiseItemService(repos.MerchandiseItem, slog.Default()),
+		BillingItem:            NewBillingItemService(repos.BillingItem, slog.Default()),
 	}
 }

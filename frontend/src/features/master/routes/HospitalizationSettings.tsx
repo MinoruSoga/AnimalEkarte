@@ -2,6 +2,8 @@ import { memo, useState } from "react";
 import { Bed } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableCell } from "@/components/ui/table";
+import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
+import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
@@ -20,7 +22,7 @@ import {
   BODY_SIZE_OPTIONS, BODY_SIZE_LABELS, BILLING_UNIT_OPTIONS, BILLING_UNIT_LABELS,
 } from "@/features/master/api/hospitalization-plans";
 import type { HospitalizationPlan, CreateHospitalizationPlanRequest, UpdateHospitalizationPlanRequest } from "@/features/master/api/hospitalization-plans";
-import type { BodySize, BillingUnit } from "@/types/generated/models";
+import type { BodySize, BillingUnit, TaxType } from "@/types/generated/models";
 
 const COLUMNS = [
   { header: "名称" }, { header: "対象体格", className: "w-[100px]" },
@@ -31,7 +33,7 @@ const COLUMNS = [
 const BODY_SIZE_SELECT_ITEMS = BODY_SIZE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>);
 const BILLING_UNIT_SELECT_ITEMS = BILLING_UNIT_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>);
 
-interface HospitalizationFormData { name: string; price: number; description: string; isActive: boolean; bodySize: BodySize | ""; billingUnit: BillingUnit | ""; }
+interface HospitalizationFormData { name: string; price: number; description: string; isActive: boolean; bodySize: BodySize | ""; billingUnit: BillingUnit | ""; taxType: TaxType; taxRate: number; }
 
 const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
   item, onClose, onSave, onDeleteRequest,
@@ -39,6 +41,7 @@ const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
   const [f, setF] = useState<HospitalizationFormData>(() => ({
     name: item?.name ?? "", price: item?.price ?? 0, description: item?.description ?? "",
     isActive: item?.isActive ?? true, bodySize: item?.bodySize ?? "", billingUnit: item?.billingUnit ?? "",
+    taxType: item?.taxType ?? "excluded", taxRate: item?.taxRate ?? 0.1,
   }));
   return (
     <MasterSidePanel isNew={item === null} title={f.name} onTitleChange={(v) => setF((p) => ({ ...p, name: v }))}
@@ -58,6 +61,18 @@ const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
         </Select>
       </PropertyRow>
       <MoneyInput value={f.price} onChange={(v) => setF((p) => ({ ...p, price: v }))} />
+      <PropertyRow label="課税区分">
+        <TaxTypeSelector
+          value={f.taxType}
+          onChange={(v) => setF((p) => ({ ...p, taxType: v }))}
+        />
+      </PropertyRow>
+      <PropertyRow label="税率">
+        <TaxRateSelector
+          value={f.taxRate}
+          onChange={(v) => setF((p) => ({ ...p, taxRate: v }))}
+        />
+      </PropertyRow>
       <PropertyRow label="備考">
         <PropInput value={f.description} onChange={(v) => setF((p) => ({ ...p, description: v }))} placeholder="補足情報など" />
       </PropertyRow>
@@ -77,10 +92,12 @@ export function HospitalizationSettings() {
     toCreateRequest: (d) => ({
       name: d.name, price: d.price || undefined, description: d.description || undefined, is_active: d.isActive,
       body_size: d.bodySize !== "" ? d.bodySize : undefined, billing_unit: d.billingUnit !== "" ? d.billingUnit : undefined,
+      tax_type: d.taxType, tax_rate: d.taxRate,
     }),
     toUpdateRequest: (d) => ({
       name: d.name, price: d.price, description: d.description || undefined, is_active: d.isActive,
       body_size: d.bodySize !== "" ? d.bodySize : null, billing_unit: d.billingUnit !== "" ? d.billingUnit : null,
+      tax_type: d.taxType, tax_rate: d.taxRate,
     }),
   });
 

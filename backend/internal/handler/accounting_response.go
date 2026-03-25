@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type billingItemResponse struct {
@@ -13,7 +14,10 @@ type billingItemResponse struct {
 	Name                  string    `json:"name"`
 	UnitPrice             int64     `json:"unit_price"`
 	Quantity              float64   `json:"quantity"`
+	Subtotal              int64     `json:"subtotal"`
+	TaxType               string    `json:"tax_type"`
 	TaxRate               float64   `json:"tax_rate"`
+	TaxAmount             int64     `json:"tax_amount"`
 	IsInsuranceApplicable bool      `json:"is_insurance_applicable"`
 	Source                string    `json:"source"`
 	SortOrder             int       `json:"sort_order"`
@@ -72,6 +76,8 @@ type accountingResponse struct {
 }
 
 func toBillingItemResponse(item *model.BillingItem) billingItemResponse {
+	subtotal := int64(float64(item.UnitPrice) * item.Quantity)
+	taxAmount := service.CalculateTaxAmount(item.UnitPrice, item.Quantity, item.TaxType, item.TaxRate)
 	return billingItemResponse{
 		ID:                    item.ID,
 		BillingID:             item.BillingID,
@@ -79,7 +85,10 @@ func toBillingItemResponse(item *model.BillingItem) billingItemResponse {
 		Name:                  item.Name,
 		UnitPrice:             item.UnitPrice,
 		Quantity:              item.Quantity,
+		Subtotal:              subtotal,
+		TaxType:               string(item.TaxType),
 		TaxRate:               item.TaxRate,
+		TaxAmount:             taxAmount,
 		IsInsuranceApplicable: item.IsInsuranceApplicable,
 		Source:                string(item.Source),
 		SortOrder:             item.SortOrder,

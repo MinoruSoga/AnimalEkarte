@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { MerchandiseItem } from "@/types/generated/models";
+import type { MerchandiseItem, TaxType } from "@/types/generated/models";
 
 // ─── Transform ────────────────────────────────────────────
 
@@ -10,6 +10,7 @@ interface FrontendMerchandiseItem {
   name: string;
   category: string;
   unitPrice: number;
+  taxType: TaxType;
   taxRate: number;
   isActive: boolean;
   sortOrder: number;
@@ -21,6 +22,7 @@ function transformMerchandiseItem(item: MerchandiseItem): FrontendMerchandiseIte
     name: item.name,
     category: item.category,
     unitPrice: item.unit_price,
+    taxType: item.tax_type ?? "excluded",
     taxRate: item.tax_rate,
     isActive: item.is_active,
     sortOrder: item.sort_order,
@@ -35,6 +37,7 @@ interface CreateMerchandiseItemRequest {
   name: string;
   category: string;
   unit_price: number;
+  tax_type: TaxType;
   tax_rate: number;
   is_active?: boolean;
 }
@@ -43,6 +46,7 @@ interface UpdateMerchandiseItemRequest {
   name?: string;
   category?: string;
   unit_price?: number;
+  tax_type?: TaxType;
   tax_rate?: number;
   is_active?: boolean;
 }

@@ -6,7 +6,7 @@ import { useNavigate } from "react-router";
 import { useSortableData } from "@/hooks/use-sortable-data";
 
 // External
-import { Plus, TestTube, FileSpreadsheet, Calendar, CircleDot } from "lucide-react";
+import { Plus, TestTube, FileSpreadsheet, Calendar, CircleDot, FlaskConical } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,8 @@ import type {
   SortProperty,
 } from "@/components/shared/NotionFilter/types";
 
-const FILTER_PROPERTIES: FilterProperty[] = [
+// rendering-hoist-jsx: 静的フィルタプロパティ（検査種別は動的オプションのためコンポーネント内で構築）
+const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
   {
     key: "date",
     label: "日付",
@@ -83,7 +84,18 @@ export function Examinations() {
     };
   }, [activeFilters]);
 
-  const { data: filteredRecords, isLoading } = useFilterExaminationRecords(deferredSearch, filters, activeFilters);
+  const { data: filteredRecords, allExaminations, isLoading } = useFilterExaminationRecords(deferredSearch, filters, activeFilters);
+
+  // js-cache-function-results: ロード済みデータから検査種別の選択肢を動的生成
+  const filterProperties = useMemo<FilterProperty[]>(() => {
+    const testTypeOptions = Array.from(new Set(allExaminations.map((r) => r.testType).filter(Boolean)))
+      .sort()
+      .map((t) => ({ value: t, label: t }));
+    return [
+      ...STATIC_FILTER_PROPERTIES,
+      { key: "testType", label: "検査種別", type: "select" as const, icon: FlaskConical, options: testTypeOptions },
+    ];
+  }, [allExaminations]);
 
   const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
     useSortableData(filteredRecords);
@@ -183,7 +195,7 @@ export function Examinations() {
     >
       <div className="flex flex-col gap-4">
         <NotionFilter
-          properties={FILTER_PROPERTIES}
+          properties={filterProperties}
           activeFilters={activeFilters}
           onFilterChange={setActiveFilters}
           searchTerm={searchTerm}

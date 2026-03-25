@@ -72,6 +72,9 @@ import {
   useReorderMedicines,
 } from "../api/medicines";
 import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medicine";
+import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
+import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
+import type { TaxType } from "@/types/generated/models";
 
 // Types
 import type { Medicine } from "@/types";
@@ -124,6 +127,8 @@ interface MedicineFormData {
   price: number;
   description: string;
   isActive: boolean;
+  taxType: TaxType;
+  taxRate: number;
 }
 
 const INITIAL_FORM: MedicineFormData = {
@@ -134,6 +139,8 @@ const INITIAL_FORM: MedicineFormData = {
   price: 0,
   description: "",
   isActive: true,
+  taxType: "excluded",
+  taxRate: 0.1,
 };
 
 // ─────────────────────────────────────────────────
@@ -318,6 +325,24 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
                   />
                 </div>
               )}
+            </PropertyRow>
+
+            {/* Tax type */}
+            <PropertyRow label="課税区分">
+              <TaxTypeSelector
+                value={formData.taxType}
+                onChange={(v) => updateForm({ taxType: v })}
+                disabled={isCategory}
+              />
+            </PropertyRow>
+
+            {/* Tax rate */}
+            <PropertyRow label="税率">
+              <TaxRateSelector
+                value={formData.taxRate}
+                onChange={(v) => updateForm({ taxRate: v })}
+                disabled={isCategory}
+              />
             </PropertyRow>
 
             {/* Status */}
@@ -594,6 +619,8 @@ export function MedicineSettings() {
       price: medicine.price,
       description: medicine.description,
       isActive: medicine.isActive,
+      taxType: medicine.taxType ?? "excluded",
+      taxRate: medicine.taxRate ?? 0.1,
     });
   }, []);
 
@@ -629,6 +656,8 @@ export function MedicineSettings() {
           price: effectivePrice,
           description: formData.description,
           is_active: formData.isActive,
+          tax_type: formData.taxType,
+          tax_rate: formData.taxRate,
         };
         // parent_id の処理
         if (formData.parentId) {
@@ -655,6 +684,8 @@ export function MedicineSettings() {
           price: effectivePrice,
           description: formData.description,
           is_active: formData.isActive,
+          tax_type: formData.taxType,
+          tax_rate: formData.taxRate,
           ...(formData.parentId ? { parent_id: Number(formData.parentId) } : {}),
         };
         createMutation.mutate(req, {

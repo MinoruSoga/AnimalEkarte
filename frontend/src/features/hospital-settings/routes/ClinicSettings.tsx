@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 
 // External
-import { Building2, Save } from "lucide-react";
+import { Building2, Save, Percent } from "lucide-react";
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -33,6 +33,7 @@ export function ClinicSettings() {
   const {
     formData,
     handleInputChange,
+    handleTaxRateChange,
     isDirty,
     isSavePending,
     startSaveTransition,
@@ -65,7 +66,7 @@ export function ClinicSettings() {
       icon={<Building2 className="h-6 w-6" />}
       maxWidth="max-w-4xl"
     >
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
           <CardHeader>
             <CardTitle>基本情報</CardTitle>
@@ -187,6 +188,76 @@ export function ClinicSettings() {
                   }
                   placeholder="https://example.com"
                 />
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="bg-gray-50 border-t p-4 flex justify-end">
+            <Button type="submit" disabled={!isDirty || isSavePending}>
+              <Save className="mr-2 h-4 w-4" />
+              設定を保存
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Percent className="h-5 w-5" />
+              税率設定
+            </CardTitle>
+            <CardDescription>
+              消費税の税率マスタを設定します。各商品の課税区分で参照される税率です。
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="standardTaxRate">通常課税</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="standardTaxRate"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={Math.round(formData.standardTaxRate * 100)}
+                    onChange={(e) =>
+                      handleTaxRateChange(
+                        "standardTaxRate",
+                        Number(e.target.value) / 100,
+                      )
+                    }
+                    className="max-w-[100px]"
+                  />
+                  <span className="text-sm text-gray-600">%</span>
+                </div>
+                <p className="text-sm text-gray-500">
+                  標準税率（デフォルト: 10%）
+                </p>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="reducedTaxRate">軽減税率</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="reducedTaxRate"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={Math.round(formData.reducedTaxRate * 100)}
+                    onChange={(e) =>
+                      handleTaxRateChange(
+                        "reducedTaxRate",
+                        Number(e.target.value) / 100,
+                      )
+                    }
+                    className="max-w-[100px]"
+                  />
+                  <span className="text-sm text-gray-600">%</span>
+                </div>
+                <p className="text-sm text-gray-500">
+                  軽減税率（デフォルト: 8%）
+                </p>
               </div>
             </div>
           </CardContent>

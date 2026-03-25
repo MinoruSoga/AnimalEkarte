@@ -48,9 +48,13 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useGetAccountingDetail } from "../api/get-accounting";
 import { createAccounting } from "../api/create-accounting";
 import { updateAccounting } from "../api/update-accounting";
+import { updateBillingItem } from "../api/update-billing-item";
 import { useGetAllMerchandiseItems } from "../api/get-merchandise-items";
 import { useGetPet } from "@/hooks/use-pet";
 import type { FrontendMerchandiseItem } from "../api/get-merchandise-items";
+import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
+import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
+import { queryKeys } from "@/lib/query-keys";
 // bundle-dynamic-imports: 191行のコンポーネントを遅延ロード
 const AccountingDocument = lazy(() =>
   import("../components/AccountingDocument").then((m) => ({ default: m.AccountingDocument }))
@@ -61,6 +65,7 @@ import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIco
 
 // Types
 import type { Accounting, AccountingItem, PaymentInfo, ItemCategory, PaymentMethod } from "../types";
+import type { TaxType } from "@/types/generated/models";
 
 // ── 静的定数（rendering-hoist-jsx）──────────────────────────
 
@@ -86,6 +91,8 @@ interface ItemListCardProps {
   onNewItemOpenChange: (open: boolean) => void;
   onAddItem: (name: string, price: string, category: string, taxRate?: number) => void;
   onDeleteItem: (id: string) => void;
+  billingId?: string;
+  onUpdateItemTax?: (itemId: string, taxType: TaxType, taxRate: number) => void;
 }
 
 const MERCHANDISE_CATEGORY_OPTIONS = [
@@ -104,6 +111,8 @@ const ItemListCard = memo(function ItemListCard({
   onNewItemOpenChange,
   onAddItem,
   onDeleteItem,
+  billingId,
+  onUpdateItemTax,
 }: ItemListCardProps) {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [merchandiseSearch, setMerchandiseSearch] = useState("");
@@ -213,10 +222,13 @@ const ItemListCard = memo(function ItemListCard({
             <TableRow>
               <TableHead className="w-[100px]">区分</TableHead>
               <TableHead>項目名</TableHead>
-              <TableHead className="text-right w-[100px]">単価</TableHead>
-              <TableHead className="text-center w-[80px]">数量</TableHead>
-              <TableHead className="text-center w-[80px]">保険</TableHead>
-              <TableHead className="text-right w-[120px]">金額</TableHead>
+              <TableHead className="text-right w-[90px]">単価</TableHead>
+              <TableHead className="text-center w-[60px]">数量</TableHead>
+              <TableHead className="w-[100px] text-center">課税区分</TableHead>
+              <TableHead className="text-center w-[70px]">税率</TableHead>
+              <TableHead className="text-right w-[80px]">税額</TableHead>
+              <TableHead className="text-center w-[60px]">保険</TableHead>
+              <TableHead className="text-right w-[100px]">金額</TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -245,6 +257,31 @@ const ItemListCard = memo(function ItemListCard({
                   </div>
                 </TableCell>
                 <TableCell className="text-center">
+                  {billingId !== undefined && onUpdateItemTax !== undefined ? (
+                    <TaxTypeSelector
+                      value={item.taxType}
+                      onChange={(v) => onUpdateItemTax(item.id, v, item.taxRate)}
+                    />
+                  ) : (
+                    <span className="text-sm text-muted-foreground">
+                      {item.taxType === "excluded" ? "外税" : item.taxType === "included" ? "内税" : "非課税"}
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className="text-center">
+                  {billingId !== undefined && onUpdateItemTax !== undefined ? (
+                    <TaxRateSelector
+                      value={item.taxRate}
+                      onChange={(v) => onUpdateItemTax(item.id, item.taxType, v)}
+                    />
+                  ) : (
+                    <span className="text-sm text-muted-foreground">{Math.round(item.taxRate * 100)}%</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">
+                  ¥{item.taxAmount.toLocaleString()}
+                </TableCell>
+                <TableCell className="text-center">
                   {item.isInsuranceApplicable ? (
                     <span className="text-green-600 font-bold text-xs">●</span>
                   ) : (
@@ -252,7 +289,7 @@ const ItemListCard = memo(function ItemListCard({
                   )}
                 </TableCell>
                 <TableCell className="text-right font-medium">
-                  ¥{(item.unitPrice * item.quantity).toLocaleString()}
+                  ¥{(item.subtotal + item.taxAmount).toLocaleString()}
                 </TableCell>
                 <TableCell>
                   {item.source === "manual" ? (
@@ -482,6 +519,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
   const location = useLocation();
   const queryClient = useQueryClient();
   const [isSaving, startSaveTransition] = useTransition();
+  const [, startTaxUpdateTransition] = useTransition();
 
   const locationState = location.state as { accountingItems?: AccountingItem[] } | null;
 
@@ -570,10 +608,8 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
     let taxTotal = 0;
 
     for (const item of accounting.items) {
-      const price = item.unitPrice * item.quantity;
-      const tax = Math.floor(price * item.taxRate);
-      subtotal += price;
-      taxTotal += tax;
+      subtotal += item.subtotal;
+      taxTotal += item.taxAmount;
     }
 
     const totalAmount = subtotal + taxTotal;
@@ -604,13 +640,19 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
   }, [accounting, hasInsurance, insuranceRatio, receivedAmount]);
 
   const handleAddItem = useCallback((name: string, price: string, category: string, taxRate?: number) => {
+    const unitPrice = parseInt(price, 10);
+    const qty = 1;
+    const rate = taxRate ?? 0.1;
     const newItem: AccountingItem = {
       id: `manual_${crypto.randomUUID()}`,
       category: category as ItemCategory,
       name,
-      unitPrice: parseInt(price, 10),
-      quantity: 1,
-      taxRate: (taxRate === 0.08 ? 0.08 : 0.1) as 0.1 | 0.08,
+      unitPrice,
+      quantity: qty,
+      taxType: "excluded" as TaxType,
+      taxRate: rate,
+      taxAmount: Math.round(unitPrice * qty * rate),
+      subtotal: unitPrice * qty,
       isInsuranceApplicable: false,
       source: "manual",
     };
@@ -623,6 +665,17 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
   const handleDeleteItem = useCallback((itemId: string) => {
     setLocalItems((prev) => (prev ?? []).filter((i) => i.id !== itemId));
   }, []);
+
+  const handleUpdateItemTax = useCallback(
+    (itemId: string, taxType: TaxType, taxRate: number) => {
+      if (!id) return;
+      startTaxUpdateTransition(async () => {
+        await updateBillingItem(itemId, { tax_type: taxType, tax_rate: taxRate });
+        queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(id) });
+      });
+    },
+    [id, queryClient],
+  );
 
   const handleComplete = useCallback(() => {
     if (!accounting || !calculation) return;
@@ -740,6 +793,8 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
               onNewItemOpenChange={setNewItemOpen}
               onAddItem={handleAddItem}
               onDeleteItem={handleDeleteItem}
+              billingId={id}
+              onUpdateItemTax={handleUpdateItemTax}
             />
           </div>
 

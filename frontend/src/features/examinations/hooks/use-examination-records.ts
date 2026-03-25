@@ -27,6 +27,20 @@ export function useFilterExaminationRecords(
       });
     }
 
+    // testType フィルタ（クライアントサイド）
+    const testTypeFilter = activeFilters?.find((f) => f.key === "testType");
+    if (testTypeFilter && typeof testTypeFilter.value === "string") {
+      result = result.filter((r) => {
+        switch (testTypeFilter.condition) {
+          case "is":           return r.testType === testTypeFilter.value;
+          case "is_not":       return r.testType !== testTypeFilter.value;
+          case "is_empty":     return !r.testType;
+          case "is_not_empty": return !!r.testType;
+          default:             return r.testType === testTypeFilter.value;
+        }
+      });
+    }
+
     // テキスト検索
     if (!searchTerm) return result;
     const lowerTerm = searchTerm.toLowerCase();
@@ -38,5 +52,5 @@ export function useFilterExaminationRecords(
     );
   }, [examinationsData, searchTerm, activeFilters]);
 
-  return { data: filteredRecords, isLoading, error };
+  return { data: filteredRecords, allExaminations: examinationsData, isLoading, error };
 }

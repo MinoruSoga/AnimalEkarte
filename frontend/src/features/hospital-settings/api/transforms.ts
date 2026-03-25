@@ -16,6 +16,8 @@ export function transformClinic(data: Clinic) {
     isActive: data.is_active,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
+    standardTaxRate: data.standard_tax_rate ?? 0.1,
+    reducedTaxRate: data.reduced_tax_rate ?? 0.08,
   };
 }
 

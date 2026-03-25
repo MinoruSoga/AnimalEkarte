@@ -12,6 +12,8 @@ import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
+import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
+import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
@@ -29,6 +31,7 @@ import type {
   CreateMerchandiseItemRequest,
   UpdateMerchandiseItemRequest,
 } from "../api/merchandise-items";
+import type { TaxType } from "@/types/generated/models";
 
 // ─── Constants ───
 
@@ -44,18 +47,13 @@ const CATEGORY_SELECT_ITEMS = [
   { value: "other", label: "その他" },
 ].map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>);
 
-const TAX_RATE_SELECT_ITEMS = [
-  { value: "0.1", label: "10%" },
-  { value: "0.08", label: "8%（軽減税率）" },
-  { value: "0", label: "非課税" },
-].map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>);
-
 // ─── FormData ───
 
 interface MerchandiseFormData {
   name: string;
   category: string;
   unitPrice: number;
+  taxType: TaxType;
   taxRate: number;
   isActive: boolean;
 }
@@ -77,6 +75,7 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
     name: item?.name ?? "",
     category: item?.category ?? "goods",
     unitPrice: item?.unitPrice ?? 0,
+    taxType: item?.taxType ?? "excluded",
     taxRate: item?.taxRate ?? 0.1,
     isActive: item?.isActive ?? true,
   }));
@@ -102,13 +101,17 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
         </Select>
       </PropertyRow>
       <MoneyInput value={f.unitPrice} onChange={(v) => setF((p) => ({ ...p, unitPrice: v }))} />
+      <PropertyRow label="課税区分">
+        <TaxTypeSelector
+          value={f.taxType}
+          onChange={(v) => setF((p) => ({ ...p, taxType: v }))}
+        />
+      </PropertyRow>
       <PropertyRow label="税率">
-        <Select value={String(f.taxRate)} onValueChange={(v) => setF((p) => ({ ...p, taxRate: Number(v) }))}>
-          <SelectTrigger className={STYLE.selectCompact}>
-            <SelectValue placeholder="選択" />
-          </SelectTrigger>
-          <SelectContent>{TAX_RATE_SELECT_ITEMS}</SelectContent>
-        </Select>
+        <TaxRateSelector
+          value={f.taxRate}
+          onChange={(v) => setF((p) => ({ ...p, taxRate: v }))}
+        />
       </PropertyRow>
     </MasterSidePanel>
   );
@@ -202,6 +205,7 @@ export function MerchandiseItemSettings() {
       name: d.name,
       category: d.category,
       unit_price: d.unitPrice,
+      tax_type: d.taxType,
       tax_rate: d.taxRate,
       is_active: d.isActive,
     }),
@@ -209,6 +213,7 @@ export function MerchandiseItemSettings() {
       name: d.name,
       category: d.category,
       unit_price: d.unitPrice,
+      tax_type: d.taxType,
       tax_rate: d.taxRate,
       is_active: d.isActive,
     }),

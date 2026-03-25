@@ -19,6 +19,7 @@ import {
   ItemCategoryGoods,
   ItemCategoryOther,
 } from "@/types/generated/models";
+import type { TaxType } from "@/types/generated/models";
 
 /** @see {@link import("@/types/generated/models").BillingStatus} */
 export type AccountingStatus =
@@ -52,7 +53,10 @@ export interface AccountingItem {
   name: string;
   unitPrice: number;
   quantity: number;
-  taxRate: 0.1 | 0.08; // 10% or 8%
+  taxType: TaxType;
+  taxRate: number;
+  taxAmount: number; // BE が計算して返す
+  subtotal: number;  // unit_price × quantity（税抜）
   isInsuranceApplicable: boolean;
   source: "medical_record" | "manual"; // カルテ連携か手動追加か
 }

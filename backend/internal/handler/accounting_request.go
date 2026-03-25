@@ -33,3 +33,26 @@ type updateAccountingRequest struct {
 	CompletedAt       *time.Time `json:"completed_at"`
 	Memo              string     `json:"memo"`
 }
+
+// createBillingItemRequest は明細作成リクエスト。
+type createBillingItemRequest struct {
+	BillingID             uint64  `json:"billing_id" binding:"required"`
+	Category              string  `json:"category"`
+	Name                  string  `json:"name" binding:"required"`
+	UnitPrice             int64   `json:"unit_price"`
+	Quantity              float64 `json:"quantity"`
+	TaxType               string  `json:"tax_type"`
+	TaxRate               float64 `json:"tax_rate"`
+	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
+	Source                string  `json:"source"`
+	SortOrder             int     `json:"sort_order"`
+}
+
+// updateBillingItemRequest は明細更新リクエスト（nil = 未指定）。
+type updateBillingItemRequest struct {
+	UnitPrice             *int64   `json:"unit_price"`
+	Quantity              *float64 `json:"quantity"`
+	TaxType               *string  `json:"tax_type"`
+	TaxRate               *float64 `json:"tax_rate"`
+	IsInsuranceApplicable *bool    `json:"is_insurance_applicable"`
+}

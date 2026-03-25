@@ -77,4 +77,5 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	h.RegisterShiftRoutes(protected)
 	h.RegisterCompanyRoutes(protected)
 	h.RegisterGlobalCheckupRoutes(protected)
+	h.RegisterBillingItemRoutes(protected)
 }

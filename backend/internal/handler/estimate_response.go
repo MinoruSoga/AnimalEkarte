@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type estimateItemResponse struct {
@@ -13,7 +14,10 @@ type estimateItemResponse struct {
 	Category              string    `json:"category"`
 	UnitPrice             int64     `json:"unit_price"`
 	Quantity              float64   `json:"quantity"`
+	Subtotal              int64     `json:"subtotal"`
+	TaxType               string    `json:"tax_type"`
 	TaxRate               float64   `json:"tax_rate"`
+	TaxAmount             int64     `json:"tax_amount"`
 	DiscountRate          float64   `json:"discount_rate"`
 	DiscountAmount        int64     `json:"discount_amount"`
 	IsInsuranceApplicable bool      `json:"is_insurance_applicable"`
@@ -45,6 +49,8 @@ type estimateResponse struct {
 }
 
 func toEstimateItemResponse(item *model.EstimateItem) estimateItemResponse {
+	subtotal := int64(float64(item.UnitPrice) * item.Quantity)
+	taxAmount := service.CalculateTaxAmount(item.UnitPrice, item.Quantity, item.TaxType, item.TaxRate)
 	return estimateItemResponse{
 		ID:                    item.ID,
 		EstimateID:            item.EstimateID,
@@ -52,7 +58,10 @@ func toEstimateItemResponse(item *model.EstimateItem) estimateItemResponse {
 		Category:              string(item.Category),
 		UnitPrice:             item.UnitPrice,
 		Quantity:              item.Quantity,
+		Subtotal:              subtotal,
+		TaxType:               string(item.TaxType),
 		TaxRate:               item.TaxRate,
+		TaxAmount:             taxAmount,
 		DiscountRate:          item.DiscountRate,
 		DiscountAmount:        item.DiscountAmount,
 		IsInsuranceApplicable: item.IsInsuranceApplicable,

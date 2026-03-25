@@ -2,7 +2,7 @@
 import { useState, useCallback, useMemo } from "react";
 
 // External
-import { Plus, LayoutGrid, List, Building2 } from "lucide-react";
+import { Plus, LayoutGrid, List, Building2, Calendar } from "lucide-react";
 
 // Internal
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -39,6 +39,12 @@ const isValidViewMode = (v: string): v is ViewMode => v === "list" || v === "boa
 
 // rendering-hoist-jsx: 静的フィルタプロパティ定義
 const HOSPITALIZATION_FILTER_PROPERTIES: FilterProperty[] = [
+  {
+    key: "startDate",
+    label: "入院日",
+    type: "date-range",
+    icon: Calendar,
+  },
   {
     key: "hospitalizationType",
     label: "入院区分",
@@ -78,19 +84,36 @@ export function HospitalizationList() {
     setActiveSorts(sorts);
   }, []);
 
-  // 入院区分フィルタ（クライアントサイド）
+  // 入院区分・入院日フィルタ（クライアントサイド）
   const typeFilteredHospitalizations = useMemo(() => {
+    let result = filteredHospitalizations;
+
+    // 入院区分フィルタ
     const typeFilter = activeFilters.find((f) => f.key === "hospitalizationType");
-    if (!typeFilter || typeof typeFilter.value !== "string") return filteredHospitalizations;
-    return filteredHospitalizations.filter((h) => {
-      switch (typeFilter.condition) {
-        case "is":           return h.hospitalizationType === typeFilter.value;
-        case "is_not":       return h.hospitalizationType !== typeFilter.value;
-        case "is_empty":     return !h.hospitalizationType;
-        case "is_not_empty": return !!h.hospitalizationType;
-        default:             return h.hospitalizationType === typeFilter.value;
-      }
-    });
+    if (typeFilter && typeof typeFilter.value === "string") {
+      result = result.filter((h) => {
+        switch (typeFilter.condition) {
+          case "is":           return h.hospitalizationType === typeFilter.value;
+          case "is_not":       return h.hospitalizationType !== typeFilter.value;
+          case "is_empty":     return !h.hospitalizationType;
+          case "is_not_empty": return !!h.hospitalizationType;
+          default:             return h.hospitalizationType === typeFilter.value;
+        }
+      });
+    }
+
+    // 入院日フィルタ（date-range）
+    const dateFilter = activeFilters.find((f) => f.key === "startDate")?.value as
+      | { from?: string; to?: string }
+      | undefined;
+    if (dateFilter?.from || dateFilter?.to) {
+      result = result.filter((h) => {
+        const d = h.startDate?.slice(0, 10) ?? "";
+        return (!dateFilter.from || d >= dateFilter.from) && (!dateFilter.to || d <= dateFilter.to);
+      });
+    }
+
+    return result;
   }, [filteredHospitalizations, activeFilters]);
 
   // Sort data for list view
