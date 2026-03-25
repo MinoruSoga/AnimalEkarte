@@ -37,6 +37,9 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
 }: UseMasterSaveOptions<T, TForm, TCreate, TUpdate>) {
   // rerender-dependencies: extract primitives from crud.editTarget object
   const editTargetId = crud.editTarget !== null && crud.editTarget !== "new" ? crud.editTarget.id : null;
+  // rerender-dependencies: destructure methods to avoid object reference instability
+  const crudHandleClose = crud.handleClose;
+  const crudStartSave = crud.startSaveTransition;
 
   const handleSave = useCallback(
     (data: TForm) => {
@@ -46,14 +49,14 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
         return;
       }
 
-      crud.startSaveTransition(() => {
+      crudStartSave(() => {
         if (editTargetId !== null) {
           updateMutation.mutate(
             { id: editTargetId, req: toUpdateRequest(data) },
             {
               onSuccess: () => {
                 toast.success("更新しました");
-                crud.handleClose();
+                crudHandleClose();
               },
               onError: () => toast.error("更新に失敗しました"),
             },
@@ -62,14 +65,14 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
           createMutation.mutate(toCreateRequest(data), {
             onSuccess: () => {
               toast.success("登録しました");
-              crud.handleClose();
+              crudHandleClose();
             },
             onError: () => toast.error("登録に失敗しました"),
           });
         }
       });
     },
-    [editTargetId, crud.handleClose, crud.startSaveTransition, createMutation, updateMutation, validate, toCreateRequest, toUpdateRequest],
+    [editTargetId, crudHandleClose, crudStartSave, createMutation, updateMutation, validate, toCreateRequest, toUpdateRequest],
   );
 
   return { handleSave };

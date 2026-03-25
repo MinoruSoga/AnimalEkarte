@@ -49,7 +49,6 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     isSaving,
     treatmentPlanItems,
     setTreatmentPlanItems,
-    treatmentCompletedItems,
     chiefComplaint,
     setChiefComplaint,
     chiefComplaintCategoryId,

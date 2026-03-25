@@ -1,5 +1,5 @@
 // React/Framework
-import React, { memo, useMemo } from "react";
+import React, { memo } from "react";
 
 // Shared
 import { calcLineItemAmount } from "@/utils/line-item-helpers";

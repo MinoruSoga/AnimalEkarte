@@ -513,13 +513,25 @@ export function TrimmingSettings() {
     entityLabel: "トリミングオプション",
   });
 
+  // rerender-dependencies: destructure methods to avoid object reference instability in useCallback deps
+  const courseSetEditTarget = courseCrud.setEditTarget;
+  const courseSetPendingDelete = courseCrud.setPendingDelete;
+  const courseStartSave = courseCrud.startSaveTransition;
+  const courseEditTarget = courseCrud.editTarget;
+  const courseHandleClose = courseCrud.handleClose;
+  const optionSetEditTarget = optionCrud.setEditTarget;
+  const optionSetPendingDelete = optionCrud.setPendingDelete;
+  const optionStartSave = optionCrud.startSaveTransition;
+  const optionEditTarget = optionCrud.editTarget;
+  const optionHandleClose = optionCrud.handleClose;
+
   const handleTabChange = useCallback((tab: string) => {
     setSearchParams({ tab });
-    courseCrud.setEditTarget(null);
-    optionCrud.setEditTarget(null);
-    courseCrud.setPendingDelete(null);
-    optionCrud.setPendingDelete(null);
-  }, [setSearchParams, courseCrud.setEditTarget, optionCrud.setEditTarget, courseCrud.setPendingDelete, optionCrud.setPendingDelete]);
+    courseSetEditTarget(null);
+    optionSetEditTarget(null);
+    courseSetPendingDelete(null);
+    optionSetPendingDelete(null);
+  }, [setSearchParams, courseSetEditTarget, optionSetEditTarget, courseSetPendingDelete, optionSetPendingDelete]);
 
   const handleCourseSave = useCallback(
     (data: CourseFormData) => {
@@ -528,8 +540,8 @@ export function TrimmingSettings() {
         return;
       }
       const priceValue = data.price !== "" ? Number(data.price) : null;
-      courseCrud.startSaveTransition(() => {
-        if (courseCrud.editTarget !== null && courseCrud.editTarget !== "new") {
+      courseStartSave(() => {
+        if (courseEditTarget !== null && courseEditTarget !== "new") {
           const req: UpdateTrimmingCourseRequest = {
             name: data.name,
             price: priceValue,
@@ -539,9 +551,9 @@ export function TrimmingSettings() {
             is_active: data.isActive,
           };
           updateCourseMutation.mutate(
-            { id: courseCrud.editTarget.id, req },
+            { id: courseEditTarget.id, req },
             {
-              onSuccess: () => { toast.success("更新しました"); courseCrud.handleClose(); },
+              onSuccess: () => { toast.success("更新しました"); courseHandleClose(); },
               onError: () => toast.error("更新に失敗しました"),
             },
           );
@@ -555,13 +567,13 @@ export function TrimmingSettings() {
             is_active: true,
           };
           createCourseMutation.mutate(req, {
-            onSuccess: () => { toast.success("登録しました"); courseCrud.handleClose(); },
+            onSuccess: () => { toast.success("登録しました"); courseHandleClose(); },
             onError: () => toast.error("登録に失敗しました"),
           });
         }
       });
     },
-    [courseCrud.editTarget, updateCourseMutation, createCourseMutation, courseCrud.handleClose, courseCrud.startSaveTransition],
+    [courseEditTarget, updateCourseMutation, createCourseMutation, courseHandleClose, courseStartSave],
   );
 
   const handleOptionSave = useCallback(
@@ -571,8 +583,8 @@ export function TrimmingSettings() {
         return;
       }
       const priceValue = data.price !== "" ? Number(data.price) : null;
-      optionCrud.startSaveTransition(() => {
-        if (optionCrud.editTarget !== null && optionCrud.editTarget !== "new") {
+      optionStartSave(() => {
+        if (optionEditTarget !== null && optionEditTarget !== "new") {
           const req: UpdateTrimmingOptionRequest = {
             name: data.name,
             price: priceValue,
@@ -582,9 +594,9 @@ export function TrimmingSettings() {
             is_active: data.isActive,
           };
           updateOptionMutation.mutate(
-            { id: optionCrud.editTarget.id, req },
+            { id: optionEditTarget.id, req },
             {
-              onSuccess: () => { toast.success("更新しました"); optionCrud.handleClose(); },
+              onSuccess: () => { toast.success("更新しました"); optionHandleClose(); },
               onError: () => toast.error("更新に失敗しました"),
             },
           );
@@ -598,13 +610,13 @@ export function TrimmingSettings() {
             is_active: true,
           };
           createOptionMutation.mutate(req, {
-            onSuccess: () => { toast.success("登録しました"); optionCrud.handleClose(); },
+            onSuccess: () => { toast.success("登録しました"); optionHandleClose(); },
             onError: () => toast.error("登録に失敗しました"),
           });
         }
       });
     },
-    [optionCrud.editTarget, updateOptionMutation, createOptionMutation, optionCrud.handleClose, optionCrud.startSaveTransition],
+    [optionEditTarget, updateOptionMutation, createOptionMutation, optionHandleClose, optionStartSave],
   );
 
   return (

@@ -9,7 +9,6 @@ import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPil
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
-import { PropInput } from "@/components/shared/SidePeek/PropInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";

@@ -4,13 +4,6 @@ import type { Hospitalization } from "@/types";
 import { transformHospitalization } from "./transforms";
 import type { BackendHospitalization } from "./types";
 
-interface HospitalizationListResponse {
-  data: BackendHospitalization[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
 export const getHospitalization = async (
   id: string
 ): Promise<Hospitalization> => {

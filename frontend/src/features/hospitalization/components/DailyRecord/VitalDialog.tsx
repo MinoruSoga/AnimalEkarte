@@ -33,18 +33,17 @@ export function VitalDialog({ open, onOpenChange, onSave }: VitalDialogProps) {
         notes: "",
         time: getCurrentTime()
     }));
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- ダイアログ open 時にフォームをリセット
     useEffect(() => {
-        if (open) {
-            setForm({
-                temperature: "",
-                heartRate: "",
-                respirationRate: "",
-                weight: "",
-                notes: "",
-                time: getCurrentTime()
-            });
-        }
+        if (!open) return;
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- ダイアログ open 時にフォームをリセット
+        setForm({
+            temperature: "",
+            heartRate: "",
+            respirationRate: "",
+            weight: "",
+            notes: "",
+            time: getCurrentTime()
+        });
     }, [open]);
 
     const handleSave = () => {

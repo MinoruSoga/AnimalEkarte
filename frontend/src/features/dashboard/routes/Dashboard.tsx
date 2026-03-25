@@ -74,10 +74,6 @@ export function Dashboard() {
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
     );
 
-    const findColumnByCardId = useCallback((cardId: string) => {
-        return filteredColumns.find(col => col.appointments.some(a => a.id === cardId));
-    }, [filteredColumns]);
-
     const handleDragOver = useCallback((event: DragOverEvent) => {
         const { active, over } = event;
         if (!over) return;

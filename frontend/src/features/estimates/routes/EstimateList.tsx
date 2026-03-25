@@ -75,11 +75,9 @@ export function EstimateList() {
   const { data: result, isLoading, isError } = useGetEstimates();
   const { mutate: deleteEstimate } = useDeleteEstimate();
 
-  const estimates = result?.data ?? [];
-
   // フィルタ + 検索 + ソートを適用
   const filtered = useMemo(() => {
-    let items = [...estimates];
+    let items = [...(result?.data ?? [])];
 
     // ActiveFilter 適用
     for (const filter of activeFilters) {
@@ -154,13 +152,13 @@ export function EstimateList() {
     }
 
     return items;
-  }, [estimates, activeFilters, deferredSearch, activeSorts]);
+  }, [result?.data, activeFilters, deferredSearch, activeSorts]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (deleteModal.item == null) return;
     deleteEstimate(deleteModal.item);
     deleteModal.close();
-  }, [deleteModal.item, deleteModal.close, deleteEstimate]);
+  }, [deleteModal, deleteEstimate]);
 
   const handleSortChange = useCallback((sorts: ActiveSort[]) => {
     setActiveSorts(sorts);

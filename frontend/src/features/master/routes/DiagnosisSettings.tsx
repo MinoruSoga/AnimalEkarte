@@ -439,11 +439,21 @@ export function DiagnosisSettings() {
     entityLabel: "診断病名",
   });
 
+  // rerender-dependencies: destructure methods to avoid object reference instability in useCallback deps
+  const catSetEditTarget = catCrud.setEditTarget;
+  const catHandleClose = catCrud.handleClose;
+  const catStartSave = catCrud.startSaveTransition;
+  const catEditTarget = catCrud.editTarget;
+  const nameSetEditTarget = nameCrud.setEditTarget;
+  const nameHandleClose = nameCrud.handleClose;
+  const nameStartSave = nameCrud.startSaveTransition;
+  const nameEditTarget = nameCrud.editTarget;
+
   const handleTabChange = useCallback((tab: string) => {
     setSearchParams({ tab });
-    catCrud.setEditTarget(null);
-    nameCrud.setEditTarget(null);
-  }, [setSearchParams, catCrud.setEditTarget, nameCrud.setEditTarget]);
+    catSetEditTarget(null);
+    nameSetEditTarget(null);
+  }, [setSearchParams, catSetEditTarget, nameSetEditTarget]);
 
   const handleCategorySave = useCallback(
     (data: DiagnosisCategoryFormData) => {
@@ -451,17 +461,17 @@ export function DiagnosisSettings() {
         toast.error("カテゴリ名は必須です");
         return;
       }
-      catCrud.startSaveTransition(() => {
-        if (catCrud.editTarget !== null && catCrud.editTarget !== "new") {
+      catStartSave(() => {
+        if (catEditTarget !== null && catEditTarget !== "new") {
           const req: UpdateDiagnosisCategoryRequest = {
             name: data.name,
             description: data.description || undefined,
             is_active: data.isActive,
           };
           updateCategoryMutation.mutate(
-            { id: catCrud.editTarget.id, req },
+            { id: catEditTarget.id, req },
             {
-              onSuccess: () => { toast.success("更新しました"); catCrud.handleClose(); },
+              onSuccess: () => { toast.success("更新しました"); catHandleClose(); },
               onError: () => toast.error("更新に失敗しました"),
             },
           );
@@ -472,13 +482,13 @@ export function DiagnosisSettings() {
             is_active: true,
           };
           createCategoryMutation.mutate(req, {
-            onSuccess: () => { toast.success("登録しました"); catCrud.handleClose(); },
+            onSuccess: () => { toast.success("登録しました"); catHandleClose(); },
             onError: () => toast.error("登録に失敗しました"),
           });
         }
       });
     },
-    [catCrud.editTarget, updateCategoryMutation, createCategoryMutation, catCrud.handleClose, catCrud.startSaveTransition],
+    [catEditTarget, updateCategoryMutation, createCategoryMutation, catHandleClose, catStartSave],
   );
 
   const handleNameSave = useCallback(
@@ -491,8 +501,8 @@ export function DiagnosisSettings() {
         toast.error("カテゴリは必須です");
         return;
       }
-      nameCrud.startSaveTransition(() => {
-        if (nameCrud.editTarget !== null && nameCrud.editTarget !== "new") {
+      nameStartSave(() => {
+        if (nameEditTarget !== null && nameEditTarget !== "new") {
           const req: UpdateDiagnosisNameRequest = {
             name: data.name,
             diagnosis_category_id: Number(data.diagnosisCategoryId),
@@ -500,9 +510,9 @@ export function DiagnosisSettings() {
             is_active: data.isActive,
           };
           updateNameMutation.mutate(
-            { id: nameCrud.editTarget.id, req },
+            { id: nameEditTarget.id, req },
             {
-              onSuccess: () => { toast.success("更新しました"); nameCrud.handleClose(); },
+              onSuccess: () => { toast.success("更新しました"); nameHandleClose(); },
               onError: () => toast.error("更新に失敗しました"),
             },
           );
@@ -514,13 +524,13 @@ export function DiagnosisSettings() {
             is_active: true,
           };
           createNameMutation.mutate(req, {
-            onSuccess: () => { toast.success("登録しました"); nameCrud.handleClose(); },
+            onSuccess: () => { toast.success("登録しました"); nameHandleClose(); },
             onError: () => toast.error("登録に失敗しました"),
           });
         }
       });
     },
-    [nameCrud.editTarget, updateNameMutation, createNameMutation, nameCrud.handleClose, nameCrud.startSaveTransition],
+    [nameEditTarget, updateNameMutation, createNameMutation, nameHandleClose, nameStartSave],
   );
 
   return (

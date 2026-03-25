@@ -113,7 +113,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
         toast.success("会計確認を差し戻しました");
       }
     });
-  }, [returnMutation, user]);
+  }, [returnMutation]);
 
   const { subtotal, tax, total } = useMemo(() => {
     // 1. 各明細の合計
