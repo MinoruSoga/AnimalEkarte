@@ -12,6 +12,7 @@ type merchandiseItemResponse struct {
 	Name      string    `json:"name"`
 	Category  string    `json:"category"`
 	UnitPrice int64     `json:"unit_price"`
+	TaxType   string    `json:"tax_type"`
 	TaxRate   float64   `json:"tax_rate"`
 	IsActive  bool      `json:"is_active"`
 	SortOrder int       `json:"sort_order"`
@@ -26,6 +27,7 @@ func toMerchandiseItemResponse(m *model.MerchandiseItem) merchandiseItemResponse
 		Name:      m.Name,
 		Category:  string(m.Category),
 		UnitPrice: m.UnitPrice,
+		TaxType:   string(m.TaxType),
 		TaxRate:   m.TaxRate,
 		IsActive:  m.IsActive,
 		SortOrder: m.SortOrder,
