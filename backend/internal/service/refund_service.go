@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -31,8 +32,22 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 	}
 
 	// 請求が存在するか確認（マルチテナント保護）
-	if _, err := s.accountRepo.FindByID(ctx, clinicID, billingID); err != nil {
+	billing, err := s.accountRepo.FindByID(ctx, clinicID, billingID)
+	if err != nil {
 		return nil, err
+	}
+
+	// 返金可能残額チェック（過剰返金防止）
+	if len(billing.Payments) > 0 {
+		alreadyRefunded, err := s.repo.SumByBillingID(ctx, billingID)
+		if err != nil {
+			return nil, fmt.Errorf("sum refunds: %w", err)
+		}
+		available := billing.Payments[0].TotalAmount - alreadyRefunded
+		if amount > available {
+			return nil, apperrors.WrapInvalidInput(
+				fmt.Sprintf("refund amount %d exceeds available balance %d", amount, available))
+		}
 	}
 
 	refund := &model.BillingRefund{

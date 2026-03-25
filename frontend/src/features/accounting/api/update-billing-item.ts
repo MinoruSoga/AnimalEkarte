@@ -3,9 +3,6 @@ import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { UpdateBillingItemRequest, BackendAccountingItem } from "./types";
-import type { AccountingItem } from "../types";
-import { transformToAccounting } from "./transforms";
-import type { BackendAccounting } from "./types";
 
 export const updateBillingItem = async (
   itemId: string,
