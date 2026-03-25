@@ -526,7 +526,7 @@ const RefundSection = memo(function RefundSection({
   const [refundReason, setRefundReason] = useState("");
   const { data: refunds = [] } = useGetRefunds(billingId);
 
-  const totalRefunded = refunds.reduce((sum, r) => sum + r.Amount, 0);
+  const totalRefunded = refunds.reduce((sum, r) => sum + r.amount, 0);
 
   const handleSubmit = useCallback(() => {
     const amount = parseInt(refundAmount, 10);
@@ -611,15 +611,15 @@ const RefundSection = memo(function RefundSection({
             </thead>
             <tbody>
               {refunds.map((r) => (
-                <tr key={r.ID} className="border-b last:border-0">
+                <tr key={r.id} className="border-b last:border-0">
                   <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
-                    {new Date(r.RefundedAt).toLocaleDateString("ja-JP")}
+                    {new Date(r.refundedAt).toLocaleDateString("ja-JP")}
                   </td>
                   <td className="px-3 py-2 text-right font-medium text-orange-600">
-                    ¥{r.Amount.toLocaleString()}
+                    ¥{r.amount.toLocaleString()}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground truncate max-w-[120px]">
-                    {r.Reason || "-"}
+                    {r.reason || "-"}
                   </td>
                 </tr>
               ))}

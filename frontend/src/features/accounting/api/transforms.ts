@@ -1,5 +1,6 @@
-import type { Accounting, AccountingItem, PaymentInfo } from "../types";
+import type { Accounting, AccountingItem, PaymentInfo, Refund } from "../types";
 import type { BackendAccounting, BackendAccountingItem } from "./types";
+import type { BillingRefund } from "@/types/generated/models";
 
 function transformAccountingItem(item: BackendAccountingItem): AccountingItem {
   const unitPrice = item.unit_price ?? 0;
@@ -37,6 +38,17 @@ function buildPaymentInfo(data: BackendAccounting): PaymentInfo | undefined {
     receivedAmount: payment.received_amount ?? 0,
     changeAmount: payment.change_amount ?? 0,
     method: (payment.method || "cash") as PaymentInfo["method"],
+  };
+}
+
+export function transformToRefund(r: BillingRefund): Refund {
+  return {
+    id: String(r.id ?? 0),
+    billingId: String(r.billing_id ?? 0),
+    amount: r.amount,
+    reason: r.reason,
+    refundedAt: r.refunded_at,
+    createdAt: r.created_at,
   };
 }
 

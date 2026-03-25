@@ -113,13 +113,13 @@ export interface AnimalSpecies {
 // source: billing_refund.go
 
 export interface BillingRefund {
-  ID: number /* uint64 */;
-  ClinicID: number /* uint64 */;
-  BillingID: number /* uint64 */;
-  Amount: number /* int64 */; // 返金額（正の整数、円）
-  Reason: string;
-  RefundedAt: string;
-  CreatedAt: string;
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  billing_id: number /* uint64 */;
+  amount: number /* int64 */; // 返金額（正の整数、円）
+  reason: string;
+  refunded_at: string;
+  created_at: string;
 }
 
 //////////
