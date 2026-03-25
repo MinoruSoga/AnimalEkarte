@@ -22,16 +22,16 @@ import (
 // ---- mock MedicalRecordService ----
 
 type mockMedicalRecordService struct {
-	listFn      func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error)
-	getByIDFn   func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
-	getByNoFn   func(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error)
-	createFn    func(ctx context.Context, record *model.MedicalRecord) error
-	updateFn    func(ctx context.Context, record *model.MedicalRecord) error
-	deleteFn    func(ctx context.Context, clinicID, id uint64) error
+	listFn    func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
+	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+	getByNoFn func(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error)
+	createFn  func(ctx context.Context, record *model.MedicalRecord) error
+	updateFn  func(ctx context.Context, record *model.MedicalRecord) error
+	deleteFn  func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockMedicalRecordService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error) {
-	return m.listFn(ctx, clinicID, petID, ownerID, page, limit)
+func (m *mockMedicalRecordService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
+	return m.listFn(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
 }
 
 func (m *mockMedicalRecordService) GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
@@ -115,7 +115,7 @@ func TestListMedicalRecords(t *testing.T) {
 			query:    "page=1&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
 			svc: &mockMedicalRecordService{
-				listFn: func(_ context.Context, clinicID uint64, _, _ *uint64, _, _ int) ([]model.MedicalRecord, int64, error) {
+				listFn: func(_ context.Context, clinicID uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					return []model.MedicalRecord{{ID: 1, RecordNo: "MR-20260324-1-ABCDEF"}}, 1, nil
 				},
@@ -128,7 +128,7 @@ func TestListMedicalRecords(t *testing.T) {
 			query:    "page=1&limit=10&pet_id=5",
 			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
 			svc: &mockMedicalRecordService{
-				listFn: func(_ context.Context, _ uint64, petID, _ *uint64, _, _ int) ([]model.MedicalRecord, int64, error) {
+				listFn: func(_ context.Context, _ uint64, petID, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 					require.NotNil(t, petID)
 					assert.Equal(t, uint64(5), *petID)
 					return []model.MedicalRecord{}, 0, nil
@@ -137,10 +137,10 @@ func TestListMedicalRecords(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:     "returns 400 for invalid pet_id",
-			query:    "page=1&limit=10&pet_id=abc",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockMedicalRecordService{},
+			name:       "returns 400 for invalid pet_id",
+			query:      "page=1&limit=10&pet_id=abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c, "1") },
+			svc:        &mockMedicalRecordService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -155,7 +155,7 @@ func TestListMedicalRecords(t *testing.T) {
 			query:    "page=1&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
 			svc: &mockMedicalRecordService{
-				listFn: func(_ context.Context, _ uint64, _, _ *uint64, _, _ int) ([]model.MedicalRecord, int64, error) {
+				listFn: func(_ context.Context, _ uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 					return nil, 0, fmt.Errorf("db error")
 				},
 			},
@@ -212,10 +212,10 @@ func TestGetMedicalRecord(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:     "returns 400 for non-numeric id",
-			paramID:  "abc",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockMedicalRecordService{},
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c, "1") },
+			svc:        &mockMedicalRecordService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -289,8 +289,8 @@ func TestCreateMedicalRecord(t *testing.T) {
 			wantStatus: http.StatusCreated,
 		},
 		{
-			name: "auto-generates record_no when not provided",
-			body: validBody(),
+			name:     "auto-generates record_no when not provided",
+			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
 			mrSvc: &mockMedicalRecordService{
 				createFn: func(_ context.Context, record *model.MedicalRecord) error {
@@ -348,11 +348,11 @@ func TestCreateMedicalRecord(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:     "returns 400 when owner_id is missing",
-			body:     map[string]any{"pet_id": "20"}, // owner_id missing (binding required)
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			mrSvc:    &mockMedicalRecordService{},
-			cpSvc:    &mockClinicalPlanService{},
+			name:       "returns 400 when owner_id is missing",
+			body:       map[string]any{"pet_id": "20"}, // owner_id missing (binding required)
+			setupCtx:   func(c *gin.Context) { setClinicID(c, "1") },
+			mrSvc:      &mockMedicalRecordService{},
+			cpSvc:      &mockClinicalPlanService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -362,9 +362,9 @@ func TestCreateMedicalRecord(t *testing.T) {
 				b["owner_id"] = ptrStr("not-a-number")
 				return b
 			}(),
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			mrSvc:    &mockMedicalRecordService{},
-			cpSvc:    &mockClinicalPlanService{},
+			setupCtx:   func(c *gin.Context) { setClinicID(c, "1") },
+			mrSvc:      &mockMedicalRecordService{},
+			cpSvc:      &mockClinicalPlanService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -374,9 +374,9 @@ func TestCreateMedicalRecord(t *testing.T) {
 				b["visit_date"] = ptrStr("03/24/2026") // wrong format
 				return b
 			}(),
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			mrSvc:    &mockMedicalRecordService{},
-			cpSvc:    &mockClinicalPlanService{},
+			setupCtx:   func(c *gin.Context) { setClinicID(c, "1") },
+			mrSvc:      &mockMedicalRecordService{},
+			cpSvc:      &mockClinicalPlanService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -386,9 +386,9 @@ func TestCreateMedicalRecord(t *testing.T) {
 				b["status"] = "unknown_status"
 				return b
 			}(),
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			mrSvc:    &mockMedicalRecordService{},
-			cpSvc:    &mockClinicalPlanService{},
+			setupCtx:   func(c *gin.Context) { setClinicID(c, "1") },
+			mrSvc:      &mockMedicalRecordService{},
+			cpSvc:      &mockClinicalPlanService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -466,11 +466,11 @@ func TestUpdateMedicalRecord(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:     "returns 400 for invalid status",
-			paramID:  "1",
-			body:     map[string]any{"status": "bad_status"},
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockMedicalRecordService{},
+			name:       "returns 400 for invalid status",
+			paramID:    "1",
+			body:       map[string]any{"status": "bad_status"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c, "1") },
+			svc:        &mockMedicalRecordService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -482,11 +482,11 @@ func TestUpdateMedicalRecord(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:     "returns 400 for non-numeric id",
-			paramID:  "abc",
-			body:     map[string]any{},
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockMedicalRecordService{},
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			body:       map[string]any{},
+			setupCtx:   func(c *gin.Context) { setClinicID(c, "1") },
+			svc:        &mockMedicalRecordService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{

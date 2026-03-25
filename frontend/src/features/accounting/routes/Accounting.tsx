@@ -1,12 +1,12 @@
 // React/Framework
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
-import { useNavigate, useLoaderData } from "react-router";
+import { useNavigate } from "react-router";
 
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
 
 // External
-import { Plus, CreditCard, CircleDot, FileText } from "lucide-react";
+import { Plus, CreditCard, CircleDot, FileText, Calendar } from "lucide-react";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
@@ -25,10 +25,14 @@ import { usePagination } from "@/hooks/use-pagination";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { formatCurrency } from "@/utils/format/number";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
+
+// Relative
+import { useGetAccountings } from "../api/get-accountings";
+import type { AccountingFilters } from "../api/get-accountings";
 
 // Types
-import type { Accounting as AccountingType, AccountingStatus, PaymentMethod } from "../types";
-import type { AccountingsLoaderData } from "../loaders";
+import type { Accounting as AccountingType, PaymentMethod } from "../types";
 import type {
   FilterProperty,
   ActiveFilter,
@@ -50,6 +54,12 @@ const ACCOUNTING_STATUS_LABELS: Record<AccountingStatus, string> = {
 };
 
 const FILTER_PROPERTIES: FilterProperty[] = [
+  {
+    key: "date",
+    label: "日付",
+    type: "date-range",
+    icon: Calendar,
+  },
   {
     key: "status",
     label: "ステータス",
@@ -85,12 +95,25 @@ function calculateTotal(accounting: AccountingType) {
 
 export function Accounting() {
   const navigate = useNavigate();
-  const { accountings } = useLoaderData<AccountingsLoaderData>();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
   const isFiltering = searchTerm !== deferredSearch;
+
+  // activeFilters から日付フィルタのみを抽出してAPIに渡す
+  // ステータスフィルタは is_not/is_empty/is_not_empty 条件があるためクライアントサイドのまま維持
+  const apiFilters = useMemo<AccountingFilters>(() => {
+    const dateFilter = activeFilters.find((f) => f.key === "date")?.value as
+      | { from?: string; to?: string }
+      | undefined;
+    return {
+      startDate: dateFilter?.from,
+      endDate: dateFilter?.to,
+    };
+  }, [activeFilters]);
+
+  const { data: accountings = [], isLoading, isError } = useGetAccountings(apiFilters);
 
   // js-cache-function-results: フィルタ結果を useMemo でキャッシュ
   const filteredRecords = useMemo(() => {
@@ -250,6 +273,10 @@ export function Accounting() {
     },
     [handleEdit, navigate],
   );
+
+  // 全フック呼び出し後に早期リターン（Rules of Hooks 準拠）
+  if (isLoading) return <LoadingFallback />;
+  if (isError) return <ErrorFallback />;
 
   return (
     <PageLayout

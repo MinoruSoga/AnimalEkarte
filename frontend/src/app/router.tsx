@@ -277,11 +277,8 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const [{ Accounting }, { accountingsLoader }] = await Promise.all([
-                import("@/features/accounting/routes/Accounting"),
-                import("@/features/accounting/loaders"),
-              ]);
-              return { Component: Accounting, loader: accountingsLoader };
+              const { Accounting } = await import("@/features/accounting/routes/Accounting");
+              return { Component: Accounting };
             },
           },
           {

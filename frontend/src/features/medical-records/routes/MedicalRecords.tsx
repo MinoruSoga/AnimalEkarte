@@ -1,5 +1,5 @@
 // React/Framework
-import { type ReactNode, useState, useCallback, useDeferredValue } from "react";
+import { type ReactNode, useState, useCallback, useDeferredValue, useMemo } from "react";
 import { useNavigate } from "react-router";
 
 // Hooks
@@ -7,7 +7,7 @@ import { useSortableData } from "@/hooks/use-sortable-data";
 import { useModalState } from "@/hooks/use-modal-state";
 
 // External
-import { Plus, FileText, Edit, Trash2, Receipt, AlertTriangle } from "lucide-react";
+import { Plus, FileText, Edit, Trash2, Receipt, AlertTriangle, Calendar } from "lucide-react";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
@@ -34,8 +34,21 @@ import { useDeleteMedicalRecord } from "../api/delete-medical-record";
 
 // Types
 import type {
+  FilterProperty,
+  ActiveFilter,
   SortProperty,
 } from "@/components/shared/NotionFilter/types";
+import type { MedicalRecordFilters } from "../api/get-medical-records";
+
+// rendering-hoist-jsx: 静的フィルタプロパティ定義
+const FILTER_PROPERTIES: FilterProperty[] = [
+  {
+    key: "date",
+    label: "診療日",
+    type: "date-range",
+    icon: Calendar,
+  },
+];
 
 // rendering-hoist-jsx: 静的ソートプロパティ定義
 const MEDICAL_RECORD_SORT_PROPERTIES: SortProperty[] = [
@@ -50,8 +63,21 @@ const MEDICAL_RECORD_SORT_PROPERTIES: SortProperty[] = [
 export function MedicalRecords() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
-  const { data: filteredRecords, isLoading, isError } = useFilterMedicalRecords(deferredSearch);
+
+  // activeFilters から日付フィルタのみを抽出してAPIに渡す
+  const apiFilters = useMemo<MedicalRecordFilters>(() => {
+    const dateFilter = activeFilters.find((f) => f.key === "date")?.value as
+      | { from?: string; to?: string }
+      | undefined;
+    return {
+      startDate: dateFilter?.from,
+      endDate: dateFilter?.to,
+    };
+  }, [activeFilters]);
+
+  const { data: filteredRecords, isLoading, isError } = useFilterMedicalRecords(deferredSearch, apiFilters);
   const deleteModal = useModalState<{ id: string; label: string }>();
   const { mutate: deleteRecord } = useDeleteMedicalRecord();
   const { isValidStaff } = useStaffValidation();
@@ -126,9 +152,9 @@ export function MedicalRecords() {
       <div className="flex flex-col gap-4 flex-1 min-h-0">
         {/* Search */}
         <NotionFilter
-          properties={[]}
-          activeFilters={[]}
-          onFilterChange={() => {}}
+          properties={FILTER_PROPERTIES}
+          activeFilters={activeFilters}
+          onFilterChange={setActiveFilters}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
           searchPlaceholder="飼主名、ペット名、カルテNo、主訴で検索..."

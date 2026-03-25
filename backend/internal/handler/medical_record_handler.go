@@ -63,7 +63,18 @@ func (h *Handler) ListMedicalRecords(c *gin.Context) {
 		ownerID = &id
 	}
 
-	records, total, err := h.svc.MedicalRecord.List(c.Request.Context(), clinicID, petID, ownerID, page, limit)
+	startDate, err := parseDateQuery(c, "start_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	endDate, err := parseDateQuery(c, "end_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	records, total, err := h.svc.MedicalRecord.List(c.Request.Context(), clinicID, petID, ownerID, startDate, endDate, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return

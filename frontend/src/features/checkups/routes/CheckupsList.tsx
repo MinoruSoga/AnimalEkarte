@@ -2,28 +2,65 @@
 import { useDeferredValue, useMemo, useState } from "react";
 
 // External
-import { ClipboardCheck } from "lucide-react";
+import { Calendar, ClipboardCheck } from "lucide-react";
 
 // Internal
+import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
+import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
+import { Pagination } from "@/components/shared/Pagination/Pagination";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
+import { useSortableData } from "@/hooks/use-sortable-data";
+import { usePagination } from "@/hooks/use-pagination";
 import { formatDate } from "@/utils/format/date";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useGetCheckups } from "../api/get-checkups";
+
+// Types
+import type { FilterProperty, ActiveFilter, SortProperty } from "@/components/shared/NotionFilter/types";
+
+// rendering-hoist-jsx: 静的定数をモジュールスコープに
+const FILTER_PROPERTIES: FilterProperty[] = [
+  {
+    key: "date",
+    label: "日付",
+    type: "date-range",
+    icon: Calendar,
+  },
+];
+
+const CHECKUPS_SORT_PROPERTIES: SortProperty[] = [
+  { key: "date", label: "実施日" },
+  { key: "ownerName", label: "飼主名" },
+  { key: "petName", label: "ペット名" },
+  { key: "checkupTypeName", label: "健診種別" },
+  { key: "nextDate", label: "次回予定" },
+];
 
 export function CheckupsList() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
+  const isFiltering = searchTerm !== deferredSearch;
 
-  const { data: checkups = [], isLoading, error } = useGetCheckups();
+  // activeFilters から日付フィルタを抽出してAPIに渡す
+  const filters = useMemo(() => {
+    const dateFilter = activeFilters.find((f) => f.key === "date")?.value as
+      | { from?: string; to?: string }
+      | undefined;
+    return {
+      startDate: dateFilter?.from,
+      endDate: dateFilter?.to,
+    };
+  }, [activeFilters]);
 
-  const filtered = useMemo(() => {
+  const { data: checkups = [], isLoading, error } = useGetCheckups(filters);
+
+  // テキスト検索はクライアントサイドで行う
+  const filteredRecords = useMemo(() => {
     if (!deferredSearch) return checkups;
     const q = deferredSearch.toLowerCase();
     return checkups.filter(
@@ -35,75 +72,129 @@ export function CheckupsList() {
     );
   }, [checkups, deferredSearch]);
 
-  return (
-    <PageLayout title="定期健診">
-      <div className="space-y-4">
-        {/* 検索バー */}
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            placeholder="ペット名・飼主名・種別で検索..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-9 w-72 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-          <span className="text-sm text-muted-foreground">{filtered.length}件</span>
-        </div>
+  const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
+    useSortableData(filteredRecords);
 
-        {/* テーブル */}
-        <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="whitespace-nowrap">飼主名</TableHead>
-                <TableHead className="whitespace-nowrap">ペット名</TableHead>
-                <TableHead className="whitespace-nowrap">健診種別</TableHead>
-                <TableHead className="whitespace-nowrap">実施日</TableHead>
-                <TableHead className="whitespace-nowrap">次回予定</TableHead>
-                <TableHead className="whitespace-nowrap">結果・所見</TableHead>
-                <TableHead className="whitespace-nowrap">担当医</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center text-sm text-muted-foreground">
-                    読み込み中...
-                  </TableCell>
-                </TableRow>
-              ) : error ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center text-sm text-destructive">
-                    データの取得に失敗しました
-                  </TableCell>
-                </TableRow>
-              ) : filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <ClipboardCheck className="size-8 opacity-40" />
-                      <span className="text-sm">定期健診の記録がありません</span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((c) => (
-                  <TableRow key={c.id} className="hover:bg-muted/30">
-                    <TableCell className="whitespace-nowrap text-sm">{c.ownerName || "-"}</TableCell>
-                    <TableCell className="whitespace-nowrap text-sm font-medium">{c.petName || "-"}</TableCell>
-                    <TableCell className="whitespace-nowrap text-sm">{c.checkupTypeName || "-"}</TableCell>
-                    <TableCell className="whitespace-nowrap font-mono text-sm">{formatDate(c.date)}</TableCell>
-                    <TableCell className="whitespace-nowrap font-mono text-sm">
-                      {c.nextDate ? formatDate(c.nextDate) : "-"}
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate text-sm">{c.result || "-"}</TableCell>
-                    <TableCell className="whitespace-nowrap text-sm">{c.doctorName || "-"}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+  const pagination = usePagination(sortedData, {
+    pageSize: 20,
+    resetKey: deferredSearch,
+  });
+
+  const columns = useMemo(
+    () => [
+      {
+        header: (
+          <SortableHeader
+            label="実施日"
+            direction={directionFor("date")}
+            onToggle={() => toggleSort("date")}
+          />
+        ),
+        className: "w-[120px]",
+      },
+      {
+        header: (
+          <SortableHeader
+            label="飼主名"
+            direction={directionFor("ownerName")}
+            onToggle={() => toggleSort("ownerName")}
+          />
+        ),
+      },
+      {
+        header: (
+          <SortableHeader
+            label="ペット名"
+            direction={directionFor("petName")}
+            onToggle={() => toggleSort("petName")}
+          />
+        ),
+      },
+      {
+        header: (
+          <SortableHeader
+            label="健診種別"
+            direction={directionFor("checkupTypeName")}
+            onToggle={() => toggleSort("checkupTypeName")}
+          />
+        ),
+      },
+      {
+        header: (
+          <SortableHeader
+            label="次回予定"
+            direction={directionFor("nextDate")}
+            onToggle={() => toggleSort("nextDate")}
+          />
+        ),
+        className: "w-[120px]",
+      },
+      { header: "結果・所見" },
+      { header: "担当医", className: "w-[100px]" },
+    ],
+    [directionFor, toggleSort],
+  );
+
+  if (isLoading) return <LoadingFallback />;
+  if (error) return <ErrorFallback />;
+
+  return (
+    <PageLayout
+      title="定期健診"
+      icon={<ClipboardCheck className="size-5 text-[#37352F]" />}
+      maxWidth="max-w-full"
+    >
+      <div className="flex flex-col gap-4">
+        <NotionFilter
+          properties={FILTER_PROPERTIES}
+          activeFilters={activeFilters}
+          onFilterChange={setActiveFilters}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="ペット名・飼主名・種別で検索..."
+          count={isLoading ? undefined : filteredRecords.length}
+          sortProperties={CHECKUPS_SORT_PROPERTIES}
+          activeSorts={activeSorts}
+          onSortChange={setActiveSorts}
+        />
+
+        <FilteringIndicator isFiltering={isFiltering}>
+          <DataTable
+            columns={columns}
+            data={pagination.paginatedData}
+            emptyMessage="定期健診の記録がありません"
+            renderRow={(c) => (
+              <DataTableRow key={c.id}>
+                <TableCell className="font-mono text-base text-[#37352F] py-2">
+                  {c.date ? formatDate(c.date) : "-"}
+                </TableCell>
+                <TableCell className="text-base text-[#37352F] py-2">{c.ownerName || "-"}</TableCell>
+                <TableCell className="text-base text-[#37352F] py-2">{c.petName || "-"}</TableCell>
+                <TableCell className="text-base text-[#37352F] py-2">{c.checkupTypeName || "-"}</TableCell>
+                <TableCell className="font-mono text-base text-[#37352F] py-2">
+                  {c.nextDate ? formatDate(c.nextDate) : "-"}
+                </TableCell>
+                <TableCell className="text-base text-[#37352F] py-2 max-w-xs truncate">
+                  {c.result || "-"}
+                </TableCell>
+                <TableCell className="text-base text-[#37352F] py-2">{c.doctorName || "-"}</TableCell>
+              </DataTableRow>
+            )}
+          />
+        </FilteringIndicator>
+
+        {pagination.totalPages > 1 ? (
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalCount={pagination.totalCount}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.goToPage}
+            onPrev={pagination.prevPage}
+            onNext={pagination.nextPage}
+          />
+        ) : null}
       </div>
     </PageLayout>
   );

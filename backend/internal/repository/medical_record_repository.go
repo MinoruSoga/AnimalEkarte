@@ -12,7 +12,7 @@ import (
 )
 
 type MedicalRecordRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	FindByRecordNo(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
@@ -28,7 +28,7 @@ func NewMedicalRecordRepository(db *gorm.DB) MedicalRecordRepository {
 	return &medicalRecordRepository{db: db}
 }
 
-func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error) {
+func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
 	records := make([]model.MedicalRecord, 0)
 	var total int64
 
@@ -38,6 +38,12 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, 
 	}
 	if ownerID != nil {
 		q = q.Where("owner_id = ?", *ownerID)
+	}
+	if startDate != nil {
+		q = q.Where("date >= ?", *startDate)
+	}
+	if endDate != nil {
+		q = q.Where("date <= ?", *endDate)
 	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count medical records")

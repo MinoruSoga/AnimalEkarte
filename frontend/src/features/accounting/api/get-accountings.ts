@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import type { Accounting, AccountingStatus } from "../types";
+import type { Accounting } from "../types";
 import { transformToAccounting } from "./transforms";
 import type { BackendAccounting } from "./types";
 
@@ -11,18 +11,24 @@ interface AccountingsListResponse {
   limit: number;
 }
 
+export interface AccountingFilters {
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string;   // YYYY-MM-DD
+}
+
 export const getAccountings = async (
-  status?: AccountingStatus,
+  filters?: AccountingFilters,
 ): Promise<Accounting[]> => {
   const params: Record<string, string> = {};
-  if (status) params.status = status;
+  if (filters?.startDate) params.start_date = filters.startDate;
+  if (filters?.endDate) params.end_date = filters.endDate;
   const { data } = await axios.get<AccountingsListResponse>("/v1/accountings", { params });
   return data.data.map(transformToAccounting);
 };
 
-export const useGetAccountings = (status?: AccountingStatus) => {
+export const useGetAccountings = (filters?: AccountingFilters) => {
   return useQuery({
-    queryKey: ["accountings", { status }],
-    queryFn: () => getAccountings(status),
+    queryKey: ["accountings", filters],
+    queryFn: () => getAccountings(filters),
   });
 };

@@ -12,7 +12,7 @@ import (
 )
 
 type AccountingRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Billing, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	Update(ctx context.Context, clinicID uint64, accounting *model.Billing) error
@@ -27,7 +27,7 @@ func NewAccountingRepository(db *gorm.DB) AccountingRepository {
 	return &accountingRepository{db: db}
 }
 
-func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, page, limit int) ([]model.Billing, int64, error) {
+func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
 	billings := make([]model.Billing, 0)
 	var total int64
 
@@ -41,11 +41,17 @@ func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, pet
 	if status != nil {
 		q = q.Where("status = ?", *status)
 	}
+	if startDate != nil {
+		q = q.Where("scheduled_date >= ?", *startDate)
+	}
+	if endDate != nil {
+		q = q.Where("scheduled_date <= ?", *endDate)
+	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "count billings")
 	}
 	if err := q.Preload("Owner").Preload("Pet").Preload("Payments").Preload("Items").
-		Offset((page-1)*limit).Limit(limit).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
+		Offset((page - 1) * limit).Limit(limit).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find billings")
 	}
 	return billings, total, nil

@@ -14,7 +14,7 @@ import (
 
 // mockMedicalRecordRepository は MedicalRecordRepository のテスト用モック実装
 type mockMedicalRecordRepository struct {
-	findAllFn        func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error)
+	findAllFn        func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	findByIDFn       func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	findByRecordNoFn func(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error)
 	createFn         func(ctx context.Context, record *model.MedicalRecord) error
@@ -22,8 +22,8 @@ type mockMedicalRecordRepository struct {
 	deleteFn         func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.MedicalRecord, int64, error) {
-	return m.findAllFn(ctx, clinicID, petID, ownerID, page, limit)
+func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
+	return m.findAllFn(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
 }
 
 func (m *mockMedicalRecordRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
@@ -183,7 +183,7 @@ func TestMedicalRecordService_List(t *testing.T) {
 			capturedPetID := (*uint64)(nil)
 			capturedOwnerID := (*uint64)(nil)
 			repo := &mockMedicalRecordRepository{
-				findAllFn: func(_ context.Context, _ uint64, petID *uint64, ownerID *uint64, _, _ int) ([]model.MedicalRecord, int64, error) {
+				findAllFn: func(_ context.Context, _ uint64, petID *uint64, ownerID *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
 					capturedPetID = petID
 					capturedOwnerID = ownerID
 					return tt.repoRecords, tt.repoTotal, tt.repoErr
@@ -191,7 +191,7 @@ func TestMedicalRecordService_List(t *testing.T) {
 			}
 			svc := NewMedicalRecordService(repo, nil, nil)
 
-			records, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.page, tt.limit)
+			records, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, nil, tt.page, tt.limit)
 
 			if tt.wantErr {
 				assert.Error(t, err)
