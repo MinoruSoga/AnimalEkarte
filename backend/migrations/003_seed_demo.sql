@@ -431,3 +431,16 @@ ON CONFLICT (id) DO UPDATE SET
     notes             = EXCLUDED.notes;
 
 SELECT setval(pg_get_serial_sequence('vital_records', 'id'), (SELECT MAX(id) FROM vital_records));
+
+-- -----------------------------------------------------------------------------
+-- 12. billing_refunds（返金デモデータ）
+-- billing id=1 (林文明/Iris, total=4730): 2件の部分返金（合計 ¥1,419 → 残額 ¥0）
+-- billing id=2 (林文明/Iris, total=3630): 1件の部分返金（¥500 → 残額 ¥3,130）
+-- -----------------------------------------------------------------------------
+INSERT INTO billing_refunds (id, clinic_id, billing_id, amount, reason, refunded_at) VALUES
+    (1, 3, 1, 919,  '処置内容の変更に伴う部分返金',   '2026-02-16 10:00:00+09'),
+    (2, 3, 1, 500,  '薬剤変更による差額返金',         '2026-02-20 14:30:00+09'),
+    (3, 3, 2, 500,  '診察キャンセル分の返金',          '2026-03-01 09:00:00+09')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('billing_refunds', 'id'), (SELECT MAX(id) FROM billing_refunds));
