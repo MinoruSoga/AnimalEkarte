@@ -6,7 +6,7 @@ import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useTreatments, useCreateTreatment, useUpdateTreatment } from "../api/treatments";
 import { useGetBillingReview, useConfirmBillingReview, useReturnBillingReview } from "../api/billing-review";
 import type { CreateTreatmentInput, UpdateTreatmentInput, TreatmentItemType } from "../types";
-import { useAuth } from "@/features/auth";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 import { CheckCircle2, RotateCcw } from "lucide-react";
 import { C } from "@/lib/design-tokens";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";

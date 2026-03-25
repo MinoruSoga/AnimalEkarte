@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { useAuth } from "@/features/auth";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 
 // Relative
 import { useHospitalizationForm } from "../hooks/use-hospitalization-form";

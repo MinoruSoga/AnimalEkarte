@@ -30,7 +30,7 @@ const OwnerSearchModal = lazy(() =>
   import("@/components/shared/OwnerSearchModal/OwnerSearchModal").then((m) => ({ default: m.OwnerSearchModal }))
 );
 import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
-import { useAuth } from "@/features/auth";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 

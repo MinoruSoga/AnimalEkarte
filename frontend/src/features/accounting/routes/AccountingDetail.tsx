@@ -49,7 +49,7 @@ import { useGetAccountingDetail } from "../api/get-accounting";
 import { createAccounting } from "../api/create-accounting";
 import { updateAccounting } from "../api/update-accounting";
 import { useGetAllMerchandiseItems } from "../api/get-merchandise-items";
-import { useGetPet } from "@/features/pets/api/get-pet";
+import { useGetPet } from "@/hooks/use-pet";
 import type { FrontendMerchandiseItem } from "../api/get-merchandise-items";
 // bundle-dynamic-imports: 191行のコンポーネントを遅延ロード
 const AccountingDocument = lazy(() =>
