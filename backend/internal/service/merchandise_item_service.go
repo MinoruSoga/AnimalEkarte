@@ -16,6 +16,7 @@ const (
 	colMerchandiseItemName      = "name"
 	colMerchandiseItemCategory  = "category"
 	colMerchandiseItemUnitPrice = "unit_price"
+	colMerchandiseItemTaxType   = "tax_type"
 	colMerchandiseItemTaxRate   = "tax_rate"
 	colMerchandiseItemIsActive  = "is_active"
 	colMerchandiseItemSortOrder = "sort_order"
@@ -28,7 +29,8 @@ type CreateMerchandiseItemInput struct {
 	Name      string
 	Category  string
 	UnitPrice int64
-	TaxRate   float64
+	TaxType   string  // "" → "excluded" (default)
+	TaxRate   float64 // 0 → 0.10 (default)
 	IsActive  bool
 	SortOrder int
 }
@@ -38,6 +40,7 @@ type UpdateMerchandiseItemInput struct {
 	Name      *string
 	Category  *string
 	UnitPrice *int64
+	TaxType   *string
 	TaxRate   *float64
 	IsActive  *bool
 	SortOrder *int
@@ -55,6 +58,9 @@ func buildMerchandiseItemUpdateFields(input *UpdateMerchandiseItemInput) map[str
 	}
 	if input.UnitPrice != nil {
 		fields[colMerchandiseItemUnitPrice] = *input.UnitPrice
+	}
+	if input.TaxType != nil {
+		fields[colMerchandiseItemTaxType] = *input.TaxType
 	}
 	if input.TaxRate != nil {
 		fields[colMerchandiseItemTaxRate] = *input.TaxRate
@@ -103,12 +109,21 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 		return nil, apperrors.WrapInvalidInput("name is required")
 	}
 
+	taxType := model.TaxTypeExcluded
+	if input.TaxType != "" {
+		taxType = model.TaxType(input.TaxType)
+	}
+	taxRate := 0.10
+	if input.TaxRate != 0 {
+		taxRate = input.TaxRate
+	}
 	item := &model.MerchandiseItem{
 		ClinicID:  clinicID,
 		Name:      input.Name,
 		Category:  model.ItemCategory(input.Category),
 		UnitPrice: input.UnitPrice,
-		TaxRate:   input.TaxRate,
+		TaxType:   taxType,
+		TaxRate:   taxRate,
 		IsActive:  input.IsActive,
 		SortOrder: input.SortOrder,
 	}
