@@ -1,8 +1,8 @@
-import type { TrimmingRecord } from "@/types";
+import type { TrimmingUI } from "@/types";
 import type { BackendTrimming } from "@/types/trimming";
 
-export function transformTrimming(data: BackendTrimming): TrimmingRecord {
-  const statusMap: Record<string, TrimmingRecord["status"]> = {
+export function transformTrimming(data: BackendTrimming): TrimmingUI {
+  const statusMap: Record<string, TrimmingUI["status"]> = {
     completed: "完了",
     reserved: "予約",
     in_progress: "進行中",

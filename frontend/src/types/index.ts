@@ -204,7 +204,7 @@ export const RESERVATION_STATUS_LABELS: Record<ReservationStatus, string> = {
 export const RESERVATION_TYPE_VALUES = ["診療", "検診", "手術", "トリミング", "ワクチン", "入院"] as const;
 
 // Trimming Types
-export interface TrimmingRecord {
+export interface TrimmingUI {
   id: string;
   date: string;
   petId?: string;

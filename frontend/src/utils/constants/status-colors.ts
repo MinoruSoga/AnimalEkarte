@@ -3,6 +3,7 @@
  * ReservationDetailModal / AppointmentCard / DashboardDetailModal のインライン定義を統合。
  */
 import { C } from "@/lib/design-tokens";
+import type { ReservationStatus } from "@/types";
 
 // ──────────────────────────────────────────────
 // 予約ステータスカラーマップ
@@ -17,8 +18,6 @@ export const RESERVATION_STATUS_COLORS = {
   completed:       { label: "完了",        dot: "bg-gray-400",    bg: "bg-gray-50",     text: "text-gray-600" },
   cancelled:       { label: "キャンセル",  dot: "bg-red-500",     bg: "bg-red-50",      text: "text-red-700" },
 } as const;
-
-export type ReservationStatus = keyof typeof RESERVATION_STATUS_COLORS;
 
 /**
  * 予約ステータスのカラー情報を返す。
@@ -58,8 +57,6 @@ export const VISIT_TYPE_COLORS = {
     badgeBorder: "border-[rgba(55,53,47,0.09)]/50",
   },
 } as const;
-
-export type VisitType = keyof typeof VISIT_TYPE_COLORS;
 
 /**
  * visitType（初診/再診 または first/return）のカラー情報を返す。

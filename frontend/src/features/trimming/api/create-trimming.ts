@@ -1,13 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
-import type { TrimmingRecord } from "@/types";
+import type { TrimmingUI } from "@/types";
 import { transformTrimming } from "./transforms";
 import type { BackendTrimming, CreateTrimmingRequest } from "@/types/trimming";
 
 export const createTrimming = async (
   req: CreateTrimmingRequest
-): Promise<TrimmingRecord> => {
+): Promise<TrimmingUI> => {
   const { data } = await axios.post<BackendTrimming>("/v1/trimmings", req);
   return transformTrimming(data);
 };

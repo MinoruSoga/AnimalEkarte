@@ -34,7 +34,7 @@ import { FilteringIndicator } from "@/components/shared/FilteringIndicator/Filte
 import { getTrimmingStatusColor } from "@/utils/status-helpers";
 import { usePagination } from "@/hooks/use-pagination";
 import { useStaffValidation } from "@/hooks/use-staff-validation";
-import type { TrimmingRecord } from "@/types";
+import type { TrimmingUI } from "@/types";
 import { paths } from "@/config/paths";
 
 // Relative (direct file import, no barrel)
@@ -42,10 +42,10 @@ import { useFilterTrimmingRecords } from "../hooks/use-trimming-records";
 
 // rerender-memo + js-cache-function-results: renderRow インライン closure を memo コンポーネントに抽出
 interface TrimmingTableRowProps {
-  record: TrimmingRecord;
+  record: TrimmingUI;
   isValidStaff: (staff: string) => boolean;
   onEdit: (id: string) => void;
-  onDeleteClick: (record: TrimmingRecord) => void;
+  onDeleteClick: (record: TrimmingUI) => void;
 }
 
 const TrimmingTableRow = memo(function TrimmingTableRow({
@@ -168,7 +168,7 @@ export function TrimmingList() {
   const deleteTargetId = deleteModal.item?.id;
   const deleteTargetLabel = deleteModal.item?.label;
 
-  const handleDeleteClick = useCallback((record: TrimmingRecord) => {
+  const handleDeleteClick = useCallback((record: TrimmingUI) => {
     openDeleteModal({
       id: record.id,
       label: `${record.ownerName} - ${record.petName}`,
