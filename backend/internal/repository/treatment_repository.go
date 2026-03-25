@@ -96,7 +96,7 @@ func (r *treatmentRepository) Delete(ctx context.Context, id uint64) error {
 }
 
 func (r *treatmentRepository) BulkUpdateSortOrder(ctx context.Context, updates []TreatmentSortUpdate) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for _, u := range updates {
 			result := tx.Model(&model.Treatment{}).
 				Where("id = ? AND deleted_at IS NULL", u.ID).
@@ -106,5 +106,8 @@ func (r *treatmentRepository) BulkUpdateSortOrder(ctx context.Context, updates [
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return fmt.Errorf("bulk update treatment sort order: %w", err)
+	}
+	return nil
 }

@@ -136,17 +136,17 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 	if err := validateMembershipType(input.MembershipType); err != nil {
 		return nil, err
 	}
-	for i, p := range input.Pets {
-		if err := validatePetGender(p.Gender); err != nil {
+	for i := range input.Pets {
+		if err := validatePetGender(input.Pets[i].Gender); err != nil {
 			return nil, fmt.Errorf("pets[%d]: %w", i, err)
 		}
-		if err := validatePetStatus(p.Status); err != nil {
+		if err := validatePetStatus(input.Pets[i].Status); err != nil {
 			return nil, fmt.Errorf("pets[%d]: %w", i, err)
 		}
-		if err := validatePetAcquisitionType(p.AcquisitionType); err != nil {
+		if err := validatePetAcquisitionType(input.Pets[i].AcquisitionType); err != nil {
 			return nil, fmt.Errorf("pets[%d]: %w", i, err)
 		}
-		if err := validatePetDangerLevel(p.DangerLevel); err != nil {
+		if err := validatePetDangerLevel(input.Pets[i].DangerLevel); err != nil {
 			return nil, fmt.Errorf("pets[%d]: %w", i, err)
 		}
 	}
@@ -179,7 +179,8 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 	}
 
 	pets := make([]model.Pet, 0, len(input.Pets))
-	for _, p := range input.Pets {
+	for i := range input.Pets {
+		p := &input.Pets[i]
 		pet := model.Pet{
 			Name:            p.Name,
 			AnimalSpeciesID: p.AnimalSpeciesID,

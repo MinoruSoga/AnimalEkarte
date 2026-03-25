@@ -105,12 +105,12 @@ func TestConsultationService_List(t *testing.T) {
 
 func TestConsultationService_GetByID(t *testing.T) {
 	tests := []struct {
-		name          string
-		id            uint64
-		repoData      *model.Consultation
-		repoErr       error
-		wantErr       bool
-		wantNotFound  bool
+		name         string
+		id           uint64
+		repoData     *model.Consultation
+		repoErr      error
+		wantErr      bool
+		wantNotFound bool
 	}{
 		{
 			name: "returns consultation when found",
@@ -118,7 +118,7 @@ func TestConsultationService_GetByID(t *testing.T) {
 			repoData: &model.Consultation{
 				ID:        1,
 				ClinicID:  1,
-				Name:     "相談1",
+				Name:      "相談1",
 				SortOrder: 1,
 				IsActive:  true,
 			},
@@ -180,7 +180,7 @@ func TestConsultationService_Create(t *testing.T) {
 			name: "creates consultation successfully",
 			input: &model.Consultation{
 				ClinicID:  1,
-				Name:     "新規相談",
+				Name:      "新規相談",
 				SortOrder: 3,
 				IsActive:  true,
 			},
@@ -191,7 +191,7 @@ func TestConsultationService_Create(t *testing.T) {
 			name: "returns error when consultation already exists",
 			input: &model.Consultation{
 				ClinicID: 1,
-				Name:    "既存相談",
+				Name:     "既存相談",
 			},
 			repoErr: apperrors.WrapAlreadyExists("consultation", "既存相談"),
 			wantErr: true,
@@ -200,7 +200,7 @@ func TestConsultationService_Create(t *testing.T) {
 			name: "returns error on repository failure",
 			input: &model.Consultation{
 				ClinicID: 1,
-				Name:    "エラー相談",
+				Name:     "エラー相談",
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -239,7 +239,7 @@ func TestConsultationService_Update(t *testing.T) {
 			input: &model.Consultation{
 				ID:        1,
 				ClinicID:  1,
-				Name:     "更新後相談",
+				Name:      "更新後相談",
 				SortOrder: 2,
 				IsActive:  true,
 			},
@@ -251,7 +251,7 @@ func TestConsultationService_Update(t *testing.T) {
 			input: &model.Consultation{
 				ID:       999,
 				ClinicID: 1,
-				Name:    "存在しない相談",
+				Name:     "存在しない相談",
 			},
 			repoErr: apperrors.WrapNotFound("consultation", "999"),
 			wantErr: true,
@@ -261,7 +261,7 @@ func TestConsultationService_Update(t *testing.T) {
 			input: &model.Consultation{
 				ID:       1,
 				ClinicID: 1,
-				Name:    "エラー相談",
+				Name:     "エラー相談",
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,

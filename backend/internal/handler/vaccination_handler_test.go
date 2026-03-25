@@ -69,7 +69,7 @@ func TestListVaccinations(t *testing.T) {
 		{
 			name:     "returns paginated vaccinations",
 			query:    "page=1&limit=10",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockVaccinationService{
 				listFn: func(_ context.Context, _ uint64, petID, ownerID *uint64, _, _ *string, _, _ int) ([]model.Vaccination, int64, error) {
 					assert.Nil(t, petID)
@@ -83,7 +83,7 @@ func TestListVaccinations(t *testing.T) {
 		{
 			name:     "passes pet_id filter to service",
 			query:    "page=1&limit=10&pet_id=5",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockVaccinationService{
 				listFn: func(_ context.Context, _ uint64, petID, _ *uint64, _, _ *string, _, _ int) ([]model.Vaccination, int64, error) {
 					require.NotNil(t, petID)
@@ -94,10 +94,10 @@ func TestListVaccinations(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:     "returns 400 for invalid pet_id",
-			query:    "page=1&limit=10&pet_id=abc",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockVaccinationService{},
+			name:       "returns 400 for invalid pet_id",
+			query:      "page=1&limit=10&pet_id=abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockVaccinationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -110,7 +110,7 @@ func TestListVaccinations(t *testing.T) {
 		{
 			name:     "returns 500 on service error",
 			query:    "page=1&limit=10",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockVaccinationService{
 				listFn: func(_ context.Context, _ uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.Vaccination, int64, error) {
 					return nil, 0, fmt.Errorf("db error")
@@ -152,7 +152,7 @@ func TestGetVaccination(t *testing.T) {
 		{
 			name:     "returns vaccination for valid id",
 			paramID:  "10",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockVaccinationService{
 				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Vaccination, error) {
 					assert.Equal(t, uint64(1), clinicID)
@@ -171,16 +171,16 @@ func TestGetVaccination(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:     "returns 400 for non-numeric id",
-			paramID:  "abc",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockVaccinationService{},
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockVaccinationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 404 when not found",
 			paramID:  "999",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockVaccinationService{
 				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Vaccination, error) {
 					return nil, apperrors.WrapNotFound("vaccination", "999")
@@ -231,7 +231,7 @@ func TestCreateVaccination(t *testing.T) {
 		{
 			name:     "creates vaccination successfully",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockVaccinationService{
 				createFn: func(_ context.Context, v *model.Vaccination) error {
 					assert.Equal(t, "定期接種", v.Remarks)
@@ -248,16 +248,16 @@ func TestCreateVaccination(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:     "returns 400 when required fields are missing",
-			body:     map[string]any{"remarks": "テスト"}, // vaccine_id and date missing
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockVaccinationService{},
+			name:       "returns 400 when required fields are missing",
+			body:       map[string]any{"remarks": "テスト"}, // vaccine_id and date missing
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockVaccinationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 500 on service error",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockVaccinationService{
 				createFn: func(_ context.Context, _ *model.Vaccination) error {
 					return fmt.Errorf("db error")
@@ -289,7 +289,7 @@ func newDeleteVaccinationRouter(svc service.VaccinationService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithVaccinationSvc(svc)
 	r.DELETE("/vaccinations/:id", func(c *gin.Context) {
-		setClinicID(c, "1")
+		setClinicID(c)
 	}, h.DeleteVaccination)
 	return r
 }

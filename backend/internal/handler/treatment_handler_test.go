@@ -70,7 +70,7 @@ func TestListTreatments(t *testing.T) {
 		{
 			name:     "returns treatments for valid medical_record_id",
 			paramID:  "10",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
 				listFn: func(_ context.Context, medicalRecordID uint64) ([]model.Treatment, error) {
 					assert.Equal(t, uint64(10), medicalRecordID)
@@ -90,14 +90,14 @@ func TestListTreatments(t *testing.T) {
 		{
 			name:       "returns 400 for non-numeric id",
 			paramID:    "abc",
-			setupCtx:   func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockTreatmentService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 500 on service error",
 			paramID:  "1",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
 				listFn: func(_ context.Context, _ uint64) ([]model.Treatment, error) {
 					return nil, fmt.Errorf("db error")
@@ -108,7 +108,7 @@ func TestListTreatments(t *testing.T) {
 		{
 			name:     "returns empty list when no treatments",
 			paramID:  "1",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
 				listFn: func(_ context.Context, _ uint64) ([]model.Treatment, error) {
 					return []model.Treatment{}, nil
@@ -163,7 +163,7 @@ func TestCreateTreatment(t *testing.T) {
 			name:     "creates treatment successfully",
 			paramID:  "10",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
 				createFn: func(_ context.Context, medicalRecordID uint64, input *service.CreateTreatmentInput) (*model.Treatment, error) {
 					assert.Equal(t, uint64(10), medicalRecordID)
@@ -187,7 +187,7 @@ func TestCreateTreatment(t *testing.T) {
 			name:       "returns 400 for non-numeric medical_record_id",
 			paramID:    "abc",
 			body:       validBody(),
-			setupCtx:   func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockTreatmentService{},
 			wantStatus: http.StatusBadRequest,
 		},
@@ -195,7 +195,7 @@ func TestCreateTreatment(t *testing.T) {
 			name:       "returns 400 when item_type is missing",
 			paramID:    "1",
 			body:       map[string]any{"unit_price": 1000},
-			setupCtx:   func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockTreatmentService{},
 			wantStatus: http.StatusBadRequest,
 		},
@@ -203,7 +203,7 @@ func TestCreateTreatment(t *testing.T) {
 			name:     "returns 500 on service error",
 			paramID:  "1",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
 				createFn: func(_ context.Context, _ uint64, _ *service.CreateTreatmentInput) (*model.Treatment, error) {
 					return nil, fmt.Errorf("db error")
@@ -252,7 +252,7 @@ func TestUpdateTreatment(t *testing.T) {
 			paramID:     "10",
 			treatmentID: "5",
 			body:        map[string]any{"unit_price": 8000, "quantity": 2.0},
-			setupCtx:    func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx:    func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
 				updateFn: func(_ context.Context, medicalRecordID, treatmentID uint64, input *service.UpdateTreatmentInput) (*model.Treatment, error) {
 					assert.Equal(t, uint64(10), medicalRecordID)
@@ -278,7 +278,7 @@ func TestUpdateTreatment(t *testing.T) {
 			paramID:     "abc",
 			treatmentID: "1",
 			body:        map[string]any{"unit_price": 100},
-			setupCtx:    func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx:    func(c *gin.Context) { setClinicID(c) },
 			svc:         &mockTreatmentService{},
 			wantStatus:  http.StatusBadRequest,
 		},
@@ -287,7 +287,7 @@ func TestUpdateTreatment(t *testing.T) {
 			paramID:     "1",
 			treatmentID: "xyz",
 			body:        map[string]any{"unit_price": 100},
-			setupCtx:    func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx:    func(c *gin.Context) { setClinicID(c) },
 			svc:         &mockTreatmentService{},
 			wantStatus:  http.StatusBadRequest,
 		},
@@ -296,7 +296,7 @@ func TestUpdateTreatment(t *testing.T) {
 			paramID:     "1",
 			treatmentID: "999",
 			body:        map[string]any{"content": "更新"},
-			setupCtx:    func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx:    func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateTreatmentInput) (*model.Treatment, error) {
 					return nil, apperrors.WrapNotFound("treatment", "999")
@@ -332,7 +332,7 @@ func newDeleteTreatmentRouter(svc service.TreatmentService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithTreatmentSvc(svc)
 	r.DELETE("/medical-records/:id/treatments/:treatmentId", func(c *gin.Context) {
-		setClinicID(c, "1")
+		setClinicID(c)
 	}, h.DeleteTreatment)
 	return r
 }
@@ -418,7 +418,7 @@ func newBulkUpdateRouter(svc service.TreatmentService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithTreatmentSvc(svc)
 	r.PUT("/medical-records/:id/treatments", func(c *gin.Context) {
-		setClinicID(c, "1")
+		setClinicID(c)
 	}, h.BulkUpdateTreatments)
 	return r
 }
@@ -500,7 +500,7 @@ func TestBulkUpdateTreatments(t *testing.T) {
 		c.Request = httptest.NewRequest(http.MethodPut, "/", bytes.NewReader(bodyBytes))
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Params = gin.Params{{Key: "id", Value: "abc"}}
-		setClinicID(c, "1")
+		setClinicID(c)
 		h.BulkUpdateTreatments(c)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})

@@ -67,7 +67,7 @@ func (r *userAccountRepository) FindByClinicID(ctx context.Context, clinicID uin
 // Create はユーザーアカウントとクリニック所属を作成する。
 func (r *userAccountRepository) Create(ctx context.Context, account *model.UserAccount, clinicID uint64, staffID *uint64, isMain bool) error {
 	account.StaffID = staffID
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(account).Error; err != nil {
 			return apperrors.Wrap(err, "create user account")
 		}
@@ -80,7 +80,10 @@ func (r *userAccountRepository) Create(ctx context.Context, account *model.UserA
 			return apperrors.Wrap(err, "create user clinic membership")
 		}
 		return nil
-	})
+	}); err != nil {
+		return fmt.Errorf("Create user account: %w", err)
+	}
+	return nil
 }
 
 // Update はユーザーアカウントを部分更新する。
@@ -116,7 +119,7 @@ func (r *userAccountRepository) FindPermissions(ctx context.Context, userID, cli
 
 // SetPermissions はユーザーの権限を全置換する（削除→追加のトランザクション）。
 func (r *userAccountRepository) SetPermissions(ctx context.Context, userID, clinicID uint64, permissions []string) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("user_id = ? AND clinic_id = ?", userID, clinicID).
 			Delete(&model.UserPermission{}).Error; err != nil {
 			return apperrors.Wrap(err, "delete existing permissions")
@@ -132,7 +135,10 @@ func (r *userAccountRepository) SetPermissions(ctx context.Context, userID, clin
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return fmt.Errorf("SetPermissions user account: %w", err)
+	}
+	return nil
 }
 
 // FindByIDWithMemberships はIDでユーザーを取得し、所属クリニック・権限も合わせて返す。

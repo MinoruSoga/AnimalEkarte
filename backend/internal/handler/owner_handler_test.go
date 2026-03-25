@@ -57,8 +57,8 @@ func newHandlerWithOwnerSvc(svc service.OwnerService) *Handler {
 }
 
 // setClinicID は gin.Context に clinic_id を設定するヘルパー
-func setClinicID(c *gin.Context, id string) {
-	c.Set("clinic_id", id)
+func setClinicID(c *gin.Context) {
+	c.Set("clinic_id", "1")
 }
 
 // ---- ListOwners ----
@@ -77,7 +77,7 @@ func TestListOwners(t *testing.T) {
 		{
 			name:     "returns paginated owners",
 			query:    "page=1&limit=10",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
 				listFn: func(_ context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error) {
 					return []model.Owner{{ID: 1, OwnerName: "田中太郎"}}, 1, nil
@@ -89,7 +89,7 @@ func TestListOwners(t *testing.T) {
 		{
 			name:     "returns empty list when no owners",
 			query:    "page=1&limit=10",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
 				listFn: func(_ context.Context, _ uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
 					return []model.Owner{}, 0, nil
@@ -108,14 +108,14 @@ func TestListOwners(t *testing.T) {
 		{
 			name:       "returns 400 on invalid pagination",
 			query:      "page=0",
-			setupCtx:   func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockOwnerService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "passes search param to service",
 			query:    "page=1&limit=10&search=田中",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
 				listFn: func(_ context.Context, _ uint64, _, _ int, search string) ([]model.Owner, int64, error) {
 					assert.Equal(t, "田中", search)
@@ -127,7 +127,7 @@ func TestListOwners(t *testing.T) {
 		{
 			name:     "returns 500 on service error",
 			query:    "page=1&limit=10",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
 				listFn: func(_ context.Context, _ uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
 					return nil, 0, fmt.Errorf("unexpected db failure")
@@ -172,7 +172,7 @@ func TestGetOwner(t *testing.T) {
 		{
 			name:     "returns owner for valid id",
 			paramID:  "42",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
 				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Owner, error) {
 					assert.Equal(t, uint64(1), clinicID)
@@ -193,14 +193,14 @@ func TestGetOwner(t *testing.T) {
 		{
 			name:       "returns 400 for non-numeric id",
 			paramID:    "abc",
-			setupCtx:   func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockOwnerService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 404 when owner not found",
 			paramID:  "999",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
 				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
 					return nil, apperrors.WrapNotFound("owner", "999")
@@ -257,7 +257,7 @@ func TestCreateOwner(t *testing.T) {
 		{
 			name:     "creates owner successfully",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
 				createWithPetsFn: func(_ context.Context, _ uint64, input *service.CreateOwnerInput) (*model.Owner, error) {
 					return &model.Owner{ID: 1, OwnerName: input.OwnerName}, nil
@@ -276,14 +276,14 @@ func TestCreateOwner(t *testing.T) {
 		{
 			name:       "returns 400 for invalid JSON",
 			body:       "invalid json",
-			setupCtx:   func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockOwnerService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 409 on duplicate email",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
 				createWithPetsFn: func(_ context.Context, _ uint64, _ *service.CreateOwnerInput) (*model.Owner, error) {
 					return nil, apperrors.WrapAlreadyExists("owner", "yamada@example.com")
@@ -336,7 +336,7 @@ func TestUpdateOwner(t *testing.T) {
 			name:     "updates owner successfully",
 			paramID:  "1",
 			body:     map[string]any{"owner_name": "田中次郎"},
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
 				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateOwnerInput) (*model.Owner, error) {
 					return &model.Owner{ID: 1, OwnerName: *input.OwnerName}, nil
@@ -349,7 +349,7 @@ func TestUpdateOwner(t *testing.T) {
 			name:     "partial update with only phone",
 			paramID:  "1",
 			body:     map[string]any{"phone": "080-9999-0000"},
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
 				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateOwnerInput) (*model.Owner, error) {
 					assert.Equal(t, "080-9999-0000", *input.Phone)
@@ -371,7 +371,7 @@ func TestUpdateOwner(t *testing.T) {
 			name:       "returns 400 for non-numeric id",
 			paramID:    "xyz",
 			body:       map[string]any{"owner_name": "テスト"},
-			setupCtx:   func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockOwnerService{},
 			wantStatus: http.StatusBadRequest,
 		},
@@ -379,7 +379,7 @@ func TestUpdateOwner(t *testing.T) {
 			name:     "returns 404 when owner not found",
 			paramID:  "999",
 			body:     map[string]any{"owner_name": ptrStr("テスト")},
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOwnerService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateOwnerInput) (*model.Owner, error) {
 					return nil, apperrors.WrapNotFound("owner", "999")
@@ -423,7 +423,7 @@ func newDeleteOwnerRouter(svc service.OwnerService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithOwnerSvc(svc)
 	r.DELETE("/owners/:id", func(c *gin.Context) {
-		setClinicID(c, "1")
+		setClinicID(c)
 	}, h.DeleteOwner)
 	return r
 }

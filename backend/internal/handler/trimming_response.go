@@ -44,10 +44,10 @@ type trimmingResponse struct {
 
 func toTrimmingResponse(t *model.TrimmingRecord) trimmingResponse {
 	options := make([]trimmingOptionSummaryResponse, 0, len(t.Options))
-	for _, o := range t.Options {
+	for i := range t.Options {
 		options = append(options, trimmingOptionSummaryResponse{
-			ID:   o.ID,
-			Name: o.Name,
+			ID:   t.Options[i].ID,
+			Name: t.Options[i].Name,
 		})
 	}
 

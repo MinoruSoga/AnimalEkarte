@@ -92,7 +92,7 @@ func (r *serviceTypeRepository) Delete(ctx context.Context, clinicID, id uint64)
 
 // Reorder はトランザクション内で予約区分の sort_order を ids の順序で更新する
 func (r *serviceTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.ServiceType{}).
 				Where("id = ? AND clinic_id = ?", id, clinicID).
@@ -105,5 +105,8 @@ func (r *serviceTypeRepository) Reorder(ctx context.Context, clinicID uint64, id
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return fmt.Errorf("reorder service type: %w", err)
+	}
+	return nil
 }

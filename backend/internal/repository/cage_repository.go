@@ -112,7 +112,7 @@ func (r *cageRepository) Delete(ctx context.Context, id uint64) error {
 }
 
 func (r *cageRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.Cage{}).
 				Where("id = ? AND clinic_id = ?", id, clinicID).
@@ -125,5 +125,8 @@ func (r *cageRepository) Reorder(ctx context.Context, clinicID uint64, ids []uin
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return fmt.Errorf("reorder cage: %w", err)
+	}
+	return nil
 }

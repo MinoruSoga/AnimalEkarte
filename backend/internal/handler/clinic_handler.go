@@ -36,7 +36,7 @@ func (h *Handler) GetClinic(c *gin.Context) {
 
 // buildClinicUpdateFields は updateClinicRequest から非 nil フィールドのみを map に変換する。
 // GORM のゼロ値問題を回避し、PATCH セマンティクス（未送信フィールドは既存値を保持）を実現する。
-func buildClinicUpdateFields(req updateClinicRequest) map[string]any {
+func buildClinicUpdateFields(req *updateClinicRequest) map[string]any {
 	fields := make(map[string]any)
 	if req.Name != nil {
 		fields["name"] = *req.Name
@@ -99,7 +99,7 @@ func (h *Handler) UpdateClinic(c *gin.Context) {
 		return
 	}
 
-	fields := buildClinicUpdateFields(req)
+	fields := buildClinicUpdateFields(&req)
 	result, err := h.svc.Clinic.UpdateClinic(c.Request.Context(), id, fields)
 	if err != nil {
 		RespondError(c, err)

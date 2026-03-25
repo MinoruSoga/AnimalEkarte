@@ -117,7 +117,7 @@ func (r *trimmingRepository) Delete(ctx context.Context, clinicID, id uint64) er
 }
 
 func (r *trimmingRepository) SetOptions(ctx context.Context, recordID uint64, optionIDs []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		record := &model.TrimmingRecord{ID: recordID}
 		if err := tx.Model(record).Association("Options").Unscoped().Clear(); err != nil {
 			return apperrors.Wrap(err, "failed to clear trimming options")
@@ -133,5 +133,8 @@ func (r *trimmingRepository) SetOptions(ctx context.Context, recordID uint64, op
 			return apperrors.Wrap(err, "failed to set trimming options")
 		}
 		return nil
-	})
+	}); err != nil {
+		return fmt.Errorf("SetOptions trimming record: %w", err)
+	}
+	return nil
 }

@@ -61,7 +61,7 @@ type LoginInput struct {
 
 // LoginResponse はログイン成功時のレスポンス
 type LoginResponse struct {
-	Token     string      `json:"token"`      // JWT トークン（Authorization Bearer で送信）
+	Token     string      `json:"token"` // JWT トークン（Authorization Bearer で送信）
 	ExpiresAt int64       `json:"expires_at"`
 	UserType  string      `json:"user_type"`
 	User      *MeResponse `json:"user"`
@@ -89,27 +89,28 @@ func buildMeResponse(data *repository.UserAccountWithMemberships, mainClinicID s
 
 	var meClinic *MeClinicInfo
 	for i := range allClinics {
-		if strconv.FormatUint(allClinics[i].ID, 10) == mainClinicID {
-			cl := &allClinics[i]
-			var logoURL *string
-			if cl.LogoURL != "" {
-				logoURL = &cl.LogoURL
-			}
-			meClinic = &MeClinicInfo{
-				ID:                 strconv.FormatUint(cl.ID, 10),
-				Name:               cl.Name,
-				PostalCode:         cl.PostalCode,
-				Address:            cl.Address,
-				PhoneNumber:        cl.PhoneNumber,
-				FaxNumber:          cl.FaxNumber,
-				RegistrationNumber: cl.RegistrationNumber,
-				DirectorName:       cl.DirectorName,
-				Email:              cl.Email,
-				Website:            cl.Website,
-				LogoURL:            logoURL,
-			}
-			break
+		if strconv.FormatUint(allClinics[i].ID, 10) != mainClinicID {
+			continue
 		}
+		cl := &allClinics[i]
+		var logoURL *string
+		if cl.LogoURL != "" {
+			logoURL = &cl.LogoURL
+		}
+		meClinic = &MeClinicInfo{
+			ID:                 strconv.FormatUint(cl.ID, 10),
+			Name:               cl.Name,
+			PostalCode:         cl.PostalCode,
+			Address:            cl.Address,
+			PhoneNumber:        cl.PhoneNumber,
+			FaxNumber:          cl.FaxNumber,
+			RegistrationNumber: cl.RegistrationNumber,
+			DirectorName:       cl.DirectorName,
+			Email:              cl.Email,
+			Website:            cl.Website,
+			LogoURL:            logoURL,
+		}
+		break
 	}
 
 	var jobTitle *string

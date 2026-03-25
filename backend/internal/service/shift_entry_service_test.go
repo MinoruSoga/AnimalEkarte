@@ -15,11 +15,11 @@ import (
 // ---- ShiftEntry モック ----
 
 type mockShiftEntryRepository struct {
-	listFn       func(ctx context.Context, clinicID uint64, filter repository.ShiftEntryFilter) ([]model.ShiftEntry, error)
-	findByIDFn   func(ctx context.Context, clinicID, id uint64) (*model.ShiftEntry, error)
-	createFn     func(ctx context.Context, entry *model.ShiftEntry) error
-	updateFn     func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn     func(ctx context.Context, clinicID, id uint64) error
+	listFn     func(ctx context.Context, clinicID uint64, filter repository.ShiftEntryFilter) ([]model.ShiftEntry, error)
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ShiftEntry, error)
+	createFn   func(ctx context.Context, entry *model.ShiftEntry) error
+	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn   func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockShiftEntryRepository) List(ctx context.Context, clinicID uint64, filter repository.ShiftEntryFilter) ([]model.ShiftEntry, error) {
@@ -46,14 +46,14 @@ func (m *mockShiftEntryRepository) Delete(ctx context.Context, clinicID, id uint
 
 func TestShiftEntryService_List(t *testing.T) {
 	tests := []struct {
-		name          string
-		clinicID      uint64
-		yearMonth     string
-		staffID       *uint64
-		repoEntries   []model.ShiftEntry
-		repoErr       error
-		wantLen       int
-		wantErr       bool
+		name        string
+		clinicID    uint64
+		yearMonth   string
+		staffID     *uint64
+		repoEntries []model.ShiftEntry
+		repoErr     error
+		wantLen     int
+		wantErr     bool
 	}{
 		{
 			name:      "returns shifts for clinic without filter",
@@ -69,14 +69,14 @@ func TestShiftEntryService_List(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:      "returns empty list when no shifts exist",
-			clinicID:  1,
-			yearMonth: "2024-03",
-			staffID:   nil,
+			name:        "returns empty list when no shifts exist",
+			clinicID:    1,
+			yearMonth:   "2024-03",
+			staffID:     nil,
 			repoEntries: []model.ShiftEntry{},
-			repoErr:   nil,
-			wantLen:   0,
-			wantErr:   false,
+			repoErr:     nil,
+			wantLen:     0,
+			wantErr:     false,
 		},
 		{
 			name:        "returns error on invalid yearMonth format",
@@ -134,14 +134,14 @@ func TestShiftEntryService_Create(t *testing.T) {
 	endTime := "18:00:00"
 
 	tests := []struct {
-		name    string
+		name     string
 		clinicID uint64
-		input   *CreateShiftEntryInput
-		repoErr error
-		wantErr bool
+		input    *CreateShiftEntryInput
+		repoErr  error
+		wantErr  bool
 	}{
 		{
-			name:    "creates shift entry successfully",
+			name:     "creates shift entry successfully",
 			clinicID: 1,
 			input: &CreateShiftEntryInput{
 				StaffID:   1,
@@ -155,7 +155,7 @@ func TestShiftEntryService_Create(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "creates shift without times",
+			name:     "creates shift without times",
 			clinicID: 1,
 			input: &CreateShiftEntryInput{
 				StaffID:   1,
@@ -167,7 +167,7 @@ func TestShiftEntryService_Create(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "returns error when repository fails",
+			name:     "returns error when repository fails",
 			clinicID: 1,
 			input: &CreateShiftEntryInput{
 				StaffID:   1,
@@ -210,18 +210,18 @@ func TestShiftEntryService_Update(t *testing.T) {
 	newNote := "Updated note"
 
 	tests := []struct {
-		name          string
-		clinicID      uint64
-		id            uint64
-		input         *UpdateShiftEntryInput
-		repoUpdateErr error
+		name            string
+		clinicID        uint64
+		id              uint64
+		input           *UpdateShiftEntryInput
+		repoUpdateErr   error
 		repoReturnEntry *model.ShiftEntry
-		wantErr       bool
+		wantErr         bool
 	}{
 		{
-			name:    "updates shift entry successfully",
+			name:     "updates shift entry successfully",
 			clinicID: 1,
-			id:      1,
+			id:       1,
 			input: &UpdateShiftEntryInput{
 				ShiftType: &newShiftType,
 				StartTime: &newStartTime,
@@ -235,18 +235,18 @@ func TestShiftEntryService_Update(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "returns error when no fields provided",
-			clinicID: 1,
-			id:      1,
-			input:   &UpdateShiftEntryInput{},
-			repoUpdateErr: nil,
+			name:            "returns error when no fields provided",
+			clinicID:        1,
+			id:              1,
+			input:           &UpdateShiftEntryInput{},
+			repoUpdateErr:   nil,
 			repoReturnEntry: nil,
-			wantErr: true,
+			wantErr:         true,
 		},
 		{
-			name:    "returns error when update fails",
+			name:     "returns error when update fails",
 			clinicID: 1,
-			id:      1,
+			id:       1,
 			input: &UpdateShiftEntryInput{
 				Note: &newNote,
 			},

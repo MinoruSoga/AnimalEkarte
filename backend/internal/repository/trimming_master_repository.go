@@ -110,7 +110,7 @@ func (r *trimmingCourseRepository) Delete(ctx context.Context, id uint64) error 
 }
 
 func (r *trimmingCourseRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.TrimmingCourse{}).
 				Where("id = ? AND clinic_id = ?", id, clinicID).
@@ -123,7 +123,10 @@ func (r *trimmingCourseRepository) Reorder(ctx context.Context, clinicID uint64,
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return fmt.Errorf("reorder trimming course: %w", err)
+	}
+	return nil
 }
 
 // ---- TrimmingOption ----
@@ -222,7 +225,7 @@ func (r *trimmingOptionRepository) Delete(ctx context.Context, id uint64) error 
 }
 
 func (r *trimmingOptionRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.TrimmingOption{}).
 				Where("id = ? AND clinic_id = ?", id, clinicID).
@@ -235,5 +238,8 @@ func (r *trimmingOptionRepository) Reorder(ctx context.Context, clinicID uint64,
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return fmt.Errorf("Reorder trimming options: %w", err)
+	}
+	return nil
 }

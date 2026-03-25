@@ -44,12 +44,12 @@ func (m *mockCarePlanItemRepository) Delete(ctx context.Context, itemID uint64) 
 
 func TestCarePlanItemService_List(t *testing.T) {
 	tests := []struct {
-		name                 string
-		hospitalizationID    uint64
-		repoItems            []model.CarePlanItem
-		repoErr              error
-		wantLen              int
-		wantErr              bool
+		name              string
+		hospitalizationID uint64
+		repoItems         []model.CarePlanItem
+		repoErr           error
+		wantLen           int
+		wantErr           bool
 	}{
 		{
 			name:              "returns items for hospitalization",
@@ -129,10 +129,10 @@ func TestCarePlanItemService_Create(t *testing.T) {
 			name:              "creates item with default status",
 			hospitalizationID: hospitalizationID,
 			input: &CreateCarePlanItemInput{
-				Type:      string(model.CarePlanTypeMedicine),
-				Name:      "Pain relief",
+				Type:       string(model.CarePlanTypeMedicine),
+				Name:       "Pain relief",
 				MedicineID: &medicineID,
-				Status:    "", // Will default to Active
+				Status:     "", // Will default to Active
 			},
 			repoErr: nil,
 			wantErr: false,
@@ -200,19 +200,19 @@ func TestCarePlanItemService_Update(t *testing.T) {
 	newStatus := string(model.CarePlanStatusCompleted)
 
 	tests := []struct {
-		name                    string
-		hospitalizationID       uint64
-		itemID                  uint64
-		input                   *UpdateCarePlanItemInput
+		name                      string
+		hospitalizationID         uint64
+		itemID                    uint64
+		input                     *UpdateCarePlanItemInput
 		repoItemHospitalizationID uint64
-		repoUpdateErr           error
-		repoReturnItem          *model.CarePlanItem
-		wantErr                 bool
+		repoUpdateErr             error
+		repoReturnItem            *model.CarePlanItem
+		wantErr                   bool
 	}{
 		{
-			name:                      "updates item successfully",
-			hospitalizationID:         1,
-			itemID:                    1,
+			name:              "updates item successfully",
+			hospitalizationID: 1,
+			itemID:            1,
 			input: &UpdateCarePlanItemInput{
 				Name:   &newName,
 				Status: &newStatus,
@@ -228,14 +228,14 @@ func TestCarePlanItemService_Update(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:              "returns error when no fields provided",
-			hospitalizationID: 1,
-			itemID:            1,
-			input:             &UpdateCarePlanItemInput{},
+			name:                      "returns error when no fields provided",
+			hospitalizationID:         1,
+			itemID:                    1,
+			input:                     &UpdateCarePlanItemInput{},
 			repoItemHospitalizationID: 1,
-			repoUpdateErr:     nil,
-			repoReturnItem:    nil,
-			wantErr:           true,
+			repoUpdateErr:             nil,
+			repoReturnItem:            nil,
+			wantErr:                   true,
 		},
 		{
 			name:              "returns error when item doesn't belong to hospitalization",
@@ -301,12 +301,12 @@ func TestCarePlanItemService_Update(t *testing.T) {
 
 func TestCarePlanItemService_Delete(t *testing.T) {
 	tests := []struct {
-		name                  string
-		hospitalizationID     uint64
-		itemID                uint64
+		name                      string
+		hospitalizationID         uint64
+		itemID                    uint64
 		repoItemHospitalizationID uint64
-		repoDeleteErr         error
-		wantErr               bool
+		repoDeleteErr             error
+		wantErr                   bool
 	}{
 		{
 			name:                      "deletes item successfully",

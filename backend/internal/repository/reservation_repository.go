@@ -51,7 +51,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 		return nil, 0, apperrors.Wrap(err, "count reservations")
 	}
 	if err := q.Preload("Pet").Preload("Pet.Owner").Preload("Pet.AnimalSpecies").Preload("ServiceType").Preload("Doctor").
-		Offset((page-1)*limit).Limit(limit).Order("start_time ASC").Find(&reservations).Error; err != nil {
+		Offset((page - 1) * limit).Limit(limit).Order("start_time ASC").Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find reservations")
 	}
 	return reservations, total, nil

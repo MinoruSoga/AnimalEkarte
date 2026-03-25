@@ -50,11 +50,11 @@ func (m *mockProcedureRepository) Reorder(ctx context.Context, clinicID uint64, 
 
 func TestProcedureService_List(t *testing.T) {
 	tests := []struct {
-		name        string
+		name           string
 		repoProcedures []model.Procedure
-		repoErr     error
-		wantLen     int
-		wantErr     bool
+		repoErr        error
+		wantLen        int
+		wantErr        bool
 	}{
 		{
 			name: "returns all procedures",
@@ -68,17 +68,17 @@ func TestProcedureService_List(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:        "returns empty list when no procedures exist",
+			name:           "returns empty list when no procedures exist",
 			repoProcedures: []model.Procedure{},
-			repoErr:     nil,
-			wantLen:     0,
-			wantErr:     false,
+			repoErr:        nil,
+			wantLen:        0,
+			wantErr:        false,
 		},
 		{
-			name:        "propagates repository error",
+			name:           "propagates repository error",
 			repoProcedures: nil,
-			repoErr:     errors.New("db error"),
-			wantErr:     true,
+			repoErr:        errors.New("db error"),
+			wantErr:        true,
 		},
 	}
 
@@ -105,11 +105,11 @@ func TestProcedureService_List(t *testing.T) {
 
 func TestProcedureService_GetByID(t *testing.T) {
 	tests := []struct {
-		name           string
-		id             uint64
-		repoProcedure  *model.Procedure
-		repoErr        error
-		wantErr        bool
+		name          string
+		id            uint64
+		repoProcedure *model.Procedure
+		repoErr       error
+		wantErr       bool
 	}{
 		{
 			name: "returns procedure when found",

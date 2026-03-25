@@ -101,7 +101,7 @@ func (r *diagnosisCategoryRepository) Delete(ctx context.Context, clinicID, id u
 
 // Reorder はトランザクション内でカテゴリの sort_order を ids の順序で更新する (#019)
 func (r *diagnosisCategoryRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.DiagnosisCategory{}).
 				Where("id = ? AND clinic_id = ?", id, clinicID).
@@ -114,7 +114,10 @@ func (r *diagnosisCategoryRepository) Reorder(ctx context.Context, clinicID uint
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return fmt.Errorf("reorder diagnosis category: %w", err)
+	}
+	return nil
 }
 
 // ---- DiagnosisName ----
@@ -227,7 +230,7 @@ func (r *diagnosisNameRepository) Delete(ctx context.Context, clinicID, id uint6
 
 // Reorder はトランザクション内で診断名の sort_order を ids の順序で更新する (#019)
 func (r *diagnosisNameRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.DiagnosisName{}).
 				Where("id = ? AND clinic_id = ?", id, clinicID).
@@ -240,5 +243,8 @@ func (r *diagnosisNameRepository) Reorder(ctx context.Context, clinicID uint64, 
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return fmt.Errorf("reorder diagnosis name: %w", err)
+	}
+	return nil
 }

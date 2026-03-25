@@ -72,7 +72,7 @@ func TestListInventory(t *testing.T) {
 		{
 			name:     "returns paginated inventory items",
 			query:    "page=1&limit=10",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
 				listFn: func(_ context.Context, _ uint64, category, status *string, _, _ int) ([]model.InventoryItem, int64, error) {
 					assert.Nil(t, category)
@@ -86,7 +86,7 @@ func TestListInventory(t *testing.T) {
 		{
 			name:     "passes category filter to service",
 			query:    "page=1&limit=10&category=medicine",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
 				listFn: func(_ context.Context, _ uint64, category, _ *string, _, _ int) ([]model.InventoryItem, int64, error) {
 					require.NotNil(t, category)
@@ -104,16 +104,16 @@ func TestListInventory(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:     "returns 400 on invalid pagination",
-			query:    "page=0",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockInventoryService{},
+			name:       "returns 400 on invalid pagination",
+			query:      "page=0",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockInventoryService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 500 on service error",
 			query:    "page=1&limit=10",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
 				listFn: func(_ context.Context, _ uint64, _, _ *string, _, _ int) ([]model.InventoryItem, int64, error) {
 					return nil, 0, fmt.Errorf("db failure")
@@ -158,7 +158,7 @@ func TestGetInventory(t *testing.T) {
 		{
 			name:     "returns inventory item for valid id",
 			paramID:  "5",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
 				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.InventoryItem, error) {
 					assert.Equal(t, uint64(1), clinicID)
@@ -177,16 +177,16 @@ func TestGetInventory(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:     "returns 400 for non-numeric id",
-			paramID:  "abc",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockInventoryService{},
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockInventoryService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 404 when item not found",
 			paramID:  "999",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
 				getByIDFn: func(_ context.Context, _, _ uint64) (*model.InventoryItem, error) {
 					return nil, apperrors.WrapNotFound("inventory", "999")
@@ -241,7 +241,7 @@ func TestCreateInventory(t *testing.T) {
 		{
 			name:     "creates inventory item successfully",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
 				createFn: func(_ context.Context, clinicID uint64, item *model.InventoryItem) error {
 					assert.Equal(t, uint64(1), clinicID)
@@ -260,16 +260,16 @@ func TestCreateInventory(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:     "returns 400 when required fields are missing",
-			body:     map[string]any{"quantity": 5}, // name, category, unit が missing
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockInventoryService{},
+			name:       "returns 400 when required fields are missing",
+			body:       map[string]any{"quantity": 5}, // name, category, unit が missing
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockInventoryService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 500 on service error",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
 				createFn: func(_ context.Context, _ uint64, _ *model.InventoryItem) error {
 					return fmt.Errorf("db error")
@@ -319,7 +319,7 @@ func TestUpdateInventory(t *testing.T) {
 			name:     "updates inventory item successfully",
 			paramID:  "1",
 			body:     map[string]any{"name": "更新済み消毒液", "quantity": 20},
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
 				updateFn: func(_ context.Context, _ uint64, item *model.InventoryItem) error {
 					assert.Equal(t, "更新済み消毒液", item.Name)
@@ -338,18 +338,18 @@ func TestUpdateInventory(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:     "returns 400 for non-numeric id",
-			paramID:  "xyz",
-			body:     map[string]any{"name": "テスト"},
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockInventoryService{},
+			name:       "returns 400 for non-numeric id",
+			paramID:    "xyz",
+			body:       map[string]any{"name": "テスト"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockInventoryService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 404 when item not found",
 			paramID:  "999",
 			body:     map[string]any{"quantity": 5},
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
 				updateFn: func(_ context.Context, _ uint64, _ *model.InventoryItem) error {
 					return apperrors.WrapNotFound("inventory", "999")
@@ -386,7 +386,7 @@ func newDeleteInventoryRouter(svc service.InventoryService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithInventorySvc(svc)
 	r.DELETE("/inventory/:id", func(c *gin.Context) {
-		setClinicID(c, "1")
+		setClinicID(c)
 	}, h.DeleteInventory)
 	return r
 }

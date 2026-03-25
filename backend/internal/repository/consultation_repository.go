@@ -84,7 +84,7 @@ func (r *consultationRepository) Delete(ctx context.Context, id uint64) error {
 }
 
 func (r *consultationRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.Consultation{}).
 				Where("id = ? AND clinic_id = ?", id, clinicID).
@@ -97,5 +97,8 @@ func (r *consultationRepository) Reorder(ctx context.Context, clinicID uint64, i
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return fmt.Errorf("reorder consultation: %w", err)
+	}
+	return nil
 }

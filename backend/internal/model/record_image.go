@@ -38,7 +38,7 @@ type RecordImage struct {
 
 	// Relations
 	MedicalRecord *MedicalRecord `gorm:"foreignKey:MedicalRecordID" json:"medical_record,omitempty"`
-	Examination          *Examination          `gorm:"foreignKey:ExamID"          json:"exam,omitempty"`
+	Examination   *Examination   `gorm:"foreignKey:ExamID"          json:"exam,omitempty"`
 	Staff         *Staff         `gorm:"foreignKey:StaffID"         json:"staff,omitempty"`
 }
 

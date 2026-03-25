@@ -87,7 +87,7 @@ func (r *jobTitleRepository) Delete(ctx context.Context, id uint64) error {
 }
 
 func (r *jobTitleRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.JobTitle{}).
 				Where("id = ? AND clinic_id = ?", id, clinicID).
@@ -100,5 +100,8 @@ func (r *jobTitleRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return fmt.Errorf("reorder job title: %w", err)
+	}
+	return nil
 }

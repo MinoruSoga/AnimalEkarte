@@ -32,12 +32,12 @@ func CalculateTaxAmount(unitPrice int64, quantity float64, taxType model.TaxType
 //   - totalAmount : subtotal + 外税額（内税は subtotal に内包されるため加算しない）
 func CalculateBillingTotals(items []model.BillingItem) (subtotal, taxTotal, totalAmount int64) {
 	var excludedTax int64
-	for _, item := range items {
-		itemSubtotal := int64(float64(item.UnitPrice) * item.Quantity)
-		taxAmount := CalculateTaxAmount(item.UnitPrice, item.Quantity, item.TaxType, item.TaxRate)
+	for i := range items {
+		itemSubtotal := int64(float64(items[i].UnitPrice) * items[i].Quantity)
+		taxAmount := CalculateTaxAmount(items[i].UnitPrice, items[i].Quantity, items[i].TaxType, items[i].TaxRate)
 		subtotal += itemSubtotal
 		taxTotal += taxAmount
-		if item.TaxType == model.TaxTypeExcluded {
+		if items[i].TaxType == model.TaxTypeExcluded {
 			excludedTax += taxAmount
 		}
 	}

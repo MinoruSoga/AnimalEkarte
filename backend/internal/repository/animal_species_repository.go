@@ -103,7 +103,7 @@ func (r *animalSpeciesRepository) Delete(ctx context.Context, id uint64) error {
 
 // Reorder はトランザクション内で sort_order を ids の順序で更新する
 func (r *animalSpeciesRepository) Reorder(ctx context.Context, ids []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.AnimalSpecies{}).
 				Where("id = ?", id).
@@ -116,5 +116,8 @@ func (r *animalSpeciesRepository) Reorder(ctx context.Context, ids []uint64) err
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return fmt.Errorf("reorder animal species: %w", err)
+	}
+	return nil
 }

@@ -10,11 +10,11 @@ const (
 )
 
 type VitalRecord struct {
-	ID              uint64         `gorm:"primaryKey;autoIncrement"`
-	PetID           uint64         `gorm:"not null"`
+	ID              uint64 `gorm:"primaryKey;autoIncrement"`
+	PetID           uint64 `gorm:"not null"`
 	MedicalRecordID *uint64
 	DailyRecordID   *uint64
-	RecordedAt      time.Time      `gorm:"not null;default:now()"`
+	RecordedAt      time.Time `gorm:"not null;default:now()"`
 	StaffID         *uint64
 	Temperature     *float64
 	HeartRate       *int

@@ -272,13 +272,13 @@ func TestPetService_GetByID_NotFound(t *testing.T) {
 
 func TestPetService_Create(t *testing.T) {
 	tests := []struct {
-		name          string
-		clinicID      uint64
-		input         CreatePetInput
-		repoErr       error
-		ownerRepoErr  error
-		wantErr       bool
-		wantPet       bool
+		name         string
+		clinicID     uint64
+		input        CreatePetInput
+		repoErr      error
+		ownerRepoErr error
+		wantErr      bool
+		wantPet      bool
 	}{
 		{
 			name:     "creates pet successfully",

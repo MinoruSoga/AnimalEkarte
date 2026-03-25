@@ -102,7 +102,7 @@ func (r *medicineRepository) Update(ctx context.Context, clinicID, id uint64, fi
 }
 
 func (r *medicineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.Medicine{}).
 				Where("id = ? AND clinic_id = ?", id, clinicID).
@@ -115,7 +115,10 @@ func (r *medicineRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return fmt.Errorf("reorder medicine: %w", err)
+	}
+	return nil
 }
 
 func (r *medicineRepository) Delete(ctx context.Context, clinicID, id uint64) error {

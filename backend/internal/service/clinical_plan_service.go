@@ -91,13 +91,27 @@ func (s *clinicalPlanService) Delete(ctx context.Context, medicalRecordID uint64
 
 func buildClinicalPlanUpdateFields(input *UpdateClinicalPlanInput) map[string]any {
 	fields := map[string]any{}
-	if input.PhysicalExam != nil         { fields["physical_exam"] = *input.PhysicalExam }
-	if input.DiagnosisCategoryID != nil  { fields["diagnosis_category_id"] = *input.DiagnosisCategoryID }
-	if input.DiagnosisNameID != nil      { fields["diagnosis_name_id"] = *input.DiagnosisNameID }
-	if input.Diagnosis2CategoryID != nil { fields["diagnosis_2_category_id"] = *input.Diagnosis2CategoryID }
-	if input.Diagnosis2NameID != nil     { fields["diagnosis_2_name_id"] = *input.Diagnosis2NameID }
-	if input.DiagnosisDetails != nil     { fields["diagnosis_details"] = *input.DiagnosisDetails }
-	if input.TreatmentPolicy != nil      { fields["treatment_policy"] = *input.TreatmentPolicy }
+	if input.PhysicalExam != nil {
+		fields["physical_exam"] = *input.PhysicalExam
+	}
+	if input.DiagnosisCategoryID != nil {
+		fields["diagnosis_category_id"] = *input.DiagnosisCategoryID
+	}
+	if input.DiagnosisNameID != nil {
+		fields["diagnosis_name_id"] = *input.DiagnosisNameID
+	}
+	if input.Diagnosis2CategoryID != nil {
+		fields["diagnosis_2_category_id"] = *input.Diagnosis2CategoryID
+	}
+	if input.Diagnosis2NameID != nil {
+		fields["diagnosis_2_name_id"] = *input.Diagnosis2NameID
+	}
+	if input.DiagnosisDetails != nil {
+		fields["diagnosis_details"] = *input.DiagnosisDetails
+	}
+	if input.TreatmentPolicy != nil {
+		fields["treatment_policy"] = *input.TreatmentPolicy
+	}
 	return fields
 }
 

@@ -13,7 +13,7 @@ import (
 // ---- ChiefComplaintCategory モック ----
 
 type mockChiefComplaintCategoryRepository struct {
-	findAllFn func(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintCategory, error)
+	findAllFn  func(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintCategory, error)
 	findByIDFn func(ctx context.Context, id uint64) (*model.ChiefComplaintCategory, error)
 	createFn   func(ctx context.Context, category *model.ChiefComplaintCategory) error
 	updateFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -223,9 +223,9 @@ func TestChiefComplaintCategoryService_Update(t *testing.T) {
 				SortOrder: &newSortOrder,
 			},
 			repoData: &model.ChiefComplaintCategory{
-				ID:       1,
-				ClinicID: 1,
-				Name:     newName,
+				ID:        1,
+				ClinicID:  1,
+				Name:      newName,
 				SortOrder: newSortOrder,
 			},
 			repoErr: nil,

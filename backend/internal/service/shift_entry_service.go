@@ -113,10 +113,18 @@ func (s *shiftEntryService) Delete(ctx context.Context, clinicID, id uint64) err
 
 func buildShiftEntryUpdateFields(input *UpdateShiftEntryInput) map[string]any {
 	fields := map[string]any{}
-	if input.ShiftType != nil { fields["shift_type"] = *input.ShiftType }
-	if input.StartTime != nil { fields["start_time"] = parseTimeString(input.StartTime) }
-	if input.EndTime != nil   { fields["end_time"] = parseTimeString(input.EndTime) }
-	if input.Note != nil      { fields["note"] = *input.Note }
+	if input.ShiftType != nil {
+		fields["shift_type"] = *input.ShiftType
+	}
+	if input.StartTime != nil {
+		fields["start_time"] = parseTimeString(input.StartTime)
+	}
+	if input.EndTime != nil {
+		fields["end_time"] = parseTimeString(input.EndTime)
+	}
+	if input.Note != nil {
+		fields["note"] = *input.Note
+	}
 	return fields
 }
 

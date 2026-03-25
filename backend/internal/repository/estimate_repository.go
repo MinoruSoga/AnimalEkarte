@@ -48,7 +48,7 @@ func (r *estimateRepository) FindAll(ctx context.Context, clinicID uint64, owner
 		return nil, 0, apperrors.Wrap(err, "count estimates")
 	}
 	if err := q.Preload("Owner").Preload("Items").
-		Offset((page-1)*limit).Limit(limit).Order("created_at DESC").Find(&estimates).Error; err != nil {
+		Offset((page - 1) * limit).Limit(limit).Order("created_at DESC").Find(&estimates).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find estimates")
 	}
 	return estimates, total, nil

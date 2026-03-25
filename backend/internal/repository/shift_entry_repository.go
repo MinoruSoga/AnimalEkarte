@@ -16,7 +16,7 @@ import (
 
 // ShiftEntryFilter はシフト一覧取得のフィルタ条件
 type ShiftEntryFilter struct {
-	YearMonth string  // "YYYY-MM" 形式
+	YearMonth string // "YYYY-MM" 形式
 	StaffID   *uint64
 }
 
@@ -115,4 +115,3 @@ func (r *shiftEntryRepository) Delete(ctx context.Context, clinicID, id uint64) 
 	}
 	return nil
 }
-

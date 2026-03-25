@@ -8,17 +8,17 @@ import (
 
 // shiftResponse はシフトエントリのレスポンス
 type shiftResponse struct {
-	ID        string               `json:"id"`
-	ClinicID  string               `json:"clinic_id"`
-	StaffID   string               `json:"staff_id"`
-	StaffName string               `json:"staff_name,omitempty"`
-	Date      string               `json:"date"` // YYYY-MM-DD
-	ShiftType model.ShiftType      `json:"shift_type"`
-	StartTime string               `json:"start_time"`
-	EndTime   string               `json:"end_time"`
-	Note      string               `json:"note"`
-	CreatedAt string               `json:"created_at"`
-	UpdatedAt string               `json:"updated_at"`
+	ID        string                `json:"id"`
+	ClinicID  string                `json:"clinic_id"`
+	StaffID   string                `json:"staff_id"`
+	StaffName string                `json:"staff_name,omitempty"`
+	Date      string                `json:"date"` // YYYY-MM-DD
+	ShiftType model.ShiftType       `json:"shift_type"`
+	StartTime string                `json:"start_time"`
+	EndTime   string                `json:"end_time"`
+	Note      string                `json:"note"`
+	CreatedAt string                `json:"created_at"`
+	UpdatedAt string                `json:"updated_at"`
 	Staff     *staffSummaryResponse `json:"staff,omitempty"`
 }
 

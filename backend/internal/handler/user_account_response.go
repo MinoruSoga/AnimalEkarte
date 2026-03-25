@@ -10,15 +10,15 @@ import (
 // userResponse はユーザーアカウントの API レスポンス
 // password_hash は絶対に含めない
 type userResponse struct {
-	ID          string     `json:"id"`
-	Email       string     `json:"email"`
-	DisplayName string     `json:"display_name"`
-	UserType    string     `json:"user_type"`
-	StaffID     *string    `json:"staff_id,omitempty"`
-	AvatarURL   string     `json:"avatar_url"`
-	Status      string     `json:"status"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID          string    `json:"id"`
+	Email       string    `json:"email"`
+	DisplayName string    `json:"display_name"`
+	UserType    string    `json:"user_type"`
+	StaffID     *string   `json:"staff_id,omitempty"`
+	AvatarURL   string    `json:"avatar_url"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // userMembershipResponse は所属クリニック情報の API レスポンス

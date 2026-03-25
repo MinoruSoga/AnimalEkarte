@@ -69,7 +69,7 @@ func TestListReservations(t *testing.T) {
 		{
 			name:     "returns paginated reservations",
 			query:    "page=1&limit=10",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
 				listFn: func(_ context.Context, _ uint64, _, _ int, date *time.Time, status *string, _, _ *uint64) ([]model.ReservationAppointment, int64, error) {
 					assert.Nil(t, date)
@@ -83,7 +83,7 @@ func TestListReservations(t *testing.T) {
 		{
 			name:     "passes date filter to service",
 			query:    "page=1&limit=10&date=2026-03-24",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
 				listFn: func(_ context.Context, _ uint64, _, _ int, date *time.Time, _ *string, _, _ *uint64) ([]model.ReservationAppointment, int64, error) {
 					require.NotNil(t, date)
@@ -96,17 +96,17 @@ func TestListReservations(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:     "returns 400 for invalid date format",
-			query:    "page=1&limit=10&date=2026/03/24",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockReservationService{},
+			name:       "returns 400 for invalid date format",
+			query:      "page=1&limit=10&date=2026/03/24",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:     "returns 400 for invalid pet_id",
-			query:    "page=1&limit=10&pet_id=abc",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockReservationService{},
+			name:       "returns 400 for invalid pet_id",
+			query:      "page=1&limit=10&pet_id=abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -119,7 +119,7 @@ func TestListReservations(t *testing.T) {
 		{
 			name:     "returns 500 on service error",
 			query:    "page=1&limit=10",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
 				listFn: func(_ context.Context, _ uint64, _, _ int, _ *time.Time, _ *string, _, _ *uint64) ([]model.ReservationAppointment, int64, error) {
 					return nil, 0, fmt.Errorf("db error")
@@ -161,7 +161,7 @@ func TestGetReservation(t *testing.T) {
 		{
 			name:     "returns reservation for valid id",
 			paramID:  "3",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
 				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ReservationAppointment, error) {
 					assert.Equal(t, uint64(1), clinicID)
@@ -180,16 +180,16 @@ func TestGetReservation(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:     "returns 400 for non-numeric id",
-			paramID:  "abc",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockReservationService{},
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 404 when not found",
 			paramID:  "999",
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
 				getByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationAppointment, error) {
 					return nil, apperrors.WrapNotFound("reservation", "999")
@@ -241,7 +241,7 @@ func TestCreateReservation(t *testing.T) {
 		{
 			name:     "creates reservation successfully",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
 				createFn: func(_ context.Context, r *model.ReservationAppointment) error {
 					assert.Equal(t, "健康診断", r.Notes)
@@ -258,10 +258,10 @@ func TestCreateReservation(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:     "returns 400 when required fields are missing",
-			body:     map[string]any{"notes": "テスト"}, // start_time, end_time, service_type_id missing
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockReservationService{},
+			name:       "returns 400 when required fields are missing",
+			body:       map[string]any{"notes": "テスト"}, // start_time, end_time, service_type_id missing
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -271,8 +271,8 @@ func TestCreateReservation(t *testing.T) {
 				b["visit_type"] = "invalid_type"
 				return b
 			}(),
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockReservationService{},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -282,14 +282,14 @@ func TestCreateReservation(t *testing.T) {
 				b["status"] = "invalid_status"
 				return b
 			}(),
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockReservationService{},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 500 on service error",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
 				createFn: func(_ context.Context, _ *model.ReservationAppointment) error {
 					return fmt.Errorf("db error")
@@ -334,7 +334,7 @@ func TestUpdateReservation(t *testing.T) {
 			name:     "updates reservation successfully",
 			paramID:  "1",
 			body:     map[string]any{"notes": "更新済みメモ"},
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
 				updateFn: func(_ context.Context, r *model.ReservationAppointment) error {
 					assert.Equal(t, "更新済みメモ", r.Notes)
@@ -344,18 +344,18 @@ func TestUpdateReservation(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:     "returns 400 for non-numeric doctor_id",
-			paramID:  "1",
-			body:     map[string]any{"doctor_id": ptrStr("田中医師")}, // 名前で渡すとエラー
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockReservationService{},
+			name:       "returns 400 for non-numeric doctor_id",
+			paramID:    "1",
+			body:       map[string]any{"doctor_id": ptrStr("田中医師")}, // 名前で渡すとエラー
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "accepts numeric doctor_id as string",
 			paramID:  "1",
 			body:     map[string]any{"doctor_id": "42"},
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
 				updateFn: func(_ context.Context, r *model.ReservationAppointment) error {
 					require.NotNil(t, r.DoctorID)
@@ -374,18 +374,18 @@ func TestUpdateReservation(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:     "returns 400 for non-numeric id",
-			paramID:  "xyz",
-			body:     map[string]any{"notes": "テスト"},
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
-			svc:      &mockReservationService{},
+			name:       "returns 400 for non-numeric id",
+			paramID:    "xyz",
+			body:       map[string]any{"notes": "テスト"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 404 when not found",
 			paramID:  "999",
 			body:     map[string]any{"notes": "テスト"},
-			setupCtx: func(c *gin.Context) { setClinicID(c, "1") },
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
 				updateFn: func(_ context.Context, _ *model.ReservationAppointment) error {
 					return apperrors.WrapNotFound("reservation", "999")
@@ -418,7 +418,7 @@ func newDeleteReservationRouter(svc service.ReservationService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithReservationSvc(svc)
 	r.DELETE("/reservations/:id", func(c *gin.Context) {
-		setClinicID(c, "1")
+		setClinicID(c)
 	}, h.DeleteReservation)
 	return r
 }
