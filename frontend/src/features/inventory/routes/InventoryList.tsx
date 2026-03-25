@@ -14,6 +14,7 @@ import type {
   ActiveFilter,
   SortProperty,
 } from "@/components/shared/NotionFilter/types";
+import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
 
 // Internal
 import { paths } from "@/config/paths";
@@ -56,6 +57,8 @@ const INVENTORY_FILTER_PROPERTIES: FilterProperty[] = [
     label: "カテゴリ",
     type: "select",
     icon: FolderOpen,
+    // inventory_items.category NOT NULL — 空値は存在しない
+    conditions: CONDITIONS_NO_EMPTY,
     options: [
       { value: "medicine", label: "医薬品" },
       { value: "consumable", label: "消耗品" },
@@ -68,6 +71,8 @@ const INVENTORY_FILTER_PROPERTIES: FilterProperty[] = [
     label: "ステータス",
     type: "select",
     icon: CircleDot,
+    // inventory_items.status DEFAULT 'sufficient' — 空値は存在しない
+    conditions: CONDITIONS_NO_EMPTY,
     options: [
       { value: "sufficient", label: "十分" },
       { value: "low", label: "残少" },

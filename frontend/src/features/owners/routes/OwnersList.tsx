@@ -49,6 +49,7 @@ import type {
   ActiveFilter,
   SortProperty,
 } from "@/components/shared/NotionFilter/types";
+import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
 
 // rendering-hoist-jsx: 静的ソートプロパティ定義
 const OWNER_SORT_PROPERTIES: SortProperty[] = [
@@ -67,6 +68,8 @@ const OWNER_FILTER_PROPERTIES: FilterProperty[] = [
     label: "種",
     type: "select",
     icon: PawPrint,
+    // pets.animal_species_id NOT NULL — 空値は存在しない
+    conditions: CONDITIONS_NO_EMPTY,
     options: [
       { value: "犬", label: "犬" },
       { value: "猫", label: "猫" },
@@ -81,6 +84,8 @@ const OWNER_FILTER_PROPERTIES: FilterProperty[] = [
     label: "生死",
     type: "select",
     icon: Heart,
+    // pets.status NOT NULL DEFAULT 'alive' — 空値は存在しない
+    conditions: CONDITIONS_NO_EMPTY,
     options: [
       { value: "alive", label: "生存" },
       { value: "deceased", label: "死亡" },

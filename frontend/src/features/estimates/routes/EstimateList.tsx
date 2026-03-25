@@ -21,6 +21,7 @@ import type {
   SortProperty,
   ActiveSort,
 } from "@/components/shared/NotionFilter/types";
+import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
 
 // rendering-hoist-jsx: 静的定義はモジュール定数に巻き上げ
 const FILTER_PROPERTIES: FilterProperty[] = [
@@ -29,6 +30,8 @@ const FILTER_PROPERTIES: FilterProperty[] = [
     label: "ステータス",
     type: "select",
     icon: CircleDot,
+    // estimates.status DEFAULT 'draft' — 空値は存在しない
+    conditions: CONDITIONS_NO_EMPTY,
     options: [
       { value: "draft", label: "下書き" },
       { value: "sent", label: "送付済み" },
