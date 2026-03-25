@@ -33,11 +33,11 @@ import type { AccountingFilters } from "../api/get-accountings";
 
 // Types
 import type { Accounting as AccountingType, AccountingStatus, PaymentMethod } from "../types";
+import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
 import type {
   FilterProperty,
   ActiveFilter,
   SortProperty,
-  CONDITIONS_NO_EMPTY,
 } from "@/components/shared/NotionFilter/types";
 
 // ── 静的定数（rendering-hoist-jsx）──────────────────────────
@@ -49,7 +49,7 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 
 const ACCOUNTING_STATUS_LABELS: Record<AccountingStatus, string> = {
   waiting: "会計待ち",
-  pending: "会計待ち",
+  pending: "会計待ち", // ENUM に存在するが billing service では使用しない（表示用のフォールバックとして保持）
   completed: "会計済",
   cancelled: "キャンセル",
 };
@@ -66,7 +66,8 @@ const FILTER_PROPERTIES: FilterProperty[] = [
     label: "ステータス",
     type: "select",
     icon: CircleDot,
-    // DEFAULT 'waiting' — 空値は存在しない
+    // billing service が実際にセットする値は waiting/completed/cancelled の3値のみ。
+    // pending は ENUM 定義にあるが service 層で使われていないため選択肢から除外。
     conditions: CONDITIONS_NO_EMPTY,
     options: [
       { value: "waiting", label: "会計待ち" },
@@ -79,8 +80,9 @@ const FILTER_PROPERTIES: FilterProperty[] = [
     label: "支払方法",
     type: "select",
     icon: CreditCard,
-    // payments.method DEFAULT 'cash' — 空値は存在しない
-    conditions: CONDITIONS_NO_EMPTY,
+    // payments レコードは会計完了時に作成されるため、会計待ち中は payment が存在しない（空）。
+    // 「支払方法 = 空」= 未会計の絞り込みとして有効。
+    conditions: CONDITIONS_WITH_EMPTY,
     options: [
       { value: "cash", label: "現金" },
       { value: "credit_card", label: "クレジットカード" },
