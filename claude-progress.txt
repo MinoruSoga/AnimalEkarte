@@ -1,56 +1,73 @@
 # Animal Ekarte - Claude 作業進捗
 
-**最終更新**: 2026-03-17
-**現在のブランチ**: main
-**最新ステータス**: 実装完了・E2E検証準備完了
+**最終更新**: 2026-03-26
+**現在のブランチ**: bug/fix（main より 131 コミット先行）
+**最新ステータス**: 全タスク完了・マージ待ち
 
 ---
 
-## ✅ 完了した作業（直近のアップデート）
+## ✅ 完了済みタスク（bug/fix ブランチ）
 
-### バックエンド機能拡張（2026-03-17）
-- `ClinicalPlan` モデルに第2診断フィールド（Category/Name）を追加。
-- サービス層およびハンドラ層を更新し、カルテ作成・更新時に第2診断も原子的（Atomic）に処理・保存されるよう修正。
-- `docker compose exec backend go build ./...` 実行。ビルドエラーなし。
+### TASK-031: 返金機能（2026-03-26）
+- `billing_refunds` テーブル追加（001_init.sql）
+- BillingRefund モデル・全レイヤー実装（repository / service / handler）
+- Frontend: createRefund / useGetRefunds / transformToRefund / RefundSection
+- 会計一覧「返金あり」バッジ
+- 多テナント保護・N+1なし・型安全（tsc --noEmit 0エラー）
 
-### マスタ設定API結合（2026-03-17）
-- `InquiryTemplateSettings` のスケルトンを解消し、汎用 `Settings` コンポーネントで CRUD 機能を有効化。
-- `CageSettings` にドラッグ＆ドロップによる並び替え機能を追加し、バックエンド API と同期。
-- `MASTER_CATEGORY_ENDPOINT` と `CATEGORY_CONFIG` に `inquiry_template` を追加。
+### TASK-030: タブレットファーストUI統一（2026-03-26）
+- 全一覧テーブルのテキストサイズ・パディング統一（text-base / py-2）
+- 不要な lg:table-cell 制限除去
 
-### 電子カルテ各タブの調整（2026-03-17）
-- **診察/治療プラン**: 実データ（`useTreatments`）との結合、モックデータの削除、計算ロジック（飼主割引対応）の修正、第2診断の保存対応。
-- **治療**: 飼主割引率の適用と合計金額計算の整合性を確保。
-- **会計(医師確認)**: 実データ結合、医師確認（`ConfirmBillingReview`）および差し戻し（`ReturnBillingReview`）の実装、請求額計算の修正。
-- **バイタル**: 体温範囲バリデーション、未来日時入力防止の実装。
+### TASK-029: 消費税率設定（2026-03-25）
+- 医院マスタの税率設定をサイドパネルに統合（hospital-settings）
 
-### カルテフォームバリデーション実装（2026-03-17）
-- **Frontend**: `useMedicalRecordForm` に主訴・プランの未入力チェック（デフォルトテンプレートのままの保存を防止）および診断カテゴリ/名の整合性チェックを追加。
-- **Backend**: `createMedicalRecordRequest` に `binding:"required"` を追加し、ハンドラ層で `PetID`, `OwnerID` の明示的な必須チェックを実装。
+### TASK-028: 日付範囲フィルタ（2026-03-25）
+- 定期健診 / カルテ / 会計管理 一覧に NotionFilter date-range フィルタ追加
+- 会計管理: loaderData → useGetAccountings hook 移行
+- BE: medical_record / accounting list API に start_date/end_date クエリパラメータ追加
+
+### 動的フィルタ追加（2026-03-24）
+- カルテ・検査・会計・入院・トリミング・予防接種 に ステータス / 支払方法 / 担当医 / 種 フィルタ
+- DB 制約に基づくフィルタ条件の適切な制限（CONDITIONS_NO_EMPTY / WITH_EMPTY）
+
+### 税種別（tax_type）対応（2026-03-22）
+- medicine / merchandise_item マスタに tax_type 追加
+- Backend 全レイヤー対応
+
+### その他主要変更（2026-03-17〜2026-03-26）
+- ページネーション（5ページに追加）
+- カルテ詳細タブ: API統合（バイタル・治療・会計確認）
+- トリミング・入院管理: 日付フィルタをサーバーサイドに移行
+- フロントエンド ESLint 警告削減（45件 → 12件）
 
 ---
 
-## 🏁 全タスク完了（ブラウザ動作確認準備完了）
+## 🔢 統計
 
-すべての実装と型チェック、ビルド確認が完了しました。`http://localhost:3003` で以下の項目を確認してください：
+| 項目 | 数値 |
+|------|------|
+| main からのコミット数 | 131 |
+| フロントエンドテスト | 242件 / 全pass |
+| Go テスト | 全pass |
+| TypeScript エラー（tsc --noEmit） | 0件 |
+| ESLint エラー | 0件 |
 
-1.  **ケージマスタ**: ドラッグ＆ドロップによる並び替えが保存されるか。
-2.  **問診テンプレート**: 新規作成・編集・削除が正常に動作するか。
-3.  **カルテ作成**:
-    *   主訴やプランが空（またはテンプレートのまま）の場合にエラーが出るか。
-    *   第1診断・第2診断を選択して保存し、再度開いたときに保持されているか。
-4.  **会計確認**:
-    *   「チェック完了」ボタンでステータスが「確認済み」になるか。
-    *   「確認を取り消す」ボタンで未確認状態に戻るか。
-    *   飼主割引率が正しく請求額（税込）に反映されているか。
+---
+
+## 📋 次のアクション候補
+
+1. **PR作成**: `bug/fix` → `main` / `develop` へのプルリクエスト
+2. **ブラウザ動作確認** (`http://localhost:3003`):
+   - 返金機能（completed 会計で返金登録・履歴表示・残額更新）
+   - 日付範囲フィルタ（カルテ・会計・定期健診）
+   - タブレット表示確認
+3. **シードデータ追加**: `003_seed_demo.sql` に billing_refunds サンプルデータ（任意）
 
 ---
 
 ## 🔗 参照ドキュメント
 - [ERD](docs/ERD.md)
-- [DB定義](docs/DB_DEFINITION.md)
-- [画面仕様](docs/SCREENS.md)
-- [認証設計](docs/AUTH.md)
-- [マスタページパターン](docs/screens/settings/master-pages.md)
-- [フロントエンドパターン](frontend/src/features/master/PATTERNS.md)
+- [アーキテクチャ](docs/architecture.md)
+- [タスク一覧](docs/tasks/)
 - [Claudeコマンドマニュアル](docs/CLAUDE_COMMANDS.md)
