@@ -2,7 +2,7 @@
 import { useState, useCallback, useMemo } from "react";
 
 // External
-import { Plus, LayoutGrid, List } from "lucide-react";
+import { Plus, LayoutGrid, List, Building2 } from "lucide-react";
 
 // Internal
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,6 +23,8 @@ import { HOSPITALIZATION_FILTER_STATUS } from "../constants";
 import type { HospitalizationFilterStatus } from "../constants";
 import type { Hospitalization } from "@/types";
 import type {
+  FilterProperty,
+  ActiveFilter,
   SortProperty,
   ActiveSort,
 } from "@/components/shared/NotionFilter/types";
@@ -34,6 +36,20 @@ const isValidFilterStatus = (v: string): v is HospitalizationFilterStatus =>
 
 type ViewMode = "list" | "board";
 const isValidViewMode = (v: string): v is ViewMode => v === "list" || v === "board";
+
+// rendering-hoist-jsx: 静的フィルタプロパティ定義
+const HOSPITALIZATION_FILTER_PROPERTIES: FilterProperty[] = [
+  {
+    key: "hospitalizationType",
+    label: "入院区分",
+    type: "select",
+    icon: Building2,
+    options: [
+      { value: "入院", label: "入院" },
+      { value: "ホテル", label: "ホテル" },
+    ],
+  },
+];
 
 // rendering-hoist-jsx: 静的ソートプロパティ定義
 const HOSPITALIZATION_SORT_PROPERTIES: SortProperty[] = [
@@ -56,15 +72,31 @@ export function HospitalizationList() {
   } = useHospitalizationList();
 
   const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
 
   const handleSortChange = useCallback((sorts: ActiveSort[]) => {
     setActiveSorts(sorts);
   }, []);
 
+  // 入院区分フィルタ（クライアントサイド）
+  const typeFilteredHospitalizations = useMemo(() => {
+    const typeFilter = activeFilters.find((f) => f.key === "hospitalizationType");
+    if (!typeFilter || typeof typeFilter.value !== "string") return filteredHospitalizations;
+    return filteredHospitalizations.filter((h) => {
+      switch (typeFilter.condition) {
+        case "is":           return h.hospitalizationType === typeFilter.value;
+        case "is_not":       return h.hospitalizationType !== typeFilter.value;
+        case "is_empty":     return !h.hospitalizationType;
+        case "is_not_empty": return !!h.hospitalizationType;
+        default:             return h.hospitalizationType === typeFilter.value;
+      }
+    });
+  }, [filteredHospitalizations, activeFilters]);
+
   // Sort data for list view
   const sortedHospitalizations = useMemo(() => {
-    if (activeSorts.length === 0) return [...filteredHospitalizations];
-    const sorted = [...filteredHospitalizations];
+    if (activeSorts.length === 0) return [...typeFilteredHospitalizations];
+    const sorted = [...typeFilteredHospitalizations];
     sorted.sort((a: Hospitalization, b: Hospitalization) => {
       for (const sort of activeSorts) {
         const key = sort.key as SortKey;
@@ -76,7 +108,7 @@ export function HospitalizationList() {
       return 0;
     });
     return sorted;
-  }, [filteredHospitalizations, activeSorts]);
+  }, [typeFilteredHospitalizations, activeSorts]);
 
   const pagination = usePagination(sortedHospitalizations, {
     pageSize: 20,
@@ -109,13 +141,13 @@ export function HospitalizationList() {
         <div className="flex items-center gap-4">
             <div className="flex-1">
                 <NotionFilter
-                  properties={[]}
-                  activeFilters={[]}
-                  onFilterChange={() => {}}
+                  properties={HOSPITALIZATION_FILTER_PROPERTIES}
+                  activeFilters={activeFilters}
+                  onFilterChange={setActiveFilters}
                   searchTerm={searchTerm}
                   onSearchChange={setSearchTerm}
                   searchPlaceholder="飼主名、ペット名、入院No..."
-                  count={filteredHospitalizations.length}
+                  count={typeFilteredHospitalizations.length}
                   sortProperties={HOSPITALIZATION_SORT_PROPERTIES}
                   activeSorts={activeSorts}
                   onSortChange={handleSortChange}
@@ -137,7 +169,7 @@ export function HospitalizationList() {
         {viewMode === "board" ? (
             <HospitalizationBoard
                 cages={cages}
-                hospitalizations={filteredHospitalizations}
+                hospitalizations={typeFilteredHospitalizations}
                 onNavigateToForm={handleNavigateToForm}
                 onMovePet={movePet}
             />

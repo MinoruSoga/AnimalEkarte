@@ -7,7 +7,7 @@ import { useSortableData } from "@/hooks/use-sortable-data";
 import { useModalState } from "@/hooks/use-modal-state";
 
 // External
-import { Plus, Scissors, AlertTriangle, Edit, Trash2, Calendar } from "lucide-react";
+import { Plus, Scissors, AlertTriangle, Edit, Trash2, Calendar, CircleDot } from "lucide-react";
 import { toast } from "sonner";
 
 // Types
@@ -112,6 +112,17 @@ const TRIMMING_FILTER_PROPERTIES: FilterProperty[] = [
     type: "date-range",
     icon: Calendar,
   },
+  {
+    key: "status",
+    label: "ステータス",
+    type: "select",
+    icon: CircleDot,
+    options: [
+      { value: "予約", label: "予約" },
+      { value: "進行中", label: "進行中" },
+      { value: "完了", label: "完了" },
+    ],
+  },
 ];
 
 // rendering-hoist-jsx: 静的ソートプロパティ定義
@@ -139,7 +150,7 @@ export function TrimmingList() {
     | undefined;
   const deferredDate = { from: dateFilter?.from ?? "", to: dateFilter?.to ?? "" };
 
-  const { data: filteredRecords, isLoading, error, deleteRecord } = useFilterTrimmingRecords(deferredKeyword, deferredDate);
+  const { data: filteredRecords, isLoading, error, deleteRecord } = useFilterTrimmingRecords(deferredKeyword, deferredDate, activeFilters);
   const { isValidStaff } = useStaffValidation();
 
   const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
