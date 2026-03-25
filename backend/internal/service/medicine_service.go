@@ -24,6 +24,8 @@ const (
 	colMedicineInventoryID     = "inventory_id"
 	colMedicineDefaultQuantity = "default_quantity"
 	colMedicineSortOrder       = "sort_order"
+	colMedicineTaxType         = "tax_type"
+	colMedicineTaxRate         = "tax_rate"
 )
 
 // --- Input DTOs ---
@@ -40,6 +42,8 @@ type CreateMedicineInput struct {
 	InventoryID     *uint64
 	DefaultQuantity float64
 	SortOrder       int
+	TaxType         *string  // nil = "excluded" (default)
+	TaxRate         *float64 // nil = 0.10 (default)
 }
 
 // UpdateMedicineInput は薬剤更新の入力DTO（nil = 未指定）
@@ -55,6 +59,8 @@ type UpdateMedicineInput struct {
 	InventoryID     **uint64 // nil = 未指定, &nil = NULL クリア, &&val = 値セット
 	DefaultQuantity *float64
 	SortOrder       *int
+	TaxType         *string
+	TaxRate         *float64
 }
 
 // buildMedicineUpdateFields は UpdateMedicineInput から map[string]any を構築する。
@@ -101,6 +107,12 @@ func buildMedicineUpdateFields(input *UpdateMedicineInput) map[string]any {
 	if input.SortOrder != nil {
 		fields[colMedicineSortOrder] = *input.SortOrder
 	}
+	if input.TaxType != nil {
+		fields[colMedicineTaxType] = *input.TaxType
+	}
+	if input.TaxRate != nil {
+		fields[colMedicineTaxRate] = *input.TaxRate
+	}
 	return fields
 }
 
@@ -137,6 +149,14 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 		return nil, apperrors.WrapInvalidInput("name is required")
 	}
 
+	taxType := model.TaxTypeExcluded
+	if input.TaxType != nil && *input.TaxType != "" {
+		taxType = model.TaxType(*input.TaxType)
+	}
+	taxRate := 0.10
+	if input.TaxRate != nil {
+		taxRate = *input.TaxRate
+	}
 	medicine := &model.Medicine{
 		ClinicID:        clinicID,
 		Name:            input.Name,
@@ -147,6 +167,8 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 		InventoryID:     input.InventoryID,
 		DefaultQuantity: input.DefaultQuantity,
 		SortOrder:       input.SortOrder,
+		TaxType:         taxType,
+		TaxRate:         taxRate,
 	}
 	if input.DosageForm != nil && *input.DosageForm != "" {
 		df := model.DosageForm(*input.DosageForm)

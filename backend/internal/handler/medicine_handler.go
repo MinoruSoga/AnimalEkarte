@@ -119,6 +119,8 @@ func (h *Handler) UpdateMedicine(c *gin.Context) {
 		InventoryID:     req.InventoryID,
 		DefaultQuantity: req.DefaultQuantity,
 		SortOrder:       req.SortOrder,
+		TaxType:         req.TaxType,
+		TaxRate:         req.TaxRate,
 	}
 
 	medicine, err := h.svc.Medicine.Update(c.Request.Context(), clinicID, id, &input)
