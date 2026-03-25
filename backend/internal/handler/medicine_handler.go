@@ -76,6 +76,8 @@ func (h *Handler) CreateMedicine(c *gin.Context) {
 		InventoryID:     req.InventoryID,
 		DefaultQuantity: req.DefaultQuantity,
 		SortOrder:       req.SortOrder,
+		TaxType:         req.TaxType,
+		TaxRate:         req.TaxRate,
 	}
 
 	medicine, err := h.svc.Medicine.Create(c.Request.Context(), clinicID, &input)

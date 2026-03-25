@@ -20,6 +20,8 @@ type clinicResponse struct {
 	Website            string    `json:"website"`
 	LogoURL            string    `json:"logo_url"`
 	IsActive           bool      `json:"is_active"`
+	StandardTaxRate    float64   `json:"standard_tax_rate"`
+	ReducedTaxRate     float64   `json:"reduced_tax_rate"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
 }
@@ -39,6 +41,8 @@ func toClinicResponse(c *model.Clinic) clinicResponse {
 		Website:            c.Website,
 		LogoURL:            c.LogoURL,
 		IsActive:           c.IsActive,
+		StandardTaxRate:    c.StandardTaxRate,
+		ReducedTaxRate:     c.ReducedTaxRate,
 		CreatedAt:          c.CreatedAt,
 		UpdatedAt:          c.UpdatedAt,
 	}

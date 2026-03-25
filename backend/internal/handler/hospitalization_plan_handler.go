@@ -55,6 +55,14 @@ func (h *Handler) CreateHospitalizationPlan(c *gin.Context) {
 		return
 	}
 
+	taxType := model.TaxTypeExcluded
+	if input.TaxType != "" {
+		taxType = model.TaxType(input.TaxType)
+	}
+	taxRate := 0.10
+	if input.TaxRate != nil {
+		taxRate = *input.TaxRate
+	}
 	plan := &model.HospitalizationPlan{
 		ClinicID:    clinicID,
 		Name:        input.Name,
@@ -62,6 +70,8 @@ func (h *Handler) CreateHospitalizationPlan(c *gin.Context) {
 		IsActive:    input.IsActive,
 		Description: input.Description,
 		SortOrder:   input.SortOrder,
+		TaxType:     taxType,
+		TaxRate:     taxRate,
 	}
 	if input.BodySize != "" {
 		bs := model.BodySize(input.BodySize)
@@ -114,6 +124,12 @@ func (h *Handler) UpdateHospitalizationPlan(c *gin.Context) {
 	if input.BillingUnit != "" {
 		bu := model.BillingUnit(input.BillingUnit)
 		plan.BillingUnit = &bu
+	}
+	if input.TaxType != "" {
+		plan.TaxType = model.TaxType(input.TaxType)
+	}
+	if input.TaxRate != nil {
+		plan.TaxRate = *input.TaxRate
 	}
 
 	if err := h.svc.HospitalizationPlan.Update(c.Request.Context(), plan); err != nil {

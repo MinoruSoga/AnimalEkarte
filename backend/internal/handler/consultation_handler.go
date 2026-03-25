@@ -55,6 +55,14 @@ func (h *Handler) CreateConsultation(c *gin.Context) {
 		return
 	}
 
+	taxType := model.TaxTypeExcluded
+	if input.TaxType != "" {
+		taxType = model.TaxType(input.TaxType)
+	}
+	taxRate := 0.10
+	if input.TaxRate != nil {
+		taxRate = *input.TaxRate
+	}
 	consultation := &model.Consultation{
 		ClinicID:      clinicID,
 		Name:          input.Name,
@@ -65,6 +73,8 @@ func (h *Handler) CreateConsultation(c *gin.Context) {
 		Duration:      input.Duration,
 		ParentID:      input.ParentID,
 		SortOrder:     input.SortOrder,
+		TaxType:       taxType,
+		TaxRate:       taxRate,
 	}
 
 	if err := h.svc.Consultation.Create(c.Request.Context(), consultation); err != nil {
@@ -108,6 +118,12 @@ func (h *Handler) UpdateConsultation(c *gin.Context) {
 		consultation.ParentID = nil
 	} else if input.ParentID != nil {
 		consultation.ParentID = input.ParentID
+	}
+	if input.TaxType != "" {
+		consultation.TaxType = model.TaxType(input.TaxType)
+	}
+	if input.TaxRate != nil {
+		consultation.TaxRate = *input.TaxRate
 	}
 
 	if err := h.svc.Consultation.Update(c.Request.Context(), consultation); err != nil {

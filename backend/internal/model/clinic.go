@@ -51,6 +51,8 @@ type Clinic struct {
 	Website            string    `gorm:"default:''"                                     json:"website"`
 	LogoURL            string    `gorm:"default:''"                                     json:"logo_url"`
 	IsActive           bool      `gorm:"default:true"                                   json:"is_active"`
+	StandardTaxRate    float64   `gorm:"type:numeric;not null;default:0.10"             json:"standard_tax_rate"`
+	ReducedTaxRate     float64   `gorm:"type:numeric;not null;default:0.08"             json:"reduced_tax_rate"`
 	CreatedAt          time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt          time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }

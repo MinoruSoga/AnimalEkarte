@@ -71,6 +71,18 @@ func buildClinicUpdateFields(req updateClinicRequest) map[string]any {
 	if req.IsActive != nil {
 		fields["is_active"] = *req.IsActive
 	}
+	if req.StandardTaxRate != nil {
+		r := *req.StandardTaxRate
+		if r > 0 && r <= 1 {
+			fields["standard_tax_rate"] = r
+		}
+	}
+	if req.ReducedTaxRate != nil {
+		r := *req.ReducedTaxRate
+		if r > 0 && r <= 1 {
+			fields["reduced_tax_rate"] = r
+		}
+	}
 	return fields
 }
 

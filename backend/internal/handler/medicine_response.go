@@ -18,6 +18,8 @@ type medicineResponse struct {
 	MedicineUnit    *string   `json:"medicine_unit,omitempty"`
 	InventoryID     *uint64   `json:"inventory_id,omitempty"`
 	DefaultQuantity float64   `json:"default_quantity"`
+	TaxType         string    `json:"tax_type"`
+	TaxRate         float64   `json:"tax_rate"`
 	SortOrder       int       `json:"sort_order"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
@@ -46,6 +48,8 @@ func toMedicineResponse(m *model.Medicine) medicineResponse {
 		MedicineUnit:    medicineUnit,
 		InventoryID:     m.InventoryID,
 		DefaultQuantity: m.DefaultQuantity,
+		TaxType:         string(m.TaxType),
+		TaxRate:         m.TaxRate,
 		SortOrder:       m.SortOrder,
 		CreatedAt:       m.CreatedAt,
 		UpdatedAt:       m.UpdatedAt,

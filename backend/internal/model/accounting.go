@@ -6,6 +6,14 @@ import (
 	"gorm.io/gorm"
 )
 
+type TaxType string
+
+const (
+	TaxTypeIncluded TaxType = "included" // 内税
+	TaxTypeExcluded TaxType = "excluded" // 外税
+	TaxTypeExempt   TaxType = "exempt"   // 非課税
+)
+
 type BillingStatus string
 
 const (
@@ -80,6 +88,7 @@ type BillingItem struct {
 	Name                  string         `gorm:"not null;default:''"                            json:"name"`
 	UnitPrice             int64          `gorm:"not null;default:0"                             json:"unit_price"`
 	Quantity              float64        `gorm:"type:numeric(10,1);not null;default:1"          json:"quantity"`
+	TaxType               TaxType        `gorm:"type:tax_type;not null;default:excluded"        json:"tax_type"`
 	TaxRate               float64        `gorm:"type:numeric(3,2);default:0.10"                 json:"tax_rate"`
 	IsInsuranceApplicable bool           `gorm:"default:false"                                  json:"is_insurance_applicable"`
 	Source                ItemSource     `gorm:"type:item_source;default:'manual'"              json:"source"`

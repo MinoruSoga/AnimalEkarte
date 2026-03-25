@@ -35,6 +35,8 @@ type Medicine struct {
 	MedicineUnit    *MedicineUnit `gorm:"type:medicine_unit"                             json:"medicine_unit,omitempty"`
 	InventoryID     *uint64       `                                                      json:"inventory_id,omitempty"`
 	DefaultQuantity float64       `gorm:"type:numeric(10,1);default:1"                   json:"default_quantity"`
+	TaxType         TaxType       `gorm:"type:tax_type;not null;default:excluded"        json:"tax_type"`
+	TaxRate         float64       `gorm:"type:numeric;not null;default:0.10"             json:"tax_rate"`
 	SortOrder       int           `gorm:"default:0"                                      json:"sort_order"`
 	CreatedAt       time.Time     `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time     `gorm:"autoUpdateTime"                                 json:"updated_at"`

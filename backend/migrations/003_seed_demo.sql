@@ -152,15 +152,15 @@ INSERT INTO pets (id, clinic_id, owner_id, pet_number, name, pet_name_kana, anim
     -- id:19 山本 健太 → ポチ 犬 (owner_id=17, 1頭目)
     (19, 3, 17, '17-1', 'ポチ',        'ポチ',     1, 'male',  'alive', '2017-02-14', 'ダックスフンド',             'チョコ',          7.8, '2018-03-01', 'low',    NULL, '',               '',               NULL),
     -- id:20-28 ページネーションテスト用追加データ
-    (20, 3, 18, '18-1', 'モカ',        'モカ',     2, 'female','alive', '2022-05-10', NULL, NULL,  4.1, NULL, 'low', NULL, '', '', NULL),
-    (21, 3, 18, '18-2', 'クルミ',      'クルミ',   1, 'male',  'alive', '2020-08-20', NULL, NULL,  8.3, NULL, 'low', NULL, '', '', NULL),
-    (22, 3, 19, '19-1', 'ハル',        'ハル',     1, 'male',  'alive', '2019-03-15', NULL, NULL, 12.5, NULL, 'low', NULL, '', '', NULL),
-    (23, 3, 19, '19-2', 'ユキ',        'ユキ',     2, 'female','alive', '2021-12-01', NULL, NULL,  3.8, NULL, 'low', NULL, '', '', NULL),
-    (24, 3, 20, '20-1', 'ピーチ',      'ピーチ',   2, 'female','alive', '2023-01-07', NULL, NULL,  3.2, NULL, 'low', NULL, '', '', NULL),
-    (25, 3, 21, '21-1', 'コタ',        'コタ',     1, 'male',  'alive', '2018-09-23', NULL, NULL, 22.0, NULL, 'low', NULL, '', '', NULL),
-    (26, 3, 21, '21-2', 'アン',        'アン',     2, 'female','alive', '2020-04-11', NULL, NULL,  4.5, NULL, 'low', NULL, '', '', NULL),
-    (27, 3, 22, '22-1', 'ゴマ',        'ゴマ',     2, 'male',  'alive', '2022-11-30', NULL, NULL,  5.0, NULL, 'low', NULL, '', '', NULL),
-    (28, 3, 22, '22-2', 'マル',        'マル',     1, 'female','alive', '2021-06-18', NULL, NULL,  9.7, NULL, 'low', NULL, '', '', NULL)
+    (20, 3, 18, '18-1', 'モカ',        'モカ',     2, 'female','alive', '2022-05-10', 'ミックス猫',    'ホワイト',        4.1, NULL, 'low', NULL, '', '', NULL),
+    (21, 3, 18, '18-2', 'クルミ',      'クルミ',   1, 'male',  'alive', '2020-08-20', 'ミックス犬',    'ベージュ',        8.3, NULL, 'low', NULL, '', '', NULL),
+    (22, 3, 19, '19-1', 'ハル',        'ハル',     1, 'male',  'alive', '2019-03-15', 'ミックス犬',    'ブラック',       12.5, NULL, 'low', NULL, '', '', NULL),
+    (23, 3, 19, '19-2', 'ユキ',        'ユキ',     2, 'female','alive', '2021-12-01', 'ミックス猫',    'ホワイト',        3.8, NULL, 'low', NULL, '', '', NULL),
+    (24, 3, 20, '20-1', 'ピーチ',      'ピーチ',   2, 'female','alive', '2023-01-07', 'ミックス猫',    'オレンジ',        3.2, NULL, 'low', NULL, '', '', NULL),
+    (25, 3, 21, '21-1', 'コタ',        'コタ',     1, 'male',  'alive', '2018-09-23', 'ミックス犬',    'ブラウン',       22.0, NULL, 'low', NULL, '', '', NULL),
+    (26, 3, 21, '21-2', 'アン',        'アン',     2, 'female','alive', '2020-04-11', 'ミックス猫',    'キャリコ',        4.5, NULL, 'low', NULL, '', '', NULL),
+    (27, 3, 22, '22-1', 'ゴマ',        'ゴマ',     2, 'male',  'alive', '2022-11-30', 'ミックス猫',    'グレー',          5.0, NULL, 'low', NULL, '', '', NULL),
+    (28, 3, 22, '22-2', 'マル',        'マル',     1, 'female','alive', '2021-06-18', 'ミックス犬',    'ゴールデン',      9.7, NULL, 'low', NULL, '', '', NULL)
 ON CONFLICT (id) DO UPDATE SET
     owner_id           = EXCLUDED.owner_id,
     pet_number         = EXCLUDED.pet_number,

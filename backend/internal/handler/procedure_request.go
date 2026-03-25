@@ -2,18 +2,20 @@ package handler
 
 type createProcedureRequest struct {
 	Name        string   `json:"name"        binding:"required"`
-	Price       *int64 `json:"price"`
+	Price       *int64   `json:"price"`
 	IsActive    bool     `json:"is_active"`
 	Description string   `json:"description"`
 	Duration    *int     `json:"duration"`
 	Anesthesia  string   `json:"anesthesia"`
 	ParentID    *uint64  `json:"parent_id"`
 	SortOrder   int      `json:"sort_order"`
+	TaxType     string   `json:"tax_type"`
+	TaxRate     *float64 `json:"tax_rate"`
 }
 
 type updateProcedureRequest struct {
 	Name          string   `json:"name"`
-	Price         *int64 `json:"price"`
+	Price         *int64   `json:"price"`
 	IsActive      *bool    `json:"is_active"`
 	Description   string   `json:"description"`
 	Duration      *int     `json:"duration"`
@@ -21,6 +23,8 @@ type updateProcedureRequest struct {
 	ParentID      *uint64  `json:"parent_id"`
 	ClearParentID bool     `json:"clear_parent_id"`
 	SortOrder     int      `json:"sort_order"`
+	TaxType       string   `json:"tax_type"`
+	TaxRate       *float64 `json:"tax_rate"`
 }
 
 // reorderProcedureRequest は処置並び替えのバインド struct

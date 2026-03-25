@@ -1,13 +1,28 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v23.0（ID型の実装同期）
-更新日: 2026-03-19
+バージョン: v24.0（消費税区分設定）
+更新日: 2026-03-25
 状態: Production Ready
 
 本ドキュメントは、Animal Ekarteの全55テーブルとそのリレーションを定義します。
 PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 
 ---
+
+## 変更概要（v23.0 → v24.0）
+
+| 変更内容 | 詳細 |
+|---------|------|
+| `tax_type` ENUM 追加 | `included`（内税）, `excluded`（外税）, `exempt`（非課税） |
+| `clinics` に税率マスタカラム追加 | `standard_tax_rate numeric DEFAULT 0.10`, `reduced_tax_rate numeric DEFAULT 0.08` |
+| `consultations` に課税区分追加 | `tax_type tax_type DEFAULT 'excluded'`, `tax_rate numeric DEFAULT 0.10` |
+| `procedures` に課税区分追加 | `tax_type tax_type DEFAULT 'excluded'`, `tax_rate numeric DEFAULT 0.10` |
+| `medicines` に課税区分追加 | `tax_type tax_type DEFAULT 'excluded'`, `tax_rate numeric DEFAULT 0.10` |
+| `hospitalization_plans` に課税区分追加 | `tax_type tax_type DEFAULT 'excluded'`, `tax_rate numeric DEFAULT 0.10` |
+| `merchandise_items` に課税区分追加 | `tax_type tax_type DEFAULT 'excluded'`（`tax_rate` は既存） |
+| `billing_items` に課税区分追加 | `tax_type tax_type DEFAULT 'excluded'`（`tax_rate` は既存） |
+| `estimate_items` に課税区分追加 | `tax_type tax_type DEFAULT 'excluded'`（`tax_rate` は既存） |
+| `merchandise_items` テーブル定義追加 | ERD に未記載だったため追加 |
 
 ## 変更概要（v22.0 → v23.0）
 
@@ -289,6 +304,8 @@ erDiagram
         text email
         text website
         text logo_url
+        numeric standard_tax_rate "DEFAULT 0.10 通常課税"
+        numeric reduced_tax_rate "DEFAULT 0.08 軽減税率"
         timestamptz created_at
         timestamptz updated_at
     }
@@ -482,6 +499,8 @@ erDiagram
         dosage_form dosage_form
         bigint inventory_id FK
         integer price
+        tax_type tax_type "DEFAULT excluded"
+        numeric tax_rate "DEFAULT 0.10"
         text description
         medicine_unit medicine_unit
         integer default_quantity
@@ -536,6 +555,8 @@ erDiagram
         bigint parent_id FK
         boolean is_active
         integer price
+        tax_type tax_type "DEFAULT excluded"
+        numeric tax_rate "DEFAULT 0.10"
         text description
         text time_condition
         integer duration
@@ -552,6 +573,8 @@ erDiagram
         boolean is_active
         anesthesia_type anesthesia
         integer price
+        tax_type tax_type "DEFAULT excluded"
+        numeric tax_rate "DEFAULT 0.10"
         text description
         integer duration
         integer sort_order
@@ -567,7 +590,23 @@ erDiagram
         body_size body_size
         billing_unit billing_unit
         integer price
+        tax_type tax_type "DEFAULT excluded"
+        numeric tax_rate "DEFAULT 0.10"
         text description
+        integer sort_order
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    merchandise_items {
+        bigint id PK
+        bigint clinic_id FK
+        text name
+        item_category category "DEFAULT goods"
+        integer unit_price
+        tax_type tax_type "DEFAULT excluded"
+        numeric tax_rate "DEFAULT 0.10"
+        boolean is_active
         integer sort_order
         timestamptz created_at
         timestamptz updated_at
@@ -864,7 +903,8 @@ erDiagram
         item_category category
         integer unit_price
         integer quantity
-        numeric tax_rate
+        tax_type tax_type "DEFAULT excluded"
+        numeric tax_rate "DEFAULT 0.10"
         numeric discount_rate
         integer discount_amount
         boolean is_insurance_applicable
@@ -1058,7 +1098,8 @@ erDiagram
         text name
         integer unit_price
         integer quantity
-        numeric tax_rate
+        tax_type tax_type "DEFAULT excluded"
+        numeric tax_rate "DEFAULT 0.10"
         boolean is_insurance_applicable
         item_source source
         integer sort_order
@@ -1244,6 +1285,7 @@ erDiagram
     clinics ||--o{ procedures : "clinic_id"
     clinics ||--o{ medicines : "clinic_id"
     clinics ||--o{ hospitalization_plans : "clinic_id"
+    clinics ||--o{ merchandise_items : "clinic_id"
     clinics ||--o{ trimming_courses : "clinic_id"
     clinics ||--o{ trimming_options : "clinic_id"
     clinics ||--o{ exam_types : "clinic_id"
@@ -1302,6 +1344,7 @@ erDiagram
 | `shift_type` | full, morning, afternoon, off, paid_leave |
 | `staff_role` | veterinarian, nurse, trimmer, reception, manager |
 | `target_size` | small, medium, large, cat |
+| `tax_type` | included（内税）, excluded（外税）, exempt（非課税） |
 | `treatment_item_type` | consultation, procedure, medicine, other |
 | `treatment_status` | pending, completed, not_applicable |
 | `trimming_status` | completed, reserved, in_progress |

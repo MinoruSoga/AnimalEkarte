@@ -78,6 +78,7 @@ CREATE TYPE body_weight_unit AS ENUM ('Kg', 'g');
 CREATE TYPE trimming_status AS ENUM ('completed', 'reserved', 'in_progress');
 CREATE TYPE payment_method AS ENUM ('cash', 'credit_card', 'electronic_money');
 CREATE TYPE shift_type AS ENUM ('full', 'morning', 'afternoon', 'off', 'paid_leave');
+CREATE TYPE tax_type AS ENUM ('included', 'excluded', 'exempt'); -- 内税, 外税, 非課税
 
 -- -----------------------------------------------------------------------------
 -- 3. テーブル定義（依存関係順）
@@ -124,6 +125,8 @@ CREATE TABLE clinics (
     website             text        NOT NULL DEFAULT '',
     logo_url            text        NOT NULL DEFAULT '',
     is_active           boolean     NOT NULL DEFAULT true,
+    standard_tax_rate   numeric     NOT NULL DEFAULT 0.10,
+    reduced_tax_rate    numeric     NOT NULL DEFAULT 0.08,
     created_at          timestamptz NOT NULL DEFAULT now(),
     updated_at          timestamptz NOT NULL DEFAULT now()
 );
@@ -308,6 +311,8 @@ CREATE TABLE medicines (
     medicine_unit    medicine_unit,
     inventory_id     bigint                 REFERENCES inventory_items(id) ON DELETE SET NULL,
     default_quantity numeric(10,1)          DEFAULT 1,
+    tax_type         tax_type      NOT NULL DEFAULT 'excluded',
+    tax_rate         numeric       NOT NULL DEFAULT 0.10,
     sort_order       integer                DEFAULT 0,
     created_at       timestamptz   NOT NULL DEFAULT now(),
     updated_at       timestamptz   NOT NULL DEFAULT now()
@@ -374,6 +379,8 @@ CREATE TABLE consultations (
     time_condition text        NOT NULL DEFAULT '',
     duration       integer,
     parent_id      bigint               REFERENCES consultations(id) ON DELETE SET NULL,
+    tax_type       tax_type    NOT NULL DEFAULT 'excluded',
+    tax_rate       numeric     NOT NULL DEFAULT 0.10,
     sort_order     integer              DEFAULT 0,
     created_at     timestamptz NOT NULL DEFAULT now(),
     updated_at     timestamptz NOT NULL DEFAULT now()
@@ -392,6 +399,8 @@ CREATE TABLE procedures (
     duration    integer,
     anesthesia  anesthesia_type          DEFAULT 'none',
     parent_id   bigint                   REFERENCES procedures(id) ON DELETE SET NULL,
+    tax_type    tax_type        NOT NULL DEFAULT 'excluded',
+    tax_rate    numeric         NOT NULL DEFAULT 0.10,
     sort_order  integer                  DEFAULT 0,
     created_at  timestamptz     NOT NULL DEFAULT now(),
     updated_at  timestamptz     NOT NULL DEFAULT now()
@@ -409,6 +418,8 @@ CREATE TABLE hospitalization_plans (
     description  text         NOT NULL DEFAULT '',
     body_size    body_size,
     billing_unit billing_unit          DEFAULT 'per_day',
+    tax_type     tax_type     NOT NULL DEFAULT 'excluded',
+    tax_rate     numeric      NOT NULL DEFAULT 0.10,
     sort_order   integer               DEFAULT 0,
     created_at   timestamptz  NOT NULL DEFAULT now(),
     updated_at   timestamptz  NOT NULL DEFAULT now()
@@ -1007,6 +1018,7 @@ CREATE TABLE estimate_items (
     category                item_category NOT NULL,
     unit_price              integer       NOT NULL DEFAULT 0,
     quantity                numeric(10,1) NOT NULL DEFAULT 1,
+    tax_type                tax_type               NOT NULL DEFAULT 'excluded',
     tax_rate                numeric                DEFAULT 0.10,
     discount_rate           numeric(5,2)           DEFAULT 0,
     discount_amount         integer                DEFAULT 0,
@@ -1102,6 +1114,7 @@ CREATE TABLE billing_items (
     name                    text          NOT NULL DEFAULT '',
     unit_price              integer       NOT NULL DEFAULT 0,
     quantity                numeric(10,1) NOT NULL DEFAULT 1,
+    tax_type                tax_type               NOT NULL DEFAULT 'excluded',
     tax_rate                numeric                DEFAULT 0.10,
     is_insurance_applicable boolean                DEFAULT false,
     source                  item_source            DEFAULT 'manual',
@@ -1155,6 +1168,7 @@ CREATE TABLE merchandise_items (
     name        text          NOT NULL DEFAULT '',
     category    item_category NOT NULL DEFAULT 'goods',
     unit_price  integer       NOT NULL DEFAULT 0,
+    tax_type    tax_type      NOT NULL DEFAULT 'excluded',
     tax_rate    numeric       NOT NULL DEFAULT 0.10,
     is_active   boolean       NOT NULL DEFAULT true,
     sort_order  integer       NOT NULL DEFAULT 0,

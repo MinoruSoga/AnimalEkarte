@@ -5,6 +5,10 @@
 //////////
 // source: accounting.go
 
+export type TaxType = string;
+export const TaxTypeIncluded: TaxType = "included"; // 内税
+export const TaxTypeExcluded: TaxType = "excluded"; // 外税
+export const TaxTypeExempt: TaxType = "exempt"; // 非課税
 export type BillingStatus = string;
 export const BillingStatusWaiting: BillingStatus = "waiting";
 export const BillingStatusCompleted: BillingStatus = "completed";
@@ -60,6 +64,7 @@ export interface BillingItem {
   name: string;
   unit_price: number /* int64 */;
   quantity: number /* float64 */;
+  tax_type: TaxType;
   tax_rate: number /* float64 */;
   is_insurance_applicable: boolean;
   source: ItemSource;
@@ -253,6 +258,8 @@ export interface Clinic {
   website: string;
   logo_url: string;
   is_active: boolean;
+  standard_tax_rate: number /* float64 */;
+  reduced_tax_rate: number /* float64 */;
   created_at: string;
   updated_at: string;
 }
@@ -354,6 +361,8 @@ export interface Consultation {
   time_condition: string;
   duration?: number /* int */;
   parent_id?: number /* uint64 */;
+  tax_type: TaxType;
+  tax_rate: number /* float64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -443,6 +452,7 @@ export interface EstimateItem {
   category: ItemCategory;
   unit_price: number /* int64 */;
   quantity: number /* float64 */;
+  tax_type: TaxType;
   tax_rate: number /* float64 */;
   discount_rate: number /* float64 */;
   discount_amount: number /* int64 */;
@@ -714,6 +724,8 @@ export interface HospitalizationPlan {
   description: string;
   body_size?: BodySize;
   billing_unit?: BillingUnit;
+  tax_type: TaxType;
+  tax_rate: number /* float64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -909,6 +921,8 @@ export interface Medicine {
   medicine_unit?: MedicineUnit;
   inventory_id?: number /* uint64 */;
   default_quantity: number /* float64 */;
+  tax_type: TaxType;
+  tax_rate: number /* float64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -930,6 +944,7 @@ export interface MerchandiseItem {
   name: string;
   category: ItemCategory;
   unit_price: number /* int64 */;
+  tax_type: TaxType;
   tax_rate: number /* float64 */;
   is_active: boolean;
   sort_order: number /* int */;
@@ -1043,6 +1058,8 @@ export interface Procedure {
   duration?: number /* int */;
   anesthesia: AnesthesiaType;
   parent_id?: number /* uint64 */;
+  tax_type: TaxType;
+  tax_rate: number /* float64 */;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;

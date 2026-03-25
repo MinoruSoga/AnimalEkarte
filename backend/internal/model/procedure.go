@@ -23,6 +23,8 @@ type Procedure struct {
 	Duration    *int           `gorm:"type:integer"                                   json:"duration,omitempty"`
 	Anesthesia  AnesthesiaType `gorm:"type:anesthesia_type;default:'none'"            json:"anesthesia"`
 	ParentID    *uint64        `gorm:"column:parent_id"                               json:"parent_id,omitempty"`
+	TaxType     TaxType        `gorm:"type:tax_type;not null;default:excluded"        json:"tax_type"`
+	TaxRate     float64        `gorm:"type:numeric;not null;default:0.10"             json:"tax_rate"`
 	SortOrder   int            `gorm:"default:0"                                      json:"sort_order"`
 	CreatedAt   time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt   time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`

@@ -51,6 +51,14 @@ func (h *Handler) CreateProcedure(c *gin.Context) {
 		return
 	}
 
+	taxType := model.TaxTypeExcluded
+	if input.TaxType != "" {
+		taxType = model.TaxType(input.TaxType)
+	}
+	taxRate := 0.10
+	if input.TaxRate != nil {
+		taxRate = *input.TaxRate
+	}
 	procedure := &model.Procedure{
 		ClinicID:    clinicID,
 		Name:        input.Name,
@@ -60,6 +68,8 @@ func (h *Handler) CreateProcedure(c *gin.Context) {
 		Duration:    input.Duration,
 		ParentID:    input.ParentID,
 		SortOrder:   input.SortOrder,
+		TaxType:     taxType,
+		TaxRate:     taxRate,
 	}
 	if input.Anesthesia != "" {
 		procedure.Anesthesia = model.AnesthesiaType(input.Anesthesia)
@@ -108,6 +118,12 @@ func (h *Handler) UpdateProcedure(c *gin.Context) {
 		procedure.ParentID = nil
 	} else if input.ParentID != nil {
 		procedure.ParentID = input.ParentID
+	}
+	if input.TaxType != "" {
+		procedure.TaxType = model.TaxType(input.TaxType)
+	}
+	if input.TaxRate != nil {
+		procedure.TaxRate = *input.TaxRate
 	}
 
 	if err := h.svc.Procedure.Update(c.Request.Context(), procedure); err != nil {

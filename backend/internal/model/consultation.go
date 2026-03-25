@@ -14,6 +14,8 @@ type Consultation struct {
 	TimeCondition string    `gorm:"default:''"                                     json:"time_condition"`
 	Duration      *int      `gorm:"type:integer"                                   json:"duration,omitempty"`
 	ParentID      *uint64   `gorm:"column:parent_id"                               json:"parent_id,omitempty"`
+	TaxType       TaxType   `gorm:"type:tax_type;not null;default:excluded"        json:"tax_type"`
+	TaxRate       float64   `gorm:"type:numeric;not null;default:0.10"             json:"tax_rate"`
 	SortOrder     int       `gorm:"default:0"                                      json:"sort_order"`
 	CreatedAt     time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt     time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
