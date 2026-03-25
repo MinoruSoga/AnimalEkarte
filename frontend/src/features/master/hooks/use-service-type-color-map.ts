@@ -39,15 +39,15 @@ function hexToStyle(hex: string): ServiceTypeColor {
   const hex6 = hex.startsWith("#") ? hex : `#${hex}`;
 
   // hex → RGB 変換（簡易版：16進数直接パース）
-  const r = parseInt(hex6.slice(1, 3), 16);
-  const g = parseInt(hex6.slice(3, 5), 16);
-  const b = parseInt(hex6.slice(5, 7), 16);
+  const red = parseInt(hex6.slice(1, 3), 16);
+  const green = parseInt(hex6.slice(3, 5), 16);
+  const blue = parseInt(hex6.slice(5, 7), 16);
 
   return {
     style: {
-      backgroundColor: `rgba(${r}, ${g}, ${b}, 0.1)`,     // 10%
-      color: hex6,                                          // 100%
-      borderColor: `rgba(${r}, ${g}, ${b}, 0.3)`,         // 30%
+      backgroundColor: `rgba(${red}, ${green}, ${blue}, 0.1)`,     // 10%
+      color: hex6,                                                   // 100%
+      borderColor: `rgba(${red}, ${green}, ${blue}, 0.3)`,         // 30%
     },
     dotStyle: {
       backgroundColor: hex6,  // 100%

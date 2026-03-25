@@ -85,26 +85,26 @@ export function EstimateList() {
     // ActiveFilter 適用
     for (const filter of activeFilters) {
       if (filter.key === "status" && typeof filter.value === "string") {
-        items = items.filter((e) => {
+        items = items.filter((estimate) => {
           switch (filter.condition) {
             case "is":
-              return e.status === filter.value;
+              return estimate.status === filter.value;
             case "is_not":
-              return e.status !== filter.value;
+              return estimate.status !== filter.value;
             case "is_empty":
-              return !e.status;
+              return !estimate.status;
             case "is_not_empty":
-              return !!e.status;
+              return !!estimate.status;
             default:
-              return e.status === filter.value;
+              return estimate.status === filter.value;
           }
         });
       }
       if (filter.key === "validUntil" && typeof filter.value === "object" && !Array.isArray(filter.value)) {
         const dateVal = filter.value as { from?: string; to?: string };
-        items = items.filter((e) => {
-          if (!e.validUntil) return filter.condition === "is_empty";
-          const d = e.validUntil.slice(0, 10);
+        items = items.filter((estimate) => {
+          if (!estimate.validUntil) return filter.condition === "is_empty";
+          const d = estimate.validUntil.slice(0, 10);
           switch (filter.condition) {
             case "is":
               return dateVal.from ? d === dateVal.from : true;
@@ -129,10 +129,10 @@ export function EstimateList() {
     if (deferredSearch) {
       const lower = deferredSearch.toLowerCase();
       items = items.filter(
-        (e) =>
-          e.title.toLowerCase().includes(lower) ||
-          (e.ownerName ?? "").toLowerCase().includes(lower) ||
-          e.estimateNo.toLowerCase().includes(lower),
+        (estimate) =>
+          estimate.title.toLowerCase().includes(lower) ||
+          (estimate.ownerName ?? "").toLowerCase().includes(lower) ||
+          estimate.estimateNo.toLowerCase().includes(lower),
       );
     }
 

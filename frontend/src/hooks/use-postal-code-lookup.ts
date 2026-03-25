@@ -39,13 +39,13 @@ export function usePostalCodeLookup() {
           `https://zipcloud.ibsnet.co.jp/api/search?zipcode=${cleaned}`,
         );
         const data: ZipcloudResponse = await response.json();
-        const r = data.results?.[0];
-        if (!r) return null;
+        const firstResult = data.results?.[0];
+        if (!firstResult) return null;
 
         return {
-          prefecture: r.address1,
-          city: r.address2,
-          town: r.address3,
+          prefecture: firstResult.address1,
+          city: firstResult.address2,
+          town: firstResult.address3,
         };
       } catch {
         return null;

@@ -106,12 +106,12 @@ const calculateEventLayout = (
       }
     });
 
-    const w = 100 / columns.length;
+    const columnWidth = 100 / columns.length;
     cluster.forEach((ev) => {
       const colIndex = eventColIndex[ev.id];
       styles[ev.id] = {
-        left: `${colIndex * w}%`,
-        width: `${w}%`,
+        left: `${colIndex * columnWidth}%`,
+        width: `${columnWidth}%`,
       };
     });
   });

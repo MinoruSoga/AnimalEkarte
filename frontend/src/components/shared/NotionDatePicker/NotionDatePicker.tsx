@@ -39,43 +39,43 @@ type NotionDatePickerProps = SingleDatePickerProps | RangeDatePickerProps;
 /** Parses "YYYY-MM-DD" into a local Date (noon to avoid timezone shifts). */
 function parseLocalDate(iso: string): Date | undefined {
   if (!iso) return undefined;
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) return undefined;
-  return new Date(y, m - 1, d, 12, 0, 0);
+  const [year, month, day] = iso.split("-").map(Number);
+  if (!year || !month || !day) return undefined;
+  return new Date(year, month - 1, day, 12, 0, 0);
 }
 
 /** Formats a Date as "YYYY-MM-DD". */
 function formatIso(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 /** Formats a Date as a human-readable Japanese date string. */
 function formatDisplay(date: Date): string {
-  const y = date.getFullYear();
-  const m = date.getMonth() + 1;
-  const d = date.getDate();
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
   const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
-  const w = weekdays[date.getDay()];
-  return `${y}年${m}月${d}日（${w}）`;
+  const weekday = weekdays[date.getDay()];
+  return `${year}年${month}月${day}日（${weekday}）`;
 }
 
 /** Formats a Date as a short Japanese date string for range display. */
 function formatShort(date: Date): string {
-  const y = date.getFullYear();
-  const m = date.getMonth() + 1;
-  const d = date.getDate();
-  return `${y}/${m}/${d}`;
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  return `${year}/${month}/${day}`;
 }
 
 /** Formats a Date as "YYYY/MM/DD" for editable input display. */
 function formatSlash(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}/${m}/${d}`;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}/${month}/${day}`;
 }
 
 /** Parses "YYYY-MM-DD~YYYY-MM-DD" into { from, to }. */
@@ -93,29 +93,29 @@ function parseDateInput(input: string): Date | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
 
-  let y: number;
-  let m: number;
-  let d: number;
+  let year: number;
+  let month: number;
+  let day: number;
 
   // YYYYMMDD
   const compact = trimmed.match(/^(\d{4})(\d{2})(\d{2})$/);
   if (compact) {
-    y = Number(compact[1]);
-    m = Number(compact[2]);
-    d = Number(compact[3]);
+    year = Number(compact[1]);
+    month = Number(compact[2]);
+    day = Number(compact[3]);
   } else {
     // YYYY/MM/DD or YYYY-MM-DD
     const separated = trimmed.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
     if (!separated) return null;
-    y = Number(separated[1]);
-    m = Number(separated[2]);
-    d = Number(separated[3]);
+    year = Number(separated[1]);
+    month = Number(separated[2]);
+    day = Number(separated[3]);
   }
 
-  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
-  const date = new Date(y, m - 1, d, 12, 0, 0);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const date = new Date(year, month - 1, day, 12, 0, 0);
   // Validate the date is real (e.g., Feb 30 → invalid)
-  if (date.getMonth() !== m - 1 || date.getDate() !== d) return null;
+  if (date.getMonth() !== month - 1 || date.getDate() !== day) return null;
   return date;
 }
 

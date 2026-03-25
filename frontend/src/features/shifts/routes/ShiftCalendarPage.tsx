@@ -6,9 +6,9 @@ import { ShiftCalendar as ShiftCalendarGrid } from "../components/ShiftCalendar/
 
 function getInitialYearMonth(): string {
   const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
 }
 
 export function ShiftCalendarPage() {
@@ -24,17 +24,17 @@ export function ShiftCalendarPage() {
 
   const handlePrevMonth = useCallback(() => {
     setYearMonth((prev) => {
-      const [y, m] = prev.split("-").map(Number);
-      const d = new Date(y, m - 2, 1);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const [year, month] = prev.split("-").map(Number);
+      const date = new Date(year, month - 2, 1);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
     });
   }, []);
 
   const handleNextMonth = useCallback(() => {
     setYearMonth((prev) => {
-      const [y, m] = prev.split("-").map(Number);
-      const d = new Date(y, m, 1);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const [year, month] = prev.split("-").map(Number);
+      const date = new Date(year, month, 1);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
     });
   }, []);
 

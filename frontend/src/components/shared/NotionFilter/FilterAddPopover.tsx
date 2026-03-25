@@ -424,12 +424,12 @@ export const FilterAddPopover = memo(function FilterAddPopover({
                 }}
                 formatters={{
                   formatMonthDropdown: (month) => {
-                    const m = month instanceof Date ? month.getMonth() + 1 : Number(month) + 1;
-                    return `${m}月`;
+                    const monthNumber = month instanceof Date ? month.getMonth() + 1 : Number(month) + 1;
+                    return `${monthNumber}月`;
                   },
                   formatYearDropdown: (year) => {
-                    const y = year instanceof Date ? year.getFullYear() : Number(year);
-                    return `${y}年`;
+                    const yearNumber = year instanceof Date ? year.getFullYear() : Number(year);
+                    return `${yearNumber}年`;
                   },
                 }}
               />

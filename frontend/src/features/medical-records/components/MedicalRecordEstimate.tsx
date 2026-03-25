@@ -88,8 +88,8 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       const discount = Number(item.discountAmount) || 0;
       return sum + (price * qty - discount);
     }, 0);
-    const t = Math.floor(sub * 0.1);
-    return { subtotal: sub, tax: t, total: sub + t };
+    const taxAmount = Math.floor(sub * 0.1);
+    return { subtotal: sub, tax: taxAmount, total: sub + taxAmount };
   }, [items]);
 
   const handleSave = useCallback(() => {

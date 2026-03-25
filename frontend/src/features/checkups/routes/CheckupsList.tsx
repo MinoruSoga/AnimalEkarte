@@ -62,13 +62,13 @@ export function CheckupsList() {
   // テキスト検索はクライアントサイドで行う
   const filteredRecords = useMemo(() => {
     if (!deferredSearch) return checkups;
-    const q = deferredSearch.toLowerCase();
+    const searchQuery = deferredSearch.toLowerCase();
     return checkups.filter(
       (c) =>
-        c.petName.toLowerCase().includes(q) ||
-        c.ownerName.toLowerCase().includes(q) ||
-        c.checkupTypeName.toLowerCase().includes(q) ||
-        c.result.toLowerCase().includes(q),
+        c.petName.toLowerCase().includes(searchQuery) ||
+        c.ownerName.toLowerCase().includes(searchQuery) ||
+        c.checkupTypeName.toLowerCase().includes(searchQuery) ||
+        c.result.toLowerCase().includes(searchQuery),
     );
   }, [checkups, deferredSearch]);
 
