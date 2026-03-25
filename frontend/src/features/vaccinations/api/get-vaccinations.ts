@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { VaccinationRecord } from "@/types";
 import { transformVaccination } from "./transforms";
 import type { BackendVaccination } from "./types";
@@ -26,5 +27,7 @@ export const useGetVaccinations = (filters?: VaccinationFilters) => {
   return useQuery({
     queryKey: ["vaccinations", filters],
     queryFn: () => getVaccinations(filters),
+    staleTime: QUERY_STALE_TIMES.MEDIUM,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };

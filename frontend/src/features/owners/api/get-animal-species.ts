@@ -13,5 +13,6 @@ export const useGetAnimalSpecies = () => {
     queryKey: ["masters", "animal-species"],
     queryFn: getAnimalSpecies,
     staleTime: QUERY_STALE_TIMES.STATIC, // 静的マスタデータは30分キャッシュ
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 };

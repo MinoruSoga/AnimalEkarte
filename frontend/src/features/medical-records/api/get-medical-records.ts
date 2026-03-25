@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { MedicalRecord } from "@/types";
 import { transformMedicalRecord } from "./transforms";
 import type { BackendMedicalRecord } from "./types";
@@ -30,5 +31,7 @@ export const useGetMedicalRecords = (filters?: MedicalRecordFilters) => {
   return useQuery({
     queryKey: ["medical-records", filters],
     queryFn: () => getMedicalRecords(filters),
+    staleTime: QUERY_STALE_TIMES.MEDIUM,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Accounting } from "../types";
 import { transformToAccounting } from "./transforms";
 import type { BackendAccounting } from "./types";
@@ -16,6 +17,8 @@ export const useGetAccountingDetail = (id: string | undefined) => {
     queryKey: queryKeys.accountings.detail(id ?? ""),
     queryFn: () => getAccountingDetail(id!),
     enabled: !!id,
+    staleTime: QUERY_STALE_TIMES.MEDIUM,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
 

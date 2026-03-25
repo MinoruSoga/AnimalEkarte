@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Hospitalization } from "@/types";
 import { transformHospitalization } from "./transforms";
 import type { BackendHospitalization } from "./types";
@@ -31,5 +32,7 @@ export const useGetHospitalizations = (filters?: HospitalizationFilters) => {
   return useQuery({
     queryKey: ["hospitalizations", filters],
     queryFn: () => getHospitalizations(filters),
+    staleTime: QUERY_STALE_TIMES.MEDIUM,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { ExaminationRecord } from "@/types";
 import { transformExamination } from "./transforms";
 import type { BackendExamination } from "./types";
@@ -30,5 +31,7 @@ export const useGetExaminations = (filters?: ExaminationFilters) => {
   return useQuery({
     queryKey: ["examinations", filters],
     queryFn: () => getExaminations(filters),
+    staleTime: QUERY_STALE_TIMES.MEDIUM,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Examination } from "@/types/generated/models";
 
 export interface ExamGroupItem {
@@ -48,5 +49,7 @@ export const useGetRecordExaminations = (petId?: string) => {
     queryKey: ["examinations", "pet", petId],
     queryFn: () => getRecordExaminations(petId!),
     enabled: !!petId,
+    staleTime: QUERY_STALE_TIMES.MEDIUM,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };

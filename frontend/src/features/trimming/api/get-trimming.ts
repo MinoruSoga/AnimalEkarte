@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { TrimmingUI } from "@/types";
 import { transformTrimming } from "./transforms";
 import type { BackendTrimming, TrimmingListResponse } from "@/types/trimming";
@@ -14,6 +15,8 @@ export const useGetTrimming = (id: string) => {
     queryKey: ["trimming", id],
     queryFn: () => getTrimming(id),
     enabled: !!id,
+    staleTime: QUERY_STALE_TIMES.MEDIUM,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
 
@@ -32,6 +35,8 @@ export const useGetTrimmingsByPetId = (petId: string) => {
     queryKey: ["trimmings", "pet", petId],
     queryFn: () => getTrimmingsByPetId(petId),
     enabled: !!petId,
+    staleTime: QUERY_STALE_TIMES.MEDIUM,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
 

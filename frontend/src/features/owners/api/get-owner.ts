@@ -14,7 +14,8 @@ export const useGetOwner = (id: string) => {
   return useQuery({
     queryKey: ["owners", id],
     queryFn: () => getOwner(id),
-    staleTime: QUERY_STALE_TIMES.MEDIUM,
+    staleTime: QUERY_STALE_TIMES.STATIC, // 単一飼主データも変更頻度は低い
+    gcTime: QUERY_GC_TIMES.LONG,
     enabled: !!id,
   });
 };

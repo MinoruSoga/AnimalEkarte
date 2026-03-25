@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { ReservationAppointment } from "@/types";
 import { transformReservation } from "./transforms";
 import type { ReservationAppointment as BackendReservation } from "@/types/generated/models";
@@ -20,5 +21,7 @@ export const useGetReservations = () => {
   return useQuery({
     queryKey: ["reservations"],
     queryFn: getReservations,
+    staleTime: QUERY_STALE_TIMES.REALTIME, // 予約一覧は高頻度変更
+    gcTime: QUERY_GC_TIMES.SHORT,
   });
 };

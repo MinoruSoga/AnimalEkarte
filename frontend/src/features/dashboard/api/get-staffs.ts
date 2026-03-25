@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import { QUERY_STALE_TIMES } from "@/lib/react-query";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
 export interface BackendStaff {
   id: number;
@@ -19,6 +19,7 @@ export function useGetStaffs() {
     },
     // スタッフ情報は頻繁に変わらないので30分キャッシュ
     staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
   });
 }
 

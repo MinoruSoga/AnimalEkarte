@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { TrimmingUI } from "@/types";
 import { transformTrimming } from "./transforms";
 import type { TrimmingListResponse } from "@/types/trimming";
@@ -21,5 +22,7 @@ export const useGetTrimmings = (filters?: TrimmingFilters) => {
   return useQuery({
     queryKey: ["trimmings", filters],
     queryFn: () => getTrimmings(filters),
+    staleTime: QUERY_STALE_TIMES.MEDIUM,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };

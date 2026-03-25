@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Vaccination } from "@/types/generated/models";
 
 export interface PetVaccinationHistoryItem {
@@ -42,5 +43,7 @@ export const useGetPetVaccinations = (petId?: string) => {
     queryKey: ["vaccinations", "pet", petId],
     queryFn: () => getPetVaccinations(petId!),
     enabled: !!petId,
+    staleTime: QUERY_STALE_TIMES.MEDIUM,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
