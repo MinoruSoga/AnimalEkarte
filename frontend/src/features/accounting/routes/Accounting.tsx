@@ -32,7 +32,7 @@ import { useGetAccountings } from "../api/get-accountings";
 import type { AccountingFilters } from "../api/get-accountings";
 
 // Types
-import type { Accounting as AccountingType, PaymentMethod } from "../types";
+import type { Accounting as AccountingType, AccountingStatus, PaymentMethod } from "../types";
 import type {
   FilterProperty,
   ActiveFilter,
