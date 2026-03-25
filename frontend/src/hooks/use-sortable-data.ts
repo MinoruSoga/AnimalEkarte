@@ -7,7 +7,7 @@ export interface ActiveSortItem {
 
 interface UseSortableDataOptions<T> {
   /** 数値ソートを適用するキー（デフォルト: 全キーを文字列ソート） */
-  numericKeys?: (keyof T & string)[];
+  numericKeys?: string[];
   /**
    * キーごとのソート値を返すカスタム関数。
    * 派生値（例: calculateTotal）でソートする場合に使用。
