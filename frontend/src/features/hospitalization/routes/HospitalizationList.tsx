@@ -2,7 +2,7 @@
 import { useState, useCallback, useMemo } from "react";
 
 // External
-import { Plus, LayoutGrid, List, Building2, Calendar } from "lucide-react";
+import { Plus, LayoutGrid, List, Building2, Calendar, PawPrint } from "lucide-react";
 
 // Internal
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -37,8 +37,8 @@ const isValidFilterStatus = (v: string): v is HospitalizationFilterStatus =>
 type ViewMode = "list" | "board";
 const isValidViewMode = (v: string): v is ViewMode => v === "list" || v === "board";
 
-// rendering-hoist-jsx: 静的フィルタプロパティ定義
-const HOSPITALIZATION_FILTER_PROPERTIES: FilterProperty[] = [
+// rendering-hoist-jsx: 静的フィルタプロパティ（種は動的オプションのためコンポーネント内で構築）
+const HOSPITALIZATION_STATIC_FILTER_PROPERTIES: FilterProperty[] = [
   {
     key: "startDate",
     label: "入院日",
@@ -80,6 +80,17 @@ export function HospitalizationList() {
   const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
 
+  // js-cache-function-results: ロード済みデータから種の選択肢を動的生成
+  const filterProperties = useMemo<FilterProperty[]>(() => {
+    const speciesOptions = Array.from(new Set(filteredHospitalizations.map((h) => h.species).filter(Boolean)))
+      .sort()
+      .map((s) => ({ value: s, label: s }));
+    return [
+      ...HOSPITALIZATION_STATIC_FILTER_PROPERTIES,
+      { key: "species", label: "種", type: "select" as const, icon: PawPrint, options: speciesOptions },
+    ];
+  }, [filteredHospitalizations]);
+
   const handleSortChange = useCallback((sorts: ActiveSort[]) => {
     setActiveSorts(sorts);
   }, []);
@@ -110,6 +121,20 @@ export function HospitalizationList() {
       result = result.filter((h) => {
         const d = h.startDate?.slice(0, 10) ?? "";
         return (!dateFilter.from || d >= dateFilter.from) && (!dateFilter.to || d <= dateFilter.to);
+      });
+    }
+
+    // species フィルタ（クライアントサイド）
+    const speciesFilter = activeFilters.find((f) => f.key === "species");
+    if (speciesFilter && typeof speciesFilter.value === "string") {
+      result = result.filter((h) => {
+        switch (speciesFilter.condition) {
+          case "is":           return h.species === speciesFilter.value;
+          case "is_not":       return h.species !== speciesFilter.value;
+          case "is_empty":     return !h.species;
+          case "is_not_empty": return !!h.species;
+          default:             return h.species === speciesFilter.value;
+        }
       });
     }
 
@@ -164,7 +189,7 @@ export function HospitalizationList() {
         <div className="flex items-center gap-4">
             <div className="flex-1">
                 <NotionFilter
-                  properties={HOSPITALIZATION_FILTER_PROPERTIES}
+                  properties={filterProperties}
                   activeFilters={activeFilters}
                   onFilterChange={setActiveFilters}
                   searchTerm={searchTerm}
