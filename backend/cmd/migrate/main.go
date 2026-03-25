@@ -17,7 +17,15 @@ const migrationLockID = 7283946501
 
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	if err := run(logger); err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+}
 
+// run はマイグレーション処理全体を実行し、エラーを返す。
+// defer が os.Exit に打ち消されないよう main から分離している。
+func run(logger *slog.Logger) error {
 	// 環境変数から DB 接続情報を取得
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
@@ -31,7 +39,7 @@ func main() {
 			slog.String("DB_USER", dbUser),
 			slog.Bool("DB_PASSWORD_SET", dbPassword != ""),
 			slog.String("DB_NAME", dbName))
-		os.Exit(1)
+		return fmt.Errorf("missing required environment variables")
 	}
 
 	if dbPort == "" {
@@ -53,16 +61,15 @@ func main() {
 	// DB に接続
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		logger.Error("Failed to open database", slog.String("error", err.Error()))
-		os.Exit(1)
+		return fmt.Errorf("failed to open database: %w", err)
 	}
-	defer db.Close()
 
 	// 接続テスト
 	if err := db.Ping(); err != nil {
-		logger.Error("Failed to ping database", slog.String("error", err.Error()))
-		os.Exit(1)
+		_ = db.Close()
+		return fmt.Errorf("failed to ping database: %w", err)
 	}
+	defer db.Close()
 
 	logger.Info("Connected to database", slog.String("host", dbHost), slog.String("dbname", dbName))
 
@@ -72,8 +79,7 @@ func main() {
 	// -------------------------------------------------------
 	logger.Info("Acquiring migration lock...")
 	if err := acquireAdvisoryLock(db); err != nil {
-		logger.Error("Failed to acquire migration lock (another migration may be running)", slog.String("error", err.Error()))
-		os.Exit(1)
+		return fmt.Errorf("failed to acquire migration lock (another migration may be running): %w", err)
 	}
 	logger.Info("Migration lock acquired")
 
@@ -82,32 +88,29 @@ func main() {
 	if resetDB {
 		logger.Warn("⚠️ DB_RESET=true: Dropping and recreating schema")
 		if err := resetSchema(db, logger); err != nil {
-			logger.Error("Failed to reset schema", slog.String("error", err.Error()))
-			os.Exit(1)
+			return fmt.Errorf("failed to reset schema: %w", err)
 		}
 	}
 
 	// schema_migrations テーブルを作成（存在しなければ）
 	if err := ensureMigrationsTable(db); err != nil {
-		logger.Error("Failed to create schema_migrations table", slog.String("error", err.Error()))
-		os.Exit(1)
+		return fmt.Errorf("failed to create schema_migrations table: %w", err)
 	}
 
 	// 既存DBへの初回適用: baseline 処理
 	// schema_migrations が空だが既にテーブルが存在する場合、
 	// 全マイグレーションを「適用済み」として記録しスキップする
 	if err := baselineIfNeeded(db, logger); err != nil {
-		logger.Error("Baseline failed", slog.String("error", err.Error()))
-		os.Exit(1)
+		return fmt.Errorf("baseline failed: %w", err)
 	}
 
 	// マイグレーション実行
 	if err := runMigrations(db, logger); err != nil {
-		logger.Error("Migration failed", slog.String("error", err.Error()))
-		os.Exit(1)
+		return fmt.Errorf("migration failed: %w", err)
 	}
 
 	logger.Info("✓ All migrations completed successfully")
+	return nil
 }
 
 // acquireAdvisoryLock は PostgreSQL Advisory Lock を取得する
@@ -178,7 +181,7 @@ func baselineIfNeeded(db *sql.DB, logger *slog.Logger) error {
 
 		content, err := os.ReadFile(filepath.Join(migrationsDir, entry.Name()))
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("failed to read %s: %w", entry.Name(), err)
 		}
 
@@ -187,7 +190,7 @@ func baselineIfNeeded(db *sql.DB, logger *slog.Logger) error {
 			"INSERT INTO schema_migrations (filename, checksum, executed_at) VALUES ($1, $2, $3)",
 			entry.Name(), checksum, time.Now(),
 		); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("failed to baseline %s: %w", entry.Name(), err)
 		}
 
@@ -205,7 +208,7 @@ func baselineIfNeeded(db *sql.DB, logger *slog.Logger) error {
 
 // isAlreadyApplied は指定ファイルが既に適用済みかチェックする
 // checksum が変更されている場合はエラーを返す（手動改変検出）
-func isAlreadyApplied(db *sql.DB, filename string, checksum string) (bool, error) {
+func isAlreadyApplied(db *sql.DB, filename, checksum string) (bool, error) {
 	var storedChecksum string
 	err := db.QueryRow(
 		"SELECT checksum FROM schema_migrations WHERE filename = $1",
@@ -231,7 +234,7 @@ func isAlreadyApplied(db *sql.DB, filename string, checksum string) (bool, error
 }
 
 // recordMigration は実行済みマイグレーションを記録する
-func recordMigration(tx *sql.Tx, filename string, checksum string) error {
+func recordMigration(tx *sql.Tx, filename, checksum string) error {
 	_, err := tx.Exec(
 		"INSERT INTO schema_migrations (filename, checksum, executed_at) VALUES ($1, $2, $3)",
 		filename, checksum, time.Now(),
@@ -310,12 +313,12 @@ func runMigrations(db *sql.DB, logger *slog.Logger) error {
 		}
 
 		if _, err := tx.Exec(string(content)); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("failed to execute migration %s: %w", filename, err)
 		}
 
 		if err := recordMigration(tx, filename, checksum); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("failed to record migration %s: %w", filename, err)
 		}
 
@@ -345,14 +348,14 @@ func resetSchema(db *sql.DB, logger *slog.Logger) error {
 	}
 
 	if _, err := tx.Exec("DROP SCHEMA public CASCADE"); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return fmt.Errorf("failed to drop schema: %w", err)
 	}
 
 	logger.Info("Creating new public schema...")
 
 	if _, err := tx.Exec("CREATE SCHEMA public"); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return fmt.Errorf("failed to create schema: %w", err)
 	}
 
