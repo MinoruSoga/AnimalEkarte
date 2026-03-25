@@ -35,11 +35,7 @@ import {
 } from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
-import {
-  FILTER_CONDITIONS,
-  RELATIVE_POINT_LABELS,
-  RELATIVE_UNIT_LABELS,
-} from "./types";
+import { FILTER_CONDITIONS } from "./types";
 import type {
   FilterProperty,
   ActiveFilter,
@@ -93,10 +89,29 @@ function resolveRelativeDate(
   }
 }
 
-function getRelativeLabel(point: RelativePoint, unit: RelativeUnit): string {
-  const pointLabel = RELATIVE_POINT_LABELS.find((p) => p.value === point)?.label ?? point;
-  const unitLabel = RELATIVE_UNIT_LABELS.find((u) => u.value === unit)?.label ?? unit;
-  return `${pointLabel} ${unitLabel}`;
+// ─── Date presets (module-level constant) ─────────────────
+
+type DatePreset =
+  | { label: string; type: "relative"; point: RelativePoint; unit: RelativeUnit }
+  | { label: string; type: "last_n_days"; n: number };
+
+const DATE_PRESETS: DatePreset[] = [
+  { label: "今日",     type: "relative",    point: "this", unit: "day" },
+  { label: "昨日",     type: "relative",    point: "last", unit: "day" },
+  { label: "今週",     type: "relative",    point: "this", unit: "week" },
+  { label: "先週",     type: "relative",    point: "last", unit: "week" },
+  { label: "今月",     type: "relative",    point: "this", unit: "month" },
+  { label: "先月",     type: "relative",    point: "last", unit: "month" },
+  { label: "直近7日",  type: "last_n_days", n: 7 },
+  { label: "直近30日", type: "last_n_days", n: 30 },
+];
+
+function resolvePreset(preset: DatePreset): { from: Date; to: Date } {
+  if (preset.type === "last_n_days") {
+    const today = startOfDay(new Date());
+    return { from: subDays(today, preset.n - 1), to: endOfDay(today) };
+  }
+  return resolveRelativeDate(preset.point, preset.unit);
 }
 
 // ─── Step tracking ────────────────────────────────────────
@@ -121,9 +136,6 @@ export const FilterAddPopover = memo(function FilterAddPopover({
   const [selectedProperty, setSelectedProperty] = useState<FilterProperty | null>(null);
   const [selectedCondition, setSelectedCondition] = useState<FilterCondition | null>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [relPoint, setRelPoint] = useState<RelativePoint>("this");
-  const [relUnit, setRelUnit] = useState<RelativeUnit>("week");
-  const [showCalendar, setShowCalendar] = useState(false);
 
   // Filter out already-used properties
   const activeKeys = useMemo(
@@ -142,15 +154,18 @@ export const FilterAddPopover = memo(function FilterAddPopover({
     setSelectedProperty(null);
     setSelectedCondition(null);
     setDateRange(undefined);
-    setShowCalendar(false);
-    setRelPoint("this");
-    setRelUnit("week");
   }, []);
 
   // ── Handlers ──
 
   const handleSelectProperty = useCallback((prop: FilterProperty) => {
     setSelectedProperty(prop);
+    // For date-range, skip condition step — always range mode
+    if (prop.type === "date-range") {
+      setSelectedCondition("is_between");
+      setStep("date-value");
+      return;
+    }
     setStep("condition");
   }, []);
 
@@ -169,12 +184,6 @@ export const FilterAddPopover = memo(function FilterAddPopover({
         });
         resetState();
         setOpen(false);
-        return;
-      }
-
-      // Date type -> date value step
-      if (selectedProperty.type === "date-range") {
-        setStep("date-value");
         return;
       }
 
@@ -201,23 +210,23 @@ export const FilterAddPopover = memo(function FilterAddPopover({
 
   const applyDateFilter = useCallback(
     (from: Date, to: Date, label: string) => {
-      if (!selectedProperty || !selectedCondition) return;
+      if (!selectedProperty) return;
       onAdd({
         key: selectedProperty.key,
-        condition: selectedCondition,
+        condition: "is_between",
         value: { from: format(from, "yyyy-MM-dd"), to: format(to, "yyyy-MM-dd") },
         displayValue: label,
       });
       resetState();
       setOpen(false);
     },
-    [selectedProperty, selectedCondition, onAdd, resetState],
+    [selectedProperty, onAdd, resetState],
   );
 
-  const handleRelativeApply = useCallback(
-    (point: RelativePoint, unit: RelativeUnit) => {
-      const resolved = resolveRelativeDate(point, unit);
-      applyDateFilter(resolved.from, resolved.to, getRelativeLabel(point, unit));
+  const handlePresetClick = useCallback(
+    (preset: DatePreset) => {
+      const { from, to } = resolvePreset(preset);
+      applyDateFilter(from, to, preset.label);
     },
     [applyDateFilter],
   );
@@ -226,25 +235,15 @@ export const FilterAddPopover = memo(function FilterAddPopover({
     (range: DateRange | undefined) => {
       setDateRange(range);
       if (!range?.from) return;
-
-      const isBetween = selectedCondition === "is_between";
-      if (isBetween) {
-        if (range.from && range.to && range.from.getTime() !== range.to.getTime()) {
-          applyDateFilter(
-            range.from,
-            range.to,
-            `${format(range.from, "MM/dd")}~${format(range.to, "MM/dd")}`,
-          );
-        }
-      } else {
+      if (range.to && range.from.getTime() !== range.to.getTime()) {
         applyDateFilter(
           range.from,
-          range.from,
-          format(range.from, "yyyy/MM/dd"),
+          range.to,
+          `${format(range.from, "M/d")}〜${format(range.to, "M/d")}`,
         );
       }
     },
-    [selectedCondition, applyDateFilter],
+    [applyDateFilter],
   );
 
   const handleOpenChange = useCallback(
@@ -256,32 +255,36 @@ export const FilterAddPopover = memo(function FilterAddPopover({
   );
 
   const handleBack = useCallback(() => {
-    if (showCalendar) {
-      setShowCalendar(false);
-      return;
-    }
     switch (step) {
       case "condition":
         setStep("property");
         setSelectedProperty(null);
         break;
       case "value":
-      case "date-value":
         setStep("condition");
+        setSelectedCondition(null);
+        break;
+      case "date-value":
+        // Skip condition step — go back to property
+        setStep("property");
+        setSelectedProperty(null);
         setSelectedCondition(null);
         break;
       default:
         break;
     }
-  }, [step, showCalendar]);
+  }, [step]);
 
   // Hide if all properties are in use
   if (availableProperties.length === 0) return null;
 
-  // ── Render helpers ──
+  const showBackButton = step !== "property";
 
-  const showBackButton = step !== "property" || showCalendar;
-  const isBetweenCalendar = selectedCondition === "is_between";
+  // FROM → TO display for date-value step
+  const hasFrom = !!dateRange?.from;
+  const hasTo = !!(dateRange?.to && dateRange.from && dateRange.to.getTime() !== dateRange.from.getTime());
+  const fromDisplay = hasFrom ? format(dateRange!.from!, "M月d日") : "開始日";
+  const toDisplay = hasTo ? format(dateRange!.to!, "M月d日") : "終了日";
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -296,16 +299,12 @@ export const FilterAddPopover = memo(function FilterAddPopover({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className={
-          step === "date-value" && showCalendar
-            ? "w-auto p-0"
-            : "w-[220px] p-0"
-        }
+        className={step === "date-value" ? "w-auto p-0" : "w-[220px] p-0"}
         align="start"
       >
         {/* Back button */}
         {showBackButton ? (
-          <div className="px-2 pt-2">
+          <div className={step === "date-value" ? "px-2 pt-2 pb-0" : "px-2 pt-2"}>
             <button
               type="button"
               onClick={handleBack}
@@ -338,7 +337,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
             </CommandList>
           </Command>
         ) : step === "condition" ? (
-          /* Step 2: Condition selection */
+          /* Step 2: Condition selection (select/multi-select only) */
           <div className="py-1">
             <p className="text-base text-[#37352F]/40 px-3 py-1.5">
               {selectedProperty?.label} - 条件
@@ -374,72 +373,67 @@ export const FilterAddPopover = memo(function FilterAddPopover({
               ))}
             </CommandList>
           </Command>
-        ) : step === "date-value" && showCalendar ? (
-          /* Step 3b-calendar: Calendar picker */
-          <div className="p-2">
-            {isBetweenCalendar ? (
+        ) : step === "date-value" ? (
+          /* Step 3b: Date range picker — presets + calendar */
+          <div className="flex divide-x divide-[rgba(55,53,47,0.09)]">
+            {/* Presets column */}
+            <div className="w-[108px] py-1 shrink-0">
+              {DATE_PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => handlePresetClick(preset)}
+                  className="w-full text-left px-3 py-1.5 text-sm text-[#37352F] hover:bg-[#F1F1EF] transition-colors"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Calendar column */}
+            <div className="p-3">
+              {/* FROM → TO header */}
+              <div className="flex items-center justify-center gap-3 mb-3 px-3 py-2 bg-[#F7F6F3] rounded-[4px]">
+                <span className={`text-sm font-mono tabular-nums ${hasFrom ? "text-[#37352F] font-medium" : "text-[#37352F]/30"}`}>
+                  {fromDisplay}
+                </span>
+                <span className="text-[#37352F]/30 text-xs">→</span>
+                <span className={`text-sm font-mono tabular-nums ${hasTo ? "text-[#37352F] font-medium" : "text-[#37352F]/30"}`}>
+                  {toDisplay}
+                </span>
+              </div>
               <Calendar
                 mode="range"
                 selected={dateRange}
                 onSelect={(range) => { if (range) handleCalendarSelect(range); }}
-                numberOfMonths={2}
-                locale={ja}
-                className="rounded-md"
-              />
-            ) : (
-              <Calendar
-                mode="single"
-                selected={dateRange?.from}
-                onSelect={(date) => { if (date) handleCalendarSelect({ from: date, to: date }); }}
                 numberOfMonths={1}
                 locale={ja}
                 className="rounded-md"
+                captionLayout="dropdown"
+                fromYear={2020}
+                toYear={new Date().getFullYear() + 2}
+                classNames={{
+                  months: "relative flex flex-col",
+                  month_caption: "flex justify-center items-center h-9 w-full",
+                  caption_label: "sr-only",
+                  nav: "absolute top-1 left-0 right-0 flex justify-between items-center px-1 pointer-events-none",
+                  button_previous: "size-8 p-0 rounded-sm hover:bg-[#F1F1EF] opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto",
+                  button_next: "size-8 p-0 rounded-sm hover:bg-[#F1F1EF] opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto",
+                  dropdowns: "flex items-center gap-1",
+                  dropdown: "text-sm font-medium bg-transparent border-none cursor-pointer focus:outline-none hover:opacity-70 py-0.5 px-1 rounded hover:bg-[#F1F1EF]",
+                }}
+                formatters={{
+                  formatMonthDropdown: (month) => {
+                    const m = month instanceof Date ? month.getMonth() + 1 : Number(month) + 1;
+                    return `${m}月`;
+                  },
+                  formatYearDropdown: (year) => {
+                    const y = year instanceof Date ? year.getFullYear() : Number(year);
+                    return `${y}年`;
+                  },
+                }}
               />
-            )}
-          </div>
-        ) : step === "date-value" ? (
-          /* Step 3b: Date value (relative selector) */
-          <div className="py-2 px-3 space-y-2">
-            <p className="text-base text-[#37352F]/40">相対日付</p>
-            <div className="flex gap-1.5">
-              <select
-                value={relPoint}
-                onChange={(e) => {
-                  const p = e.target.value as RelativePoint;
-                  setRelPoint(p);
-                  handleRelativeApply(p, relUnit);
-                }}
-                className="flex-1 h-8 text-base border border-[rgba(55,53,47,0.16)] rounded-[3px] px-2 bg-white text-[#37352F]"
-              >
-                {RELATIVE_POINT_LABELS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={relUnit}
-                onChange={(e) => {
-                  const u = e.target.value as RelativeUnit;
-                  setRelUnit(u);
-                  handleRelativeApply(relPoint, u);
-                }}
-                className="flex-1 h-8 text-base border border-[rgba(55,53,47,0.16)] rounded-[3px] px-2 bg-white text-[#37352F]"
-              >
-                {RELATIVE_UNIT_LABELS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowCalendar(true)}
-              className="w-full text-left px-2 py-1.5 text-base text-[#37352F]/60 hover:bg-[#F1F1EF] rounded-[3px] transition-colors"
-            >
-              カレンダーから選択...
-            </button>
           </div>
         ) : null}
       </PopoverContent>

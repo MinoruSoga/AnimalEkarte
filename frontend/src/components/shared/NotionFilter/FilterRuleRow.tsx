@@ -27,11 +27,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
-import {
-  FILTER_CONDITIONS,
-  RELATIVE_POINT_LABELS,
-  RELATIVE_UNIT_LABELS,
-} from "./types";
+import { FILTER_CONDITIONS } from "./types";
 import type {
   ActiveFilter,
   FilterProperty,
@@ -86,10 +82,29 @@ function resolveRelativeDate(
   }
 }
 
-function getRelativeLabel(point: RelativePoint, unit: RelativeUnit): string {
-  const pointLabel = RELATIVE_POINT_LABELS.find((p) => p.value === point)?.label ?? point;
-  const unitLabel = RELATIVE_UNIT_LABELS.find((u) => u.value === unit)?.label ?? unit;
-  return `${pointLabel} ${unitLabel}`;
+// ─── Date presets (module-level constant) ─────────────────
+
+type DatePreset =
+  | { label: string; type: "relative"; point: RelativePoint; unit: RelativeUnit }
+  | { label: string; type: "last_n_days"; n: number };
+
+const DATE_PRESETS: DatePreset[] = [
+  { label: "今日",     type: "relative",    point: "this", unit: "day" },
+  { label: "昨日",     type: "relative",    point: "last", unit: "day" },
+  { label: "今週",     type: "relative",    point: "this", unit: "week" },
+  { label: "先週",     type: "relative",    point: "last", unit: "week" },
+  { label: "今月",     type: "relative",    point: "this", unit: "month" },
+  { label: "先月",     type: "relative",    point: "last", unit: "month" },
+  { label: "直近7日",  type: "last_n_days", n: 7 },
+  { label: "直近30日", type: "last_n_days", n: 30 },
+];
+
+function resolvePreset(preset: DatePreset): { from: Date; to: Date } {
+  if (preset.type === "last_n_days") {
+    const today = startOfDay(new Date());
+    return { from: subDays(today, preset.n - 1), to: endOfDay(today) };
+  }
+  return resolveRelativeDate(preset.point, preset.unit);
 }
 
 // ─── Condition label helpers ──────────────────────────────
@@ -108,12 +123,14 @@ interface InlineSelectorProps {
   label: string;
   children: React.ReactNode;
   popoverWidth?: string;
+  noPadding?: boolean;
 }
 
 const InlineSelector = memo(function InlineSelector({
   label,
   children,
   popoverWidth = "w-[180px]",
+  noPadding = false,
 }: InlineSelectorProps) {
   const [open, setOpen] = useState(false);
 
@@ -122,13 +139,16 @@ const InlineSelector = memo(function InlineSelector({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1 px-2 py-1 text-base text-[#37352F] bg-[#F1F1EF] hover:bg-[#E8E7E4] rounded-[3px] transition-colors whitespace-nowrap max-w-[180px] truncate"
+          className="flex items-center gap-1 px-2 py-1 text-base text-[#37352F] bg-[#F1F1EF] hover:bg-[#E8E7E4] rounded-[3px] transition-colors whitespace-nowrap max-w-[200px] truncate"
         >
           <span className="truncate">{label}</span>
           <ChevronDown className="size-5 shrink-0 opacity-50" />
         </button>
       </PopoverTrigger>
-      <PopoverContent className={`${popoverWidth} p-1`} align="start">
+      <PopoverContent
+        className={`${popoverWidth} ${noPadding ? "p-0" : "p-1"}`}
+        align="start"
+      >
         {children}
       </PopoverContent>
     </Popover>
@@ -138,28 +158,27 @@ const InlineSelector = memo(function InlineSelector({
 // ─── Date value editor ────────────────────────────────────
 
 interface DateValueEditorProps {
-  condition: FilterCondition;
+  currentValue?: { from?: string; to?: string };
   onApply: (value: { from?: string; to?: string }, displayValue: string) => void;
 }
 
 const DateValueEditor = memo(function DateValueEditor({
-  condition,
+  currentValue,
   onApply,
 }: DateValueEditorProps) {
-  const [relPoint, setRelPoint] = useState<RelativePoint>("this");
-  const [relUnit, setRelUnit] = useState<RelativeUnit>("week");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [showCalendar, setShowCalendar] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    if (!currentValue?.from) return undefined;
+    return {
+      from: new Date(currentValue.from),
+      to: currentValue.to ? new Date(currentValue.to) : undefined,
+    };
+  });
 
-  const handleRelativeApply = useCallback(
-    (point: RelativePoint, unit: RelativeUnit) => {
-      const resolved = resolveRelativeDate(point, unit);
-      const label = getRelativeLabel(point, unit);
+  const handlePresetClick = useCallback(
+    (from: Date, to: Date, label: string) => {
+      setDateRange({ from, to });
       onApply(
-        {
-          from: format(resolved.from, "yyyy-MM-dd"),
-          to: format(resolved.to, "yyyy-MM-dd"),
-        },
+        { from: format(from, "yyyy-MM-dd"), to: format(to, "yyyy-MM-dd") },
         label,
       );
     },
@@ -170,105 +189,85 @@ const DateValueEditor = memo(function DateValueEditor({
     (range: DateRange | undefined) => {
       setDateRange(range);
       if (!range?.from) return;
-
-      if (condition === "is_between") {
-        if (range.from && range.to && range.from.getTime() !== range.to.getTime()) {
-          onApply(
-            {
-              from: format(range.from, "yyyy-MM-dd"),
-              to: format(range.to, "yyyy-MM-dd"),
-            },
-            `${format(range.from, "MM/dd")}~${format(range.to, "MM/dd")}`,
-          );
-        }
-      } else {
+      if (range.to && range.from.getTime() !== range.to.getTime()) {
         onApply(
-          {
-            from: format(range.from, "yyyy-MM-dd"),
-            to: format(range.from, "yyyy-MM-dd"),
-          },
-          format(range.from, "yyyy/MM/dd"),
+          { from: format(range.from, "yyyy-MM-dd"), to: format(range.to, "yyyy-MM-dd") },
+          `${format(range.from, "M/d")}〜${format(range.to, "M/d")}`,
         );
       }
     },
-    [condition, onApply],
+    [onApply],
   );
 
-  if (showCalendar) {
-    return (
-      <div className="p-2">
-        <button
-          type="button"
-          onClick={() => setShowCalendar(false)}
-          className="text-base text-[#37352F]/50 hover:text-[#37352F]/80 mb-2"
-        >
-          ← 戻る
-        </button>
-        {condition === "is_between" ? (
-          <Calendar
-            mode="range"
-            selected={dateRange}
-            onSelect={(range) => { if (range) handleCalendarSelect(range); }}
-            locale={ja}
-            numberOfMonths={2}
-            className="rounded-md"
-          />
-        ) : (
-          <Calendar
-            mode="single"
-            selected={dateRange?.from}
-            onSelect={(date) => { if (date) handleCalendarSelect({ from: date, to: date }); }}
-            locale={ja}
-            numberOfMonths={1}
-            className="rounded-md"
-          />
-        )}
-      </div>
-    );
-  }
+  // FROM → TO display
+  const hasFrom = !!dateRange?.from;
+  const hasTo = !!(dateRange?.to && dateRange.from && dateRange.to.getTime() !== dateRange.from.getTime());
+  const fromDisplay = hasFrom ? format(dateRange!.from!, "M月d日") : "開始日";
+  const toDisplay = hasTo ? format(dateRange!.to!, "M月d日") : "終了日";
 
   return (
-    <div className="p-2 space-y-2">
-      <p className="text-base text-[#37352F]/50 px-1">相対日付</p>
-      <div className="flex gap-1.5">
-        <select
-          value={relPoint}
-          onChange={(e) => {
-            const p = e.target.value as RelativePoint;
-            setRelPoint(p);
-            handleRelativeApply(p, relUnit);
-          }}
-          className="flex-1 h-8 text-base border border-[rgba(55,53,47,0.16)] rounded-[3px] px-2 bg-white text-[#37352F]"
-        >
-          {RELATIVE_POINT_LABELS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-        <select
-          value={relUnit}
-          onChange={(e) => {
-            const u = e.target.value as RelativeUnit;
-            setRelUnit(u);
-            handleRelativeApply(relPoint, u);
-          }}
-          className="flex-1 h-8 text-base border border-[rgba(55,53,47,0.16)] rounded-[3px] px-2 bg-white text-[#37352F]"
-        >
-          {RELATIVE_UNIT_LABELS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+    <div className="flex divide-x divide-[rgba(55,53,47,0.09)]">
+      {/* Presets column */}
+      <div className="w-[108px] py-1 shrink-0">
+        {DATE_PRESETS.map((preset) => (
+          <button
+            key={preset.label}
+            type="button"
+            onClick={() => {
+              const { from, to } = resolvePreset(preset);
+              handlePresetClick(from, to, preset.label);
+            }}
+            className="w-full text-left px-3 py-1.5 text-sm text-[#37352F] hover:bg-[#F1F1EF] transition-colors"
+          >
+            {preset.label}
+          </button>
+        ))}
       </div>
-      <button
-        type="button"
-        onClick={() => setShowCalendar(true)}
-        className="w-full text-left px-2 py-1.5 text-base text-[#37352F]/60 hover:bg-[#F1F1EF] rounded-[3px] transition-colors"
-      >
-        カレンダーから選択...
-      </button>
+
+      {/* Calendar column */}
+      <div className="p-3">
+        {/* FROM → TO header */}
+        <div className="flex items-center justify-center gap-3 mb-3 px-3 py-2 bg-[#F7F6F3] rounded-[4px]">
+          <span className={`text-sm font-mono tabular-nums ${hasFrom ? "text-[#37352F] font-medium" : "text-[#37352F]/30"}`}>
+            {fromDisplay}
+          </span>
+          <span className="text-[#37352F]/30 text-xs">→</span>
+          <span className={`text-sm font-mono tabular-nums ${hasTo ? "text-[#37352F] font-medium" : "text-[#37352F]/30"}`}>
+            {toDisplay}
+          </span>
+        </div>
+        <Calendar
+          mode="range"
+          selected={dateRange}
+          onSelect={(range) => { if (range) handleCalendarSelect(range); }}
+          locale={ja}
+          numberOfMonths={1}
+          className="rounded-md"
+          captionLayout="dropdown"
+          fromYear={2020}
+          toYear={new Date().getFullYear() + 2}
+          classNames={{
+            months: "relative flex flex-col",
+            month_caption: "flex justify-center items-center h-9 w-full",
+            caption_label: "sr-only",
+            nav: "absolute top-1 left-0 right-0 flex justify-between items-center px-1 pointer-events-none",
+            button_previous: "size-8 p-0 rounded-sm hover:bg-[#F1F1EF] opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto",
+            button_next: "size-8 p-0 rounded-sm hover:bg-[#F1F1EF] opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto",
+            dropdowns: "flex items-center gap-1",
+            dropdown: "text-sm font-medium bg-transparent border-none cursor-pointer focus:outline-none hover:opacity-70 py-0.5 px-1 rounded hover:bg-[#F1F1EF]",
+          }}
+          formatters={{
+            formatMonthDropdown: (month) => {
+              const m = month instanceof Date ? month.getMonth() + 1 : Number(month) + 1;
+              return `${m}月`;
+            },
+            formatYearDropdown: (year) => {
+              const y = year instanceof Date ? year.getFullYear() : Number(year);
+              return `${y}年`;
+            },
+          }}
+        />
+      </div>
     </div>
   );
 });
@@ -295,6 +294,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
   onRemove,
 }: FilterRuleRowProps) {
   const filterType = property?.type ?? "select";
+  const isDateRange = filterType === "date-range";
 
   // Condition options for this property type
   const conditionOptions = useMemo(
@@ -311,7 +311,6 @@ export const FilterRuleRow = memo(function FilterRuleRow({
 
   const handleConditionChange = useCallback(
     (newCondition: FilterCondition) => {
-      // If switching to is_empty/is_not_empty, clear value
       if (newCondition === "is_empty" || newCondition === "is_not_empty") {
         onUpdate({
           ...filter,
@@ -344,10 +343,18 @@ export const FilterRuleRow = memo(function FilterRuleRow({
     [filter, onUpdate],
   );
 
-  // ── Logic label / toggle (first row only) ──
+  // Extract current date value for initializing calendar
+  const currentDateValue = useMemo(
+    () =>
+      typeof filter.value === "object" && !Array.isArray(filter.value)
+        ? (filter.value as { from?: string; to?: string })
+        : undefined,
+    [filter.value],
+  );
+
+  // ── Logic label ──
 
   const logicLabel = logic === "and" ? "AND" : "OR";
-
   const isEmptyCondition =
     filter.condition === "is_empty" || filter.condition === "is_not_empty";
 
@@ -382,7 +389,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
               </button>
             </InlineSelector>
           ) : (
-            <span className="text-base text-[#37352F]/40 px-1.5">Where</span>
+            <span className="text-base text-[#37352F]/40 px-1.5">絞込</span>
           )
         ) : (
           <span className="text-base text-[#37352F]/40 px-1.5">{logicLabel}</span>
@@ -394,32 +401,35 @@ export const FilterRuleRow = memo(function FilterRuleRow({
         {property?.label ?? filter.key}
       </span>
 
-      {/* Condition column */}
-      <InlineSelector label={currentConditionLabel || "条件"} popoverWidth="w-[140px]">
-        {conditionOptions.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => handleConditionChange(opt.value)}
-            className={`w-full text-left px-2 py-1 text-base rounded-[3px] transition-colors ${
-              filter.condition === opt.value
-                ? "bg-[#2383E2]/10 text-[#2383E2]"
-                : "text-[#37352F] hover:bg-[#F1F1EF]"
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </InlineSelector>
+      {/* Condition column — hidden for date-range (always "期間内") */}
+      {isDateRange ? null : (
+        <InlineSelector label={currentConditionLabel || "条件"} popoverWidth="w-[140px]">
+          {conditionOptions.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => handleConditionChange(opt.value)}
+              className={`w-full text-left px-2 py-1 text-base rounded-[3px] transition-colors ${
+                filter.condition === opt.value
+                  ? "bg-[#2383E2]/10 text-[#2383E2]"
+                  : "text-[#37352F] hover:bg-[#F1F1EF]"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </InlineSelector>
+      )}
 
       {/* Value column */}
-      {isEmptyCondition ? null : filterType === "date-range" ? (
+      {isEmptyCondition ? null : isDateRange ? (
         <InlineSelector
-          label={filter.displayValue || "値を選択"}
+          label={filter.displayValue || "期間を選択"}
           popoverWidth="w-auto"
+          noPadding
         >
           <DateValueEditor
-            condition={filter.condition}
+            currentValue={currentDateValue}
             onApply={handleDateValueApply}
           />
         </InlineSelector>
