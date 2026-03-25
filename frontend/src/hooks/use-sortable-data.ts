@@ -16,7 +16,7 @@ interface UseSortableDataOptions<T> {
   getSortValue?: (item: T, key: string) => string | number;
 }
 
-export function useSortableData<T extends Record<string, unknown>>(
+export function useSortableData<T extends object>(
   data: T[],
   options?: UseSortableDataOptions<T>,
 ) {
@@ -64,10 +64,10 @@ export function useSortableData<T extends Record<string, unknown>>(
             cmp = String(aVal).localeCompare(String(bVal), "ja");
           }
         } else if (numericKeys?.includes(key)) {
-          cmp = Number(a[key] ?? 0) - Number(b[key] ?? 0);
+          cmp = Number((a as Record<string, unknown>)[key] ?? 0) - Number((b as Record<string, unknown>)[key] ?? 0);
         } else {
-          const aVal = String(a[key] ?? "");
-          const bVal = String(b[key] ?? "");
+          const aVal = String((a as Record<string, unknown>)[key] ?? "");
+          const bVal = String((b as Record<string, unknown>)[key] ?? "");
           cmp = aVal.localeCompare(bVal, "ja");
         }
 

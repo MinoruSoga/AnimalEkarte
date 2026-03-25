@@ -36,6 +36,8 @@ export interface UpdateClinicRequest {
   email?: string;
   website?: string;
   is_active?: boolean;
+  standard_tax_rate?: number;
+  reduced_tax_rate?: number;
 }
 
 // ─────────────────────────────────────────────────
