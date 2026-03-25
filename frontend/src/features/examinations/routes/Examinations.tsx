@@ -6,7 +6,7 @@ import { useNavigate } from "react-router";
 import { useSortableData } from "@/hooks/use-sortable-data";
 
 // External
-import { Plus, TestTube, FileSpreadsheet, Calendar, CircleDot, FlaskConical } from "lucide-react";
+import { Plus, TestTube, FileSpreadsheet, Calendar, CircleDot, FlaskConical, User } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
@@ -86,14 +86,18 @@ export function Examinations() {
 
   const { data: filteredRecords, allExaminations, isLoading } = useFilterExaminationRecords(deferredSearch, filters, activeFilters);
 
-  // js-cache-function-results: ロード済みデータから検査種別の選択肢を動的生成
+  // js-cache-function-results: ロード済みデータから検査種別・担当医の選択肢を動的生成
   const filterProperties = useMemo<FilterProperty[]>(() => {
     const testTypeOptions = Array.from(new Set(allExaminations.map((r) => r.testType).filter(Boolean)))
       .sort()
       .map((t) => ({ value: t, label: t }));
+    const doctorOptions = Array.from(new Set(allExaminations.map((r) => r.doctor).filter(Boolean)))
+      .sort()
+      .map((d) => ({ value: d, label: d }));
     return [
       ...STATIC_FILTER_PROPERTIES,
       { key: "testType", label: "検査種別", type: "select" as const, icon: FlaskConical, options: testTypeOptions },
+      { key: "doctor", label: "担当医", type: "select" as const, icon: User, options: doctorOptions },
     ];
   }, [allExaminations]);
 

@@ -41,6 +41,20 @@ export function useFilterExaminationRecords(
       });
     }
 
+    // doctor フィルタ（クライアントサイド）
+    const doctorFilter = activeFilters?.find((f) => f.key === "doctor");
+    if (doctorFilter && typeof doctorFilter.value === "string") {
+      result = result.filter((r) => {
+        switch (doctorFilter.condition) {
+          case "is":           return r.doctor === doctorFilter.value;
+          case "is_not":       return r.doctor !== doctorFilter.value;
+          case "is_empty":     return !r.doctor;
+          case "is_not_empty": return !!r.doctor;
+          default:             return r.doctor === doctorFilter.value;
+        }
+      });
+    }
+
     // テキスト検索
     if (!searchTerm) return result;
     const lowerTerm = searchTerm.toLowerCase();
