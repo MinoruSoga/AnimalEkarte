@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { C, STYLE } from "@/lib/design-tokens";
 
 // Relative
-import { useClinicalPlan, useUpdateClinicalPlan } from "../../api/clinical-plan";
+import { useGetClinicalPlan, useUpdateClinicalPlan } from "../../api/clinical-plan";
 import type { UpdateClinicalPlanInput } from "../../api/clinical-plan";
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -19,7 +19,7 @@ interface ClinicalPlanSectionProps {
 // ── Component ─────────────────────────────────────────────────────────
 
 export function ClinicalPlanSection({ medicalRecordId }: ClinicalPlanSectionProps) {
-  const { data, isLoading } = useClinicalPlan(medicalRecordId);
+  const { data, isLoading } = useGetClinicalPlan(medicalRecordId);
   const updateMutation = useUpdateClinicalPlan(medicalRecordId);
 
   const [physicalExam, setPhysicalExam] = useState("");

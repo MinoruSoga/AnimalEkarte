@@ -3,8 +3,8 @@ import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
-import { usePetInfo } from "@/hooks/use-pet";
-import { useOwnerInfo } from "@/hooks/use-owner";
+import { useGetPet } from "@/hooks/use-pet";
+import { useGetOwner } from "@/hooks/use-owner";
 import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useCreateMedicalRecord } from "../api/create-medical-record";
 import { useUpdateMedicalRecord } from "../api/update-medical-record";
@@ -61,11 +61,11 @@ export function useMedicalRecordForm(recordId?: string) {
   const resolvedPetId = isNewRecord ? (petId ?? "") : (existingRecord?.petId ?? "");
 
   // Petデータを取得
-  const { pet: selectedPet, isLoading: isPetLoading } = usePetInfo(resolvedPetId);
+  const { data: selectedPet, isLoading: isPetLoading } = useGetPet(resolvedPetId);
 
   // Ownerデータを取得（飼主割引率用）
   const resolvedOwnerId = selectedPet?.ownerId ?? "";
-  const { owner } = useOwnerInfo(resolvedOwnerId);
+  const { owner } = useGetOwner(resolvedOwnerId);
   const ownerDiscountRate = owner?.discountRate ?? 0;
 
   const createMutation = useCreateMedicalRecord();

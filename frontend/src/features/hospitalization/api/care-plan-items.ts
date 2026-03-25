@@ -110,7 +110,7 @@ const deleteCarePlanItem = async (
 
 // ---- Hooks ----
 
-export function useCarePlanItems(hospitalizationId: string) {
+export function useGetCarePlanItems(hospitalizationId: string) {
     return useQuery({
         queryKey: carePlanItemKeys.all(hospitalizationId),
         queryFn: () => listCarePlanItems(hospitalizationId),

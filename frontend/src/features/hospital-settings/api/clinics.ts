@@ -78,7 +78,7 @@ export async function deleteClinic(id: number): Promise<void> {
 // TanStack Query hooks
 // ─────────────────────────────────────────────────
 
-export function useListClinics() {
+export function useGetClinics() {
   return useQuery({
     queryKey: CLINICS_QUERY_KEY,
     queryFn: listClinics,

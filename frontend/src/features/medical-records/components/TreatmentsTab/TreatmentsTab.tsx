@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { C, STYLE } from "@/lib/design-tokens";
 
 // Relative
-import { useTreatments } from "../../api/treatments";
+import { useGetTreatments } from "../../api/treatments";
 import { useCreateTreatment } from "../../api/treatments";
 import { useUpdateTreatment } from "../../api/treatments";
 import { useDeleteTreatment } from "../../api/treatments";
@@ -53,7 +53,7 @@ interface TreatmentsTabProps {
 // ── Component ─────────────────────────────────────────────────────────
 
 export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: TreatmentsTabProps) {
-  const { data: treatments, isLoading } = useTreatments(medicalRecordId);
+  const { data: treatments, isLoading } = useGetTreatments(medicalRecordId);
   const createMutation = useCreateTreatment(medicalRecordId);
   const updateMutation = useUpdateTreatment(medicalRecordId);
   const deleteMutation = useDeleteTreatment(medicalRecordId);

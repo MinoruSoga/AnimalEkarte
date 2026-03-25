@@ -18,7 +18,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { usePetInfo } from "@/hooks/use-pet";
+import { useGetPet } from "@/hooks/use-pet";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 
@@ -90,7 +90,7 @@ export function ReservationFormModal({
     togglePetSelection,
   } = usePetSelection([], "multiple-same-owner");
 
-  const { pet: loadedPet } = usePetInfo(pendingPetId ?? "");
+  const { data: loadedPet } = useGetPet(pendingPetId ?? "");
 
   useEffect(() => {
     if (loadedPet && pendingPetId) {

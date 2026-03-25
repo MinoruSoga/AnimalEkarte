@@ -12,7 +12,7 @@ import { C, STYLE } from "@/lib/design-tokens";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 
 // Relative
-import { useCheckups } from "../../api/checkups";
+import { useGetCheckups } from "../../api/checkups";
 import { useCreateCheckup } from "../../api/checkups";
 import { useUpdateCheckup } from "../../api/checkups";
 import { useDeleteCheckup } from "../../api/checkups";
@@ -159,7 +159,7 @@ interface CheckupsTabProps {
 // ── Component ──────────────────────────────────────────────────────────
 
 export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
-  const { data: checkups, isLoading } = useCheckups(medicalRecordId);
+  const { data: checkups, isLoading } = useGetCheckups(medicalRecordId);
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
   const createMutation = useCreateCheckup(medicalRecordId);
   const updateMutation = useUpdateCheckup(medicalRecordId);

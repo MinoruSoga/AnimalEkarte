@@ -10,7 +10,7 @@ import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { DiagnosisHeader } from "./DiagnosisHeader";
 import { ClinicalPlanSection } from "./ClinicalPlanSection";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
-import { useTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
+import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
 import type { TreatmentItemType, UpdateTreatmentInput } from "../types";
 
 export interface DiagnosisPlanProps {
@@ -63,7 +63,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
 
   // ── API ──
-  const { data: treatments = [] } = useTreatments(medicalRecordId ?? "");
+  const { data: treatments = [] } = useGetTreatments(medicalRecordId ?? "");
   const createMutation = useCreateTreatment(medicalRecordId ?? "");
   const updateMutation = useUpdateTreatment(medicalRecordId ?? "");
   const deleteMutation = useDeleteTreatment(medicalRecordId ?? "");

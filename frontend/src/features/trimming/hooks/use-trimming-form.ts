@@ -2,7 +2,7 @@ import { useState, useEffect, useTransition, useCallback, useMemo, useRef } from
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
 import { usePetSelection } from "@/hooks/use-pet-selection";
-import { usePetInfo } from "@/hooks/use-pet";
+import { useGetPet } from "@/hooks/use-pet";
 import { useGetTrimming } from "../api/get-trimming";
 import { useCreateTrimming } from "../api/create-trimming";
 import { useUpdateTrimming } from "../api/update-trimming";
@@ -48,7 +48,7 @@ export function useTrimmingForm(id?: string) {
   const { setSelectedPets, selectedPets } = petSelection;
 
   const { data: existingTrimming } = useGetTrimming(id ?? "");
-  const { pet: petFromQuery, isLoading: isPetLoading } = usePetInfo(petId ?? "");
+  const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
   const createMutation = useCreateTrimming();
   const updateMutation = useUpdateTrimming();
   const deleteMutation = useDeleteTrimming();

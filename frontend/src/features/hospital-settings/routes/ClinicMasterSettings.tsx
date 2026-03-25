@@ -25,7 +25,7 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import {
-  useListClinics,
+  useGetClinics,
   useCreateClinic,
   useUpdateClinic,
   useDeleteClinic,
@@ -154,7 +154,7 @@ export function ClinicMasterSettings() {
   const [pendingDelete, setPendingDelete] = useState<Clinic | null>(null);
   const deferredSearch = useDeferredValue(searchTerm);
 
-  const { data: rawClinics } = useListClinics();
+  const { data: rawClinics } = useGetClinics();
   const createMutation = useCreateClinic();
   const updateMutation = useUpdateClinic();
   const deleteMutation = useDeleteClinic();

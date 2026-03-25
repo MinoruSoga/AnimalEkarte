@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { usePetSearch } from "@/hooks/use-pet";
+import { useSearchPets } from "@/hooks/use-pet";
 
 // Types
 import type { Pet } from "@/types";
@@ -50,7 +50,7 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
   });
   const [hasSearched, setHasSearched] = useState(false);
 
-  const { pets: allPets, isLoading } = usePetSearch();
+  const { pets: allPets, isLoading } = useSearchPets();
 
   const hasSearchConditions = useMemo(
     () => Object.values(searchParams).some((value) => value.trim() !== ""),

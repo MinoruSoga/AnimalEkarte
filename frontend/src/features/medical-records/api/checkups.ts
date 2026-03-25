@@ -48,7 +48,7 @@ const getCheckups = async (medicalRecordId: string): Promise<Checkup[]> => {
   return data;
 };
 
-export const useCheckups = (medicalRecordId: string) => {
+export const useGetCheckups = (medicalRecordId: string) => {
   return useQuery({
     queryKey: ["checkups", medicalRecordId],
     queryFn: () => getCheckups(medicalRecordId),

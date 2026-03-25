@@ -1,11 +1,11 @@
-import { useGetOwner } from "@/features/owners/api/get-owner";
+import { useGetOwner as _useGetOwner } from "@/features/owners/api/get-owner";
 
 /**
- * Hook for fetching a single owner by ID with React Query cache.
- * Wraps useGetOwner for ergonomic usage across features.
+ * Shared hook for fetching a single owner by ID.
+ * Wraps features/owners useGetOwner for cross-feature use (avoids feature→feature import).
  */
-export function useOwnerInfo(ownerId: string) {
-  const { data: owner, isLoading, error } = useGetOwner(ownerId);
+export function useGetOwner(ownerId: string) {
+  const { data: owner, isLoading, error } = _useGetOwner(ownerId);
 
   return {
     owner,

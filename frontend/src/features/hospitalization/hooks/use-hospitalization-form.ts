@@ -10,7 +10,7 @@ import { usePetSelection } from "@/hooks/use-pet-selection";
 
 const MS_PER_DAY = 86_400_000;
 const DEFAULT_HOSPITALIZATION_DAYS = 7;
-import { usePetInfo } from "@/hooks/use-pet";
+import { useGetPet } from "@/hooks/use-pet";
 import { createHospitalization } from "../api/create-hospitalization";
 import { updateHospitalization } from "../api/update-hospitalization";
 import { useGetHospitalizationRaw } from "../api/get-hospitalization";
@@ -26,7 +26,7 @@ export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
   const { selectedPets, setSelectedPets } = petSelection;
 
   // petId が URL にある場合は React Query でフェッチ（cross-feature 直接呼び出しを回避）
-  const { pet: petFromQuery, isLoading: isPetLoading } = usePetInfo(petId ?? "");
+  const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
 
   // rerender-lazy-state-init: Date.now() は impure。lazy init で初回レンダーのみ実行
   const [formData, setFormData] = useState<HospitalizationFormData>(() => ({

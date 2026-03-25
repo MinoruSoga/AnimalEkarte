@@ -1,4 +1,4 @@
-export { useDashboardData, getDashboard, todayISO } from "./get-dashboard";
+export { useGetDashboard, getDashboard, todayISO } from "./get-dashboard";
 export { useGetStaffs, buildStaffMap } from "./get-staffs";
 export type { BackendStaff } from "./get-staffs";
 export { useUpdateAppointmentStatus } from "./update-appointment-status";

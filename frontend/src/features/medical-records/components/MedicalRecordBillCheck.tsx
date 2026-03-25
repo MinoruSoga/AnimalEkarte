@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
-import { useTreatments, useCreateTreatment, useUpdateTreatment } from "../api/treatments";
+import { useGetTreatments, useCreateTreatment, useUpdateTreatment } from "../api/treatments";
 import { useGetBillingReview, useConfirmBillingReview, useReturnBillingReview } from "../api/billing-review";
 import type { CreateTreatmentInput, UpdateTreatmentInput, TreatmentItemType } from "../types";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -29,7 +29,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   // ── API ──
-  const { data: treatments = [] } = useTreatments(medicalRecordId);
+  const { data: treatments = [] } = useGetTreatments(medicalRecordId);
   const { data: billingReview } = useGetBillingReview(medicalRecordId);
   const createTreatmentMutation = useCreateTreatment(medicalRecordId);
   const updateTreatmentMutation = useUpdateTreatment(medicalRecordId);

@@ -18,7 +18,7 @@ import {
 
 // Relative
 import {
-    useCarePlanItems,
+    useGetCarePlanItems,
     useCreateCarePlanItem,
     useUpdateCarePlanItem,
     useDeleteCarePlanItem,
@@ -311,7 +311,7 @@ interface CarePlanTabProps {
 }
 
 export function CarePlanTab({ hospitalizationId }: CarePlanTabProps) {
-    const { data: items, isLoading } = useCarePlanItems(hospitalizationId);
+    const { data: items, isLoading } = useGetCarePlanItems(hospitalizationId);
     const createItem = useCreateCarePlanItem(hospitalizationId);
     const updateItem = useUpdateCarePlanItem(hospitalizationId);
     const deleteItem = useDeleteCarePlanItem(hospitalizationId);

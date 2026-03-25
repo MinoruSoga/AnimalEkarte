@@ -15,7 +15,7 @@ const EDIT_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-
 const ADD_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2]`;
 
 // Relative
-import { useVitals } from "../../api/vitals";
+import { useGetVitals } from "../../api/vitals";
 import { useCreateVital } from "../../api/vitals";
 import { useUpdateVital } from "../../api/vitals";
 import { useDeleteVital } from "../../api/vitals";
@@ -264,7 +264,7 @@ interface VitalsTabProps {
 // ── Component ─────────────────────────────────────────────────────────
 
 export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
-  const { data: vitals, isLoading } = useVitals(medicalRecordId);
+  const { data: vitals, isLoading } = useGetVitals(medicalRecordId);
   const createMutation = useCreateVital(medicalRecordId);
   const updateMutation = useUpdateVital(medicalRecordId);
   const deleteMutation = useDeleteVital(medicalRecordId);
