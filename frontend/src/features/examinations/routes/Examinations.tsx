@@ -83,7 +83,7 @@ export function Examinations() {
     };
   }, [activeFilters]);
 
-  const { data: filteredRecords, isLoading } = useFilterExaminationRecords(deferredSearch, filters);
+  const { data: filteredRecords, isLoading } = useFilterExaminationRecords(deferredSearch, filters, activeFilters);
 
   const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
     useSortableData(filteredRecords);

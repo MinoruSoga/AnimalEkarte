@@ -71,6 +71,17 @@ const FILTER_PROPERTIES: FilterProperty[] = [
       { value: "cancelled", label: "キャンセル" },
     ],
   },
+  {
+    key: "paymentMethod",
+    label: "支払方法",
+    type: "select",
+    icon: CreditCard,
+    options: [
+      { value: "cash", label: "現金" },
+      { value: "credit_card", label: "クレジットカード" },
+      { value: "electronic_money", label: "電子マネー" },
+    ],
+  },
 ];
 
 // rendering-hoist-jsx: 静的ソートプロパティ定義
@@ -134,6 +145,21 @@ export function Accounting() {
             return !!r.status;
           default:
             return r.status === statusFilter.value;
+        }
+      });
+    }
+
+    // 支払方法フィルタ（クライアントサイド）
+    const paymentMethodFilter = activeFilters.find((f) => f.key === "paymentMethod");
+    if (paymentMethodFilter && typeof paymentMethodFilter.value === "string") {
+      result = result.filter((r) => {
+        const method = r.payment?.method ?? "";
+        switch (paymentMethodFilter.condition) {
+          case "is":           return method === paymentMethodFilter.value;
+          case "is_not":       return method !== paymentMethodFilter.value;
+          case "is_empty":     return !method;
+          case "is_not_empty": return !!method;
+          default:             return method === paymentMethodFilter.value;
         }
       });
     }

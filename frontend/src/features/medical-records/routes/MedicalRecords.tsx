@@ -7,7 +7,7 @@ import { useSortableData } from "@/hooks/use-sortable-data";
 import { useModalState } from "@/hooks/use-modal-state";
 
 // External
-import { Plus, FileText, Edit, Trash2, Receipt, AlertTriangle, Calendar } from "lucide-react";
+import { Plus, FileText, Edit, Trash2, Receipt, AlertTriangle, Calendar, CircleDot } from "lucide-react";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
@@ -48,6 +48,16 @@ const FILTER_PROPERTIES: FilterProperty[] = [
     type: "date-range",
     icon: Calendar,
   },
+  {
+    key: "status",
+    label: "ステータス",
+    type: "select",
+    icon: CircleDot,
+    options: [
+      { value: "作成中", label: "作成中" },
+      { value: "確定済", label: "確定済" },
+    ],
+  },
 ];
 
 // rendering-hoist-jsx: 静的ソートプロパティ定義
@@ -77,7 +87,7 @@ export function MedicalRecords() {
     };
   }, [activeFilters]);
 
-  const { data: filteredRecords, isLoading, isError } = useFilterMedicalRecords(deferredSearch, apiFilters);
+  const { data: filteredRecords, isLoading, isError } = useFilterMedicalRecords(deferredSearch, apiFilters, activeFilters);
   const deleteModal = useModalState<{ id: string; label: string }>();
   const { mutate: deleteRecord } = useDeleteMedicalRecord();
   const { isValidStaff } = useStaffValidation();
