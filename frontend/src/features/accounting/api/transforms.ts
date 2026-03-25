@@ -55,6 +55,7 @@ export function transformToAccounting(data: BackendAccounting): Accounting {
     completedAt: data.completed_at ?? undefined,
     items: (data.items ?? []).map(transformAccountingItem),
     payment: buildPaymentInfo(data),
+    totalRefundedAmount: data.total_refunded_amount ?? 0,
     memo: data.memo || undefined,
   };
 }

@@ -54,6 +54,34 @@ func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, pet
 		Offset((page - 1) * limit).Limit(limit).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find billings")
 	}
+
+	// 返金合計をサブクエリで一括取得
+	if len(billings) > 0 {
+		ids := make([]uint64, 0, len(billings))
+		for _, b := range billings {
+			ids = append(ids, b.ID)
+		}
+		type refundSum struct {
+			BillingID uint64
+			Total     int64
+		}
+		var sums []refundSum
+		if err := r.db.WithContext(ctx).
+			Model(&model.BillingRefund{}).
+			Select("billing_id, COALESCE(SUM(amount), 0) AS total").
+			Where("billing_id IN ?", ids).
+			Group("billing_id").
+			Scan(&sums).Error; err != nil {
+			return nil, 0, apperrors.Wrap(err, "sum refunds")
+		}
+		sumMap := make(map[uint64]int64, len(sums))
+		for _, s := range sums {
+			sumMap[s.BillingID] = s.Total
+		}
+		for i := range billings {
+			billings[i].TotalRefundedAmount = sumMap[billings[i].ID]
+		}
+	}
 	return billings, total, nil
 }
 
@@ -62,6 +90,7 @@ func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64
 	if err := r.db.WithContext(ctx).
 		Preload("Items").
 		Preload("Payments").
+		Preload("Refunds").
 		Preload("Owner").
 		Preload("Pet").
 		First(&billing, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {

@@ -6,7 +6,7 @@ import { useNavigate } from "react-router";
 import { useSortableData } from "@/hooks/use-sortable-data";
 
 // External
-import { Plus, CreditCard, CircleDot, FileText, Calendar } from "lucide-react";
+import { Plus, CreditCard, CircleDot, FileText, Calendar, RotateCcw } from "lucide-react";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
@@ -278,9 +278,17 @@ export function Accounting() {
             {r.payment ? PAYMENT_METHOD_LABELS[r.payment.method] : "-"}
           </TableCell>
           <TableCell className="py-2">
-            <StatusBadge colorClass={getAccountingStatusColor(statusLabel)}>
-              {statusLabel}
-            </StatusBadge>
+            <div className="flex flex-wrap gap-1 items-center">
+              <StatusBadge colorClass={getAccountingStatusColor(statusLabel)}>
+                {statusLabel}
+              </StatusBadge>
+              {r.totalRefundedAmount > 0 ? (
+                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded bg-orange-50 text-orange-600 border border-orange-200">
+                  <RotateCcw className="h-2.5 w-2.5" />
+                  返金あり
+                </span>
+              ) : null}
+            </div>
           </TableCell>
           <TableCell className="text-center py-2 hidden lg:table-cell">
             {r.medicalRecordId ? (

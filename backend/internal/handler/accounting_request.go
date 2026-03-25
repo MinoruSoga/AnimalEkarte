@@ -56,3 +56,9 @@ type updateBillingItemRequest struct {
 	TaxRate               *float64 `json:"tax_rate"`
 	IsInsuranceApplicable *bool    `json:"is_insurance_applicable"`
 }
+
+// createRefundRequest は返金登録リクエスト。
+type createRefundRequest struct {
+	Amount int64  `json:"amount" binding:"required,min=1"`
+	Reason string `json:"reason"`
+}

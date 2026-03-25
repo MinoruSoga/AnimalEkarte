@@ -1298,6 +1298,21 @@ CREATE INDEX idx_billings_pet_id ON billings(pet_id);
 CREATE INDEX idx_billings_owner_id ON billings(owner_id);
 CREATE INDEX idx_billings_medical_record_id ON billings(medical_record_id);
 
+-- 返金レコード（Stripe モデル：billing_refunds で独立管理）
+CREATE TABLE billing_refunds (
+    id           BIGSERIAL PRIMARY KEY,
+    clinic_id    BIGINT NOT NULL,
+    billing_id   BIGINT NOT NULL,
+    amount       BIGINT NOT NULL CHECK (amount > 0),
+    reason       TEXT NOT NULL DEFAULT '',
+    refunded_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT fk_billing_refunds_billing FOREIGN KEY (billing_id) REFERENCES billings(id),
+    CONSTRAINT fk_billing_refunds_clinic  FOREIGN KEY (clinic_id)  REFERENCES clinics(id)
+);
+CREATE INDEX idx_billing_refunds_billing ON billing_refunds(billing_id);
+CREATE INDEX idx_billing_refunds_clinic_billing ON billing_refunds(clinic_id, billing_id);
+
 -- 担当医 FK インデックス（staffs）
 CREATE INDEX idx_vital_records_staff_id ON vital_records(staff_id);
 CREATE INDEX idx_trimming_records_staff_id ON trimming_records(staff_id);
@@ -1492,5 +1507,6 @@ COMMENT ON TABLE trimming_record_options IS 'トリミングオプション適�
 COMMENT ON TABLE billings IS '会計';
 COMMENT ON TABLE billing_items IS '会計明細';
 COMMENT ON TABLE payments IS '支払い情報';
+COMMENT ON TABLE billing_refunds IS '返金レコード（Stripe モデル）';
 COMMENT ON TABLE shift_entries IS 'スタッフシフト';
 COMMENT ON TABLE merchandise_items IS '物販・フード・その他マスタ';

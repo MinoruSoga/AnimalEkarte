@@ -49,6 +49,10 @@ export interface Billing {
   created_at: string;
   updated_at: string;
   /**
+   * 仮想フィールド（DB列なし）— FindAll のサブクエリで集計
+   */
+  total_refunded_amount: number /* int64 */;
+  /**
    * Relations
    */
   owner?: Owner;
@@ -56,6 +60,7 @@ export interface Billing {
   medical_record?: MedicalRecord;
   items?: BillingItem[];
   payments?: Payment[];
+  refunds?: BillingRefund[];
 }
 export interface BillingItem {
   id: number /* uint64 */;
@@ -102,6 +107,19 @@ export interface AnimalSpecies {
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
+}
+
+//////////
+// source: billing_refund.go
+
+export interface BillingRefund {
+  ID: number /* uint64 */;
+  ClinicID: number /* uint64 */;
+  BillingID: number /* uint64 */;
+  Amount: number /* int64 */; // 返金額（正の整数、円）
+  Reason: string;
+  RefundedAt: string;
+  CreatedAt: string;
 }
 
 //////////

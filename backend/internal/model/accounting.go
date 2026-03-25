@@ -71,12 +71,16 @@ type Billing struct {
 	CreatedAt         time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
+	// 仮想フィールド（DB列なし）— FindAll のサブクエリで集計
+	TotalRefundedAmount int64 `gorm:"-" json:"total_refunded_amount"`
+
 	// Relations
-	Owner         *Owner         `gorm:"foreignKey:OwnerID"          json:"owner,omitempty"`
-	Pet           *Pet           `gorm:"foreignKey:PetID"            json:"pet,omitempty"`
-	MedicalRecord *MedicalRecord `gorm:"foreignKey:MedicalRecordID"  json:"medical_record,omitempty"`
-	Items         []BillingItem  `gorm:"foreignKey:BillingID"        json:"items,omitempty"`
-	Payments      []Payment      `gorm:"foreignKey:BillingID"        json:"payments,omitempty"`
+	Owner         *Owner          `gorm:"foreignKey:OwnerID"          json:"owner,omitempty"`
+	Pet           *Pet            `gorm:"foreignKey:PetID"            json:"pet,omitempty"`
+	MedicalRecord *MedicalRecord  `gorm:"foreignKey:MedicalRecordID"  json:"medical_record,omitempty"`
+	Items         []BillingItem   `gorm:"foreignKey:BillingID"        json:"items,omitempty"`
+	Payments      []Payment       `gorm:"foreignKey:BillingID"        json:"payments,omitempty"`
+	Refunds       []BillingRefund `gorm:"foreignKey:BillingID"        json:"refunds,omitempty"`
 }
 
 func (Billing) TableName() string { return "billings" }

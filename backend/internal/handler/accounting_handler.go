@@ -204,4 +204,6 @@ func (h *Handler) RegisterAccountingRoutes(rg *gin.RouterGroup) {
 	accountings.GET("/:id", h.GetAccounting)
 	accountings.PATCH("/:id", h.UpdateAccounting)
 	accountings.DELETE("/:id", h.DeleteAccounting)
+	accountings.GET("/:id/refunds", h.ListRefunds)
+	accountings.POST("/:id/refunds", h.CreateRefund)
 }

@@ -3,7 +3,7 @@ import { useState, useMemo, useCallback, memo, useTransition, lazy, Suspense, us
 import { useParams, useNavigate, useLocation } from "react-router";
 
 // External
-import { Plus, Save, CreditCard, Printer, FileText } from "lucide-react";
+import { Plus, Save, CreditCard, Printer, FileText, RotateCcw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -49,6 +49,8 @@ import { useGetAccountingDetail } from "../api/get-accounting";
 import { createAccounting } from "../api/create-accounting";
 import { updateAccounting } from "../api/update-accounting";
 import { updateBillingItem } from "../api/update-billing-item";
+import { useGetRefunds } from "../api/get-refunds";
+import { createRefund } from "../api/create-refund";
 import { useGetAllMerchandiseItems } from "../api/get-merchandise-items";
 import { useGetPet } from "@/hooks/use-pet";
 import type { FrontendMerchandiseItem } from "../api/get-merchandise-items";
@@ -507,6 +509,132 @@ const PaymentCard = memo(function PaymentCard({
   );
 });
 
+// ── 返金セクション ──────────────────────────────────────
+interface RefundSectionProps {
+  billingId: string;
+  isRefunding: boolean;
+  onRefund: (amount: number, reason: string) => void;
+}
+
+const RefundSection = memo(function RefundSection({
+  billingId,
+  isRefunding,
+  onRefund,
+}: RefundSectionProps) {
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundReason, setRefundReason] = useState("");
+  const { data: refunds = [] } = useGetRefunds(billingId);
+
+  const totalRefunded = refunds.reduce((sum, r) => sum + r.amount, 0);
+
+  const handleSubmit = useCallback(() => {
+    const amount = parseInt(refundAmount, 10);
+    if (!amount || amount <= 0) return;
+    onRefund(amount, refundReason);
+    setRefundDialogOpen(false);
+    setRefundAmount("");
+    setRefundReason("");
+  }, [refundAmount, refundReason, onRefund]);
+
+  return (
+    <Card>
+      <CardHeader className="py-3 px-4 bg-gray-50 border-b">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <RotateCcw className="h-4 w-4 text-orange-500" />
+            返金管理
+            {totalRefunded > 0 ? (
+              <span className="text-xs font-normal text-orange-600 bg-orange-50 px-2 py-0.5 rounded">
+                合計 ¥{totalRefunded.toLocaleString()} 返金済
+              </span>
+            ) : null}
+          </CardTitle>
+          <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 text-xs">
+                <Plus className="mr-1 h-3 w-3" />
+                返金を登録
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>返金を登録</DialogTitle>
+                <DialogDescription>返金金額と理由を入力してください。</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label>返金金額（円）</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={refundAmount}
+                    onChange={(e) => setRefundAmount(e.target.value)}
+                    placeholder="0"
+                    className="h-10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>返金理由（任意）</Label>
+                  <Input
+                    value={refundReason}
+                    onChange={(e) => setRefundReason(e.target.value)}
+                    placeholder="返金理由を入力..."
+                    className="h-10"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setRefundDialogOpen(false)}>
+                  キャンセル
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!refundAmount || parseInt(refundAmount, 10) <= 0 || isRefunding}
+                >
+                  {isRefunding ? "処理中..." : "登録する"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </CardHeader>
+      {refunds.length > 0 ? (
+        <CardContent className="p-0">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/30 text-xs">
+                <th className="px-3 py-2 text-left font-medium">日時</th>
+                <th className="px-3 py-2 text-right font-medium">金額</th>
+                <th className="px-3 py-2 text-left font-medium">理由</th>
+              </tr>
+            </thead>
+            <tbody>
+              {refunds.map((r) => (
+                <tr key={r.id} className="border-b last:border-0">
+                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                    {new Date(r.refunded_at).toLocaleDateString("ja-JP")}
+                  </td>
+                  <td className="px-3 py-2 text-right font-medium text-orange-600">
+                    ¥{r.amount.toLocaleString()}
+                  </td>
+                  <td className="px-3 py-2 text-muted-foreground truncate max-w-[120px]">
+                    {r.reason || "-"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </CardContent>
+      ) : (
+        <CardContent className="p-4 text-center text-sm text-muted-foreground">
+          返金記録はありません
+        </CardContent>
+      )}
+    </Card>
+  );
+});
+
 // ── メインコンポーネント ──────────────────────────────────
 
 interface AccountingDetailProps {
@@ -584,6 +712,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
 
   // 追加アイテム用State
   const [newItemOpen, setNewItemOpen] = useState(false);
+  const [isRefunding, startRefundTransition] = useTransition();
 
   // Document Preview State
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -672,6 +801,23 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
       startTaxUpdateTransition(async () => {
         await updateBillingItem(itemId, { tax_type: taxType, tax_rate: taxRate });
         queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(id) });
+      });
+    },
+    [id, queryClient],
+  );
+
+  const handleRefund = useCallback(
+    (amount: number, reason: string) => {
+      if (!id) return;
+      startRefundTransition(async () => {
+        try {
+          await createRefund(id, { amount, reason });
+          queryClient.invalidateQueries({ queryKey: ["accounting-refunds", id] });
+          queryClient.invalidateQueries({ queryKey: ["accountings"] });
+          toast.success(`¥${amount.toLocaleString()} の返金を登録しました`);
+        } catch {
+          toast.error("返金の登録に失敗しました");
+        }
       });
     },
     [id, queryClient],
@@ -819,6 +965,14 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
               isCompleted={accounting.status === "completed"}
               isSaving={isSaving}
             />
+
+            {id && accounting.status === "completed" ? (
+              <RefundSection
+                billingId={id}
+                isRefunding={isRefunding}
+                onRefund={handleRefund}
+              />
+            ) : null}
           </div>
         </div>
 

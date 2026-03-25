@@ -7,6 +7,36 @@ import (
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
+type refundResponse struct {
+	ID         uint64    `json:"id"`
+	ClinicID   uint64    `json:"clinic_id"`
+	BillingID  uint64    `json:"billing_id"`
+	Amount     int64     `json:"amount"`
+	Reason     string    `json:"reason"`
+	RefundedAt time.Time `json:"refunded_at"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+func toRefundResponse(r *model.BillingRefund) refundResponse {
+	return refundResponse{
+		ID:         r.ID,
+		ClinicID:   r.ClinicID,
+		BillingID:  r.BillingID,
+		Amount:     r.Amount,
+		Reason:     r.Reason,
+		RefundedAt: r.RefundedAt,
+		CreatedAt:  r.CreatedAt,
+	}
+}
+
+func toRefundResponseList(refunds []model.BillingRefund) []refundResponse {
+	result := make([]refundResponse, 0, len(refunds))
+	for i := range refunds {
+		result = append(result, toRefundResponse(&refunds[i]))
+	}
+	return result
+}
+
 type billingItemResponse struct {
 	ID                    uint64    `json:"id"`
 	BillingID             uint64    `json:"billing_id"`
@@ -53,26 +83,28 @@ type accountingPetSummary struct {
 }
 
 type accountingResponse struct {
-	ID                uint64                  `json:"id"`
-	ClinicID          uint64                  `json:"clinic_id"`
-	MedicalRecordID   *uint64                 `json:"medical_record_id,omitempty"`
-	HospitalizationID *uint64                 `json:"hospitalization_id,omitempty"`
-	OwnerID           *uint64                 `json:"owner_id,omitempty"`
-	PetID             *uint64                 `json:"pet_id,omitempty"`
-	Owner             *accountingOwnerSummary `json:"owner,omitempty"`
-	Pet               *accountingPetSummary   `json:"pet,omitempty"`
-	Subtotal          int                     `json:"subtotal"`
-	TaxTotal          int                     `json:"tax_total"`
-	TotalAmount       int                     `json:"total_amount"`
-	HasInsurance      bool                    `json:"has_insurance"`
-	Status            string                  `json:"status"`
-	ScheduledDate     time.Time               `json:"scheduled_date"`
-	CompletedAt       *time.Time              `json:"completed_at,omitempty"`
-	Memo              string                  `json:"memo"`
-	Items             []billingItemResponse   `json:"items,omitempty"`
-	Payments          []paymentResponse       `json:"payments,omitempty"`
-	CreatedAt         time.Time               `json:"created_at"`
-	UpdatedAt         time.Time               `json:"updated_at"`
+	ID                  uint64                  `json:"id"`
+	ClinicID            uint64                  `json:"clinic_id"`
+	MedicalRecordID     *uint64                 `json:"medical_record_id,omitempty"`
+	HospitalizationID   *uint64                 `json:"hospitalization_id,omitempty"`
+	OwnerID             *uint64                 `json:"owner_id,omitempty"`
+	PetID               *uint64                 `json:"pet_id,omitempty"`
+	Owner               *accountingOwnerSummary `json:"owner,omitempty"`
+	Pet                 *accountingPetSummary   `json:"pet,omitempty"`
+	Subtotal            int                     `json:"subtotal"`
+	TaxTotal            int                     `json:"tax_total"`
+	TotalAmount         int                     `json:"total_amount"`
+	TotalRefundedAmount int64                   `json:"total_refunded_amount"`
+	HasInsurance        bool                    `json:"has_insurance"`
+	Status              string                  `json:"status"`
+	ScheduledDate       time.Time               `json:"scheduled_date"`
+	CompletedAt         *time.Time              `json:"completed_at,omitempty"`
+	Memo                string                  `json:"memo"`
+	Items               []billingItemResponse   `json:"items,omitempty"`
+	Payments            []paymentResponse       `json:"payments,omitempty"`
+	Refunds             []refundResponse        `json:"refunds,omitempty"`
+	CreatedAt           time.Time               `json:"created_at"`
+	UpdatedAt           time.Time               `json:"updated_at"`
 }
 
 func toBillingItemResponse(item *model.BillingItem) billingItemResponse {
@@ -125,6 +157,10 @@ func toAccountingResponse(b *model.Billing) accountingResponse {
 	for i := range b.Payments {
 		payments = append(payments, toPaymentResponse(&b.Payments[i]))
 	}
+	refunds := make([]refundResponse, 0, len(b.Refunds))
+	for i := range b.Refunds {
+		refunds = append(refunds, toRefundResponse(&b.Refunds[i]))
+	}
 
 	var owner *accountingOwnerSummary
 	if b.Owner != nil {
@@ -143,26 +179,28 @@ func toAccountingResponse(b *model.Billing) accountingResponse {
 	}
 
 	return accountingResponse{
-		ID:                b.ID,
-		ClinicID:          b.ClinicID,
-		MedicalRecordID:   b.MedicalRecordID,
-		HospitalizationID: b.HospitalizationID,
-		OwnerID:           b.OwnerID,
-		PetID:             b.PetID,
-		Owner:             owner,
-		Pet:               pet,
-		Subtotal:          b.Subtotal,
-		TaxTotal:          b.TaxTotal,
-		TotalAmount:       b.TotalAmount,
-		HasInsurance:      b.HasInsurance,
-		Status:            string(b.Status),
-		ScheduledDate:     b.ScheduledDate,
-		CompletedAt:       b.CompletedAt,
-		Memo:              b.Memo,
-		Items:             items,
-		Payments:          payments,
-		CreatedAt:         b.CreatedAt,
-		UpdatedAt:         b.UpdatedAt,
+		ID:                  b.ID,
+		ClinicID:            b.ClinicID,
+		MedicalRecordID:     b.MedicalRecordID,
+		HospitalizationID:   b.HospitalizationID,
+		OwnerID:             b.OwnerID,
+		PetID:               b.PetID,
+		Owner:               owner,
+		Pet:                 pet,
+		Subtotal:            b.Subtotal,
+		TaxTotal:            b.TaxTotal,
+		TotalAmount:         b.TotalAmount,
+		TotalRefundedAmount: b.TotalRefundedAmount,
+		HasInsurance:        b.HasInsurance,
+		Status:              string(b.Status),
+		ScheduledDate:       b.ScheduledDate,
+		CompletedAt:         b.CompletedAt,
+		Memo:                b.Memo,
+		Items:               items,
+		Payments:            payments,
+		Refunds:             refunds,
+		CreatedAt:           b.CreatedAt,
+		UpdatedAt:           b.UpdatedAt,
 	}
 }
 

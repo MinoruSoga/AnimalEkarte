@@ -93,6 +93,7 @@ func allModels() []any {
 		&model.Billing{},
 		&model.BillingItem{},
 		&model.Payment{},
+		&model.BillingRefund{},
 	}
 }
 
@@ -247,6 +248,10 @@ func TestSchemaDrift(t *testing.T) {
 			// リレーションフィールド（foreignKey, many2many 等）はスキップ
 			gormTag := field.Tag.Get("gorm")
 			if strings.Contains(gormTag, "foreignKey") || strings.Contains(gormTag, "many2many") {
+				continue
+			}
+			// 仮想フィールド（gorm:"-"）はスキップ
+			if gormTag == "-" || strings.HasPrefix(gormTag, "-;") {
 				continue
 			}
 

@@ -76,6 +76,16 @@ export interface PaymentInfo {
   method: PaymentMethod;
 }
 
+/** @see {@link import("@/types/generated/models").BillingRefund} */
+export interface Refund {
+  id: string;
+  billingId: string;
+  amount: number;
+  reason: string;
+  refundedAt: string;
+  createdAt: string;
+}
+
 /** @see {@link import("@/types/generated/models").Billing} */
 export interface Accounting {
   id: string;
@@ -90,5 +100,6 @@ export interface Accounting {
   completedAt?: string; // 会計完了日時
   items: AccountingItem[];
   payment?: PaymentInfo;
+  totalRefundedAmount: number; // 返金合計（0の場合はバッジ非表示）
   memo?: string;
 }
