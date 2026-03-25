@@ -86,18 +86,19 @@ func (h *Handler) GetMedicalRecord(c *gin.Context) {
 
 // buildMedicalRecord はリクエストから MedicalRecord モデルを組み立てる純粋関数。
 // 日付解決・必須フィールド検証・string→uint64 変換・ステータス検証を行う。
-func buildMedicalRecord(clinicID uint64, input createMedicalRecordRequest) (*model.MedicalRecord, error) {
+func buildMedicalRecord(clinicID uint64, input *createMedicalRecordRequest) (*model.MedicalRecord, error) {
 	// 1. 日付の解決: date (time.Time) または visit_date (string "YYYY-MM-DD")
 	var recordDate time.Time
-	if input.Date != nil {
+	switch {
+	case input.Date != nil:
 		recordDate = *input.Date
-	} else if input.VisitDate != nil && *input.VisitDate != "" {
+	case input.VisitDate != nil && *input.VisitDate != "":
 		parsed, err := time.Parse("2006-01-02", *input.VisitDate)
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput("invalid visit_date format (expected YYYY-MM-DD)")
 		}
 		recordDate = parsed
-	} else {
+	default:
 		recordDate = time.Now()
 	}
 
@@ -163,7 +164,7 @@ func buildMedicalRecord(clinicID uint64, input createMedicalRecordRequest) (*mod
 
 // createClinicalPlanIfNeeded は plan/assessment/diagnosis フィールドが存在する場合に
 // ClinicalPlan を best-effort で作成・更新する。失敗してもカルテ作成は完了済みのためエラーログのみ。
-func (h *Handler) createClinicalPlanIfNeeded(ctx context.Context, recordID uint64, input createMedicalRecordRequest) {
+func (h *Handler) createClinicalPlanIfNeeded(ctx context.Context, recordID uint64, input *createMedicalRecordRequest) {
 	if input.Plan == nil && input.Assessment == nil && input.Diagnosis1CategoryID == nil && input.Diagnosis1NameID == nil {
 		return
 	}
@@ -201,7 +202,7 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
-	record, err := buildMedicalRecord(clinicID, input)
+	record, err := buildMedicalRecord(clinicID, &input)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -211,7 +212,7 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	h.createClinicalPlanIfNeeded(ctx, record.ID, input)
+	h.createClinicalPlanIfNeeded(ctx, record.ID, &input)
 	c.JSON(http.StatusCreated, record)
 }
 

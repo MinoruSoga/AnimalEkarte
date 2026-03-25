@@ -14,14 +14,14 @@ import (
 
 // mockAccountingRepository は AccountingRepository のテスト用モック実装
 type mockAccountingRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
+	findAllFn      func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
 	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	createFn       func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	updateFieldsFn func(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
 	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
+func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
 	return m.findAllFn(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
 }
 
@@ -164,7 +164,7 @@ func TestAccountingService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockAccountingRepository{
-				findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _ *string, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
+				findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
 					return tt.repoBillings, tt.repoTotal, tt.repoErr
 				},
 			}
@@ -293,7 +293,7 @@ func TestAccountingService_Create(t *testing.T) {
 			}
 			svc := NewAccountingService(repo)
 
-			billing, err := svc.Create(context.Background(), tt.input)
+			billing, err := svc.Create(context.Background(), &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -377,7 +377,7 @@ func TestAccountingService_Update(t *testing.T) {
 			}
 			svc := NewAccountingService(repo)
 
-			billing, err := svc.Update(context.Background(), tt.input)
+			billing, err := svc.Update(context.Background(), &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)

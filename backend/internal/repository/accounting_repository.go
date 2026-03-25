@@ -12,7 +12,7 @@ import (
 )
 
 type AccountingRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	UpdateFields(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
@@ -27,7 +27,7 @@ func NewAccountingRepository(db *gorm.DB) AccountingRepository {
 	return &accountingRepository{db: db}
 }
 
-func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status *string, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
+func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
 	billings := make([]model.Billing, 0)
 	var total int64
 
@@ -58,8 +58,8 @@ func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, pet
 	// 返金合計をサブクエリで一括取得
 	if len(billings) > 0 {
 		ids := make([]uint64, 0, len(billings))
-		for _, b := range billings {
-			ids = append(ids, b.ID)
+		for i := range billings {
+			ids = append(ids, billings[i].ID)
 		}
 		type refundSum struct {
 			BillingID uint64

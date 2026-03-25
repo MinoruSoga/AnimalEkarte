@@ -119,7 +119,7 @@ func (h *Handler) CreateAccounting(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	created, err := h.svc.Accounting.Create(ctx, createInput)
+	created, err := h.svc.Accounting.Create(ctx, &createInput)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -166,7 +166,7 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	updated, err := h.svc.Accounting.Update(ctx, updateInput)
+	updated, err := h.svc.Accounting.Update(ctx, &updateInput)
 	if err != nil {
 		RespondError(c, err)
 		return
