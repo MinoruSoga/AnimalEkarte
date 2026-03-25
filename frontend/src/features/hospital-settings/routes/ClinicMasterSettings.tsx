@@ -11,7 +11,7 @@ import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 
 // External
-import { Plus, Building2, X } from "lucide-react";
+import { Plus, Building2, X, Percent } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
@@ -116,6 +116,8 @@ interface ClinicFormData {
   email: string;
   website: string;
   is_active: boolean;
+  standard_tax_rate: number;
+  reduced_tax_rate: number;
 }
 
 const DEFAULT_FORM_DATA: ClinicFormData = {
@@ -129,6 +131,8 @@ const DEFAULT_FORM_DATA: ClinicFormData = {
   email: "",
   website: "",
   is_active: true,
+  standard_tax_rate: 0.1,
+  reduced_tax_rate: 0.08,
 };
 
 // ─────────────────────────────────────────────────
@@ -181,6 +185,8 @@ export function ClinicMasterSettings() {
       email: item.email,
       website: item.website,
       is_active: item.isActive,
+      standard_tax_rate: item.standardTaxRate ?? 0.1,
+      reduced_tax_rate: item.reducedTaxRate ?? 0.08,
     });
     setIsEditing(true);
   }, []);
@@ -219,6 +225,8 @@ export function ClinicMasterSettings() {
           email: fd.email || undefined,
           website: fd.website || undefined,
           is_active: fd.is_active,
+          standard_tax_rate: fd.standard_tax_rate,
+          reduced_tax_rate: fd.reduced_tax_rate,
         };
         await updateMutation.mutateAsync(
           { id: selectedItemId, req },
@@ -531,6 +539,55 @@ export function ClinicMasterSettings() {
                       }
                       placeholder="例: https://example.com"
                     />
+                  </PropertyRow>
+
+                  {/* 税率セクション */}
+                  <div className={`${STYLE.sectionDivider} my-2`} />
+                  <div className="flex items-center gap-1.5 py-1.5 text-xs text-[#37352F]/45 select-none">
+                    <Percent className="size-3" />
+                    消費税率
+                  </div>
+
+                  {/* 通常課税 */}
+                  <PropertyRow label="通常課税">
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={1}
+                        className={`${PROP_INPUT_CLASS} w-20`}
+                        value={Math.round(formData.standard_tax_rate * 100)}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            standard_tax_rate: Number(e.target.value) / 100,
+                          }))
+                        }
+                      />
+                      <span className="text-sm text-[#37352F]/50">%</span>
+                    </div>
+                  </PropertyRow>
+
+                  {/* 軽減税率 */}
+                  <PropertyRow label="軽減税率">
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={1}
+                        className={`${PROP_INPUT_CLASS} w-20`}
+                        value={Math.round(formData.reduced_tax_rate * 100)}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            reduced_tax_rate: Number(e.target.value) / 100,
+                          }))
+                        }
+                      />
+                      <span className="text-sm text-[#37352F]/50">%</span>
+                    </div>
                   </PropertyRow>
                 </div>
               </div>
