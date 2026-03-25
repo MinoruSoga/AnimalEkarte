@@ -25,6 +25,7 @@ const minimal: BackendAccounting = {
   scheduled_date: "2026-03-25T00:00:00Z",
   memo: "",
   items: [],
+  total_refunded_amount: 0,
   created_at: "2026-03-25T00:00:00Z",
   updated_at: "2026-03-25T00:00:00Z",
 };
@@ -126,5 +127,13 @@ describe("transformToAccounting", () => {
 
   it("memo が存在するとき返す", () => {
     expect(transformToAccounting({ ...minimal, memo: "注意事項" }).memo).toBe("注意事項");
+  });
+
+  it("total_refunded_amount を totalRefundedAmount にマップする", () => {
+    expect(transformToAccounting({ ...minimal, total_refunded_amount: 3000 }).totalRefundedAmount).toBe(3000);
+  });
+
+  it("total_refunded_amount が未設定のとき 0 を返す", () => {
+    expect(transformToAccounting({ ...minimal, total_refunded_amount: undefined as unknown as number }).totalRefundedAmount).toBe(0);
   });
 });
