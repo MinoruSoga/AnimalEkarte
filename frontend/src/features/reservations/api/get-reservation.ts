@@ -4,13 +4,6 @@ import type { ReservationAppointment } from "@/types";
 import { transformReservation } from "./transforms";
 import type { ReservationAppointment as BackendReservation } from "@/types/generated/models";
 
-interface ReservationListResponse {
-  data: BackendReservation[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
 export const getReservation = async (
   id: string
 ): Promise<ReservationAppointment> => {

@@ -141,12 +141,6 @@ interface ServiceTypeColor {
   hex: string;
 }
 
-const DEFAULT_RESERVATION_COLOR: React.CSSProperties = {
-  backgroundColor: "#EAE9E5",
-  color: "#9B9A97",
-  borderColor: "#E3E2E0",
-};
-
 export const getReservationTypeColor = (type: string, dynamicColorMap?: Map<string, ServiceTypeColor>) => {
   if (dynamicColorMap) {
     const mapped = dynamicColorMap.get(type);
