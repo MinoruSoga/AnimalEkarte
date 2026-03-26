@@ -67,7 +67,10 @@ INSERT INTO staffs (id, clinic_id, name, is_active, staff_role, license_number, 
     (9,  3, '山田 花子',   true, 'veterinarian', 'V-20002', 1, 2),
     (10, 3, '佐藤 美咲',   true, 'nurse',        '',        2, 3),
     (11, 3, '鈴木 一郎',   true, 'reception',    '',        4, 4),
-    (12, 3, '高橋 さくら', true, 'trimmer',      '',        3, 5)
+    (12, 3, '高橋 さくら', true, 'trimmer',      '',        3, 5),
+    -- 管理者権限・執行権限デモアカウント用スタッフ
+    (13, 3, '渡辺 院長',   true, 'manager',      '',        5, 6),
+    (14, 3, '小林 部長',   true, 'manager',      '',        5, 7)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staffs));
@@ -87,7 +90,10 @@ INSERT INTO user_accounts (id, email, display_name, display_name_kana, user_type
     (6, 'nurse@example.com',     '佐藤 美咲',  'サトウ ミサキ',    'staff',        2, 'active', 10,   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
     (7, 'reception@example.com', '鈴木 一郎',  'スズキ イチロウ',  'staff',        4, 'active', 11,   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
     (8, 'trimmer@example.com',   '高橋 さくら','タカハシ サクラ',  'staff',        3, 'active', 12,   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
-    (9, 'system@example.com',    '本部 管理者', 'ホンブ カンリシャ','system_admin', 5, 'active', NULL, '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6')
+    (9,  'system@example.com',   '本部 管理者', 'ホンブ カンリシャ','system_admin', 5, 'active', NULL, '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
+    -- 管理者権限・執行権限デモアカウント
+    (10, 'manager@example.com',  '渡辺 院長',  'ワタナベ インチョウ','staff',        5, 'active', 13, '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
+    (11, 'exec@example.com',     '小林 部長',  'コバヤシ ブチョウ', 'staff',        5, 'active', 14, '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6')
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('user_accounts', 'id'), (SELECT MAX(id) FROM user_accounts));
@@ -104,7 +110,10 @@ INSERT INTO user_clinic_memberships (id, user_id, clinic_id, is_main) VALUES
     (9,  8, 3, true),
     (10, 9, 3, true),
     (11, 9, 4, false),
-    (12, 9, 5, false)
+    (12, 9, 5, false),
+    -- 管理者権限・執行権限ユーザー（八王子院）
+    (13, 10, 3, true),
+    (14, 11, 3, true)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('user_clinic_memberships', 'id'), (SELECT MAX(id) FROM user_clinic_memberships));
@@ -117,7 +126,9 @@ INSERT INTO permission_groups (id, clinic_id, name, description, color) VALUES
     (1, 3, '獣医師',         'カルテ・入院・処置全般', '#3B82F6'),
     (2, 3, '看護師',         'カルテ閲覧・入院・在庫・シフト', '#10B981'),
     (3, 3, '受付スタッフ',   '受付・予約・会計', '#F59E0B'),
-    (4, 3, 'トリマー',       'トリミング・受付・会計', '#8B5CF6')
+    (4, 3, 'トリマー',       'トリミング・受付・会計', '#8B5CF6'),
+    (5, 3, '管理者権限',     '全機能フルアクセス・権限設定管理', '#EF4444'),
+    (6, 3, '執行権限',       '業務全般閲覧・権限設定変更', '#6366F1')
 ON CONFLICT DO NOTHING;
 
 -- グループルール（獣医師）
@@ -129,6 +140,7 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (1, 'hospitalization',  true, true,  true,  false),
     (1, 'examinations',     true, true,  true,  false),
     (1, 'vaccinations',     true, true,  true,  false),
+    (1, 'accounting',       true, false, false, false),
     (1, 'estimates',        true, true,  true,  false)
 ON CONFLICT DO NOTHING;
 
@@ -138,6 +150,8 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (2, 'owners',           true, false, false, false),
     (2, 'medical-records',  true, false, false, false),
     (2, 'hospitalization',  true, true,  true,  false),
+    (2, 'examinations',     true, true,  true,  false),
+    (2, 'vaccinations',     true, true,  true,  false),
     (2, 'inventory',        true, true,  true,  false),
     (2, 'shifts',           true, true,  true,  false)
 ON CONFLICT DO NOTHING;
@@ -147,6 +161,7 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (3, 'dashboard',        true, false, false, false),
     (3, 'owners',           true, true,  true,  false),
     (3, 'reservations',     true, true,  true,  true),
+    (3, 'hospitalization',  true, true,  false, false),
     (3, 'accounting',       true, true,  true,  false),
     (3, 'checkups',         true, false, false, false)
 ON CONFLICT DO NOTHING;
@@ -156,7 +171,45 @@ INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, ca
     (4, 'dashboard',        true, false, false, false),
     (4, 'trimming',         true, true,  true,  false),
     (4, 'reservations',     true, true,  true,  false),
-    (4, 'accounting',       true, true,  false, false)
+    (4, 'accounting',       true, true,  true,  false)
+ON CONFLICT DO NOTHING;
+
+-- グループルール（管理者権限: 全リソースフルアクセス）
+INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
+    (5, 'dashboard',        true, false, false, false),
+    (5, 'owners',           true, true,  true,  true),
+    (5, 'reservations',     true, true,  true,  true),
+    (5, 'medical-records',  true, true,  true,  true),
+    (5, 'hospitalization',  true, true,  true,  true),
+    (5, 'trimming',         true, true,  true,  true),
+    (5, 'examinations',     true, true,  true,  true),
+    (5, 'accounting',       true, true,  true,  true),
+    (5, 'vaccinations',     true, true,  true,  true),
+    (5, 'checkups',         true, true,  true,  true),
+    (5, 'inventory',        true, true,  true,  true),
+    (5, 'estimates',        true, true,  true,  true),
+    (5, 'shifts',           true, true,  true,  true),
+    (5, 'master',           true, true,  true,  true),
+    (5, 'hospital-settings',true, true,  true,  true)
+ON CONFLICT DO NOTHING;
+
+-- グループルール（執行権限: 業務全般閲覧＋権限設定変更）
+INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
+    (6, 'dashboard',        true, false, false, false),
+    (6, 'owners',           true, true,  true,  false),
+    (6, 'reservations',     true, true,  true,  false),
+    (6, 'medical-records',  true, false, false, false),
+    (6, 'hospitalization',  true, true,  true,  false),
+    (6, 'trimming',         true, false, false, false),
+    (6, 'examinations',     true, false, false, false),
+    (6, 'accounting',       true, true,  true,  false),
+    (6, 'vaccinations',     true, false, false, false),
+    (6, 'checkups',         true, false, false, false),
+    (6, 'inventory',        true, true,  true,  false),
+    (6, 'estimates',        true, true,  true,  false),
+    (6, 'shifts',           true, true,  true,  false),
+    (6, 'master',           true, true,  true,  false),
+    (6, 'hospital-settings',true, false, false, false)
 ON CONFLICT DO NOTHING;
 
 -- ユーザーへのグループ割当
@@ -168,6 +221,10 @@ INSERT INTO user_permission_groups (user_id, group_id) VALUES (6, 2) ON CONFLICT
 INSERT INTO user_permission_groups (user_id, group_id) VALUES (7, 3) ON CONFLICT DO NOTHING;
 -- trimmer@example.com (user_id=8) → トリマー
 INSERT INTO user_permission_groups (user_id, group_id) VALUES (8, 4) ON CONFLICT DO NOTHING;
+-- manager@example.com (user_id=10) → 管理者権限
+INSERT INTO user_permission_groups (user_id, group_id) VALUES (10, 5) ON CONFLICT DO NOTHING;
+-- exec@example.com (user_id=11) → 執行権限
+INSERT INTO user_permission_groups (user_id, group_id) VALUES (11, 6) ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('permission_groups', 'id'), (SELECT MAX(id) FROM permission_groups));
 

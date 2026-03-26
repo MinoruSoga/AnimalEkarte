@@ -1,10 +1,15 @@
-import { memo, useCallback, useState, useTransition, useMemo } from "react";
-import { Shield, Plus, Pencil, Trash2, ChevronUp } from "lucide-react";
+import { memo, useCallback, useDeferredValue, useMemo, useState, useTransition } from "react";
+import type { ChangeEvent } from "react";
+import { Shield } from "lucide-react";
+import { TableCell } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { RowActionButton } from "@/components/shared/RowActionButton/RowActionButton";
+import { MasterListPage } from "@/features/master/components/MasterListPage";
+import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
+import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
+import { LAYOUT, STYLE } from "@/lib/design-tokens";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { PermissionRuleTable } from "@/features/master/components/PermissionRuleTable";
 import { PERMISSION_RESOURCES } from "@/features/master/types/permission-resources";
@@ -49,16 +54,32 @@ function groupRulesToRuleInputs(rules: PermissionGroupRule[] | undefined): RuleI
 }
 
 // ─────────────────────────────────────────────────
-// Form subcomponent
+// Table columns
 // ─────────────────────────────────────────────────
 
-interface GroupFormProps {
+const COLUMNS = [
+  { header: "グループ名", className: "flex-1" },
+  { header: "説明", className: "flex-1" },
+  { header: "操作", className: "w-[80px]", align: "right" as const },
+];
+
+// ─────────────────────────────────────────────────
+// Side panel
+// ─────────────────────────────────────────────────
+
+interface GroupSidePanelProps {
   group: PermissionGroup | null;
   clinicId: string;
   onClose: () => void;
+  onDeleteRequest: (group: PermissionGroup) => void;
 }
 
-const GroupForm = memo(function GroupForm({ group, clinicId, onClose }: GroupFormProps) {
+const GroupSidePanel = memo(function GroupSidePanel({
+  group,
+  clinicId,
+  onClose,
+  onDeleteRequest,
+}: GroupSidePanelProps) {
   const isNew = group === null;
 
   const [name, setName] = useState(() => group?.name ?? "");
@@ -74,16 +95,12 @@ const GroupForm = memo(function GroupForm({ group, clinicId, onClose }: GroupFor
 
   const [isSavePending, startSaveTransition] = useTransition();
 
-  const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setName(e.target.value);
-  }, []);
-
-  const handleDescriptionChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setDescription(e.target.value);
-  }, []);
-
-  const handleColorChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleColorChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     setColor(e.target.value);
+  }, []);
+
+  const handleDescriptionChange = useCallback((e: ChangeEvent<HTMLTextAreaElement>) => {
+    setDescription(e.target.value);
   }, []);
 
   const handleRulesChange = useCallback((updated: RuleInput[]) => {
@@ -134,138 +151,92 @@ const GroupForm = memo(function GroupForm({ group, clinicId, onClose }: GroupFor
     onClose,
   ]);
 
-  return (
-    <div className="border rounded-lg p-4 mb-4 bg-muted/30">
-      <div className="grid grid-cols-1 gap-4 mb-4">
-        <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-2 space-y-1.5">
-            <Label htmlFor="group-name">グループ名</Label>
-            <Input
-              id="group-name"
-              value={name}
-              onChange={handleNameChange}
-              placeholder="例: 受付スタッフ"
-              className="h-8 text-sm"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="group-color">カラー</Label>
-            <div className="flex items-center gap-2">
-              <input
-                id="group-color"
-                type="color"
-                value={color}
-                onChange={handleColorChange}
-                className="w-8 h-8 rounded border cursor-pointer"
-              />
-              <span className="text-xs text-muted-foreground">{color}</span>
-            </div>
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="group-description">説明（任意）</Label>
-          <Textarea
-            id="group-description"
-            value={description}
-            onChange={handleDescriptionChange}
-            placeholder="このグループの役割・用途を入力"
-            className="text-sm resize-none h-16"
-          />
-        </div>
-      </div>
+  const handleDelete = useCallback(() => {
+    if (group !== null) onDeleteRequest(group);
+  }, [group, onDeleteRequest]);
 
-      <div className="border rounded-md p-3 bg-background mb-4">
+  return (
+    <MasterSidePanel
+      isNew={isNew}
+      title={name}
+      onTitleChange={setName}
+      onClose={onClose}
+      onSave={handleSave}
+      onDelete={isNew ? undefined : handleDelete}
+      icon={<Shield className={LAYOUT.pageIcon.innerIcon} />}
+      isPending={isSavePending}
+      titlePlaceholder="グループ名を入力"
+    >
+      <PropertyRow label="カラー">
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            value={color}
+            onChange={handleColorChange}
+            className="w-7 h-7 rounded border cursor-pointer"
+          />
+          <span className="text-sm text-muted-foreground">{color}</span>
+        </div>
+      </PropertyRow>
+
+      <PropertyRow label="説明">
+        <textarea
+          value={description}
+          onChange={handleDescriptionChange}
+          placeholder="このグループの役割・用途を入力"
+          rows={2}
+          className="w-full text-sm bg-transparent border-none outline-none resize-none placeholder:text-muted-foreground"
+        />
+      </PropertyRow>
+
+      <div className="mt-4 border-t pt-4">
         <p className="text-xs font-medium text-muted-foreground mb-3">ページ権限</p>
         <PermissionRuleTable rules={rules} onChange={handleRulesChange} />
       </div>
-
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" size="sm" onClick={onClose} disabled={isSavePending}>
-          キャンセル
-        </Button>
-        <Button size="sm" onClick={handleSave} disabled={isSavePending}>
-          {isSavePending ? "保存中..." : "保存"}
-        </Button>
-      </div>
-    </div>
+    </MasterSidePanel>
   );
 });
 
 // ─────────────────────────────────────────────────
-// Group card subcomponent
+// Table row
 // ─────────────────────────────────────────────────
 
-interface GroupCardProps {
+interface GroupRowProps {
   group: PermissionGroup;
-  clinicId: string;
-  isExpanded: boolean;
-  onToggleExpand: (id: number) => void;
-  onDelete: (group: PermissionGroup) => void;
+  onEdit: (group: PermissionGroup) => void;
 }
 
-const GroupCard = memo(function GroupCard({
-  group,
-  clinicId,
-  isExpanded,
-  onToggleExpand,
-  onDelete,
-}: GroupCardProps) {
-  const handleToggle = useCallback(() => {
-    onToggleExpand(group.id);
-  }, [group.id, onToggleExpand]);
+const GroupRow = memo(function GroupRow({ group, onEdit }: GroupRowProps) {
+  const handleEdit = useCallback(
+    (e: { stopPropagation: () => void }) => {
+      e.stopPropagation();
+      onEdit(group);
+    },
+    [group, onEdit],
+  );
 
-  const handleDelete = useCallback(() => {
-    onDelete(group);
-  }, [group, onDelete]);
-
-  const handleClose = useCallback(() => {
-    onToggleExpand(group.id);
-  }, [group.id, onToggleExpand]);
+  const handleRowClick = useCallback(() => {
+    onEdit(group);
+  }, [group, onEdit]);
 
   return (
-    <div className="border rounded-lg overflow-hidden">
-      <div className="flex items-center gap-3 p-3 bg-background">
-        <div
-          className="w-3 h-3 rounded-full flex-shrink-0"
-          style={{ backgroundColor: group.color ?? "#6B7280" }}
-        />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{group.name}</p>
-          {group.description ? (
-            <p className="text-xs text-muted-foreground truncate">{group.description}</p>
-          ) : null}
+    <DataTableRow className="cursor-pointer" onClick={handleRowClick}>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <div
+            className="w-3 h-3 rounded-full flex-shrink-0"
+            style={{ backgroundColor: group.color ?? "#6B7280" }}
+          />
+          <span className="text-sm font-medium">{group.name}</span>
         </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={handleToggle}
-            aria-label={isExpanded ? "閉じる" : "編集"}
-          >
-            {isExpanded ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <Pencil className="h-4 w-4" />
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-destructive hover:text-destructive"
-            onClick={handleDelete}
-            aria-label="削除"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-      {isExpanded ? (
-        <div className="border-t p-4">
-          <GroupForm group={group} clinicId={clinicId} onClose={handleClose} />
-        </div>
-      ) : null}
-    </div>
+      </TableCell>
+      <TableCell className="text-sm text-muted-foreground">
+        {group.description ? group.description : "-"}
+      </TableCell>
+      <TableCell className="text-right">
+        <RowActionButton onClick={handleEdit} />
+      </TableCell>
+    </DataTableRow>
   );
 });
 
@@ -280,80 +251,96 @@ export function PermissionGroupSettings() {
   const { data: groups = [], isLoading } = useGetPermissionGroups(clinicId);
   const deleteMutation = useDeletePermissionGroup(clinicId);
 
-  const [isCreating, setIsCreating] = useState(false);
-  const [expandedGroupId, setExpandedGroupId] = useState<number | null>(null);
-  const [isDeletePending, startDeleteTransition] = useTransition();
+  // undefined = 閉じている, null = 新規作成, PermissionGroup = 編集中
+  const [panelGroup, setPanelGroup] = useState<PermissionGroup | null | undefined>(undefined);
+  const [pendingDelete, setPendingDelete] = useState<PermissionGroup | null>(null);
+  const [, startDeleteTransition] = useTransition();
 
-  const handleCreateOpen = useCallback(() => {
-    setIsCreating(true);
-    setExpandedGroupId(null);
-  }, []);
+  const [searchTerm, setSearchTerm] = useState("");
+  const deferredSearch = useDeferredValue(searchTerm);
 
-  const handleCreateClose = useCallback(() => {
-    setIsCreating(false);
-  }, []);
-
-  const handleToggleExpand = useCallback((id: number) => {
-    setExpandedGroupId((prev) => (prev === id ? null : id));
-    setIsCreating(false);
-  }, []);
-
-  const handleDeleteRequest = useCallback(
-    (group: PermissionGroup) => {
-      if (!window.confirm(`「${group.name}」を削除しますか？\nこの操作は取り消せません。`)) return;
-      startDeleteTransition(async () => {
-        try {
-          await deleteMutation.mutateAsync(group.id);
-          toast.success("権限グループを削除しました");
-        } catch {
-          toast.error("削除に失敗しました");
-        }
-      });
-    },
-    [deleteMutation],
-  );
-
-  const groupCards = useMemo(
+  const filteredGroups = useMemo(
     () =>
-      groups.map((g) => (
-        <GroupCard
-          key={g.id}
-          group={g}
-          clinicId={clinicId}
-          isExpanded={expandedGroupId === g.id}
-          onToggleExpand={handleToggleExpand}
-          onDelete={handleDeleteRequest}
-        />
-      )),
-    [groups, clinicId, expandedGroupId, handleToggleExpand, handleDeleteRequest],
+      deferredSearch.trim() === ""
+        ? groups
+        : groups.filter((g) =>
+            g.name.toLowerCase().includes(deferredSearch.toLowerCase()),
+          ),
+    [groups, deferredSearch],
   );
+
+  const handleNew = useCallback(() => {
+    setPanelGroup(null);
+  }, []);
+
+  const handleEdit = useCallback((group: PermissionGroup) => {
+    setPanelGroup(group);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setPanelGroup(undefined);
+  }, []);
+
+  const handleDeleteRequest = useCallback((group: PermissionGroup) => {
+    setPendingDelete(group);
+    setPanelGroup(undefined);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(() => {
+    if (!pendingDelete) return;
+    startDeleteTransition(async () => {
+      try {
+        await deleteMutation.mutateAsync(pendingDelete.id);
+        toast.success("権限グループを削除しました");
+      } catch {
+        toast.error("削除に失敗しました");
+      } finally {
+        setPendingDelete(null);
+      }
+    });
+  }, [pendingDelete, deleteMutation]);
+
+  const handleDeleteCancel = useCallback(() => {
+    setPendingDelete(null);
+  }, []);
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <Shield className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-lg font-semibold">権限グループ管理</h1>
-        </div>
-        <Button size="sm" onClick={handleCreateOpen} disabled={isCreating || isDeletePending}>
-          <Plus className="h-4 w-4 mr-1" />
-          新規グループ作成
-        </Button>
-      </div>
-
-      {isCreating ? (
-        <GroupForm group={null} clinicId={clinicId} onClose={handleCreateClose} />
-      ) : null}
-
+    <MasterListPage
+      title="権限グループ管理"
+      icon={<Shield className={STYLE.pageIcon} />}
+      searchTerm={searchTerm}
+      onSearchChange={setSearchTerm}
+      searchPlaceholder="グループ名を検索..."
+      count={filteredGroups.length}
+      onNew={handleNew}
+      sidePanel={
+        panelGroup !== undefined ? (
+          <GroupSidePanel
+            group={panelGroup}
+            clinicId={clinicId}
+            onClose={handleClose}
+            onDeleteRequest={handleDeleteRequest}
+          />
+        ) : null
+      }
+      deleteOpen={pendingDelete !== null}
+      deleteTitle="権限グループを削除しますか？"
+      deleteDescription={`「${pendingDelete?.name ?? ""}」を削除します。この操作は取り消せません。`}
+      onDeleteConfirm={handleDeleteConfirm}
+      onDeleteCancel={handleDeleteCancel}
+    >
       {isLoading ? (
         <div className="text-sm text-muted-foreground py-8 text-center">読み込み中...</div>
-      ) : groups.length === 0 && !isCreating ? (
-        <div className="text-sm text-muted-foreground py-8 text-center">
-          権限グループがありません。「新規グループ作成」から追加してください。
-        </div>
       ) : (
-        <div className="space-y-3">{groupCards}</div>
+        <DataTable
+          columns={COLUMNS}
+          data={filteredGroups}
+          emptyMessage="権限グループがありません。「新規登録」から追加してください。"
+          renderRow={(g: PermissionGroup) => (
+            <GroupRow key={g.id} group={g} onEdit={handleEdit} />
+          )}
+        />
       )}
-    </div>
+    </MasterListPage>
   );
 }
