@@ -76,6 +76,22 @@ func (h *Handler) CreatePermissionGroup(c *gin.Context) {
 	c.JSON(http.StatusCreated, group)
 }
 
+// GetPermissionGroup godoc
+// GET /api/v1/permission-groups/:id — 指定IDの権限グループを返す
+func (h *Handler) GetPermissionGroup(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	group, err := h.svc.PermissionGroup.GetByID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, group)
+}
+
 // UpdatePermissionGroup godoc
 // PATCH /api/v1/permission-groups/:id — グループのname/description/colorを更新する
 func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
@@ -150,6 +166,7 @@ func (h *Handler) RegisterPermissionGroupRoutes(rg *gin.RouterGroup) {
 	pg := rg.Group("/permission-groups")
 	pg.GET("", h.ListPermissionGroups)
 	pg.POST("", h.CreatePermissionGroup)
+	pg.GET("/:id", h.GetPermissionGroup)
 	pg.PATCH("/:id", h.UpdatePermissionGroup)
 	pg.DELETE("/:id", h.DeletePermissionGroup)
 	pg.PUT("/:id/rules", h.SetPermissionGroupRules)

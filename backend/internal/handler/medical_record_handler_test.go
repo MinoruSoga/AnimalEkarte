@@ -24,7 +24,6 @@ import (
 type mockMedicalRecordService struct {
 	listFn    func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
-	getByNoFn func(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error)
 	createFn  func(ctx context.Context, record *model.MedicalRecord) error
 	updateFn  func(ctx context.Context, clinicID, id uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error)
 	deleteFn  func(ctx context.Context, clinicID, id uint64) error
@@ -36,13 +35,6 @@ func (m *mockMedicalRecordService) List(ctx context.Context, clinicID uint64, pe
 
 func (m *mockMedicalRecordService) GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 	return m.getByIDFn(ctx, clinicID, id)
-}
-
-func (m *mockMedicalRecordService) GetByRecordNo(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error) {
-	if m.getByNoFn != nil {
-		return m.getByNoFn(ctx, clinicID, recordNo)
-	}
-	return nil, apperrors.WrapNotFound("medical_record", recordNo)
 }
 
 func (m *mockMedicalRecordService) Create(ctx context.Context, record *model.MedicalRecord) error {

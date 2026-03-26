@@ -14,12 +14,11 @@ import (
 
 // mockMedicalRecordRepository は MedicalRecordRepository のテスト用モック実装
 type mockMedicalRecordRepository struct {
-	findAllFn        func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
-	findByIDFn       func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
-	findByRecordNoFn func(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error)
-	createFn         func(ctx context.Context, record *model.MedicalRecord) error
-	updateFieldsFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
-	deleteFn         func(ctx context.Context, clinicID, id uint64) error
+	findAllFn      func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
+	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+	createFn       func(ctx context.Context, record *model.MedicalRecord) error
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
+	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
@@ -28,10 +27,6 @@ func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicID uint
 
 func (m *mockMedicalRecordRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 	return m.findByIDFn(ctx, clinicID, id)
-}
-
-func (m *mockMedicalRecordRepository) FindByRecordNo(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error) {
-	return m.findByRecordNoFn(ctx, clinicID, recordNo)
 }
 
 func (m *mockMedicalRecordRepository) Create(ctx context.Context, record *model.MedicalRecord) error {
@@ -286,70 +281,6 @@ func TestMedicalRecordService_GetByID_NotFound(t *testing.T) {
 	assert.Nil(t, record)
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
-}
-
-func TestMedicalRecordService_GetByRecordNo(t *testing.T) {
-	now := time.Now()
-	tests := []struct {
-		name       string
-		clinicID   uint64
-		recordNo   string
-		repoRecord *model.MedicalRecord
-		repoErr    error
-		wantErr    bool
-		wantNF     bool
-	}{
-		{
-			name:       "returns record when found by record_no",
-			clinicID:   1,
-			recordNo:   "R001",
-			repoRecord: &model.MedicalRecord{ID: 1, ClinicID: 1, RecordNo: "R001", Date: now},
-			repoErr:    nil,
-			wantErr:    false,
-			wantNF:     false,
-		},
-		{
-			name:       "returns not found error when record_no does not exist",
-			clinicID:   1,
-			recordNo:   "RXXX",
-			repoRecord: nil,
-			repoErr:    apperrors.WrapNotFound("medical_record", "RXXX"),
-			wantErr:    true,
-			wantNF:     true,
-		},
-		{
-			name:       "returns error on repository failure",
-			clinicID:   1,
-			recordNo:   "R001",
-			repoRecord: nil,
-			repoErr:    errors.New("db error"),
-			wantErr:    true,
-			wantNF:     false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockMedicalRecordRepository{
-				findByRecordNoFn: func(_ context.Context, _ uint64, _ string) (*model.MedicalRecord, error) {
-					return tt.repoRecord, tt.repoErr
-				},
-			}
-			svc := NewMedicalRecordService(repo, nil, nil)
-
-			record, err := svc.GetByRecordNo(context.Background(), tt.clinicID, tt.recordNo)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				if tt.wantNF {
-					assert.True(t, apperrors.IsNotFound(err))
-				}
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.repoRecord, record)
-			}
-		})
-	}
 }
 
 func TestMedicalRecordService_Create(t *testing.T) {

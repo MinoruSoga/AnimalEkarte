@@ -70,7 +70,6 @@ func buildBillingItemUpdateFields(input *UpdateBillingItemInput) map[string]any 
 
 // BillingItemService は billing_items の CRUD とトータル再計算を担うインターフェース
 type BillingItemService interface {
-	GetByID(ctx context.Context, id uint64) (*model.BillingItem, error)
 	CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error)
 	UpdateItem(ctx context.Context, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error)
 	DeleteItem(ctx context.Context, id uint64) error
@@ -83,10 +82,6 @@ type billingItemService struct {
 // NewBillingItemService は BillingItemService を初期化して返す
 func NewBillingItemService(repo repository.BillingItemRepository) BillingItemService {
 	return &billingItemService{repo: repo}
-}
-
-func (s *billingItemService) GetByID(ctx context.Context, id uint64) (*model.BillingItem, error) {
-	return s.repo.FindByID(ctx, id)
 }
 
 func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {

@@ -14,7 +14,6 @@ import (
 type MedicalRecordRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
-	FindByRecordNo(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -69,21 +68,6 @@ func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uin
 			return nil, apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))
 		}
 		return nil, apperrors.Wrap(err, "find medical record by id")
-	}
-	return &record, nil
-}
-
-func (r *medicalRecordRepository) FindByRecordNo(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error) {
-	var record model.MedicalRecord
-	if err := r.db.WithContext(ctx).
-		Preload("Treatments").
-		Preload("Vitals").
-		Preload("Doctor").
-		First(&record, "record_no = ? AND clinic_id = ?", recordNo, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("medical_record", recordNo)
-		}
-		return nil, apperrors.Wrap(err, "find medical record by record_no")
 	}
 	return &record, nil
 }
