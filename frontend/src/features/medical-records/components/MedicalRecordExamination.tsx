@@ -1,5 +1,5 @@
 // React/Framework
-import React, { memo, useDeferredValue, useMemo, useState } from "react";
+import { memo, useDeferredValue, useMemo, useState } from "react";
 
 // Relative
 import { useGetRecordExaminations } from "../api/get-record-examinations";

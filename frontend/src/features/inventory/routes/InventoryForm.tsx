@@ -51,7 +51,7 @@ const CATEGORY_OPTIONS: { value: InventoryItem["category"]; label: string }[] =
 interface BasicInfoSectionProps {
   defaultName: string | undefined;
   defaultUnit: string | undefined;
-  category: string;
+  category: InventoryItem["category"];
   existingCategory: InventoryItem["category"] | undefined;
   onCategoryChange: (value: string) => void;
   onMarkDirty: () => void;
@@ -286,8 +286,8 @@ export function InventoryForm() {
   // useState(false) + setIsPending パターンを禁止し try-finally 漏れを防ぐ
   const [isSavePending, startSaveTransition] = useTransition();
 
-  const [category, setCategory] = useState<string>(
-    existingItem?.category ?? "medicine"
+  const [category, setCategory] = useState<InventoryItem["category"]>(
+    (existingItem?.category as InventoryItem["category"]) ?? "medicine"
   );
   const [expiryDate, setExpiryDate] = useState("");
   const [lastRestocked, setLastRestocked] = useState("");
@@ -306,7 +306,7 @@ export function InventoryForm() {
 
   // rerender-functional-setstate: setCategory は stable setter なので useCallback 内 deps 不要
   const handleCategoryChange = useCallback((value: string) => {
-    setCategory(value);
+    setCategory(value as InventoryItem["category"]);
   }, []);
 
   // rerender-functional-setstate: setExpiryDate は stable setter なので useCallback 内 deps 不要
@@ -408,7 +408,7 @@ export function InventoryForm() {
           defaultName={existingItem?.name}
           defaultUnit={existingItem?.unit}
           category={category}
-          existingCategory={existingItem?.category}
+          existingCategory={existingItem?.category as InventoryItem["category"]}
           onCategoryChange={handleCategoryChange}
           onMarkDirty={markDirty}
         />

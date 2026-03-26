@@ -1,4 +1,4 @@
-import React, { lazy, memo, Suspense, useState, useMemo, useCallback } from "react";
+import { lazy, memo, Suspense, useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";

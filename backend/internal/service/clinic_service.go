@@ -83,8 +83,6 @@ type ClinicService interface {
 	CreateClinic(ctx context.Context, clinic *model.Clinic) (*model.Clinic, error)
 	UpdateClinic(ctx context.Context, id uint64, input *UpdateClinicInput) (*model.Clinic, error)
 	DeleteClinic(ctx context.Context, id uint64) error
-	GetCompany(ctx context.Context) (*model.Company, error)
-	UpdateCompany(ctx context.Context, company *model.Company) error
 }
 
 type clinicService struct {
@@ -134,12 +132,4 @@ func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, input *Upda
 
 func (s *clinicService) DeleteClinic(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
-}
-
-func (s *clinicService) GetCompany(ctx context.Context) (*model.Company, error) {
-	return s.repo.GetCompany(ctx)
-}
-
-func (s *clinicService) UpdateCompany(ctx context.Context, company *model.Company) error {
-	return s.repo.UpdateCompany(ctx, company)
 }

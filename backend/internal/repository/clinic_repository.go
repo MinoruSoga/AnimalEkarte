@@ -15,7 +15,6 @@ type ClinicRepository interface {
 	FindAll(ctx context.Context) ([]model.Clinic, error)
 	FindByID(ctx context.Context, id uint64) (*model.Clinic, error)
 	GetCompany(ctx context.Context) (*model.Company, error)
-	UpdateCompany(ctx context.Context, company *model.Company) error
 	Create(ctx context.Context, clinic *model.Clinic) error
 	Update(ctx context.Context, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, id uint64) error
@@ -57,26 +56,6 @@ func (r *clinicRepository) GetCompany(ctx context.Context) (*model.Company, erro
 		return nil, apperrors.Wrap(err, "get company")
 	}
 	return &company, nil
-}
-
-func (r *clinicRepository) UpdateCompany(ctx context.Context, company *model.Company) error {
-	var existing model.Company
-	err := r.db.WithContext(ctx).First(&existing).Error
-	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
-		// レコードが存在しない場合は新規作成（ID は SERIAL のため DB に任せる）
-		if err := r.db.WithContext(ctx).Create(company).Error; err != nil {
-			return apperrors.Wrap(err, "create company")
-		}
-		return nil
-	}
-	if err != nil {
-		return apperrors.Wrap(err, "get company for update")
-	}
-	company.ID = existing.ID
-	if err := r.db.WithContext(ctx).Save(company).Error; err != nil {
-		return apperrors.Wrap(err, "update company")
-	}
-	return nil
 }
 
 func (r *clinicRepository) Create(ctx context.Context, clinic *model.Clinic) error {

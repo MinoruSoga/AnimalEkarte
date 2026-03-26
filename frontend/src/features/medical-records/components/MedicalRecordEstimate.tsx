@@ -1,4 +1,4 @@
-import React, { memo, useState, useMemo, useCallback, useEffect, useTransition } from "react";
+import { memo, useState, useMemo, useCallback, useEffect, useTransition } from "react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";

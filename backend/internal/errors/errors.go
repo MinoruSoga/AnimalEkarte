@@ -78,13 +78,3 @@ func WrapAlreadyExists(resource, identifier string) error {
 func IsAlreadyExists(err error) bool {
 	return errors.Is(err, ErrAlreadyExists)
 }
-
-// Is は errors.Is の薄いラッパー。テストおよびパッケージ外から利用可能にするために公開する。
-func Is(err, target error) bool {
-	return errors.Is(err, target)
-}
-
-// As は errors.As の薄いラッパー。テストおよびパッケージ外から利用可能にするために公開する。
-func As(err error, target any) bool {
-	return errors.As(err, target)
-}

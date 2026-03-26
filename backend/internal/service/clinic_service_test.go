@@ -13,13 +13,12 @@ import (
 
 // mockClinicRepository は ClinicRepository のテスト用モック実装
 type mockClinicRepository struct {
-	findAllFn       func(ctx context.Context) ([]model.Clinic, error)
-	findByIDFn      func(ctx context.Context, id uint64) (*model.Clinic, error)
-	getCompanyFn    func(ctx context.Context) (*model.Company, error)
-	updateCompanyFn func(ctx context.Context, company *model.Company) error
-	createFn        func(ctx context.Context, clinic *model.Clinic) error
-	updateFn        func(ctx context.Context, id uint64, fields map[string]any) error
-	deleteFn        func(ctx context.Context, id uint64) error
+	findAllFn    func(ctx context.Context) ([]model.Clinic, error)
+	findByIDFn   func(ctx context.Context, id uint64) (*model.Clinic, error)
+	getCompanyFn func(ctx context.Context) (*model.Company, error)
+	createFn     func(ctx context.Context, clinic *model.Clinic) error
+	updateFn     func(ctx context.Context, id uint64, fields map[string]any) error
+	deleteFn     func(ctx context.Context, id uint64) error
 }
 
 func (m *mockClinicRepository) FindAll(ctx context.Context) ([]model.Clinic, error) {
@@ -32,10 +31,6 @@ func (m *mockClinicRepository) FindByID(ctx context.Context, id uint64) (*model.
 
 func (m *mockClinicRepository) GetCompany(ctx context.Context) (*model.Company, error) {
 	return m.getCompanyFn(ctx)
-}
-
-func (m *mockClinicRepository) UpdateCompany(ctx context.Context, company *model.Company) error {
-	return m.updateCompanyFn(ctx, company)
 }
 
 func (m *mockClinicRepository) Create(ctx context.Context, clinic *model.Clinic) error {
@@ -368,108 +363,6 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
 				}
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestClinicService_GetCompany(t *testing.T) {
-	tests := []struct {
-		name        string
-		repoCompany *model.Company
-		repoErr     error
-		wantErr     bool
-		wantNF      bool
-	}{
-		{
-			name: "returns company when found",
-			repoCompany: &model.Company{
-				ID:   1,
-				Name: "グループ本社",
-			},
-			repoErr: nil,
-			wantErr: false,
-		},
-		{
-			name:        "returns not found error when company does not exist",
-			repoCompany: nil,
-			repoErr:     apperrors.WrapNotFound("company", "singleton"),
-			wantErr:     true,
-			wantNF:      true,
-		},
-		{
-			name:        "returns error on repository failure",
-			repoCompany: nil,
-			repoErr:     errors.New("db error"),
-			wantErr:     true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockClinicRepository{
-				getCompanyFn: func(_ context.Context) (*model.Company, error) {
-					return tt.repoCompany, tt.repoErr
-				},
-			}
-			svc := NewClinicService(repo)
-
-			company, err := svc.GetCompany(context.Background())
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				if tt.wantNF {
-					assert.True(t, apperrors.IsNotFound(err))
-				}
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.repoCompany, company)
-			}
-		})
-	}
-}
-
-func TestClinicService_UpdateCompany(t *testing.T) {
-	tests := []struct {
-		name    string
-		company *model.Company
-		repoErr error
-		wantErr bool
-	}{
-		{
-			name: "updates company successfully",
-			company: &model.Company{
-				Name:    "更新後本社",
-				Address: "東京都千代田区",
-			},
-			repoErr: nil,
-			wantErr: false,
-		},
-		{
-			name: "returns error on repository failure",
-			company: &model.Company{
-				Name: "エラー本社",
-			},
-			repoErr: errors.New("db error"),
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockClinicRepository{
-				updateCompanyFn: func(_ context.Context, _ *model.Company) error {
-					return tt.repoErr
-				},
-			}
-			svc := NewClinicService(repo)
-
-			err := svc.UpdateCompany(context.Background(), tt.company)
-
-			if tt.wantErr {
-				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}
