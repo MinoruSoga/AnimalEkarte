@@ -121,110 +121,83 @@ SELECT setval(pg_get_serial_sequence('user_clinic_memberships', 'id'), (SELECT M
 -- -----------------------------------------------------------------------------
 -- 7b. permission_groups（権限グループ）& user_permission_groups（割当）
 -- -----------------------------------------------------------------------------
--- 八王子院 (clinic_id=3) のサンプルグループ
+-- 八王子院 (clinic_id=3): 管理者・執行・一般 の3グループ
 INSERT INTO permission_groups (id, clinic_id, name, description, color) VALUES
-    (1, 3, '獣医師',         'カルテ・入院・処置全般', '#3B82F6'),
-    (2, 3, '看護師',         'カルテ閲覧・入院・在庫・シフト', '#10B981'),
-    (3, 3, '受付スタッフ',   '受付・予約・会計', '#F59E0B'),
-    (4, 3, 'トリマー',       'トリミング・受付・会計', '#8B5CF6'),
-    (5, 3, '管理者権限',     '全機能フルアクセス・権限設定管理', '#EF4444'),
-    (6, 3, '執行権限',       '業務全般閲覧・権限設定変更', '#6366F1')
+    (1, 3, '管理者', '全機能フルアクセス・権限設定管理', '#EF4444'),
+    (2, 3, '執行',   '業務全般閲覧・権限設定変更',       '#6366F1'),
+    (3, 3, '一般',   '基本的な業務操作',                 '#10B981')
 ON CONFLICT DO NOTHING;
 
--- グループルール（獣医師）
+-- グループルール（管理者: 全リソースフルアクセス）
 INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
     (1, 'dashboard',        true, false, false, false),
-    (1, 'owners',           true, true,  true,  false),
-    (1, 'reservations',     true, true,  true,  false),
-    (1, 'medical-records',  true, true,  true,  false),
-    (1, 'hospitalization',  true, true,  true,  false),
-    (1, 'examinations',     true, true,  true,  false),
-    (1, 'vaccinations',     true, true,  true,  false),
-    (1, 'accounting',       true, false, false, false),
-    (1, 'estimates',        true, true,  true,  false)
+    (1, 'owners',           true, true,  true,  true),
+    (1, 'reservations',     true, true,  true,  true),
+    (1, 'medical-records',  true, true,  true,  true),
+    (1, 'hospitalization',  true, true,  true,  true),
+    (1, 'trimming',         true, true,  true,  true),
+    (1, 'examinations',     true, true,  true,  true),
+    (1, 'accounting',       true, true,  true,  true),
+    (1, 'vaccinations',     true, true,  true,  true),
+    (1, 'checkups',         true, true,  true,  true),
+    (1, 'inventory',        true, true,  true,  true),
+    (1, 'estimates',        true, true,  true,  true),
+    (1, 'shifts',           true, true,  true,  true),
+    (1, 'master',           true, true,  true,  true),
+    (1, 'hospital-settings',true, true,  true,  true)
 ON CONFLICT DO NOTHING;
 
--- グループルール（看護師）
+-- グループルール（執行: 業務全般閲覧＋権限設定変更）
 INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
     (2, 'dashboard',        true, false, false, false),
-    (2, 'owners',           true, false, false, false),
+    (2, 'owners',           true, true,  true,  false),
+    (2, 'reservations',     true, true,  true,  false),
     (2, 'medical-records',  true, false, false, false),
     (2, 'hospitalization',  true, true,  true,  false),
-    (2, 'examinations',     true, true,  true,  false),
-    (2, 'vaccinations',     true, true,  true,  false),
+    (2, 'trimming',         true, false, false, false),
+    (2, 'examinations',     true, false, false, false),
+    (2, 'accounting',       true, true,  true,  false),
+    (2, 'vaccinations',     true, false, false, false),
+    (2, 'checkups',         true, false, false, false),
     (2, 'inventory',        true, true,  true,  false),
-    (2, 'shifts',           true, true,  true,  false)
+    (2, 'estimates',        true, true,  true,  false),
+    (2, 'shifts',           true, true,  true,  false),
+    (2, 'master',           true, true,  true,  false),
+    (2, 'hospital-settings',true, false, false, false)
 ON CONFLICT DO NOTHING;
 
--- グループルール（受付スタッフ）
+-- グループルール（一般: 基本的な業務操作）
 INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
     (3, 'dashboard',        true, false, false, false),
     (3, 'owners',           true, true,  true,  false),
-    (3, 'reservations',     true, true,  true,  true),
-    (3, 'hospitalization',  true, true,  false, false),
-    (3, 'accounting',       true, true,  true,  false),
-    (3, 'checkups',         true, false, false, false)
-ON CONFLICT DO NOTHING;
-
--- グループルール（トリマー）
-INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
-    (4, 'dashboard',        true, false, false, false),
-    (4, 'trimming',         true, true,  true,  false),
-    (4, 'reservations',     true, true,  true,  false),
-    (4, 'accounting',       true, true,  true,  false)
-ON CONFLICT DO NOTHING;
-
--- グループルール（管理者権限: 全リソースフルアクセス）
-INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
-    (5, 'dashboard',        true, false, false, false),
-    (5, 'owners',           true, true,  true,  true),
-    (5, 'reservations',     true, true,  true,  true),
-    (5, 'medical-records',  true, true,  true,  true),
-    (5, 'hospitalization',  true, true,  true,  true),
-    (5, 'trimming',         true, true,  true,  true),
-    (5, 'examinations',     true, true,  true,  true),
-    (5, 'accounting',       true, true,  true,  true),
-    (5, 'vaccinations',     true, true,  true,  true),
-    (5, 'checkups',         true, true,  true,  true),
-    (5, 'inventory',        true, true,  true,  true),
-    (5, 'estimates',        true, true,  true,  true),
-    (5, 'shifts',           true, true,  true,  true),
-    (5, 'master',           true, true,  true,  true),
-    (5, 'hospital-settings',true, true,  true,  true)
-ON CONFLICT DO NOTHING;
-
--- グループルール（執行権限: 業務全般閲覧＋権限設定変更）
-INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
-    (6, 'dashboard',        true, false, false, false),
-    (6, 'owners',           true, true,  true,  false),
-    (6, 'reservations',     true, true,  true,  false),
-    (6, 'medical-records',  true, false, false, false),
-    (6, 'hospitalization',  true, true,  true,  false),
-    (6, 'trimming',         true, false, false, false),
-    (6, 'examinations',     true, false, false, false),
-    (6, 'accounting',       true, true,  true,  false),
-    (6, 'vaccinations',     true, false, false, false),
-    (6, 'checkups',         true, false, false, false),
-    (6, 'inventory',        true, true,  true,  false),
-    (6, 'estimates',        true, true,  true,  false),
-    (6, 'shifts',           true, true,  true,  false),
-    (6, 'master',           true, true,  true,  false),
-    (6, 'hospital-settings',true, false, false, false)
+    (3, 'reservations',     true, true,  true,  false),
+    (3, 'medical-records',  true, true,  true,  false),
+    (3, 'hospitalization',  true, true,  true,  false),
+    (3, 'trimming',         true, true,  true,  false),
+    (3, 'examinations',     true, true,  true,  false),
+    (3, 'accounting',       true, false, false, false),
+    (3, 'vaccinations',     true, true,  true,  false),
+    (3, 'checkups',         true, false, false, false),
+    (3, 'inventory',        true, false, false, false),
+    (3, 'estimates',        true, false, false, false),
+    (3, 'shifts',           true, true,  true,  false),
+    (3, 'master',           true, false, false, false),
+    (3, 'hospital-settings',true, false, false, false)
 ON CONFLICT DO NOTHING;
 
 -- ユーザーへのグループ割当
--- vet@example.com (user_id=5) → 獣医師
-INSERT INTO user_permission_groups (user_id, group_id) VALUES (5, 1) ON CONFLICT DO NOTHING;
--- nurse@example.com (user_id=6) → 看護師
-INSERT INTO user_permission_groups (user_id, group_id) VALUES (6, 2) ON CONFLICT DO NOTHING;
--- reception@example.com (user_id=7) → 受付スタッフ
+-- manager@example.com (user_id=10) → 管理者
+INSERT INTO user_permission_groups (user_id, group_id) VALUES (10, 1) ON CONFLICT DO NOTHING;
+-- exec@example.com (user_id=11) → 執行
+INSERT INTO user_permission_groups (user_id, group_id) VALUES (11, 2) ON CONFLICT DO NOTHING;
+-- vet@example.com (user_id=5) → 一般
+INSERT INTO user_permission_groups (user_id, group_id) VALUES (5, 3) ON CONFLICT DO NOTHING;
+-- nurse@example.com (user_id=6) → 一般
+INSERT INTO user_permission_groups (user_id, group_id) VALUES (6, 3) ON CONFLICT DO NOTHING;
+-- reception@example.com (user_id=7) → 一般
 INSERT INTO user_permission_groups (user_id, group_id) VALUES (7, 3) ON CONFLICT DO NOTHING;
--- trimmer@example.com (user_id=8) → トリマー
-INSERT INTO user_permission_groups (user_id, group_id) VALUES (8, 4) ON CONFLICT DO NOTHING;
--- manager@example.com (user_id=10) → 管理者権限
-INSERT INTO user_permission_groups (user_id, group_id) VALUES (10, 5) ON CONFLICT DO NOTHING;
--- exec@example.com (user_id=11) → 執行権限
-INSERT INTO user_permission_groups (user_id, group_id) VALUES (11, 6) ON CONFLICT DO NOTHING;
+-- trimmer@example.com (user_id=8) → 一般
+INSERT INTO user_permission_groups (user_id, group_id) VALUES (8, 3) ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('permission_groups', 'id'), (SELECT MAX(id) FROM permission_groups));
 
