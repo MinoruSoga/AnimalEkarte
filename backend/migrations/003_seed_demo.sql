@@ -402,7 +402,7 @@ ON CONFLICT (id) DO UPDATE SET
     updated_at        = now();
 
 INSERT INTO payments (id, billing_id, subtotal, tax_total, total_amount, insurance_name, insurance_ratio, insurance_amount, discount_amount, billing_amount, received_amount, change_amount, method) VALUES
-    (1, 1, 4300, 430, 4730, 'アニコム損保', 70, 3311, 0, 1419, 1500, 81, 'cash')
+    (1, 1, 4300, 430, 4730, 'アニコム損保', 0.70, 3311, 0, 1419, 1500, 81, 'cash')
 ON CONFLICT (id) DO UPDATE SET
     billing_id      = EXCLUDED.billing_id,
     updated_at      = now();

@@ -16,11 +16,6 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- 認証関連
 CREATE TYPE user_type AS ENUM ('system_admin', 'clinic_admin', 'staff');
 CREATE TYPE account_status AS ENUM ('active', 'inactive', 'locked');
-CREATE TYPE permission_type AS ENUM (
-    'account_admin', 'medical', 'medical_read', 'trimming',
-    'billing', 'reception', 'hospitalization', 'master_admin',
-    'shift_admin', 'inventory'
-);
 
 -- ペット関連
 CREATE TYPE pet_status AS ENUM ('alive', 'deceased');
@@ -583,16 +578,40 @@ CREATE TABLE user_clinic_memberships (
 );
 
 -- ------------------------------------
--- 28. user_permissions（ユーザー権限）
+-- 28. permission_groups（権限グループ定義）
 -- ------------------------------------
-CREATE TABLE user_permissions (
-    id         BIGSERIAL       PRIMARY KEY,
-    user_id    bigint          NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
-    clinic_id  bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
-    permission permission_type NOT NULL,
-    granted_by bigint                   REFERENCES user_accounts(id) ON DELETE SET NULL,
-    granted_at timestamptz              DEFAULT now(),
-    CONSTRAINT uk_user_permissions UNIQUE (user_id, clinic_id, permission)
+CREATE TABLE permission_groups (
+    id          BIGSERIAL    PRIMARY KEY,
+    clinic_id   bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name        varchar(100) NOT NULL,
+    description text         NOT NULL DEFAULT '',
+    color       varchar(7)   NOT NULL DEFAULT '#6B7280',
+    created_at  timestamptz  NOT NULL DEFAULT now(),
+    updated_at  timestamptz  NOT NULL DEFAULT now(),
+    deleted_at  timestamptz
+);
+
+-- ------------------------------------
+-- 29. permission_group_rules（グループ×ページ×CRUD権限）
+-- ------------------------------------
+CREATE TABLE permission_group_rules (
+    id         BIGSERIAL   PRIMARY KEY,
+    group_id   bigint      NOT NULL REFERENCES permission_groups(id) ON DELETE CASCADE,
+    resource   varchar(50) NOT NULL,
+    can_view   boolean     NOT NULL DEFAULT false,
+    can_create boolean     NOT NULL DEFAULT false,
+    can_edit   boolean     NOT NULL DEFAULT false,
+    can_delete boolean     NOT NULL DEFAULT false,
+    CONSTRAINT uk_permission_group_rules UNIQUE (group_id, resource)
+);
+
+-- ------------------------------------
+-- 30. user_permission_groups（ユーザー→グループ紐付け）
+-- ------------------------------------
+CREATE TABLE user_permission_groups (
+    user_id  bigint NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
+    group_id bigint NOT NULL REFERENCES permission_groups(id) ON DELETE CASCADE,
+    PRIMARY KEY (user_id, group_id)
 );
 
 -- ==========================================================================
@@ -1218,6 +1237,12 @@ CREATE UNIQUE INDEX idx_user_clinic_memberships_user_clinic ON user_clinic_membe
 -- ユーザー所属: 主所属医院は1件のみ（部分インデックス）
 CREATE UNIQUE INDEX idx_user_clinic_memberships_main ON user_clinic_memberships(user_id) WHERE is_main = true;
 
+-- 権限グループ: クリニック別（論理削除対応）
+CREATE INDEX idx_permission_groups_clinic ON permission_groups(clinic_id) WHERE deleted_at IS NULL;
+
+-- ユーザー→グループ: ユーザー別
+CREATE INDEX idx_user_permission_groups_user ON user_permission_groups(user_id);
+
 -- トリミングオプション: 重複防止
 CREATE UNIQUE INDEX idx_trimming_record_options_unique ON trimming_record_options(trimming_record_id, option_id);
 
@@ -1484,7 +1509,9 @@ COMMENT ON TABLE chief_complaint_categories IS '主訴区分マスタ';
 COMMENT ON TABLE inquiry_templates IS '問診定型文マスタ';
 COMMENT ON TABLE pets IS 'ペット情報';
 COMMENT ON TABLE user_clinic_memberships IS 'ユーザー医院所属';
-COMMENT ON TABLE user_permissions IS 'ユーザー権限';
+COMMENT ON TABLE permission_groups IS '権限グループ定義';
+COMMENT ON TABLE permission_group_rules IS 'グループ×ページ×CRUD権限ルール';
+COMMENT ON TABLE user_permission_groups IS 'ユーザー→権限グループ紐付け';
 COMMENT ON TABLE reservation_appointments IS '予約';
 COMMENT ON TABLE hospitalizations IS '入院・ホテル管理';
 COMMENT ON TABLE trimming_records IS 'トリミング記録';

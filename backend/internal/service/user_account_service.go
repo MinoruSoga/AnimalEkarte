@@ -32,9 +32,9 @@ type UpdateUserAccountInput struct {
 	StaffID     *uint64
 }
 
-// SetPermissionsInput は権限一括設定の入力DTO
-type SetPermissionsInput struct {
-	Permissions []string
+// SetPermissionGroupsInput はグループ割当の入力DTO
+type SetPermissionGroupsInput struct {
+	GroupIDs []uint64
 }
 
 // UserAccountService はユーザーアカウントのビジネスロジック
@@ -46,8 +46,8 @@ type UserAccountService interface {
 	CreateUser(ctx context.Context, clinicID uint64, input *CreateUserAccountInput) (*model.UserAccount, error)
 	UpdateUser(ctx context.Context, id uint64, input *UpdateUserAccountInput) error
 	DeleteUser(ctx context.Context, id uint64) error
-	GetPermissions(ctx context.Context, userID, clinicID uint64) ([]model.UserPermission, error)
-	SetPermissions(ctx context.Context, userID, clinicID uint64, input *SetPermissionsInput) error
+	SetPermissionGroups(ctx context.Context, userID uint64, input SetPermissionGroupsInput) error
+	GetPermissionGroupIDs(ctx context.Context, userID uint64) ([]uint64, error)
 }
 
 // UserAccountResult は FindByEmail の結果
@@ -183,18 +183,13 @@ func (s *userAccountService) DeleteUser(ctx context.Context, id uint64) error {
 	return nil
 }
 
-// GetPermissions はユーザーの権限一覧を返す
-func (s *userAccountService) GetPermissions(ctx context.Context, userID, clinicID uint64) ([]model.UserPermission, error) {
-	return s.repo.FindPermissions(ctx, userID, clinicID)
+// SetPermissionGroups はユーザーのグループ割当を全置換する
+func (s *userAccountService) SetPermissionGroups(ctx context.Context, userID uint64, input SetPermissionGroupsInput) error {
+	slog.InfoContext(ctx, "setting user permission groups", slog.Uint64("user_id", userID), slog.Any("group_ids", input.GroupIDs))
+	return s.repo.SetPermissionGroups(ctx, userID, input.GroupIDs)
 }
 
-// SetPermissions はユーザーの権限を全置換する
-func (s *userAccountService) SetPermissions(ctx context.Context, userID, clinicID uint64, input *SetPermissionsInput) error {
-	if err := s.repo.SetPermissions(ctx, userID, clinicID, input.Permissions); err != nil {
-		return fmt.Errorf("failed to set user permissions: %w", err)
-	}
-	slog.InfoContext(ctx, "user permissions updated",
-		slog.Uint64("user_id", userID),
-		slog.Uint64("clinic_id", clinicID))
-	return nil
+// GetPermissionGroupIDs はユーザーの割当グループIDリストを返す
+func (s *userAccountService) GetPermissionGroupIDs(ctx context.Context, userID uint64) ([]uint64, error) {
+	return s.repo.FindPermissionGroupIDs(ctx, userID)
 }

@@ -12,16 +12,6 @@ import {
   StaffRoleTrimmer,
   StaffRoleReception,
   StaffRoleManager,
-  PermissionAccountAdmin,
-  PermissionMedical,
-  PermissionMedicalRead,
-  PermissionTrimming,
-  PermissionBilling,
-  PermissionReception,
-  PermissionHospitalization,
-  PermissionMasterAdmin,
-  PermissionShiftAdmin,
-  PermissionInventory,
 } from "@/types/generated/models";
 
 /** @see {@link import("@/types/generated/models").UserType} */
@@ -59,20 +49,22 @@ export type JobTitle = StaffRole;
 /** @deprecated JOB_TITLE_LABELS は STAFF_ROLE_LABELS に統合。後方互換のため残す */
 export const JOB_TITLE_LABELS = STAFF_ROLE_LABELS;
 
-/** @see {@link import("@/types/generated/models").PermissionType} */
-export const PERMISSION_VALUES = [
-  PermissionAccountAdmin,
-  PermissionMedical,
-  PermissionMedicalRead,
-  PermissionTrimming,
-  PermissionBilling,
-  PermissionReception,
-  PermissionHospitalization,
-  PermissionMasterAdmin,
-  PermissionShiftAdmin,
-  PermissionInventory,
-] as const;
-export type Permission = (typeof PERMISSION_VALUES)[number];
+/** 実効権限の CRUD アクション */
+export type ResourceAction = "view" | "create" | "edit" | "delete";
+
+/** 1リソースに対する CRUD 権限 */
+export interface ResourcePermission {
+  view: boolean;
+  create: boolean;
+  edit: boolean;
+  delete: boolean;
+}
+
+/** resource → CRUD */
+export type ResourcePermissions = Record<string, ResourcePermission>;
+
+/** clinicId → resource → CRUD（バックエンドが UNION 計算済みの実効権限） */
+export type ClinicEffectivePermissions = Record<string, ResourcePermissions>;
 
 /** @see {@link import("@/types/generated/models").UserClinicMembership} */
 export interface ClinicMembership {
@@ -96,8 +88,6 @@ export interface AuthClinic {
   logoUrl: string | null;
 }
 
-export type ClinicPermissions = Record<string, readonly Permission[]>;
-
 /** @see {@link import("@/types/generated/models").UserAccount} */
 export interface AuthUser {
   id: string;
@@ -111,7 +101,7 @@ export interface AuthUser {
   /** メイン医院の詳細情報。/me レスポンスから取得。null の場合は未所属 */
   clinic: AuthClinic | null;
   clinics: ClinicMembership[];
-  permissions: ClinicPermissions;
+  permissions: ClinicEffectivePermissions;
 }
 
 export interface AuthContextValue {
@@ -123,12 +113,9 @@ export interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   switchClinic: (clinicId: string) => Promise<void>;
-  hasPermission: (permission: Permission) => boolean;
-  hasAnyPermission: (permissions: readonly Permission[]) => boolean;
+  hasPermission: (resource: string, action: ResourceAction) => boolean;
 }
 
 export interface ProtectedRouteProps {
-  permission?: Permission;
-  anyOf?: readonly Permission[];
   children: ReactNode;
 }

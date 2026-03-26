@@ -251,17 +251,6 @@ export type AccountStatus = string;
 export const AccountStatusActive: AccountStatus = "active";
 export const AccountStatusInactive: AccountStatus = "inactive";
 export const AccountStatusLocked: AccountStatus = "locked";
-export type PermissionType = string;
-export const PermissionAccountAdmin: PermissionType = "account_admin";
-export const PermissionMedical: PermissionType = "medical";
-export const PermissionMedicalRead: PermissionType = "medical_read";
-export const PermissionTrimming: PermissionType = "trimming";
-export const PermissionBilling: PermissionType = "billing";
-export const PermissionReception: PermissionType = "reception";
-export const PermissionHospitalization: PermissionType = "hospitalization";
-export const PermissionMasterAdmin: PermissionType = "master_admin";
-export const PermissionShiftAdmin: PermissionType = "shift_admin";
-export const PermissionInventory: PermissionType = "inventory";
 export interface Clinic {
   id: number /* uint64 */;
   company_id: number /* uint64 */;
@@ -306,13 +295,41 @@ export interface UserClinicMembership {
   is_main: boolean;
   joined_at: string;
 }
-export interface UserPermission {
+/**
+ * PermissionGroup は権限グループ定義
+ */
+export interface PermissionGroup {
   id: number /* uint64 */;
-  user_id: number /* uint64 */;
   clinic_id: number /* uint64 */;
-  permission: PermissionType;
-  granted_by?: number /* uint64 */;
-  granted_at: string;
+  name: string;
+  description: string;
+  color: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string | null;
+  /**
+   * Relations
+   */
+  rules?: PermissionGroupRule[];
+}
+/**
+ * PermissionGroupRule はグループ×ページ×CRUD権限
+ */
+export interface PermissionGroupRule {
+  id: number /* uint64 */;
+  group_id: number /* uint64 */;
+  resource: string;
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+}
+/**
+ * UserPermissionGroup はユーザー→グループ紐付け
+ */
+export interface UserPermissionGroup {
+  user_id: number /* uint64 */;
+  group_id: number /* uint64 */;
 }
 
 //////////

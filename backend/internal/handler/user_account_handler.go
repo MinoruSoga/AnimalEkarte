@@ -83,6 +83,11 @@ func (h *Handler) GetUser(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	groupIDs, err := h.svc.UserAccount.GetPermissionGroupIDs(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
 	memberships := make([]userMembershipResponse, 0, len(data.Memberships))
 	for _, m := range data.Memberships {
 		memberships = append(memberships, userMembershipResponse{
@@ -91,9 +96,34 @@ func (h *Handler) GetUser(c *gin.Context) {
 		})
 	}
 	c.JSON(http.StatusOK, userDetailResponse{
-		userResponse: toUserResponse(&data.UserAccount),
-		Memberships:  memberships,
+		userResponse:       toUserResponse(&data.UserAccount),
+		Memberships:        memberships,
+		PermissionGroupIDs: groupIDs,
 	})
+}
+
+// SetUserPermissionGroups godoc
+// PUT /users/:id/permission-groups — ユーザーへのグループ割当を全置換する
+func (h *Handler) SetUserPermissionGroups(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+	var req struct {
+		GroupIDs []uint64 `json:"group_ids" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
+		return
+	}
+	if err := h.svc.UserAccount.SetPermissionGroups(c.Request.Context(), id, service.SetPermissionGroupsInput{
+		GroupIDs: req.GroupIDs,
+	}); err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 // UpdateUser godoc
@@ -143,58 +173,6 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// GetUserPermissions godoc
-// GET /users/:id/permissions?clinic_id=xxx
-func (h *Handler) GetUserPermissions(c *gin.Context) {
-	userID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
-		return
-	}
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-
-	perms, err := h.svc.UserAccount.GetPermissions(c.Request.Context(), userID, clinicID)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	items := make([]userPermissionResponse, 0, len(perms))
-	for _, p := range perms {
-		items = append(items, userPermissionResponse{Permission: string(p.Permission)})
-	}
-	c.JSON(http.StatusOK, items)
-}
-
-// SetUserPermissions godoc
-// PUT /users/:id/permissions
-func (h *Handler) SetUserPermissions(c *gin.Context) {
-	userID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
-		return
-	}
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-
-	var req setPermissionsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
-		return
-	}
-
-	input := &service.SetPermissionsInput{Permissions: req.Permissions}
-	if err := h.svc.UserAccount.SetPermissions(c.Request.Context(), userID, clinicID, input); err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.Status(http.StatusNoContent)
-}
-
 // RegisterUserRoutes はユーザー管理関連のルートを登録する
 func (h *Handler) RegisterUserRoutes(rg *gin.RouterGroup) {
 	users := rg.Group("/users")
@@ -203,6 +181,5 @@ func (h *Handler) RegisterUserRoutes(rg *gin.RouterGroup) {
 	users.GET("/:id", h.GetUser)
 	users.PATCH("/:id", h.UpdateUser)
 	users.DELETE("/:id", h.DeleteUser)
-	users.GET("/:id/permissions", h.GetUserPermissions)
-	users.PUT("/:id/permissions", h.SetUserPermissions)
+	users.PUT("/:id/permission-groups", h.SetUserPermissionGroups)
 }

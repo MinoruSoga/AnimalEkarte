@@ -110,66 +110,66 @@ ON CONFLICT DO NOTHING;
 SELECT setval(pg_get_serial_sequence('user_clinic_memberships', 'id'), (SELECT MAX(id) FROM user_clinic_memberships));
 
 -- -----------------------------------------------------------------------------
--- 7b. user_permissions（ユーザー権限）
+-- 7b. permission_groups（権限グループ）& user_permission_groups（割当）
 -- -----------------------------------------------------------------------------
--- admin@example.com: 全権限 × 全3院
-INSERT INTO user_permissions (id, user_id, clinic_id, permission) VALUES
-    (1,  4, 3, 'account_admin'),
-    (2,  4, 3, 'medical'),
-    (3,  4, 3, 'medical_read'),
-    (4,  4, 3, 'trimming'),
-    (5,  4, 3, 'billing'),
-    (6,  4, 3, 'reception'),
-    (7,  4, 3, 'hospitalization'),
-    (8,  4, 3, 'master_admin'),
-    (9,  4, 3, 'shift_admin'),
-    (10, 4, 3, 'inventory'),
-    (11, 4, 4, 'account_admin'),
-    (12, 4, 4, 'medical'),
-    (13, 4, 4, 'medical_read'),
-    (14, 4, 4, 'trimming'),
-    (15, 4, 4, 'billing'),
-    (16, 4, 4, 'reception'),
-    (17, 4, 4, 'hospitalization'),
-    (18, 4, 4, 'master_admin'),
-    (19, 4, 4, 'shift_admin'),
-    (20, 4, 4, 'inventory'),
-    (21, 4, 5, 'account_admin'),
-    (22, 4, 5, 'medical'),
-    (23, 4, 5, 'medical_read'),
-    (24, 4, 5, 'trimming'),
-    (25, 4, 5, 'billing'),
-    (26, 4, 5, 'reception'),
-    (27, 4, 5, 'hospitalization'),
-    (28, 4, 5, 'master_admin'),
-    (29, 4, 5, 'shift_admin'),
-    (30, 4, 5, 'inventory')
-ON CONFLICT DO NOTHING;
--- vet@example.com: medical, hospitalization / 八王子院
-INSERT INTO user_permissions (id, user_id, clinic_id, permission) VALUES
-    (31, 5, 3, 'medical'),
-    (32, 5, 3, 'hospitalization')
-ON CONFLICT DO NOTHING;
--- nurse@example.com: medical_read, hospitalization, shift_admin, inventory / 八王子院
-INSERT INTO user_permissions (id, user_id, clinic_id, permission) VALUES
-    (33, 6, 3, 'medical_read'),
-    (34, 6, 3, 'hospitalization'),
-    (35, 6, 3, 'shift_admin'),
-    (36, 6, 3, 'inventory')
-ON CONFLICT DO NOTHING;
--- reception@example.com: reception, billing / 八王子院
-INSERT INTO user_permissions (id, user_id, clinic_id, permission) VALUES
-    (37, 7, 3, 'reception'),
-    (38, 7, 3, 'billing')
-ON CONFLICT DO NOTHING;
--- trimmer@example.com: trimming, reception, billing / 八王子院
-INSERT INTO user_permissions (id, user_id, clinic_id, permission) VALUES
-    (39, 8, 3, 'trimming'),
-    (40, 8, 3, 'reception'),
-    (41, 8, 3, 'billing')
+-- 八王子院 (clinic_id=3) のサンプルグループ
+INSERT INTO permission_groups (id, clinic_id, name, description, color) VALUES
+    (1, 3, '獣医師',         'カルテ・入院・処置全般', '#3B82F6'),
+    (2, 3, '看護師',         'カルテ閲覧・入院・在庫・シフト', '#10B981'),
+    (3, 3, '受付スタッフ',   '受付・予約・会計', '#F59E0B'),
+    (4, 3, 'トリマー',       'トリミング・受付・会計', '#8B5CF6')
 ON CONFLICT DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('user_permissions', 'id'), (SELECT MAX(id) FROM user_permissions));
+-- グループルール（獣医師）
+INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
+    (1, 'dashboard',        true, false, false, false),
+    (1, 'owners',           true, true,  true,  false),
+    (1, 'reservations',     true, true,  true,  false),
+    (1, 'medical-records',  true, true,  true,  false),
+    (1, 'hospitalization',  true, true,  true,  false),
+    (1, 'examinations',     true, true,  true,  false),
+    (1, 'vaccinations',     true, true,  true,  false),
+    (1, 'estimates',        true, true,  true,  false)
+ON CONFLICT DO NOTHING;
+
+-- グループルール（看護師）
+INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
+    (2, 'dashboard',        true, false, false, false),
+    (2, 'owners',           true, false, false, false),
+    (2, 'medical-records',  true, false, false, false),
+    (2, 'hospitalization',  true, true,  true,  false),
+    (2, 'inventory',        true, true,  true,  false),
+    (2, 'shifts',           true, true,  true,  false)
+ON CONFLICT DO NOTHING;
+
+-- グループルール（受付スタッフ）
+INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
+    (3, 'dashboard',        true, false, false, false),
+    (3, 'owners',           true, true,  true,  false),
+    (3, 'reservations',     true, true,  true,  true),
+    (3, 'accounting',       true, true,  true,  false),
+    (3, 'checkups',         true, false, false, false)
+ON CONFLICT DO NOTHING;
+
+-- グループルール（トリマー）
+INSERT INTO permission_group_rules (group_id, resource, can_view, can_create, can_edit, can_delete) VALUES
+    (4, 'dashboard',        true, false, false, false),
+    (4, 'trimming',         true, true,  true,  false),
+    (4, 'reservations',     true, true,  true,  false),
+    (4, 'accounting',       true, true,  false, false)
+ON CONFLICT DO NOTHING;
+
+-- ユーザーへのグループ割当
+-- vet@example.com (user_id=5) → 獣医師
+INSERT INTO user_permission_groups (user_id, group_id) VALUES (5, 1) ON CONFLICT DO NOTHING;
+-- nurse@example.com (user_id=6) → 看護師
+INSERT INTO user_permission_groups (user_id, group_id) VALUES (6, 2) ON CONFLICT DO NOTHING;
+-- reception@example.com (user_id=7) → 受付スタッフ
+INSERT INTO user_permission_groups (user_id, group_id) VALUES (7, 3) ON CONFLICT DO NOTHING;
+-- trimmer@example.com (user_id=8) → トリマー
+INSERT INTO user_permission_groups (user_id, group_id) VALUES (8, 4) ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('permission_groups', 'id'), (SELECT MAX(id) FROM permission_groups));
 
 -- -----------------------------------------------------------------------------
 -- 8. service_types（サービス種別: 8件）
@@ -702,8 +702,8 @@ SELECT setval(pg_get_serial_sequence('billing_items', 'id'), (SELECT MAX(id) FRO
 -- N. payments（支払い: 2件）
 -- =============================================================================
 INSERT INTO payments (id, billing_id, subtotal, tax_total, total_amount, insurance_name, insurance_ratio, insurance_amount, discount_amount, billing_amount, received_amount, change_amount, method) VALUES
-    (1, 3, 4300, 430, 4730, 'アニコム損保', 70, 3311, 0, 1419, 1500, 81, 'cash'),
-    (2, 2, 3300, 330, 3630, 'アニコム損保', 70, 2541, 0, 1089, 1100, 11, 'credit_card')
+    (1, 3, 4300, 430, 4730, 'アニコム損保', 0.70, 3311, 0, 1419, 1500, 81, 'cash'),
+    (2, 2, 3300, 330, 3630, 'アニコム損保', 0.70, 2541, 0, 1089, 1100, 11, 'credit_card')
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM payments));

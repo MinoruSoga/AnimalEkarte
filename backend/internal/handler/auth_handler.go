@@ -37,19 +37,38 @@ type MeClinicInfo struct {
 	LogoURL            *string `json:"logo_url"`
 }
 
+// ResourcePermission は1リソースのCRUD権限
+type ResourcePermission struct {
+	View   bool `json:"view"`
+	Create bool `json:"create"`
+	Edit   bool `json:"edit"`
+	Delete bool `json:"delete"`
+}
+
+// ClinicEffectivePermissions は clinicID → resource → CRUD のネストマップ
+// 例: {"1": {"accounting": {View: true, Create: true, Edit: false, Delete: false}}}
+type ClinicEffectivePermissions = map[string]map[string]ResourcePermission
+
+// allResources はフロントエンド側のページ識別子一覧（system_admin/clinic_admin 全権限バイパス用）
+var allResources = []string{
+	"dashboard", "owners", "reservations", "medical-records", "hospitalization",
+	"trimming", "examinations", "accounting", "vaccinations", "checkups",
+	"inventory", "estimates", "shifts", "master", "hospital-settings",
+}
+
 // MeResponse は GET /me のレスポンス（フロントエンド AuthUser と対応）
 type MeResponse struct {
-	ID           string               `json:"id"`
-	Email        string               `json:"email"`
-	DisplayName  string               `json:"display_name"`
-	UserType     string               `json:"user_type"`
-	StaffRole    *string              `json:"staff_role"`
-	JobTitle     *string              `json:"job_title"`
-	AvatarURL    *string              `json:"avatar_url"`
-	MainClinicID string               `json:"main_clinic_id"`
-	Clinic       *MeClinicInfo        `json:"clinic"`
-	Clinics      []MeClinicMembership `json:"clinics"`
-	Permissions  map[string][]string  `json:"permissions"`
+	ID           string                     `json:"id"`
+	Email        string                     `json:"email"`
+	DisplayName  string                     `json:"display_name"`
+	UserType     string                     `json:"user_type"`
+	StaffRole    *string                    `json:"staff_role"`
+	JobTitle     *string                    `json:"job_title"`
+	AvatarURL    *string                    `json:"avatar_url"`
+	MainClinicID string                     `json:"main_clinic_id"`
+	Clinic       *MeClinicInfo              `json:"clinic"`
+	Clinics      []MeClinicMembership       `json:"clinics"`
+	Permissions  ClinicEffectivePermissions `json:"permissions"`
 }
 
 // LoginInput はログインリクエストのボディ
@@ -80,10 +99,28 @@ func buildMeResponse(data *repository.UserAccountWithMemberships, mainClinicID s
 		})
 	}
 
-	permMap := make(map[string][]string)
-	for _, p := range data.Permissions {
-		clIDStr := strconv.FormatUint(p.ClinicID, 10)
-		permMap[clIDStr] = append(permMap[clIDStr], string(p.Permission))
+	// 実効権限マップを構築する
+	// system_admin / clinic_admin は全リソース全CRUD true（DB問い合わせ不要）
+	permMap := make(ClinicEffectivePermissions)
+	if data.UserAccount.UserType == model.UserTypeSystemAdmin || data.UserAccount.UserType == model.UserTypeClinicAdmin {
+		for _, m := range data.Memberships {
+			clIDStr := strconv.FormatUint(m.ClinicID, 10)
+			permMap[clIDStr] = buildAllPermissionsForClinic()
+		}
+	} else {
+		// staff はグループのUNIONで実効権限を計算（DBから取得済み）
+		for _, row := range data.EffectivePermRows {
+			clIDStr := strconv.FormatUint(row.ClinicID, 10)
+			if permMap[clIDStr] == nil {
+				permMap[clIDStr] = make(map[string]ResourcePermission)
+			}
+			permMap[clIDStr][row.Resource] = ResourcePermission{
+				View:   row.CanView,
+				Create: row.CanCreate,
+				Edit:   row.CanEdit,
+				Delete: row.CanDelete,
+			}
+		}
 	}
 
 	var meClinic *MeClinicInfo
@@ -284,4 +321,14 @@ func (h *Handler) GetMe(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, buildMeResponse(data, mainClinicIDStr, clinicNameMap, allClinics))
+}
+
+// buildAllPermissionsForClinic は全リソースに対して全CRUD true のマップを返す。
+// system_admin / clinic_admin はグループ設定に関係なく全権限を持つ。
+func buildAllPermissionsForClinic() map[string]ResourcePermission {
+	m := make(map[string]ResourcePermission, len(allResources))
+	for _, res := range allResources {
+		m[res] = ResourcePermission{View: true, Create: true, Edit: true, Delete: true}
+	}
+	return m
 }

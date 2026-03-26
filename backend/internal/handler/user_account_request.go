@@ -18,8 +18,3 @@ type updateUserRequest struct {
 	AvatarURL   *string `json:"avatar_url"`
 	Status      *string `json:"status"`
 }
-
-// setPermissionsRequest は権限一括更新のバインド struct
-type setPermissionsRequest struct {
-	Permissions []string `json:"permissions" binding:"required"`
-}

@@ -7,7 +7,7 @@ import {
   useMemo,
 } from "react";
 import type { ReactNode } from "react";
-import type { AuthContextValue, AuthUser, Permission } from "../types";
+import type { AuthContextValue, AuthUser, ResourceAction } from "../types";
 import { login as loginApi } from "../api/login";
 import { logout as logoutApi } from "../api/logout";
 import { refreshToken } from "../api/refresh-token";
@@ -134,24 +134,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 
   const hasPermission = useCallback(
-    (permission: Permission): boolean => {
+    (resource: string, action: ResourceAction): boolean => {
       if (!user || !currentClinicId) return false;
-      if (user.userType === "system_admin") return true;
-      if (user.userType === "clinic_admin") {
-        return user.clinics.some((c) => c.clinicId === currentClinicId);
-      }
+      // system_admin / clinic_admin はバイパス（BEも全権限 true で返すが念のため）
+      if (user.userType === "system_admin" || user.userType === "clinic_admin") return true;
       const clinicPerms = user.permissions[currentClinicId];
       if (!clinicPerms) return false;
-      return clinicPerms.includes(permission);
+      const resourcePerms = clinicPerms[resource];
+      if (!resourcePerms) return false;
+      return resourcePerms[action] === true;
     },
     [user, currentClinicId],
-  );
-
-  const hasAnyPermission = useCallback(
-    (permissions: readonly Permission[]): boolean => {
-      return permissions.some((p) => hasPermission(p));
-    },
-    [hasPermission],
   );
 
   const value = useMemo<AuthContextValue>(
@@ -165,7 +158,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       logout,
       switchClinic,
       hasPermission,
-      hasAnyPermission,
     }),
     [
       user,
@@ -176,7 +168,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       logout,
       switchClinic,
       hasPermission,
-      hasAnyPermission,
     ],
   );
 

@@ -53,6 +53,7 @@ type Repositories struct {
 	MerchandiseItem        MerchandiseItemRepository
 	BillingItem            BillingItemRepository
 	Refund                 RefundRepository
+	PermissionGroup        PermissionGroupRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -105,5 +106,6 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		MerchandiseItem:        NewMerchandiseItemRepository(db),
 		BillingItem:            NewBillingItemRepository(db),
 		Refund:                 NewRefundRepository(db),
+		PermissionGroup:        NewPermissionGroupRepository(db),
 	}
 }

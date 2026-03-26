@@ -27,15 +27,11 @@ type userMembershipResponse struct {
 	IsMain   bool   `json:"is_main"`
 }
 
-// userDetailResponse はユーザー詳細（所属クリニック含む）の API レスポンス
+// userDetailResponse はユーザー詳細（所属クリニック・権限グループ含む）の API レスポンス
 type userDetailResponse struct {
 	userResponse
-	Memberships []userMembershipResponse `json:"memberships"`
-}
-
-// userPermissionResponse は権限の API レスポンス
-type userPermissionResponse struct {
-	Permission string `json:"permission"`
+	Memberships        []userMembershipResponse `json:"memberships"`
+	PermissionGroupIDs []uint64                 `json:"permission_group_ids"`
 }
 
 // toUserResponse は model.UserAccount を userResponse に変換する
