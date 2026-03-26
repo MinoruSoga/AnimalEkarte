@@ -1,5 +1,6 @@
 import { useState, useMemo, useDeferredValue, useCallback } from "react";
 import { useNavigate } from "react-router";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 import { useModalState } from "@/hooks/use-modal-state";
 import { formatCurrency } from "@/utils/format/number";
 import { Plus, FileText, Trash2, ExternalLink, CircleDot, Calendar } from "lucide-react";
@@ -68,6 +69,7 @@ const COLUMNS = [
 
 export function EstimateList() {
   const navigate = useNavigate();
+  const { canCreate, canEdit, canDelete } = usePermission("estimates");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
@@ -182,26 +184,28 @@ export function EstimateList() {
         <EstimateStatusBadge status={estimate.status} />
       </TableCell>
       <TableCell className="text-right py-2">
-        <RowActionDropdown
-          actions={[
-            {
-              label: "詳細",
-              icon: ExternalLink,
-              onClick: () => navigate(`/estimates/${estimate.id}`),
-            },
-            {
-              label: "編集",
-              icon: FileText,
-              onClick: () => navigate(`/estimates/${estimate.id}/edit`),
-            },
-            {
-              label: "削除",
-              icon: Trash2,
-              variant: "destructive",
-              onClick: () => deleteModal.open(estimate.id),
-            },
-          ]}
-        />
+        {(canEdit || canDelete) ? (
+          <RowActionDropdown
+            actions={[
+              {
+                label: "詳細",
+                icon: ExternalLink,
+                onClick: () => navigate(`/estimates/${estimate.id}`),
+              },
+              ...(canEdit ? [{
+                label: "編集",
+                icon: FileText,
+                onClick: () => navigate(`/estimates/${estimate.id}/edit`),
+              }] : []),
+              ...(canDelete ? [{
+                label: "削除",
+                icon: Trash2,
+                variant: "destructive" as const,
+                onClick: () => deleteModal.open(estimate.id),
+              }] : []),
+            ]}
+          />
+        ) : null}
       </TableCell>
     </DataTableRow>
   );
@@ -222,10 +226,12 @@ export function EstimateList() {
       title="見積書管理"
       icon={<FileText className="size-4 text-[#37352F]" />}
       headerAction={
-        <PrimaryButton onClick={() => navigate("/estimates/new")}>
-          <Plus className="mr-1.5 size-4" />
-          新規見積書作成
-        </PrimaryButton>
+        canCreate ? (
+          <PrimaryButton onClick={() => navigate("/estimates/new")}>
+            <Plus className="mr-1.5 size-4" />
+            新規見積書作成
+          </PrimaryButton>
+        ) : null
       }
       maxWidth="max-w-full"
     >

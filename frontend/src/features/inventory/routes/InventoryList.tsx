@@ -38,6 +38,7 @@ import { FilteringIndicator } from "@/components/shared/FilteringIndicator/Filte
 
 // Relative
 import { useInventory } from "../hooks/use-inventory";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Types
 import type { InventoryItem } from "@/types";
@@ -91,6 +92,7 @@ const INVENTORY_SORT_PROPERTIES: SortProperty[] = [
 
 export function InventoryList() {
   const navigate = useNavigate();
+  const { canCreate, canEdit } = usePermission("inventory");
   const [searchTerm, setSearchTerm] = useState("");
   const deferredSearch = useDeferredValue(searchTerm);
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
@@ -190,10 +192,12 @@ export function InventoryList() {
             <FileSpreadsheet className="size-4" />
             データ取込
           </Button>
-          <PrimaryButton onClick={handleCreate}>
-            <Plus className="mr-1.5 size-4" />
-            新規登録
-          </PrimaryButton>
+          {canCreate ? (
+            <PrimaryButton onClick={handleCreate}>
+              <Plus className="mr-1.5 size-4" />
+              新規登録
+            </PrimaryButton>
+          ) : null}
         </div>
       }
       maxWidth="max-w-full"
@@ -264,7 +268,7 @@ export function InventoryList() {
                   </StatusBadge>
                 </TableCell>
                 <TableCell className="text-right py-2">
-                  <RowActionButton onClick={() => handleEdit(item.id)} />
+                  {canEdit ? <RowActionButton onClick={() => handleEdit(item.id)} /> : null}
                 </TableCell>
               </DataTableRow>
             )}

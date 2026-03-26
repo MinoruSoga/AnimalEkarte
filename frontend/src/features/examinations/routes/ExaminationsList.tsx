@@ -27,6 +27,7 @@ import { FilteringIndicator } from "@/components/shared/FilteringIndicator/Filte
 // Relative
 import { useFilterExaminationRecords } from "../hooks/use-examination-records";
 import { paths } from "@/config/paths";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Types
 import type {
@@ -72,6 +73,7 @@ const EXAMINATION_SORT_PROPERTIES: SortProperty[] = [
 
 export function ExaminationsList() {
   const navigate = useNavigate();
+  const { canCreate, canEdit } = usePermission("examinations");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
@@ -195,10 +197,12 @@ export function ExaminationsList() {
             <FileSpreadsheet className="size-4" />
             検査データ取込
           </Button>
-          <PrimaryButton onClick={handleCreate}>
-            <Plus className="mr-1.5 size-4" />
-            新規検査登録
-          </PrimaryButton>
+          {canCreate ? (
+            <PrimaryButton onClick={handleCreate}>
+              <Plus className="mr-1.5 size-4" />
+              新規検査登録
+            </PrimaryButton>
+          ) : null}
         </div>
       }
       maxWidth="max-w-full"
@@ -241,7 +245,7 @@ export function ExaminationsList() {
                   </StatusBadge>
                 </TableCell>
                 <TableCell className="text-right py-2.5">
-                  <RowActionButton onClick={() => handleEdit(r.id)} />
+                  {canEdit ? <RowActionButton onClick={() => handleEdit(r.id)} /> : null}
                 </TableCell>
               </DataTableRow>
             )}

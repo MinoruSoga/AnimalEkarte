@@ -1,7 +1,7 @@
 # TASK-032: 権限グループ（RBAC）システムの実装
 
 **作成日**: 2026-03-26
-**ステータス**: Open
+**ステータス**: Closed
 **依頼元**: ユーザーによる口頭依頼
 
 ---
@@ -39,13 +39,13 @@ clinic_admin が自由にグループを作成し、ページ単位で view/crea
 
 ## 受入条件（Acceptance Criteria）
 
-- [ ] AC-1: clinic_admin が「受付スタッフ」グループを作成し、accounting にのみ view/create を付与できる
-- [ ] AC-2: 「受付スタッフ」グループを複数ユーザーに割り当てられる
-- [ ] AC-3: 受付グループのみのユーザーで `/accounting` にアクセスできる。`/medical-records` はアクセス拒否になる
-- [ ] AC-4: accounting ページで create ボタンが表示され、edit/delete ボタンは非表示になる
-- [ ] AC-5: ユーザーが複数グループに所属する場合、いずれかのグループにある権限は有効になる（UNION）
-- [ ] AC-6: system_admin / clinic_admin はすべてのページにアクセス可能（グループ不要）
-- [ ] AC-7: グループを削除するとユーザーへの割当も消える（CASCADE）
+- [x] AC-1: clinic_admin が「受付スタッフ」グループを作成し、accounting にのみ view/create を付与できる
+- [x] AC-2: 「受付スタッフ」グループを複数ユーザーに割り当てられる
+- [x] AC-3: 受付グループのみのユーザーで `/accounting` にアクセスできる。`/medical-records` はアクセス拒否になる
+- [x] AC-4: accounting ページで create ボタンが表示され、edit/delete ボタンは非表示になる
+- [x] AC-5: ユーザーが複数グループに所属する場合、いずれかのグループにある権限は有効になる（UNION）
+- [x] AC-6: system_admin / clinic_admin はすべてのページにアクセス可能（グループ不要）
+- [x] AC-7: グループを削除するとユーザーへの割当も消える（CASCADE）
 
 ## 技術的判断
 

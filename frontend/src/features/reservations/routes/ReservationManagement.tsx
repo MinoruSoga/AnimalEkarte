@@ -26,6 +26,7 @@ const ReservationFormModal = lazy(() =>
 );
 import { useReservationManagement } from "../hooks/use-reservation-management";
 import { useServiceTypeColorMap } from "@/features/master/hooks/use-service-type-color-map";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 const MonthView = lazy(() =>
   import("../components/MonthView").then((m) => ({ default: m.MonthView })),
@@ -51,6 +52,7 @@ const VIEW_NAV_NEXT: Record<CalendarView, (d: Date) => Date> = {
 
 export function ReservationManagement() {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const { canCreate } = usePermission("reservations");
   const [view, setView] = useState<CalendarView>("week");
   const [doctorFilter, setDoctorFilter] = useState("all");
 
@@ -114,11 +116,13 @@ export function ReservationManagement() {
         icon={<CalendarIcon className="size-5 text-[#37352F]" />}
         action={
           <div className="flex items-center gap-2">
-            <PrimaryButton className="gap-2" onClick={() => handleOpenForm()}>
-              <Plus className="size-4" />
-              <span className="hidden sm:inline">新規予約</span>
-              <span className="sm:hidden">予約</span>
-            </PrimaryButton>
+            {canCreate ? (
+              <PrimaryButton className="gap-2" onClick={() => handleOpenForm()}>
+                <Plus className="size-4" />
+                <span className="hidden sm:inline">新規予約</span>
+                <span className="sm:hidden">予約</span>
+              </PrimaryButton>
+            ) : null}
           </div>
         }
       />

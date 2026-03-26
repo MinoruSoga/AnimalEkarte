@@ -33,6 +33,7 @@ import { transformUpdatePetRequest } from "@/lib/transforms/pet";
 import { handleApiError } from "@/lib/handle-api-error";
 // bundle-barrel-imports: バレルindex経由ではなく直接ファイルからimport
 import { deleteOwner } from "../api/delete-owner";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // bundle-dynamic-imports: PetEditModal を遅延ロード
 const PetEditModal = lazy(() =>
@@ -126,6 +127,7 @@ interface OwnersListProps {
 
 export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const navigate = useNavigate();
+  const { canCreate, canEdit, canDelete } = usePermission("owners");
   const revalidator = useRevalidator();
   const { pets } = useLoaderData<OwnersLoaderData>();
   const [searchTerm, setSearchTerm] = useState("");
@@ -327,24 +329,26 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
         {formatDate(pet.lastVisit)}
       </TableCell>
       <TableCell className="whitespace-nowrap py-2 text-right">
-        <RowActionDropdown
-          actions={[
-            {
-              label: "編集",
-              icon: Pencil,
-              onClick: () => handleEdit(pet.ownerId),
-            },
-            {
-              label: "削除",
-              icon: Trash2,
-              variant: "destructive",
-              onClick: () => handleDeleteRequest(pet.ownerId, pet.ownerName),
-            },
-          ]}
-        />
+        {(canEdit || canDelete) ? (
+          <RowActionDropdown
+            actions={[
+              ...(canEdit ? [{
+                label: "編集",
+                icon: Pencil,
+                onClick: () => handleEdit(pet.ownerId),
+              }] : []),
+              ...(canDelete ? [{
+                label: "削除",
+                icon: Trash2,
+                variant: "destructive" as const,
+                onClick: () => handleDeleteRequest(pet.ownerId, pet.ownerName),
+              }] : []),
+            ]}
+          />
+        ) : null}
       </TableCell>
     </DataTableRow>
-  ), [handleRowClick, handleEdit, handleDeleteRequest]);
+  ), [handleRowClick, handleEdit, handleDeleteRequest, canEdit, canDelete]);
 
   const columns = useMemo(() => [
     {
@@ -418,10 +422,12 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
     <PageLayout
       title="飼主・ペット一覧"
       headerAction={
-        <PrimaryButton onClick={handleCreate}>
-          <Plus className="mr-1.5 size-4" />
-          新規登録
-        </PrimaryButton>
+        canCreate ? (
+          <PrimaryButton onClick={handleCreate}>
+            <Plus className="mr-1.5 size-4" />
+            新規登録
+          </PrimaryButton>
+        ) : null
       }
       maxWidth="max-w-full"
     >

@@ -25,6 +25,7 @@ import { FilteringIndicator } from "@/components/shared/FilteringIndicator/Filte
 
 // Relative
 import { useFilterVaccinations } from "../hooks/use-vaccinations";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Types
 import type {
@@ -55,6 +56,7 @@ const VACCINATION_SORT_PROPERTIES: SortProperty[] = [
 
 export function VaccinationList() {
   const navigate = useNavigate();
+  const { canCreate, canEdit } = usePermission("vaccinations");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearchTerm = useDeferredValue(searchTerm);
@@ -162,10 +164,12 @@ export function VaccinationList() {
             <FileSpreadsheet className="size-4" />
             データ取込
           </Button>
-          <PrimaryButton onClick={handleCreate}>
-            <Plus className="mr-1.5 size-4" />
-            新規登録
-          </PrimaryButton>
+          {canCreate ? (
+            <PrimaryButton onClick={handleCreate}>
+              <Plus className="mr-1.5 size-4" />
+              新規登録
+            </PrimaryButton>
+          ) : null}
         </div>
       }
       maxWidth="max-w-full"
@@ -200,7 +204,7 @@ export function VaccinationList() {
                 <TableCell className="text-base font-medium text-[#37352F] py-2">{r.vaccineName}</TableCell>
                 <TableCell className="font-mono text-base text-[#37352F] py-2">{r.nextDate}</TableCell>
                 <TableCell className="text-right py-2">
-                  <RowActionButton onClick={() => handleEdit(r.id)} />
+                  {canEdit ? <RowActionButton onClick={() => handleEdit(r.id)} /> : null}
                 </TableCell>
               </DataTableRow>
             )}

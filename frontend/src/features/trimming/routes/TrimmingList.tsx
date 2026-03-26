@@ -41,6 +41,7 @@ import { paths } from "@/config/paths";
 // Relative (direct file import, no barrel)
 import { useFilterTrimmingRecords } from "../hooks/use-trimming-records";
 import type { TrimmingFilters } from "../api/get-trimmings";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // rerender-memo + js-cache-function-results: renderRow インライン closure を memo コンポーネントに抽出
 interface TrimmingTableRowProps {
@@ -48,6 +49,8 @@ interface TrimmingTableRowProps {
   isValidStaff: (staff: string) => boolean;
   onEdit: (id: string) => void;
   onDeleteClick: (record: TrimmingUI) => void;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
 const TrimmingTableRow = memo(function TrimmingTableRow({
@@ -55,6 +58,8 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
   isValidStaff,
   onEdit,
   onDeleteClick,
+  canEdit,
+  canDelete,
 }: TrimmingTableRowProps) {
   return (
     <DataTableRow onClick={() => onEdit(record.id)}>
@@ -87,21 +92,23 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
         </StatusBadge>
       </TableCell>
       <TableCell className="text-right py-2">
-        <RowActionDropdown
-          actions={[
-            {
-              label: "編集",
-              icon: Edit,
-              onClick: () => onEdit(record.id),
-            },
-            {
-              label: "削除",
-              icon: Trash2,
-              variant: "destructive",
-              onClick: () => onDeleteClick(record),
-            },
-          ]}
-        />
+        {(canEdit || canDelete) ? (
+          <RowActionDropdown
+            actions={[
+              ...(canEdit ? [{
+                label: "編集",
+                icon: Edit,
+                onClick: () => onEdit(record.id),
+              }] : []),
+              ...(canDelete ? [{
+                label: "削除",
+                icon: Trash2,
+                variant: "destructive" as const,
+                onClick: () => onDeleteClick(record),
+              }] : []),
+            ]}
+          />
+        ) : null}
       </TableCell>
     </DataTableRow>
   );
@@ -142,6 +149,7 @@ const TRIMMING_SORT_PROPERTIES: SortProperty[] = [
 
 export function TrimmingList() {
   const navigate = useNavigate();
+  const { canCreate, canEdit, canDelete } = usePermission("trimming");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
 
@@ -302,10 +310,12 @@ export function TrimmingList() {
       title="トリミング管理"
       icon={<Scissors className="size-5 text-[#37352F]" />}
       headerAction={
-        <PrimaryButton onClick={handleNew}>
-          <Plus className="mr-1.5 size-4" />
-          新規登録
-        </PrimaryButton>
+        canCreate ? (
+          <PrimaryButton onClick={handleNew}>
+            <Plus className="mr-1.5 size-4" />
+            新規登録
+          </PrimaryButton>
+        ) : null
       }
       maxWidth="max-w-full"
     >
@@ -336,6 +346,8 @@ export function TrimmingList() {
                 isValidStaff={isValidStaff}
                 onEdit={handleEdit}
                 onDeleteClick={handleDeleteClick}
+                canEdit={canEdit}
+                canDelete={canDelete}
               />
             )}
           />

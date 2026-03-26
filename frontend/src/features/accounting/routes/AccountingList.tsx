@@ -30,6 +30,7 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/D
 // Relative
 import { useGetAccountings } from "../api/get-accountings";
 import type { AccountingFilters } from "../api/get-accountings";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Types
 import type { Accounting as AccountingType, AccountingStatus, PaymentMethod } from "../types";
@@ -113,6 +114,7 @@ function calculateTotal(accounting: AccountingType) {
 
 export function AccountingList() {
   const navigate = useNavigate();
+  const { canCreate, canEdit } = usePermission("accounting");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
@@ -307,12 +309,12 @@ export function AccountingList() {
             ) : null}
           </TableCell>
           <TableCell className="text-right py-2">
-            <RowActionButton onClick={() => handleEdit(r.id)} />
+            {canEdit ? <RowActionButton onClick={() => handleEdit(r.id)} /> : null}
           </TableCell>
         </DataTableRow>
       );
     },
-    [handleEdit, navigate],
+    [handleEdit, navigate, canEdit],
   );
 
   // 全フック呼び出し後に早期リターン（Rules of Hooks 準拠）
@@ -324,10 +326,12 @@ export function AccountingList() {
       title="会計管理"
       icon={<CreditCard className="size-4 text-[#37352F]" />}
       headerAction={
-        <PrimaryButton onClick={handleCreate}>
-          <Plus className="mr-1.5 size-4" />
-          新規会計登録
-        </PrimaryButton>
+        canCreate ? (
+          <PrimaryButton onClick={handleCreate}>
+            <Plus className="mr-1.5 size-4" />
+            新規会計登録
+          </PrimaryButton>
+        ) : null
       }
       maxWidth="max-w-full"
     >

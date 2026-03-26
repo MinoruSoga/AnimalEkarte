@@ -19,6 +19,7 @@ import { HospitalizationListView } from "../components/HospitalizationListView";
 import { useHospitalizationList } from "../hooks/use-hospitalization-list";
 import { useGetHospitalizations } from "../api/get-hospitalizations";
 import { HOSPITALIZATION_FILTER_STATUS, HOSPITALIZATION_STATUS } from "../constants";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Types
 import type { HospitalizationFilterStatus } from "../constants";
@@ -80,6 +81,7 @@ export function HospitalizationList() {
     movePet,
     handleNavigateToForm
   } = useHospitalizationList();
+  const { canCreate } = usePermission("hospitalization");
 
   const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
@@ -194,10 +196,12 @@ export function HospitalizationList() {
     <PageLayout
       title="入院・ホテル管理"
       headerAction={
-        <PrimaryButton onClick={() => handleNavigateToForm()}>
-          <Plus className="mr-1.5 size-4" />
-          新規入院登録
-        </PrimaryButton>
+        canCreate ? (
+          <PrimaryButton onClick={() => handleNavigateToForm()}>
+            <Plus className="mr-1.5 size-4" />
+            新規入院登録
+          </PrimaryButton>
+        ) : null
       }
       maxWidth="max-w-full"
     >

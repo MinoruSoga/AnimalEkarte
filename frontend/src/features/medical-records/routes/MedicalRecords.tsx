@@ -31,6 +31,7 @@ import { useStaffValidation } from "@/hooks/use-staff-validation";
 // Relative
 import { useFilterMedicalRecords } from "../hooks/use-medical-records";
 import { useDeleteMedicalRecord } from "../api/delete-medical-record";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Types
 import type {
@@ -75,6 +76,7 @@ const MEDICAL_RECORD_SORT_PROPERTIES: SortProperty[] = [
 
 export function MedicalRecords() {
   const navigate = useNavigate();
+  const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
@@ -172,10 +174,12 @@ export function MedicalRecords() {
       title="カルテ管理"
       icon={<FileText className={`size-5 ${C.text}`} />}
       headerAction={
-        <PrimaryButton onClick={() => handleNavigateToForm()}>
-          <Plus className="size-4" />
-          新規カルテ作成
-        </PrimaryButton>
+        canCreate ? (
+          <PrimaryButton onClick={() => handleNavigateToForm()}>
+            <Plus className="size-4" />
+            新規カルテ作成
+          </PrimaryButton>
+        ) : null
       }
       maxWidth="max-w-full"
     >
@@ -244,25 +248,27 @@ export function MedicalRecords() {
                   </StatusBadge>
                 </TableCell>
                 <TableCell className="text-right py-2.5">
-                  <RowActionDropdown
-                    actions={[
-                      {
-                        label: "編集",
-                        icon: Edit,
-                        onClick: () => handleNavigateToForm(r.id),
-                      },
-                      {
-                        label: "削除",
-                        icon: Trash2,
-                        onClick: () =>
-                          deleteModal.open({
-                            id: r.id,
-                            label: `${r.recordNo} ${r.petName}`,
-                          }),
-                        variant: "destructive",
-                      },
-                    ]}
-                  />
+                  {(canEdit || canDelete) ? (
+                    <RowActionDropdown
+                      actions={[
+                        ...(canEdit ? [{
+                          label: "編集",
+                          icon: Edit,
+                          onClick: () => handleNavigateToForm(r.id),
+                        }] : []),
+                        ...(canDelete ? [{
+                          label: "削除",
+                          icon: Trash2,
+                          onClick: () =>
+                            deleteModal.open({
+                              id: r.id,
+                              label: `${r.recordNo} ${r.petName}`,
+                            }),
+                          variant: "destructive" as const,
+                        }] : []),
+                      ]}
+                    />
+                  ) : null}
                 </TableCell>
               </DataTableRow>
             )}
