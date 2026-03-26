@@ -93,7 +93,7 @@ func (r *petRepository) Create(ctx context.Context, pet *model.Pet) error {
 	}
 	loaded, err := r.FindByID(ctx, pet.ClinicID, pet.ID)
 	if err != nil {
-		return err
+		return apperrors.Wrap(err, "reload pet after create")
 	}
 	*pet = *loaded
 	return nil

@@ -99,6 +99,12 @@ func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64
 		}
 		return nil, apperrors.Wrap(err, "find billing by id")
 	}
+	// Preload した Refunds から TotalRefundedAmount を計算（FindAll と同じ算出ロジック）
+	var total int64
+	for i := range billing.Refunds {
+		total += billing.Refunds[i].Amount
+	}
+	billing.TotalRefundedAmount = total
 	return &billing, nil
 }
 

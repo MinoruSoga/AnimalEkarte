@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -58,7 +57,7 @@ func (m *mockMedicineRepository) Reorder(ctx context.Context, clinicID uint64, i
 }
 
 func newTestMedicineService(repo *mockMedicineRepository) MedicineService {
-	return NewMedicineService(repo, slog.Default())
+	return NewMedicineService(repo)
 }
 
 func TestMedicineService_List(t *testing.T) {

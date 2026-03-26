@@ -88,13 +88,12 @@ type MerchandiseItemService interface {
 }
 
 type merchandiseItemService struct {
-	repo   repository.MerchandiseItemRepository
-	logger *slog.Logger
+	repo repository.MerchandiseItemRepository
 }
 
 // NewMerchandiseItemService は物販品サービスを初期化する
-func NewMerchandiseItemService(repo repository.MerchandiseItemRepository, logger *slog.Logger) MerchandiseItemService {
-	return &merchandiseItemService{repo: repo, logger: logger}
+func NewMerchandiseItemService(repo repository.MerchandiseItemRepository) MerchandiseItemService {
+	return &merchandiseItemService{repo: repo}
 }
 
 func (s *merchandiseItemService) List(ctx context.Context, clinicID uint64, page, limit int, category string) ([]model.MerchandiseItem, int64, error) {
@@ -133,7 +132,7 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 		return nil, fmt.Errorf("failed to create merchandise item: %w", err)
 	}
 
-	s.logger.InfoContext(ctx, "merchandise item created",
+	slog.InfoContext(ctx, "merchandise item created",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("item_id", item.ID),
 		slog.String("name", item.Name),
@@ -148,10 +147,10 @@ func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64
 	}
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update merchandise item: %w", err)
 	}
 
-	s.logger.InfoContext(ctx, "merchandise item updated",
+	slog.InfoContext(ctx, "merchandise item updated",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("merchandise_item_id", id),
 	)
@@ -173,7 +172,7 @@ func (s *merchandiseItemService) Delete(ctx context.Context, clinicID, id uint64
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return fmt.Errorf("failed to delete merchandise item: %w", err)
 	}
-	s.logger.InfoContext(ctx, "merchandise item deleted",
+	slog.InfoContext(ctx, "merchandise item deleted",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("merchandise_item_id", id),
 	)

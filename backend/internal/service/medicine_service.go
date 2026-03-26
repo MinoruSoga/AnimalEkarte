@@ -128,12 +128,11 @@ type MedicineService interface {
 }
 
 type medicineService struct {
-	repo   repository.MedicineRepository
-	logger *slog.Logger
+	repo repository.MedicineRepository
 }
 
-func NewMedicineService(repo repository.MedicineRepository, logger *slog.Logger) MedicineService {
-	return &medicineService{repo: repo, logger: logger}
+func NewMedicineService(repo repository.MedicineRepository) MedicineService {
+	return &medicineService{repo: repo}
 }
 
 func (s *medicineService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
@@ -183,7 +182,7 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 		return nil, fmt.Errorf("failed to create medicine: %w", err)
 	}
 
-	s.logger.InfoContext(ctx, "medicine created",
+	slog.InfoContext(ctx, "medicine created",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("medicine_id", medicine.ID),
 		slog.String("name", medicine.Name),
@@ -201,7 +200,7 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 		return nil, fmt.Errorf("failed to update medicine: %w", err)
 	}
 
-	s.logger.InfoContext(ctx, "medicine updated",
+	slog.InfoContext(ctx, "medicine updated",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("medicine_id", id),
 	)
@@ -237,7 +236,7 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return fmt.Errorf("failed to delete medicine: %w", err)
 	}
-	s.logger.InfoContext(ctx, "medicine deleted",
+	slog.InfoContext(ctx, "medicine deleted",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("medicine_id", id),
 	)

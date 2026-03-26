@@ -77,13 +77,12 @@ type BillingItemService interface {
 }
 
 type billingItemService struct {
-	repo   repository.BillingItemRepository
-	logger *slog.Logger
+	repo repository.BillingItemRepository
 }
 
 // NewBillingItemService は BillingItemService を初期化して返す
-func NewBillingItemService(repo repository.BillingItemRepository, logger *slog.Logger) BillingItemService {
-	return &billingItemService{repo: repo, logger: logger}
+func NewBillingItemService(repo repository.BillingItemRepository) BillingItemService {
+	return &billingItemService{repo: repo}
 }
 
 func (s *billingItemService) GetByID(ctx context.Context, id uint64) (*model.BillingItem, error) {
@@ -116,13 +115,13 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	}
 
 	if err := s.recalculateTotals(ctx, input.BillingID); err != nil {
-		s.logger.WarnContext(ctx, "failed to recalculate billing totals after create",
+		slog.WarnContext(ctx, "failed to recalculate billing totals after create",
 			slog.Uint64("billing_id", input.BillingID),
 			slog.String("error", err.Error()),
 		)
 	}
 
-	s.logger.InfoContext(ctx, "billing item created",
+	slog.InfoContext(ctx, "billing item created",
 		slog.Uint64("billing_id", input.BillingID),
 		slog.Uint64("item_id", item.ID),
 	)
@@ -145,13 +144,13 @@ func (s *billingItemService) UpdateItem(ctx context.Context, id uint64, input *U
 	}
 
 	if err := s.recalculateTotals(ctx, item.BillingID); err != nil {
-		s.logger.WarnContext(ctx, "failed to recalculate billing totals after update",
+		slog.WarnContext(ctx, "failed to recalculate billing totals after update",
 			slog.Uint64("billing_id", item.BillingID),
 			slog.String("error", err.Error()),
 		)
 	}
 
-	s.logger.InfoContext(ctx, "billing item updated",
+	slog.InfoContext(ctx, "billing item updated",
 		slog.Uint64("item_id", id),
 		slog.Uint64("billing_id", item.BillingID),
 	)
@@ -170,13 +169,13 @@ func (s *billingItemService) DeleteItem(ctx context.Context, id uint64) error {
 	}
 
 	if err := s.recalculateTotals(ctx, billingID); err != nil {
-		s.logger.WarnContext(ctx, "failed to recalculate billing totals after delete",
+		slog.WarnContext(ctx, "failed to recalculate billing totals after delete",
 			slog.Uint64("billing_id", billingID),
 			slog.String("error", err.Error()),
 		)
 	}
 
-	s.logger.InfoContext(ctx, "billing item deleted",
+	slog.InfoContext(ctx, "billing item deleted",
 		slog.Uint64("item_id", id),
 		slog.Uint64("billing_id", billingID),
 	)

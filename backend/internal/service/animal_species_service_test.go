@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -106,7 +105,7 @@ func TestAnimalSpeciesService_List(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewAnimalSpeciesService(repo, slog.Default())
+			svc := NewAnimalSpeciesService(repo)
 
 			species, err := svc.List(context.Background())
 
@@ -127,7 +126,7 @@ func TestAnimalSpeciesService_Create(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewAnimalSpeciesService(repo, slog.Default())
+	svc := NewAnimalSpeciesService(repo)
 
 	species, err := svc.Create(context.Background(), &CreateAnimalSpeciesInput{
 		Name:      "フェレット",
@@ -142,7 +141,7 @@ func TestAnimalSpeciesService_Create(t *testing.T) {
 
 func TestAnimalSpeciesService_Update_EmptyFields(t *testing.T) {
 	repo := &mockAnimalSpeciesRepository{}
-	svc := NewAnimalSpeciesService(repo, slog.Default())
+	svc := NewAnimalSpeciesService(repo)
 
 	_, err := svc.Update(context.Background(), 1, &UpdateAnimalSpeciesInput{})
 	assert.Error(t, err)
@@ -150,7 +149,7 @@ func TestAnimalSpeciesService_Update_EmptyFields(t *testing.T) {
 
 func TestAnimalSpeciesService_Reorder_EmptyIDs(t *testing.T) {
 	repo := &mockAnimalSpeciesRepository{}
-	svc := NewAnimalSpeciesService(repo, slog.Default())
+	svc := NewAnimalSpeciesService(repo)
 
 	err := svc.Reorder(context.Background(), []uint64{})
 	assert.Error(t, err)

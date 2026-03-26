@@ -109,7 +109,7 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update estimate: %w", err)
 	}
 	slog.InfoContext(ctx, "estimate updated",
 		slog.Uint64("estimate_id", id),

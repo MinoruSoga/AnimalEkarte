@@ -45,13 +45,12 @@ type AnimalSpeciesService interface {
 }
 
 type animalSpeciesService struct {
-	repo   repository.AnimalSpeciesRepository
-	logger *slog.Logger
+	repo repository.AnimalSpeciesRepository
 }
 
 // NewAnimalSpeciesService はAnimalSpeciesServiceを初期化して返す
-func NewAnimalSpeciesService(repo repository.AnimalSpeciesRepository, logger *slog.Logger) AnimalSpeciesService {
-	return &animalSpeciesService{repo: repo, logger: logger}
+func NewAnimalSpeciesService(repo repository.AnimalSpeciesRepository) AnimalSpeciesService {
+	return &animalSpeciesService{repo: repo}
 }
 
 func (s *animalSpeciesService) List(ctx context.Context) ([]model.AnimalSpecies, error) {
@@ -71,7 +70,7 @@ func (s *animalSpeciesService) Create(ctx context.Context, input *CreateAnimalSp
 	if err := s.repo.Create(ctx, species); err != nil {
 		return nil, fmt.Errorf("failed to create animal species: %w", err)
 	}
-	s.logger.InfoContext(ctx, "animal species created",
+	slog.InfoContext(ctx, "animal species created",
 		slog.Uint64("species_id", species.ID),
 		slog.String("name", species.Name))
 	return species, nil
@@ -85,7 +84,7 @@ func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *Upd
 	if err := s.repo.Update(ctx, id, fields); err != nil {
 		return nil, fmt.Errorf("failed to update animal species: %w", err)
 	}
-	s.logger.InfoContext(ctx, "animal species updated",
+	slog.InfoContext(ctx, "animal species updated",
 		slog.Uint64("species_id", id))
 	return s.repo.FindByID(ctx, id)
 }

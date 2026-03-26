@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -70,7 +69,7 @@ func defaultInsuranceRepo(clinicID uint64) *mockInsuranceRepository {
 func ptrUint64(v uint64) *uint64 { return &v }
 
 func newPetSvc(repo *mockPetRepository, ownerRepo *mockOwnerRepository, insuranceRepo *mockInsuranceRepository) PetService {
-	return NewPetService(repo, ownerRepo, insuranceRepo, slog.Default())
+	return NewPetService(repo, ownerRepo, insuranceRepo)
 }
 
 func TestPetService_List(t *testing.T) {

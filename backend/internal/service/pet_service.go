@@ -95,20 +95,17 @@ type petService struct {
 	repo          repository.PetRepository
 	ownerRepo     repository.OwnerRepository
 	insuranceRepo repository.InsuranceRepository
-	logger        *slog.Logger
 }
 
 func NewPetService(
 	repo repository.PetRepository,
 	ownerRepo repository.OwnerRepository,
 	insuranceRepo repository.InsuranceRepository,
-	logger *slog.Logger,
 ) PetService {
 	return &petService{
 		repo:          repo,
 		ownerRepo:     ownerRepo,
 		insuranceRepo: insuranceRepo,
-		logger:        logger,
 	}
 }
 

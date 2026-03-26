@@ -1,8 +1,6 @@
 package service
 
 import (
-	"log/slog"
-
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
@@ -60,9 +58,9 @@ type Services struct {
 // NewServices はリポジトリからすべてのサービスを初期化して返す
 func NewServices(repos *repository.Repositories) *Services {
 	return &Services{
-		AnimalSpecies:          NewAnimalSpeciesService(repos.AnimalSpecies, slog.Default()),
+		AnimalSpecies:          NewAnimalSpeciesService(repos.AnimalSpecies),
 		Owner:                  NewOwnerService(repos.Owner),
-		Pet:                    NewPetService(repos.Pet, repos.Owner, repos.Insurance, slog.Default()),
+		Pet:                    NewPetService(repos.Pet, repos.Owner, repos.Insurance),
 		Reservation:            NewReservationService(repos.Reservation),
 		MedicalRecord:          NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet),
 		Hospitalization:        NewHospitalizationService(repos.Hospitalization),
@@ -71,7 +69,7 @@ func NewServices(repos *repository.Repositories) *Services {
 		Inventory:              NewInventoryService(repos.Inventory),
 		Staff:                  NewStaffService(repos.Staff),
 		Cage:                   NewCageService(repos.Cage),
-		Medicine:               NewMedicineService(repos.Medicine, slog.Default()),
+		Medicine:               NewMedicineService(repos.Medicine),
 		Vaccine:                NewVaccineService(repos.Vaccine),
 		Insurance:              NewInsuranceService(repos.Insurance),
 		ServiceType:            NewServiceTypeService(repos.ServiceType),
@@ -81,8 +79,8 @@ func NewServices(repos *repository.Repositories) *Services {
 		TrimmingCourse:         NewTrimmingCourseService(repos.TrimmingCourse),
 		TrimmingOption:         NewTrimmingOptionService(repos.TrimmingOption),
 		ExaminationType:        NewExamTypeService(repos.ExaminationType),
-		DiagnosisCategory:      NewDiagnosisCategoryService(repos.DiagnosisCategory, slog.Default()),
-		DiagnosisName:          NewDiagnosisNameService(repos.DiagnosisName, repos.DiagnosisCategory, slog.Default()),
+		DiagnosisCategory:      NewDiagnosisCategoryService(repos.DiagnosisCategory),
+		DiagnosisName:          NewDiagnosisNameService(repos.DiagnosisName, repos.DiagnosisCategory),
 		CheckupType:            NewCheckupTypeService(repos.CheckupType),
 		Clinic:                 NewClinicService(repos.Clinic),
 		UserAccount:            NewUserAccountService(repos.UserAccount),
@@ -104,8 +102,8 @@ func NewServices(repos *repository.Repositories) *Services {
 		ClinicalPlan:           NewClinicalPlanService(repos.ClinicalPlan),
 		Checkup:                NewCheckupService(repos.Checkup),
 		Estimate:               NewEstimateService(repos.Estimate),
-		MerchandiseItem:        NewMerchandiseItemService(repos.MerchandiseItem, slog.Default()),
-		BillingItem:            NewBillingItemService(repos.BillingItem, slog.Default()),
+		MerchandiseItem:        NewMerchandiseItemService(repos.MerchandiseItem),
+		BillingItem:            NewBillingItemService(repos.BillingItem),
 		Refund:                 NewRefundService(repos.Refund, repos.Accounting),
 	}
 }
