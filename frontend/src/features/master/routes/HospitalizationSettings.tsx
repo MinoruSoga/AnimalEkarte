@@ -10,7 +10,7 @@ import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPil
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
-import { PropInput } from "@/components/shared/SidePeek/PropInput";
+import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
@@ -74,7 +74,7 @@ const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
         />
       </PropertyRow>
       <PropertyRow label="備考">
-        <PropInput value={f.description} onChange={(v) => setF((p) => ({ ...p, description: v }))} placeholder="補足情報など" />
+        <PropertyInput value={f.description} onChange={(v) => setF((p) => ({ ...p, description: v }))} placeholder="補足情報など" />
       </PropertyRow>
     </MasterSidePanel>
   );

@@ -35,7 +35,7 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
-import { PropInput } from "@/components/shared/SidePeek/PropInput";
+import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
@@ -215,7 +215,7 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
         />
       </PropertyRow>
       <PropertyRow label="備考">
-        <PropInput
+        <PropertyInput
           value={formData.description}
           onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
           placeholder="補足情報など"

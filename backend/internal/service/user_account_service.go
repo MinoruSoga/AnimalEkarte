@@ -79,7 +79,7 @@ func NewUserAccountService(repo repository.UserAccountRepository) UserAccountSer
 func (s *userAccountService) FindByEmail(ctx context.Context, email string) (*UserAccountResult, error) {
 	account, err := s.repo.FindByEmail(ctx, email)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to find user account by email: %w", err)
 	}
 	return &UserAccountResult{
 		ID:           account.ID,

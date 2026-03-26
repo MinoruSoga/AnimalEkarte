@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -35,7 +36,7 @@ func (s *reservationService) GetByID(ctx context.Context, clinicID, id uint64) (
 
 func (s *reservationService) Create(ctx context.Context, reservation *model.ReservationAppointment) error {
 	if err := s.repo.Create(ctx, reservation); err != nil {
-		return err
+		return fmt.Errorf("failed to create reservation: %w", err)
 	}
 	slog.InfoContext(ctx, "reservation created",
 		slog.Uint64("reservation_id", reservation.ID),
@@ -45,7 +46,7 @@ func (s *reservationService) Create(ctx context.Context, reservation *model.Rese
 
 func (s *reservationService) Update(ctx context.Context, reservation *model.ReservationAppointment) error {
 	if err := s.repo.Update(ctx, reservation); err != nil {
-		return err
+		return fmt.Errorf("failed to update reservation: %w", err)
 	}
 	slog.InfoContext(ctx, "reservation updated",
 		slog.Uint64("reservation_id", reservation.ID),
@@ -53,6 +54,7 @@ func (s *reservationService) Update(ctx context.Context, reservation *model.Rese
 	return nil
 }
 
-func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) error {
+func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) err
+r {
 	return s.repo.Delete(ctx, clinicID, id)
 }

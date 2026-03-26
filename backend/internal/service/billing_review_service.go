@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -43,7 +44,7 @@ func (s *billingReviewService) GetOrCreate(ctx context.Context, medicalRecordID 
 	review, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
 	if err != nil {
 		if !apperrors.IsNotFound(err) {
-			return nil, err
+			return nil, fmt.Errorf("failed to get billing review: %w", err)
 		}
 		// 存在しない場合はpendingで新規作成
 		review = &model.BillingReview{
@@ -51,7 +52,7 @@ func (s *billingReviewService) GetOrCreate(ctx context.Context, medicalRecordID 
 			Status:          model.BillingReviewStatusPending,
 		}
 		if err := s.repo.Create(ctx, review); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create billing review: %w", err)
 		}
 		slog.InfoContext(ctx, "billing_review created",
 			slog.Uint64("billing_review_id", review.ID),
@@ -77,7 +78,7 @@ func (s *billingReviewService) Confirm(ctx context.Context, medicalRecordID uint
 		"memo":         input.Memo,
 	}
 	if err := s.repo.Update(ctx, review.ID, fields); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update billing review: %w", err)
 	}
 	slog.InfoContext(ctx, "billing_review confirmed",
 		slog.Uint64("billing_review_id", review.ID),
@@ -101,7 +102,7 @@ func (s *billingReviewService) Return(ctx context.Context, medicalRecordID uint6
 		"memo":          input.Memo,
 	}
 	if err := s.repo.Update(ctx, review.ID, fields); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update billing review: %w", err)
 	}
 	slog.InfoContext(ctx, "billing_review returned",
 		slog.Uint64("billing_review_id", review.ID),

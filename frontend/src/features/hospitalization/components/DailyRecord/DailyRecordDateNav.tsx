@@ -9,13 +9,13 @@ import { Button } from "@/components/ui/button";
 // Relative
 import { H_STYLES } from "../../styles";
 
-interface DateNavigationProps {
+interface DailyRecordDateNavProps {
     date: Date;
     onPrev: () => void;
     onNext: () => void;
 }
 
-export function DateNavigation({ date, onPrev, onNext }: DateNavigationProps) {
+export function DailyRecordDateNav({ date, onPrev, onNext }: DailyRecordDateNavProps) {
     return (
         <div className={`flex items-center justify-between bg-white ${H_STYLES.padding.box} rounded-lg border border-[rgba(55,53,47,0.16)] shadow-sm`}>
             <Button variant="ghost" size="icon" onClick={onPrev} className="h-11 w-11">

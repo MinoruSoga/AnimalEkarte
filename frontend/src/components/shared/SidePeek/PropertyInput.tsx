@@ -5,7 +5,7 @@ import { C } from "@/lib/design-tokens";
 // Transparent inline text input for side peek panels
 // ─────────────────────────────────────────────────
 
-export function PropInput({
+export function PropertyInput({
   value,
   onChange,
   placeholder,

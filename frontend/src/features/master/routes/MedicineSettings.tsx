@@ -34,7 +34,7 @@ import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
-import { PropInput } from "@/components/shared/SidePeek/PropInput";
+import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import {
@@ -358,7 +358,7 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
 
             {/* Description */}
             <PropertyRow label="備考">
-              <PropInput
+              <PropertyInput
                 value={formData.description}
                 onChange={(v) => updateForm({ description: v })}
                 placeholder="空"

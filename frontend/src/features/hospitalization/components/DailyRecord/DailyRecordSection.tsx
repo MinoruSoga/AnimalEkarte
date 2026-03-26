@@ -2,12 +2,12 @@ import { lazy, memo, Suspense, useCallback, useState } from "react";
 import { format, addDays, subDays } from "date-fns";
 import { Activity, Sun, Moon, Coffee, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DateNavigation } from "./DateNavigation";
+import { DailyRecordDateNav } from "./DailyRecordDateNav";
 import { TimingSection } from "./TimingSection";
-import { Timeline } from "./Timeline";
-import { SimpleNoteForm } from "./SimpleNoteForm";
+import { DailyRecordTimeline } from "./DailyRecordTimeline";
+import { DailyCareNoteForm } from "./DailyCareNoteForm";
 const VitalDialog = lazy(() => import("./VitalDialog").then((m) => ({ default: m.VitalDialog })));
-const LogDialog = lazy(() => import("./LogDialog").then((m) => ({ default: m.LogDialog })));
+const DailyCareLogDialog = lazy(() => import("./DailyCareLogDialog").then((m) => ({ default: m.DailyCareLogDialog })));
 const TaskCompleteDialog = lazy(() => import("./TaskCompleteDialog").then((m) => ({ default: m.TaskCompleteDialog })));
 import { useDailyRecordLogic } from "../../hooks/use-daily-record-logic";
 import { H_STYLES } from "../../styles";
@@ -52,10 +52,10 @@ export const DailyRecordSection = memo(function DailyRecordSection({ records, pl
 
     return (
         <div className="flex flex-col gap-4">
-            <DateNavigation 
-                date={selectedDate} 
-                onPrev={() => setSelectedDate(subDays(selectedDate, 1))} 
-                onNext={() => setSelectedDate(addDays(selectedDate, 1))} 
+            <DailyRecordDateNav
+                date={selectedDate}
+                onPrev={() => setSelectedDate(subDays(selectedDate, 1))}
+                onNext={() => setSelectedDate(addDays(selectedDate, 1))}
             />
 
             <div className="pr-4">
@@ -108,9 +108,9 @@ export const DailyRecordSection = memo(function DailyRecordSection({ records, pl
                         </div>
                     </div>
 
-                    <SimpleNoteForm onSave={handleSaveLog} />
+                    <DailyCareNoteForm onSave={handleSaveLog} />
 
-                    <Timeline items={timelineItems} /> 
+                    <DailyRecordTimeline items={timelineItems} />
                 </div>
             </div>
 
@@ -120,7 +120,7 @@ export const DailyRecordSection = memo(function DailyRecordSection({ records, pl
                   onOpenChange={setIsVitalOpen}
                   onSave={handleSaveVital}
               />
-              <LogDialog
+              <DailyCareLogDialog
                   open={isLogOpen}
                   onOpenChange={setIsLogOpen}
                   type={logType}

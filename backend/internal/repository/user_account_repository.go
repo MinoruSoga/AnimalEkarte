@@ -81,7 +81,7 @@ func (r *userAccountRepository) Create(ctx context.Context, account *model.UserA
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("Create user account: %w", err)
+		return fmt.Errorf("create user account: %w", err)
 	}
 	return nil
 }
@@ -136,7 +136,7 @@ func (r *userAccountRepository) SetPermissions(ctx context.Context, userID, clin
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("SetPermissions user account: %w", err)
+		return fmt.Errorf("set permissions user account: %w", err)
 	}
 	return nil
 }

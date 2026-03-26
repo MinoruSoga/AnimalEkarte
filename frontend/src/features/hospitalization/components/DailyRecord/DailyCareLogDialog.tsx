@@ -18,14 +18,14 @@ import type { CreateCareLogDTO } from "../../types";
 
 type LogType = "food" | "excretion" | "medicine" | "other";
 
-interface LogDialogProps {
+interface DailyCareLogDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     type: LogType;
     onSave: (data: CreateCareLogDTO) => void;
 }
 
-export function LogDialog({ open, onOpenChange, type, onSave }: LogDialogProps) {
+export function DailyCareLogDialog({ open, onOpenChange, type, onSave }: DailyCareLogDialogProps) {
     const getCurrentTime = () => format(new Date(), "HH:mm");
 
     const [form, setForm] = useState({

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -37,11 +38,11 @@ func (s *clinicService) CreateClinic(ctx context.Context, clinic *model.Clinic) 
 	// company はシングルトンなので自動設定する
 	company, err := s.repo.GetCompany(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get company: %w", err)
 	}
 	clinic.CompanyID = company.ID
 	if err := s.repo.Create(ctx, clinic); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create clinic: %w", err)
 	}
 	return clinic, nil
 }
@@ -52,7 +53,7 @@ func (s *clinicService) UpdateClinic(ctx context.Context, id uint64, fields map[
 		return nil, err
 	}
 	if err := s.repo.Update(ctx, id, fields); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update clinic: %w", err)
 	}
 	// 更新後の完全なレコードを DB から取得して返す（created_at 等のサーバー管理フィールドを正しく反映）
 	return s.repo.FindByID(ctx, id)

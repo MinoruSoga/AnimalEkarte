@@ -82,7 +82,7 @@ func (s *medicalRecordService) Create(ctx context.Context, record *model.Medical
 		record.RecordNo = generateRecordNo(record.Date, record.ClinicID)
 	}
 	if err := s.repo.Create(ctx, record); err != nil {
-		return err
+		return fmt.Errorf("failed to create medical record: %w", err)
 	}
 	slog.InfoContext(ctx, "medical record created",
 		slog.Uint64("record_id", record.ID),
@@ -106,7 +106,7 @@ func (s *medicalRecordService) Update(ctx context.Context, record *model.Medical
 	}
 
 	if err := s.repo.Update(ctx, record); err != nil {
-		return err
+		return fmt.Errorf("failed to update medical record: %w", err)
 	}
 	slog.InfoContext(ctx, "medical record updated",
 		slog.Uint64("record_id", record.ID),
@@ -114,6 +114,7 @@ func (s *medicalRecordService) Update(ctx context.Context, record *model.Medical
 	return nil
 }
 
-func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) error {
+func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64)
+error {
 	return s.repo.Delete(ctx, clinicID, id)
 }

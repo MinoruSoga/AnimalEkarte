@@ -151,7 +151,7 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 	// ペット番号を自動採番: 「飼主ID-連番」形式
 	count, err := s.repo.CountByOwner(ctx, clinicID, input.OwnerID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to count pets by owner: %w", err)
 	}
 	petNumber := fmt.Sprintf("%d-%d", input.OwnerID, count+1)
 
@@ -189,7 +189,7 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 	}
 
 	if err := s.repo.Create(ctx, pet); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create pet: %w", err)
 	}
 
 	slog.InfoContext(ctx, "pet created",
@@ -244,7 +244,7 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 	}
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update pet: %w", err)
 	}
 
 	slog.InfoContext(ctx, "pet updated",

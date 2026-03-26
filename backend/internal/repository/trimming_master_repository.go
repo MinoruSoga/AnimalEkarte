@@ -239,7 +239,7 @@ func (r *trimmingOptionRepository) Reorder(ctx context.Context, clinicID uint64,
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("Reorder trimming options: %w", err)
+		return fmt.Errorf("reorder trimming options: %w", err)
 	}
 	return nil
 }

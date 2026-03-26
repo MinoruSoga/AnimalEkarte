@@ -27,7 +27,7 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
-import { PropInput } from "@/components/shared/SidePeek/PropInput";
+import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
@@ -186,7 +186,7 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
       </PropertyRow>
 
       <PropertyRow label="所要時間(分)">
-        <PropInput
+        <PropertyInput
           type="number"
           value={formData.duration}
           onChange={(v) => setFormData((prev) => ({ ...prev, duration: v }))}
@@ -211,7 +211,7 @@ const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
       </PropertyRow>
 
       <PropertyRow label="備考">
-        <PropInput
+        <PropertyInput
           value={formData.description}
           onChange={(v) =>
             setFormData((prev) => ({ ...prev, description: v }))
@@ -358,7 +358,7 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
       </PropertyRow>
 
       <PropertyRow label="所要時間(分)">
-        <PropInput
+        <PropertyInput
           type="number"
           value={formData.duration}
           onChange={(v) => setFormData((prev) => ({ ...prev, duration: v }))}
@@ -395,7 +395,7 @@ const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
       </PropertyRow>
 
       <PropertyRow label="備考">
-        <PropInput
+        <PropertyInput
           value={formData.description}
           onChange={(v) =>
             setFormData((prev) => ({ ...prev, description: v }))

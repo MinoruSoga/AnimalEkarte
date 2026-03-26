@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -163,10 +162,7 @@ func (h *Handler) Login(c *gin.Context) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "メールアドレスまたはパスワードが正しくありません"})
 			return
 		}
-		slog.ErrorContext(ctx, "failed to find user account",
-			slog.String("email", input.Email),
-			slog.String("error", err.Error()))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		RespondError(c, err)
 		return
 	}
 
@@ -185,11 +181,7 @@ func (h *Handler) Login(c *gin.Context) {
 	// 所属クリニックを取得してメインクリニックIDを決定
 	memberships, mErr := h.svc.UserAccount.GetMemberships(ctx, account.ID)
 	mainClinicID := ""
-	if mErr != nil {
-		slog.WarnContext(ctx, "failed to get memberships, token will have empty clinic_id",
-			slog.Uint64("user_id", account.ID),
-			slog.String("error", mErr.Error()))
-	} else {
+	if mErr == nil {
 		for _, m := range memberships {
 			if m.IsMain {
 				mainClinicID = strconv.FormatUint(m.ClinicID, 10)
@@ -216,22 +208,19 @@ func (h *Handler) Login(c *gin.Context) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenStr, err := token.SignedString([]byte(h.cfg.JWTSecret))
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to sign JWT", slog.String("error", err.Error()))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		RespondError(c, apperrors.Wrap(err, "failed to sign jwt"))
 		return
 	}
 
 	// ユーザー詳細情報を取得（ログインレスポンスに含めて /me 呼び出しを不要にする）
 	userData, err := h.svc.UserAccount.GetWithMemberships(ctx, strconv.FormatUint(account.ID, 10))
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get user data for login response", slog.String("error", err.Error()))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		RespondError(c, err)
 		return
 	}
 	allClinics, err := h.svc.Clinic.ListClinics(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list clinics for login response", slog.String("error", err.Error()))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		RespondError(c, err)
 		return
 	}
 	clinicNameMap := make(map[string]string, len(allClinics))
@@ -278,16 +267,14 @@ func (h *Handler) GetMe(c *gin.Context) {
 
 	data, err := h.svc.UserAccount.GetWithMemberships(ctx, userIDStr)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get user account", slog.String("error", err.Error()))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		RespondError(c, err)
 		return
 	}
 
 	// クリニック情報（全クリニック名を解決するため Clinic サービス経由）
 	allClinics, err := h.svc.Clinic.ListClinics(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list clinics for /me", slog.String("error", err.Error()))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		RespondError(c, err)
 		return
 	}
 	clinicNameMap := make(map[string]string, len(allClinics))

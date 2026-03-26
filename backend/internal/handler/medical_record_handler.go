@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -184,11 +183,8 @@ func (h *Handler) createClinicalPlanIfNeeded(ctx context.Context, recordID uint6
 	if input.Diagnosis2NameID != nil {
 		clinicalPlanInput.Diagnosis2NameID = input.Diagnosis2NameID
 	}
-	if _, err := h.svc.ClinicalPlan.Update(ctx, recordID, clinicalPlanInput); err != nil {
-		slog.ErrorContext(ctx, "failed to update clinical plan",
-			slog.String("error", err.Error()),
-			slog.Uint64("medical_record_id", recordID))
-	}
+	// best-effort: failure is intentionally ignored; service layer logs the error
+	_, _ = h.svc.ClinicalPlan.Update(ctx, recordID, clinicalPlanInput)
 }
 
 // CreateMedicalRecord godoc

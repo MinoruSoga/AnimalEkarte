@@ -1,3 +1,3 @@
 export { ExaminationForm } from './ExaminationForm';
-export { Examinations } from './Examinations';
+export { ExaminationsList } from './ExaminationsList';
 export { ExaminationPetSelection } from './ExaminationPetSelection';

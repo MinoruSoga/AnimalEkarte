@@ -100,7 +100,7 @@ func (r *vaccineRepository) Reorder(ctx context.Context, clinicID uint64, ids []
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("Reorder vaccines: %w", err)
+		return fmt.Errorf("reorder vaccines: %w", err)
 	}
 	return nil
 }

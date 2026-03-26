@@ -11,7 +11,7 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
-import { PropInput } from "@/components/shared/SidePeek/PropInput";
+import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
@@ -48,11 +48,11 @@ const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
         <div className="flex items-center gap-2">
           <input type="color" value={f.color} onChange={(e) => setF((p) => ({ ...p, color: e.target.value }))}
             className="w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0" />
-          <PropInput value={f.color} onChange={(v) => setF((p) => ({ ...p, color: v }))} placeholder="#3B82F6" />
+          <PropertyInput value={f.color} onChange={(v) => setF((p) => ({ ...p, color: v }))} placeholder="#3B82F6" />
         </div>
       </PropertyRow>
       <PropertyRow label="備考">
-        <PropInput value={f.description} onChange={(v) => setF((p) => ({ ...p, description: v }))} placeholder="補足情報など" />
+        <PropertyInput value={f.description} onChange={(v) => setF((p) => ({ ...p, description: v }))} placeholder="補足情報など" />
       </PropertyRow>
     </MasterSidePanel>
   );

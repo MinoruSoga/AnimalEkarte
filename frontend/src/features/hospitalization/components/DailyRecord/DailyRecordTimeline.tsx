@@ -7,11 +7,11 @@ import { H_STYLES } from "../../styles";
 // Types
 import type { TimelineItem } from "../../types";
 
-interface TimelineProps {
+interface DailyRecordTimelineProps {
     items: TimelineItem[];
 }
 
-export function Timeline({ items }: TimelineProps) {
+export function DailyRecordTimeline({ items }: DailyRecordTimelineProps) {
     if (items.length === 0) {
         return (
             <div className={`${H_STYLES.text.base} text-[#37352F]/40 text-center py-4`}>

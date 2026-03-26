@@ -212,7 +212,7 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 	}
 
 	if err := s.repo.CreateWithPets(ctx, owner, pets); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create owner with pets: %w", err)
 	}
 
 	slog.InfoContext(ctx, "owner created with pets",
@@ -243,7 +243,7 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 	}
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update owner: %w", err)
 	}
 
 	slog.InfoContext(ctx, "owner updated",
@@ -311,6 +311,7 @@ func buildOwnerUpdateFields(input *UpdateOwnerInput) map[string]any {
 	return fields
 }
 
-func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
+func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64)
+error {
 	return s.repo.Delete(ctx, clinicID, id)
 }

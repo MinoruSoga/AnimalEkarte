@@ -233,10 +233,10 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { Examinations } = await import(
-                "@/features/examinations/routes/Examinations"
+              const { ExaminationsList } = await import(
+                "@/features/examinations/routes/ExaminationsList"
               );
-              return { Component: Examinations };
+              return { Component: ExaminationsList };
             },
           },
           {
@@ -277,8 +277,8 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { Accounting } = await import("@/features/accounting/routes/Accounting");
-              return { Component: Accounting };
+              const { AccountingList } = await import("@/features/accounting/routes/AccountingList");
+              return { Component: AccountingList };
             },
           },
           {

@@ -70,7 +70,7 @@ const EXAMINATION_SORT_PROPERTIES: SortProperty[] = [
   { key: "status", label: "ステータス" },
 ];
 
-export function Examinations() {
+export function ExaminationsList() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);

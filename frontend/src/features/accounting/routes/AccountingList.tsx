@@ -111,7 +111,7 @@ function calculateTotal(accounting: AccountingType) {
   }, 0);
 }
 
-export function Accounting() {
+export function AccountingList() {
   const navigate = useNavigate();
 
   const [searchTerm, setSearchTerm] = useState("");
