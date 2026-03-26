@@ -123,10 +123,12 @@ components:
         name:
           type: string
         unit_price:
-          type: number
-          format: double
-        quantity:
           type: integer
+          format: int64
+        quantity:
+          type: number
+          format: float
+          description: 数量（小数点1桁まで許容）
         tax_rate:
           type: number
           format: double
@@ -156,34 +158,34 @@ components:
           type: integer
           format: int64
         subtotal:
-          type: number
-          format: double
+          type: integer
+          format: int64
         tax_total:
-          type: number
-          format: double
+          type: integer
+          format: int64
         total_amount:
-          type: number
-          format: double
+          type: integer
+          format: int64
         insurance_name:
           type: string
         insurance_ratio:
           type: number
           format: double
         insurance_amount:
-          type: number
-          format: double
+          type: integer
+          format: int64
         discount_amount:
-          type: number
-          format: double
+          type: integer
+          format: int64
         billing_amount:
-          type: number
-          format: double
+          type: integer
+          format: int64
         received_amount:
-          type: number
-          format: double
+          type: integer
+          format: int64
         change_amount:
-          type: number
-          format: double
+          type: integer
+          format: int64
         method:
           type: string
           enum: [cash, credit_card, electronic_money]
@@ -1420,9 +1422,19 @@ components:
           nullable: true
           description: 親診察項目ID（自己参照）。NULL = カテゴリなし or カテゴリ自身
         price:
+          type: integer
+          format: int64
+          nullable: true
+        tax_type:
+          type: string
+          enum: [included, excluded, exempt]
+          default: excluded
+          description: 税種別（included=内税, excluded=外税, exempt=非課税）
+        tax_rate:
           type: number
           format: double
-          nullable: true
+          default: 0.10
+          description: 税率
         is_active:
           type: boolean
           default: true
@@ -2287,20 +2299,20 @@ components:
           type: string
           enum: [draft, sent, approved, rejected]
         subtotal:
-          type: number
-          format: double
+          type: integer
+          format: int64
         tax_total:
-          type: number
-          format: double
+          type: integer
+          format: int64
         total_amount:
-          type: number
-          format: double
+          type: integer
+          format: int64
         insurance_amount:
-          type: number
-          format: double
+          type: integer
+          format: int64
         discount_amount:
-          type: number
-          format: double
+          type: integer
+          format: int64
         valid_until:
           type: string
           format: date
@@ -2500,9 +2512,19 @@ components:
         id:
           type: integer
           format: int64
+        pet_id:
+          type: integer
+          format: int64
+          description: 対象ペットID
         medical_record_id:
           type: integer
           format: int64
+          nullable: true
+        daily_record_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 入院日次記録ID（入院時バイタルの場合）
         recorded_at:
           type: string
           format: date-time
@@ -2524,9 +2546,17 @@ components:
           type: number
           format: double
           nullable: true
+        weight_unit:
+          type: string
+          enum: [Kg, g]
+          default: Kg
+          description: 体重単位
         notes:
           type: string
         created_at:
+          type: string
+          format: date-time
+        updated_at:
           type: string
           format: date-time
         staff:
@@ -3041,6 +3071,9 @@ components:
         id:
           type: integer
           format: int64
+        clinic_id:
+          type: integer
+          format: int64
         medical_record_id:
           type: integer
           format: int64
@@ -3070,6 +3103,11 @@ components:
         updated_at:
           type: string
           format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 削除日時（ソフトデリート）
 
     CreateCheckupRequest:
       type: object
