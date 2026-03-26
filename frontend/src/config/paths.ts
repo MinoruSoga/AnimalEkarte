@@ -237,6 +237,10 @@ export const paths = {
       path: "/settings/merchandise-items",
       getHref: () => "/settings/merchandise-items",
     },
+    permissionGroups: {
+      path: "/settings/permission-groups",
+      getHref: () => "/settings/permission-groups",
+    },
     interview: {
       chiefComplaint: {
         path: "/settings/interview/chief-complaint",

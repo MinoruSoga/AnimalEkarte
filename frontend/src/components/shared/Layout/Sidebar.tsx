@@ -14,6 +14,7 @@ import {
   PanelLeft,
   Pill,
   ShieldCheck,
+  Shield,
   Building2,
   Activity,
   Package,
@@ -215,6 +216,8 @@ export function Sidebar() {
         { icon: <Briefcase    className="size-[18px]" />, label: "職種",       path: paths.settings.jobTitle.getHref() },
         { icon: <ShieldCheck  className="size-[18px]" />, label: "保険",       path: paths.settings.insurance.getHref() },
         { icon: <Package      className="size-[18px]" />, label: "物販",       path: paths.settings.merchandiseItems.getHref() },
+        // 権限
+        { icon: <Shield       className="size-[18px]" />, label: "権限グループ", path: paths.settings.permissionGroups.getHref() },
       ],
     },
   ], []);
