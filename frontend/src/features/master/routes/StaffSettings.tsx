@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useRef, useCallback } from "react";
+import { memo, useState, useMemo, useCallback } from "react";
 import { UserRound, Shield } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -119,26 +119,27 @@ const StaffSidePanel = memo(function StaffSidePanel({
   }));
 
   // ── Permission groups state ──────────────────────
-  const [groupIds, setGroupIds] = useState<number[]>([]);
-  const groupIdsInitialized = useRef(false);
+  // null = ユーザーがまだ編集していない（サーバーデータを使用）
+  const [userEditedGroupIds, setUserEditedGroupIds] = useState<number[] | null>(null);
 
   const { data: userDetail } = useGetUser(linkedUserId);
 
-  // Sync once when user detail data arrives (async: cannot use lazy useState init)
-  useEffect(() => {
-    if (userDetail && !groupIdsInitialized.current) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setGroupIds(userDetail.permission_group_ids);
-      groupIdsInitialized.current = true;
-    }
-  }, [userDetail]);
+  // サーバーデータ優先、ユーザー編集があればそちらを使用
+  const groupIds = useMemo(
+    () => userEditedGroupIds ?? userDetail?.permission_group_ids ?? [],
+    [userEditedGroupIds, userDetail?.permission_group_ids],
+  );
 
   // ── Handlers ─────────────────────────────────────
-  const handleGroupToggle = useCallback((groupId: number, checked: boolean) => {
-    setGroupIds((prev) =>
-      checked ? [...prev, groupId] : prev.filter((id) => id !== groupId),
-    );
-  }, []);
+  const handleGroupToggle = useCallback(
+    (groupId: number, checked: boolean) => {
+      setUserEditedGroupIds((prev) => {
+        const current = prev ?? userDetail?.permission_group_ids ?? [];
+        return checked ? [...current, groupId] : current.filter((id) => id !== groupId);
+      });
+    },
+    [userDetail?.permission_group_ids],
+  );
 
   const handleSave = useCallback(() => {
     onSave(f);
