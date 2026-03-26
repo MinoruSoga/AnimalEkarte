@@ -48,7 +48,7 @@ type TrimmingRecordOption struct {
 	ID               uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	TrimmingRecordID uint64    `gorm:"not null"                                       json:"trimming_record_id"`
 	OptionID         uint64    `gorm:"not null"                                       json:"option_id"`
-	SortOrder        int       `gorm:"default:0"                                      json:"sort_order"`
+	SortOrder        int       `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt        time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt        time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }

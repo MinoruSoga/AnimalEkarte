@@ -58,7 +58,7 @@ type ExaminationItem struct {
 	Unit            string                  `gorm:"default:''"                                     json:"unit"`
 	Ref             string                  `gorm:"default:''"                                     json:"ref"`
 	Status          ExaminationResultStatus `gorm:"type:examination_result_status;default:'normal'" json:"status"`
-	SortOrder       int                     `gorm:"default:0"                                      json:"sort_order"`
+	SortOrder       int                     `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt       time.Time               `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time               `gorm:"autoUpdateTime"                                 json:"updated_at"`
 

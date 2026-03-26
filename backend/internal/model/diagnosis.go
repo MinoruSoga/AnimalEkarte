@@ -10,7 +10,7 @@ type DiagnosisCategory struct {
 	Name        string    `gorm:"not null"                                       json:"name"`
 	IsActive    bool      `gorm:"default:true"                                   json:"is_active"`
 	Description string    `gorm:"default:''"                                     json:"description"`
-	SortOrder   int       `gorm:"default:0"                                      json:"sort_order"`
+	SortOrder   int       `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt   time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt   time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
@@ -27,7 +27,7 @@ type DiagnosisName struct {
 	IsActive            bool      `gorm:"default:true"                                   json:"is_active"`
 	Description         string    `gorm:"default:''"                                     json:"description"`
 	DiagnosisCategoryID uint64    `gorm:"not null"                                       json:"diagnosis_category_id"`
-	SortOrder           int       `gorm:"default:0"                                      json:"sort_order"`
+	SortOrder           int       `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt           time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt           time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 

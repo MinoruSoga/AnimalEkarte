@@ -30,7 +30,7 @@ type Cage struct {
 	Description string    `gorm:"default:''"                                     json:"description"`
 	CageType    CageType  `gorm:"type:cage_type;not null"                        json:"cage_type"`
 	CageSize    CageSize  `gorm:"type:cage_size;not null"                        json:"cage_size"`
-	SortOrder   int       `gorm:"default:0"                                      json:"sort_order"`
+	SortOrder   int       `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt   time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt   time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 }

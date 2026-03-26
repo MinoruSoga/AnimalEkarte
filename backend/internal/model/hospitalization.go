@@ -92,7 +92,7 @@ type CarePlanItem struct {
 	HospitalizationPlanID *uint64        `                                                      json:"hospitalization_plan_id,omitempty"`
 	UnitPrice             int64          `gorm:"default:0"                                      json:"unit_price"`
 	Category              string         `gorm:"default:''"                                     json:"category"`
-	SortOrder             int            `gorm:"default:0"                                      json:"sort_order"`
+	SortOrder             int            `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt             time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt             time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
@@ -116,7 +116,7 @@ type TreatmentPlan struct {
 	DiscountRate      float64        `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
 	DiscountAmount    int64          `gorm:"default:0"                                      json:"discount_amount"`
 	Subtotal          int64          `gorm:"default:0"                                      json:"subtotal"`
-	SortOrder         int            `gorm:"default:0"                                      json:"sort_order"`
+	SortOrder         int            `gorm:"type:integer;default:0"                         json:"sort_order"`
 	DeletedAt         gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
 	CreatedAt         time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`

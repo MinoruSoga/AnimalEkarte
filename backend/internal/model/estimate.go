@@ -63,7 +63,7 @@ type EstimateItem struct {
 	ConsultationID        *uint64      `                                                      json:"consultation_id,omitempty"`
 	ProcedureID           *uint64      `                                                      json:"procedure_id,omitempty"`
 	MedicineID            *uint64      `                                                      json:"medicine_id,omitempty"`
-	SortOrder             int          `gorm:"default:0"                                      json:"sort_order"`
+	SortOrder             int          `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt             time.Time    `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt             time.Time    `gorm:"autoUpdateTime"                                 json:"updated_at"`
 

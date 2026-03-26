@@ -24,7 +24,7 @@ type Staff struct {
 	StaffRole     StaffRole      `gorm:"type:staff_role;not null"                       json:"staff_role"`
 	JobTitleID    *uint64        `                                                      json:"job_title_id,omitempty"`
 	LicenseNumber string         `gorm:"default:''"                                     json:"license_number"`
-	SortOrder     int            `gorm:"default:0"                                      json:"sort_order"`
+	SortOrder     int            `gorm:"type:integer;default:0"                         json:"sort_order"`
 	DeletedAt     gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
 	CreatedAt     time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt     time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
@@ -58,7 +58,7 @@ type ShiftEntry struct {
 	UpdatedAt time.Time  `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
-	Staff Staff `gorm:"foreignKey:StaffID" json:"staff,omitempty"`
+	Staff *Staff `gorm:"foreignKey:StaffID" json:"staff,omitempty"`
 }
 
 func (ShiftEntry) TableName() string { return "shift_entries" }

@@ -32,7 +32,7 @@ type RecordImage struct {
 	TakenAt         *time.Time       `gorm:"column:taken_at"                                json:"taken_at,omitempty"`
 	ExamID          *uint64          `                                                      json:"exam_id,omitempty"`
 	StaffID         *uint64          `                                                      json:"staff_id,omitempty"`
-	SortOrder       int              `gorm:"default:0"                                      json:"sort_order"`
+	SortOrder       int              `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt       time.Time        `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt       time.Time        `gorm:"autoUpdateTime"                                 json:"updated_at"`
 

@@ -96,7 +96,7 @@ type BillingItem struct {
 	TaxRate               float64        `gorm:"type:numeric(3,2);default:0.10"                 json:"tax_rate"`
 	IsInsuranceApplicable bool           `gorm:"default:false"                                  json:"is_insurance_applicable"`
 	Source                ItemSource     `gorm:"type:item_source;default:'manual'"              json:"source"`
-	SortOrder             int            `gorm:"default:0"                                      json:"sort_order"`
+	SortOrder             int            `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt             time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	DeletedAt             gorm.DeletedAt `                                                      json:"-" swaggerignore:"true"`
 }
