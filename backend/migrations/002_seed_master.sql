@@ -719,8 +719,8 @@ SELECT setval(pg_get_serial_sequence('billings', 'id'), (SELECT MAX(id) FROM bil
 -- M. billing_items（会計明細: 5件）
 -- =============================================================================
 INSERT INTO billing_items (id, billing_id, category, name, unit_price, quantity, tax_rate, is_insurance_applicable, source, sort_order) VALUES
-    (1, 3, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1),
-    (2, 3, 'medicine', 'アモキシシリン 50mg x 7日分', 500,  7, 0.10, true, 'medical_record', 2),
+    (1, 1, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1),
+    (2, 1, 'medicine', 'アモキシシリン 50mg x 7日分', 500,  7, 0.10, true, 'medical_record', 2),
     (3, 2, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1),
     (4, 2, 'procedure','耳道洗浄',                  2500, 1, 0.10, true, 'medical_record', 2),
     (5, 3, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1)
