@@ -68,7 +68,7 @@ INSERT INTO staffs (id, clinic_id, name, is_active, staff_role, license_number, 
     (10, 3, '佐藤 美咲',   true, 'nurse',        '',        2, 3),
     (11, 3, '鈴木 一郎',   true, 'reception',    '',        4, 4),
     (12, 3, '高橋 さくら', true, 'trimmer',      '',        3, 5),
-    -- 管理者権限・執行権限デモアカウント用スタッフ
+    -- 管理者・執行グループ デモアカウント用スタッフ
     (13, 3, '渡辺 院長',   true, 'manager',      '',        5, 6),
     (14, 3, '小林 部長',   true, 'manager',      '',        5, 7)
 ON CONFLICT DO NOTHING;
@@ -91,7 +91,7 @@ INSERT INTO user_accounts (id, email, display_name, display_name_kana, user_type
     (7, 'reception@example.com', '鈴木 一郎',  'スズキ イチロウ',  'staff',        4, 'active', 11,   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
     (8, 'trimmer@example.com',   '高橋 さくら','タカハシ サクラ',  'staff',        3, 'active', 12,   '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
     (9,  'system@example.com',   '本部 管理者', 'ホンブ カンリシャ','system_admin', 5, 'active', NULL, '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
-    -- 管理者権限・執行権限デモアカウント
+    -- 管理者・執行グループ デモアカウント
     (10, 'manager@example.com',  '渡辺 院長',  'ワタナベ インチョウ','staff',        5, 'active', 13, '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6'),
     (11, 'exec@example.com',     '小林 部長',  'コバヤシ ブチョウ', 'staff',        5, 'active', 14, '$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6')
 ON CONFLICT DO NOTHING;
@@ -111,7 +111,7 @@ INSERT INTO user_clinic_memberships (id, user_id, clinic_id, is_main) VALUES
     (10, 9, 3, true),
     (11, 9, 4, false),
     (12, 9, 5, false),
-    -- 管理者権限・執行権限ユーザー（八王子院）
+    -- 管理者・執行グループ ユーザー（八王子院）
     (13, 10, 3, true),
     (14, 11, 3, true)
 ON CONFLICT DO NOTHING;

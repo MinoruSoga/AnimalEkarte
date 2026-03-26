@@ -19,6 +19,8 @@ interface DemoCredential {
 
 const DEMO_ACCOUNTS: readonly DemoCredential[] = [
   { email: "admin@example.com",     displayName: "田中 太郎",  roleLabel: "医院管理者" },
+  { email: "manager@example.com",   displayName: "渡辺 院長",  roleLabel: "管理者" },
+  { email: "exec@example.com",      displayName: "小林 部長",  roleLabel: "執行" },
   { email: "vet@example.com",       displayName: "山田 花子",  roleLabel: "医師" },
   { email: "nurse@example.com",     displayName: "佐藤 美咲",  roleLabel: "看護師" },
   { email: "reception@example.com", displayName: "鈴木 一郎",  roleLabel: "受付" },

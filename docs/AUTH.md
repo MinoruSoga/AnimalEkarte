@@ -281,7 +281,8 @@
 | `hospital-settings` | ✓/✓/✓/✓ | ✓/−/−/− | ✓/−/−/− |
 
 > **重要**: `master` リソース = マスタ設定ページ全般（権限グループ管理含む）。
-> 全グループが `master` / `hospital-settings` を閲覧可（can_view=true）。管理者・執行のみ作成・編集・削除可。
+> 全グループが `master` / `hospital-settings` を閲覧可（can_view=true）。
+> `master` の作成・編集は管理者・執行が可能。`hospital-settings` の作成・編集・削除は管理者のみ。
 
 ### サイドナビバー表示制御
 
