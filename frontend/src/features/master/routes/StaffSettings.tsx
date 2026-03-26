@@ -124,9 +124,10 @@ const StaffSidePanel = memo(function StaffSidePanel({
 
   const { data: userDetail } = useGetUser(linkedUserId);
 
-  // Sync once when user detail data arrives (may be cached or async)
+  // Sync once when user detail data arrives (async: cannot use lazy useState init)
   useEffect(() => {
     if (userDetail && !groupIdsInitialized.current) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setGroupIds(userDetail.permission_group_ids);
       groupIdsInitialized.current = true;
     }
