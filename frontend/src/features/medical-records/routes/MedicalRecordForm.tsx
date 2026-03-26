@@ -21,7 +21,7 @@ import { MedicalRecordImage } from "../components/MedicalRecordImage";
 import { MedicalRecordEstimate } from "../components/MedicalRecordEstimate";
 import { MedicalRecordBillCheck } from "../components/MedicalRecordBillCheck";
 import { MedicalRecordExamination } from "../components/MedicalRecordExamination";
-import { CheckupsTab } from "../components/CheckupsTab";
+import { CheckupsTab } from "../components/CheckupsTab/CheckupsTab";
 import { StaffSelectionModal } from "../components/StaffSelectionModal";
 const VitalsModal = lazy(() =>
   import("../components/VitalsModal").then((m) => ({ default: m.VitalsModal }))

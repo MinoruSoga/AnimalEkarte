@@ -5,13 +5,11 @@ import type { ExaminationRecord } from "@/types";
 import { paths } from "@/config/paths";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
-import {
-  useGetExamination,
-  useCreateExamination,
-  useUpdateExamination,
-  useDeleteExamination,
-} from "../api";
-import type { CreateExaminationRequest, UpdateExaminationRequest } from "../api";
+import { useGetExamination } from "../api/get-examination";
+import { useCreateExamination } from "../api/create-examination";
+import { useUpdateExamination } from "../api/update-examination";
+import { useDeleteExamination } from "../api/delete-examination";
+import type { CreateExaminationRequest, UpdateExaminationRequest } from "../api/types";
 
 const EXAM_STATUS_JA_TO_EN: Record<string, "pending" | "in_progress" | "completed"> = {
   "依頼中": "pending",

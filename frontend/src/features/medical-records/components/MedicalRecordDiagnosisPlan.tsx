@@ -8,7 +8,7 @@ const TreatmentSearchDialog = lazy(() =>
 );
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { DiagnosisHeader } from "./DiagnosisHeader";
-import { ClinicalPlanSection } from "./ClinicalPlanSection";
+import { ClinicalPlanSection } from "./ClinicalPlanSection/ClinicalPlanSection";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
 import type { TreatmentItemType, UpdateTreatmentInput } from "../types";

@@ -1,4 +1,4 @@
-import { getOwner } from "./api";
+import { getOwner } from "./api/get-owner";
 import { axios } from "@/lib/axios";
 import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
