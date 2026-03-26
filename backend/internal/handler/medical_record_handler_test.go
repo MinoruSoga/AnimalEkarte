@@ -26,7 +26,7 @@ type mockMedicalRecordService struct {
 	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	getByNoFn func(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error)
 	createFn  func(ctx context.Context, record *model.MedicalRecord) error
-	updateFn  func(ctx context.Context, record *model.MedicalRecord) error
+	updateFn  func(ctx context.Context, clinicID, id uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error)
 	deleteFn  func(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -49,8 +49,11 @@ func (m *mockMedicalRecordService) Create(ctx context.Context, record *model.Med
 	return m.createFn(ctx, record)
 }
 
-func (m *mockMedicalRecordService) Update(ctx context.Context, record *model.MedicalRecord) error {
-	return m.updateFn(ctx, record)
+func (m *mockMedicalRecordService) Update(ctx context.Context, clinicID, id uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, clinicID, id, input)
+	}
+	return &model.MedicalRecord{}, nil
 }
 
 func (m *mockMedicalRecordService) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -446,9 +449,10 @@ func TestUpdateMedicalRecord(t *testing.T) {
 			body:     map[string]any{"status": "finalized"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicalRecordService{
-				updateFn: func(_ context.Context, record *model.MedicalRecord) error {
-					assert.Equal(t, model.MedicalRecordStatus("finalized"), record.Status)
-					return nil
+				updateFn: func(_ context.Context, _, _ uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
+					require.NotNil(t, input.Status)
+					assert.Equal(t, model.MedicalRecordStatus("finalized"), *input.Status)
+					return &model.MedicalRecord{ID: 1}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -459,9 +463,10 @@ func TestUpdateMedicalRecord(t *testing.T) {
 			body:     map[string]any{"date": now.Format(time.RFC3339)},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicalRecordService{
-				updateFn: func(_ context.Context, record *model.MedicalRecord) error {
-					assert.False(t, record.Date.IsZero())
-					return nil
+				updateFn: func(_ context.Context, _, _ uint64, input service.UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
+					require.NotNil(t, input.Date)
+					assert.False(t, input.Date.IsZero())
+					return &model.MedicalRecord{ID: 1}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -493,11 +498,11 @@ func TestUpdateMedicalRecord(t *testing.T) {
 		{
 			name:     "returns 404 when not found",
 			paramID:  "999",
-			body:     map[string]any{},
+			body:     map[string]any{"status": "finalized"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicalRecordService{
-				updateFn: func(_ context.Context, _ *model.MedicalRecord) error {
-					return apperrors.WrapNotFound("medical_record", "999")
+				updateFn: func(_ context.Context, _, _ uint64, _ service.UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
+					return nil, apperrors.WrapNotFound("medical_record", "999")
 				},
 			},
 			wantStatus: http.StatusNotFound,

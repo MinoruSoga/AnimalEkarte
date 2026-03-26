@@ -16,7 +16,7 @@ type ReservationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
 	Create(ctx context.Context, reservation *model.ReservationAppointment) error
-	Update(ctx context.Context, reservation *model.ReservationAppointment) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -84,18 +84,18 @@ func (r *reservationRepository) Create(ctx context.Context, reservation *model.R
 	return nil
 }
 
-func (r *reservationRepository) Update(ctx context.Context, reservation *model.ReservationAppointment) error {
+func (r *reservationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.ReservationAppointment{}).
-		Where("id = ? AND clinic_id = ?", reservation.ID, reservation.ClinicID).
-		Updates(reservation)
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update reservation")
+		return nil, apperrors.Wrap(result.Error, "update reservation")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.Wrap(apperrors.ErrNotFound, "update reservation")
+		return nil, apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *reservationRepository) Delete(ctx context.Context, clinicID, id uint64) error {

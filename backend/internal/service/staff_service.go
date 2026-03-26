@@ -94,7 +94,7 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 	}
 
 	if err := s.repo.CreateWithAccount(ctx, staff, account, membership); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create staff with account: %w", err)
 	}
 
 	return staff, nil
@@ -111,7 +111,7 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update staff: %w", err)
 	}
 	slog.InfoContext(ctx, "staff updated", slog.Uint64("staff_id", id))
 	return s.repo.FindByID(ctx, id)

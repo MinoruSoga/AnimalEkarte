@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -48,7 +49,7 @@ func (s *inquiryTemplateService) GetByID(ctx context.Context, id uint64) (*model
 
 func (s *inquiryTemplateService) Create(ctx context.Context, template *model.InquiryTemplate) error {
 	if err := s.repo.Create(ctx, template); err != nil {
-		return err
+		return fmt.Errorf("failed to create inquiry template: %w", err)
 	}
 	slog.InfoContext(ctx, "inquiry template created",
 		slog.Uint64("template_id", template.ID),
@@ -62,7 +63,7 @@ func (s *inquiryTemplateService) Update(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update inquiry template: %w", err)
 	}
 	slog.InfoContext(ctx, "inquiry template updated",
 		slog.Uint64("template_id", id),

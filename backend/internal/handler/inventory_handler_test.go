@@ -24,7 +24,7 @@ type mockInventoryService struct {
 	listFn    func(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error)
 	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
 	createFn  func(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
-	updateFn  func(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
+	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdateInventoryInput) (*model.InventoryItem, error)
 	deleteFn  func(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -40,8 +40,8 @@ func (m *mockInventoryService) Create(ctx context.Context, clinicID uint64, item
 	return m.createFn(ctx, clinicID, item)
 }
 
-func (m *mockInventoryService) Update(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {
-	return m.updateFn(ctx, clinicID, item)
+func (m *mockInventoryService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateInventoryInput) (*model.InventoryItem, error) {
+	return m.updateFn(ctx, clinicID, id, input)
 }
 
 func (m *mockInventoryService) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -321,10 +321,12 @@ func TestUpdateInventory(t *testing.T) {
 			body:     map[string]any{"name": "更新済み消毒液", "quantity": 20},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
-				updateFn: func(_ context.Context, _ uint64, item *model.InventoryItem) error {
-					assert.Equal(t, "更新済み消毒液", item.Name)
-					assert.Equal(t, 20, item.Quantity)
-					return nil
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateInventoryInput) (*model.InventoryItem, error) {
+					require.NotNil(t, input.Name)
+					assert.Equal(t, "更新済み消毒液", *input.Name)
+					require.NotNil(t, input.Quantity)
+					assert.Equal(t, 20, *input.Quantity)
+					return &model.InventoryItem{ID: 1}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -351,8 +353,8 @@ func TestUpdateInventory(t *testing.T) {
 			body:     map[string]any{"quantity": 5},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
-				updateFn: func(_ context.Context, _ uint64, _ *model.InventoryItem) error {
-					return apperrors.WrapNotFound("inventory", "999")
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateInventoryInput) (*model.InventoryItem, error) {
+					return nil, apperrors.WrapNotFound("inventory", "999")
 				},
 			},
 			wantStatus: http.StatusNotFound,

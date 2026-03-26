@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -94,7 +95,7 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 	}
 
 	if err := s.repo.Create(ctx, estimate); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create estimate: %w", err)
 	}
 	slog.InfoContext(ctx, "estimate created",
 		slog.Uint64("estimate_id", estimate.ID),
@@ -118,7 +119,7 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 
 func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		return err
+		return fmt.Errorf("failed to delete estimate: %w", err)
 	}
 	slog.InfoContext(ctx, "estimate deleted",
 		slog.Uint64("estimate_id", id),

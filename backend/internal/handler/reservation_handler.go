@@ -9,6 +9,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListReservations godoc
@@ -160,39 +161,18 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 		return
 	}
 
-	// DoctorID の型変換（文字列 → uint64）
-	var doctorID *uint64
-	if input.DoctorID != nil {
-		// 数値として解析を試みる
-		docID, err := strconv.ParseUint(*input.DoctorID, 10, 64)
-		if err == nil {
-			// 数値として有効
-			doctorID = &docID
-		} else {
-			// 医師名として扱う場合は、フロントエンド側で修正が必要
-			// 現在はエラーとして返す
-			RespondError(c, apperrors.WrapInvalidInput("doctor_id must be a numeric ID, not a name"))
-			return
-		}
-	}
-
-	reservation := &model.ReservationAppointment{
-		ID:            id,
-		ClinicID:      clinicID,
+	svcInput := service.UpdateReservationInput{
+		StartTime:     input.StartTime,
+		EndTime:       input.EndTime,
 		OwnerID:       input.OwnerID,
 		PetID:         input.PetID,
 		ServiceTypeID: input.ServiceTypeID,
-		DoctorID:      doctorID,
+		DoctorID:      input.DoctorID,
+		IsDesignated:  input.IsDesignated,
 		Notes:         input.Notes,
 	}
-	if input.StartTime != nil {
-		reservation.StartTime = *input.StartTime
-	}
-	if input.EndTime != nil {
-		reservation.EndTime = *input.EndTime
-	}
-	if input.VisitType != "" {
-		vt, err := validateEnum(input.VisitType,
+	if input.VisitType != nil {
+		vt, err := validateEnum(*input.VisitType,
 			model.VisitTypeFirst,
 			model.VisitTypeRevisit,
 		)
@@ -200,10 +180,10 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 			RespondError(c, apperrors.WrapInvalidInput("invalid visit_type: "+err.Error()))
 			return
 		}
-		reservation.VisitType = vt
+		svcInput.VisitType = &vt
 	}
-	if input.Status != "" {
-		status, err := validateEnum(input.Status,
+	if input.Status != nil {
+		status, err := validateEnum(*input.Status,
 			model.ReservationStatusConfirmed,
 			model.ReservationStatusPending,
 			model.ReservationStatusCancelled,
@@ -216,14 +196,12 @@ func (h *Handler) UpdateReservation(c *gin.Context) {
 			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
 			return
 		}
-		reservation.Status = status
-	}
-	if input.IsDesignated != nil {
-		reservation.IsDesignated = *input.IsDesignated
+		svcInput.Status = &status
 	}
 
 	ctx := c.Request.Context()
-	if err := h.svc.Reservation.Update(ctx, reservation); err != nil {
+	reservation, err := h.svc.Reservation.Update(ctx, clinicID, id, &svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}

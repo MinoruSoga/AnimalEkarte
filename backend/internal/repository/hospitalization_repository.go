@@ -15,7 +15,7 @@ type HospitalizationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	Create(ctx context.Context, hospitalization *model.Hospitalization) error
-	Update(ctx context.Context, hospitalization *model.Hospitalization) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -87,18 +87,18 @@ func (r *hospitalizationRepository) Create(ctx context.Context, hospitalization 
 	return nil
 }
 
-func (r *hospitalizationRepository) Update(ctx context.Context, hospitalization *model.Hospitalization) error {
+func (r *hospitalizationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Hospitalization{}).
-		Where("id = ? AND clinic_id = ?", hospitalization.ID, hospitalization.ClinicID).
-		Updates(hospitalization)
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update hospitalization")
+		return nil, apperrors.Wrap(result.Error, "update hospitalization")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.Wrap(apperrors.ErrNotFound, "update hospitalization")
+		return nil, apperrors.WrapNotFound("hospitalization", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *hospitalizationRepository) Delete(ctx context.Context, clinicID, id uint64) error {

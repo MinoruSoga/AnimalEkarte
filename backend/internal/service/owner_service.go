@@ -311,7 +311,6 @@ func buildOwnerUpdateFields(input *UpdateOwnerInput) map[string]any {
 	return fields
 }
 
-func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64)
-error {
+func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
 	return s.repo.Delete(ctx, clinicID, id)
 }

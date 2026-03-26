@@ -10,12 +10,12 @@ type createInsuranceRequest struct {
 }
 
 type updateInsuranceRequest struct {
-	Name         string `json:"name"`
-	IsActive     *bool  `json:"is_active"`
-	Description  string `json:"description"`
-	CoverageRate *int   `json:"coverage_rate"`
-	ContactPhone string `json:"contact_phone"`
-	SortOrder    int    `json:"sort_order"`
+	Name         *string `json:"name"`
+	IsActive     *bool   `json:"is_active"`
+	Description  *string `json:"description"`
+	CoverageRate *int    `json:"coverage_rate"`
+	ContactPhone *string `json:"contact_phone"`
+	SortOrder    *int    `json:"sort_order"`
 }
 
 // reorderInsuranceRequest は保険並び替えリクエスト。

@@ -42,7 +42,7 @@ type MedicalRecordService interface {
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	GetByRecordNo(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
-	Update(ctx context.Context, record *model.MedicalRecord) error
+	Update(ctx context.Context, clinicID, id uint64, input UpdateMedicalRecordInput) (*model.MedicalRecord, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -90,31 +90,68 @@ func (s *medicalRecordService) Create(ctx context.Context, record *model.Medical
 	return nil
 }
 
-func (s *medicalRecordService) Update(ctx context.Context, record *model.MedicalRecord) error {
+func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, input UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
 	// owner_id 変更時: クリニック所属確認
-	if record.OwnerID != nil {
-		if _, err := s.ownerRepo.FindByID(ctx, record.ClinicID, *record.OwnerID); err != nil {
-			return apperrors.WrapInvalidInput("owner not found in this clinic")
+	if input.OwnerID != nil {
+		if _, err := s.ownerRepo.FindByID(ctx, clinicID, *input.OwnerID); err != nil {
+			return nil, apperrors.WrapInvalidInput("owner not found in this clinic")
 		}
 	}
 
 	// pet_id 変更時: クリニック所属確認
-	if record.PetID != nil {
-		if _, err := s.petRepo.FindByID(ctx, record.ClinicID, *record.PetID); err != nil {
-			return apperrors.WrapInvalidInput("pet not found in this clinic")
+	if input.PetID != nil {
+		if _, err := s.petRepo.FindByID(ctx, clinicID, *input.PetID); err != nil {
+			return nil, apperrors.WrapInvalidInput("pet not found in this clinic")
 		}
 	}
 
-	if err := s.repo.Update(ctx, record); err != nil {
-		return fmt.Errorf("failed to update medical record: %w", err)
+	fields := buildMedicalRecordUpdateFields(input)
+	if len(fields) == 0 {
+		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+	}
+	record, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update medical record: %w", err)
 	}
 	slog.InfoContext(ctx, "medical record updated",
-		slog.Uint64("record_id", record.ID),
-		slog.Uint64("clinic_id", record.ClinicID))
-	return nil
+		slog.Uint64("record_id", id),
+		slog.Uint64("clinic_id", clinicID))
+	return record, nil
 }
 
-func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64)
-error {
+func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) error {
 	return s.repo.Delete(ctx, clinicID, id)
+}
+
+// UpdateMedicalRecordInput はカルテ更新のサービス入力 DTO
+type UpdateMedicalRecordInput struct {
+	Date                     *time.Time
+	OwnerID                  *uint64
+	PetID                    *uint64
+	DoctorID                 *uint64
+	ReservationAppointmentID *uint64
+	Status                   *model.MedicalRecordStatus
+}
+
+func buildMedicalRecordUpdateFields(input UpdateMedicalRecordInput) map[string]any {
+	fields := make(map[string]any)
+	if input.Date != nil {
+		fields["date"] = *input.Date
+	}
+	if input.OwnerID != nil {
+		fields["owner_id"] = *input.OwnerID
+	}
+	if input.PetID != nil {
+		fields["pet_id"] = *input.PetID
+	}
+	if input.DoctorID != nil {
+		fields["doctor_id"] = *input.DoctorID
+	}
+	if input.ReservationAppointmentID != nil {
+		fields["reservation_appointment_id"] = *input.ReservationAppointmentID
+	}
+	if input.Status != nil {
+		fields["status"] = *input.Status
+	}
+	return fields
 }

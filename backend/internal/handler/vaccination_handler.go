@@ -8,6 +8,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListVaccinations godoc
@@ -138,43 +139,27 @@ func (h *Handler) UpdateVaccination(c *gin.Context) {
 		return
 	}
 
-	vaccination := &model.Vaccination{
-		ID:              id,
+	svcInput := service.UpdateVaccinationInput{
 		MedicalRecordID: input.MedicalRecordID,
 		PetID:           input.PetID,
+		VaccineID:       input.VaccineID,
+		Date:            input.Date,
 		DoctorID:        input.DoctorID,
 		NextDate:        input.NextDate,
-	}
-	if input.VaccineID != nil {
-		vaccination.VaccineID = *input.VaccineID
-	}
-	if input.Date != nil {
-		vaccination.Date = *input.Date
+		Supplemental:    input.Supplemental,
+		Lot1:            input.Lot1,
+		Lot2:            input.Lot2,
+		Lot3:            input.Lot3,
+		Lot4:            input.Lot4,
+		Remarks:         input.Remarks,
 	}
 	if input.NextScheduleType != nil {
 		nst := model.NextScheduleType(*input.NextScheduleType)
-		vaccination.NextScheduleType = &nst
-	}
-	if input.Supplemental != nil {
-		vaccination.Supplemental = *input.Supplemental
-	}
-	if input.Lot1 != nil {
-		vaccination.Lot1 = *input.Lot1
-	}
-	if input.Lot2 != nil {
-		vaccination.Lot2 = *input.Lot2
-	}
-	if input.Lot3 != nil {
-		vaccination.Lot3 = *input.Lot3
-	}
-	if input.Lot4 != nil {
-		vaccination.Lot4 = *input.Lot4
-	}
-	if input.Remarks != nil {
-		vaccination.Remarks = *input.Remarks
+		svcInput.NextScheduleType = &nst
 	}
 
-	if err := h.svc.Vaccination.Update(c.Request.Context(), clinicID, vaccination); err != nil {
+	vaccination, err := h.svc.Vaccination.Update(c.Request.Context(), clinicID, id, &svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}

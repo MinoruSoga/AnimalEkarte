@@ -18,7 +18,7 @@ type CageRepository interface {
 	FindAll(ctx context.Context, cageType *string) ([]model.Cage, error)
 	FindByID(ctx context.Context, id uint64) (*model.Cage, error)
 	Create(ctx context.Context, cage *model.Cage) error
-	Update(ctx context.Context, cage *model.Cage) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -60,44 +60,18 @@ func (r *cageRepository) Create(ctx context.Context, cage *model.Cage) error {
 	return nil
 }
 
-// buildCageUpdateFields は updateCageRequest から非ゼロ値/非nilフィールドのみを map に変換する。
-// GORM の zero-value スキップ問題を回避し、PATCH セマンティクスを実現する。
-func buildCageUpdateFields(cage *model.Cage) map[string]any {
-	fields := make(map[string]any)
-	if cage.Name != "" {
-		fields["name"] = cage.Name
-	}
-	if cage.CageType != "" {
-		fields["cage_type"] = cage.CageType
-	}
-	if cage.CageSize != "" {
-		fields["cage_size"] = cage.CageSize
-	}
-	if cage.Price != nil {
-		fields["price"] = cage.Price
-	}
-	fields["is_active"] = cage.IsActive
-	if cage.Description != "" {
-		fields["description"] = cage.Description
-	}
-	if cage.SortOrder != 0 {
-		fields["sort_order"] = cage.SortOrder
-	}
-	return fields
-}
-
-func (r *cageRepository) Update(ctx context.Context, cage *model.Cage) error {
+func (r *cageRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Cage{}).
-		Where("id = ? AND clinic_id = ?", cage.ID, cage.ClinicID).
-		Updates(buildCageUpdateFields(cage))
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update cage")
+		return nil, apperrors.Wrap(result.Error, "update cage")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.Wrap(apperrors.ErrNotFound, "update cage")
+		return nil, apperrors.WrapNotFound("cage", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, id)
 }
 
 func (r *cageRepository) Delete(ctx context.Context, id uint64) error {

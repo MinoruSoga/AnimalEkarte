@@ -112,7 +112,7 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	}
 
 	if err := s.repo.Create(ctx, item); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create billing item: %w", err)
 	}
 
 	if err := s.recalculateTotals(ctx, input.BillingID); err != nil {
@@ -132,7 +132,7 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 func (s *billingItemService) UpdateItem(ctx context.Context, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error) {
 	item, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get billing item: %w", err)
 	}
 
 	fields := buildBillingItemUpdateFields(input)
@@ -141,7 +141,7 @@ func (s *billingItemService) UpdateItem(ctx context.Context, id uint64, input *U
 	}
 
 	if err := s.repo.UpdateFields(ctx, id, fields); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update billing item: %w", err)
 	}
 
 	if err := s.recalculateTotals(ctx, item.BillingID); err != nil {
@@ -161,12 +161,12 @@ func (s *billingItemService) UpdateItem(ctx context.Context, id uint64, input *U
 func (s *billingItemService) DeleteItem(ctx context.Context, id uint64) error {
 	item, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get billing item: %w", err)
 	}
 	billingID := item.BillingID
 
 	if err := s.repo.Delete(ctx, id); err != nil {
-		return err
+		return fmt.Errorf("failed to delete billing item: %w", err)
 	}
 
 	if err := s.recalculateTotals(ctx, billingID); err != nil {

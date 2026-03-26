@@ -34,7 +34,7 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 	// 請求が存在するか確認（マルチテナント保護）
 	billing, err := s.accountRepo.FindByID(ctx, clinicID, billingID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get billing: %w", err)
 	}
 
 	// 返金可能残額チェック（過剰返金防止）
@@ -57,7 +57,7 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 		Reason:    reason,
 	}
 	if err := s.repo.Create(ctx, refund); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create refund: %w", err)
 	}
 
 	slog.InfoContext(ctx, "refund created",
@@ -69,7 +69,7 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 func (s *refundService) ListByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error) {
 	// マルチテナント保護
 	if _, err := s.accountRepo.FindByID(ctx, clinicID, billingID); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get billing: %w", err)
 	}
 	return s.repo.FindByBillingID(ctx, clinicID, billingID)
 }

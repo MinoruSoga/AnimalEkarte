@@ -18,7 +18,7 @@ type ExamTypeRepository interface {
 	FindAll(ctx context.Context) ([]model.ExaminationType, error)
 	FindByID(ctx context.Context, id uint64) (*model.ExaminationType, error)
 	Create(ctx context.Context, exType *model.ExaminationType) error
-	Update(ctx context.Context, exType *model.ExaminationType) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -58,18 +58,18 @@ func (r *examTypeRepository) Create(ctx context.Context, exType *model.Examinati
 	return nil
 }
 
-func (r *examTypeRepository) Update(ctx context.Context, exType *model.ExaminationType) error {
+func (r *examTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.ExaminationType{}).
-		Where("id = ? AND clinic_id = ?", exType.ID, exType.ClinicID).
-		Updates(exType)
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update examination type")
+		return nil, apperrors.Wrap(result.Error, "update examination type")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.Wrap(apperrors.ErrNotFound, "update examination type")
+		return nil, apperrors.WrapNotFound("examination_type", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, id)
 }
 
 func (r *examTypeRepository) Delete(ctx context.Context, id uint64) error {

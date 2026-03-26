@@ -12,13 +12,13 @@ type createCageRequest struct {
 }
 
 type updateCageRequest struct {
-	Name        string `json:"name"`
-	CageType    string `json:"cage_type"`
-	CageSize    string `json:"cage_size"`
-	Price       *int64 `json:"price"`
-	IsActive    *bool  `json:"is_active"`
-	Description string `json:"description"`
-	SortOrder   int    `json:"sort_order"`
+	Name        *string `json:"name"`
+	CageType    *string `json:"cage_type"`
+	CageSize    *string `json:"cage_size"`
+	Price       *int64  `json:"price"`
+	IsActive    *bool   `json:"is_active"`
+	Description *string `json:"description"`
+	SortOrder   *int    `json:"sort_order"`
 }
 
 // reorderCageRequest はケージ並び替えのバインド struct

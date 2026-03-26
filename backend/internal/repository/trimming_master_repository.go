@@ -18,7 +18,7 @@ type TrimmingCourseRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
 	FindByID(ctx context.Context, id uint64) (*model.TrimmingCourse, error)
 	Create(ctx context.Context, course *model.TrimmingCourse) error
-	Update(ctx context.Context, course *model.TrimmingCourse) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -58,44 +58,18 @@ func (r *trimmingCourseRepository) Create(ctx context.Context, course *model.Tri
 	return nil
 }
 
-// buildTrimmingCourseUpdateFields は TrimmingCourse から非ゼロ値/非nilフィールドのみを map に変換する。
-// GORM の zero-value スキップ問題を回避し、PATCH セマンティクスを実現する。
-func buildTrimmingCourseUpdateFields(course *model.TrimmingCourse) map[string]any {
-	fields := make(map[string]any)
-	if course.Name != "" {
-		fields["name"] = course.Name
-	}
-	if course.Price != nil {
-		fields["price"] = course.Price
-	}
-	fields["is_active"] = course.IsActive
-	if course.Description != "" {
-		fields["description"] = course.Description
-	}
-	if course.TargetSize != nil {
-		fields["target_size"] = course.TargetSize
-	}
-	if course.Duration != nil {
-		fields["duration"] = course.Duration
-	}
-	if course.SortOrder != 0 {
-		fields["sort_order"] = course.SortOrder
-	}
-	return fields
-}
-
-func (r *trimmingCourseRepository) Update(ctx context.Context, course *model.TrimmingCourse) error {
+func (r *trimmingCourseRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.TrimmingCourse{}).
-		Where("id = ? AND clinic_id = ?", course.ID, course.ClinicID).
-		Updates(buildTrimmingCourseUpdateFields(course))
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update trimming course")
+		return nil, apperrors.Wrap(result.Error, "update trimming course")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.Wrap(apperrors.ErrNotFound, "update trimming course")
+		return nil, apperrors.WrapNotFound("trimming_course", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, id)
 }
 
 func (r *trimmingCourseRepository) Delete(ctx context.Context, id uint64) error {
@@ -135,7 +109,7 @@ type TrimmingOptionRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error)
 	FindByID(ctx context.Context, id uint64) (*model.TrimmingOption, error)
 	Create(ctx context.Context, option *model.TrimmingOption) error
-	Update(ctx context.Context, option *model.TrimmingOption) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -175,42 +149,18 @@ func (r *trimmingOptionRepository) Create(ctx context.Context, option *model.Tri
 	return nil
 }
 
-// buildTrimmingOptionUpdateFields は TrimmingOption から非ゼロ値/非nilフィールドのみを map に変換する。
-// GORM の zero-value スキップ問題を回避し、PATCH セマンティクスを実現する。
-func buildTrimmingOptionUpdateFields(option *model.TrimmingOption) map[string]any {
-	fields := make(map[string]any)
-	if option.Name != "" {
-		fields["name"] = option.Name
-	}
-	if option.Price != nil {
-		fields["price"] = option.Price
-	}
-	fields["is_active"] = option.IsActive
-	if option.Description != "" {
-		fields["description"] = option.Description
-	}
-	if option.Duration != nil {
-		fields["duration"] = option.Duration
-	}
-	fields["combinable"] = option.Combinable
-	if option.SortOrder != 0 {
-		fields["sort_order"] = option.SortOrder
-	}
-	return fields
-}
-
-func (r *trimmingOptionRepository) Update(ctx context.Context, option *model.TrimmingOption) error {
+func (r *trimmingOptionRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.TrimmingOption{}).
-		Where("id = ? AND clinic_id = ?", option.ID, option.ClinicID).
-		Updates(buildTrimmingOptionUpdateFields(option))
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update trimming option")
+		return nil, apperrors.Wrap(result.Error, "update trimming option")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.Wrap(apperrors.ErrNotFound, "update trimming option")
+		return nil, apperrors.WrapNotFound("trimming_option", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, id)
 }
 
 func (r *trimmingOptionRepository) Delete(ctx context.Context, id uint64) error {

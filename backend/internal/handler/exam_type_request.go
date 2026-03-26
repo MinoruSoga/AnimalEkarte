@@ -10,13 +10,13 @@ type createExaminationTypeRequest struct {
 }
 
 type updateExaminationTypeRequest struct {
-	Name          string  `json:"name"`
+	Name          *string `json:"name"`
 	Price         *int64  `json:"price"`
 	IsActive      *bool   `json:"is_active"`
-	Description   string  `json:"description"`
+	Description   *string `json:"description"`
 	ParentID      *uint64 `json:"parent_id"`
 	ClearParentID bool    `json:"clear_parent_id"`
-	SortOrder     int     `json:"sort_order"`
+	SortOrder     *int    `json:"sort_order"`
 }
 
 // reorderExaminationTypeRequest は検査種別並び替えのバインド struct

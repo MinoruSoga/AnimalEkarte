@@ -15,7 +15,7 @@ type InventoryRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
 	Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
-	Update(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -69,19 +69,18 @@ func (r *inventoryRepository) Create(ctx context.Context, clinicID uint64, item 
 	return nil
 }
 
-func (r *inventoryRepository) Update(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {
-	item.ClinicID = clinicID
+func (r *inventoryRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.InventoryItem{}).
-		Where("id = ? AND clinic_id = ?", item.ID, clinicID).
-		Updates(item)
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update inventory item")
+		return nil, apperrors.Wrap(result.Error, "update inventory item")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("inventory_item", fmt.Sprintf("%d", item.ID))
+		return nil, apperrors.WrapNotFound("inventory_item", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *inventoryRepository) Delete(ctx context.Context, clinicID, id uint64) error {

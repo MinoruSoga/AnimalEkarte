@@ -25,7 +25,7 @@ type mockReservationService struct {
 	listFn    func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
 	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
 	createFn  func(ctx context.Context, r *model.ReservationAppointment) error
-	updateFn  func(ctx context.Context, r *model.ReservationAppointment) error
+	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationInput) (*model.ReservationAppointment, error)
 	deleteFn  func(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -41,8 +41,11 @@ func (m *mockReservationService) Create(ctx context.Context, r *model.Reservatio
 	return m.createFn(ctx, r)
 }
 
-func (m *mockReservationService) Update(ctx context.Context, r *model.ReservationAppointment) error {
-	return m.updateFn(ctx, r)
+func (m *mockReservationService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationInput) (*model.ReservationAppointment, error) {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, clinicID, id, input)
+	}
+	return &model.ReservationAppointment{}, nil
 }
 
 func (m *mockReservationService) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -320,8 +323,6 @@ func TestCreateReservation(t *testing.T) {
 func TestUpdateReservation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	ptrStr := func(s string) *string { return &s }
-
 	tests := []struct {
 		name       string
 		paramID    string
@@ -336,31 +337,32 @@ func TestUpdateReservation(t *testing.T) {
 			body:     map[string]any{"notes": "更新済みメモ"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
-				updateFn: func(_ context.Context, r *model.ReservationAppointment) error {
-					assert.Equal(t, "更新済みメモ", r.Notes)
-					return nil
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateReservationInput) (*model.ReservationAppointment, error) {
+					require.NotNil(t, input.Notes)
+					assert.Equal(t, "更新済みメモ", *input.Notes)
+					return &model.ReservationAppointment{ID: 1}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:       "returns 400 for non-numeric doctor_id",
+			name:       "returns 400 for invalid visit_type",
 			paramID:    "1",
-			body:       map[string]any{"doctor_id": ptrStr("田中医師")}, // 名前で渡すとエラー
+			body:       map[string]any{"visit_type": "invalid_type"},
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockReservationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:     "accepts numeric doctor_id as string",
+			name:     "accepts numeric doctor_id",
 			paramID:  "1",
-			body:     map[string]any{"doctor_id": "42"},
+			body:     map[string]any{"doctor_id": 42},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
-				updateFn: func(_ context.Context, r *model.ReservationAppointment) error {
-					require.NotNil(t, r.DoctorID)
-					assert.Equal(t, uint64(42), *r.DoctorID)
-					return nil
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateReservationInput) (*model.ReservationAppointment, error) {
+					require.NotNil(t, input.DoctorID)
+					assert.Equal(t, uint64(42), *input.DoctorID)
+					return &model.ReservationAppointment{ID: 1}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -387,8 +389,8 @@ func TestUpdateReservation(t *testing.T) {
 			body:     map[string]any{"notes": "テスト"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationService{
-				updateFn: func(_ context.Context, _ *model.ReservationAppointment) error {
-					return apperrors.WrapNotFound("reservation", "999")
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateReservationInput) (*model.ReservationAppointment, error) {
+					return nil, apperrors.WrapNotFound("reservation", "999")
 				},
 			},
 			wantStatus: http.StatusNotFound,

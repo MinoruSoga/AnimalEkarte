@@ -15,7 +15,7 @@ type VaccinationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
 	Create(ctx context.Context, vaccination *model.Vaccination) error
-	Update(ctx context.Context, clinicID uint64, vaccination *model.Vaccination) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -85,18 +85,18 @@ func (r *vaccinationRepository) Create(ctx context.Context, vaccination *model.V
 	return nil
 }
 
-func (r *vaccinationRepository) Update(ctx context.Context, clinicID uint64, vaccination *model.Vaccination) error {
+func (r *vaccinationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Vaccination{}).
-		Where("id = ? AND clinic_id = ?", vaccination.ID, clinicID).
-		Updates(vaccination)
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update vaccination")
+		return nil, apperrors.Wrap(result.Error, "update vaccination")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", vaccination.ID))
+		return nil, apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *vaccinationRepository) Delete(ctx context.Context, clinicID, id uint64) error {

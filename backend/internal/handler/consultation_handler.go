@@ -9,6 +9,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- Consultation ----
@@ -101,32 +102,28 @@ func (h *Handler) UpdateConsultation(c *gin.Context) {
 		return
 	}
 
-	consultation := &model.Consultation{
-		ID:            id,
-		ClinicID:      clinicID,
+	var taxType *model.TaxType
+	if input.TaxType != nil {
+		tt := model.TaxType(*input.TaxType)
+		taxType = &tt
+	}
+
+	svcInput := service.UpdateConsultationInput{
 		Name:          input.Name,
 		Price:         input.Price,
+		IsActive:      input.IsActive,
 		Description:   input.Description,
 		TimeCondition: input.TimeCondition,
 		Duration:      input.Duration,
+		ParentID:      input.ParentID,
+		ClearParentID: input.ClearParentID,
 		SortOrder:     input.SortOrder,
-	}
-	if input.IsActive != nil {
-		consultation.IsActive = *input.IsActive
-	}
-	if input.ClearParentID {
-		consultation.ParentID = nil
-	} else if input.ParentID != nil {
-		consultation.ParentID = input.ParentID
-	}
-	if input.TaxType != "" {
-		consultation.TaxType = model.TaxType(input.TaxType)
-	}
-	if input.TaxRate != nil {
-		consultation.TaxRate = *input.TaxRate
+		TaxType:       taxType,
+		TaxRate:       input.TaxRate,
 	}
 
-	if err := h.svc.Consultation.Update(c.Request.Context(), consultation); err != nil {
+	consultation, err := h.svc.Consultation.Update(c.Request.Context(), clinicID, id, &svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}

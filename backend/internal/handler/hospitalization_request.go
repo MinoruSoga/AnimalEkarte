@@ -21,13 +21,13 @@ type createHospitalizationRequest struct {
 type updateHospitalizationRequest struct {
 	OwnerID             *uint64    `json:"owner_id"`
 	PetID               *uint64    `json:"pet_id"`
-	HospitalizationType string     `json:"hospitalization_type"`
+	HospitalizationType *string    `json:"hospitalization_type"`
 	StartDate           *time.Time `json:"start_date"`
 	EndDate             *time.Time `json:"end_date"`
-	Status              string     `json:"status"`
+	Status              *string    `json:"status"`
 	CageID              *uint64    `json:"cage_id"`
 	DoctorID            *uint64    `json:"doctor_id"`
-	Memo                string     `json:"memo"`
-	OwnerRequest        string     `json:"owner_request"`
-	StaffNotes          string     `json:"staff_notes"`
+	Memo                *string    `json:"memo"`
+	OwnerRequest        *string    `json:"owner_request"`
+	StaffNotes          *string    `json:"staff_notes"`
 }

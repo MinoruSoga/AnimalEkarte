@@ -14,12 +14,12 @@ import (
 // ---- Procedure モック ----
 
 type mockProcedureRepository struct {
-	findAllFn  func(ctx context.Context) ([]model.Procedure, error)
-	findByIDFn func(ctx context.Context, id uint64) (*model.Procedure, error)
-	createFn   func(ctx context.Context, procedure *model.Procedure) error
-	updateFn   func(ctx context.Context, procedure *model.Procedure) error
-	deleteFn   func(ctx context.Context, id uint64) error
-	reorderFn  func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn      func(ctx context.Context) ([]model.Procedure, error)
+	findByIDFn     func(ctx context.Context, id uint64) (*model.Procedure, error)
+	createFn       func(ctx context.Context, procedure *model.Procedure) error
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error)
+	deleteFn       func(ctx context.Context, id uint64) error
+	reorderFn      func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
 func (m *mockProcedureRepository) FindAll(ctx context.Context) ([]model.Procedure, error) {
@@ -34,8 +34,11 @@ func (m *mockProcedureRepository) Create(ctx context.Context, procedure *model.P
 	return m.createFn(ctx, procedure)
 }
 
-func (m *mockProcedureRepository) Update(ctx context.Context, procedure *model.Procedure) error {
-	return m.updateFn(ctx, procedure)
+func (m *mockProcedureRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error) {
+	if m.updateFieldsFn != nil {
+		return m.updateFieldsFn(ctx, clinicID, id, fields)
+	}
+	return &model.Procedure{ID: id}, nil
 }
 
 func (m *mockProcedureRepository) Delete(ctx context.Context, id uint64) error {
@@ -201,27 +204,43 @@ func TestProcedureService_Create(t *testing.T) {
 }
 
 func TestProcedureService_Update(t *testing.T) {
+	name := "Updated Procedure"
+	isActive := false
 	tests := []struct {
 		name    string
-		input   *model.Procedure
+		input   UpdateProcedureInput
 		repoErr error
 		wantErr bool
+		wantNF  bool
 	}{
 		{
 			name: "updates procedure successfully",
-			input: &model.Procedure{
-				ID:       1,
-				Name:     "Updated Procedure",
-				IsActive: false,
+			input: UpdateProcedureInput{
+				Name:     &name,
+				IsActive: &isActive,
 			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
+			name:    "returns error when no fields provided",
+			input:   UpdateProcedureInput{},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns not found error when procedure does not exist",
+			input: UpdateProcedureInput{
+				Name: &name,
+			},
+			repoErr: apperrors.WrapNotFound("procedure", "999"),
+			wantErr: true,
+			wantNF:  true,
+		},
+		{
 			name: "returns error when repository fails",
-			input: &model.Procedure{
-				ID:   1,
-				Name: "Procedure",
+			input: UpdateProcedureInput{
+				Name: &name,
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -231,18 +250,26 @@ func TestProcedureService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockProcedureRepository{
-				updateFn: func(_ context.Context, _ *model.Procedure) error {
-					return tt.repoErr
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Procedure, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.Procedure{ID: 1}, nil
 				},
 			}
 			svc := NewProcedureService(repo)
 
-			err := svc.Update(context.Background(), tt.input)
+			procedure, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, procedure)
+				if tt.wantNF {
+					assert.True(t, apperrors.IsNotFound(err))
+				}
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, procedure)
 			}
 		})
 	}

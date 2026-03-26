@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -48,7 +49,7 @@ func (s *jobTitleService) GetByID(ctx context.Context, id uint64) (*model.JobTit
 
 func (s *jobTitleService) Create(ctx context.Context, jobTitle *model.JobTitle) error {
 	if err := s.repo.Create(ctx, jobTitle); err != nil {
-		return err
+		return fmt.Errorf("failed to create job title: %w", err)
 	}
 	slog.InfoContext(ctx, "job title created",
 		slog.Uint64("job_title_id", jobTitle.ID),
@@ -62,7 +63,7 @@ func (s *jobTitleService) Update(ctx context.Context, clinicID, id uint64, input
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update job title: %w", err)
 	}
 	slog.InfoContext(ctx, "job title updated",
 		slog.Uint64("job_title_id", id),

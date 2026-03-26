@@ -13,11 +13,11 @@ import (
 
 // mockInventoryRepository は InventoryRepository のテスト用モック実装
 type mockInventoryRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
-	createFn   func(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
-	updateFn   func(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
+	findAllFn      func(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error)
+	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
+	createFn       func(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error)
+	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockInventoryRepository) FindAll(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error) {
@@ -32,8 +32,8 @@ func (m *mockInventoryRepository) Create(ctx context.Context, clinicID uint64, i
 	return m.createFn(ctx, clinicID, item)
 }
 
-func (m *mockInventoryRepository) Update(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {
-	return m.updateFn(ctx, clinicID, item)
+func (m *mockInventoryRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockInventoryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -280,46 +280,45 @@ func TestInventoryService_Create(t *testing.T) {
 }
 
 func TestInventoryService_Update(t *testing.T) {
+	name := "更新後薬剤"
+	quantity := 200
+	statusSufficient := model.InventoryStatusSufficient
 	tests := []struct {
-		name     string
-		clinicID uint64
-		item     *model.InventoryItem
-		repoErr  error
-		wantErr  bool
-		wantNF   bool
+		name    string
+		input   UpdateInventoryInput
+		repoErr error
+		wantErr bool
+		wantNF  bool
 	}{
 		{
-			name:     "updates inventory item successfully",
-			clinicID: 1,
-			item: &model.InventoryItem{
-				ID:       1,
-				ClinicID: 1,
-				Name:     "更新後薬剤",
-				Category: model.InventoryCategoryMedicine,
-				Quantity: 200,
-				Status:   model.InventoryStatusSufficient,
+			name: "updates inventory item successfully",
+			input: UpdateInventoryInput{
+				Name:     &name,
+				Quantity: &quantity,
+				Status:   &statusSufficient,
 			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
-			name:     "returns not found error when item does not exist",
-			clinicID: 1,
-			item: &model.InventoryItem{
-				ID:       999,
-				ClinicID: 1,
-				Name:     "存在しない薬剤",
+			name:    "returns error when no fields provided",
+			input:   UpdateInventoryInput{},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns not found error when item does not exist",
+			input: UpdateInventoryInput{
+				Name: &name,
 			},
 			repoErr: apperrors.WrapNotFound("inventory_item", "999"),
 			wantErr: true,
 			wantNF:  true,
 		},
 		{
-			name:     "returns error on repository failure",
-			clinicID: 1,
-			item: &model.InventoryItem{
-				ID:       1,
-				ClinicID: 1,
+			name: "returns error on repository failure",
+			input: UpdateInventoryInput{
+				Name: &name,
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -329,21 +328,26 @@ func TestInventoryService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockInventoryRepository{
-				updateFn: func(_ context.Context, _ uint64, _ *model.InventoryItem) error {
-					return tt.repoErr
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.InventoryItem, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.InventoryItem{ID: 1, ClinicID: 1}, nil
 				},
 			}
 			svc := NewInventoryService(repo)
 
-			err := svc.Update(context.Background(), tt.clinicID, tt.item)
+			item, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, item)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
 				}
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, item)
 			}
 		})
 	}

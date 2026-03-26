@@ -21,7 +21,7 @@ type updateExaminationRequest struct {
 	ExamTypeID      uint64     `json:"exam_type_id"`
 	DoctorID        *uint64    `json:"doctor_id"`
 	Date            *time.Time `json:"date"`
-	ResultSummary   string     `json:"result_summary"`
-	Machine         string     `json:"machine"`
-	Status          string     `json:"status"`
+	ResultSummary   *string    `json:"result_summary"`
+	Machine         *string    `json:"machine"`
+	Status          *string    `json:"status"`
 }

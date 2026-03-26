@@ -18,7 +18,7 @@ type ProcedureRepository interface {
 	FindAll(ctx context.Context) ([]model.Procedure, error)
 	FindByID(ctx context.Context, id uint64) (*model.Procedure, error)
 	Create(ctx context.Context, procedure *model.Procedure) error
-	Update(ctx context.Context, procedure *model.Procedure) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -56,18 +56,18 @@ func (r *procedureRepository) Create(ctx context.Context, procedure *model.Proce
 	return nil
 }
 
-func (r *procedureRepository) Update(ctx context.Context, procedure *model.Procedure) error {
+func (r *procedureRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Procedure{}).
-		Where("id = ? AND clinic_id = ?", procedure.ID, procedure.ClinicID).
-		Updates(procedure)
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update procedure")
+		return nil, apperrors.Wrap(result.Error, "update procedure")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.Wrap(apperrors.ErrNotFound, "update procedure")
+		return nil, apperrors.WrapNotFound("procedure", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, id)
 }
 
 func (r *procedureRepository) Delete(ctx context.Context, id uint64) error {

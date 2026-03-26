@@ -18,7 +18,7 @@ type InsuranceRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.Insurance, error)
 	FindByID(ctx context.Context, id uint64) (*model.Insurance, error)
 	Create(ctx context.Context, insurance *model.Insurance) error
-	Update(ctx context.Context, insurance *model.Insurance) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -56,18 +56,18 @@ func (r *insuranceRepository) Create(ctx context.Context, insurance *model.Insur
 	return nil
 }
 
-func (r *insuranceRepository) Update(ctx context.Context, insurance *model.Insurance) error {
+func (r *insuranceRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Insurance{}).
-		Where("id = ? AND clinic_id = ?", insurance.ID, insurance.ClinicID).
-		Updates(insurance)
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update insurance")
+		return nil, apperrors.Wrap(result.Error, "update insurance")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.Wrap(apperrors.ErrNotFound, "update insurance")
+		return nil, apperrors.WrapNotFound("insurance", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, id)
 }
 
 func (r *insuranceRepository) Delete(ctx context.Context, id uint64) error {

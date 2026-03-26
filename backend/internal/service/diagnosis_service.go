@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -104,7 +105,7 @@ func (s *diagnosisCategoryService) Create(ctx context.Context, clinicID uint64, 
 		SortOrder:   input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, category); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create diagnosis category: %w", err)
 	}
 	s.logger.InfoContext(ctx, "diagnosis category created",
 		slog.Uint64("category_id", category.ID),
@@ -118,7 +119,7 @@ func (s *diagnosisCategoryService) Update(ctx context.Context, clinicID, id uint
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update diagnosis category: %w", err)
 	}
 	s.logger.InfoContext(ctx, "diagnosis category updated",
 		slog.Uint64("category_id", id),
@@ -208,7 +209,7 @@ func (s *diagnosisNameService) Create(ctx context.Context, clinicID uint64, inpu
 		SortOrder:           input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, name); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create diagnosis name: %w", err)
 	}
 	s.logger.InfoContext(ctx, "diagnosis name created",
 		slog.Uint64("name_id", name.ID),
@@ -228,7 +229,7 @@ func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, 
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update diagnosis name: %w", err)
 	}
 	s.logger.InfoContext(ctx, "diagnosis name updated",
 		slog.Uint64("name_id", id),

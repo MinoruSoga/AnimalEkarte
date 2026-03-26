@@ -14,11 +14,11 @@ import (
 
 // mockExaminationRepository は ExaminationRepository のテスト用モック実装
 type mockExaminationRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
-	createFn   func(ctx context.Context, exam *model.Examination) error
-	updateFn   func(ctx context.Context, clinicID uint64, exam *model.Examination) error
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
+	findAllFn      func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
+	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
+	createFn       func(ctx context.Context, exam *model.Examination) error
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error)
+	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockExaminationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
@@ -33,8 +33,8 @@ func (m *mockExaminationRepository) Create(ctx context.Context, exam *model.Exam
 	return m.createFn(ctx, exam)
 }
 
-func (m *mockExaminationRepository) Update(ctx context.Context, clinicID uint64, exam *model.Examination) error {
-	return m.updateFn(ctx, clinicID, exam)
+func (m *mockExaminationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockExaminationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -285,47 +285,44 @@ func TestExaminationService_Create(t *testing.T) {
 
 func TestExaminationService_Update(t *testing.T) {
 	now := time.Now()
+	statusCompleted := model.ExaminationStatusCompleted
+	resultSummary := "正常範囲内"
 	tests := []struct {
-		name     string
-		clinicID uint64
-		exam     *model.Examination
-		repoErr  error
-		wantErr  bool
-		wantNF   bool
+		name    string
+		input   UpdateExaminationInput
+		repoErr error
+		wantErr bool
+		wantNF  bool
 	}{
 		{
-			name:     "updates exam successfully",
-			clinicID: 1,
-			exam: &model.Examination{
-				ID:              1,
-				MedicalRecordID: ptrUint64(5),
-				ExamTypeID:      1,
-				Date:            now,
-				Status:          model.ExaminationStatusCompleted,
-				ResultSummary:   "正常範囲内",
+			name: "updates exam successfully",
+			input: UpdateExaminationInput{
+				Date:          &now,
+				Status:        &statusCompleted,
+				ResultSummary: &resultSummary,
 			},
 			repoErr: nil,
 			wantErr: false,
 		},
 		{
-			name:     "returns not found error when exam does not exist",
-			clinicID: 1,
-			exam: &model.Examination{
-				ID:              999,
-				MedicalRecordID: ptrUint64(5),
-				ExamTypeID:      1,
-				Date:            now,
+			name:    "returns error when no fields provided",
+			input:   UpdateExaminationInput{},
+			repoErr: nil,
+			wantErr: true,
+		},
+		{
+			name: "returns not found error when exam does not exist",
+			input: UpdateExaminationInput{
+				Status: &statusCompleted,
 			},
 			repoErr: apperrors.WrapNotFound("exam", "999"),
 			wantErr: true,
 			wantNF:  true,
 		},
 		{
-			name:     "returns error on repository failure",
-			clinicID: 1,
-			exam: &model.Examination{
-				ID:              1,
-				MedicalRecordID: ptrUint64(5),
+			name: "returns error on repository failure",
+			input: UpdateExaminationInput{
+				ResultSummary: &resultSummary,
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -335,21 +332,26 @@ func TestExaminationService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExaminationRepository{
-				updateFn: func(_ context.Context, _ uint64, _ *model.Examination) error {
-					return tt.repoErr
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.Examination{ID: 1}, nil
 				},
 			}
 			svc := NewExaminationService(repo)
 
-			err := svc.Update(context.Background(), tt.clinicID, tt.exam)
+			exam, err := svc.Update(context.Background(), 1, 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, exam)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
 				}
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, exam)
 			}
 		})
 	}

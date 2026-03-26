@@ -18,7 +18,7 @@ type VaccineRepository interface {
 	FindAll(ctx context.Context, species *string) ([]model.Vaccine, error)
 	FindByID(ctx context.Context, id uint64) (*model.Vaccine, error)
 	Create(ctx context.Context, vaccine *model.Vaccine) error
-	Update(ctx context.Context, vaccine *model.Vaccine) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -60,18 +60,18 @@ func (r *vaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) 
 	return nil
 }
 
-func (r *vaccineRepository) Update(ctx context.Context, vaccine *model.Vaccine) error {
+func (r *vaccineRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Vaccine{}).
-		Where("id = ? AND clinic_id = ?", vaccine.ID, vaccine.ClinicID).
-		Updates(vaccine)
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update vaccine")
+		return nil, apperrors.Wrap(result.Error, "update vaccine")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.Wrap(apperrors.ErrNotFound, "update vaccine")
+		return nil, apperrors.WrapNotFound("vaccine", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, id)
 }
 
 func (r *vaccineRepository) Delete(ctx context.Context, id uint64) error {

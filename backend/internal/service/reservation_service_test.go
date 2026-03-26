@@ -14,11 +14,11 @@ import (
 
 // mockReservationRepository は ReservationRepository のテスト用モック実装
 type mockReservationRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
-	createFn   func(ctx context.Context, reservation *model.ReservationAppointment) error
-	updateFn   func(ctx context.Context, reservation *model.ReservationAppointment) error
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
+	findAllFn      func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
+	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
+	createFn       func(ctx context.Context, reservation *model.ReservationAppointment) error
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error)
+	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockReservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
@@ -33,8 +33,8 @@ func (m *mockReservationRepository) Create(ctx context.Context, reservation *mod
 	return m.createFn(ctx, reservation)
 }
 
-func (m *mockReservationRepository) Update(ctx context.Context, reservation *model.ReservationAppointment) error {
-	return m.updateFn(ctx, reservation)
+func (m *mockReservationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockReservationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -343,35 +343,35 @@ func TestReservationService_Create(t *testing.T) {
 
 func TestReservationService_Update(t *testing.T) {
 	now := time.Now()
+	statusConfirmed := model.ReservationStatusConfirmed
 	tests := []struct {
-		name        string
-		reservation *model.ReservationAppointment
-		repoErr     error
-		wantErr     bool
-		wantNF      bool
+		name    string
+		input   UpdateReservationInput
+		repoErr error
+		wantErr bool
+		wantNF  bool
 	}{
 		{
 			name: "updates reservation successfully",
-			reservation: &model.ReservationAppointment{
-				ID:            1,
-				ClinicID:      1,
-				StartTime:     now,
-				EndTime:       now.Add(time.Hour),
-				ServiceTypeID: 1,
-				Status:        model.ReservationStatusConfirmed,
+			input: UpdateReservationInput{
+				Status:    &statusConfirmed,
+				StartTime: &now,
 			},
 			repoErr: nil,
 			wantErr: false,
 			wantNF:  false,
 		},
 		{
+			name:    "returns error when no fields provided",
+			input:   UpdateReservationInput{},
+			repoErr: nil,
+			wantErr: true,
+			wantNF:  false,
+		},
+		{
 			name: "returns not found error when reservation does not exist",
-			reservation: &model.ReservationAppointment{
-				ID:            999,
-				ClinicID:      1,
-				StartTime:     now,
-				EndTime:       now.Add(time.Hour),
-				ServiceTypeID: 1,
+			input: UpdateReservationInput{
+				Status: &statusConfirmed,
 			},
 			repoErr: apperrors.WrapNotFound("reservation", "999"),
 			wantErr: true,
@@ -379,12 +379,8 @@ func TestReservationService_Update(t *testing.T) {
 		},
 		{
 			name: "returns error on repository failure",
-			reservation: &model.ReservationAppointment{
-				ID:            1,
-				ClinicID:      1,
-				StartTime:     now,
-				EndTime:       now.Add(time.Hour),
-				ServiceTypeID: 1,
+			input: UpdateReservationInput{
+				Status: &statusConfirmed,
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -395,21 +391,26 @@ func TestReservationService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockReservationRepository{
-				updateFn: func(_ context.Context, _ *model.ReservationAppointment) error {
-					return tt.repoErr
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ReservationAppointment, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.ReservationAppointment{ID: 1, ClinicID: 1}, nil
 				},
 			}
 			svc := NewReservationService(repo)
 
-			err := svc.Update(context.Background(), tt.reservation)
+			reservation, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, reservation)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
 				}
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, reservation)
 			}
 		})
 	}

@@ -229,20 +229,9 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 		return
 	}
 
-	record := &model.MedicalRecord{
-		ID:                       id,
-		ClinicID:                 clinicID,
-		RecordNo:                 input.RecordNo,
-		OwnerID:                  input.OwnerID,
-		PetID:                    input.PetID,
-		DoctorID:                 input.DoctorID,
-		ReservationAppointmentID: input.ReservationAppointmentID,
-	}
-	if input.Date != nil {
-		record.Date = *input.Date
-	}
-	if input.Status != "" {
-		status, err := validateEnum(input.Status,
+	var status *model.MedicalRecordStatus
+	if input.Status != nil {
+		s, err := validateEnum(*input.Status,
 			model.MedicalRecordStatusDraft,
 			model.MedicalRecordStatusFinalized,
 		)
@@ -250,11 +239,21 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
 			return
 		}
-		record.Status = status
+		status = &s
+	}
+
+	svcInput := service.UpdateMedicalRecordInput{
+		Date:                     input.Date,
+		OwnerID:                  input.OwnerID,
+		PetID:                    input.PetID,
+		DoctorID:                 input.DoctorID,
+		ReservationAppointmentID: input.ReservationAppointmentID,
+		Status:                   status,
 	}
 
 	ctx := c.Request.Context()
-	if err := h.svc.MedicalRecord.Update(ctx, record); err != nil {
+	record, err := h.svc.MedicalRecord.Update(ctx, clinicID, id, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}

@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -129,7 +130,7 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 	}
 
 	if err := s.repo.Create(ctx, item); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create merchandise item: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "merchandise item created",
@@ -166,11 +167,11 @@ func (s *merchandiseItemService) Reorder(ctx context.Context, clinicID uint64, i
 
 func (s *merchandiseItemService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return err
+		return fmt.Errorf("failed to get merchandise item: %w", err)
 	}
 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		return err
+		return fmt.Errorf("failed to delete merchandise item: %w", err)
 	}
 	s.logger.InfoContext(ctx, "merchandise item deleted",
 		slog.Uint64("clinic_id", clinicID),

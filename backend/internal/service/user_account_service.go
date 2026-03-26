@@ -95,7 +95,7 @@ func (s *userAccountService) FindByEmail(ctx context.Context, email string) (*Us
 func (s *userAccountService) GetMemberships(ctx context.Context, userID uint64) ([]MembershipResult, error) {
 	data, err := s.repo.FindByIDWithMemberships(ctx, userID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get user memberships: %w", err)
 	}
 	results := make([]MembershipResult, 0, len(data.Memberships))
 	for _, m := range data.Memberships {
@@ -137,7 +137,7 @@ func (s *userAccountService) CreateUser(ctx context.Context, clinicID uint64, in
 	}
 
 	if err := s.repo.Create(ctx, account, clinicID, input.StaffID, input.IsMain); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create user account: %w", err)
 	}
 
 	slog.InfoContext(ctx, "user account created",
@@ -168,7 +168,7 @@ func (s *userAccountService) UpdateUser(ctx context.Context, id uint64, input *U
 		return apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, id, fields); err != nil {
-		return err
+		return fmt.Errorf("failed to update user account: %w", err)
 	}
 	slog.InfoContext(ctx, "user account updated", slog.Uint64("user_id", id))
 	return nil
@@ -177,7 +177,7 @@ func (s *userAccountService) UpdateUser(ctx context.Context, id uint64, input *U
 // DeleteUser はユーザーアカウントを論理削除する
 func (s *userAccountService) DeleteUser(ctx context.Context, id uint64) error {
 	if err := s.repo.Delete(ctx, id); err != nil {
-		return err
+		return fmt.Errorf("failed to delete user account: %w", err)
 	}
 	slog.InfoContext(ctx, "user account deleted", slog.Uint64("user_id", id))
 	return nil
@@ -191,7 +191,7 @@ func (s *userAccountService) GetPermissions(ctx context.Context, userID, clinicI
 // SetPermissions はユーザーの権限を全置換する
 func (s *userAccountService) SetPermissions(ctx context.Context, userID, clinicID uint64, input *SetPermissionsInput) error {
 	if err := s.repo.SetPermissions(ctx, userID, clinicID, input.Permissions); err != nil {
-		return err
+		return fmt.Errorf("failed to set user permissions: %w", err)
 	}
 	slog.InfoContext(ctx, "user permissions updated",
 		slog.Uint64("user_id", userID),

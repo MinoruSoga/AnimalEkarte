@@ -15,7 +15,7 @@ type ExaminationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	Create(ctx context.Context, exam *model.Examination) error
-	Update(ctx context.Context, clinicID uint64, exam *model.Examination) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -84,18 +84,18 @@ func (r *examinationRepository) Create(ctx context.Context, exam *model.Examinat
 	return nil
 }
 
-func (r *examinationRepository) Update(ctx context.Context, clinicID uint64, exam *model.Examination) error {
+func (r *examinationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.Examination{}).
-		Where("id = ? AND clinic_id = ?", exam.ID, clinicID).
-		Updates(exam)
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update exam")
+		return nil, apperrors.Wrap(result.Error, "update exam")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("exam", fmt.Sprintf("%d", exam.ID))
+		return nil, apperrors.WrapNotFound("exam", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *examinationRepository) Delete(ctx context.Context, clinicID, id uint64) error {

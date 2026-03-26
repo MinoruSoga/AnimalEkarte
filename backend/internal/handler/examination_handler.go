@@ -8,6 +8,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListExaminations godoc
@@ -137,23 +138,30 @@ func (h *Handler) UpdateExamination(c *gin.Context) {
 		return
 	}
 
-	exam := &model.Examination{
-		ID:              id,
-		MedicalRecordID: input.MedicalRecordID,
-		PetID:           input.PetID,
-		ExamTypeID:      input.ExamTypeID,
-		DoctorID:        input.DoctorID,
-		ResultSummary:   input.ResultSummary,
-		Machine:         input.Machine,
+	var status *model.ExaminationStatus
+	if input.Status != nil {
+		s := model.ExaminationStatus(*input.Status)
+		status = &s
 	}
-	if input.Date != nil {
-		exam.Date = *input.Date
-	}
-	if input.Status != "" {
-		exam.Status = model.ExaminationStatus(input.Status)
+	var examTypeID *uint64
+	if input.ExamTypeID != 0 {
+		v := input.ExamTypeID
+		examTypeID = &v
 	}
 
-	if err := h.svc.Examination.Update(c.Request.Context(), clinicID, exam); err != nil {
+	svcInput := service.UpdateExaminationInput{
+		MedicalRecordID: input.MedicalRecordID,
+		PetID:           input.PetID,
+		ExamTypeID:      examTypeID,
+		DoctorID:        input.DoctorID,
+		Date:            input.Date,
+		ResultSummary:   input.ResultSummary,
+		Machine:         input.Machine,
+		Status:          status,
+	}
+
+	exam, err := h.svc.Examination.Update(c.Request.Context(), clinicID, id, svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}

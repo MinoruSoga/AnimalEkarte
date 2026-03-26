@@ -16,7 +16,7 @@ type MedicalRecordRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	FindByRecordNo(ctx context.Context, clinicID uint64, recordNo string) (*model.MedicalRecord, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
-	Update(ctx context.Context, record *model.MedicalRecord) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -98,43 +98,18 @@ func (r *medicalRecordRepository) Create(ctx context.Context, record *model.Medi
 	return nil
 }
 
-// buildMedicalRecordUpdateFields は MedicalRecord から非ゼロ値/非nilフィールドのみを map に変換する。
-// GORM の zero-value スキップ問題を回避し、PATCH セマンティクスを実現する。
-func buildMedicalRecordUpdateFields(record *model.MedicalRecord) map[string]any {
-	fields := make(map[string]any)
-	if !record.Date.IsZero() {
-		fields["date"] = record.Date
-	}
-	if record.Status != "" {
-		fields["status"] = record.Status
-	}
-	if record.OwnerID != nil {
-		fields["owner_id"] = record.OwnerID
-	}
-	if record.PetID != nil {
-		fields["pet_id"] = record.PetID
-	}
-	if record.DoctorID != nil {
-		fields["doctor_id"] = record.DoctorID
-	}
-	if record.ReservationAppointmentID != nil {
-		fields["reservation_appointment_id"] = record.ReservationAppointmentID
-	}
-	return fields
-}
-
-func (r *medicalRecordRepository) Update(ctx context.Context, record *model.MedicalRecord) error {
+func (r *medicalRecordRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
-		Where("id = ? AND clinic_id = ?", record.ID, record.ClinicID).
-		Updates(buildMedicalRecordUpdateFields(record))
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update medical record")
+		return nil, apperrors.Wrap(result.Error, "update medical record")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", record.ID))
+		return nil, apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *medicalRecordRepository) Delete(ctx context.Context, clinicID, id uint64) error {

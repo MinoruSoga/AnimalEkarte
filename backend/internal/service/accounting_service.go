@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -132,7 +133,7 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 		Memo:              input.Memo,
 	}
 	if err := s.repo.Create(ctx, input.ClinicID, billing); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create accounting: %w", err)
 	}
 	slog.InfoContext(ctx, "accounting created",
 		slog.Uint64("billing_id", billing.ID),
@@ -147,7 +148,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	}
 	billing, err := s.repo.UpdateFields(ctx, input.ClinicID, input.ID, fields)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update accounting: %w", err)
 	}
 	slog.InfoContext(ctx, "accounting updated",
 		slog.Uint64("billing_id", billing.ID),

@@ -25,7 +25,7 @@ type mockVaccinationService struct {
 	listFn    func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error)
 	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
 	createFn  func(ctx context.Context, v *model.Vaccination) error
-	updateFn  func(ctx context.Context, clinicID uint64, v *model.Vaccination) error
+	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdateVaccinationInput) (*model.Vaccination, error)
 	deleteFn  func(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -41,8 +41,11 @@ func (m *mockVaccinationService) Create(ctx context.Context, v *model.Vaccinatio
 	return m.createFn(ctx, v)
 }
 
-func (m *mockVaccinationService) Update(ctx context.Context, clinicID uint64, v *model.Vaccination) error {
-	return m.updateFn(ctx, clinicID, v)
+func (m *mockVaccinationService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateVaccinationInput) (*model.Vaccination, error) {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, clinicID, id, input)
+	}
+	return &model.Vaccination{}, nil
 }
 
 func (m *mockVaccinationService) Delete(ctx context.Context, clinicID, id uint64) error {

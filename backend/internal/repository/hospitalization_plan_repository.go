@@ -18,7 +18,7 @@ type HospitalizationPlanRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error)
 	FindByID(ctx context.Context, id uint64) (*model.HospitalizationPlan, error)
 	Create(ctx context.Context, plan *model.HospitalizationPlan) error
-	Update(ctx context.Context, plan *model.HospitalizationPlan) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -58,18 +58,18 @@ func (r *hospitalizationPlanRepository) Create(ctx context.Context, plan *model.
 	return nil
 }
 
-func (r *hospitalizationPlanRepository) Update(ctx context.Context, plan *model.HospitalizationPlan) error {
+func (r *hospitalizationPlanRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.HospitalizationPlan{}).
-		Where("id = ? AND clinic_id = ?", plan.ID, plan.ClinicID).
-		Updates(plan)
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update hospitalization plan")
+		return nil, apperrors.Wrap(result.Error, "update hospitalization plan")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.Wrap(apperrors.ErrNotFound, "update hospitalization plan")
+		return nil, apperrors.WrapNotFound("hospitalization_plan", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, id)
 }
 
 func (r *hospitalizationPlanRepository) Delete(ctx context.Context, id uint64) error {

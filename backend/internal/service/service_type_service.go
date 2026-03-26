@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -97,7 +98,7 @@ func (s *serviceTypeService) Create(ctx context.Context, clinicID uint64, input 
 		SortOrder:   input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, st); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create service type: %w", err)
 	}
 	return st, nil
 }
@@ -108,7 +109,7 @@ func (s *serviceTypeService) Update(ctx context.Context, clinicID, id uint64, in
 		return s.repo.FindByID(ctx, clinicID, id)
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update service type: %w", err)
 	}
 	return s.repo.FindByID(ctx, clinicID, id)
 }

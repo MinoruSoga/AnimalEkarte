@@ -8,6 +8,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ListHospitalizations godoc
@@ -156,23 +157,19 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 		return
 	}
 
-	hospitalization := &model.Hospitalization{
-		ID:           id,
-		ClinicID:     clinicID,
+	svcInput := service.UpdateHospitalizationInput{
+		OwnerID:      input.OwnerID,
+		PetID:        input.PetID,
+		StartDate:    input.StartDate,
+		EndDate:      input.EndDate,
 		CageID:       input.CageID,
 		DoctorID:     input.DoctorID,
 		Memo:         input.Memo,
 		OwnerRequest: input.OwnerRequest,
 		StaffNotes:   input.StaffNotes,
 	}
-	if input.OwnerID != nil {
-		hospitalization.OwnerID = *input.OwnerID
-	}
-	if input.PetID != nil {
-		hospitalization.PetID = *input.PetID
-	}
-	if input.HospitalizationType != "" {
-		hospType, err := validateEnum(input.HospitalizationType,
+	if input.HospitalizationType != nil {
+		hospType, err := validateEnum(*input.HospitalizationType,
 			model.HospitalizationTypeInpatient,
 			model.HospitalizationTypeHotel,
 		)
@@ -180,16 +177,10 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 			RespondError(c, apperrors.WrapInvalidInput("invalid hospitalization_type: "+err.Error()))
 			return
 		}
-		hospitalization.HospitalizationType = hospType
+		svcInput.HospitalizationType = &hospType
 	}
-	if input.StartDate != nil {
-		hospitalization.StartDate = *input.StartDate
-	}
-	if input.EndDate != nil {
-		hospitalization.EndDate = *input.EndDate
-	}
-	if input.Status != "" {
-		status, err := validateEnum(input.Status,
+	if input.Status != nil {
+		status, err := validateEnum(*input.Status,
 			model.HospitalizationStatusAdmitted,
 			model.HospitalizationStatusDischarged,
 			model.HospitalizationStatusReserved,
@@ -198,15 +189,16 @@ func (h *Handler) UpdateHospitalization(c *gin.Context) {
 			RespondError(c, apperrors.WrapInvalidInput("invalid status: "+err.Error()))
 			return
 		}
-		hospitalization.Status = status
+		svcInput.Status = &status
 	}
 
 	ctx := c.Request.Context()
-	if err := h.svc.Hospitalization.Update(ctx, hospitalization); err != nil {
+	hosp, err := h.svc.Hospitalization.Update(ctx, clinicID, id, &svcInput)
+	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, hospitalization)
+	c.JSON(http.StatusOK, hosp)
 }
 
 // DeleteHospitalization godoc

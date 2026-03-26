@@ -12,15 +12,15 @@ type createVaccineRequest struct {
 }
 
 type updateVaccineRequest struct {
-	Name          string  `json:"name"`
+	Name          *string `json:"name"`
 	Price         *int64  `json:"price"`
 	IsActive      *bool   `json:"is_active"`
-	Description   string  `json:"description"`
-	Species       string  `json:"species"`
-	Interval      string  `json:"interval"`
+	Description   *string `json:"description"`
+	Species       *string `json:"species"`
+	Interval      *string `json:"interval"`
 	ParentID      *uint64 `json:"parent_id"`
 	ClearParentID bool    `json:"clear_parent_id"`
-	SortOrder     int     `json:"sort_order"`
+	SortOrder     *int    `json:"sort_order"`
 }
 
 // reorderVaccineRequest はワクチン並び替えのバインド struct

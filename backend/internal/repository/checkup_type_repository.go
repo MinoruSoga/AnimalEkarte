@@ -18,7 +18,7 @@ type CheckupTypeRepository interface {
 	FindAll(ctx context.Context) ([]model.CheckupType, error)
 	FindByID(ctx context.Context, id uint64) (*model.CheckupType, error)
 	Create(ctx context.Context, checkupType *model.CheckupType) error
-	Update(ctx context.Context, checkupType *model.CheckupType) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error)
 	Delete(ctx context.Context, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -58,18 +58,18 @@ func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.C
 	return nil
 }
 
-func (r *checkupTypeRepository) Update(ctx context.Context, checkupType *model.CheckupType) error {
+func (r *checkupTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.CheckupType{}).
-		Where("id = ? AND clinic_id = ?", checkupType.ID, checkupType.ClinicID).
-		Updates(checkupType)
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update checkup type")
+		return nil, apperrors.Wrap(result.Error, "update checkup type")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.Wrap(apperrors.ErrNotFound, "update checkup type")
+		return nil, apperrors.WrapNotFound("checkup_type", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, id)
 }
 
 func (r *checkupTypeRepository) Delete(ctx context.Context, id uint64) error {
