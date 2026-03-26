@@ -1,7 +1,8 @@
-import { memo, useState } from "react";
-import { UserRound } from "lucide-react";
+import { memo, useState, useEffect, useRef, useCallback } from "react";
+import { UserRound, Shield } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
@@ -18,6 +19,18 @@ import {
   useGetStaffs, useCreateStaff, useUpdateStaff, useDeleteStaff, STAFF_ROLE_LABELS,
 } from "@/features/master/api/staffs";
 import type { Staff, StaffRoleValue, CreateStaffRequest, UpdateStaffRequest } from "@/features/master/api/staffs";
+import {
+  useGetUsers,
+  useGetUser,
+  useSetUserPermissionGroups,
+} from "@/features/master/api/user-accounts";
+import { useGetPermissionGroups } from "@/features/master/api/permission-groups/permission-groups";
+import type { PermissionGroup } from "@/types/generated/models";
+import { useAuth } from "@/features/auth/hooks/use-auth";
+
+// ─────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────
 
 const COLUMNS = [
   { header: "氏名", className: "flex-1" },
@@ -55,55 +68,222 @@ const STAFF_FILTER_PROPERTIES: FilterProperty[] = [
   },
 ];
 
-interface StaffFormData { name: string; staffRole: StaffRoleValue; licenseNumber: string; isActive: boolean; email: string; password: string; }
+// ─────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────
+
+interface StaffFormData {
+  name: string;
+  staffRole: StaffRoleValue;
+  licenseNumber: string;
+  isActive: boolean;
+  email: string;
+  password: string;
+}
+
+// ─────────────────────────────────────────────────
+// StaffSidePanel
+// ─────────────────────────────────────────────────
+
+interface StaffSidePanelProps {
+  item: Staff | null;
+  onClose: () => void;
+  onSave: (d: StaffFormData) => void;
+  onDeleteRequest: (i: Staff) => void;
+  /** All permission groups available in this clinic */
+  allGroups: PermissionGroup[];
+  /** user_accounts.id linked to this staff (null if new or not yet linked) */
+  linkedUserId: string | null;
+  /** Called when groups should be saved for this user */
+  onSaveGroups: (userId: string, groupIds: number[]) => void;
+}
 
 const StaffSidePanel = memo(function StaffSidePanel({
-  item, onClose, onSave, onDeleteRequest,
-}: { item: Staff | null; onClose: () => void; onSave: (d: StaffFormData) => void; onDeleteRequest: (i: Staff) => void; }) {
+  item,
+  onClose,
+  onSave,
+  onDeleteRequest,
+  allGroups,
+  linkedUserId,
+  onSaveGroups,
+}: StaffSidePanelProps) {
+  const isNew = item === null;
+
   const [f, setF] = useState<StaffFormData>(() => ({
-    name: item?.name ?? "", staffRole: item?.staffRole ?? "veterinarian",
-    licenseNumber: item?.licenseNumber ?? "", isActive: item?.isActive ?? true, email: "", password: "",
+    name: item?.name ?? "",
+    staffRole: item?.staffRole ?? "veterinarian",
+    licenseNumber: item?.licenseNumber ?? "",
+    isActive: item?.isActive ?? true,
+    email: "",
+    password: "",
   }));
+
+  // ── Permission groups state ──────────────────────
+  const [groupIds, setGroupIds] = useState<number[]>([]);
+  const groupIdsInitialized = useRef(false);
+
+  const { data: userDetail } = useGetUser(linkedUserId);
+
+  // Sync once when user detail data arrives (may be cached or async)
+  useEffect(() => {
+    if (userDetail && !groupIdsInitialized.current) {
+      setGroupIds(userDetail.permission_group_ids);
+      groupIdsInitialized.current = true;
+    }
+  }, [userDetail]);
+
+  // ── Handlers ─────────────────────────────────────
+  const handleGroupToggle = useCallback((groupId: number, checked: boolean) => {
+    setGroupIds((prev) =>
+      checked ? [...prev, groupId] : prev.filter((id) => id !== groupId),
+    );
+  }, []);
+
+  const handleSave = useCallback(() => {
+    onSave(f);
+    if (!isNew && linkedUserId) {
+      onSaveGroups(linkedUserId, groupIds);
+    }
+  }, [f, isNew, linkedUserId, groupIds, onSave, onSaveGroups]);
+
   return (
-    <MasterSidePanel isNew={item === null} title={f.name}
-      onTitleChange={(v) => setF((p) => ({ ...p, name: v }))} onClose={onClose} onSave={() => onSave(f)}
+    <MasterSidePanel
+      isNew={isNew}
+      title={f.name}
+      onTitleChange={(v) => setF((p) => ({ ...p, name: v }))}
+      onClose={onClose}
+      onSave={handleSave}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
-      icon={<UserRound className={LAYOUT.pageIcon.innerIcon} />}>
-      <StatusToggleButton isActive={f.isActive} onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))} />
+      icon={<UserRound className={LAYOUT.pageIcon.innerIcon} />}
+    >
+      <StatusToggleButton
+        isActive={f.isActive}
+        onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))}
+      />
+
       <PropertyRow label="職種">
-        <Select value={f.staffRole} onValueChange={(v) => setF((p) => ({ ...p, staffRole: v as StaffRoleValue }))}>
-          <SelectTrigger className={STYLE.selectCompact}><SelectValue placeholder="選択" /></SelectTrigger>
+        <Select
+          value={f.staffRole}
+          onValueChange={(v) => setF((p) => ({ ...p, staffRole: v as StaffRoleValue }))}
+        >
+          <SelectTrigger className={STYLE.selectCompact}>
+            <SelectValue placeholder="選択" />
+          </SelectTrigger>
           <SelectContent>{STAFF_ROLE_SELECT_ITEMS}</SelectContent>
         </Select>
       </PropertyRow>
+
       <PropertyRow label="資格番号">
-        <input type="text" className={MASTER_INPUT_CLASS} value={f.licenseNumber}
-          onChange={(e) => setF((p) => ({ ...p, licenseNumber: e.target.value }))} placeholder="空" />
+        <input
+          type="text"
+          className={MASTER_INPUT_CLASS}
+          value={f.licenseNumber}
+          onChange={(e) => setF((p) => ({ ...p, licenseNumber: e.target.value }))}
+          placeholder="空"
+        />
       </PropertyRow>
-      {item === null ? (
+
+      {isNew ? (
         <>
           <PropertyRow label="メールアドレス">
-            <input type="email" className={MASTER_INPUT_CLASS} value={f.email}
-              onChange={(e) => setF((p) => ({ ...p, email: e.target.value }))} placeholder="例: staff@clinic.com" />
+            <input
+              type="email"
+              className={MASTER_INPUT_CLASS}
+              value={f.email}
+              onChange={(e) => setF((p) => ({ ...p, email: e.target.value }))}
+              placeholder="例: staff@clinic.com"
+            />
           </PropertyRow>
           <PropertyRow label="パスワード">
-            <input type="password" className={MASTER_INPUT_CLASS} value={f.password}
-              onChange={(e) => setF((p) => ({ ...p, password: e.target.value }))} placeholder="8文字以上" />
+            <input
+              type="password"
+              className={MASTER_INPUT_CLASS}
+              value={f.password}
+              onChange={(e) => setF((p) => ({ ...p, password: e.target.value }))}
+              placeholder="8文字以上"
+            />
           </PropertyRow>
         </>
       ) : null}
+
+      {/* ── Permission groups ─────────────────────── */}
+      <div className="mt-4 border-t pt-4">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Shield className="size-3.5 text-muted-foreground" />
+          <p className="text-xs font-medium text-muted-foreground">権限グループ</p>
+        </div>
+
+        {isNew ? (
+          <p className="text-xs text-muted-foreground pl-0.5">
+            スタッフ登録後に権限グループを設定できます
+          </p>
+        ) : allGroups.length === 0 ? (
+          <p className="text-xs text-muted-foreground pl-0.5">
+            権限グループが登録されていません
+          </p>
+        ) : (
+          <div className="space-y-0.5">
+            {allGroups.map((group) => (
+              <label
+                key={group.id}
+                className="flex items-center gap-2.5 py-1.5 px-0.5 rounded cursor-pointer hover:bg-muted/40 transition-colors"
+              >
+                <Checkbox
+                  checked={groupIds.includes(group.id)}
+                  onCheckedChange={(checked) =>
+                    handleGroupToggle(group.id, checked === true)
+                  }
+                />
+                <div
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: group.color ?? "#6B7280" }}
+                />
+                <span className="text-sm">{group.name}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
     </MasterSidePanel>
   );
 });
 
+// ─────────────────────────────────────────────────
+// StaffSettings (page)
+// ─────────────────────────────────────────────────
+
 export function StaffSettings() {
+  const { currentClinicId } = useAuth();
+  const clinicId = currentClinicId ?? "";
+
   const { data } = useGetStaffs();
   const createMutation = useCreateStaff();
   const updateMutation = useUpdateStaff();
   const deleteMutation = useDeleteStaff();
+
+  // User accounts — needed to find linked userId per staff
+  const { data: users = [] } = useGetUsers(clinicId);
+
+  // Permission groups — shown as checkboxes in the panel
+  const { data: allGroups = [] } = useGetPermissionGroups(clinicId);
+
+  // Group assignment mutation
+  const setGroupsMutation = useSetUserPermissionGroups(clinicId);
+
+  // staff.id → user.id lookup map
+  const usersByStaffId = new Map<string, string>(
+    users
+      .filter((u) => u.staff_id != null)
+      .map((u) => [u.staff_id as string, u.id]),
+  );
+
   const crud = useMasterCRUD<Staff>({
-    data, deleteMutation, entityLabel: "スタッフ",
-    searchFilter: (s, lower) => s.name.toLowerCase().includes(lower) || STAFF_ROLE_LABELS[s.staffRole].toLowerCase().includes(lower),
+    data,
+    deleteMutation,
+    entityLabel: "スタッフ",
+    searchFilter: (s, lower) =>
+      s.name.toLowerCase().includes(lower) ||
+      STAFF_ROLE_LABELS[s.staffRole].toLowerCase().includes(lower),
     activeFilterApply: (item, filters) => {
       for (const f of filters) {
         if (f.key === "status" && typeof f.value === "string") {
@@ -119,8 +299,11 @@ export function StaffSettings() {
       return true;
     },
   });
+
   const { handleSave } = useMasterSave<Staff, StaffFormData, CreateStaffRequest, UpdateStaffRequest>({
-    crud, createMutation, updateMutation,
+    crud,
+    createMutation,
+    updateMutation,
     validate: (d) => {
       if (!d.name.trim()) return "氏名は必須です";
       if (crud.editTarget === null || crud.editTarget === "new") {
@@ -130,28 +313,65 @@ export function StaffSettings() {
       return null;
     },
     toCreateRequest: (d) => ({
-      name: d.name, staff_role: d.staffRole, email: d.email, password: d.password,
+      name: d.name,
+      staff_role: d.staffRole,
+      email: d.email,
+      password: d.password,
       license_number: d.licenseNumber || undefined,
     }),
     toUpdateRequest: (d) => ({
-      name: d.name, staff_role: d.staffRole, license_number: d.licenseNumber || undefined, is_active: d.isActive,
+      name: d.name,
+      staff_role: d.staffRole,
+      license_number: d.licenseNumber || undefined,
+      is_active: d.isActive,
     }),
   });
 
+  const handleSaveGroups = useCallback(
+    (userId: string, groupIds: number[]) => {
+      setGroupsMutation.mutate({ userId, groupIds });
+    },
+    [setGroupsMutation],
+  );
+
   return (
-    <MasterCRUDPage title="スタッフマスタ" icon={<UserRound className="size-5 text-[#37352F]" />}
-      entityLabel="スタッフ" searchPlaceholder="氏名、職種で検索..." emptyMessage="スタッフが登録されていません"
-      crud={crud} handleSave={handleSave} columns={COLUMNS}
+    <MasterCRUDPage
+      title="スタッフマスタ"
+      icon={<UserRound className="size-5 text-[#37352F]" />}
+      entityLabel="スタッフ"
+      searchPlaceholder="氏名、職種で検索..."
+      emptyMessage="スタッフが登録されていません"
+      crud={crud}
+      handleSave={handleSave}
+      columns={COLUMNS}
       filterProperties={STAFF_FILTER_PROPERTIES}
       renderRow={(item, onEdit) => (
         <DataTableRow key={item.id} onClick={() => onEdit(item)}>
           <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
           <TableCell className={`text-base ${C.text}`}>{STAFF_ROLE_LABELS[item.staffRole]}</TableCell>
-          <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="p-0 text-right"><RowActionButton onClick={() => onEdit(item)} /></TableCell>
+          <TableCell className="text-center">
+            <NotionStatusPill isActive={item.isActive} />
+          </TableCell>
+          <TableCell className="p-0 text-right">
+            <RowActionButton onClick={() => onEdit(item)} />
+          </TableCell>
         </DataTableRow>
       )}
-      renderSidePanel={(props) => <StaffSidePanel key={props.item?.id ?? "new"} {...props} />}
+      renderSidePanel={({ item, onClose, onSave, onDeleteRequest }) => {
+        const linkedUserId = item ? (usersByStaffId.get(item.id) ?? null) : null;
+        return (
+          <StaffSidePanel
+            key={item?.id ?? "new"}
+            item={item}
+            onClose={onClose}
+            onSave={onSave}
+            onDeleteRequest={onDeleteRequest}
+            allGroups={allGroups}
+            linkedUserId={linkedUserId}
+            onSaveGroups={handleSaveGroups}
+          />
+        );
+      }}
     />
   );
 }

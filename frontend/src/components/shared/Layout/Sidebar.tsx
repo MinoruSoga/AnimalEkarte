@@ -211,13 +211,12 @@ export function Sidebar() {
         { icon: <Building2    className="size-[18px]" />, label: "ケージ",     path: paths.settings.cage.getHref() },
         // トリミング
         { icon: <Scissors     className="size-[18px]" />, label: "トリミング", path: paths.settings.trimming.getHref() },
-        // スタッフ・保険
-        { icon: <Users        className="size-[18px]" />, label: "スタッフ",   path: paths.settings.staff.getHref() },
-        { icon: <Briefcase    className="size-[18px]" />, label: "職種",       path: paths.settings.jobTitle.getHref() },
-        { icon: <ShieldCheck  className="size-[18px]" />, label: "保険",       path: paths.settings.insurance.getHref() },
-        { icon: <Package      className="size-[18px]" />, label: "物販",       path: paths.settings.merchandiseItems.getHref() },
-        // 権限
+        // スタッフ・権限・保険
+        { icon: <Users        className="size-[18px]" />, label: "スタッフ",     path: paths.settings.staff.getHref() },
         { icon: <Shield       className="size-[18px]" />, label: "権限グループ", path: paths.settings.permissionGroups.getHref() },
+        { icon: <Briefcase    className="size-[18px]" />, label: "職種",         path: paths.settings.jobTitle.getHref() },
+        { icon: <ShieldCheck  className="size-[18px]" />, label: "保険",         path: paths.settings.insurance.getHref() },
+        { icon: <Package      className="size-[18px]" />, label: "物販",         path: paths.settings.merchandiseItems.getHref() },
       ],
     },
   ], []);
