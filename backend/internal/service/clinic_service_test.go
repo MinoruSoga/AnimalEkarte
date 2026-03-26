@@ -243,7 +243,7 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 	tests := []struct {
 		name          string
 		id            uint64
-		inputFields   map[string]any
+		input         *UpdateClinicInput
 		repoClinic    *model.Clinic
 		repoFindErr   error
 		repoUpdateErr error
@@ -254,9 +254,9 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 		{
 			name: "updates clinic successfully and returns fresh record from DB",
 			id:   1,
-			inputFields: map[string]any{
-				"name":    "更新後院",
-				"address": "東京都渋谷区",
+			input: &UpdateClinicInput{
+				Name:    strPtr("更新後院"),
+				Address: strPtr("東京都渋谷区"),
 			},
 			repoClinic: &model.Clinic{
 				ID:        1,
@@ -271,16 +271,16 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 		{
 			name:        "returns not found error when clinic does not exist",
 			id:          999,
-			inputFields: map[string]any{"name": "存在しない院"},
+			input:       &UpdateClinicInput{Name: strPtr("存在しない院")},
 			repoClinic:  nil,
 			repoFindErr: apperrors.WrapNotFound("clinic", "999"),
 			wantErr:     true,
 			wantNF:      true,
 		},
 		{
-			name:        "returns error on update failure",
-			id:          1,
-			inputFields: map[string]any{"name": "更新後院"},
+			name:  "returns error on update failure",
+			id:    1,
+			input: &UpdateClinicInput{Name: strPtr("更新後院")},
 			repoClinic: &model.Clinic{
 				ID:        1,
 				CompanyID: 5,
@@ -304,7 +304,7 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 			}
 			svc := NewClinicService(repo)
 
-			result, err := svc.UpdateClinic(context.Background(), tt.id, tt.inputFields)
+			result, err := svc.UpdateClinic(context.Background(), tt.id, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
