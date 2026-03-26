@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import { QUERY_STALE_TIMES } from "@/lib/react-query";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Owner } from "@/types/owner";
 import { transformOwner } from "./transforms";
 import type { Owner as BackendOwner } from "@/types/generated/models";

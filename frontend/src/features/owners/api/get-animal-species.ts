@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import { QUERY_STALE_TIMES } from "@/lib/react-query";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { AnimalSpecies as BackendAnimalSpecies } from "@/types/generated/models";
 
 export const getAnimalSpecies = async (): Promise<BackendAnimalSpecies[]> => {
