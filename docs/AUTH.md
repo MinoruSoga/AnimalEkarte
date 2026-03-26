@@ -32,8 +32,8 @@
 
 | 項目 | 方針 |
 |------|------|
-| **3層モデル** | ユーザー種別（システムレベル）→ 職種（表示・テンプレート用）→ 権限（機能アクセス制御）の3層で分離 |
-| **権限の複数保持** | 1ユーザーが複数の権限を同時に保持可能（例: 医師権限 + アカウント管理者権限） |
+| **3層モデル** | ユーザー種別（システムレベル）→ 職種（表示・テンプレート用）→ 権限グループ（リソース×CRUD制御）の3層で分離 |
+| **権限グループの複数保持** | 1ユーザーが複数の権限グループに所属可能（例: 獣医師権限 + 管理者権限） |
 | **クリニックスコープ** | 権限はクリニック単位でスコープされる（運営管理者を除く） |
 | **職種と権限の分離** | 職種（何者であるか）と権限（何ができるか）を明確に分離。職種は権限テンプレートの初期値として使用 |
 | **最小権限の原則** | デフォルトでは最小限の権限のみ付与。必要に応じて権限を追加 |
@@ -190,7 +190,7 @@
 | **複数クリニック所属** | 1ユーザーは複数のクリニックに所属可能 |
 | **メインクリニック** | 各ユーザーは必ず1つのメインクリニック (`is_main = true`) を持つ。ログイン後の初期表示クリニック |
 | **メインクリニック一意制約** | 1ユーザーにつき `is_main = true` は1レコードのみ（部分一意インデックスで保証） |
-| **権限のクリニックスコープ** | `UserPermission` はクリニック単位。同一ユーザーがA院では `medical` 権限、B院では `trimming` 権限のみ、という設定が可能 |
+| **権限のクリニックスコープ** | `permission_groups` はクリニック単位で管理。同一ユーザーがA院では獣医師権限グループ、B院ではトリマー権限グループのみ、という設定が可能 |
 | **運営管理者の例外** | `system_admin` はクリニック所属に関係なく全クリニックにアクセス可能 |
 
 ### クリニック切替
@@ -690,54 +690,60 @@ CREATE POLICY "clinic_scope_read" ON medical_records
 
 -- === 機能別 WRITE ポリシー ===
 
--- カルテ: medical 権限が必要
+-- カルテ: medical-records リソースの create/edit 権限が必要
 CREATE POLICY "medical_write" ON medical_records
   FOR INSERT TO authenticated
-  WITH CHECK (auth.has_permission(clinic_id, 'medical'));
+  WITH CHECK (auth.has_permission(clinic_id, 'medical-records', 'create'));
 
 CREATE POLICY "medical_update" ON medical_records
   FOR UPDATE TO authenticated
-  USING (auth.has_permission(clinic_id, 'medical'));
+  USING (auth.has_permission(clinic_id, 'medical-records', 'edit'));
 
--- 会計: billing 権限が必要
+-- 会計: accounting リソースの create/edit 権限が必要
 CREATE POLICY "billing_write" ON accountings
   FOR INSERT TO authenticated
-  WITH CHECK (auth.has_permission(clinic_id, 'billing'));
+  WITH CHECK (auth.has_permission(clinic_id, 'accounting', 'create'));
 
 CREATE POLICY "billing_update" ON accountings
   FOR UPDATE TO authenticated
-  USING (auth.has_permission(clinic_id, 'billing'));
+  USING (auth.has_permission(clinic_id, 'accounting', 'edit'));
 
--- マスタ: master_admin 権限が必要
+-- マスタ: master リソースの create/edit 権限が必要
 CREATE POLICY "master_write" ON master_items
-  FOR ALL TO authenticated
-  USING (auth.has_permission(clinic_id, 'master_admin'))
-  WITH CHECK (auth.has_permission(clinic_id, 'master_admin'));
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.has_permission(clinic_id, 'master', 'create'));
 
--- 入院: hospitalization または medical 権限が必要
+CREATE POLICY "master_update" ON master_items
+  FOR UPDATE TO authenticated
+  USING (auth.has_permission(clinic_id, 'master', 'edit'));
+
+-- 入院: hospitalization リソースの create 権限が必要
 CREATE POLICY "hospitalization_write" ON hospitalizations
   FOR INSERT TO authenticated
-  WITH CHECK (
-    auth.has_permission(clinic_id, 'hospitalization')
-    OR auth.has_permission(clinic_id, 'medical')
-  );
+  WITH CHECK (auth.has_permission(clinic_id, 'hospitalization', 'create'));
 
--- トリミング: trimming 権限が必要
+-- トリミング: trimming リソースの create 権限が必要
 CREATE POLICY "trimming_write" ON trimming_records
   FOR INSERT TO authenticated
-  WITH CHECK (auth.has_permission(clinic_id, 'trimming'));
+  WITH CHECK (auth.has_permission(clinic_id, 'trimming', 'create'));
 
--- シフト: shift_admin 権限が必要
+-- シフト: shifts リソースの create/edit 権限が必要
 CREATE POLICY "shift_write" ON shift_entries
-  FOR ALL TO authenticated
-  USING (auth.has_permission(clinic_id, 'shift_admin'))
-  WITH CHECK (auth.has_permission(clinic_id, 'shift_admin'));
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.has_permission(clinic_id, 'shifts', 'create'));
 
--- 在庫: inventory 権限が必要
+CREATE POLICY "shift_update" ON shift_entries
+  FOR UPDATE TO authenticated
+  USING (auth.has_permission(clinic_id, 'shifts', 'edit'));
+
+-- 在庫: inventory リソースの create/edit 権限が必要
 CREATE POLICY "inventory_write" ON inventory_items
-  FOR ALL TO authenticated
-  USING (auth.has_permission(clinic_id, 'inventory'))
-  WITH CHECK (auth.has_permission(clinic_id, 'inventory'));
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.has_permission(clinic_id, 'inventory', 'create'));
+
+CREATE POLICY "inventory_update" ON inventory_items
+  FOR UPDATE TO authenticated
+  USING (auth.has_permission(clinic_id, 'inventory', 'edit'));
 ```
 
 ---
