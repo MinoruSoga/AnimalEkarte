@@ -108,8 +108,10 @@ const useOwnerForm = (initialValues?: Owner) => {
   return { formData, setFormData };
 };
 
-// ファイル: kebab-case
-// owner-card.tsx, owner-form.tsx, use-owner-form.ts
+// コンポーネントファイル(.tsx): PascalCase
+// OwnerCard.tsx, OwnerForm.tsx
+// 非コンポーネントファイル(.ts): kebab-case
+// use-owner-form.ts, get-owners.ts
 
 // Interface/Type: PascalCase
 interface Owner {}

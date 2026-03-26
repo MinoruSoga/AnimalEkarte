@@ -45,7 +45,9 @@ globs: ["**/*.{ts,tsx,js,jsx,go}"]
 - Variables/Functions: camelCase
 - Components: PascalCase
 - Constants: UPPER_SNAKE_CASE
-- Files/Folders: kebab-case（ESLint check-fileで強制）
+- コンポーネントファイル（.tsx）: PascalCase（`PatientCard.tsx`）
+- 非コンポーネントファイル（.ts）: kebab-case（`use-patient-form.ts`, `get-owners.ts`）
+- Folders: kebab-case
 - Types/Interfaces: PascalCase
 
 ### Import Order
