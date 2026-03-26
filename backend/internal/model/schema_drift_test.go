@@ -79,7 +79,6 @@ func allModels() []any {
 		&model.CarePlanItem{},
 		&model.TreatmentPlan{},
 		&model.DailyRecord{},
-		&model.VitalRecord{},
 		&model.CareLogRecord{},
 		&model.StaffNoteRecord{},
 		&model.TrimmingCourse{},
@@ -94,6 +93,7 @@ func allModels() []any {
 		&model.BillingItem{},
 		&model.Payment{},
 		&model.BillingRefund{},
+		&model.MerchandiseItem{},
 	}
 }
 

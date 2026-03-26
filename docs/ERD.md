@@ -1,11 +1,21 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v24.0（消費税区分設定）
-更新日: 2026-03-25
+バージョン: v25.0（ERD・Migration・Model 完全同期）
+更新日: 2026-03-26
 状態: Production Ready
 
-本ドキュメントは、Animal Ekarteの全55テーブルとそのリレーションを定義します。
+本ドキュメントは、Animal Ekarteの全56テーブルとそのリレーションを定義します。
 PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
+
+---
+
+## 変更概要（v24.0 → v25.0）
+
+| 変更内容 | 詳細 |
+|---------|------|
+| `exams.medical_record_id` を NOT NULL に修正 | ERD と migration・model の差分を解消。検査は必ずカルテに紐づく |
+| `billing_refunds` テーブル追加 | migration・model に存在したが ERD 未記載だったため追加（返金管理 Stripe モデル） |
+| `merchandise_items` 詳細セクション追加 | mermaid には存在したが詳細定義・FK 一覧が未記載だったため補完 |
 
 ---
 
@@ -201,7 +211,7 @@ v10.0 にて24テーブルへの `clinic_id` 追加完了（003_add_clinic_id.sq
 | 画像 | `record_images` | v7.0追加 |
 | 見積書 | `estimates` + `estimate_items` | v7.0追加 |
 | 会計（医師確認） | `billing_reviews` | v7.0追加 |
-| 会計情報 | `billings` + `billing_items` + `payments` | 既存 |
+| 会計情報 | `billings` + `billing_items` + `payments` + `billing_refunds` | 既存 |
 | 生体情報 | `vital_records` | 外来・入院統合 |
 | ペット情報 | `pets`（参照） | 既存 |
 
@@ -265,7 +275,9 @@ v10.0 にて24テーブルへの `clinic_id` 追加完了（003_add_clinic_id.sq
 | 52 | `billings` | 会計 | 会計 |
 | 53 | `billing_items` | 会計 | 会計明細 |
 | 54 | `payments` | 会計 | 支払い情報 |
-| 55 | `shift_entries` | シフト | スタッフシフト |
+| 55 | `billing_refunds` | 会計 | 返金レコード（Stripe モデル） |
+| 56 | `merchandise_items` | マスタ | 物販・フード・その他マスタ |
+| 57 | `shift_entries` | シフト | スタッフシフト |
 
 ---
 
@@ -1125,6 +1137,16 @@ erDiagram
         timestamptz updated_at
     }
 
+    billing_refunds {
+        bigint id PK
+        bigint clinic_id FK
+        bigint billing_id FK
+        bigint amount "CHECK > 0"
+        text reason
+        timestamptz refunded_at
+        timestamptz created_at
+    }
+
     %% ===== シフト =====
     shift_entries {
         bigint id PK
@@ -1260,6 +1282,8 @@ erDiagram
     pets ||--o{ billings : "pet_id"
     billings ||--o{ billing_items : "billing_id"
     billings ||--o| payments : "billing_id"
+    billings ||--o{ billing_refunds : "billing_id"
+    clinics ||--o{ billing_refunds : "clinic_id"
 
     %% シフト
     staffs ||--o{ shift_entries : "staff_id"
@@ -1956,6 +1980,32 @@ erDiagram
 | sort_order | integer | YES | 0 | 並び順 |
 | created_at | timestamptz | YES | now() | 作成日時 |
 | updated_at | timestamptz | YES | now() | 更新日時 |
+
+**FK:**
+- `clinic_id` → `clinics.id` (RESTRICT)
+
+**インデックス:** `(clinic_id)`
+
+---
+
+#### `merchandise_items`
+
+用途: 物販・フード・その他マスタ。クリニック単位で管理する販売商品。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO | - | FK → clinics(id) RESTRICT（所属医院） |
+| name | text | NO | | 商品名 |
+| category | item_category | NO | 'goods' | カテゴリ（goods 等） |
+| unit_price | integer | NO | 0 | 単価（円） |
+| tax_type | tax_type | NO | 'excluded' | 課税区分（included/excluded/exempt） |
+| tax_rate | numeric | NO | 0.10 | 税率（小数） |
+| is_active | boolean | NO | true | 有効フラグ |
+| sort_order | integer | NO | 0 | 並び順 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
+| deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -2829,6 +2879,30 @@ erDiagram
 
 ---
 
+#### `billing_refunds`
+
+用途: 返金レコード。Stripe モデルに準じ billing に対して複数返金を許容する独立管理テーブル。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO | - | FK → clinics(id) RESTRICT（マルチテナント） |
+| billing_id | bigint | NO | - | FK → billings(id) |
+| amount | bigint | NO | | 返金額（正の整数・円）CHECK > 0 |
+| reason | text | NO | '' | 返金理由 |
+| refunded_at | timestamptz | NO | now() | 返金実施日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+
+**FK:**
+- `clinic_id` → `clinics.id` (RESTRICT)
+- `billing_id` → `billings.id`（削除時動作は未指定: 返金履歴は保持推奨）
+
+**インデックス:**
+- `(billing_id)`
+- `(clinic_id, billing_id)`
+
+---
+
 ### シフト
 
 ---
@@ -3028,6 +3102,19 @@ FK なし（システム共通マスタ）
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
 | billing_id | billings.id | CASCADE |
+
+### billing_refunds
+
+| FK元カラム | 参照先 | 削除時 |
+| ----------- | ------- | -------- |
+| clinic_id | clinics.id | RESTRICT |
+| billing_id | billings.id | - |
+
+### merchandise_items
+
+| FK元カラム | 参照先 | 削除時 |
+| ----------- | ------- | -------- |
+| clinic_id | clinics.id | RESTRICT |
 
 ### pets
 

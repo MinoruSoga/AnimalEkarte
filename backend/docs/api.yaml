@@ -884,6 +884,44 @@ components:
           readOnly: true
           items:
             $ref: '#/components/schemas/Payment'
+        refunds:
+          type: array
+          description: 返金情報（Preload時のみ含まれる）
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/BillingRefund'
+    BillingRefund:
+      type: object
+      required: [amount]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        clinic_id:
+          type: integer
+          format: int64
+          readOnly: true
+        billing_id:
+          type: integer
+          format: int64
+          readOnly: true
+        amount:
+          type: integer
+          format: int64
+          description: 返金額（円）
+          minimum: 1
+        reason:
+          type: string
+          description: 返金理由
+        refunded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
     TrimmingRecord:
       type: object
       required: [date, staff_id, course_id]
@@ -4553,6 +4591,81 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /accountings/{id}/refunds:
+    get:
+      operationId: listRefunds
+      summary: 返金一覧取得
+      tags: [Accountings]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 会計ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 返金一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BillingRefund'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createRefund
+      summary: 返金登録
+      tags: [Accountings]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 会計ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount:
+                  type: integer
+                  format: int64
+                  description: 返金額（円）
+                  minimum: 1
+                reason:
+                  type: string
+                  description: 返金理由
+      responses:
+        '201':
+          description: 返金登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingRefund'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /trimmings:
     get:
       operationId: listTrimmings
@@ -8203,6 +8316,133 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createAnimalSpecies
+      summary: 動物種作成
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                is_active:
+                  type: boolean
+                  default: true
+                sort_order:
+                  type: integer
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnimalSpecies'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/animal-species/reorder:
+    patch:
+      operationId: reorderAnimalSpecies
+      summary: 動物種並び替え
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                    format: int64
+                  minItems: 1
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/animal-species/{id}:
+    patch:
+      operationId: updateAnimalSpecies
+      summary: 動物種更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                is_active:
+                  type: boolean
+                sort_order:
+                  type: integer
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnimalSpecies'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteAnimalSpecies
+      summary: 動物種削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
   # ─── Masters: chief-complaints ───────────────────────────────
   /masters/chief-complaints:
@@ -8437,6 +8677,54 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Medical Records nested: inquiries ───────────────────────
+  /medical-records/{id}/inquiries:
+    patch:
+      operationId: updateInquiry
+      summary: 問診更新（upsert）
+      description: 指定カルテIDの問診情報を更新する（存在しない場合は作成）
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: カルテID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                chief_complaint:
+                  type: string
+                  nullable: true
+                chief_complaint_category_id:
+                  type: integer
+                  format: int64
+                  nullable: true
+                notes:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Inquiry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':

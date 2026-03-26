@@ -5,8 +5,8 @@ import "time"
 type BodyWeightUnit string
 
 const (
-	BodyWeightUnitKg  BodyWeightUnit = "Kg"
-	BodyWeightUnitLbs BodyWeightUnit = "Lbs"
+	BodyWeightUnitKg BodyWeightUnit = "Kg"
+	BodyWeightUnitG  BodyWeightUnit = "g"
 )
 
 type VitalRecord struct {

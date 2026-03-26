@@ -67,8 +67,8 @@ func TestExaminationService_List(t *testing.T) {
 			page:     1,
 			limit:    20,
 			repoItems: []model.Examination{
-				{ID: 1, MedicalRecordID: ptrUint64(10), ExamTypeID: 1, Status: model.ExaminationStatusPending},
-				{ID: 2, MedicalRecordID: ptrUint64(11), ExamTypeID: 2, Status: model.ExaminationStatusCompleted},
+				{ID: 1, MedicalRecordID: 10, ExamTypeID: 1, Status: model.ExaminationStatusPending},
+				{ID: 2, MedicalRecordID: 11, ExamTypeID: 2, Status: model.ExaminationStatusCompleted},
 			},
 			repoTotal: 2,
 			wantLen:   2,
@@ -93,7 +93,7 @@ func TestExaminationService_List(t *testing.T) {
 			page:     1,
 			limit:    20,
 			repoItems: []model.Examination{
-				{ID: 1, MedicalRecordID: ptrUint64(10), ExamTypeID: 1},
+				{ID: 1, MedicalRecordID: 10, ExamTypeID: 1},
 			},
 			repoTotal: 1,
 			wantLen:   1,
@@ -107,7 +107,7 @@ func TestExaminationService_List(t *testing.T) {
 			page:     1,
 			limit:    20,
 			repoItems: []model.Examination{
-				{ID: 1, MedicalRecordID: ptrUint64(10), ExamTypeID: 1},
+				{ID: 1, MedicalRecordID: 10, ExamTypeID: 1},
 			},
 			repoTotal: 1,
 			wantLen:   1,
@@ -121,7 +121,7 @@ func TestExaminationService_List(t *testing.T) {
 			page:     1,
 			limit:    20,
 			repoItems: []model.Examination{
-				{ID: 2, MedicalRecordID: ptrUint64(11), ExamTypeID: 2, Status: model.ExaminationStatusCompleted},
+				{ID: 2, MedicalRecordID: 11, ExamTypeID: 2, Status: model.ExaminationStatusCompleted},
 			},
 			repoTotal: 1,
 			wantLen:   1,
@@ -181,7 +181,7 @@ func TestExaminationService_GetByID(t *testing.T) {
 			id:       10,
 			repoItem: &model.Examination{
 				ID:              10,
-				MedicalRecordID: ptrUint64(5),
+				MedicalRecordID: 5,
 				ExamTypeID:      1,
 				Date:            now,
 				Status:          model.ExaminationStatusPending,
@@ -243,7 +243,7 @@ func TestExaminationService_Create(t *testing.T) {
 		{
 			name: "creates exam successfully",
 			exam: &model.Examination{
-				MedicalRecordID: ptrUint64(5),
+				MedicalRecordID: 5,
 				ExamTypeID:      1,
 				Date:            now,
 				Status:          model.ExaminationStatusPending,
@@ -254,7 +254,7 @@ func TestExaminationService_Create(t *testing.T) {
 		{
 			name: "returns error on repository failure",
 			exam: &model.Examination{
-				MedicalRecordID: ptrUint64(5),
+				MedicalRecordID: 5,
 				ExamTypeID:      1,
 				Date:            now,
 			},

@@ -734,7 +734,7 @@ CREATE TABLE checkups (
 -- ------------------------------------
 CREATE TABLE exams (
     id                BIGSERIAL          PRIMARY KEY,
-    medical_record_id bigint                      REFERENCES medical_records(id) ON DELETE CASCADE,
+    medical_record_id bigint             NOT NULL REFERENCES medical_records(id) ON DELETE CASCADE,
     clinic_id         bigint             NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     pet_id            bigint                      REFERENCES pets(id) ON DELETE RESTRICT,
     date              date               NOT NULL,
