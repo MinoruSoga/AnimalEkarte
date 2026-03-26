@@ -224,9 +224,13 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
     navigate(paths.owners.detail.getHref(pet.ownerId));
   }, [navigate]);
 
+  // rerender-dependencies: object 依存を避け stable な変数に抽出してから deps に渡す
+  const petModalItem = petModal.item;
+  const closePetModal = petModal.close;
+
   // PetEditModal の保存ハンドラ
   const handlePetSave = useCallback((formData: PetFormData) => {
-    if (!petModal.item || !onUpdatePet) return;
+    if (!petModalItem || !onUpdatePet) return;
     startPetSaveTransition(async () => {
       try {
         const req = transformUpdatePetRequest({
@@ -247,22 +251,24 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
           insuranceId: formData.insuranceId,
           remarks: formData.remarks,
         });
-        await onUpdatePet(petModal.item.id, req);
+        await onUpdatePet(petModalItem.id, req);
         toast.success("ペット情報を更新しました");
-        petModal.close();
+        closePetModal();
         revalidator.revalidate();
       } catch (error: unknown) {
         handleApiError(error, "更新");
       }
     });
-  }, [petModal.item, petModal.close, onUpdatePet, revalidator]);
+  }, [petModalItem, closePetModal, onUpdatePet, revalidator]);
 
+  const openDeleteModal = deleteModal.open;
   const handleDeleteRequest = useCallback((ownerId: string, ownerName: string) => {
-    deleteModal.open({ id: ownerId, name: ownerName });
-  }, [deleteModal.open]);
+    openDeleteModal({ id: ownerId, name: ownerName });
+  }, [openDeleteModal]);
 
   // rerender-dependencies: object依存を避け primitive の id のみを dep に使用
   const pendingDeleteOwnerId = deleteModal.item?.id ?? null;
+  const closeDeleteModal = deleteModal.close;
 
   const handleConfirmDelete = useCallback(() => {
     if (!pendingDeleteOwnerId) return;
@@ -271,13 +277,13 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
       try {
         await deleteOwner(pendingDeleteOwnerId);
         toast.success("飼主を削除しました");
-        deleteModal.close();
+        closeDeleteModal();
         revalidator.revalidate();
       } catch {
         toast.error("削除に失敗しました");
       }
     });
-  }, [pendingDeleteOwnerId, deleteModal.close, revalidator]);
+  }, [pendingDeleteOwnerId, closeDeleteModal, revalidator]);
 
   // rerender-memo: renderRow を安定化してインラインクロージャ生成を排除
   const renderRow = useCallback((pet: (typeof filteredPets)[number]) => (
