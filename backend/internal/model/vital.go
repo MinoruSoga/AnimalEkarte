@@ -16,10 +16,10 @@ type VitalRecord struct {
 	DailyRecordID   *uint64
 	RecordedAt      time.Time `gorm:"not null;default:now()"`
 	StaffID         *uint64
-	Temperature     *float64
-	HeartRate       *int
-	RespirationRate *int
-	Weight          *float64
+	Temperature     *float64       `gorm:"type:numeric"`
+	HeartRate       *int           `gorm:"type:integer"`
+	RespirationRate *int           `gorm:"type:integer"`
+	Weight          *float64       `gorm:"type:numeric"`
 	WeightUnit      BodyWeightUnit `gorm:"type:body_weight_unit;default:'Kg'"`
 	Notes           string         `gorm:"not null;default:''"`
 	CreatedAt       time.Time      `gorm:"not null;default:now()"`

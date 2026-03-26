@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Animal Ekarte - 初期スキーマ定義 v19.0
 -- PostgreSQL 18
--- テーブル数: 55
+-- テーブル数: 56
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -10,7 +10,7 @@
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- -----------------------------------------------------------------------------
--- 2. ENUM型定義（全55テーブル対応）
+-- 2. ENUM型定義（全56テーブル対応）
 -- -----------------------------------------------------------------------------
 
 -- 認証関連
@@ -253,7 +253,7 @@ CREATE TABLE exam_types (
     id          BIGSERIAL   PRIMARY KEY,
     clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name        text        NOT NULL,
-    price       integer,
+    price       bigint,
     is_active   boolean     NOT NULL DEFAULT true,
     description text        NOT NULL DEFAULT '',
     parent_id   bigint               REFERENCES exam_types(id) ON DELETE SET NULL,
@@ -284,7 +284,7 @@ CREATE TABLE vaccines (
     id           BIGSERIAL       PRIMARY KEY,
     clinic_id    bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name         text            NOT NULL,
-    price        integer,
+    price        bigint,
     is_active    boolean         NOT NULL DEFAULT true,
     description  text            NOT NULL DEFAULT '',
     species      vaccine_species,
@@ -303,7 +303,7 @@ CREATE TABLE medicines (
     id               BIGSERIAL     PRIMARY KEY,
     clinic_id        bigint        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name             text          NOT NULL,
-    price            integer,
+    price            bigint,
     is_active        boolean       NOT NULL DEFAULT true,
     description      text          NOT NULL DEFAULT '',
     parent_id        bigint                 REFERENCES medicines(id) ON DELETE SET NULL,
@@ -341,7 +341,7 @@ CREATE TABLE cages (
     id          BIGSERIAL   PRIMARY KEY,
     clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name        text        NOT NULL,
-    price       integer,
+    price       bigint,
     is_active   boolean     NOT NULL DEFAULT true,
     description text        NOT NULL DEFAULT '',
     cage_type   cage_type   NOT NULL,
@@ -373,7 +373,7 @@ CREATE TABLE consultations (
     id             BIGSERIAL   PRIMARY KEY,
     clinic_id      bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name           text        NOT NULL,
-    price          integer,
+    price          bigint,
     is_active      boolean     NOT NULL DEFAULT true,
     description    text        NOT NULL DEFAULT '',
     time_condition text        NOT NULL DEFAULT '',
@@ -393,7 +393,7 @@ CREATE TABLE procedures (
     id          BIGSERIAL       PRIMARY KEY,
     clinic_id   bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name        text            NOT NULL,
-    price       integer,
+    price       bigint,
     is_active   boolean         NOT NULL DEFAULT true,
     description text            NOT NULL DEFAULT '',
     duration    integer,
@@ -413,7 +413,7 @@ CREATE TABLE hospitalization_plans (
     id           BIGSERIAL    PRIMARY KEY,
     clinic_id    bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name         text         NOT NULL,
-    price        integer,
+    price        bigint,
     is_active    boolean      NOT NULL DEFAULT true,
     description  text         NOT NULL DEFAULT '',
     body_size    body_size,
@@ -432,7 +432,7 @@ CREATE TABLE trimming_courses (
     id          BIGSERIAL   PRIMARY KEY,
     clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name        text        NOT NULL,
-    price       integer,
+    price       bigint,
     is_active   boolean     NOT NULL DEFAULT true,
     description text        NOT NULL DEFAULT '',
     target_size target_size,
@@ -449,7 +449,7 @@ CREATE TABLE trimming_options (
     id          BIGSERIAL   PRIMARY KEY,
     clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name        text        NOT NULL,
-    price       integer,
+    price       bigint,
     is_active   boolean     NOT NULL DEFAULT true,
     description text        NOT NULL DEFAULT '',
     duration    integer,
@@ -495,7 +495,7 @@ CREATE TABLE checkup_types (
     id          BIGSERIAL   PRIMARY KEY,
     clinic_id   bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name        text        NOT NULL,
-    price       integer,
+    price       bigint,
     is_active   boolean     NOT NULL DEFAULT true,
     description text        NOT NULL DEFAULT '',
     interval    text        NOT NULL DEFAULT '',
@@ -556,7 +556,7 @@ CREATE TABLE pets (
     birth_date        date,
     breed             text            NOT NULL DEFAULT '',
     color             text            NOT NULL DEFAULT '',
-    weight            numeric,
+    weight            numeric(6,2),
     neutered_date     date,
     acquisition_type  acquisition_type,
     danger_level      danger_level    NOT NULL DEFAULT 'low',
@@ -656,9 +656,9 @@ CREATE TABLE trimming_records (
     staff_id        bigint                    REFERENCES staffs(id) ON DELETE SET NULL,
     status          trimming_status           DEFAULT 'reserved',
     course_id       bigint                    REFERENCES trimming_courses(id) ON DELETE SET NULL,
-    bw              numeric,                  -- 体重（body weight）
+    bw              numeric(6,2),             -- 体重（body weight）
     bw_unit         body_weight_unit          DEFAULT 'Kg',
-    bt              numeric,                  -- 体温（body temperature, ℃）
+    bt              numeric(4,1),             -- 体温（body temperature, ℃）
     used_shampoo    text             NOT NULL DEFAULT '',
     used_ribbon     text             NOT NULL DEFAULT '',
     remarks         text             NOT NULL DEFAULT '',
@@ -810,10 +810,10 @@ CREATE TABLE treatments (
     content           text                NOT NULL DEFAULT '',
     memo              text                NOT NULL DEFAULT '',
     insurance         boolean                      DEFAULT false,
-    unit_price        integer                      DEFAULT 0,
+    unit_price        bigint                       DEFAULT 0,
     quantity          numeric(10,1)                DEFAULT 1,
     discount_rate     numeric(5,2)                 DEFAULT 0,
-    discount_amount   integer                      DEFAULT 0,
+    discount_amount   bigint                       DEFAULT 0,
     inventory_id      bigint                       REFERENCES inventory_items(id) ON DELETE SET NULL,
     sort_order        integer                      DEFAULT 0,
     created_at        timestamptz         NOT NULL DEFAULT now(),
@@ -838,11 +838,11 @@ CREATE TABLE treatment_plans (
     treatment_content  text        NOT NULL DEFAULT '',
     memo               text        NOT NULL DEFAULT '',
     insurance          boolean              DEFAULT false,
-    unit_price         integer              DEFAULT 0,
+    unit_price         bigint               DEFAULT 0,
     quantity           numeric(10,1)        DEFAULT 1,
     discount_rate      numeric(5,2)         DEFAULT 0,
-    discount_amount    integer              DEFAULT 0,
-    subtotal           integer              DEFAULT 0,
+    discount_amount    bigint               DEFAULT 0,
+    subtotal           bigint               DEFAULT 0,
     sort_order         integer              DEFAULT 0,
     created_at         timestamptz NOT NULL DEFAULT now(),
     updated_at         timestamptz NOT NULL DEFAULT now(),
@@ -902,11 +902,11 @@ CREATE TABLE estimates (
     title             text            NOT NULL DEFAULT '',
     owner_id          bigint                   REFERENCES owners(id) ON DELETE SET NULL,
     status            estimate_status          DEFAULT 'draft',
-    subtotal          integer         NOT NULL DEFAULT 0,
-    tax_total         integer         NOT NULL DEFAULT 0,
-    total_amount      integer         NOT NULL DEFAULT 0,
-    insurance_amount  integer                  DEFAULT 0,
-    discount_amount   integer                  DEFAULT 0,
+    subtotal          bigint          NOT NULL DEFAULT 0,
+    tax_total         bigint          NOT NULL DEFAULT 0,
+    total_amount      bigint          NOT NULL DEFAULT 0,
+    insurance_amount  bigint                   DEFAULT 0,
+    discount_amount   bigint                   DEFAULT 0,
     valid_until       date,
     comment           text            NOT NULL DEFAULT '',
     notes             text            NOT NULL DEFAULT '',
@@ -991,7 +991,7 @@ CREATE TABLE care_plan_items (
     medicine_id             bigint                    REFERENCES medicines(id) ON DELETE SET NULL,
     procedure_id            bigint                    REFERENCES procedures(id) ON DELETE SET NULL,
     hospitalization_plan_id bigint                    REFERENCES hospitalization_plans(id) ON DELETE SET NULL,
-    unit_price              integer                   DEFAULT 0,
+    unit_price              bigint                    DEFAULT 0,
     category                text             NOT NULL DEFAULT '',
     sort_order              integer                   DEFAULT 0,
     created_at              timestamptz      NOT NULL DEFAULT now(),
@@ -1016,12 +1016,12 @@ CREATE TABLE estimate_items (
     estimate_id             bigint        NOT NULL REFERENCES estimates(id) ON DELETE CASCADE,
     name                    text          NOT NULL DEFAULT '',
     category                item_category NOT NULL,
-    unit_price              integer       NOT NULL DEFAULT 0,
+    unit_price              bigint        NOT NULL DEFAULT 0,
     quantity                numeric(10,1) NOT NULL DEFAULT 1,
     tax_type                tax_type               NOT NULL DEFAULT 'excluded',
-    tax_rate                numeric                DEFAULT 0.10,
+    tax_rate                numeric(3,2)           DEFAULT 0.10,
     discount_rate           numeric(5,2)           DEFAULT 0,
-    discount_amount         integer                DEFAULT 0,
+    discount_amount         bigint                 DEFAULT 0,
     is_insurance_applicable boolean                DEFAULT false,
     consultation_id         bigint                 REFERENCES consultations(id) ON DELETE SET NULL,
     procedure_id            bigint                 REFERENCES procedures(id) ON DELETE SET NULL,
@@ -1090,9 +1090,9 @@ CREATE TABLE billings (
     hospitalization_id bigint                  REFERENCES hospitalizations(id) ON DELETE SET NULL,
     owner_id           bigint                  REFERENCES owners(id) ON DELETE SET NULL,
     pet_id             bigint                  REFERENCES pets(id) ON DELETE SET NULL,
-    subtotal           integer        NOT NULL DEFAULT 0,
-    tax_total          integer        NOT NULL DEFAULT 0,
-    total_amount       integer        NOT NULL DEFAULT 0,
+    subtotal           bigint         NOT NULL DEFAULT 0,
+    tax_total          bigint         NOT NULL DEFAULT 0,
+    total_amount       bigint         NOT NULL DEFAULT 0,
     has_insurance      boolean        NOT NULL DEFAULT false,
     status             billing_status          DEFAULT 'waiting',
     scheduled_date     date           NOT NULL,
@@ -1112,10 +1112,10 @@ CREATE TABLE billing_items (
     billing_id              bigint        NOT NULL REFERENCES billings(id) ON DELETE CASCADE,
     category                item_category NOT NULL,
     name                    text          NOT NULL DEFAULT '',
-    unit_price              integer       NOT NULL DEFAULT 0,
+    unit_price              bigint        NOT NULL DEFAULT 0,
     quantity                numeric(10,1) NOT NULL DEFAULT 1,
     tax_type                tax_type               NOT NULL DEFAULT 'excluded',
-    tax_rate                numeric                DEFAULT 0.10,
+    tax_rate                numeric(3,2)           DEFAULT 0.10,
     is_insurance_applicable boolean                DEFAULT false,
     source                  item_source            DEFAULT 'manual',
     sort_order              integer                DEFAULT 0,
@@ -1130,23 +1130,36 @@ CREATE TABLE billing_items (
 CREATE TABLE payments (
     id               BIGSERIAL      PRIMARY KEY,
     billing_id       bigint         NOT NULL UNIQUE REFERENCES billings(id) ON DELETE CASCADE,
-    subtotal         integer        NOT NULL DEFAULT 0,
-    tax_total        integer        NOT NULL DEFAULT 0,
-    total_amount     integer        NOT NULL DEFAULT 0,
+    subtotal         bigint         NOT NULL DEFAULT 0,
+    tax_total        bigint         NOT NULL DEFAULT 0,
+    total_amount     bigint         NOT NULL DEFAULT 0,
     insurance_name   text           NOT NULL DEFAULT '',
-    insurance_ratio  numeric                 DEFAULT 0,  -- 保険比率は小数（例: 0.7）
-    insurance_amount integer                 DEFAULT 0,
-    discount_amount  integer                 DEFAULT 0,
-    billing_amount   integer        NOT NULL DEFAULT 0,
-    received_amount  integer                 DEFAULT 0,
-    change_amount    integer                 DEFAULT 0,
+    insurance_ratio  numeric(3,2)            DEFAULT 0,  -- 保険比率は小数（例: 0.7）
+    insurance_amount bigint                  DEFAULT 0,
+    discount_amount  bigint                  DEFAULT 0,
+    billing_amount   bigint         NOT NULL DEFAULT 0,
+    received_amount  bigint                  DEFAULT 0,
+    change_amount    bigint                  DEFAULT 0,
     method           payment_method          DEFAULT 'cash',
     created_at       timestamptz    NOT NULL DEFAULT now(),
     updated_at       timestamptz    NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------
--- 55. shift_entries（シフト管理）
+-- 55. billing_refunds（返金レコード）
+-- ------------------------------------
+CREATE TABLE billing_refunds (
+    id           BIGSERIAL   PRIMARY KEY,
+    clinic_id    bigint      NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    billing_id   bigint      NOT NULL REFERENCES billings(id) ON DELETE CASCADE,
+    amount       bigint      NOT NULL CHECK (amount > 0),
+    reason       text        NOT NULL DEFAULT '',
+    refunded_at  timestamptz NOT NULL DEFAULT now(),
+    created_at   timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- 56. shift_entries（シフト管理）
 -- ------------------------------------
 CREATE TABLE shift_entries (
     id         BIGSERIAL   PRIMARY KEY,
@@ -1161,13 +1174,15 @@ CREATE TABLE shift_entries (
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- merchandise_items（物販・フード・その他マスタ）
+-- ------------------------------------
+-- 57. merchandise_items（物販・フード・その他マスタ）
+-- ------------------------------------
 CREATE TABLE merchandise_items (
     id          BIGSERIAL     PRIMARY KEY,
     clinic_id   bigint        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
     name        text          NOT NULL DEFAULT '',
     category    item_category NOT NULL DEFAULT 'goods',
-    unit_price  integer       NOT NULL DEFAULT 0,
+    unit_price  bigint        NOT NULL DEFAULT 0,
     tax_type    tax_type      NOT NULL DEFAULT 'excluded',
     tax_rate    numeric       NOT NULL DEFAULT 0.10,
     is_active   boolean       NOT NULL DEFAULT true,
@@ -1298,18 +1313,6 @@ CREATE INDEX idx_billings_pet_id ON billings(pet_id);
 CREATE INDEX idx_billings_owner_id ON billings(owner_id);
 CREATE INDEX idx_billings_medical_record_id ON billings(medical_record_id);
 
--- 返金レコード（Stripe モデル：billing_refunds で独立管理）
-CREATE TABLE billing_refunds (
-    id           BIGSERIAL PRIMARY KEY,
-    clinic_id    BIGINT NOT NULL,
-    billing_id   BIGINT NOT NULL,
-    amount       BIGINT NOT NULL CHECK (amount > 0),
-    reason       TEXT NOT NULL DEFAULT '',
-    refunded_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-    created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
-    CONSTRAINT fk_billing_refunds_billing FOREIGN KEY (billing_id) REFERENCES billings(id),
-    CONSTRAINT fk_billing_refunds_clinic  FOREIGN KEY (clinic_id)  REFERENCES clinics(id)
-);
 CREATE INDEX idx_billing_refunds_billing ON billing_refunds(billing_id);
 CREATE INDEX idx_billing_refunds_clinic_billing ON billing_refunds(clinic_id, billing_id);
 
