@@ -501,7 +501,7 @@ const PaymentCard = memo(function PaymentCard({
             isSaving
           }
         >
-          <Save className="mr-2 h-5 w-5" />
+          <Save className="mr-2 size-4" />
           {isCompleted ? "精算完了済み" : isSaving ? "処理中..." : "会計を確定する"}
         </Button>
       </CardContent>

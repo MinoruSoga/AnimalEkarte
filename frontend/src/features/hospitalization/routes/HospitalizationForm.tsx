@@ -115,7 +115,7 @@ export function HospitalizationForm() {
     <PageLayout
       title={hospitalizationId ? "入院編集" : "入院登録"}
       onBack={handleBack}
-      icon={<FileText className={`size-4 ${C.text60}`} />}
+      icon={<FileText className="size-5 text-[#37352F]" />}
       maxWidth="max-w-[1400px]"
       headerAction={
         <div className="flex gap-2">

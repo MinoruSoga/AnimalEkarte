@@ -324,7 +324,7 @@ export function AccountingList() {
   return (
     <PageLayout
       title="会計管理"
-      icon={<CreditCard className="size-4 text-[#37352F]" />}
+      icon={<CreditCard className="size-5 text-[#37352F]" />}
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={handleCreate}>

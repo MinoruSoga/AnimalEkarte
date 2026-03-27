@@ -38,7 +38,7 @@ export function EstimateDetail() {
   return (
     <PageLayout
       title={`見積書 ${estimate.estimateNo}`}
-      icon={<FileText className="size-4 text-[#37352F]" />}
+      icon={<FileText className="size-5 text-[#37352F]" />}
       headerAction={
         <div className="flex gap-2">
           <Button

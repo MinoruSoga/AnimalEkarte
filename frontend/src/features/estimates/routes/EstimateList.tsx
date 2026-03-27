@@ -13,6 +13,7 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { EstimateStatusBadge } from "../components/EstimateStatusBadge/EstimateStatusBadge";
+import { paths } from "@/config/paths";
 import { useGetEstimates } from "../api/get-estimates";
 import { useDeleteEstimate } from "../api/delete-estimate";
 import type { Estimate } from "../types";
@@ -169,8 +170,9 @@ export function EstimateList() {
     setActiveSorts(sorts);
   }, []);
 
-  const renderRow = (estimate: Estimate) => (
-    <DataTableRow key={estimate.id} onClick={() => navigate(`/estimates/${estimate.id}`)}>
+  // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
+  const renderRow = useCallback((estimate: Estimate) => (
+    <DataTableRow key={estimate.id} onClick={() => navigate(paths.estimates.detail.getHref(estimate.id))}>
       <TableCell className="font-mono text-base text-[#37352F]/60 py-2">{estimate.estimateNo}</TableCell>
       <TableCell className="text-base text-[#37352F] py-2 font-medium">{estimate.title}</TableCell>
       <TableCell className="text-base text-[#37352F] py-2">{estimate.ownerName ?? "-"}</TableCell>
@@ -190,12 +192,12 @@ export function EstimateList() {
               {
                 label: "詳細",
                 icon: ExternalLink,
-                onClick: () => navigate(`/estimates/${estimate.id}`),
+                onClick: () => navigate(paths.estimates.detail.getHref(estimate.id)),
               },
               ...(canEdit ? [{
                 label: "編集",
                 icon: FileText,
-                onClick: () => navigate(`/estimates/${estimate.id}/edit`),
+                onClick: () => navigate(paths.estimates.edit.getHref(estimate.id)),
               }] : []),
               ...(canDelete ? [{
                 label: "削除",
@@ -208,7 +210,7 @@ export function EstimateList() {
         ) : null}
       </TableCell>
     </DataTableRow>
-  );
+  ), [navigate, canEdit, canDelete, deleteModal]);
 
   if (isLoading) {
     return (
@@ -224,7 +226,7 @@ export function EstimateList() {
   return (
     <PageLayout
       title="見積書管理"
-      icon={<FileText className="size-4 text-[#37352F]" />}
+      icon={<FileText className="size-5 text-[#37352F]" />}
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={() => navigate("/estimates/new")}>

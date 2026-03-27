@@ -32,7 +32,7 @@ export function RowActionDropdown({ actions }: RowActionDropdownProps) {
             className="h-11 w-11 text-[#37352F]/60 hover:text-[#37352F]"
             onClick={(e) => e.stopPropagation()}
           >
-            <MoreHorizontal className="h-5 w-5" />
+            <MoreHorizontal className="size-5" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
@@ -51,7 +51,7 @@ export function RowActionDropdown({ actions }: RowActionDropdownProps) {
                     : ""
                 }
               >
-                {Icon ? <Icon className="mr-2 h-4 w-4" /> : null}
+                {Icon ? <Icon className="mr-2 size-4" /> : null}
                 {action.label}
               </DropdownMenuItem>
             );

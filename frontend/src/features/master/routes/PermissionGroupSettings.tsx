@@ -307,7 +307,7 @@ export function PermissionGroupSettings() {
   return (
     <MasterListPage
       title="権限グループ管理"
-      icon={<Shield className={STYLE.pageIcon} />}
+      icon={<Shield className="size-5 text-[#37352F]" />}
       searchTerm={searchTerm}
       onSearchChange={setSearchTerm}
       searchPlaceholder="グループ名を検索..."

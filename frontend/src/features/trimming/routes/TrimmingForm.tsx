@@ -507,7 +507,7 @@ export function TrimmingForm() {
     <PageLayout
       title={mode === "new" ? "トリミング登録" : "トリミング編集"}
       onBack={handleBack}
-      icon={<Scissors className="h-4 w-4 text-[#37352F]" />}
+      icon={<Scissors className="size-5 text-[#37352F]" />}
       maxWidth="max-w-[1400px]"
       headerAction={
         <div className="flex gap-2">
