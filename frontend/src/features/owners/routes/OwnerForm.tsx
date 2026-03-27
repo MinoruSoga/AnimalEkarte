@@ -148,35 +148,35 @@ const PetTableRow = memo(function PetTableRow({
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>操作</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => onEdit(pet)}>
-                <Edit className="mr-2 h-4 w-4" />
+                <Edit className="mr-2 size-4" />
                 詳細・編集
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate(`/reservations?petId=${pet.id}`)}>
-                <Calendar className="mr-2 h-4 w-4" />
+                <Calendar className="mr-2 size-4" />
                 予約作成
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => navigate(`/medical-records/new?petId=${pet.id}`, { state: { from: backFrom } })}
               >
-                <FileText className="mr-2 h-4 w-4" />
+                <FileText className="mr-2 size-4" />
                 カルテ作成
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => navigate(`/trimming/new?petId=${pet.id}`, { state: { from: backFrom } })}
               >
-                <Scissors className="mr-2 h-4 w-4" />
+                <Scissors className="mr-2 size-4" />
                 トリミング
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => navigate(`/hospitalization/new?petId=${pet.id}`, { state: { from: backFrom } })}
               >
-                <Bed className="mr-2 h-4 w-4" />
+                <Bed className="mr-2 size-4" />
                 入院登録
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => navigate(`/accounting/new?petId=${pet.id}`, { state: { from: backFrom } })}
               >
-                <CreditCard className="mr-2 h-4 w-4" />
+                <CreditCard className="mr-2 size-4" />
                 会計登録
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -184,7 +184,7 @@ const PetTableRow = memo(function PetTableRow({
                 onClick={() => onDeleteRequest(pet.id, pet.petName)}
                 className={`${C.danger} focus:${C.danger} ${C.focusBgLight}`}
               >
-                <Trash2 className="mr-2 h-4 w-4" />
+                <Trash2 className="mr-2 size-4" />
                 削除
               </DropdownMenuItem>
             </DropdownMenuContent>

@@ -304,7 +304,7 @@ export function AccountingList() {
                 }}
                 aria-label="カルテを開く"
               >
-                <FileText className="h-4 w-4" />
+                <FileText className="size-4" />
               </Button>
             ) : null}
           </TableCell>

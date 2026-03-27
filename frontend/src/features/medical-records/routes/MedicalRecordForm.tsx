@@ -332,7 +332,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               onClick={() => setIsDeleteConfirmOpen(true)}
               className={`border ${C.borderDanger} h-10 text-sm px-4`}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="size-4" />
               削除
             </Button>
           ) : null}
@@ -344,7 +344,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               title={isNewRecord ? "カルテを保存してから利用できます" : undefined}
               className="h-10 text-sm px-4"
             >
-              <HeartPulse className="h-4 w-4" />
+              <HeartPulse className="size-4" />
               バイタル記録
             </Button>
           ) : null}

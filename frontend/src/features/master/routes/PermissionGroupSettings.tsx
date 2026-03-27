@@ -9,7 +9,7 @@ import { RowActionButton } from "@/components/shared/RowActionButton/RowActionBu
 import { MasterListPage } from "@/features/master/components/MasterListPage";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
-import { LAYOUT, STYLE } from "@/lib/design-tokens";
+import { LAYOUT } from "@/lib/design-tokens";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { PermissionRuleTable } from "@/features/master/components/PermissionRuleTable";
 import { PERMISSION_RESOURCES } from "@/features/master/types/permission-resources";

@@ -78,7 +78,7 @@ const UserPermissionPanel = memo(function UserPermissionPanel({
           <p className="text-xs text-muted-foreground">{user.email}</p>
         </div>
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-          <X className="h-4 w-4" />
+          <X className="size-4" />
         </Button>
       </div>
 

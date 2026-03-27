@@ -235,10 +235,10 @@ export function HospitalizationList() {
             <div className="bg-white rounded-[6px] border border-[rgba(55,53,47,0.16)] p-1 h-11 flex items-center">
                 <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && isValidViewMode(v) && setViewMode(v)}>
                     <ToggleGroupItem value="board" size="sm" aria-label="Board View">
-                        <LayoutGrid className="h-4 w-4" />
+                        <LayoutGrid className="size-4" />
                     </ToggleGroupItem>
                     <ToggleGroupItem value="list" size="sm" aria-label="List View">
-                        <List className="h-4 w-4" />
+                        <List className="size-4" />
                     </ToggleGroupItem>
                 </ToggleGroup>
             </div>

@@ -126,7 +126,7 @@ export function HospitalizationForm() {
                     className={`gap-2 h-10 text-sm px-4 ${C.text}`}
                     onClick={() => navigate(`/hospitalization/${hospitalizationId}`)}
                   >
-                    <FileText className="h-4 w-4" />
+                    <FileText className="size-4" />
                     デイリーカルテ
                   </Button>
                   <Button

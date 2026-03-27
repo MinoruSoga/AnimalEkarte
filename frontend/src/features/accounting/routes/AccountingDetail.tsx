@@ -149,7 +149,7 @@ const ItemListCard = memo(function ItemListCard({
         <Dialog open={newItemOpen} onOpenChange={onNewItemOpenChange}>
           <DialogTrigger asChild>
             <Button variant="outline" size="sm" className="h-9">
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 size-4" />
               物販・その他追加
             </Button>
           </DialogTrigger>
@@ -336,7 +336,7 @@ const InsuranceCard = memo(function InsuranceCard({
       <CardHeader className="py-3 px-4 bg-gray-50 border-b">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <CreditCard className="h-4 w-4" /> ペット保険（窓口精算）
+            <CreditCard className="size-4" /> ペット保険（窓口精算）
           </CardTitle>
           <Switch checked={useInsurance} onCheckedChange={onUseInsuranceChange} />
         </div>
@@ -545,7 +545,7 @@ const RefundSection = memo(function RefundSection({
       <CardHeader className="py-3 px-4 bg-gray-50 border-b">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <RotateCcw className="h-4 w-4 text-orange-500" />
+            <RotateCcw className="size-4 text-orange-500" />
             返金管理
             <span className="text-xs font-normal text-muted-foreground">
               残額 ¥{refundableAmount.toLocaleString()}
@@ -928,11 +928,11 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
           accounting.status === "completed" ? (
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => handlePrint("statement")}>
-                <FileText className="mr-2 h-4 w-4" />
+                <FileText className="mr-2 size-4" />
                 診療明細書
               </Button>
               <Button variant="outline" size="sm" onClick={() => handlePrint("receipt")}>
-                <Printer className="mr-2 h-4 w-4" />
+                <Printer className="mr-2 size-4" />
                 領収書発行
               </Button>
             </div>
@@ -1017,7 +1017,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
                 閉じる
               </Button>
               <Button onClick={() => window.print()}>
-                <Printer className="mr-2 h-4 w-4" />
+                <Printer className="mr-2 size-4" />
                 印刷する
               </Button>
             </DialogFooter>
