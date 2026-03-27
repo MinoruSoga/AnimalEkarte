@@ -90,11 +90,12 @@ function defaultSearchFilter<T extends MasterEntity>(item: T, term: string): boo
 // ─────────────────────────────────────────────────
 
 function defaultActiveFilterApply<T extends MasterEntity>(item: T, filters: ActiveFilter[]): boolean {
+  const record = item as Record<string, unknown>;
   for (const filter of filters) {
     if (filter.key === "status" && typeof filter.value === "string") {
-      const hasIsActive = "isActive" in item && typeof (item as Record<string, unknown>).isActive === "boolean";
+      const hasIsActive = "isActive" in item && typeof record.isActive === "boolean";
       if (!hasIsActive) continue;
-      const isActive = (item as Record<string, unknown>).isActive as boolean;
+      const isActive = record.isActive as boolean;
       const filterActive = filter.value === "active";
       switch (filter.condition) {
         case "is":
@@ -106,6 +107,13 @@ function defaultActiveFilterApply<T extends MasterEntity>(item: T, filters: Acti
         default:
           break;
       }
+    } else if (filter.condition === "is_empty") {
+      // 汎用的な空チェック: null / undefined / "" は空とみなす
+      const v = record[filter.key];
+      if (v != null && v !== "") return false;
+    } else if (filter.condition === "is_not_empty") {
+      const v = record[filter.key];
+      if (v == null || v === "") return false;
     }
   }
   return true;

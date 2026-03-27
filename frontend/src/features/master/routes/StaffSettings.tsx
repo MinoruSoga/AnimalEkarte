@@ -19,6 +19,7 @@ import {
   useGetStaffs, useCreateStaff, useUpdateStaff, useDeleteStaff, STAFF_ROLE_LABELS,
 } from "@/features/master/api/staffs";
 import type { Staff, StaffRoleValue, CreateStaffRequest, UpdateStaffRequest } from "@/features/master/api/staffs";
+import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
 import {
   useGetUsers,
   useGetUser,
@@ -35,6 +36,7 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 const COLUMNS = [
   { header: "氏名", className: "flex-1" },
   { header: "職種", className: "w-[130px]" },
+  { header: "権限グループ", className: "w-[200px]" },
   { header: "ステータス", className: "w-[90px]", align: "center" as const },
   { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
@@ -58,6 +60,7 @@ const STAFF_FILTER_PROPERTIES: FilterProperty[] = [
     label: "職種",
     type: "select",
     icon: UserRound,
+    conditions: CONDITIONS_NO_EMPTY,
     options: [
       { value: "veterinarian", label: "獣医師" },
       { value: "nurse", label: "看護師" },
@@ -279,6 +282,20 @@ export function StaffSettings() {
       .map((u) => [u.staff_id as string, u.id]),
   );
 
+  // staff.id → PermissionGroup[] lookup map（テーブル表示用）
+  const groupsByStaffId = useMemo(
+    () =>
+      new Map<string, PermissionGroup[]>(
+        users
+          .filter((u) => u.staff_id != null)
+          .map((u) => [
+            u.staff_id as string,
+            allGroups.filter((g) => u.permission_group_ids?.includes(g.id)),
+          ]),
+      ),
+    [users, allGroups],
+  );
+
   const crud = useMasterCRUD<Staff>({
     data,
     deleteMutation,
@@ -347,18 +364,52 @@ export function StaffSettings() {
       handleSave={handleSave}
       columns={COLUMNS}
       filterProperties={STAFF_FILTER_PROPERTIES}
-      renderRow={(item, onEdit) => (
-        <DataTableRow key={item.id} onClick={() => onEdit(item)}>
-          <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
-          <TableCell className={`text-base ${C.text}`}>{STAFF_ROLE_LABELS[item.staffRole]}</TableCell>
-          <TableCell className="text-center">
-            <NotionStatusPill isActive={item.isActive} />
-          </TableCell>
-          <TableCell className="p-0 text-right">
-            <RowActionButton onClick={() => onEdit(item)} />
-          </TableCell>
-        </DataTableRow>
-      )}
+      renderRow={(item, onEdit) => {
+        const groups = groupsByStaffId.get(item.id) ?? [];
+        const visibleGroups = groups.slice(0, 2);
+        const extraCount = groups.length - visibleGroups.length;
+        return (
+          <DataTableRow key={item.id} onClick={() => onEdit(item)}>
+            <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
+            <TableCell className={`text-base ${C.text}`}>{STAFF_ROLE_LABELS[item.staffRole]}</TableCell>
+            <TableCell>
+              <div className="flex flex-wrap items-center gap-1">
+                {visibleGroups.length === 0 ? (
+                  <span className={`text-sm ${C.text40}`}>—</span>
+                ) : (
+                  <>
+                    {visibleGroups.map((g) => (
+                      <span
+                        key={g.id}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[3px] text-xs"
+                        style={{
+                          backgroundColor: g.color ? `${g.color}18` : "rgba(55,53,47,0.06)",
+                          color: g.color ?? "#37352F",
+                        }}
+                      >
+                        <span
+                          className="size-1.5 rounded-full shrink-0"
+                          style={{ backgroundColor: g.color ?? "#6B7280" }}
+                        />
+                        {g.name}
+                      </span>
+                    ))}
+                    {extraCount > 0 ? (
+                      <span className={`text-xs ${C.text40}`}>+{extraCount}</span>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            </TableCell>
+            <TableCell className="text-center">
+              <NotionStatusPill isActive={item.isActive} />
+            </TableCell>
+            <TableCell className="p-0 text-right">
+              <RowActionButton onClick={() => onEdit(item)} />
+            </TableCell>
+          </DataTableRow>
+        );
+      }}
       renderSidePanel={({ item, onClose, onSave, onDeleteRequest }) => {
         const linkedUserId = item ? (usersByStaffId.get(item.id) ?? null) : null;
         return (
