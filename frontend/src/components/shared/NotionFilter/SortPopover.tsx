@@ -47,7 +47,7 @@ const SortRuleRow = memo(function SortRuleRow({
             className="flex items-center gap-1 px-2 py-1 text-base text-[#37352F] bg-[#F1F1EF] hover:bg-[#E8E7E4] rounded-[3px] transition-colors max-w-[160px] truncate"
           >
             {property?.icon ? (
-              <property.icon className="size-4 shrink-0 opacity-50" />
+              <property.icon className={`${ICON.action} shrink-0 opacity-50`} />
             ) : null}
             <span className="truncate">{property?.label ?? sort.key}</span>
           </button>
@@ -175,7 +175,7 @@ export const SortPopover = memo(function SortPopover({
           className="h-9 w-9 p-0 text-[#37352F]/50 hover:text-[#37352F]/80 hover:bg-[#F1F1EF]"
           aria-label="並べ替え"
         >
-          <ArrowUpDown className="size-6" />
+          <ArrowUpDown className={ICON.lg} />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[280px] p-0" align="end">
