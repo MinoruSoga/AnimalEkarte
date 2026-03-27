@@ -64,6 +64,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 
 // GetUser godoc
 // GET /users/:id
+// system_admin は任意ユーザーを取得可能。それ以外は同一クリニックに属するユーザーのみ。
 func (h *Handler) GetUser(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -75,6 +76,29 @@ func (h *Handler) GetUser(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+
+	userType, ok := extractUserType(c)
+	if !ok {
+		return
+	}
+	if userType != model.UserTypeSystemAdmin {
+		clinicID, ok := extractClinicID(c)
+		if !ok {
+			return
+		}
+		belongs := false
+		for _, m := range data.Memberships {
+			if m.ClinicID == clinicID {
+				belongs = true
+				break
+			}
+		}
+		if !belongs {
+			RespondError(c, apperrors.WrapForbidden("cannot access user from other clinic"))
+			return
+		}
+	}
+
 	groupIDs, err := h.svc.UserAccount.GetPermissionGroupIDs(c.Request.Context(), id)
 	if err != nil {
 		RespondError(c, err)
@@ -96,7 +120,7 @@ func (h *Handler) GetUser(c *gin.Context) {
 
 // SetUserPermissionGroups godoc
 // PUT /users/:id/permission-groups — ユーザーへのグループ割当を全置換する
-// clinic_admin 以上のみ実行可能
+// clinic_admin 以上のみ実行可能。system_admin 以外は同一クリニックのユーザーのみ変更可。
 func (h *Handler) SetUserPermissionGroups(c *gin.Context) {
 	userType, ok := extractUserType(c)
 	if !ok {
@@ -111,6 +135,14 @@ func (h *Handler) SetUserPermissionGroups(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
+
+	// system_admin 以外はテナント検証
+	if userType != model.UserTypeSystemAdmin {
+		if ok := h.verifyUserClinicMembership(c, id); !ok {
+			return
+		}
+	}
+
 	var req struct {
 		GroupIDs []uint64 `json:"group_ids" binding:"required"`
 	}
@@ -127,15 +159,47 @@ func (h *Handler) SetUserPermissionGroups(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// verifyUserClinicMembership は対象ユーザーが JWT クリニックに属しているかを検証するヘルパー。
+// 属していない場合は 403 を返して false を返す。
+func (h *Handler) verifyUserClinicMembership(c *gin.Context, userID uint64) bool {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return false
+	}
+	data, err := h.svc.UserAccount.GetWithMemberships(c.Request.Context(), strconv.FormatUint(userID, 10))
+	if err != nil {
+		RespondError(c, err)
+		return false
+	}
+	for _, m := range data.Memberships {
+		if m.ClinicID == clinicID {
+			return true
+		}
+	}
+	RespondError(c, apperrors.WrapForbidden("cannot access user from other clinic"))
+	return false
+}
+
 // UpdateUser godoc
 // PATCH /users/:id
-// user_type の変更は system_admin のみ許可
+// system_admin 以外は同一クリニックのユーザーのみ更新可。user_type の変更は system_admin のみ許可。
 func (h *Handler) UpdateUser(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
+
+	userType, ok := extractUserType(c)
+	if !ok {
+		return
+	}
+	if userType != model.UserTypeSystemAdmin {
+		if ok := h.verifyUserClinicMembership(c, id); !ok {
+			return
+		}
+	}
+
 	var req updateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
@@ -149,10 +213,6 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 		StaffID:     req.StaffID,
 	}
 	if req.UserType != nil {
-		userType, ok := extractUserType(c)
-		if !ok {
-			return
-		}
 		if userType != model.UserTypeSystemAdmin {
 			RespondError(c, apperrors.WrapForbidden("user_type change requires system_admin"))
 			return
@@ -170,12 +230,24 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 
 // DeleteUser godoc
 // DELETE /users/:id
+// system_admin 以外は同一クリニックのユーザーのみ削除可。
 func (h *Handler) DeleteUser(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
+
+	userType, ok := extractUserType(c)
+	if !ok {
+		return
+	}
+	if userType != model.UserTypeSystemAdmin {
+		if ok := h.verifyUserClinicMembership(c, id); !ok {
+			return
+		}
+	}
+
 	if err := h.svc.UserAccount.DeleteUser(c.Request.Context(), id); err != nil {
 		RespondError(c, err)
 		return

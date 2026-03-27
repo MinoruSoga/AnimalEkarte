@@ -52,23 +52,12 @@ func (s *RateLimitStore) evict(ttl time.Duration) {
 	}
 }
 
-// getLimiter はIPアドレスに対応するlimiterを取得・作成し、lastSeen を更新する
+// getLimiter はIPアドレスに対応するlimiterを取得・作成し、lastSeen を更新する。
+// RLock → RUnlock → Lock の TOCTOU を避けるため始めから Write Lock を取得する。
 func (s *RateLimitStore) getLimiter(ip string, rps rate.Limit, burst int) *rate.Limiter {
-	s.mu.RLock()
-	entry, exists := s.limiters[ip]
-	s.mu.RUnlock()
-
-	if exists {
-		s.mu.Lock()
-		entry.lastSeen = time.Now()
-		s.mu.Unlock()
-		return entry.limiter
-	}
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// 二重チェック
 	if entry, exists := s.limiters[ip]; exists {
 		entry.lastSeen = time.Now()
 		return entry.limiter
