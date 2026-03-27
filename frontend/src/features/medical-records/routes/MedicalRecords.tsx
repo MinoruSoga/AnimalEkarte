@@ -138,10 +138,8 @@ export function MedicalRecords() {
     );
   }, [navigate]);
 
-  if (isLoading) return <LoadingFallback />;
-  if (isError) return <ErrorFallback />;
-
-  const COLUMNS: { header: ReactNode; className?: string; align?: "left" | "center" | "right" }[] = [
+  // js-cache-function-results: directionFor/toggleSort に依存するカラム定義をメモ化
+  const COLUMNS = useMemo<{ header: ReactNode; className?: string; align?: "left" | "center" | "right" }[]>(() => [
     {
       header: <SortableHeader label="診療日" direction={directionFor("date")} onToggle={() => toggleSort("date")} />,
       className: "w-[120px]",
@@ -167,7 +165,10 @@ export function MedicalRecords() {
       className: "w-[100px]",
     },
     { header: "操作", className: "w-[100px]", align: "right" as const },
-  ];
+  ], [directionFor, toggleSort]);
+
+  if (isLoading) return <LoadingFallback />;
+  if (isError) return <ErrorFallback />;
 
   return (
     <PageLayout

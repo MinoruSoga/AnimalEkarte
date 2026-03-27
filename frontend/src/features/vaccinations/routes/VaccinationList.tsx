@@ -28,6 +28,7 @@ import { useFilterVaccinations } from "../hooks/use-vaccinations";
 import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Types
+import type { VaccinationRecord } from "@/types";
 import type {
   FilterProperty,
   ActiveFilter,
@@ -154,6 +155,20 @@ export function VaccinationList() {
     { header: "操作", className: "w-[100px]", align: "right" as const },
   ], [directionFor, toggleSort]);
 
+  // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
+  const renderRow = useCallback((r: VaccinationRecord) => (
+    <DataTableRow key={r.id} onClick={() => handleEdit(r.id)}>
+      <TableCell className="font-mono text-base text-[#37352F] py-2">{r.date}</TableCell>
+      <TableCell className="text-base text-[#37352F] py-2">{r.ownerName}</TableCell>
+      <TableCell className="text-base text-[#37352F] py-2">{r.petName}</TableCell>
+      <TableCell className="text-base font-medium text-[#37352F] py-2">{r.vaccineName}</TableCell>
+      <TableCell className="font-mono text-base text-[#37352F] py-2">{r.nextDate}</TableCell>
+      <TableCell className="text-right py-2">
+        {canEdit ? <RowActionButton onClick={() => handleEdit(r.id)} /> : null}
+      </TableCell>
+    </DataTableRow>
+  ), [handleEdit, canEdit]);
+
   return (
     <PageLayout
       title="予防接種管理"
@@ -193,21 +208,7 @@ export function VaccinationList() {
             columns={columns}
             data={pagination.paginatedData}
             emptyMessage="データが見つかりません"
-            renderRow={(r) => (
-              <DataTableRow
-                key={r.id}
-                onClick={() => handleEdit(r.id)}
-              >
-                <TableCell className="font-mono text-base text-[#37352F] py-2">{r.date}</TableCell>
-                <TableCell className="text-base text-[#37352F] py-2">{r.ownerName}</TableCell>
-                <TableCell className="text-base text-[#37352F] py-2">{r.petName}</TableCell>
-                <TableCell className="text-base font-medium text-[#37352F] py-2">{r.vaccineName}</TableCell>
-                <TableCell className="font-mono text-base text-[#37352F] py-2">{r.nextDate}</TableCell>
-                <TableCell className="text-right py-2">
-                  {canEdit ? <RowActionButton onClick={() => handleEdit(r.id)} /> : null}
-                </TableCell>
-              </DataTableRow>
-            )}
+            renderRow={renderRow}
           />
         </FilteringIndicator>
 

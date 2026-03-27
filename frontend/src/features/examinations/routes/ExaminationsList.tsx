@@ -36,6 +36,7 @@ import type {
   SortProperty,
 } from "@/components/shared/NotionFilter/types";
 import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
+import type { ExaminationRecord } from "@/types";
 
 // rendering-hoist-jsx: 静的フィルタプロパティ（検査種別は動的オプションのためコンポーネント内で構築）
 const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
@@ -124,6 +125,28 @@ export function ExaminationsList() {
   const handleEdit = useCallback((id: string) => {
     navigate(`/examinations/${id}`);
   }, [navigate]);
+
+  // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
+  const renderRow = useCallback((r: ExaminationRecord) => (
+    <DataTableRow key={r.id} onClick={() => handleEdit(r.id)}>
+      <TableCell className="font-mono text-base text-[#37352F] py-2.5">{r.date}</TableCell>
+      <TableCell className="text-base text-[#37352F] py-2.5">{r.ownerName}</TableCell>
+      <TableCell className="text-base text-[#37352F] py-2.5">{r.petName}</TableCell>
+      <TableCell className="text-base font-medium text-[#37352F] py-2.5">{r.testType}</TableCell>
+      <TableCell className="text-base text-muted-foreground truncate max-w-[200px] py-2.5 hidden lg:table-cell">
+        {r.resultSummary || "-"}
+      </TableCell>
+      <TableCell className="text-base text-[#37352F] py-2.5">{r.doctor}</TableCell>
+      <TableCell className="py-2.5">
+        <StatusBadge colorClass={getExaminationStatusColor(r.status)}>
+          {r.status}
+        </StatusBadge>
+      </TableCell>
+      <TableCell className="text-right py-2.5">
+        {canEdit ? <RowActionButton onClick={() => handleEdit(r.id)} /> : null}
+      </TableCell>
+    </DataTableRow>
+  ), [handleEdit, canEdit]);
 
   const columns = useMemo(() => [
     {
@@ -226,29 +249,7 @@ export function ExaminationsList() {
             columns={columns}
             data={pagination.paginatedData}
             emptyMessage="検査データが見つかりません"
-            renderRow={(r) => (
-              <DataTableRow
-                key={r.id}
-                onClick={() => handleEdit(r.id)}
-              >
-                <TableCell className="font-mono text-base text-[#37352F] py-2.5">{r.date}</TableCell>
-                <TableCell className="text-base text-[#37352F] py-2.5">{r.ownerName}</TableCell>
-                <TableCell className="text-base text-[#37352F] py-2.5">{r.petName}</TableCell>
-                <TableCell className="text-base font-medium text-[#37352F] py-2.5">{r.testType}</TableCell>
-                <TableCell className="text-base text-muted-foreground truncate max-w-[200px] py-2.5 hidden lg:table-cell">
-                  {r.resultSummary || "-"}
-                </TableCell>
-                <TableCell className="text-base text-[#37352F] py-2.5">{r.doctor}</TableCell>
-                <TableCell className="py-2.5">
-                  <StatusBadge colorClass={getExaminationStatusColor(r.status)}>
-                    {r.status}
-                  </StatusBadge>
-                </TableCell>
-                <TableCell className="text-right py-2.5">
-                  {canEdit ? <RowActionButton onClick={() => handleEdit(r.id)} /> : null}
-                </TableCell>
-              </DataTableRow>
-            )}
+            renderRow={renderRow}
           />
         </FilteringIndicator>
 

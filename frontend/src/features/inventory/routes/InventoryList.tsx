@@ -178,6 +178,38 @@ export function InventoryList() {
     { header: "操作", className: "w-[80px]", align: "right" as const },
   ], [directionFor, toggleSort]);
 
+  // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
+  const renderRow = useCallback((item: InventoryItem) => (
+    <DataTableRow key={item.id} onClick={() => handleEdit(item.id)}>
+      <TableCell className="text-base font-medium text-[#37352F] py-2">
+        {item.name}
+      </TableCell>
+      <TableCell className="text-base text-[#37352F] py-2">
+        {CATEGORY_LABELS[item.category]}
+      </TableCell>
+      <TableCell className="text-base text-[#37352F] py-2 text-right font-mono">
+        {item.quantity} {item.unit}
+      </TableCell>
+      <TableCell className="text-base text-[#37352F]/60 py-2 text-right font-mono hidden lg:table-cell">
+        {item.minStockLevel} {item.unit}
+      </TableCell>
+      <TableCell className="text-base text-[#37352F] py-2">
+        {item.location ?? "-"}
+      </TableCell>
+      <TableCell className="text-base text-[#37352F] py-2 font-mono hidden lg:table-cell">
+        {item.expiryDate ?? "-"}
+      </TableCell>
+      <TableCell className="py-2">
+        <StatusBadge colorClass={getInventoryStatusColor(item.status)}>
+          {getInventoryStatusLabel(item.status)}
+        </StatusBadge>
+      </TableCell>
+      <TableCell className="text-right py-2">
+        {canEdit ? <RowActionButton onClick={() => handleEdit(item.id)} /> : null}
+      </TableCell>
+    </DataTableRow>
+  ), [handleEdit, canEdit]);
+
   return (
     <PageLayout
       title="在庫管理"
@@ -242,36 +274,7 @@ export function InventoryList() {
             columns={columns}
             data={pagination.paginatedData}
             emptyMessage="在庫データが見つかりません"
-            renderRow={(item) => (
-              <DataTableRow key={item.id} onClick={() => handleEdit(item.id)}>
-                <TableCell className="text-base font-medium text-[#37352F] py-2">
-                  {item.name}
-                </TableCell>
-                <TableCell className="text-base text-[#37352F] py-2">
-                  {CATEGORY_LABELS[item.category]}
-                </TableCell>
-                <TableCell className="text-base text-[#37352F] py-2 text-right font-mono">
-                  {item.quantity} {item.unit}
-                </TableCell>
-                <TableCell className="text-base text-[#37352F]/60 py-2 text-right font-mono hidden lg:table-cell">
-                  {item.minStockLevel} {item.unit}
-                </TableCell>
-                <TableCell className="text-base text-[#37352F] py-2">
-                  {item.location ?? "-"}
-                </TableCell>
-                <TableCell className="text-base text-[#37352F] py-2 font-mono hidden lg:table-cell">
-                  {item.expiryDate ?? "-"}
-                </TableCell>
-                <TableCell className="py-2">
-                  <StatusBadge colorClass={getInventoryStatusColor(item.status)}>
-                    {getInventoryStatusLabel(item.status)}
-                  </StatusBadge>
-                </TableCell>
-                <TableCell className="text-right py-2">
-                  {canEdit ? <RowActionButton onClick={() => handleEdit(item.id)} /> : null}
-                </TableCell>
-              </DataTableRow>
-            )}
+            renderRow={renderRow}
           />
         </FilteringIndicator>
 
