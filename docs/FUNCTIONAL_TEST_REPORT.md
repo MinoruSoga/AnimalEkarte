@@ -1,6 +1,6 @@
 # 機能テストレポート
 
-> 最終更新: 2026-03-26 (テスト項目全面更新・RBAC/見積詳細/入院フォーム追加)
+> 最終更新: 2026-03-27 (セキュリティ・RBAC・テナント分離テスト項目追加)
 > テスト環境: Docker Compose (localhost:3003 / localhost:8080)
 > テストアカウント: admin@example.com (田中太郎 / 医院管理者)
 
@@ -1422,6 +1422,23 @@
 | 「ログアウト」ボタン（サイドバー下部） | -- | POST /v1/auth/logout → `/login` に遷移 |
 | サイドバー RBAC権限によるメニュー非表示 | -- | can_view=false のリソースはサイドバーリンク非表示確認 |
 
+### 16.3 httpOnly Cookie セッション管理
+
+| テスト項目 | 結果 | 備考 |
+|-----------|------|------|
+| ログイン後 DevTools > Application > Cookies に `auth_token` が存在する | -- | `HttpOnly` フラグが付いていること |
+| `auth_token` Cookie の `HttpOnly` 属性が `true` か | -- | DevTools Cookies カラム「HttpOnly」にチェック |
+| `auth_token` Cookie の `SameSite` 属性が `Lax` か（開発環境） | -- | DevTools Cookies カラム「SameSite」: Lax |
+| `auth_token` Cookie の `Path` が `/` か | -- | DevTools Cookies カラム「Path」: / |
+| `auth_token` Cookie の有効期限（Max-Age 86400秒 = 24時間）か | -- | DevTools Cookies カラム「Expires」 |
+| localStorage に JWT トークンが保存されていないか | -- | DevTools > Application > Local Storage: `auth_token` キーが存在しないこと |
+| sessionStorage に JWT トークンが保存されていないか | -- | DevTools > Application > Session Storage: `auth_token` キーが存在しないこと |
+| ページリロード後もログイン状態が維持されるか | -- | Cookie 経由で GET /v1/me を呼び出し・セッション復元 |
+| DevTools > Network で `GET /v1/me` に Cookie が自動付与されているか | -- | Request Headers に `Cookie: auth_token=...` があること |
+| ログアウト後 `auth_token` Cookie が削除されているか | -- | Max-Age=-1 でクリア・DevTools で確認 |
+| ログアウト後 ページリロードで `/login` にリダイレクトされるか | -- | Cookie なし → 401 → ログイン画面 |
+| 別タブでログアウト → 元タブで操作 → 401 エラー表示 | -- | Cookie 削除後の 401ハンドリング確認 |
+
 ---
 
 ## 17. バグ一覧（検出済み）
@@ -2547,38 +2564,67 @@
 ## 40. セキュリティテスト
 
 ### 40.1 認証・認可
+
+#### Cookie セキュリティ
 | テスト項目 | 結果 | 備考 |
 |-----------|------|------|
-| JWT トークン保存場所（httpOnly Cookie 確認） | -- | 未テスト（DevTools Application > Cookies で確認） |
-| JWT トークンが localStorage に保存されていないか | -- | 未テスト（localStorage.getItem("token") が null確認） |
-| JWT トークンが sessionStorage に保存されていないか | -- | 未テスト |
-| Cookie に `HttpOnly` フラグ付与確認 | -- | 未テスト |
-| Cookie に `Secure` フラグ付与確認（HTTPS時） | -- | 未テスト |
-| Cookie に `SameSite` 属性付与確認 | -- | 未テスト |
-| CSRF攻撃対策（SameSite Cookie or CSRFトークン） | -- | 未テスト |
-| API リクエスト に `Authorization: Bearer` ヘッダ確認 | -- | 未テスト（withCredentials: true で Cookie自動付与か） |
-| 有効期限切れJWT で API呼び出し → 401 レスポンス | -- | 未テスト |
-| 別ユーザーのリソースへのアクセス（clinic_id 違い）| -- | 未テスト（マルチテナント分離確認） |
+| ログイン後 DevTools > Cookies に `auth_token` が存在する | -- | HttpOnly = true 確認 |
+| `HttpOnly: true` 付与確認 | -- | JavaScript から `document.cookie` で auth_token が読めないこと |
+| `SameSite: Lax` 付与確認（dev）/ `Strict`（prod） | -- | クロスサイトリクエストでの Cookie 制御確認 |
+| `Secure: true` 付与確認（HTTPS環境のみ） | -- | dev 環境は false で可 |
+| JWT が localStorage / sessionStorage に保存されていないか | -- | DevTools Application タブで確認 |
+| ログアウト後 Cookie が `Max-Age: -1` でクリアされているか | -- | DevTools Network でレスポンスヘッダ確認 |
+
+#### 認可・テナント分離
+| テスト項目 | 結果 | 備考 |
+|-----------|------|------|
+| JWT なし（Cookie なし）で `/` アクセス → `/login` リダイレクト | -- | 未認証アクセスのブロック確認 |
+| 有効期限切れ JWT で API コール → HTTP 401 | -- | トークン期限切れ後の挙動確認 |
+| Clinic A のユーザーが Clinic B の飼主 API を叩く（clinic_id 改ざん）| -- | HTTP 403 が返ること（テナント分離） |
+| GET /v1/users/:id（他クリニックユーザー）→ HTTP 403 | -- | verifyUserClinicMembership による拒否確認 |
+| PATCH /v1/users/:id（他クリニックユーザー）→ HTTP 403 | -- | 同上 |
+| DELETE /v1/users/:id（他クリニックユーザー）→ HTTP 403 | -- | 同上 |
+| GET /v1/clinics（clinic_admin ユーザー）→ 所属クリニック 1件のみ返却 | -- | ListClinics のテナント分離確認 |
+| staff ユーザーが GET /v1/clinics → 所属クリニック 1件のみ | -- | 同上 |
+| system_admin ユーザーが GET /v1/clinics → 全クリニック返却 | -- | 管理者バイパス確認 |
+| staff ユーザーが PUT /v1/users/:id/permission-groups → HTTP 403 | -- | Staff は権限変更不可 |
+| clinic_admin が user_type を変更しようとする → HTTP 403 | -- | user_type 変更は system_admin のみ |
 
 ### 40.2 入力サニタイゼーション
 | テスト項目 | 結果 | 備考 |
 |-----------|------|------|
-| 飼主名に `<script>alert(1)</script>` 入力 → 登録・表示 | -- | 未テスト（React の自動エスケープで XSS防止確認） |
-| 主訴テキストに `<img src=x onerror=alert(1)>` 入力 | -- | 未テスト |
-| 検索フィールドに `<script>` 入力 → フィルタ動作確認 | -- | 未テスト |
-| SQL インジェクション試行（`' OR '1'='1` をIDに）| -- | 未テスト |
-| Go バックエンド GORM パラメータ束縛でSQL injection防止確認 | -- | 未テスト（ソースレビューで確認） |
-| `dangerouslySetInnerHTML` 使用箇所の確認 | -- | 未テスト（使用有無のソースチェック） |
+| 飼主名に `<script>alert(1)</script>` 入力 → 登録・表示確認 | -- | React 自動エスケープで XSS 防止確認（画面に `<script>` がテキストとして表示） |
+| 検索フィールドに `<img src=x onerror=alert(1)>` 入力 | -- | アラートが出ないこと |
+| 備考欄に `<b>太字</b>` 入力 → `<b>太字</b>` とテキスト表示されること | -- | dangerouslySetInnerHTML 非使用確認 |
+| 飼主名に `'; DROP TABLE owners; --` 入力 → 正常登録 | -- | GORM プレースホルダによる SQL injection 防止確認 |
+| 検索フィールドに `' OR '1'='1` 入力 → 検索結果に影響なし | -- | SQL injection 防止確認 |
+| `dangerouslySetInnerHTML` 使用箇所が存在しないか（ソースチェック） | -- | grep で確認 |
+| 長大な文字列（1000文字）入力 → バリデーションエラーか DB 格納 | -- | カラム制約確認 |
+| 絵文字入力（🐕🐈）→ 正常保存・表示 | -- | UTF-8 4バイト文字の扱い確認 |
 
 ### 40.3 HTTPセキュリティヘッダ
 | テスト項目 | 結果 | 備考 |
 |-----------|------|------|
-| `Content-Security-Policy` ヘッダ確認 | -- | 未テスト（DevTools Network tab確認） |
-| `X-Frame-Options: DENY` ヘッダ確認 | -- | 未テスト（クリックジャッキング対策） |
-| `X-Content-Type-Options: nosniff` ヘッダ確認 | -- | 未テスト |
-| `Strict-Transport-Security` ヘッダ確認（HTTPS時）| -- | 未テスト |
-| CORS設定（許可オリジンのみ）確認 | -- | 未テスト（localhost:3003 のみ許可か確認） |
-| API レスポンス に機密情報（パスワード/トークン）が含まれないか | -- | 未テスト |
+| `X-Content-Type-Options: nosniff` ヘッダ付与（API） | -- | DevTools > Network > Response Headers 確認 |
+| `X-Frame-Options: DENY` ヘッダ付与（API） | -- | クリックジャッキング対策確認 |
+| `Referrer-Policy: strict-origin-when-cross-origin` ヘッダ付与（API） | -- | リファラ漏洩対策確認 |
+| `Content-Security-Policy: default-src 'none'` ヘッダ付与（API） | -- | API サーバーは HTML を返さないため `none` が正しい |
+| `Permissions-Policy` ヘッダ付与（API） | -- | `geolocation=(), microphone=(), camera=()` |
+| `Strict-Transport-Security` ヘッダ付与（本番 HTTPS 環境） | -- | `max-age=31536000; includeSubDomains` 確認 |
+| Vercel フロントエンドのレスポンスに `X-Content-Type-Options` 付与 | -- | vercel.json headers 設定確認 |
+| Vercel フロントエンドのレスポンスに `X-Frame-Options: DENY` 付与 | -- | vercel.json headers 設定確認 |
+| CORS 許可オリジンが `localhost:3003`（開発）/ 本番 URL のみか | -- | API サーバーの CORS 設定確認 |
+| API レスポンスに `password_hash` が含まれないか | -- | GET /v1/users レスポンス JSON 確認 |
+| API レスポンスに内部エラースタックトレースが含まれないか | -- | 500 エラー時のレスポンス確認 |
+
+### 40.4 レートリミットテスト
+| テスト項目 | 結果 | 備考 |
+|-----------|------|------|
+| 短時間に多数リクエスト（11回/秒）→ HTTP 429 レスポンス | -- | `/v1/auth/login` に連続 POST で確認 |
+| HTTP 429 レスポンスボディ確認 | -- | `{"error": "rate limit exceeded: ..."}` |
+| レートリミット後 1秒待機 → リクエスト成功 | -- | バースト後の回復確認 |
+| 異なる IP からのリクエストは独立してカウントされるか | -- | IP ベースのレートリミット確認 |
+| 10分アクセスなし後のエントリ自動削除（TTL eviction） | -- | メモリリーク防止確認（ログで確認） |
 
 ---
 
@@ -2673,4 +2719,97 @@
 | 5. ケージマスタ 新規ケージ追加 → 入院フォームのケージセレクトに反映 | -- | 未テスト |
 | 6. ワクチンマスタ 新規ワクチン追加 → ワクチンフォームに反映 | -- | 未テスト |
 | 7. 診断病名マスタ 新規病名追加 → カルテTab2の選択肢に反映 | -- | 未テスト |
+
+---
+
+## 43. RBAC 各ページ UI制御テスト
+
+> ロール：医師グループ（医師権限）、受付グループ（受付権限）で各ページを確認。
+> テスト前提: 各グループのリソース権限（can_view/can_create/can_edit/can_delete）を設定済みであること。
+
+### 43.1 can_create 制御（「新規登録」ボタン表示/非表示）
+| ページ | can_create=true | can_create=false | 備考 |
+|--------|-----------------|------------------|------|
+| 飼主一覧 `/owners` | -- ボタン表示 | -- ボタン非表示 | 「新規登録」ボタン |
+| カルテ一覧 `/medical-records` | -- ボタン表示 | -- ボタン非表示 | 「新規カルテ作成」ボタン |
+| 予約管理 `/reservations` | -- ボタン表示 | -- ボタン非表示 | 「予約を追加」ボタン |
+| 検査管理 `/examinations` | -- ボタン表示 | -- ボタン非表示 | 「新規登録」ボタン |
+| 会計管理 `/accounting` | -- ボタン表示 | -- ボタン非表示 | 操作ボタン確認 |
+| 入院管理 `/hospitalization` | -- ボタン表示 | -- ボタン非表示 | 「新規登録」ボタン |
+| 予防接種 `/vaccinations` | -- ボタン表示 | -- ボタン非表示 | 「新規登録」ボタン |
+| トリミング `/trimming` | -- ボタン表示 | -- ボタン非表示 | 「新規登録」ボタン |
+| 在庫管理 `/inventory` | -- ボタン表示 | -- ボタン非表示 | 「新規登録」ボタン |
+| 見積管理 `/estimates` | -- ボタン表示 | -- ボタン非表示 | 「新規作成」ボタン |
+
+### 43.2 can_edit 制御（「編集」ボタン表示/非表示）
+| ページ | can_edit=true | can_edit=false | 備考 |
+|--------|---------------|----------------|------|
+| 飼主一覧 操作メニュー | -- 「編集」表示 | -- 「編集」非表示 | RowActionDropdown内 |
+| カルテ一覧 操作メニュー | -- 「編集」表示 | -- 「編集」非表示 | 同上 |
+| 在庫一覧 操作メニュー | -- 「編集」表示 | -- 「編集」非表示 | 同上 |
+| 予防接種一覧 操作メニュー | -- 「編集」表示 | -- 「編集」非表示 | 同上 |
+| トリミング一覧 操作メニュー | -- 「編集」表示 | -- 「編集」非表示 | 同上 |
+| 検査一覧 操作メニュー | -- 「編集」表示 | -- 「編集」非表示 | 同上 |
+| 会計一覧 操作メニュー | -- 「編集」表示 | -- 「編集」非表示 | 同上 |
+
+### 43.3 can_delete 制御（「削除」ボタン表示/非表示）
+| ページ | can_delete=true | can_delete=false | 備考 |
+|--------|-----------------|------------------|------|
+| 飼主一覧 操作メニュー | -- 「削除」表示 | -- 「削除」非表示 | RowActionDropdown内 |
+| カルテ一覧 操作メニュー | -- 「削除」表示 | -- 「削除」非表示 | 同上 |
+| 在庫一覧 操作メニュー | -- 「削除」表示 | -- 「削除」非表示 | 同上 |
+| 予防接種一覧 操作メニュー | -- 「削除」表示 | -- 「削除」非表示 | 同上 |
+| トリミング一覧 操作メニュー | -- 「削除」表示 | -- 「削除」非表示 | 同上 |
+| 検査一覧 操作メニュー | -- 「削除」表示 | -- 「削除」非表示 | 同上 |
+
+### 43.4 can_view=false のページアクセス制御
+| ページ | 期待動作 | 結果 | 備考 |
+|--------|---------|------|------|
+| `/accounting` アクセス（can_view=false） | -- | -- | アクセス拒否メッセージ表示 |
+| `/inventory` アクセス（can_view=false） | -- | -- | 同上 |
+| `/estimates` アクセス（can_view=false） | -- | -- | 同上 |
+| `/settings` アクセス（staff ユーザー） | -- | -- | サイドバーリンク非表示 |
+| サイドバーの非権限リソースリンクが非表示 | -- | -- | can_view=false のリソースはサイドバーから消える |
+| 直接 URL 入力でアクセス試行 → アクセス拒否 | -- | -- | ルートガードによるブロック確認 |
+
+### 43.5 system_admin / clinic_admin の全権限バイパス確認
+| テスト項目 | 結果 | 備考 |
+|-----------|------|------|
+| clinic_admin（田中太郎）で全ページにアクセス可能 | -- | 権限グループ設定に関係なく全ページ表示 |
+| clinic_admin で全操作ボタン（新規/編集/削除）が表示される | -- | hasPermission バイパス確認 |
+| system_admin（運営管理者）で全クリニック管理ページにアクセス | -- | /settings/clinics 等の管理者専用ページ |
+| clinic_admin が権限グループ設定ページにアクセス可能 | -- | `/settings/permission-groups` アクセス確認 |
+
+---
+
+## 44. マルチテナント分離テスト
+
+> 前提: 複数クリニックが存在し、各クリニックに所属するユーザーでテスト。
+
+### 44.1 データ分離確認
+| テスト項目 | 結果 | 備考 |
+|-----------|------|------|
+| Clinic A ユーザーの GET /v1/owners → Clinic A の飼主のみ返却 | -- | clinic_id フィルタ確認 |
+| Clinic A ユーザーの GET /v1/medical-records → Clinic A のカルテのみ | -- | 同上 |
+| Clinic A ユーザーの GET /v1/users → Clinic A のユーザーのみ | -- | ListUsers の clinic_id フィルタ確認 |
+| Clinic A ユーザーの GET /v1/users/:id（Clinic B のユーザー ID）→ 403 | -- | GetUser テナント分離 |
+| Clinic A ユーザーの PATCH /v1/users/:id（Clinic B のユーザー ID）→ 403 | -- | UpdateUser テナント分離 |
+| Clinic A ユーザーの DELETE /v1/users/:id（Clinic B のユーザー ID）→ 403 | -- | DeleteUser テナント分離 |
+
+### 44.2 クリニック情報の分離
+| テスト項目 | 結果 | 備考 |
+|-----------|------|------|
+| clinic_admin が GET /v1/clinics → 所属クリニック 1件のみ返却 | -- | ListClinics のテナント分離 |
+| clinic_admin が GET /v1/clinics/:id（別クリニック ID）→ 403 | -- | GetClinic のテナント検証 |
+| clinic_admin が PATCH /v1/clinics/:id（別クリニック ID）→ 403 | -- | UpdateClinic のテナント検証 |
+| system_admin が GET /v1/clinics → 全クリニック返却 | -- | 管理者バイパス確認 |
+| GET /v1/me → `clinic` フィールドが所属クリニックのみ | -- | MeResponse の clinic 情報確認 |
+
+### 44.3 サブリソースのテナント検証
+| テスト項目 | 結果 | 備考 |
+|-----------|------|------|
+| Clinic A ユーザーが Clinic B の medical_record_id を使って vitals を取得 → 403 | -- | verifyMedicalRecordOwnership 確認 |
+| Clinic A ユーザーが Clinic B の medical_record_id に record_image を追加 → 403 | -- | 同上 |
+| Clinic A ユーザーが Clinic B の billing_id に billing_item を作成 → 403 | -- | Accounting.GetByID テナント検証 |
+| Clinic A ユーザーが Clinic B の hospitalization_id に treatment_plan を追加 → 403 | -- | Hosp.GetByID テナント検証 |
 
