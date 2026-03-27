@@ -76,7 +76,7 @@ function RelatedPages({
             else onCreateMedicalRecord();
           }}
         >
-          {isTrimming ? <Scissors className={`${ICON.xs}.5`} /> : <FileText className={`${ICON.xs}.5`} />}
+          {isTrimming ? <Scissors className={`${ICON.xs}`} /> : <FileText className={`${ICON.xs}`} />}
           <span>{isTrimming ? "施術" : "カルテ"}</span>
           <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
         </button>
@@ -87,7 +87,7 @@ function RelatedPages({
           className={RELATED_BTN_ACCOUNTING}
           onClick={onCreateAccounting}
         >
-          <CreditCard className={`${ICON.xs}.5`} />
+          <CreditCard className={`${ICON.xs}`} />
           <span>会計</span>
           <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
         </button>
@@ -98,7 +98,7 @@ function RelatedPages({
           className={RELATED_BTN_HOSPITAL}
           onClick={onCreateHospitalization}
         >
-          <BedDouble className={`${ICON.xs}.5`} />
+          <BedDouble className={`${ICON.xs}`} />
           <span>入院</span>
           <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
         </button>

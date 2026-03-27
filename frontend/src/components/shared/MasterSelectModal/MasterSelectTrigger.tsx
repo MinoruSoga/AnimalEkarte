@@ -46,7 +46,7 @@ export function MasterSelectTrigger({
             </div>
             <div className="flex items-center gap-1.5 text-xs text-[#37352F]/50">
               <span>変更</span>
-              <ChevronRight className={`${ICON.xs}.5`} />
+              <ChevronRight className={`${ICON.xs}`} />
             </div>
           </div>
         </div>
@@ -71,7 +71,7 @@ export function MasterSelectTrigger({
         </div>
         <div className="flex items-center gap-1 text-xs text-[#37352F]/50 shrink-0 ml-2">
           <span>変更</span>
-          <ChevronRight className={`${ICON.xs}.5`} />
+          <ChevronRight className={`${ICON.xs}`} />
         </div>
       </div>
     );

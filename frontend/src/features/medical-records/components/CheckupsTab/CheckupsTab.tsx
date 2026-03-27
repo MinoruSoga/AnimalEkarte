@@ -134,7 +134,7 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
             className={`size-8 flex items-center justify-center rounded-[3px] ${C.textStatusGreen} ${C.hoverBgStatusGreen} transition-colors`}
             title="保存"
           >
-            <Check className={`${ICON.xs}.5`} />
+            <Check className={`${ICON.xs}`} />
           </button>
           <button
             onClick={onCancel}
@@ -142,7 +142,7 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
             className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverBgLight} transition-colors`}
             title="キャンセル"
           >
-            <X className={`${ICON.xs}.5`} />
+            <X className={`${ICON.xs}`} />
           </button>
         </div>
       </td>
@@ -302,7 +302,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
                           className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverText} ${C.hoverBgLight} transition-colors`}
                           title="編集"
                         >
-                          <Pencil className={`${ICON.xs}.5`} />
+                          <Pencil className={`${ICON.xs}`} />
                         </button>
                         <DeleteIconButton
                           onClick={() => handleDelete(checkup.id)}
@@ -371,7 +371,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
           </div>
         ) : (
           <button className={STYLE.inlineAddBtn} onClick={() => setIsAdding(true)}>
-            <Plus className={`${ICON.xs}.5`} />
+            <Plus className={`${ICON.xs}`} />
             <span>記録を追加</span>
           </button>
         )}

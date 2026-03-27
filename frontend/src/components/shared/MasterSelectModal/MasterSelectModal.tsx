@@ -90,7 +90,7 @@ export function MasterSelectModal({
               onClick={() => setSearchTerm("")}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#37352F]/40 hover:text-[#37352F]/70"
             >
-              <X className={`${ICON.xs}.5`} />
+              <X className={`${ICON.xs}`} />
             </button>
           ) : null}
         </div>

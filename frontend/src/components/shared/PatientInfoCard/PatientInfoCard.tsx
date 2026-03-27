@@ -105,7 +105,7 @@ export function PatientInfoCard({
                 onClick={onServiceTypeClick}
               >
                 <span className="text-sm font-medium text-[#37352F]">{serviceType}</span>
-                <ChevronDown className={`${ICON.xs}.5 text-[#37352F]/40`} />
+                <ChevronDown className={`${ICON.xs} text-[#37352F]/40`} />
               </div>
             ) : (
               <span className="text-sm font-medium text-[#37352F] px-1 -ml-1">{serviceType}</span>
@@ -149,7 +149,7 @@ export function PatientInfoCard({
                 onClick={onStaffClick}
               >
                 {staffLabel ? `${staffLabel}${staffName}` : staffName}
-                <ChevronDown className={`${ICON.xs}.5 text-[#37352F]/40`} />
+                <ChevronDown className={`${ICON.xs} text-[#37352F]/40`} />
               </Button>
             ) : (
               <div className="h-9 text-sm flex items-center gap-1 px-3 rounded-md bg-[#F7F6F3] text-[#37352F] border border-[rgba(55,53,47,0.16)]">

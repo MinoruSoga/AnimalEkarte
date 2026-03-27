@@ -116,7 +116,7 @@ export const AppointmentCard = memo(function AppointmentCard({
         <CardContent className="p-[13px] space-y-[9px]">
           <div className="flex items-start justify-between gap-2">
             <div className={`flex items-center gap-1.5 ${C.text60} min-w-0`}>
-              <Clock className={`${ICON.xs}.5 flex-shrink-0`} />
+              <Clock className={`${ICON.xs} flex-shrink-0`} />
               <span className="text-base font-medium font-mono tracking-[var(--tracking-notion)]">{appointment.time}</span>
             </div>
             {appointment.nextAppointment ? (
@@ -134,7 +134,7 @@ export const AppointmentCard = memo(function AppointmentCard({
           <div className="space-y-0.5">
             <p className="text-base font-semibold truncate leading-tight tracking-[var(--tracking-notion)]">{appointment.ownerName}</p>
             <div className={`flex items-center gap-1 ${C.text60}`}>
-              <Dog className={`${ICON.xs}.5 flex-shrink-0`} />
+              <Dog className={`${ICON.xs} flex-shrink-0`} />
               <p className="text-base truncate tracking-[var(--tracking-notion)]">{appointment.petType} - {appointment.petName}</p>
             </div>
           </div>

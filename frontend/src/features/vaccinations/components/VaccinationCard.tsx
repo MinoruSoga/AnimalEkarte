@@ -58,7 +58,7 @@ export function VaccinationCard({
             }`}
           >
             {overdue ? (
-              <AlertTriangle className={`${ICON.xs}.5 shrink-0`} />
+              <AlertTriangle className={`${ICON.xs} shrink-0`} />
             ) : (
               <Calendar className={`${ICON.xs} shrink-0`} />
             )}

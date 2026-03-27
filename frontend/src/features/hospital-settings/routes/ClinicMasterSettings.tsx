@@ -340,7 +340,7 @@ export function ClinicMasterSettings() {
                 onClick={handleCreate}
                 className="flex items-center gap-1.5 w-full px-3 py-2 text-sm text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[rgba(55,53,47,0.04)] transition-colors rounded"
               >
-                <Plus className={`${ICON.xs}.5`} />
+                <Plus className={`${ICON.xs}`} />
                 新しい医院を追加...
               </button>
             </div>

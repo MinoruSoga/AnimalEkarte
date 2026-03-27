@@ -176,7 +176,7 @@ export function CageSettings() {
         </div>
         <button type="button" onClick={crud.handleNew}
           className="flex items-center gap-1.5 w-full px-3 py-2.5 text-base text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]">
-          <Plus className={`${ICON.xs}.5`} />新しいケージを追加...
+          <Plus className={`${ICON.xs}`} />新しいケージを追加...
         </button>
       </div>
     </MasterCRUDPage>

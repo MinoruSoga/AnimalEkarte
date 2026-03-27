@@ -239,7 +239,7 @@ export function MedicalRecords() {
                       {r.doctor}
                     </span>
                     {!isValidStaff(r.doctor) ? (
-                      <span title="担当医が無効（退職等）に設定されています"><AlertTriangle className={`${ICON.xs}.5 text-red-500`} /></span>
+                      <span title="担当医が無効（退職等）に設定されています"><AlertTriangle className={`${ICON.xs} text-red-500`} /></span>
                     ) : null}
                   </div>
                 </TableCell>

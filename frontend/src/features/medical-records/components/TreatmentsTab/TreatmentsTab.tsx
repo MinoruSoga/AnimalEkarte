@@ -272,7 +272,7 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
             className={STYLE.inlineAddBtn}
             onClick={() => setIsAdding(true)}
           >
-            <Plus className={`${ICON.xs}.5`} />
+            <Plus className={`${ICON.xs}`} />
             <span>明細を追加</span>
           </button>
         )}

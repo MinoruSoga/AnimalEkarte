@@ -190,7 +190,7 @@ function SortableMedicineRow({
             onClick={() => onEdit(medicine)}
             className="w-7 h-7 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors"
           >
-            <Maximize2 className={`${ICON.xs}.5`} />
+            <Maximize2 className={`${ICON.xs}`} />
           </button>
         </div>
       </TableCell>
@@ -369,7 +369,7 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
             <div className={`${STYLE.sectionDivider} mt-3 mb-1`} />
             <div className="py-1">
               <div className="flex items-center gap-1.5 py-2 mb-1">
-                <Pill className={`${ICON.xs}.5 ${C.text40}`} />
+                <Pill className={`${ICON.xs} ${C.text40}`} />
                 <span
                   className={`text-base font-medium ${C.text50} uppercase tracking-wide select-none`}
                 >
@@ -785,7 +785,7 @@ export function MedicineSettings() {
                           className="flex items-center gap-1.5 py-1.5 px-1 hover:bg-[rgba(55,53,47,0.04)] rounded-[3px] transition-colors"
                         >
                           <ChevronRight
-                            className={`size-3.5 text-[#37352F]/50 transition-transform duration-150 ${
+                            className={`size-5 text-[#37352F]/50 transition-transform duration-150 ${
                               isCollapsed ? "" : "rotate-90"
                             }`}
                           />
@@ -803,7 +803,7 @@ export function MedicineSettings() {
                           }}
                           className="w-8 h-8 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors opacity-0 group-hover/header:opacity-100"
                         >
-                          <Plus className={`${ICON.xs}.5`} />
+                          <Plus className={`${ICON.xs}`} />
                         </button>
                       </div>
                     </TableCell>
@@ -890,7 +890,7 @@ export function MedicineSettings() {
         onClick={() => handleCreate()}
         className="flex items-center gap-1.5 w-full px-3 py-2.5 text-base text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]"
       >
-        <Plus className={`${ICON.xs}.5`} />
+        <Plus className={`${ICON.xs}`} />
         新しい薬剤を追加...
       </button>
     </div>

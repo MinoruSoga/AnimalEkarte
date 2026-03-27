@@ -409,9 +409,9 @@ function TreatmentTabContent({
                               className={`size-[22px] flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} transition-colors shrink-0`}
                             >
                               {row.isExpanded ? (
-                                <ChevronDown className={`${ICON.xs}.5`} />
+                                <ChevronDown className={`${ICON.xs}`} />
                               ) : (
-                                <ChevronRight className={`${ICON.xs}.5`} />
+                                <ChevronRight className={`${ICON.xs}`} />
                               )}
                             </button>
                           ) : (

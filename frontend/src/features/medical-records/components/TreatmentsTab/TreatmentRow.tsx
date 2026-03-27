@@ -219,7 +219,7 @@ export const TreatmentRow = memo(function TreatmentRow({
           className="data-[state=checked]:bg-[#038B94] data-[state=checked]:border-[#038B94]"
         />
         {treatment.insurance ? (
-          <Shield className={`${ICON.xs}.5 mt-0.5 mx-auto ${C.textStatusGreen}`} />
+          <Shield className={`${ICON.xs} mt-0.5 mx-auto ${C.textStatusGreen}`} />
         ) : null}
       </td>
 
@@ -334,7 +334,7 @@ export const TreatmentRow = memo(function TreatmentRow({
             disabled={isFirst}
             title="上に移動"
           >
-            <ChevronUp className={`${ICON.xs}.5`} />
+            <ChevronUp className={`${ICON.xs}`} />
           </Button>
           <Button
             variant="ghost"
@@ -344,7 +344,7 @@ export const TreatmentRow = memo(function TreatmentRow({
             disabled={isLast}
             title="下に移動"
           >
-            <ChevronDown className={`${ICON.xs}.5`} />
+            <ChevronDown className={`${ICON.xs}`} />
           </Button>
           <DeleteIconButton
             onClick={handleDelete}

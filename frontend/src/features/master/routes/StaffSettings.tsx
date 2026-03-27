@@ -211,7 +211,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
       {/* ── Permission groups ─────────────────────── */}
       <div className="mt-4 border-t pt-4">
         <div className="flex items-center gap-1.5 mb-2">
-          <Shield className={`${ICON.xs}.5 text-muted-foreground`} />
+          <Shield className={`${ICON.xs} text-muted-foreground`} />
           <p className="text-xs font-medium text-muted-foreground">権限グループ</p>
         </div>
 

@@ -69,7 +69,7 @@ export function PetSelection({
                         </span>
                     </div>
                 </div>
-                {isSelected ? <Check className={`${ICON.xs}.5 text-blue-600 flex-shrink-0 ml-2`} /> : null}
+                {isSelected ? <Check className={`${ICON.xs} text-blue-600 flex-shrink-0 ml-2`} /> : null}
                 </div>
             );
             })
