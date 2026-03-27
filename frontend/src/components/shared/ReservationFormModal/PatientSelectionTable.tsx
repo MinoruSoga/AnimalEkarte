@@ -152,19 +152,19 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
         <div className="overflow-auto h-full flex flex-col">
           {!hasSearched ? (
             <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
-              <Search className="size-8 text-[#37352F]/20" />
+              <Search className={`${ICON.xl} text-[#37352F]/20`} />
               <div className="text-sm text-[#37352F]/40">検索条件を入力して検索してください</div>
             </div>
           ) : isLoading ? (
             <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
               <div className="animate-spin">
-                <Search className="size-8 text-[#37352F]/20" />
+                <Search className={`${ICON.xl} text-[#37352F]/20`} />
               </div>
               <div className="text-sm text-[#37352F]/40">検索中...</div>
             </div>
           ) : filteredPets.length === 0 ? (
             <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
-              <SearchX className="size-8 text-[#37352F]/20" />
+              <SearchX className={`${ICON.xl} text-[#37352F]/20`} />
               <div className="text-sm text-[#37352F]/40">該当する患者が見つかりませんでした</div>
             </div>
           ) : (

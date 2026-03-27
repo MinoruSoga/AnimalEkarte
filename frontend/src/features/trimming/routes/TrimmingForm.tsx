@@ -176,7 +176,7 @@ const LeftColumn = memo(function LeftColumn({
         ) : (
           <label className="flex items-center justify-center w-full h-32 border-2 border-dashed border-[rgba(55,53,47,0.16)] rounded-md cursor-pointer hover:bg-[#F7F6F3]">
             <div className="flex flex-col items-center">
-              <Upload className="size-6 text-[#37352F]/40 mb-1" />
+              <Upload className={`${ICON.lg} text-[#37352F]/40 mb-1`} />
               <span className="text-sm text-[#37352F]/60">画像をアップロード</span>
             </div>
             <input type="file" accept="image/*" onChange={onStyleImageChange} className="hidden" />
@@ -289,7 +289,7 @@ const MiddleColumn = memo(function MiddleColumn({
         ) : (
           <label className="flex items-center justify-center w-full h-32 border-2 border-dashed border-[rgba(55,53,47,0.16)] rounded-md cursor-pointer hover:bg-[#F7F6F3]">
             <div className="flex flex-col items-center">
-              <Upload className="size-6 text-[#37352F]/40 mb-1" />
+              <Upload className={`${ICON.lg} text-[#37352F]/40 mb-1`} />
               <span className="text-sm text-[#37352F]/60">画像をアップロード</span>
             </div>
             <input type="file" accept="image/*" onChange={onCompletedImageChange} className="hidden" />
