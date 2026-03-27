@@ -241,7 +241,7 @@ export function ReservationDetailModal({
                 className="bg-[#37352F] text-white hover:bg-[#37352F]/90 h-9 text-sm gap-1.5 shadow-sm"
                 onClick={() => onCreateRecord(appointment)}
               >
-                <actionConfig.Icon className="size-4" />
+                <actionConfig.Icon className={ICON.action} />
                 {actionConfig.label}
               </Button>
             ) : null}
