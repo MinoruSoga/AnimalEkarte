@@ -1,4 +1,5 @@
 // External
+import { ICON } from "@/lib/design-tokens";
 import { Building2, Calendar } from "lucide-react";
 
 // Internal
@@ -61,7 +62,7 @@ export function HospitalizationBasicInfo({ formData, onChange, cageItems }: Hosp
       {/* 期間 */}
       <div className="mb-3">
         <Label className={`${H_STYLES.text.sm} text-[#37352F]/60 mb-1.5 block flex items-center gap-2`}>
-          <Calendar className="size-4" />
+          <Calendar className={ICON.action} />
           期間
         </Label>
         <div className={`flex items-center ${H_STYLES.gap.default}`}>

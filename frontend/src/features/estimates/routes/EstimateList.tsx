@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { useState, useMemo, useDeferredValue, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { usePermission } from "@/features/auth/hooks/use-permission";
@@ -226,11 +227,11 @@ export function EstimateList() {
   return (
     <PageLayout
       title="見積書管理"
-      icon={<FileText className="size-5 text-[#37352F]" />}
+      icon={<FileText className={`${ICON.page} text-[#37352F]`} />}
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={() => navigate("/estimates/new")}>
-            <Plus className="mr-1.5 size-4" />
+            <Plus className={`mr-1.5 ${ICON.action}`} />
             新規見積書作成
           </PrimaryButton>
         ) : null

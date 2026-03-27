@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import React from "react";
 
 // External
@@ -14,7 +15,7 @@ export const DiagnosisHeaderChiefComplaint = React.memo(function DiagnosisHeader
       <Card className="flex-1 flex flex-col min-h-0 border-none shadow-none bg-transparent">
         <CardHeader className="p-0 pb-2">
           <CardTitle className="text-sm font-bold text-[#37352F] flex items-center gap-2">
-            <FileText className="size-4" />
+            <FileText className={ICON.action} />
             主訴情報
           </CardTitle>
         </CardHeader>

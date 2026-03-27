@@ -45,7 +45,7 @@ import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleBut
 import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import {
   useGetDiagnosisCategories,
   useCreateDiagnosisCategory,
@@ -539,7 +539,7 @@ export function DiagnosisSettings() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="診断病名マスタ"
-            icon={<ClipboardList className="size-5 text-[#37352F]" />}
+            icon={<ClipboardList className={`${ICON.page} text-[#37352F]`} />}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={
@@ -547,7 +547,7 @@ export function DiagnosisSettings() {
                 if (activeTab === "diagnosis_category") catCrud.handleNew();
                 else nameCrud.handleNew();
               }}>
-                <Plus className="mr-1.5 size-4" />
+                <Plus className={`mr-1.5 ${ICON.action}`} />
                 新規登録
               </PrimaryButton>
             }

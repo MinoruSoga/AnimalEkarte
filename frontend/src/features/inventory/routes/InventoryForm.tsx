@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import { useState, useCallback, useTransition, memo } from "react";
 import { useNavigate, useParams } from "react-router";
 
@@ -378,7 +379,7 @@ export function InventoryForm() {
     return (
       <PageLayout
         title="在庫編集"
-        icon={<Package className="size-5 text-[#37352F]" />}
+        icon={<Package className={`${ICON.page} text-[#37352F]`} />}
         maxWidth="max-w-3xl"
       >
         <div className="text-sm text-[#37352F]/60">読み込み中...</div>
@@ -389,14 +390,14 @@ export function InventoryForm() {
   return (
     <PageLayout
       title={isEdit ? "在庫編集" : "在庫登録"}
-      icon={<Package className="size-5 text-[#37352F]" />}
+      icon={<Package className={`${ICON.page} text-[#37352F]`} />}
       headerAction={
         <Button
           variant="ghost"
           className="h-10 text-sm gap-2"
           onClick={handleBack}
         >
-          <ArrowLeft className="size-4" />
+          <ArrowLeft className={ICON.action} />
           一覧に戻る
         </Button>
       }
@@ -440,7 +441,7 @@ export function InventoryForm() {
             キャンセル
           </Button>
           <PrimaryButton type="submit" disabled={isSavePending}>
-            <Save className="mr-1.5 size-4" />
+            <Save className={`mr-1.5 ${ICON.action}`} />
             {isEdit ? "更新" : "登録"}
           </PrimaryButton>
         </div>

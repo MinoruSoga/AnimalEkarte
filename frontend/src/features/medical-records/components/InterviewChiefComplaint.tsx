@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { C, LAYOUT } from "@/lib/design-tokens";
+import { C, LAYOUT, ICON } from "@/lib/design-tokens";
 
 // Relative
 import { useGetChiefComplaintCategories } from "../api/get-chief-complaint-categories";
@@ -48,7 +48,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
     <div className={`flex flex-col ${className ?? ""}`}>
       <div className="pb-1.5">
         <h4 className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
-          <FileText className="size-4" />
+          <FileText className={ICON.action} />
           主訴情報
         </h4>
       </div>
@@ -61,7 +61,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
               className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors flex items-center gap-1`}
               type="button"
             >
-              <Settings className="size-3" />
+              <Settings className={ICON.xs} />
               マスタ編集
             </button>
           </div>
@@ -91,7 +91,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
               className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors flex items-center gap-1`}
               type="button"
             >
-              <Settings className="size-3" />
+              <Settings className={ICON.xs} />
               マスタ編集
             </button>
           </div>

@@ -59,7 +59,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useSortableList } from "@/hooks/use-sortable-list";
 
@@ -178,7 +178,7 @@ function SortableMedicineRow({
                 type="button"
                 className="w-7 h-7 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors"
               >
-                <MoreHorizontal className="size-4" />
+                <MoreHorizontal className={ICON.action} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -190,7 +190,7 @@ function SortableMedicineRow({
             onClick={() => onEdit(medicine)}
             className="w-7 h-7 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors"
           >
-            <Maximize2 className="size-3.5" />
+            <Maximize2 className={`${ICON.xs}.5`} />
           </button>
         </div>
       </TableCell>
@@ -215,7 +215,7 @@ function MedicineRowOverlay({
       style={{ width: "100%" }}
     >
       <div className="w-8 shrink-0 flex items-center justify-center text-[#37352F]/50">
-        <GripVertical className="size-4" />
+        <GripVertical className={ICON.action} />
       </div>
       <div className={`flex-1 min-w-0 text-base font-medium ${C.text} ${grouped ? "pl-10" : "pl-0"}`}>
         {medicine.name}
@@ -369,7 +369,7 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
             <div className={`${STYLE.sectionDivider} mt-3 mb-1`} />
             <div className="py-1">
               <div className="flex items-center gap-1.5 py-2 mb-1">
-                <Pill className={`size-3.5 ${C.text40}`} />
+                <Pill className={`${ICON.xs}.5 ${C.text40}`} />
                 <span
                   className={`text-base font-medium ${C.text50} uppercase tracking-wide select-none`}
                 >
@@ -769,7 +769,7 @@ export function MedicineSettings() {
                         onClick={(e) => e.stopPropagation()}
                         className="w-8 h-8 flex items-center justify-center rounded-[3px] text-[#37352F]/20 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F]/50 transition-colors cursor-grab"
                       >
-                        <GripVertical className="size-4" />
+                        <GripVertical className={ICON.action} />
                       </button>
                     </TableCell>
 
@@ -803,7 +803,7 @@ export function MedicineSettings() {
                           }}
                           className="w-8 h-8 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors opacity-0 group-hover/header:opacity-100"
                         >
-                          <Plus className="size-3.5" />
+                          <Plus className={`${ICON.xs}.5`} />
                         </button>
                       </div>
                     </TableCell>
@@ -827,7 +827,7 @@ export function MedicineSettings() {
                             type="button"
                             className="w-7 h-7 flex items-center justify-center rounded-[3px] text-[#37352F]/40 hover:bg-[rgba(55,53,47,0.08)] hover:text-[#37352F] transition-colors opacity-0 group-hover/header:opacity-100"
                           >
-                            <MoreHorizontal className="size-4" />
+                            <MoreHorizontal className={ICON.action} />
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -890,7 +890,7 @@ export function MedicineSettings() {
         onClick={() => handleCreate()}
         className="flex items-center gap-1.5 w-full px-3 py-2.5 text-base text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]"
       >
-        <Plus className="size-3.5" />
+        <Plus className={`${ICON.xs}.5`} />
         新しい薬剤を追加...
       </button>
     </div>
@@ -902,12 +902,12 @@ export function MedicineSettings() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="薬剤マスタ"
-            icon={<Pill className="size-5 text-[#37352F]" />}
+            icon={<Pill className={`${ICON.page} text-[#37352F]`} />}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={
               <PrimaryButton onClick={() => handleCreate()}>
-                <Plus className="mr-1.5 size-4" />
+                <Plus className={`mr-1.5 ${ICON.action}`} />
                 新規登録
               </PrimaryButton>
             }

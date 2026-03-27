@@ -8,7 +8,7 @@ import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
-import { C, LAYOUT } from "@/lib/design-tokens";
+import { C, LAYOUT, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
@@ -90,7 +90,7 @@ export function JobTitleSettings() {
   return (
     <MasterCRUDPage
       title="役職マスタ"
-      icon={<Briefcase className="size-5 text-[#37352F]" />}
+      icon={<Briefcase className={`${ICON.page} text-[#37352F]`} />}
       entityLabel="役職"
       searchPlaceholder="役職名で検索..."
       emptyMessage="役職が登録されていません"

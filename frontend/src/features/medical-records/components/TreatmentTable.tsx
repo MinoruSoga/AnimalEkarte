@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import React, { memo } from "react";
 
 // Shared
@@ -126,9 +127,9 @@ export const TreatmentTable = memo(function TreatmentTable({
                 className="cursor-pointer hover:bg-gray-50"
               >
                 {item.insurance ? (
-                  <Circle className="size-4 text-[#EA3323]" />
+                  <Circle className={`${ICON.action} text-[#EA3323]`} />
                 ) : (
-                  <X className="size-4 text-gray-300" />
+                  <X className={`${ICON.action} text-gray-300`} />
                 )}
               </Cell>
               <Cell>
@@ -190,7 +191,7 @@ export const TreatmentTable = memo(function TreatmentTable({
           className="h-10 text-sm gap-2 text-muted-foreground hover:text-primary"
           onClick={onOpenSearch || onAddRow}
         >
-          <PlusCircle className="size-4" />
+          <PlusCircle className={ICON.action} />
           {onOpenSearch ? "行を追加（検索）" : "行を追加"}
         </Button>
       </div>

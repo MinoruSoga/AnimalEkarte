@@ -27,7 +27,7 @@ import { getPetStatusColor } from "@/utils/status-helpers";
 import { formatDate } from "@/utils/format/date";
 import { formatWeight } from "@/utils/format/number";
 import { usePagination } from "@/hooks/use-pagination";
-import { STYLE } from "@/lib/design-tokens";
+import { STYLE, ICON } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { transformUpdatePetRequest } from "@/lib/transforms/pet";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -424,7 +424,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={handleCreate}>
-            <Plus className="mr-1.5 size-4" />
+            <Plus className={`mr-1.5 ${ICON.action}`} />
             新規登録
           </PrimaryButton>
         ) : null

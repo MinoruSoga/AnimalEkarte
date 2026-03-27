@@ -9,7 +9,7 @@ import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPil
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
-import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import type { FilterProperty } from "@/components/shared/NotionFilter/types";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
@@ -211,7 +211,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
       {/* ── Permission groups ─────────────────────── */}
       <div className="mt-4 border-t pt-4">
         <div className="flex items-center gap-1.5 mb-2">
-          <Shield className="size-3.5 text-muted-foreground" />
+          <Shield className={`${ICON.xs}.5 text-muted-foreground`} />
           <p className="text-xs font-medium text-muted-foreground">権限グループ</p>
         </div>
 
@@ -339,7 +339,7 @@ export function StaffSettings() {
   return (
     <MasterCRUDPage
       title="スタッフマスタ"
-      icon={<UserRound className="size-5 text-[#37352F]" />}
+      icon={<UserRound className={`${ICON.page} text-[#37352F]`} />}
       entityLabel="スタッフ"
       searchPlaceholder="氏名、職種で検索..."
       emptyMessage="スタッフが登録されていません"

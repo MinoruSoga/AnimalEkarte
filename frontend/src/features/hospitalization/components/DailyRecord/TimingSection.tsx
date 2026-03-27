@@ -1,4 +1,5 @@
 // External
+import { ICON } from "@/lib/design-tokens";
 import { Check, Clock } from "lucide-react";
 
 // Internal
@@ -26,7 +27,7 @@ export function TimingSection({ title, icon: Icon, tasks, colorClass, onTaskClic
     return (
         <div className={H_STYLES.layout.card_mb}>
             <div className={`flex items-center ${H_STYLES.gap.default} mb-1 font-bold ${colorClass}`}>
-                <Icon className="size-5" />
+                <Icon className={ICON.page} />
                 <span className={H_STYLES.text.lg}>{title}</span>
                 <span className={`${H_STYLES.text.sm} font-normal opacity-70 ml-2`}>({tasks.length}件の予定)</span>
             </div>
@@ -44,7 +45,7 @@ export function TimingSection({ title, icon: Icon, tasks, colorClass, onTaskClic
                                     w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0
                                     ${task.completedLog ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-400"}
                                 `}>
-                                    {task.completedLog ? <Check className="size-5" /> : <Clock className="size-5" />}
+                                    {task.completedLog ? <Check className={ICON.page} /> : <Clock className={ICON.page} />}
                                 </div>
                                 <div>
                                     <div className={`font-bold ${H_STYLES.text.base} leading-tight ${task.completedLog ? "text-[#37352F]/60 line-through" : "text-[#37352F]"}`}>

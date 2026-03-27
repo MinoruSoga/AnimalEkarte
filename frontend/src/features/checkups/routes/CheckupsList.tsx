@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import { useDeferredValue, useMemo, useState } from "react";
 
 // External
@@ -141,7 +142,7 @@ export function CheckupsList() {
   return (
     <PageLayout
       title="定期健診"
-      icon={<ClipboardCheck className="size-5 text-[#37352F]" />}
+      icon={<ClipboardCheck className={`${ICON.page} text-[#37352F]`} />}
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">

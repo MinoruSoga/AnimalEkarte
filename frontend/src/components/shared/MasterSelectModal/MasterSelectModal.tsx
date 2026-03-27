@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import {
@@ -77,7 +78,7 @@ export function MasterSelectModal({
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-[#37352F]/40" />
+          <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${ICON.action} text-[#37352F]/40`} />
           <Input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -89,7 +90,7 @@ export function MasterSelectModal({
               onClick={() => setSearchTerm("")}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#37352F]/40 hover:text-[#37352F]/70"
             >
-              <X className="size-3.5" />
+              <X className={`${ICON.xs}.5`} />
             </button>
           ) : null}
         </div>
@@ -126,7 +127,7 @@ export function MasterSelectModal({
                   ) : null}
                   {isSelected ? (
                     <div className="size-5 rounded-full bg-[#37352F] flex items-center justify-center">
-                      <Check className="size-3 text-white" />
+                      <Check className={`${ICON.xs} text-white`} />
                     </div>
                   ) : null}
                 </div>

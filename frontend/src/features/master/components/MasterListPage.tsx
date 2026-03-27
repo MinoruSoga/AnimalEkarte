@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import { memo, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
@@ -106,7 +107,7 @@ export const MasterListPage = memo(function MasterListPage({
             maxWidth="max-w-full"
             headerAction={
               <PrimaryButton onClick={onNew}>
-                <Plus className="mr-1.5 size-4" />
+                <Plus className={`mr-1.5 ${ICON.action}`} />
                 新規登録
               </PrimaryButton>
             }

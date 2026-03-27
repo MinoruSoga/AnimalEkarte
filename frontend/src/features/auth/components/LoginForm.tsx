@@ -4,7 +4,7 @@ import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import Eye from "lucide-react/dist/esm/icons/eye";
 import EyeOff from "lucide-react/dist/esm/icons/eye-off";
 import { FormFieldError } from "@/components/shared/FormFieldError";
-import { C } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 // AuthProvider はこのページを囲まないため useAuth() は使用不可。
 // login API を直接呼び出し、成功後に navigate("/") で保護ルート側に遷移する。
 import { login as loginApi } from "../api/login";
@@ -187,7 +187,7 @@ export function LoginForm() {
               className={`absolute right-1 top-1/2 -translate-y-1/2 size-8 flex items-center justify-center rounded-[3px] ${C.text35} ${C.hoverText} transition-colors`}
               aria-label={showPassword ? "パスワードを非表示" : "パスワードを表示"}
             >
-              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              {showPassword ? <EyeOff className={ICON.action} /> : <Eye className={ICON.action} />}
             </button>
           </div>
         </div>

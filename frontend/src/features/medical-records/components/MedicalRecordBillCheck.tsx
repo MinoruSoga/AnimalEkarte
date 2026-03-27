@@ -8,7 +8,7 @@ import { useGetBillingReview, useConfirmBillingReview, useReturnBillingReview } 
 import type { CreateTreatmentInput, UpdateTreatmentInput, TreatmentItemType } from "../types";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { CheckCircle2, RotateCcw } from "lucide-react";
-import { C } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 
 const TreatmentSearchDialog = lazy(() =>
@@ -155,7 +155,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
     <div className="h-[calc(100vh-220px)] min-h-[500px] flex flex-col gap-3 overflow-y-auto pb-10 pr-1 relative">
       {isConfirmed && (
         <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-100 rounded-lg text-green-700 text-sm mb-1">
-          <CheckCircle2 className="size-4" />
+          <CheckCircle2 className={ICON.action} />
           <span>このカルテの会計内容は医師によって確認済みです。</span>
         </div>
       )}
@@ -189,7 +189,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
             disabled={returnMutation.isPending}
             className="h-10 text-sm gap-2 border-[#E0E0E0] hover:bg-gray-50"
           >
-            <RotateCcw className="size-4" />
+            <RotateCcw className={ICON.action} />
             確認を取り消す
           </Button>
         ) : (
@@ -199,7 +199,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
             size="sm"
             className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white min-w-[120px] shadow-lg h-10 text-sm border-transparent gap-2"
           >
-            <CheckCircle2 className="size-4" />
+            <CheckCircle2 className={ICON.action} />
             チェック完了
           </Button>
         )}

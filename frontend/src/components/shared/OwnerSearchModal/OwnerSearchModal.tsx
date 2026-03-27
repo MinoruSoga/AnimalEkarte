@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import { useState, useCallback, useMemo, useDeferredValue, memo } from "react";
 
 // External
@@ -121,7 +122,7 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
         <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-semibold text-[#37352F]">
-              <Users className="size-4" />
+              <Users className={ICON.action} />
               飼主検索
             </DialogTitle>
             <DialogDescription className="text-sm text-[#37352F]/50">
@@ -132,7 +133,7 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
           {/* Search */}
           <div className="flex items-center gap-2 px-1">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#37352F]/40" />
+              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${ICON.action} text-[#37352F]/40`} />
               <Input
                 autoFocus
                 value={searchTerm}

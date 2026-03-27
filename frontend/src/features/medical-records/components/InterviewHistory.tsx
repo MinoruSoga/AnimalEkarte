@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { C, LAYOUT } from "@/lib/design-tokens";
+import { C, LAYOUT, ICON } from "@/lib/design-tokens";
 import type { InterviewHistoryItem } from "../types";
 
 interface InterviewHistoryProps {
@@ -34,12 +34,12 @@ export const InterviewHistory = memo(function InterviewHistory({
     <div className={`flex flex-col border ${C.borderMedium} bg-white rounded-md overflow-hidden ${className ?? ""}`}>
       <div className={`p-3 border-b ${C.borderLight} ${C.bgPage} flex items-center justify-between h-12 shrink-0`}>
         <div className="flex items-center gap-2">
-          <History className={`size-4 ${C.text}`} />
+          <History className={`${ICON.action} ${C.text}`} />
           <h3 className={`text-sm font-bold ${C.text}`}>過去のカルテ</h3>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 size-4 ${C.text60}`} />
+            <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${ICON.action} ${C.text60}`} />
             <Input
               placeholder="検索..."
               className={`${LAYOUT.touch.md} w-48 pl-9 text-sm bg-white ${C.borderMedium}`}
@@ -82,7 +82,7 @@ export const InterviewHistory = memo(function InterviewHistory({
                   size="sm"
                   className={`${LAYOUT.touch.md} text-sm gap-1 ${C.text60} ${C.hoverText} ${C.hoverBgPage}`}
                 >
-                  <Plus className="size-4" />
+                  <Plus className={ICON.action} />
                   引用
                 </Button>
               </div>

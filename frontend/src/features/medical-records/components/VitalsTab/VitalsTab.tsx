@@ -8,7 +8,7 @@ import { toast } from "sonner";
 // Internal
 import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
 
 // rendering-hoist-jsx: design token は定数なので module-level に巻き上げ
 const EDIT_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2] w-full`;
@@ -200,7 +200,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
             className={`size-8 flex items-center justify-center rounded-[3px] ${C.textStatusGreen} ${C.hoverBgStatusGreen} transition-colors`}
             title="保存"
           >
-            <Check className="size-3.5" />
+            <Check className={`${ICON.xs}.5`} />
           </button>
           <button
             onClick={onCancel}
@@ -208,7 +208,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
             className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverBgLight} transition-colors`}
             title="キャンセル"
           >
-            <X className="size-3.5" />
+            <X className={`${ICON.xs}.5`} />
           </button>
         </div>
       </td>
@@ -425,7 +425,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
                           className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverText} ${C.hoverBgLight} transition-colors`}
                           title="編集"
                         >
-                          <Pencil className="size-3.5" />
+                          <Pencil className={`${ICON.xs}.5`} />
                         </button>
                         <DeleteIconButton
                           onClick={() => setDeletingId(vital.id)}
@@ -510,7 +510,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
           </div>
         ) : (
           <button className={STYLE.inlineAddBtn} onClick={() => setIsAdding(true)}>
-            <Plus className="size-3.5" />
+            <Plus className={`${ICON.xs}.5`} />
             <span>記録を追加</span>
           </button>
         )}

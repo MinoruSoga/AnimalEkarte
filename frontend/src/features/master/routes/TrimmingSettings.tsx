@@ -30,7 +30,7 @@ import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import {
   useGetTrimmingCourses,
   useCreateTrimmingCourse,
@@ -625,7 +625,7 @@ export function TrimmingSettings() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="トリミングマスタ"
-            icon={<Scissors className="size-5 text-[#37352F]" />}
+            icon={<Scissors className={`${ICON.page} text-[#37352F]`} />}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={
@@ -633,7 +633,7 @@ export function TrimmingSettings() {
                 if (activeTab === "course") courseCrud.handleNew();
                 else optionCrud.handleNew();
               }}>
-                <Plus className="mr-1.5 size-4" />
+                <Plus className={`mr-1.5 ${ICON.action}`} />
                 新規登録
               </PrimaryButton>
             }

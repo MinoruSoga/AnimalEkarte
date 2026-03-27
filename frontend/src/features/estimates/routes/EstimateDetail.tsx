@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { useNavigate, useParams } from 'react-router';
 import { FileText, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
@@ -38,7 +39,7 @@ export function EstimateDetail() {
   return (
     <PageLayout
       title={`見積書 ${estimate.estimateNo}`}
-      icon={<FileText className="size-5 text-[#37352F]" />}
+      icon={<FileText className={`${ICON.page} text-[#37352F]`} />}
       headerAction={
         <div className="flex gap-2">
           <Button
@@ -47,7 +48,7 @@ export function EstimateDetail() {
             onClick={() => navigate('/estimates')}
             className="h-9 gap-1.5 text-sm"
           >
-            <ArrowLeft className="size-4" />
+            <ArrowLeft className={ICON.action} />
             一覧へ
           </Button>
           <Button
@@ -56,7 +57,7 @@ export function EstimateDetail() {
             onClick={() => navigate(`/estimates/${id}/edit`)}
             className="h-9 gap-1.5 text-sm"
           >
-            <Pencil className="size-4" />
+            <Pencil className={ICON.action} />
             編集
           </Button>
           <Button
@@ -66,7 +67,7 @@ export function EstimateDetail() {
             disabled={isDeleting}
             className="h-9 gap-1.5 text-sm border border-red-200"
           >
-            <Trash2 className="size-4" />
+            <Trash2 className={ICON.action} />
             削除
           </Button>
         </div>

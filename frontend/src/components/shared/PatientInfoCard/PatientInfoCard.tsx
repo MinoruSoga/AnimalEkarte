@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { ChevronDown, User, Calendar, Activity } from "lucide-react";
 import imgEllipse1 from "@/assets/231a870df600a37e011a0e1140e7608b1f4c3340.png";
 import { ImageWithFallback } from "@/components/shared/Feedback";
@@ -85,10 +86,10 @@ export function PatientInfoCard({
               </span>
             ) : null}
             <span className="flex items-center gap-1">
-              <User className="size-3" /> {petDetails}
+              <User className={ICON.xs} /> {petDetails}
             </span>
             <span className="flex items-center gap-1">
-              <Activity className="size-3" /> {weight}
+              <Activity className={ICON.xs} /> {weight}
             </span>
           </div>
         </div>
@@ -104,7 +105,7 @@ export function PatientInfoCard({
                 onClick={onServiceTypeClick}
               >
                 <span className="text-sm font-medium text-[#37352F]">{serviceType}</span>
-                <ChevronDown className="size-3.5 text-[#37352F]/40" />
+                <ChevronDown className={`${ICON.xs}.5 text-[#37352F]/40`} />
               </div>
             ) : (
               <span className="text-sm font-medium text-[#37352F] px-1 -ml-1">{serviceType}</span>
@@ -120,7 +121,7 @@ export function PatientInfoCard({
           {/* Next Visit */}
           <div className="flex flex-col gap-0.5 px-3 py-1.5 rounded min-h-[38px] justify-center bg-[#F7F6F3] border border-[rgba(55,53,47,0.1)] min-w-[120px]">
             <div className="flex items-center gap-1">
-              <Calendar className="size-3 text-[#37352F]/60" />
+              <Calendar className={`${ICON.xs} text-[#37352F]/60`} />
               <span className="text-sm text-[#37352F]">次回 {nextVisitDate}</span>
             </div>
             <span className="text-sm text-[#37352F]/60 truncate">{nextVisitContent}</span>
@@ -148,7 +149,7 @@ export function PatientInfoCard({
                 onClick={onStaffClick}
               >
                 {staffLabel ? `${staffLabel}${staffName}` : staffName}
-                <ChevronDown className="size-3.5 text-[#37352F]/40" />
+                <ChevronDown className={`${ICON.xs}.5 text-[#37352F]/40`} />
               </Button>
             ) : (
               <div className="h-9 text-sm flex items-center gap-1 px-3 rounded-md bg-[#F7F6F3] text-[#37352F] border border-[rgba(55,53,47,0.16)]">

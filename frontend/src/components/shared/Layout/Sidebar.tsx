@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import {
   LayoutDashboard,
   Users,
@@ -112,7 +113,7 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
               aria-label={isExpanded ? `${item.label}を折りたむ` : `${item.label}を展開`}
               className="p-0.5 rounded hover:bg-[rgba(55,53,47,0.08)] transition-colors"
             >
-              <ChevronDown className={`size-3 transition-transform${isExpanded ? " rotate-180" : ""}`} />
+              <ChevronDown className={`${ICON.xs} transition-transform${isExpanded ? " rotate-180" : ""}`} />
             </span>
           ) : null}
         </>
@@ -173,50 +174,50 @@ export function Sidebar() {
   }, []);
 
   const menuItems: MenuItem[] = useMemo(() => [
-    { icon: <LayoutDashboard className="size-[18px]" />, label: "当日の受付",  path: paths.home.getHref() },
-    { icon: <Users         className="size-[18px]" />, label: "飼主・ペット", path: paths.owners.getHref() },
-    { icon: <Calendar      className="size-[18px]" />, label: "予約管理",     path: paths.reservations.getHref() },
-    { icon: <FileText      className="size-[18px]" />, label: "カルテ",       path: paths.medicalRecords.getHref() },
-    { icon: <TestTube      className="size-[18px]" />, label: "検査管理",     path: paths.examinations.getHref() },
-    { icon: <CreditCard    className="size-[18px]" />, label: "会計管理",     path: paths.accounting.getHref() },
-    { icon: <Bed           className="size-[18px]" />, label: "入院・ホテル", path: paths.hospitalization.getHref() },
-    { icon: <Syringe       className="size-[18px]" />, label: "予防接種",     path: paths.vaccinations.getHref() },
-    { icon: <ClipboardCheck className="size-[18px]" />, label: "定期健診",    path: "/checkups" },
-    { icon: <Package       className="size-[18px]" />, label: "在庫管理",     path: paths.inventory.getHref() },
-    { icon: <CalendarDays  className="size-[18px]" />, label: "シフト管理",   path: paths.shifts.getHref() },
-    { icon: <Scissors      className="size-[18px]" />, label: "トリミング",   path: paths.trimming.getHref() },
+    { icon: <LayoutDashboard className={ICON.toolbar} />, label: "当日の受付",  path: paths.home.getHref() },
+    { icon: <Users         className={ICON.toolbar} />, label: "飼主・ペット", path: paths.owners.getHref() },
+    { icon: <Calendar      className={ICON.toolbar} />, label: "予約管理",     path: paths.reservations.getHref() },
+    { icon: <FileText      className={ICON.toolbar} />, label: "カルテ",       path: paths.medicalRecords.getHref() },
+    { icon: <TestTube      className={ICON.toolbar} />, label: "検査管理",     path: paths.examinations.getHref() },
+    { icon: <CreditCard    className={ICON.toolbar} />, label: "会計管理",     path: paths.accounting.getHref() },
+    { icon: <Bed           className={ICON.toolbar} />, label: "入院・ホテル", path: paths.hospitalization.getHref() },
+    { icon: <Syringe       className={ICON.toolbar} />, label: "予防接種",     path: paths.vaccinations.getHref() },
+    { icon: <ClipboardCheck className={ICON.toolbar} />, label: "定期健診",    path: "/checkups" },
+    { icon: <Package       className={ICON.toolbar} />, label: "在庫管理",     path: paths.inventory.getHref() },
+    { icon: <CalendarDays  className={ICON.toolbar} />, label: "シフト管理",   path: paths.shifts.getHref() },
+    { icon: <Scissors      className={ICON.toolbar} />, label: "トリミング",   path: paths.trimming.getHref() },
     {
-      icon: <Settings className="size-[18px]" />,
+      icon: <Settings className={ICON.toolbar} />,
       label: "マスタ設定",
       path: paths.settings.getHref(),
       subItems: [
         // 基本設定
-        { icon: <Building2    className="size-[18px]" />, label: "医院",       path: paths.settings.clinic.getHref() },
-        { icon: <PawPrint     className="size-[18px]" />, label: "動物種類",   path: paths.settings.animalSpecies.getHref() },
+        { icon: <Building2    className={ICON.toolbar} />, label: "医院",       path: paths.settings.clinic.getHref() },
+        { icon: <PawPrint     className={ICON.toolbar} />, label: "動物種類",   path: paths.settings.animalSpecies.getHref() },
         // カルテ
         {
-          icon: <FileText className="size-[18px]" />,
+          icon: <FileText className={ICON.toolbar} />,
           label: "カルテ",
           subItems: [
-            { icon: <ClipboardList  className="size-[18px]" />, label: "診療項目", path: paths.settings.treatmentItems.getHref() },
-            { icon: <Clipboard      className="size-[18px]" />, label: "診断病名", path: paths.settings.diagnosis.getHref() },
-            { icon: <ClipboardCheck className="size-[18px]" />, label: "問診",     path: paths.settings.inquiryTemplates.getHref() },
-            { icon: <Pill           className="size-[18px]" />, label: "薬剤",     path: paths.settings.medicine.getHref() },
+            { icon: <ClipboardList  className={ICON.toolbar} />, label: "診療項目", path: paths.settings.treatmentItems.getHref() },
+            { icon: <Clipboard      className={ICON.toolbar} />, label: "診断病名", path: paths.settings.diagnosis.getHref() },
+            { icon: <ClipboardCheck className={ICON.toolbar} />, label: "問診",     path: paths.settings.inquiryTemplates.getHref() },
+            { icon: <Pill           className={ICON.toolbar} />, label: "薬剤",     path: paths.settings.medicine.getHref() },
           ],
         },
         // 診療関連
-        { icon: <Activity     className="size-[18px]" />, label: "予約区分",   path: paths.settings.serviceType.getHref() },
+        { icon: <Activity     className={ICON.toolbar} />, label: "予約区分",   path: paths.settings.serviceType.getHref() },
         // 入院・ケージ管理
-        { icon: <Bed          className="size-[18px]" />, label: "入院",       path: paths.settings.hospitalization.getHref() },
-        { icon: <Building2    className="size-[18px]" />, label: "ケージ",     path: paths.settings.cage.getHref() },
+        { icon: <Bed          className={ICON.toolbar} />, label: "入院",       path: paths.settings.hospitalization.getHref() },
+        { icon: <Building2    className={ICON.toolbar} />, label: "ケージ",     path: paths.settings.cage.getHref() },
         // トリミング
-        { icon: <Scissors     className="size-[18px]" />, label: "トリミング", path: paths.settings.trimming.getHref() },
+        { icon: <Scissors     className={ICON.toolbar} />, label: "トリミング", path: paths.settings.trimming.getHref() },
         // スタッフ・権限・保険
-        { icon: <Users        className="size-[18px]" />, label: "スタッフ",     path: paths.settings.staff.getHref() },
-        { icon: <Shield       className="size-[18px]" />, label: "権限グループ", path: paths.settings.permissionGroups.getHref() },
-        { icon: <Briefcase    className="size-[18px]" />, label: "職種",         path: paths.settings.jobTitle.getHref() },
-        { icon: <ShieldCheck  className="size-[18px]" />, label: "保険",         path: paths.settings.insurance.getHref() },
-        { icon: <Package      className="size-[18px]" />, label: "物販",         path: paths.settings.merchandiseItems.getHref() },
+        { icon: <Users        className={ICON.toolbar} />, label: "スタッフ",     path: paths.settings.staff.getHref() },
+        { icon: <Shield       className={ICON.toolbar} />, label: "権限グループ", path: paths.settings.permissionGroups.getHref() },
+        { icon: <Briefcase    className={ICON.toolbar} />, label: "職種",         path: paths.settings.jobTitle.getHref() },
+        { icon: <ShieldCheck  className={ICON.toolbar} />, label: "保険",         path: paths.settings.insurance.getHref() },
+        { icon: <Package      className={ICON.toolbar} />, label: "物販",         path: paths.settings.merchandiseItems.getHref() },
       ],
     },
   ], []);
@@ -237,7 +238,7 @@ export function Sidebar() {
             >
               <span className="size-2 rounded-full bg-[#038B94] shrink-0" />
               <span className="truncate">{clinicName}</span>
-              <ChevronDown className="size-3 opacity-40 shrink-0" />
+              <ChevronDown className={`${ICON.xs} opacity-40 shrink-0`} />
             </button>
             <button
               type="button"
@@ -245,7 +246,7 @@ export function Sidebar() {
               aria-label="サイドバーを折りたたむ"
               className="size-7 flex items-center justify-center text-[#37352F]/40 hover:text-[#37352F] hover:bg-[rgba(55,53,47,0.08)] rounded-[3px] transition-colors"
             >
-              <PanelLeftClose className="size-5" />
+              <PanelLeftClose className={ICON.page} />
             </button>
           </div>
         ) : (
@@ -255,7 +256,7 @@ export function Sidebar() {
             aria-label="サイドバーを展開"
             className="w-full flex items-center justify-center h-[30px] text-[#37352F]/50 hover:bg-[rgba(55,53,47,0.04)] rounded-[3px] transition-colors"
           >
-            <PanelLeft className="size-5" />
+            <PanelLeft className={ICON.page} />
           </button>
         )}
       </div>
@@ -284,12 +285,12 @@ export function Sidebar() {
               title="ログアウト"
               className="size-7 flex items-center justify-center rounded-[3px] text-[#37352F]/35 hover:text-[#37352F] hover:bg-[rgba(55,53,47,0.08)] transition-colors shrink-0"
             >
-              <LogOut className="size-4" />
+              <LogOut className={ICON.action} />
             </button>
           </div>
         ) : (
           <div className="flex items-center justify-center h-[30px]">
-            <LogOut className="size-4 text-[#37352F]/40" />
+            <LogOut className={`${ICON.action} text-[#37352F]/40`} />
           </div>
         )}
       </div>

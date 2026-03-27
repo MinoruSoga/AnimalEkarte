@@ -24,7 +24,7 @@ import { HospitalizationTreatmentTable } from "../components/HospitalizationTrea
 import { HospitalizationCostSummary } from "../components/HospitalizationCostSummary";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
 
 export function HospitalizationForm() {
   const navigate = useNavigate();
@@ -115,7 +115,7 @@ export function HospitalizationForm() {
     <PageLayout
       title={hospitalizationId ? "入院編集" : "入院登録"}
       onBack={handleBack}
-      icon={<FileText className="size-5 text-[#37352F]" />}
+      icon={<FileText className={`${ICON.page} text-[#37352F]`} />}
       maxWidth="max-w-[1400px]"
       headerAction={
         <div className="flex gap-2">
@@ -126,7 +126,7 @@ export function HospitalizationForm() {
                     className={`gap-2 h-10 text-sm px-4 ${C.text}`}
                     onClick={() => navigate(`/hospitalization/${hospitalizationId}`)}
                   >
-                    <FileText className="size-4" />
+                    <FileText className={ICON.action} />
                     デイリーカルテ
                   </Button>
                   <Button
@@ -134,7 +134,7 @@ export function HospitalizationForm() {
                     className={`${STYLE.btnDangerGhost} h-10 text-sm px-4`}
                     onClick={() => setIsDeleteConfirmOpen(true)}
                   >
-                    <Trash2 className="mr-1.5 size-4" />
+                    <Trash2 className={`mr-1.5 ${ICON.action}`} />
                     削除
                   </Button>
                 </>

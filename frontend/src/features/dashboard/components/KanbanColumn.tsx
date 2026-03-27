@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { memo, useMemo } from "react";
 // External
 import { useDroppable } from "@dnd-kit/core";
@@ -75,7 +76,7 @@ export const KanbanColumn = memo(function KanbanColumn({
           className={`w-full justify-start gap-2 h-10 ${colors.text60} ${colors.hoverBgPage} ${colors.hoverText} -mx-1 px-2`}
           onClick={onAddClick}
         >
-          <Plus className="size-5" />
+          <Plus className={ICON.page} />
           <span className="text-sm">新規追加</span>
         </Button>
       ) : null}

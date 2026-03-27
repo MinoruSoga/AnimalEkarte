@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -304,7 +305,7 @@ export function AccountingList() {
                 }}
                 aria-label="カルテを開く"
               >
-                <FileText className="size-4" />
+                <FileText className={ICON.action} />
               </Button>
             ) : null}
           </TableCell>
@@ -324,11 +325,11 @@ export function AccountingList() {
   return (
     <PageLayout
       title="会計管理"
-      icon={<CreditCard className="size-5 text-[#37352F]" />}
+      icon={<CreditCard className={`${ICON.page} text-[#37352F]`} />}
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={handleCreate}>
-            <Plus className="mr-1.5 size-4" />
+            <Plus className={`mr-1.5 ${ICON.action}`} />
             新規会計登録
           </PrimaryButton>
         ) : null

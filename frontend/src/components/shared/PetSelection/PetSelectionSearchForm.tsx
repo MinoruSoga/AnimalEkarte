@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,7 +69,7 @@ export function PetSelectionSearchForm({ searchParams, setSearchParams, onSearch
           onClick={onSearch}
           className="gap-2 bg-[#2383E2] hover:bg-[#1B6EC2] text-white focus-visible:ring-[#2EAADC] h-11 text-sm"
         >
-          <Search className="size-4" />
+          <Search className={ICON.action} />
           検索
         </Button>
       </div>

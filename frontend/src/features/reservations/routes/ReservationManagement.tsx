@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { useState, useMemo, useCallback, Suspense, lazy } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -113,12 +114,12 @@ export function ReservationManagement() {
     <div className="flex-1 flex flex-col h-full bg-[#F7F6F3] min-w-0 w-full">
       <FormHeader
         title="予約管理"
-        icon={<CalendarIcon className="size-5 text-[#37352F]" />}
+        icon={<CalendarIcon className={`${ICON.page} text-[#37352F]`} />}
         action={
           <div className="flex items-center gap-2">
             {canCreate ? (
               <PrimaryButton className="gap-2" onClick={() => handleOpenForm()}>
-                <Plus className="size-4" />
+                <Plus className={ICON.action} />
                 <span className="hidden sm:inline">新規予約</span>
                 <span className="sm:hidden">予約</span>
               </PrimaryButton>
@@ -138,7 +139,7 @@ export function ReservationManagement() {
                 className="h-10 w-10"
                 onClick={navigatePrevious}
               >
-                <ChevronLeft className="size-5" />
+                <ChevronLeft className={ICON.page} />
               </Button>
               <Button
                 variant="ghost"
@@ -154,7 +155,7 @@ export function ReservationManagement() {
                 className="h-10 w-10"
                 onClick={navigateNext}
               >
-                <ChevronRight className="size-5" />
+                <ChevronRight className={ICON.page} />
               </Button>
             </div>
             <h2 className="text-xl font-bold text-[#37352F] flex items-center gap-2">

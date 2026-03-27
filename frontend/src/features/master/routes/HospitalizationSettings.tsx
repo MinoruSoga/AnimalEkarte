@@ -12,7 +12,7 @@ import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleBut
 import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
 import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
-import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
@@ -102,7 +102,7 @@ export function HospitalizationSettings() {
   });
 
   return (
-    <MasterCRUDPage title="入院マスタ" icon={<Bed className="size-5 text-[#37352F]" />}
+    <MasterCRUDPage title="入院マスタ" icon={<Bed className={`${ICON.page} text-[#37352F]`} />}
       entityLabel="入院プラン" searchPlaceholder="名称で検索..." emptyMessage="入院プランが登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}

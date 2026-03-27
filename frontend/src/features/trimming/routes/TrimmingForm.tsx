@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import { useDeferredValue, lazy, memo, Suspense, useCallback, useMemo, useState } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
@@ -95,7 +96,7 @@ const LeftColumn = memo(function LeftColumn({
         <MasterSelectTrigger
           selectedItem={selectedCourse ? { name: selectedCourse.name, price: selectedCourse.price } : undefined}
           placeholder="コースを選択"
-          icon={<Scissors className="size-4" />}
+          icon={<Scissors className={ICON.action} />}
           onClick={onCourseModalOpen}
           variant="block"
         />
@@ -169,7 +170,7 @@ const LeftColumn = memo(function LeftColumn({
               onClick={onRemoveStyleImage}
               className="absolute top-1 right-1 p-1 bg-white rounded-full shadow-sm hover:bg-gray-100"
             >
-              <X className="size-4 text-[#37352F]" />
+              <X className={`${ICON.action} text-[#37352F]`} />
             </button>
           </div>
         ) : (
@@ -282,7 +283,7 @@ const MiddleColumn = memo(function MiddleColumn({
               onClick={onRemoveCompletedImage}
               className="absolute top-1 right-1 p-1 bg-white rounded-full shadow-sm hover:bg-gray-100"
             >
-              <X className="size-4 text-[#37352F]" />
+              <X className={`${ICON.action} text-[#37352F]`} />
             </button>
           </div>
         ) : (
@@ -507,7 +508,7 @@ export function TrimmingForm() {
     <PageLayout
       title={mode === "new" ? "トリミング登録" : "トリミング編集"}
       onBack={handleBack}
-      icon={<Scissors className="size-5 text-[#37352F]" />}
+      icon={<Scissors className={`${ICON.page} text-[#37352F]`} />}
       maxWidth="max-w-[1400px]"
       headerAction={
         <div className="flex gap-2">
@@ -519,7 +520,7 @@ export function TrimmingForm() {
               className="h-10 rounded-[6px] text-sm px-4"
               disabled={isDeleting}
             >
-              <Trash2 className="mr-1.5 size-4" />
+              <Trash2 className={`mr-1.5 ${ICON.action}`} />
               削除
             </Button>
           ) : null}

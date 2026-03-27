@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import { useState, useDeferredValue, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
 
@@ -213,7 +214,7 @@ export function InventoryList() {
   return (
     <PageLayout
       title="在庫管理"
-      icon={<Package className="size-5 text-[#37352F]" />}
+      icon={<Package className={`${ICON.page} text-[#37352F]`} />}
       headerAction={
         <div className="flex items-center gap-2">
           <Button
@@ -221,12 +222,12 @@ export function InventoryList() {
             className="h-10 text-base gap-2 bg-white"
             onClick={() => {}}
           >
-            <FileSpreadsheet className="size-4" />
+            <FileSpreadsheet className={ICON.action} />
             データ取込
           </Button>
           {canCreate ? (
             <PrimaryButton onClick={handleCreate}>
-              <Plus className="mr-1.5 size-4" />
+              <Plus className={`mr-1.5 ${ICON.action}`} />
               新規登録
             </PrimaryButton>
           ) : null}
@@ -238,7 +239,7 @@ export function InventoryList() {
         {/* Alert summary */}
         {(summary.lowStock > 0 || summary.outOfStock > 0) ? (
           <div className="flex items-center gap-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <AlertTriangle className="size-5 text-amber-600" />
+            <AlertTriangle className={`${ICON.page} text-amber-600`} />
             <div className="flex gap-4 text-base">
               {summary.outOfStock > 0 ? (
                 <span className="text-red-600 font-medium">

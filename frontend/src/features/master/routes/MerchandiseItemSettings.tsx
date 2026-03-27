@@ -14,7 +14,7 @@ import { SortableDataTableRow } from "@/components/shared/DataTable/SortableData
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
-import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
@@ -126,7 +126,7 @@ function MerchandiseRowOverlay({ item }: { item: FrontendMerchandiseItem }) {
       style={{ width: "100%" }}
     >
       <div className="w-8 shrink-0 flex items-center justify-center text-[#37352F]/50">
-        <GripVertical className="size-4" />
+        <GripVertical className={ICON.action} />
       </div>
       <div className={`flex-1 min-w-0 text-base font-medium ${C.text} px-3`}>{item.name}</div>
       <div className={`w-[90px] shrink-0 text-base ${C.text70} text-center`}>
@@ -222,7 +222,7 @@ export function MerchandiseItemSettings() {
   return (
     <MasterCRUDPage
       title="物販・その他マスタ"
-      icon={<ShoppingBag className="size-5 text-[#37352F]" />}
+      icon={<ShoppingBag className={`${ICON.page} text-[#37352F]`} />}
       entityLabel="品目"
       searchPlaceholder="品目名で検索..."
       emptyMessage="品目が登録されていません"
@@ -301,7 +301,7 @@ export function MerchandiseItemSettings() {
           onClick={crud.handleNew}
           className="flex items-center gap-1.5 w-full px-3 py-2.5 text-base text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[#F7F6F3]/50 transition-colors rounded-b-[4px]"
         >
-          <Plus className="size-3.5" />
+          <Plus className={`${ICON.xs}.5`} />
           新しい品目を追加...
         </button>
       </div>

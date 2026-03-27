@@ -24,7 +24,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
 
 // Relative
 import { useVaccinationForm } from "../hooks/use-vaccination-form";
@@ -430,7 +430,7 @@ export function VaccinationForm() {
                     variant="ghost"
                     className={`${STYLE.btnDangerGhost} px-4 h-10 text-sm`}
                 >
-                    <Trash2 className="mr-1.5 size-4" />
+                    <Trash2 className={`mr-1.5 ${ICON.action}`} />
                     削除
                 </Button>
             ) : null}

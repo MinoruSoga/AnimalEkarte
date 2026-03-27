@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { memo, useState, useCallback } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -83,9 +84,9 @@ const SortRuleRow = memo(function SortRuleRow({
         className="flex items-center gap-1 px-2 py-1 text-base text-[#37352F] bg-[#F1F1EF] hover:bg-[#E8E7E4] rounded-[3px] transition-colors whitespace-nowrap"
       >
         {sort.direction === "asc" ? (
-          <ArrowUp className="size-5 shrink-0" />
+          <ArrowUp className={`${ICON.page} shrink-0`} />
         ) : (
-          <ArrowDown className="size-5 shrink-0" />
+          <ArrowDown className={`${ICON.page} shrink-0`} />
         )}
         {dirLabel}
       </button>
@@ -97,7 +98,7 @@ const SortRuleRow = memo(function SortRuleRow({
         className="p-0.5 rounded-[3px] text-[#37352F]/30 hover:text-[#37352F]/60 hover:bg-[#F1F1EF] opacity-0 group-hover:opacity-100 transition-opacity ml-auto"
         aria-label={`${property?.label ?? sort.key} ソートを削除`}
       >
-        <X className="size-5" />
+        <X className={ICON.page} />
       </button>
     </div>
   );
@@ -230,7 +231,7 @@ export const SortPopover = memo(function SortPopover({
                 onClick={() => setAddingSort(true)}
                 className="flex items-center gap-1 mt-1 px-1 py-1 text-base text-[#37352F]/50 hover:text-[#37352F]/80 hover:bg-[#F1F1EF] rounded-[3px] transition-colors w-full"
               >
-                <Plus className="size-5" />
+                <Plus className={ICON.page} />
                 並べ替えを追加
               </button>
             )

@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import React from "react";
 
 // External
@@ -45,7 +46,7 @@ export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
           size="sm"
           className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4"
         >
-          <Upload className="size-4" />
+          <Upload className={ICON.action} />
           画像アップロード
         </Button>
       </div>

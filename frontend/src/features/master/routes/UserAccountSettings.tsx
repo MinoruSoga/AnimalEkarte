@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { memo, useCallback, useState, useTransition, useMemo } from "react";
 import { Users, ChevronRight, X } from "lucide-react";
 import { toast } from "sonner";
@@ -78,7 +79,7 @@ const UserPermissionPanel = memo(function UserPermissionPanel({
           <p className="text-xs text-muted-foreground">{user.email}</p>
         </div>
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-          <X className="size-4" />
+          <X className={ICON.action} />
         </Button>
       </div>
 
@@ -143,7 +144,7 @@ const UserRow = memo(function UserRow({ user, isSelected, onSelect }: UserRowPro
       <span className="text-xs text-muted-foreground flex-shrink-0">
         {USER_TYPE_LABELS[user.user_type] ?? user.user_type}
       </span>
-      <ChevronRight className="size-4 text-muted-foreground flex-shrink-0" />
+      <ChevronRight className={`${ICON.action} text-muted-foreground flex-shrink-0`} />
     </button>
   );
 });
@@ -183,7 +184,7 @@ export function UserAccountSettings() {
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <div className="flex items-center gap-2 mb-6">
-        <Users className="size-5 text-muted-foreground" />
+        <Users className={`${ICON.page} text-muted-foreground`} />
         <h1 className="text-lg font-semibold">ユーザーアカウント管理</h1>
       </div>
 

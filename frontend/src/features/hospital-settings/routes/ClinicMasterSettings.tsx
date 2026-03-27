@@ -23,7 +23,7 @@ import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import {
   useGetClinics,
   useCreateClinic,
@@ -288,11 +288,11 @@ export function ClinicMasterSettings() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="医院マスタ"
-            icon={<Building2 className="size-5 text-[#37352F]" />}
+            icon={<Building2 className={`${ICON.page} text-[#37352F]`} />}
             onBack={() => navigate(paths.settings.getHref())}
             headerAction={
               <PrimaryButton onClick={handleCreate}>
-                <Plus className="mr-1.5 size-4" />
+                <Plus className={`mr-1.5 ${ICON.action}`} />
                 新規登録
               </PrimaryButton>
             }
@@ -340,7 +340,7 @@ export function ClinicMasterSettings() {
                 onClick={handleCreate}
                 className="flex items-center gap-1.5 w-full px-3 py-2 text-sm text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[rgba(55,53,47,0.04)] transition-colors rounded"
               >
-                <Plus className="size-3.5" />
+                <Plus className={`${ICON.xs}.5`} />
                 新しい医院を追加...
               </button>
             </div>
@@ -366,7 +366,7 @@ export function ClinicMasterSettings() {
                   onClick={handleCloseEdit}
                   className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
                 >
-                  <X className="size-4" />
+                  <X className={ICON.action} />
                 </button>
               </div>
             </div>
@@ -544,7 +544,7 @@ export function ClinicMasterSettings() {
                   {/* 税率セクション */}
                   <div className={`${STYLE.sectionDivider} my-2`} />
                   <div className="flex items-center gap-1.5 py-1.5 text-xs text-[#37352F]/45 select-none">
-                    <Percent className="size-3" />
+                    <Percent className={ICON.xs} />
                     消費税率
                   </div>
 

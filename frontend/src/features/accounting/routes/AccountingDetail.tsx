@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import { useState, useMemo, useCallback, memo, useTransition, lazy, Suspense, useDeferredValue } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 
@@ -149,7 +150,7 @@ const ItemListCard = memo(function ItemListCard({
         <Dialog open={newItemOpen} onOpenChange={onNewItemOpenChange}>
           <DialogTrigger asChild>
             <Button variant="outline" size="sm" className="h-9">
-              <Plus className="mr-2 size-4" />
+              <Plus className={`mr-2 ${ICON.action}`} />
               物販・その他追加
             </Button>
           </DialogTrigger>
@@ -336,7 +337,7 @@ const InsuranceCard = memo(function InsuranceCard({
       <CardHeader className="py-3 px-4 bg-gray-50 border-b">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <CreditCard className="size-4" /> ペット保険（窓口精算）
+            <CreditCard className={ICON.action} /> ペット保険（窓口精算）
           </CardTitle>
           <Switch checked={useInsurance} onCheckedChange={onUseInsuranceChange} />
         </div>
@@ -501,7 +502,7 @@ const PaymentCard = memo(function PaymentCard({
             isSaving
           }
         >
-          <Save className="mr-2 size-4" />
+          <Save className={`mr-2 ${ICON.action}`} />
           {isCompleted ? "精算完了済み" : isSaving ? "処理中..." : "会計を確定する"}
         </Button>
       </CardContent>
@@ -545,7 +546,7 @@ const RefundSection = memo(function RefundSection({
       <CardHeader className="py-3 px-4 bg-gray-50 border-b">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <RotateCcw className="size-4 text-orange-500" />
+            <RotateCcw className={`${ICON.action} text-orange-500`} />
             返金管理
             <span className="text-xs font-normal text-muted-foreground">
               残額 ¥{refundableAmount.toLocaleString()}
@@ -928,11 +929,11 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
           accounting.status === "completed" ? (
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => handlePrint("statement")}>
-                <FileText className="mr-2 size-4" />
+                <FileText className={`mr-2 ${ICON.action}`} />
                 診療明細書
               </Button>
               <Button variant="outline" size="sm" onClick={() => handlePrint("receipt")}>
-                <Printer className="mr-2 size-4" />
+                <Printer className={`mr-2 ${ICON.action}`} />
                 領収書発行
               </Button>
             </div>
@@ -1017,7 +1018,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
                 閉じる
               </Button>
               <Button onClick={() => window.print()}>
-                <Printer className="mr-2 size-4" />
+                <Printer className={`mr-2 ${ICON.action}`} />
                 印刷する
               </Button>
             </DialogFooter>

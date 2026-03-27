@@ -10,7 +10,7 @@ import { paths } from "@/config/paths";
 import { Button } from "@/components/ui/button";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
 
 // Relative
 import { MedicalRecordInterview } from "../components/MedicalRecordInterview";
@@ -332,7 +332,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               onClick={() => setIsDeleteConfirmOpen(true)}
               className={`border ${C.borderDanger} h-10 text-sm px-4`}
             >
-              <Trash2 className="size-4" />
+              <Trash2 className={ICON.action} />
               削除
             </Button>
           ) : null}
@@ -344,7 +344,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               title={isNewRecord ? "カルテを保存してから利用できます" : undefined}
               className="h-10 text-sm px-4"
             >
-              <HeartPulse className="size-4" />
+              <HeartPulse className={ICON.action} />
               バイタル記録
             </Button>
           ) : null}

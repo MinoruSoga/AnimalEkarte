@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import { useState, useCallback, useDeferredValue, useMemo, memo } from "react";
 import { useNavigate } from "react-router";
 
@@ -81,7 +82,7 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
       <TableCell className="text-base text-[#37352F] py-2">
         <div className="flex items-center gap-1.5">
           {!isValidStaff(record.staff) ? (
-            <AlertTriangle className="size-4 text-amber-500" />
+            <AlertTriangle className={`${ICON.action} text-amber-500`} />
           ) : null}
           {record.staff}
         </div>
@@ -308,11 +309,11 @@ export function TrimmingList() {
   return (
     <PageLayout
       title="トリミング管理"
-      icon={<Scissors className="size-5 text-[#37352F]" />}
+      icon={<Scissors className={`${ICON.page} text-[#37352F]`} />}
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={handleNew}>
-            <Plus className="mr-1.5 size-4" />
+            <Plus className={`mr-1.5 ${ICON.action}`} />
             新規登録
           </PrimaryButton>
         ) : null

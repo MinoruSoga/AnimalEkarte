@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import React from "react";
 
 // External
@@ -34,7 +35,7 @@ export const ExaminationFilter = React.memo(function ExaminationFilter({
           size="sm"
           className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4"
         >
-          <FileText className="size-4" />
+          <FileText className={ICON.action} />
           検査取り込み
         </Button>
       </div>

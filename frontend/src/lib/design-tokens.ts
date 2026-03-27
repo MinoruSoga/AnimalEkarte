@@ -507,7 +507,24 @@ export const BADGE = {
 } as const;
 
 /* ================================================================== */
-/*  3. Layout Dimensions                                               */
+/*  3. Icon Sizes                                                       */
+/*     すべてのアイコンサイズはここで一元管理する。                        */
+/*     直接 size-N / h-N w-N を書かず、このトークンを使うこと。           */
+/* ================================================================== */
+
+export const ICON = {
+  /** ページタイトル横・セクションヘッダーアイコン (20px) */
+  page:    "size-5",
+  /** ツールバーボタン・サイドバーナビゲーションアイコン (18px) */
+  toolbar: "size-[18px]",
+  /** アクションボタン・インラインアイコン (16px) */
+  action:  "size-4",
+  /** 小さいインジケーター・シェブロン (12px) */
+  xs:      "size-3",
+} as const;
+
+/* ================================================================== */
+/*  4. Layout Dimensions                                               */
 /*     Numeric values for animation targets, style props, etc.         */
 /*     Tailwind class strings for width/height constraints.            */
 /* ================================================================== */
@@ -582,7 +599,7 @@ export const LAYOUT = {
   /** Notion page icon */
   pageIcon: {
     size:          "size-[38px]",
-    innerIcon:     "size-[20px]",
+    innerIcon:     "size-5",
   },
 } as const;
 

@@ -7,7 +7,7 @@ import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPil
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
-import { C, LAYOUT } from "@/lib/design-tokens";
+import { C, LAYOUT, ICON } from "@/lib/design-tokens";
 import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
@@ -78,7 +78,7 @@ export function InterviewTemplateSettings() {
   });
 
   return (
-    <MasterCRUDPage title="問診テンプレートマスタ" icon={<FileText className="size-5 text-[#37352F]" />}
+    <MasterCRUDPage title="問診テンプレートマスタ" icon={<FileText className={`${ICON.page} text-[#37352F]`} />}
       entityLabel="問診テンプレート" searchPlaceholder="カテゴリ、タイトルで検索..." emptyMessage="問診テンプレートが登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS} deleteNameField="title"
       filterProperties={[MASTER_STATUS_FILTER]}

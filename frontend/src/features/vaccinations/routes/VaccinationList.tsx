@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import { useState, useDeferredValue, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
 
@@ -172,16 +173,16 @@ export function VaccinationList() {
   return (
     <PageLayout
       title="予防接種管理"
-      icon={<Syringe className="size-5 text-[#37352F]" />}
+      icon={<Syringe className={`${ICON.page} text-[#37352F]`} />}
       headerAction={
         <div className="flex items-center gap-2">
           <Button variant="outline" className="h-10 text-base gap-2 bg-white" onClick={() => {}}>
-            <FileSpreadsheet className="size-4" />
+            <FileSpreadsheet className={ICON.action} />
             データ取込
           </Button>
           {canCreate ? (
             <PrimaryButton onClick={handleCreate}>
-              <Plus className="mr-1.5 size-4" />
+              <Plus className={`mr-1.5 ${ICON.action}`} />
               新規登録
             </PrimaryButton>
           ) : null}

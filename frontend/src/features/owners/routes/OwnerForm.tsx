@@ -48,7 +48,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 
 // Relative
@@ -143,40 +143,40 @@ const PetTableRow = memo(function PetTableRow({
               className={`inline-flex items-center justify-center rounded-[4px] cursor-pointer ${STYLE.tableActionBtn} ${C.hoverBgLight}`}
               aria-label="操作メニューを開く"
             >
-              <MoreHorizontal className="size-5" />
+              <MoreHorizontal className={ICON.page} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>操作</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => onEdit(pet)}>
-                <Edit className="mr-2 size-4" />
+                <Edit className={`mr-2 ${ICON.action}`} />
                 詳細・編集
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate(`/reservations?petId=${pet.id}`)}>
-                <Calendar className="mr-2 size-4" />
+                <Calendar className={`mr-2 ${ICON.action}`} />
                 予約作成
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => navigate(`/medical-records/new?petId=${pet.id}`, { state: { from: backFrom } })}
               >
-                <FileText className="mr-2 size-4" />
+                <FileText className={`mr-2 ${ICON.action}`} />
                 カルテ作成
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => navigate(`/trimming/new?petId=${pet.id}`, { state: { from: backFrom } })}
               >
-                <Scissors className="mr-2 size-4" />
+                <Scissors className={`mr-2 ${ICON.action}`} />
                 トリミング
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => navigate(`/hospitalization/new?petId=${pet.id}`, { state: { from: backFrom } })}
               >
-                <Bed className="mr-2 size-4" />
+                <Bed className={`mr-2 ${ICON.action}`} />
                 入院登録
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => navigate(`/accounting/new?petId=${pet.id}`, { state: { from: backFrom } })}
               >
-                <CreditCard className="mr-2 size-4" />
+                <CreditCard className={`mr-2 ${ICON.action}`} />
                 会計登録
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -184,7 +184,7 @@ const PetTableRow = memo(function PetTableRow({
                 onClick={() => onDeleteRequest(pet.id, pet.petName)}
                 className={`${C.danger} focus:${C.danger} ${C.focusBgLight}`}
               >
-                <Trash2 className="mr-2 size-4" />
+                <Trash2 className={`mr-2 ${ICON.action}`} />
                 削除
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -544,7 +544,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
       {/* rerender-memo: OwnerInfoSection はペット操作・モーダル開閉では再レンダーしない */}
       <div className={`mb-4 rounded-lg bg-white p-4 border ${C.borderMedium}`}>
         <h2 className={`mb-3 text-sm font-bold ${C.text} flex items-center gap-2`}>
-          <User className={`size-4 ${C.text60}`} />
+          <User className={`${ICON.action} ${C.text60}`} />
           飼主情報
         </h2>
         <OwnerInfoSection
@@ -562,7 +562,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
       <div className="mb-4 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
-            <PawPrint className={`size-4 ${C.text60}`} />
+            <PawPrint className={`${ICON.action} ${C.text60}`} />
             ペット情報
           </h2>
           <Button
@@ -570,7 +570,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
             onClick={handleAddPet}
             className={`${STYLE.confirmPrimary} gap-1.5 text-sm px-4`}
           >
-            <Plus className="size-4" />
+            <Plus className={ICON.action} />
             ペット追加
           </Button>
         </div>

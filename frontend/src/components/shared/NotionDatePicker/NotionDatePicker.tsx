@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { useState, useCallback, useMemo } from "react";
 import { CalendarIcon, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { ja } from "date-fns/locale";
@@ -292,7 +293,7 @@ function SinglePicker({
               className="shrink-0 cursor-pointer bg-transparent border-none p-0"
               aria-label="カレンダーを開く"
             >
-              <CalendarIcon className="size-4 text-[#37352F]/40" />
+              <CalendarIcon className={`${ICON.action} text-[#37352F]/40`} />
             </button>
           </PopoverTrigger>
           <input
@@ -447,7 +448,7 @@ function RangePicker({
           className={cn(TRIGGER_BASE, !value && "text-[#37352F]/40", className)}
         >
           <span className="flex items-center gap-2 truncate">
-            <CalendarIcon className="size-4 shrink-0 text-[#37352F]/40" />
+            <CalendarIcon className={`${ICON.action} shrink-0 text-[#37352F]/40`} />
             {displayLabel}
           </span>
           {value ? <ClearButton onClick={handleClear} /> : null}
@@ -519,7 +520,7 @@ function CalendarNav({
   return (
     <div className="flex items-center justify-between px-3 pb-1">
       <button type="button" onClick={onPrev} className={NAV_BTN} aria-label="前の月">
-        <ChevronLeft className="size-4" />
+        <ChevronLeft className={ICON.action} />
       </button>
       <button
         type="button"
@@ -529,7 +530,7 @@ function CalendarNav({
         {year}年 {month}月
       </button>
       <button type="button" onClick={onNext} className={NAV_BTN} aria-label="次の月">
-        <ChevronRight className="size-4" />
+        <ChevronRight className={ICON.action} />
       </button>
     </div>
   );
@@ -548,11 +549,11 @@ function YearNav({
   return (
     <div className="flex items-center justify-between px-3 pb-2 pt-1">
       <button type="button" onClick={onPrevYear} className={NAV_BTN} aria-label="前の年">
-        <ChevronLeft className="size-4" />
+        <ChevronLeft className={ICON.action} />
       </button>
       <span className="text-sm font-medium text-[#37352F]">{year}年</span>
       <button type="button" onClick={onNextYear} className={NAV_BTN} aria-label="次の年">
-        <ChevronRight className="size-4" />
+        <ChevronRight className={ICON.action} />
       </button>
     </div>
   );

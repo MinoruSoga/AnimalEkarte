@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormFieldError } from "@/components/shared/FormFieldError";
@@ -85,7 +86,7 @@ export function ReservationFormFields({
                 )}
               >
                 <span className="flex items-center">
-                  <CalendarIcon className="mr-2 size-4" />
+                  <CalendarIcon className={`mr-2 ${ICON.action}`} />
                   {formData.start ? (
                     format(formData.start, "yyyy/MM/dd (E)", { locale: ja })
                   ) : (
@@ -148,7 +149,7 @@ export function ReservationFormFields({
                 ))}
               </SelectContent>
             </Select>
-            <ArrowRight className="size-4 text-[#37352F]/40 flex-shrink-0" />
+            <ArrowRight className={`${ICON.action} text-[#37352F]/40 flex-shrink-0`} />
             <Select
               value={formData.end ? format(formData.end, "H:mm") : "11:00"}
               onValueChange={(v) => {

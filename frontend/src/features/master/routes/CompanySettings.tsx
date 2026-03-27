@@ -10,7 +10,7 @@ import { toast } from "sonner";
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
-import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { useGetCompany, useUpdateCompany } from "@/features/master/api/company";
 import type { UpdateCompanyRequest } from "@/features/master/api/company";
 
@@ -138,7 +138,7 @@ export function CompanySettings() {
       <div className="flex-1 min-w-0">
         <PageLayout
           title="法人情報"
-          icon={<Building2 className="size-5 text-[#37352F]" />}
+          icon={<Building2 className={`${ICON.page} text-[#37352F]`} />}
           onBack={() => navigate(paths.settings.getHref())}
           headerAction={
             isLoading ? null : (
@@ -252,7 +252,7 @@ export function CompanySettings() {
                 onClick={handleCloseEdit}
                 className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
               >
-                <X className="size-4" />
+                <X className={ICON.action} />
               </button>
             </div>
           </div>

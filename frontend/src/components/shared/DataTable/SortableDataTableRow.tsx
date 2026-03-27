@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import type { ReactNode } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -49,7 +50,7 @@ export function SortableDataTableRow({
   return (
     <DataTableRow ref={setNodeRef} style={style} {...attributes} onClick={onClick} className={className}>
       <TableCell className={gripClassName} {...listeners}>
-        <GripVertical className="size-4" />
+        <GripVertical className={ICON.action} />
       </TableCell>
       {children}
     </DataTableRow>

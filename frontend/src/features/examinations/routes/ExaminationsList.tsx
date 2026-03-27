@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import { useState, useDeferredValue, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
 
@@ -213,16 +214,16 @@ export function ExaminationsList() {
   return (
     <PageLayout
       title="検査管理"
-      icon={<TestTube className="size-5 text-[#37352F]" />}
+      icon={<TestTube className={`${ICON.page} text-[#37352F]`} />}
       headerAction={
         <div className="flex items-center gap-2">
           <Button variant="outline" className="h-10 text-sm gap-2 bg-white" onClick={() => {}}>
-            <FileSpreadsheet className="size-4" />
+            <FileSpreadsheet className={ICON.action} />
             検査データ取込
           </Button>
           {canCreate ? (
             <PrimaryButton onClick={handleCreate}>
-              <Plus className="mr-1.5 size-4" />
+              <Plus className={`mr-1.5 ${ICON.action}`} />
               新規検査登録
             </PrimaryButton>
           ) : null}

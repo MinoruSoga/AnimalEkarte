@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { ReactNode } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -144,14 +145,14 @@ export function ReservationDetailModal({
           <div className="rounded-lg border border-[rgba(55,53,47,0.09)] bg-[#FAFAF8] p-3">
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-[#37352F]/5">
-                <Calendar className="size-4 text-[#37352F]/60" />
+                <Calendar className={`${ICON.action} text-[#37352F]/60`} />
               </div>
               <div className="flex-1">
                 <div className="text-sm text-[#37352F]">
                   {format(appointment.start, "yyyy年 M月 d日 (E)", { locale: ja })}
                 </div>
                 <div className="flex items-center gap-1.5 text-sm text-[#37352F]/60 mt-0.5">
-                  <Clock className="size-3" />
+                  <Clock className={ICON.xs} />
                   {format(appointment.start, "H:mm")} – {format(appointment.end, "H:mm")}
                 </div>
               </div>
@@ -161,7 +162,7 @@ export function ReservationDetailModal({
           {/* Patient Info */}
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 mb-2">
-              <PawPrint className="size-3.5 text-[#37352F]/40" />
+              <PawPrint className={`${ICON.xs}.5 text-[#37352F]/40`} />
               <span className="text-sm text-[#37352F]/50 tracking-wide">患者情報</span>
             </div>
             <div className="divide-y divide-[rgba(55,53,47,0.06)]">
@@ -182,7 +183,7 @@ export function ReservationDetailModal({
           {/* Medical Details */}
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 mb-2">
-              <Stethoscope className="size-3.5 text-[#37352F]/40" />
+              <Stethoscope className={`${ICON.xs}.5 text-[#37352F]/40`} />
               <span className="text-sm text-[#37352F]/50 tracking-wide">診療詳細</span>
             </div>
             <div className="divide-y divide-[rgba(55,53,47,0.06)]">
@@ -199,7 +200,7 @@ export function ReservationDetailModal({
               <InfoRow label="予約区分">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full shrink-0" style={appointment ? getColor(appointment.type).dotStyle : undefined} />
-                  <Tag className="size-3 text-[#37352F]/40" />
+                  <Tag className={`${ICON.xs} text-[#37352F]/40`} />
                   {getReservationTypeName(appointment.type)}
                 </div>
               </InfoRow>
@@ -210,7 +211,7 @@ export function ReservationDetailModal({
           {appointment.notes ? (
             <div className="rounded-lg border border-amber-100 bg-amber-50/50 p-3">
               <div className="flex items-center gap-1.5 text-sm text-amber-700 mb-1.5">
-                <FileText className="size-3.5" />
+                <FileText className={`${ICON.xs}.5`} />
                 <span>メモ</span>
               </div>
               <p className="text-sm text-[#37352F]/80 whitespace-pre-wrap leading-relaxed">{appointment.notes}</p>
@@ -231,7 +232,7 @@ export function ReservationDetailModal({
               onClick={() => onEdit(appointment)}
               className="h-9 text-sm gap-1.5 border-[rgba(55,53,47,0.16)] bg-white text-[#37352F] hover:bg-[#F7F6F3]"
             >
-              <Pencil className="size-3.5" />
+              <Pencil className={`${ICON.xs}.5`} />
               編集
             </Button>
             {onCreateRecord ? (

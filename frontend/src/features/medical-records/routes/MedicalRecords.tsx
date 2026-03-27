@@ -23,7 +23,7 @@ import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeade
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates/DataStates";
 import { Pagination } from "@/components/shared/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { getMedicalRecordStatusColor } from "@/utils/status-helpers";
 import { usePagination } from "@/hooks/use-pagination";
 import { useStaffValidation } from "@/hooks/use-staff-validation";
@@ -173,11 +173,11 @@ export function MedicalRecords() {
   return (
     <PageLayout
       title="カルテ管理"
-      icon={<FileText className={`size-5 ${C.text}`} />}
+      icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={() => handleNavigateToForm()}>
-            <Plus className="size-4" />
+            <Plus className={ICON.action} />
             新規カルテ作成
           </PrimaryButton>
         ) : null
@@ -226,7 +226,7 @@ export function MedicalRecords() {
                       }}
                       className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-[3px] border ${C.textSuccess} bg-[#10B981]/10 border-[#10B981]/30 hover:bg-[#10B981]/20 transition-colors`}
                     >
-                      <Receipt className="size-3" />
+                      <Receipt className={ICON.xs} />
                       会計
                     </button>
                   ) : (
@@ -239,7 +239,7 @@ export function MedicalRecords() {
                       {r.doctor}
                     </span>
                     {!isValidStaff(r.doctor) ? (
-                      <span title="担当医が無効（退職等）に設定されています"><AlertTriangle className="size-3.5 text-red-500" /></span>
+                      <span title="担当医が無効（退職等）に設定されています"><AlertTriangle className={`${ICON.xs}.5 text-red-500`} /></span>
                     ) : null}
                   </div>
                 </TableCell>

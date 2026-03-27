@@ -14,7 +14,7 @@ import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
 
 // Relative
 import { useExaminationForm } from "../hooks/use-examination-form";
@@ -138,7 +138,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
             onClick={onDeleteClick}
             disabled={isDeleting}
           >
-            <Trash2 className="mr-1.5 size-4" />
+            <Trash2 className={`mr-1.5 ${ICON.action}`} />
             {isDeleting ? "削除中..." : "削除"}
           </Button>
         ) : null}

@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import { useState, useCallback, useMemo } from "react";
 
 // External
@@ -198,7 +199,7 @@ export function HospitalizationList() {
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={() => handleNavigateToForm()}>
-            <Plus className="mr-1.5 size-4" />
+            <Plus className={`mr-1.5 ${ICON.action}`} />
             新規入院登録
           </PrimaryButton>
         ) : null
@@ -235,10 +236,10 @@ export function HospitalizationList() {
             <div className="bg-white rounded-[6px] border border-[rgba(55,53,47,0.16)] p-1 h-11 flex items-center">
                 <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && isValidViewMode(v) && setViewMode(v)}>
                     <ToggleGroupItem value="board" size="sm" aria-label="Board View">
-                        <LayoutGrid className="size-4" />
+                        <LayoutGrid className={ICON.action} />
                     </ToggleGroupItem>
                     <ToggleGroupItem value="list" size="sm" aria-label="List View">
-                        <List className="size-4" />
+                        <List className={ICON.action} />
                     </ToggleGroupItem>
                 </ToggleGroup>
             </div>

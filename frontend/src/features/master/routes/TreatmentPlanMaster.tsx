@@ -40,7 +40,7 @@ import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
 import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { C, LAYOUT } from "@/lib/design-tokens";
+import { C, LAYOUT, ICON } from "@/lib/design-tokens";
 
 // API hooks
 import {
@@ -409,9 +409,9 @@ function TreatmentTabContent({
                               className={`size-[22px] flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} transition-colors shrink-0`}
                             >
                               {row.isExpanded ? (
-                                <ChevronDown className="size-3.5" />
+                                <ChevronDown className={`${ICON.xs}.5`} />
                               ) : (
-                                <ChevronRight className="size-3.5" />
+                                <ChevronRight className={`${ICON.xs}.5`} />
                               )}
                             </button>
                           ) : (
@@ -747,12 +747,12 @@ export function TreatmentPlanMaster() {
         <div className="flex-1 min-w-0">
           <PageLayout
             title="治療プランマスタ"
-            icon={<Stethoscope className="size-5 text-[#37352F]" />}
+            icon={<Stethoscope className={`${ICON.page} text-[#37352F]`} />}
             onBack={() => navigate(paths.settings.getHref())}
             maxWidth="max-w-full"
             headerAction={
               <PrimaryButton onClick={() => setEditTarget("new")}>
-                <Plus className="mr-1.5 size-4" />
+                <Plus className={`mr-1.5 ${ICON.action}`} />
                 新規登録
               </PrimaryButton>
             }

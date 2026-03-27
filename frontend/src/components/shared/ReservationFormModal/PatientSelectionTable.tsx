@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import { useState, useMemo, useCallback } from "react";
 
 // External
@@ -129,7 +130,7 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
             onClick={handleSearch}
             className="h-9 text-sm bg-[#37352F] text-white hover:bg-[#37352F]/90"
           >
-            <Search className="mr-1.5 size-3" />
+            <Search className={`mr-1.5 ${ICON.xs}`} />
             検索
           </Button>
           {hasSearchConditions ? (
@@ -139,7 +140,7 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
               onClick={handleClear}
               className="h-9 text-sm border-[rgba(55,53,47,0.12)]"
             >
-              <RotateCcw className="mr-1.5 size-3" />
+              <RotateCcw className={`mr-1.5 ${ICON.xs}`} />
               クリア
             </Button>
           ) : null}
@@ -209,7 +210,7 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
                           onSelect(pet);
                         }}
                       >
-                        <Check className={`size-3 ${isSelected(pet) ? "" : "opacity-0"}`} />
+                        <Check className={`${ICON.xs} ${isSelected(pet) ? "" : "opacity-0"}`} />
                         {isSelected(pet) ? "選択中" : "選択"}
                       </Button>
                     </TableCell>

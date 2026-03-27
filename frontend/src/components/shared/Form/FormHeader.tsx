@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 
@@ -19,7 +20,7 @@ export function FormHeader({ title, description, icon, onBack, action }: FormHea
             onClick={onBack}
             className="text-[#37352F]/60 hover:text-[#37352F] hover:bg-transparent pl-0 size-11"
           >
-            <ChevronLeft className="size-5" />
+            <ChevronLeft className={ICON.page} />
             <span className="sr-only">戻る</span>
           </Button>
         ) : null}

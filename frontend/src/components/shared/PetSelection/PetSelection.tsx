@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Search, Check, X } from "lucide-react";
@@ -28,7 +29,7 @@ export function PetSelection({
       <div>
         <Label className="mb-1 block text-sm font-bold text-[#37352F]">ペット選択</Label>
         <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${ICON.action} text-muted-foreground`} />
           <Input
             placeholder="飼主名、ペット名で検索..."
             className="pl-9 bg-white h-11 text-sm border-[rgba(55,53,47,0.16)]"
@@ -68,7 +69,7 @@ export function PetSelection({
                         </span>
                     </div>
                 </div>
-                {isSelected ? <Check className="size-3.5 text-blue-600 flex-shrink-0 ml-2" /> : null}
+                {isSelected ? <Check className={`${ICON.xs}.5 text-blue-600 flex-shrink-0 ml-2`} /> : null}
                 </div>
             );
             })
@@ -94,7 +95,7 @@ export function PetSelection({
                     onTogglePet(p);
                   }}
                 >
-                  <X className="size-3" />
+                  <X className={ICON.xs} />
                 </button>
               </div>
             ))}

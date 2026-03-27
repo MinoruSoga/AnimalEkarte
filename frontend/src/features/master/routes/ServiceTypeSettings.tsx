@@ -13,7 +13,7 @@ import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { PropertyInput } from "@/components/shared/SidePeek/PropertyInput";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
-import { C, LAYOUT } from "@/lib/design-tokens";
+import { C, LAYOUT, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
 import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
 import { useMasterSave } from "@/features/master/hooks/use-master-save";
@@ -86,7 +86,7 @@ export function ServiceTypeSettings() {
   });
 
   return (
-    <MasterCRUDPage title="予約区分マスタ" icon={<Activity className="size-5 text-[#37352F]" />}
+    <MasterCRUDPage title="予約区分マスタ" icon={<Activity className={`${ICON.page} text-[#37352F]`} />}
       entityLabel="予約区分" searchPlaceholder="予約区分名で検索..." emptyMessage="予約区分が登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}

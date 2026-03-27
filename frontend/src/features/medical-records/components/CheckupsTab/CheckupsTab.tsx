@@ -8,7 +8,7 @@ import { toast } from "sonner";
 // Internal
 import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 
 // Relative
@@ -134,7 +134,7 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
             className={`size-8 flex items-center justify-center rounded-[3px] ${C.textStatusGreen} ${C.hoverBgStatusGreen} transition-colors`}
             title="保存"
           >
-            <Check className="size-3.5" />
+            <Check className={`${ICON.xs}.5`} />
           </button>
           <button
             onClick={onCancel}
@@ -142,7 +142,7 @@ const EditRow = memo(function EditRow({ checkup, onSave, onCancel, isPending, ch
             className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverBgLight} transition-colors`}
             title="キャンセル"
           >
-            <X className="size-3.5" />
+            <X className={`${ICON.xs}.5`} />
           </button>
         </div>
       </td>
@@ -302,7 +302,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
                           className={`size-8 flex items-center justify-center rounded-[3px] ${C.text60} ${C.hoverText} ${C.hoverBgLight} transition-colors`}
                           title="編集"
                         >
-                          <Pencil className="size-3.5" />
+                          <Pencil className={`${ICON.xs}.5`} />
                         </button>
                         <DeleteIconButton
                           onClick={() => handleDelete(checkup.id)}
@@ -371,7 +371,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
           </div>
         ) : (
           <button className={STYLE.inlineAddBtn} onClick={() => setIsAdding(true)}>
-            <Plus className="size-3.5" />
+            <Plus className={`${ICON.xs}.5`} />
             <span>記録を追加</span>
           </button>
         )}

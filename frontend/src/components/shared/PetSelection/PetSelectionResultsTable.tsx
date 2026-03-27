@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -84,7 +85,7 @@ export function PetSelectionResultsTable({ pets, onSelect }: PetSelectionResults
                     className="h-11 gap-1 bg-[#2383E2] hover:bg-[#1B6EC2] text-white text-sm px-4"
                     onClick={() => onSelect(pet)}
                   >
-                    <Check className="size-4" />
+                    <Check className={ICON.action} />
                     選択
                   </Button>
                 </TableCell>

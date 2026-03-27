@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,7 +32,7 @@ export function DeleteIconButton({
         className
       )}
     >
-      <Trash2 className="size-4" />
+      <Trash2 className={ICON.action} />
     </Button>
   );
 }

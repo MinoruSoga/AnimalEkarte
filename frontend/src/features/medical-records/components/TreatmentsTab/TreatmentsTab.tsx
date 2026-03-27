@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
 
 // Relative
 import { useGetTreatments } from "../../api/treatments";
@@ -272,7 +272,7 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
             className={STYLE.inlineAddBtn}
             onClick={() => setIsAdding(true)}
           >
-            <Plus className="size-3.5" />
+            <Plus className={`${ICON.xs}.5`} />
             <span>明細を追加</span>
           </button>
         )}

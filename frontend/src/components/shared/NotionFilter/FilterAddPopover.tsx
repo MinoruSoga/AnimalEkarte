@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { memo, useState, useCallback, useMemo } from "react";
 import { Plus, ChevronLeft } from "lucide-react";
 import {
@@ -294,7 +295,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
           size="sm"
           className="h-9 gap-2 text-base text-[#37352F]/50 hover:text-[#37352F]/80 hover:bg-[#F1F1EF] px-3"
         >
-          <Plus className="size-5" />
+          <Plus className={ICON.page} />
           フィルタを追加
         </Button>
       </PopoverTrigger>
@@ -310,7 +311,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
               onClick={handleBack}
               className="flex items-center gap-1 text-base text-[#37352F]/50 hover:text-[#37352F]/80 px-1"
             >
-              <ChevronLeft className="size-4" />
+              <ChevronLeft className={ICON.action} />
               戻る
             </button>
           </div>

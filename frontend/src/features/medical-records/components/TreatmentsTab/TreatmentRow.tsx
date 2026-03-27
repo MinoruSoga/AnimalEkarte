@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { C, BADGE } from "@/lib/design-tokens";
+import { C, BADGE, ICON } from "@/lib/design-tokens";
 
 // Relative
 import type { Treatment, TreatmentItemType, UpdateTreatmentInput } from "../../types";
@@ -219,7 +219,7 @@ export const TreatmentRow = memo(function TreatmentRow({
           className="data-[state=checked]:bg-[#038B94] data-[state=checked]:border-[#038B94]"
         />
         {treatment.insurance ? (
-          <Shield className={`size-3.5 mt-0.5 mx-auto ${C.textStatusGreen}`} />
+          <Shield className={`${ICON.xs}.5 mt-0.5 mx-auto ${C.textStatusGreen}`} />
         ) : null}
       </td>
 
@@ -334,7 +334,7 @@ export const TreatmentRow = memo(function TreatmentRow({
             disabled={isFirst}
             title="上に移動"
           >
-            <ChevronUp className="size-3.5" />
+            <ChevronUp className={`${ICON.xs}.5`} />
           </Button>
           <Button
             variant="ghost"
@@ -344,7 +344,7 @@ export const TreatmentRow = memo(function TreatmentRow({
             disabled={isLast}
             title="下に移動"
           >
-            <ChevronDown className="size-3.5" />
+            <ChevronDown className={`${ICON.xs}.5`} />
           </Button>
           <DeleteIconButton
             onClick={handleDelete}

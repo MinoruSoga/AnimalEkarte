@@ -6,7 +6,7 @@ import { ChevronRight } from "lucide-react";
 
 // Internal
 import { Textarea } from "@/components/ui/textarea";
-import { C } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 
 interface InterviewTreatmentPolicyProps {
   className?: string;
@@ -23,7 +23,7 @@ export const InterviewTreatmentPolicy = memo(function InterviewTreatmentPolicy({
     <div className={`flex flex-col ${className ?? ""}`}>
       <div className="pb-1.5">
         <h4 className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
-          <ChevronRight className="size-4" />
+          <ChevronRight className={ICON.action} />
           治療方針
           <span className={`text-sm font-normal ${C.text60} ml-auto`}>
             (次工程へ連携)

@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { useCallback, useState } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -61,7 +62,7 @@ export function DateRangePicker({
             className,
           )}
         >
-          <CalendarIcon className="mr-2 size-4" />
+          <CalendarIcon className={`mr-2 ${ICON.action}`} />
           {label}
         </Button>
       </PopoverTrigger>

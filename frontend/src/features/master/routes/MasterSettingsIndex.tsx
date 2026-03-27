@@ -17,7 +17,7 @@ import type { MasterSettingsCategory } from "@/features/master/constants/categor
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -123,7 +123,7 @@ function CardRow({ label, description, icon, count, onClick }: CardRowProps) {
           {count}件
         </span>
       ) : null}
-      <ChevronRight className={`size-4 ${C.text35} shrink-0`} />
+      <ChevronRight className={`${ICON.action} ${C.text35} shrink-0`} />
     </button>
   );
 }
@@ -145,7 +145,7 @@ export function MasterSettingsIndex() {
           key={groupKey}
           label={cfg.label}
           description={cfg.description}
-          icon={<Icon className="size-[16px]" />}
+          icon={<Icon className={ICON.action} />}
           count={undefined}
           onClick={() => navigate(cfg.path)}
         />
@@ -161,7 +161,7 @@ export function MasterSettingsIndex() {
         key={cat}
         label={cfg.label}
         description={cfg.description}
-        icon={<Icon className="size-[16px]" />}
+        icon={<Icon className={ICON.action} />}
         count={undefined}
         onClick={() => navigate(cfg.settingsPath)}
       />
@@ -171,7 +171,7 @@ export function MasterSettingsIndex() {
   return (
     <PageLayout
       title="マスタ設定"
-      icon={<Settings className="size-5 text-[#37352F]" />}
+      icon={<Settings className={`${ICON.page} text-[#37352F]`} />}
       maxWidth="max-w-3xl"
       align="left"
     >

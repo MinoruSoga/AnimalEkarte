@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { lazy, memo, Suspense, useCallback, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -142,7 +143,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
             onClick={onPrevMonth}
             aria-label="前月"
           >
-            <ChevronLeft className="size-4" />
+            <ChevronLeft className={ICON.action} />
           </Button>
           <span className="text-base font-semibold min-w-[120px] text-center">
             {displayLabel}
@@ -153,7 +154,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
             onClick={onNextMonth}
             aria-label="翌月"
           >
-            <ChevronRight className="size-4" />
+            <ChevronRight className={ICON.action} />
           </Button>
         </div>
 

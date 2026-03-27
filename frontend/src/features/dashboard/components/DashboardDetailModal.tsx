@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
 import {
   DASHBOARD_STATUS_COLORS,
   DASHBOARD_STATUS_COLOR_FALLBACK,
@@ -76,9 +76,9 @@ function RelatedPages({
             else onCreateMedicalRecord();
           }}
         >
-          {isTrimming ? <Scissors className="size-3.5" /> : <FileText className="size-3.5" />}
+          {isTrimming ? <Scissors className={`${ICON.xs}.5`} /> : <FileText className={`${ICON.xs}.5`} />}
           <span>{isTrimming ? "施術" : "カルテ"}</span>
-          <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
         </button>
 
         {/* 会計 */}
@@ -87,9 +87,9 @@ function RelatedPages({
           className={RELATED_BTN_ACCOUNTING}
           onClick={onCreateAccounting}
         >
-          <CreditCard className="size-3.5" />
+          <CreditCard className={`${ICON.xs}.5`} />
           <span>会計</span>
-          <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
         </button>
 
         {/* 入院 */}
@@ -98,9 +98,9 @@ function RelatedPages({
           className={RELATED_BTN_HOSPITAL}
           onClick={onCreateHospitalization}
         >
-          <BedDouble className="size-3.5" />
+          <BedDouble className={`${ICON.xs}.5`} />
           <span>入院</span>
-          <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
         </button>
       </div>
     </div>
@@ -140,7 +140,7 @@ function ActionButtons({
 }: ActionButtonsProps) {
   const ownerDetailBtn = (
     <Button variant="ghost" onClick={onOpenOwnerDetail} className={`h-10 text-sm ${C.text}`}>
-      <User className="size-4" />
+      <User className={ICON.action} />
       飼主詳細
     </Button>
   );
@@ -150,13 +150,13 @@ function ActionButtons({
       <>
         {onCancel ? (
           <Button variant="ghost" onClick={() => onCancel(appointment)} className={`h-10 text-sm ${C.danger} ${C.hoverBgDanger5}`}>
-            <Trash2 className="size-4" />
+            <Trash2 className={ICON.action} />
             取消
           </Button>
         ) : null}
         {onEdit ? (
           <Button variant="outline" onClick={() => onEdit(appointment)} className={`h-10 text-sm ${C.text} ${C.borderMedium}`}>
-            <Pencil className="size-4" />
+            <Pencil className={ICON.action} />
             編集
           </Button>
         ) : null}
@@ -180,7 +180,7 @@ function ActionButtons({
               onClick={() => { if (onConfirm) onConfirm(); onCreateMedicalRecord(); }}
               className={STYLE.confirmPrimary}
             >
-              <FileText className="size-4" />
+              <FileText className={ICON.action} />
               カルテ作成
             </Button>
             <span className="text-[10px] text-muted-foreground">※カルテ作成と同時に「診療中」へ移動します</span>
@@ -208,18 +208,18 @@ function ActionButtons({
         {isMedical ? (
           <>
             <Button onClick={() => onCreateMedicalRecord()} className={STYLE.confirmPrimary}>
-              <FileText className="size-4" />
+              <FileText className={ICON.action} />
               カルテ入力
             </Button>
             <Button variant="outline" onClick={() => onCreateMedicalRecord("test")} className={`h-10 text-sm ${C.text} ${C.borderMedium}`}>
-              <TestTube className="size-4" />
+              <TestTube className={ICON.action} />
               検査
             </Button>
           </>
         ) : null}
         {isTrimming ? (
           <Button onClick={onCreateTrimming} className={`h-10 text-sm ${C.bgDiscount} ${C.bgDiscountHover} text-white rounded-[4px] transition-colors shadow-none border-transparent`}>
-            <Scissors className="size-4" />
+            <Scissors className={ICON.action} />
             施術記録
           </Button>
         ) : null}
@@ -235,7 +235,7 @@ function ActionButtons({
           onClick={onCreateAccounting}
           className={STYLE.confirmPrimary}
         >
-          <CreditCard className="size-4" />
+          <CreditCard className={ICON.action} />
           会計へ進む
         </Button>
       </>
@@ -261,19 +261,19 @@ function ActionButtons({
       {ownerDetailBtn}
       {isMedical ? (
         <Button onClick={() => onCreateMedicalRecord()} className={STYLE.confirmPrimary}>
-          <FileText className="size-4" />
+          <FileText className={ICON.action} />
           カルテ確認
         </Button>
       ) : null}
       {isTrimming ? (
         <Button onClick={onCreateTrimming} className={STYLE.confirmPrimary}>
-          <Scissors className="size-4" />
+          <Scissors className={ICON.action} />
           トリミング
         </Button>
       ) : null}
       {isHospitalization ? (
         <Button onClick={onCreateHospitalization} className={STYLE.confirmPrimary}>
-          <BedDouble className="size-4" />
+          <BedDouble className={ICON.action} />
           入院登録
         </Button>
       ) : null}
@@ -383,14 +383,14 @@ export const DashboardDetailModal = memo(function DashboardDetailModal({
         <div className="p-5 space-y-4 overflow-y-auto">
           {/* Time */}
           <div className={`flex items-center gap-3 p-3 ${C.bgPage} rounded-lg`}>
-            <Clock className={`size-5 ${C.text60} shrink-0`} />
+            <Clock className={`${ICON.page} ${C.text60} shrink-0`} />
             <span className={`font-mono text-xl font-medium ${C.text}`}>{appointment.time}</span>
             {appointment.nextAppointment ? (
               <Badge
                 variant={appointment.nextAppointment === "精算未確認" ? "destructive" : "secondary"}
                 className="ml-auto flex items-center gap-1"
               >
-                {appointment.nextAppointment === "精算未確認" ? <AlertCircle className="size-3" /> : null}
+                {appointment.nextAppointment === "精算未確認" ? <AlertCircle className={ICON.xs} /> : null}
                 {appointment.nextAppointment}
               </Badge>
             ) : null}
@@ -401,7 +401,7 @@ export const DashboardDetailModal = memo(function DashboardDetailModal({
             <h3 className={SECTION_LABEL}>患者情報</h3>
             <div className={DIVIDER_ROW}>
               <div className={ROW_ICON}>
-                <Dog className="size-4" />
+                <Dog className={ICON.action} />
                 <span className="text-sm">ペット</span>
               </div>
               <div className="text-right">
@@ -411,7 +411,7 @@ export const DashboardDetailModal = memo(function DashboardDetailModal({
             </div>
             <div className={DIVIDER_ROW}>
               <div className={ROW_ICON}>
-                <User className="size-4" />
+                <User className={ICON.action} />
                 <span className="text-sm">飼い主</span>
               </div>
               <span className={`font-medium ${C.text}`}>{appointment.ownerName}</span>
@@ -423,7 +423,7 @@ export const DashboardDetailModal = memo(function DashboardDetailModal({
             <h3 className={SECTION_LABEL}>診療詳細</h3>
             <div className={DIVIDER_ROW}>
               <div className={ROW_ICON}>
-                <Stethoscope className="size-4" />
+                <Stethoscope className={ICON.action} />
                 <span className="text-sm">担当医</span>
               </div>
               <div className="flex items-center gap-2">

@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -75,7 +76,7 @@ export function Pagination({
           onClick={() => onPageChange(1)}
           disabled={currentPage === 1}
         >
-          <ChevronsLeft className="size-4" />
+          <ChevronsLeft className={ICON.action} />
         </Button>
 
         {/* Previous */}
@@ -86,7 +87,7 @@ export function Pagination({
           onClick={onPrev}
           disabled={currentPage === 1}
         >
-          <ChevronLeft className="size-4" />
+          <ChevronLeft className={ICON.action} />
         </Button>
 
         {/* Page numbers */}
@@ -123,7 +124,7 @@ export function Pagination({
           onClick={onNext}
           disabled={currentPage === totalPages}
         >
-          <ChevronRight className="size-4" />
+          <ChevronRight className={ICON.action} />
         </Button>
 
         {/* Last page */}
@@ -134,7 +135,7 @@ export function Pagination({
           onClick={() => onPageChange(totalPages)}
           disabled={currentPage === totalPages}
         >
-          <ChevronsRight className="size-4" />
+          <ChevronsRight className={ICON.action} />
         </Button>
       </div>
     </div>

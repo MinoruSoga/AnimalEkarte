@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import { memo, useMemo } from "react";
 
 // External
@@ -88,7 +89,7 @@ export const HospitalizationExpandedView = memo(function HospitalizationExpanded
                 <div className="w-full min-w-0 bg-white rounded-lg border border-[rgba(55,53,47,0.16)] shadow-sm flex flex-col overflow-hidden">
                     <div className="px-3 py-2 border-b border-[rgba(55,53,47,0.09)] bg-gray-50/50 flex items-center justify-between shrink-0">
                         <div className="flex items-center gap-1.5 font-bold text-[#37352F] text-sm">
-                            <FileText className="size-4 text-[#2EAADC]" />
+                            <FileText className={`${ICON.action} text-[#2EAADC]`} />
                             デイリーカルテ
                         </div>
                     </div>

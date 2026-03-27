@@ -1,3 +1,4 @@
+import { ICON } from "@/lib/design-tokens";
 import { memo, useCallback } from 'react';
 import { useParams } from 'react-router';
 import { FileText } from 'lucide-react';
@@ -273,7 +274,7 @@ function EstimateFormContent({ id }: { id?: string }) {
   return (
     <PageLayout
       title={isEdit ? '見積書編集' : '新規見積書作成'}
-      icon={<FileText className="size-5 text-[#37352F]" />}
+      icon={<FileText className={`${ICON.page} text-[#37352F]`} />}
       headerAction={
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handleCancel} className="h-9 text-sm">
