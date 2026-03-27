@@ -12,55 +12,29 @@ import { login as loginApi } from "../api/login";
 import { logout as logoutApi } from "../api/logout";
 import { refreshToken } from "../api/refresh-token";
 
-/* client-localstorage-schema: バージョン付きキーでスキーマ変更時の破損を防ぐ */
-const STORAGE_KEY_USER = "auth_user:v1";
+/* セッション情報は httpOnly Cookie で管理するため localStorage への保存は不要。
+ * 選択中のクリニック ID のみ localStorage に残す（権限情報ではないためリスク低） */
 const STORAGE_KEY_CLINIC = "auth_current_clinic:v1";
 
-/** client-localstorage-schema: 最小フィールドのみ保存。権限情報はセッション復元時にモックDBから再取得 */
-interface StoredUser {
-  id: string;
-  email: string;
-  displayName: string;
-  userType: string;
-  mainClinicId: string;
-}
-
-function saveUserToStorage(user: StoredUser): void {
+function readClinicFromStorage(): string | null {
   try {
-    localStorage.setItem(
-      STORAGE_KEY_USER,
-      JSON.stringify({
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-        userType: user.userType,
-        mainClinicId: user.mainClinicId,
-      }),
-    );
-  } catch {
-    /* incognito / storage quota exceeded — 無視してセッションのみで継続 */
-  }
-}
-
-function readStorageItem(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
+    return localStorage.getItem(STORAGE_KEY_CLINIC);
   } catch {
     return null;
-  }
-}
-
-function removeStorageItems(...keys: string[]): void {
-  try {
-    keys.forEach((k) => localStorage.removeItem(k));
-  } catch {
-    /* ignore */
   }
 }
 
 function saveClinicToStorage(clinicId: string): void {
   try {
     localStorage.setItem(STORAGE_KEY_CLINIC, clinicId);
+  } catch {
+    /* ignore */
+  }
+}
+
+function removeClinicFromStorage(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY_CLINIC);
   } catch {
     /* ignore */
   }
@@ -86,7 +60,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (cancelled) return;
         if (result) {
           setUser(result.user);
-          const storedClinic = readStorageItem(STORAGE_KEY_CLINIC);
+          const storedClinic = readClinicFromStorage();
           const validClinic = result.user.clinics.some((c) => c.clinicId === storedClinic);
           setCurrentClinicId(validClinic ? storedClinic : result.user.mainClinicId);
         }
@@ -105,7 +79,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const result = await loginApi(email, password);
     setUser(result.user);
     setCurrentClinicId(result.user.mainClinicId);
-    saveUserToStorage(result.user);
     saveClinicToStorage(result.user.mainClinicId);
   }, []);
 
@@ -113,7 +86,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await logoutApi();
     setUser(null);
     setCurrentClinicId(null);
-    removeStorageItems(STORAGE_KEY_USER, STORAGE_KEY_CLINIC);
+    removeClinicFromStorage();
   }, []);
 
   const switchClinic = useCallback(

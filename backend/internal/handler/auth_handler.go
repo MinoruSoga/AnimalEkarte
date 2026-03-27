@@ -266,12 +266,26 @@ func (h *Handler) Login(c *gin.Context) {
 		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
 	}
 
-	// JWT トークンはレスポンスボディに含める（Authorization Bearer ヘッダで管理）
-	// フロントが sessionStorage に保存 → 各リクエストで Authorization ヘッダに含める
-	// Cookie は使わない（cross-domain third-party Cookie ブロック対策）
+	// httpOnly Cookie でトークンをセット（XSS によるトークン盗難を防ぐ）
+	// net/http.SetCookie を直接使用して SameSite を含む全属性を確実に設定する
+	// （Gin の SetCookie は SameSite 非対応のため使わない）
+	isProduction := h.cfg.GinMode == "release"
+	sameSite := http.SameSiteLaxMode
+	if isProduction {
+		sameSite = http.SameSiteStrictMode
+	}
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "auth_token",
+		Value:    tokenStr,
+		Path:     "/",
+		MaxAge:   int(time.Until(expiresAt).Seconds()),
+		HttpOnly: true,
+		Secure:   isProduction,
+		SameSite: sameSite,
+	})
 
 	c.JSON(http.StatusOK, LoginResponse{
-		Token:     tokenStr,
+		Token:     tokenStr, // 後方互換のため残す（Cookie 移行完了後に削除可）
 		ExpiresAt: expiresAt.Unix(),
 		UserType:  claims.UserType,
 		User:      buildMeResponse(userData, mainClinicID, clinicNameMap, allClinics),
@@ -279,8 +293,22 @@ func (h *Handler) Login(c *gin.Context) {
 }
 
 // Logout godoc
-// フロント側で sessionStorage から token を削除するため、バック側では何もしない
+// httpOnly Cookie を MaxAge=-1 でクリアする。
 func (h *Handler) Logout(c *gin.Context) {
+	isProduction := h.cfg.GinMode == "release"
+	sameSite := http.SameSiteLaxMode
+	if isProduction {
+		sameSite = http.SameSiteStrictMode
+	}
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "auth_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   isProduction,
+		SameSite: sameSite,
+	})
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }
 
