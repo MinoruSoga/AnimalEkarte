@@ -251,7 +251,7 @@ export function ReservationFormModal({
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-20 text-center">
-                    <PawPrint className="h-6 w-6 text-[#37352F]/10 mb-2" />
+                    <PawPrint className={`${ICON.lg} text-[#37352F]/10 mb-2`} />
                     <div className="text-[12px] text-[#37352F]/40">
                       左側から患者を選択してください
                     </div>

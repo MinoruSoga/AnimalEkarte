@@ -565,7 +565,7 @@ const RefundSection = memo(function RefundSection({
                 className="h-8 text-xs"
                 disabled={refundableAmount <= 0}
               >
-                <Plus className="mr-1 h-3 w-3" />
+                <Plus className={`mr-1 ${ICON.action}`} />
                 返金を登録
               </Button>
             </DialogTrigger>

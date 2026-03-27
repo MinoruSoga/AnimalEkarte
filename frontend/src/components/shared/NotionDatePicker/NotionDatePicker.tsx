@@ -602,7 +602,7 @@ function ClearButton({ onClick }: { onClick: (e: React.MouseEvent<HTMLSpanElemen
       className="ml-1 shrink-0 rounded p-0.5 text-[#37352F]/40 hover:bg-[#37352F]/10 hover:text-[#37352F]/70 cursor-pointer"
       aria-label="日付をクリア"
     >
-      <X className="h-3.5 w-3.5" />
+      <X className={ICON.action} />
     </span>
   );
 }

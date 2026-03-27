@@ -178,7 +178,7 @@ function EditRow({ item, onSave, onCancel, isSaving }: EditRowProps) {
                     disabled={isSaving || !name.trim()}
                     className="h-7 text-xs"
                 >
-                    {isSaving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                    {isSaving ? <Loader2 className={`${ICON.action} animate-spin mr-1`} /> : null}
                     保存
                 </Button>
             </div>
@@ -210,7 +210,7 @@ function ItemRow({ item, onEdit, onDelete, isDeleting }: ItemRowProps) {
                     onClick={() => onEdit(item.id)}
                     aria-label="編集"
                 >
-                    <Pencil className="h-3.5 w-3.5" />
+                    <Pencil className={ICON.action} />
                 </Button>
                 <DeleteIconButton
                     onClick={() => onDelete(item.id)}
@@ -293,9 +293,9 @@ function AddForm({ onSubmit, isSubmitting }: AddFormProps) {
                         className="h-8 text-xs gap-1"
                     >
                         {isSubmitting ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <Loader2 className={`${ICON.action} animate-spin`} />
                         ) : (
-                            <Plus className="h-3.5 w-3.5" />
+                            <Plus className={ICON.action} />
                         )}
                         追加
                     </Button>

@@ -139,9 +139,9 @@ export function DailyRecordsTab({
                         className="gap-1.5"
                     >
                         {isCreateRecordPending ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <Loader2 className={`${ICON.action} animate-spin`} />
                         ) : (
-                            <PlusCircle className="h-3.5 w-3.5" />
+                            <PlusCircle className={ICON.action} />
                         )}
                         この日の記録を作成
                     </Button>

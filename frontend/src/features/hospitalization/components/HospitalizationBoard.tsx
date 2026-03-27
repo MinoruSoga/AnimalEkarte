@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import { memo, useCallback } from "react";
 
 // External
@@ -69,7 +70,7 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm }: Ca
                   <div className="flex items-center gap-1">
                       {occupant ? (
                           <div className="cursor-grab active:cursor-grabbing text-[#37352F]/20 hover:text-[#37352F]/60">
-                              <GripVertical className="h-3 w-3" />
+                              <GripVertical className={ICON.action} />
                           </div>
                       ) : null}
                       <span className={`${H_STYLES.text.sm} font-mono text-[#37352F]/60 font-bold`}>{cage.name}</span>

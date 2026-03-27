@@ -73,7 +73,7 @@ export const HospitalizationExpandedView = memo(function HospitalizationExpanded
                 {/* Care Plan Section */}
                 <div className={`w-full min-w-0 bg-white rounded-lg border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box} shadow-sm overflow-hidden`}>
                     <div className="flex items-center gap-1.5 mb-2 text-[#37352F]/60 text-sm px-0.5">
-                        <Calendar className="h-3.5 w-3.5 shrink-0" />
+                        <Calendar className={`${ICON.action} shrink-0`} />
                         <span className="font-medium truncate">入院期間: {hospitalization.startDate} 〜 {hospitalization.endDate}</span>
                     </div>
                     <Separator className="mb-1.5 opacity-50" />

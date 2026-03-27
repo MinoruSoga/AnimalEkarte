@@ -26,7 +26,7 @@ export function HospitalizationBasicInfo({ formData, onChange, cageItems }: Hosp
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box}`}>
       <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 text-[#37352F]`}>
-        <Building2 className="h-3.5 w-3.5 text-[#37352F]/60" />
+        <Building2 className={`${ICON.action} text-[#37352F]/60`} />
         基本情報
       </h2>
       

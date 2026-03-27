@@ -99,7 +99,7 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
                     onClick={handleOpen}
                     className="h-7 gap-1 text-xs"
                 >
-                    <Plus className="h-3.5 w-3.5" />
+                    <Plus className={ICON.action} />
                     追加
                 </Button>
             </div>
@@ -121,25 +121,25 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
                             <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[#37352F]/70">
                                 {v.temperature !== undefined && v.temperature !== null ? (
                                     <span className="flex items-center gap-1">
-                                        <Thermometer className="h-3 w-3" />
+                                        <Thermometer className={ICON.action} />
                                         {v.temperature}℃
                                     </span>
                                 ) : null}
                                 {v.heart_rate !== undefined && v.heart_rate !== null ? (
                                     <span className="flex items-center gap-1">
-                                        <Heart className="h-3 w-3" />
+                                        <Heart className={ICON.action} />
                                         {v.heart_rate}bpm
                                     </span>
                                 ) : null}
                                 {v.respiration_rate !== undefined && v.respiration_rate !== null ? (
                                     <span className="flex items-center gap-1">
-                                        <Wind className="h-3 w-3" />
+                                        <Wind className={ICON.action} />
                                         {v.respiration_rate}回/分
                                     </span>
                                 ) : null}
                                 {v.weight !== undefined && v.weight !== null ? (
                                     <span className="flex items-center gap-1">
-                                        <Weight className="h-3 w-3" />
+                                        <Weight className={ICON.action} />
                                         {v.weight}kg
                                     </span>
                                 ) : null}

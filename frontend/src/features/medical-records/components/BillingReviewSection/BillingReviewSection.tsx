@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 // Internal
 import { Button } from "@/components/ui/button";
-import { BADGE, C } from "@/lib/design-tokens";
+import { BADGE, C, ICON } from "@/lib/design-tokens";
 
 // Relative
 import {
@@ -102,7 +102,7 @@ export function BillingReviewSection({
         <span
           className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded border ${badgeClass}`}
         >
-          <StatusIcon className="h-3 w-3" />
+          <StatusIcon className={ICON.action} />
           {label}
         </span>
 

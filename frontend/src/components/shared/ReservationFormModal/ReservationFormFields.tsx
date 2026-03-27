@@ -124,7 +124,7 @@ export function ReservationFormFields({
 
         <div className="space-y-1.5">
           <div className="flex items-center gap-2 text-[12px] text-[#37352F]/40 tracking-wide font-medium">
-            <Clock className="h-3.5 w-3.5" />
+            <Clock className={ICON.action} />
             時間
           </div>
           <div className="flex items-center gap-2">

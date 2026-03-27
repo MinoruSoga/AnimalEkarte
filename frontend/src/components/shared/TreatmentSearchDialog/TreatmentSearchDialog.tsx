@@ -1,4 +1,5 @@
 // React/Framework
+import { ICON } from "@/lib/design-tokens";
 import * as React from "react";
 
 // External
@@ -85,7 +86,7 @@ const CategoryFilter = React.memo(function CategoryFilter({
               }
             }}
           >
-            <X className="h-3.5 w-3.5" />
+            <X className={ICON.action} />
             解除
           </Badge>
         ) : null}

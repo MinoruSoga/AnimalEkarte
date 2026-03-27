@@ -62,15 +62,15 @@ const CARE_LOG_TYPE_LABELS: Record<CareLogType, string> = {
 function getCareLogIcon(type: string) {
     switch (type) {
         case "food":
-            return <UtensilsCrossed className="h-3.5 w-3.5" />;
+            return <UtensilsCrossed className={ICON.action} />;
         case "excretion":
-            return <Droplets className="h-3.5 w-3.5" />;
+            return <Droplets className={ICON.action} />;
         case "medicine":
-            return <Pill className="h-3.5 w-3.5" />;
+            return <Pill className={ICON.action} />;
         case "treatment":
-            return <Stethoscope className="h-3.5 w-3.5" />;
+            return <Stethoscope className={ICON.action} />;
         default:
-            return <MoreHorizontal className="h-3.5 w-3.5" />;
+            return <MoreHorizontal className={ICON.action} />;
     }
 }
 
@@ -145,7 +145,7 @@ export function DailyCareLogsSection({
                     onClick={handleOpen}
                     className="h-7 gap-1 text-xs"
                 >
-                    <Plus className="h-3.5 w-3.5" />
+                    <Plus className={ICON.action} />
                     追加
                 </Button>
             </div>
