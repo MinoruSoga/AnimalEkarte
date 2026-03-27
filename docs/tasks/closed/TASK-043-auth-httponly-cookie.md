@@ -1,7 +1,7 @@
 # TASK-043: JWT を httpOnly Cookie に移行（FE + BE）
 
 **作成日**: 2026-03-27
-**ステータス**: Open
+**ステータス**: Closed
 **優先度**: High
 **領域**: Frontend + Backend / Security
 

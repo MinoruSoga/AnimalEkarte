@@ -1,7 +1,7 @@
 # TASK-046: FE パフォーマンス修正（renderRow / COLUMNS / useHospitalizations）
 
 **作成日**: 2026-03-27
-**ステータス**: Open
+**ステータス**: Closed
 **優先度**: Medium
 **領域**: Frontend
 

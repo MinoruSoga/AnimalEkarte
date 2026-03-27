@@ -1,7 +1,7 @@
 # TASK-044: BE RateLimitStore に TTL eviction 実装
 
 **作成日**: 2026-03-27
-**ステータス**: Open
+**ステータス**: Closed
 **優先度**: High
 **領域**: Backend / Security
 
