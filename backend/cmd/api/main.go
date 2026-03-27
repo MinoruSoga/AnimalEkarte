@@ -60,6 +60,7 @@ func main() {
 	// ルーター設定
 	r := gin.New()
 	r.Use(gin.Recovery())
+	r.Use(middleware.SecurityHeaders(cfg.GinMode == "release"))
 	r.Use(middleware.RequestID())
 	r.Use(middleware.CORS())
 	r.Use(middleware.RequestLoggingMiddleware())

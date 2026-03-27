@@ -78,3 +78,12 @@ func WrapAlreadyExists(resource, identifier string) error {
 func IsAlreadyExists(err error) bool {
 	return errors.Is(err, ErrAlreadyExists)
 }
+
+// WrapForbidden はアクセス拒否エラーを生成する
+func WrapForbidden(message string) error {
+	return &AppError{
+		Code:    "FORBIDDEN",
+		Message: message,
+		Err:     ErrForbidden,
+	}
+}

@@ -12,20 +12,12 @@ import (
 )
 
 // ListUsers godoc
-// GET /users?clinic_id=xxx
+// GET /users
+// clinic_id は JWT から取得し、クエリパラメータによる上書きは禁止（テナント分離）
 func (h *Handler) ListUsers(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
-	}
-	// クエリパラメータで clinic_id が明示的に指定されていれば上書き
-	if s := c.Query("clinic_id"); s != "" {
-		id, err := strconv.ParseUint(s, 10, 64)
-		if err != nil {
-			RespondError(c, apperrors.WrapInvalidInput("invalid clinic_id"))
-			return
-		}
-		clinicID = id
 	}
 
 	accounts, err := h.svc.UserAccount.ListUsers(c.Request.Context(), clinicID)
@@ -104,7 +96,16 @@ func (h *Handler) GetUser(c *gin.Context) {
 
 // SetUserPermissionGroups godoc
 // PUT /users/:id/permission-groups — ユーザーへのグループ割当を全置換する
+// clinic_admin 以上のみ実行可能
 func (h *Handler) SetUserPermissionGroups(c *gin.Context) {
+	userType, ok := extractUserType(c)
+	if !ok {
+		return
+	}
+	if userType == model.UserTypeStaff {
+		RespondError(c, apperrors.WrapForbidden("permission group assignment requires clinic_admin or above"))
+		return
+	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
@@ -128,6 +129,7 @@ func (h *Handler) SetUserPermissionGroups(c *gin.Context) {
 
 // UpdateUser godoc
 // PATCH /users/:id
+// user_type の変更は system_admin のみ許可
 func (h *Handler) UpdateUser(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -147,6 +149,14 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 		StaffID:     req.StaffID,
 	}
 	if req.UserType != nil {
+		userType, ok := extractUserType(c)
+		if !ok {
+			return
+		}
+		if userType != model.UserTypeSystemAdmin {
+			RespondError(c, apperrors.WrapForbidden("user_type change requires system_admin"))
+			return
+		}
 		ut := model.UserType(*req.UserType)
 		input.UserType = &ut
 	}

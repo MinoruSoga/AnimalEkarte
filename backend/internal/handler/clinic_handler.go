@@ -12,21 +12,57 @@ import (
 )
 
 // ListClinics godoc
+// system_admin は全クリニック一覧を返す。それ以外は所属クリニックのみ返す。
 func (h *Handler) ListClinics(c *gin.Context) {
-	clinics, err := h.svc.Clinic.ListClinics(c.Request.Context())
+	userType, ok := extractUserType(c)
+	if !ok {
+		return
+	}
+
+	if userType == model.UserTypeSystemAdmin {
+		clinics, err := h.svc.Clinic.ListClinics(c.Request.Context())
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, clinics)
+		return
+	}
+
+	// system_admin 以外: JWT の clinic_id に対応する 1 件のみ返す
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	clinic, err := h.svc.Clinic.GetClinicByID(c.Request.Context(), clinicID)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, clinics)
+	c.JSON(http.StatusOK, []model.Clinic{*clinic})
 }
 
 // GetClinic godoc
+// system_admin は任意クリニックを取得可能。それ以外は所属クリニックのみ。
 func (h *Handler) GetClinic(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
+	}
+	userType, ok := extractUserType(c)
+	if !ok {
+		return
+	}
+	if userType != model.UserTypeSystemAdmin {
+		clinicID, ok := extractClinicID(c)
+		if !ok {
+			return
+		}
+		if id != clinicID {
+			RespondError(c, apperrors.WrapForbidden("cannot access other clinics"))
+			return
+		}
 	}
 	clinic, err := h.svc.Clinic.GetClinicByID(c.Request.Context(), id)
 	if err != nil {
@@ -37,11 +73,26 @@ func (h *Handler) GetClinic(c *gin.Context) {
 }
 
 // UpdateClinic godoc
+// system_admin は任意クリニックを更新可能。clinic_admin は所属クリニックのみ。
 func (h *Handler) UpdateClinic(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
+	}
+	userType, ok := extractUserType(c)
+	if !ok {
+		return
+	}
+	if userType != model.UserTypeSystemAdmin {
+		clinicID, ok := extractClinicID(c)
+		if !ok {
+			return
+		}
+		if id != clinicID {
+			RespondError(c, apperrors.WrapForbidden("cannot update other clinics"))
+			return
+		}
 	}
 	var req updateClinicRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -73,7 +124,17 @@ func (h *Handler) UpdateClinic(c *gin.Context) {
 }
 
 // CreateClinic godoc
+// system_admin のみ実行可能
 func (h *Handler) CreateClinic(c *gin.Context) {
+	userType, ok := extractUserType(c)
+	if !ok {
+		return
+	}
+	if userType != model.UserTypeSystemAdmin {
+		RespondError(c, apperrors.WrapForbidden("clinic creation requires system_admin"))
+		return
+	}
+
 	var req createClinicRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
@@ -100,7 +161,17 @@ func (h *Handler) CreateClinic(c *gin.Context) {
 }
 
 // DeleteClinic godoc
+// system_admin のみ実行可能
 func (h *Handler) DeleteClinic(c *gin.Context) {
+	userType, ok := extractUserType(c)
+	if !ok {
+		return
+	}
+	if userType != model.UserTypeSystemAdmin {
+		RespondError(c, apperrors.WrapForbidden("clinic deletion requires system_admin"))
+		return
+	}
+
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))

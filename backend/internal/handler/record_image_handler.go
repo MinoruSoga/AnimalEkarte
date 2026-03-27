@@ -11,12 +11,29 @@ import (
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
+// verifyMedicalRecordOwnership は clinicID + medicalRecordID の組み合わせを検証し、
+// テナント分離を保証するヘルパー。
+func (h *Handler) verifyMedicalRecordOwnership(c *gin.Context, clinicID, medicalRecordID uint64) bool {
+	if _, err := h.svc.MedicalRecord.GetByID(c.Request.Context(), clinicID, medicalRecordID); err != nil {
+		RespondError(c, err)
+		return false
+	}
+	return true
+}
+
 // ListRecordImages godoc
 // GET /medical-records/:id/images
 func (h *Handler) ListRecordImages(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+		return
+	}
+	if !h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID) {
 		return
 	}
 
@@ -36,9 +53,16 @@ func (h *Handler) ListRecordImages(c *gin.Context) {
 // CreateRecordImage godoc
 // POST /medical-records/:id/images
 func (h *Handler) CreateRecordImage(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+		return
+	}
+	if !h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID) {
 		return
 	}
 
@@ -78,9 +102,16 @@ func (h *Handler) CreateRecordImage(c *gin.Context) {
 // DeleteRecordImage godoc
 // DELETE /medical-records/:id/images/:imageId
 func (h *Handler) DeleteRecordImage(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+		return
+	}
+	if !h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID) {
 		return
 	}
 

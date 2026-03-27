@@ -13,9 +13,16 @@ import (
 // ListVitals は指定カルテIDのバイタル一覧を返す
 // GET /medical-records/:id/vitals
 func (h *Handler) ListVitals(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+		return
+	}
+	if !h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID) {
 		return
 	}
 
@@ -35,9 +42,16 @@ func (h *Handler) ListVitals(c *gin.Context) {
 // CreateVital は指定カルテIDにバイタルを追加する
 // POST /medical-records/:id/vitals
 func (h *Handler) CreateVital(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+		return
+	}
+	if !h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID) {
 		return
 	}
 
@@ -68,9 +82,16 @@ func (h *Handler) CreateVital(c *gin.Context) {
 // UpdateVital は指定バイタルを部分更新する
 // PATCH /medical-records/:id/vitals/:vitalId
 func (h *Handler) UpdateVital(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+		return
+	}
+	if !h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID) {
 		return
 	}
 
@@ -107,9 +128,16 @@ func (h *Handler) UpdateVital(c *gin.Context) {
 // DeleteVital は指定バイタルを削除する
 // DELETE /medical-records/:id/vitals/:vitalId
 func (h *Handler) DeleteVital(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
 	medicalRecordID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
+		return
+	}
+	if !h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID) {
 		return
 	}
 

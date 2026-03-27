@@ -13,14 +13,29 @@ import (
 
 // CreateBillingItem godoc
 func (h *Handler) CreateBillingItem(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	var req createBillingItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
 		return
 	}
 
+	// テナント分離: billing が同一クリニックに属することを確認
+	if _, err := h.svc.Accounting.GetByID(c.Request.Context(), clinicID, req.BillingID); err != nil {
+		RespondError(c, err)
+		return
+	}
+
 	taxType := model.TaxTypeExcluded
 	if req.TaxType != "" {
+		if err := validateTaxType(req.TaxType); err != nil {
+			RespondError(c, err)
+			return
+		}
 		taxType = model.TaxType(req.TaxType)
 	}
 	taxRate := 0.10
@@ -29,7 +44,16 @@ func (h *Handler) CreateBillingItem(c *gin.Context) {
 	}
 	source := model.ItemSourceManual
 	if req.Source != "" {
+		if err := validateItemSource(req.Source); err != nil {
+			RespondError(c, err)
+			return
+		}
 		source = model.ItemSource(req.Source)
+	}
+
+	if err := validateItemCategory(req.Category); err != nil {
+		RespondError(c, err)
+		return
 	}
 
 	input := &service.CreateBillingItemInput{
@@ -55,9 +79,25 @@ func (h *Handler) CreateBillingItem(c *gin.Context) {
 
 // UpdateBillingItem godoc
 func (h *Handler) UpdateBillingItem(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+
+	// テナント分離: アイテム→billing→クリニックの所有権を確認
+	existingItem, err := h.svc.BillingItem.GetByID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	if _, err := h.svc.Accounting.GetByID(c.Request.Context(), clinicID, existingItem.BillingID); err != nil {
+		RespondError(c, err)
 		return
 	}
 
@@ -69,6 +109,10 @@ func (h *Handler) UpdateBillingItem(c *gin.Context) {
 
 	var taxType *model.TaxType
 	if req.TaxType != nil {
+		if err := validateTaxType(*req.TaxType); err != nil {
+			RespondError(c, err)
+			return
+		}
 		t := model.TaxType(*req.TaxType)
 		taxType = &t
 	}
@@ -91,9 +135,25 @@ func (h *Handler) UpdateBillingItem(c *gin.Context) {
 
 // DeleteBillingItem godoc
 func (h *Handler) DeleteBillingItem(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
+		return
+	}
+
+	// テナント分離: アイテム→billing→クリニックの所有権を確認
+	existingItem, err := h.svc.BillingItem.GetByID(c.Request.Context(), id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	if _, err := h.svc.Accounting.GetByID(c.Request.Context(), clinicID, existingItem.BillingID); err != nil {
+		RespondError(c, err)
 		return
 	}
 
