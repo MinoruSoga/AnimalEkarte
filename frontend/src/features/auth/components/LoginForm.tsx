@@ -15,23 +15,25 @@ interface DemoCredential {
   email: string;
   displayName: string;
   roleLabel: string;
+  permissionLabel: string;
 }
 
 const DEMO_ACCOUNTS: readonly DemoCredential[] = [
-  { email: "admin@example.com",     displayName: "田中 太郎",  roleLabel: "医院管理者" },
-  { email: "manager@example.com",   displayName: "渡辺 院長",  roleLabel: "管理者" },
-  { email: "exec@example.com",      displayName: "小林 部長",  roleLabel: "執行" },
-  { email: "vet@example.com",       displayName: "山田 花子",  roleLabel: "医師" },
-  { email: "nurse@example.com",     displayName: "佐藤 美咲",  roleLabel: "看護師" },
-  { email: "reception@example.com", displayName: "鈴木 一郎",  roleLabel: "受付" },
-  { email: "trimmer@example.com",   displayName: "高橋 さくら", roleLabel: "トリマー" },
-  { email: "system@example.com",    displayName: "本部 管理者", roleLabel: "運営管理者" },
+  { email: "admin@example.com",     displayName: "田中 太郎",  roleLabel: "医院管理者", permissionLabel: "全権限"     },
+  { email: "manager@example.com",   displayName: "渡辺 院長",  roleLabel: "管理者",     permissionLabel: "管理者グループ" },
+  { email: "exec@example.com",      displayName: "小林 部長",  roleLabel: "執行",       permissionLabel: "執行グループ"  },
+  { email: "vet@example.com",       displayName: "山田 花子",  roleLabel: "医師",       permissionLabel: "一般グループ"  },
+  { email: "nurse@example.com",     displayName: "佐藤 美咲",  roleLabel: "看護師",     permissionLabel: "一般グループ"  },
+  { email: "reception@example.com", displayName: "鈴木 一郎",  roleLabel: "受付",       permissionLabel: "一般グループ"  },
+  { email: "trimmer@example.com",   displayName: "高橋 さくら", roleLabel: "トリマー",   permissionLabel: "一般グループ"  },
+  { email: "system@example.com",    displayName: "本部 管理者", roleLabel: "運営管理者", permissionLabel: "全権限"     },
 ];
 
 const DemoAccount = memo(function DemoAccount({
   email,
   displayName,
   roleLabel,
+  permissionLabel,
   onSelect,
 }: DemoCredential & { onSelect: (email: string) => void }) {
   return (
@@ -48,6 +50,9 @@ const DemoAccount = memo(function DemoAccount({
           <span className={`text-sm font-medium ${C.text}`}>{displayName}</span>
           <span className={`text-xs px-1.5 py-px rounded-[3px] ${C.text50} ${C.bgInactive}`}>
             {roleLabel}
+          </span>
+          <span className={`text-xs px-1.5 py-px rounded-[3px] text-[#038B94] bg-[#038B94]/10`}>
+            {permissionLabel}
           </span>
         </div>
         <span className={`text-xs ${C.text35} block truncate`}>{email}</span>
