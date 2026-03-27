@@ -21,7 +21,7 @@ export function SidePeekToolbar({ isNew, onClose, onDelete }: SidePeekToolbarPro
             onClick={onDelete}
             className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
           >
-            <Trash2 className="size-4" />
+            <Trash2 className="size-[18px]" />
           </button>
         ) : null}
         <button
@@ -30,7 +30,7 @@ export function SidePeekToolbar({ isNew, onClose, onDelete }: SidePeekToolbarPro
           className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
           aria-label="閉じる"
         >
-          <X className="size-4" />
+          <X className="size-[18px]" />
         </button>
       </div>
     </div>

@@ -245,7 +245,7 @@ export function Sidebar() {
               aria-label="サイドバーを折りたたむ"
               className="size-7 flex items-center justify-center text-[#37352F]/40 hover:text-[#37352F] hover:bg-[rgba(55,53,47,0.08)] rounded-[3px] transition-colors"
             >
-              <PanelLeftClose className="size-[18px]" />
+              <PanelLeftClose className="size-5" />
             </button>
           </div>
         ) : (
@@ -255,7 +255,7 @@ export function Sidebar() {
             aria-label="サイドバーを展開"
             className="w-full flex items-center justify-center h-[30px] text-[#37352F]/50 hover:bg-[rgba(55,53,47,0.04)] rounded-[3px] transition-colors"
           >
-            <PanelLeft className="size-[18px]" />
+            <PanelLeft className="size-5" />
           </button>
         )}
       </div>
@@ -282,14 +282,14 @@ export function Sidebar() {
               onClick={logout}
               aria-label="ログアウト"
               title="ログアウト"
-              className="size-[26px] flex items-center justify-center rounded-[3px] text-[#37352F]/35 hover:text-[#37352F] hover:bg-[rgba(55,53,47,0.08)] transition-colors shrink-0"
+              className="size-7 flex items-center justify-center rounded-[3px] text-[#37352F]/35 hover:text-[#37352F] hover:bg-[rgba(55,53,47,0.08)] transition-colors shrink-0"
             >
-              <LogOut className="size-[15px]" />
+              <LogOut className="size-4" />
             </button>
           </div>
         ) : (
           <div className="flex items-center justify-center h-[30px]">
-            <LogOut className="size-[15px] text-[#37352F]/40" />
+            <LogOut className="size-4 text-[#37352F]/40" />
           </div>
         )}
       </div>
