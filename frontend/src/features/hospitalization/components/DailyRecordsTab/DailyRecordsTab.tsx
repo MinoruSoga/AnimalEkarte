@@ -124,7 +124,7 @@ export function DailyRecordsTab({
 
             {isLoading ? (
                 <div className="flex items-center justify-center py-10 text-[#37352F]/40">
-                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    <Loader2 className="size-5 animate-spin mr-2" />
                     <span className="text-sm">読み込み中...</span>
                 </div>
             ) : isError ? (

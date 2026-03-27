@@ -56,11 +56,11 @@ const TYPE_SELECT_ITEMS = (
 // ---- Helper functions ----
 
 function TypeIcon({ type }: { type: CarePlanItemType }) {
-    if (type === "food") return <Utensils className="h-4 w-4 text-orange-500 shrink-0" />;
-    if (type === "medicine") return <Pill className="h-4 w-4 text-blue-500 shrink-0" />;
-    if (type === "treatment") return <Stethoscope className="h-4 w-4 text-purple-500 shrink-0" />;
-    if (type === "instruction") return <ClipboardList className="h-4 w-4 text-green-500 shrink-0" />;
-    return <MoreHorizontal className="h-4 w-4 text-gray-400 shrink-0" />;
+    if (type === "food") return <Utensils className="size-4 text-orange-500 shrink-0" />;
+    if (type === "medicine") return <Pill className="size-4 text-blue-500 shrink-0" />;
+    if (type === "treatment") return <Stethoscope className="size-4 text-purple-500 shrink-0" />;
+    if (type === "instruction") return <ClipboardList className="size-4 text-green-500 shrink-0" />;
+    return <MoreHorizontal className="size-4 text-gray-400 shrink-0" />;
 }
 
 function StatusBadge({ status }: { status: CarePlanItem["status"] }) {
@@ -386,7 +386,7 @@ export function CarePlanTab({ hospitalizationId }: CarePlanTabProps) {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center py-10 text-[#37352F]/40">
-                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                <Loader2 className="size-5 animate-spin mr-2" />
                 <span className="text-sm">読み込み中...</span>
             </div>
         );

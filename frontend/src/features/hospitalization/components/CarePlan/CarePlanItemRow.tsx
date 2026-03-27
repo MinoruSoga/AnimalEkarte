@@ -79,7 +79,7 @@ export const CarePlanItemRow = memo(function CarePlanItemRow({ plan, onEdit, onD
                 <div className={`w-2 h-2 rounded-full ${plan.status === 'active' ? 'bg-green-500' : 'bg-gray-300'}`} />
                 <div className="flex gap-1">
                     <Button variant="ghost" size="sm" onClick={() => onEdit(plan)} className="h-9 w-9 p-0 bg-gray-50 hover:bg-gray-100">
-                        <Edit2 className="h-4 w-4 text-[#37352F]/60 hover:text-[#37352F]" />
+                        <Edit2 className="size-4 text-[#37352F]/60 hover:text-[#37352F]" />
                     </Button>
                     <DeleteIconButton onClick={() => onDelete(plan.id)} />
                 </div>

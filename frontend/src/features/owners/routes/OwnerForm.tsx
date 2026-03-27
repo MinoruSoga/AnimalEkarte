@@ -544,7 +544,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
       {/* rerender-memo: OwnerInfoSection はペット操作・モーダル開閉では再レンダーしない */}
       <div className={`mb-4 rounded-lg bg-white p-4 border ${C.borderMedium}`}>
         <h2 className={`mb-3 text-sm font-bold ${C.text} flex items-center gap-2`}>
-          <User className={`h-4 w-4 ${C.text60}`} />
+          <User className={`size-4 ${C.text60}`} />
           飼主情報
         </h2>
         <OwnerInfoSection
@@ -562,7 +562,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
       <div className="mb-4 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
-            <PawPrint className={`h-4 w-4 ${C.text60}`} />
+            <PawPrint className={`size-4 ${C.text60}`} />
             ペット情報
           </h2>
           <Button

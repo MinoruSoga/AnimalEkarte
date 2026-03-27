@@ -92,7 +92,7 @@ export const DailyRecordSection = memo(function DailyRecordSection({ records, pl
                 <div className="mt-1 pt-1 border-t border-[rgba(55,53,47,0.09)]">
                     <div className="flex items-center justify-between mb-2">
                         <h3 className={`font-bold text-[#37352F] flex items-center gap-2 ${H_STYLES.text.lg}`}>
-                            <Activity className="h-5 w-5" />
+                            <Activity className="size-5" />
                             その他・記録履歴
                         </h3>
                         <div className="flex gap-2">

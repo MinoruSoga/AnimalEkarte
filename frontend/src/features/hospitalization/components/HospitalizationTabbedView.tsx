@@ -72,11 +72,11 @@ export const HospitalizationTabbedView = memo(function HospitalizationTabbedView
             <Tabs defaultValue="daily" className="flex flex-col">
                 <TabsList className="w-full grid grid-cols-2">
                     <TabsTrigger value="daily" className="text-sm font-bold">
-                        <FileText className="h-4 w-4 mr-2" />
+                        <FileText className="size-4 mr-2" />
                         デイリーカルテ
                     </TabsTrigger>
                     <TabsTrigger value="plan" className="text-sm font-bold">
-                        <Settings className="h-4 w-4 mr-2" />
+                        <Settings className="size-4 mr-2" />
                         プラン管理・詳細
                     </TabsTrigger>
                 </TabsList>
@@ -97,7 +97,7 @@ export const HospitalizationTabbedView = memo(function HospitalizationTabbedView
                 <TabsContent value="plan" className="mt-2">
                     <div className={`bg-white rounded-lg border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box} shadow-sm mb-20`}>
                         <div className="flex items-center gap-2 mb-4 text-[#37352F]/60 text-sm">
-                            <Calendar className="h-4 w-4" />
+                            <Calendar className="size-4" />
                             <span>入院期間: {hospitalization.startDate} 〜 {hospitalization.endDate}</span>
                         </div>
                         <Separator className="mb-4" />

@@ -23,7 +23,7 @@ export const HospitalizationTreatmentTable = memo(function HospitalizationTreatm
     <div className={`bg-white rounded-lg shadow-sm border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box} mb-3`}>
       <div className="flex items-center justify-between mb-3">
         <h2 className={`${H_STYLES.text.base} font-bold flex items-center gap-2 text-[#37352F]`}>
-          <FileText className="h-4 w-4 text-[#37352F]/60" />
+          <FileText className="size-4 text-[#37352F]/60" />
           治療プラン
         </h2>
         <Button

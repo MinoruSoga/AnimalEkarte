@@ -19,7 +19,7 @@ export function HospitalizationNoteCard({ title, icon: Icon, value, onChange, pl
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box} h-full`}>
       <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 text-[#37352F]`}>
-        <Icon className="h-4 w-4 text-[#37352F]/60" />
+        <Icon className="size-4 text-[#37352F]/60" />
         {title}
       </h2>
       <Textarea

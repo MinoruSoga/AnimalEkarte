@@ -135,7 +135,7 @@ export function DailyCareLogsSection({
         <div>
             <div className="flex items-center justify-between mb-2">
                 <h4 className="flex items-center gap-1.5 text-sm font-bold text-[#37352F]">
-                    <UtensilsCrossed className="h-4 w-4 text-orange-500" />
+                    <UtensilsCrossed className="size-4 text-orange-500" />
                     ケアログ
                 </h4>
                 <Button

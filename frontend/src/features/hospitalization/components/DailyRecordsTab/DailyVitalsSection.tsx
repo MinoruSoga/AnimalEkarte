@@ -89,7 +89,7 @@ export function DailyVitalsSection({ vitals, onAddVital, isPending }: DailyVital
         <div>
             <div className="flex items-center justify-between mb-2">
                 <h4 className="flex items-center gap-1.5 text-sm font-bold text-[#37352F]">
-                    <Activity className="h-4 w-4 text-blue-500" />
+                    <Activity className="size-4 text-blue-500" />
                     バイタル
                 </h4>
                 <Button

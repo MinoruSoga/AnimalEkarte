@@ -55,7 +55,7 @@ const StepIndicator = memo(function StepIndicator({ step, label, active }: { ste
 const SelectedPetChip = memo(function SelectedPetChip({ pet, onRemove }: { pet: Pet; onRemove: () => void }) {
   return (
     <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-[rgba(55,53,47,0.12)] shadow-sm">
-      <PawPrint className="h-4 w-4 text-[#37352F]/60 flex-shrink-0" />
+      <PawPrint className="size-4 text-[#37352F]/60 flex-shrink-0" />
       <span className="text-sm font-bold text-[#37352F]">{pet.name}</span>
       <Badge variant="outline" className="text-[11px] font-normal text-[#37352F]/60 bg-[#F7F6F3] border-[rgba(55,53,47,0.12)] h-5">
         {pet.species}
@@ -67,7 +67,7 @@ const SelectedPetChip = memo(function SelectedPetChip({ pet, onRemove }: { pet: 
         onClick={onRemove}
         className="ml-1 p-1 hover:bg-red-50 rounded transition-colors"
       >
-        <X className="h-4 w-4 text-red-600 hover:text-red-700" />
+        <X className="size-4 text-red-600 hover:text-red-700" />
       </button>
     </div>
   );
@@ -165,9 +165,9 @@ export function ReservationFormModal({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {isEditMode ? (
-                <CalendarCheck className="h-5 w-5 text-amber-600" />
+                <CalendarCheck className="size-5 text-amber-600" />
               ) : (
-                <Calendar className="h-5 w-5 text-blue-600" />
+                <Calendar className="size-5 text-blue-600" />
               )}
               <DialogTitle className="text-sm font-bold text-[#37352F]">
                 {isEditMode ? "予約編集" : "新規予約作成"}
@@ -211,7 +211,7 @@ export function ReservationFormModal({
             )}
           >
             <div className="mb-3 flex items-center gap-2 shrink-0">
-              <Search className="h-4 w-4 text-[#37352F]/60" />
+              <Search className="size-4 text-[#37352F]/60" />
               <Label className="text-sm font-bold text-[#37352F]">患者検索</Label>
             </div>
             <div className="flex-1 overflow-hidden flex flex-col min-h-0">
@@ -291,7 +291,7 @@ export function ReservationFormModal({
 
         <DialogFooter className="p-4 border-t bg-white shrink-0 h-14 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
-            <PawPrint className="h-4 w-4 text-[#37352F]/60" />
+            <PawPrint className="size-4 text-[#37352F]/60" />
             <span className="text-sm text-[#37352F]/60">
               {selectedPets.length}頭 選択中
             </span>

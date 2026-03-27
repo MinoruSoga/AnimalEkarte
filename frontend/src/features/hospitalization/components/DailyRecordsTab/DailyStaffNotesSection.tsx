@@ -72,7 +72,7 @@ export function DailyStaffNotesSection({
         <div>
             <div className="flex items-center justify-between mb-2">
                 <h4 className="flex items-center gap-1.5 text-sm font-bold text-[#37352F]">
-                    <MessageSquare className="h-4 w-4 text-green-500" />
+                    <MessageSquare className="size-4 text-green-500" />
                     スタッフメモ
                 </h4>
                 <Button
