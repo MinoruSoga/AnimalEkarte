@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { MasterSelectTrigger } from "@/components/shared/MasterSelectModal";
@@ -71,6 +72,7 @@ interface LeftColumnProps {
   onCourseModalOpen: () => void;
   onStyleImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveStyleImage: () => void;
+  courseError?: string;
 }
 
 // rerender-memo: フォームセクションを memo() で独立させる
@@ -83,6 +85,7 @@ const LeftColumn = memo(function LeftColumn({
   onCourseModalOpen,
   onStyleImageChange,
   onRemoveStyleImage,
+  courseError,
 }: LeftColumnProps) {
   const selectedCourse = courses.find((c) => c.id === formData.courseId);
 
@@ -100,6 +103,8 @@ const LeftColumn = memo(function LeftColumn({
           onClick={onCourseModalOpen}
           variant="block"
         />
+        {/* BUG-027: inline course validation error */}
+        <FormFieldError message={courseError} />
       </div>
 
       <div>
@@ -408,6 +413,7 @@ export function TrimmingForm() {
     handleDelete,
     isSaving,
     isDeleting,
+    fieldErrors,
   } = useTrimmingForm(id);
 
   // React 19 Action の成功を検知して遷移
@@ -556,6 +562,10 @@ export function TrimmingForm() {
             nextVisitContent="-"
             onStaffClick={handleOpenStaffModal}
           />
+          {/* BUG-027: inline staff validation error */}
+          {fieldErrors.staffId ? (
+            <FormFieldError message={fieldErrors.staffId} />
+          ) : null}
 
           {/* Main Content - 3 column layout */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -569,6 +579,7 @@ export function TrimmingForm() {
               onCourseModalOpen={handleOpenCourseModal}
               onStyleImageChange={handleStyleImageChange}
               onRemoveStyleImage={removeStyleImage}
+              courseError={fieldErrors.courseId}
             />
             <MiddleColumn
               formData={formData}

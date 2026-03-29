@@ -56,6 +56,9 @@ export function useTrimmingForm(id?: string) {
   // useTransition: save/delete の pending 管理 (rerender-transitions)
   const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
 
+  // BUG-027: inline field validation errors
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
   interface FormState {
     success: boolean;
     timestamp: number;
@@ -83,15 +86,19 @@ export function useTrimmingForm(id?: string) {
         } else {
           const pet = selectedPets[0];
           if (!pet) return { success: false, timestamp: Date.now() };
-          // バリデーション: staff と course は必須
+          // BUG-027: バリデーション: staff と course は必須（インラインエラー + toast）
+          const errors: Record<string, string> = {};
           if (!formData.staffId) {
-            toast.error("担当スタッフを選択してください");
-            return { success: false, timestamp: Date.now() };
+            errors.staffId = "担当者を選択してください";
           }
           if (!formData.courseId) {
-            toast.error("コースを選択してください");
+            errors.courseId = "コースを選択してください";
+          }
+          if (Object.keys(errors).length > 0) {
+            setFieldErrors(errors);
             return { success: false, timestamp: Date.now() };
           }
+          setFieldErrors({});
           const req: CreateTrimmingRequest = {
             pet_id: Number(pet.id),
             staff_id: Number(formData.staffId),
@@ -240,5 +247,6 @@ export function useTrimmingForm(id?: string) {
     handleDelete,
     isSaving,
     isDeleting,
+    fieldErrors,
   };
 }

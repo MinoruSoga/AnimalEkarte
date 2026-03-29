@@ -1,5 +1,5 @@
 // React/Framework
-import { memo, useCallback, useEffect } from "react";
+import { memo, useCallback, useEffect, lazy, Suspense, useState } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
@@ -26,10 +26,16 @@ import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDat
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 
 // Relative
 import { useVaccinationForm } from "../hooks/use-vaccination-form";
 import { useMasterItems } from "@/hooks/use-master-items";
+
+// bundle-dynamic-imports: 重いモーダルは lazy() + Suspense で遅延ロード
+const ConfirmDialog = lazy(() =>
+  import("@/components/shared/ConfirmDialog/ConfirmDialog").then((m) => ({ default: m.ConfirmDialog }))
+);
 
 // Mock Data for History (module-level constant — does not change between renders)
 const MOCK_HISTORY_ITEMS = [
@@ -72,6 +78,7 @@ interface VaccinationFormFieldsProps {
   onNextDateChange: (value: string) => void;
   remarks: string;
   onRemarksChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  fieldErrors: Record<string, string>;
 }
 
 const VaccinationFormFields = memo(function VaccinationFormFields({
@@ -96,6 +103,7 @@ const VaccinationFormFields = memo(function VaccinationFormFields({
   onNextDateChange,
   remarks,
   onRemarksChange,
+  fieldErrors,
 }: VaccinationFormFieldsProps) {
   return (
     <div className="col-span-1 lg:col-span-6 flex flex-col gap-4">
@@ -116,6 +124,7 @@ const VaccinationFormFields = memo(function VaccinationFormFields({
                 ))}
               </SelectContent>
             </Select>
+            <FormFieldError message={fieldErrors.vaccineId} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label className={`text-sm ${C.text60}`}>予防接種日</Label>
@@ -124,6 +133,7 @@ const VaccinationFormFields = memo(function VaccinationFormFields({
               onChange={onDateChange}
               placeholder="予防接種日を選択…"
             />
+            <FormFieldError message={fieldErrors.date} />
           </div>
         </div>
 
@@ -354,8 +364,13 @@ export function VaccinationForm() {
       historyFilter,
       formAction,
       formState,
-      isSaving
+      isSaving,
+      fieldErrors,
+      handleDelete,
+      isDeleting,
   } = useVaccinationForm(id);
+
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   // React 19 Action の成功を検知して遷移
   useEffect(() => {
@@ -440,6 +455,8 @@ export function VaccinationForm() {
                     variant="ghost"
                     type="button"
                     className={`${STYLE.btnDangerGhost} px-4 h-10 text-sm`}
+                    onClick={() => setDeleteConfirmOpen(true)}
+                    disabled={isDeleting}
                 >
                     <Trash2 className={`mr-1.5 ${ICON.action}`} />
                     削除
@@ -494,6 +511,7 @@ export function VaccinationForm() {
               onNextDateChange={handleNextDateChange}
               remarks={remarks}
               onRemarksChange={handleRemarksChange}
+              fieldErrors={fieldErrors}
             />
 
             <HistorySection
@@ -508,6 +526,24 @@ export function VaccinationForm() {
               onSortOrderChange={setSortOrder}
             />
         </div>
+
+        {/* BUG-025: Delete Confirmation Dialog */}
+        <Suspense fallback={null}>
+          <ConfirmDialog
+            open={deleteConfirmOpen}
+            onClose={() => setDeleteConfirmOpen(false)}
+            title="削除確認"
+            description="この予防接種情報を削除してもよろしいですか？"
+            confirmLabel="削除"
+            variant="destructive"
+            onConfirm={() => {
+              handleDelete(() => {
+                markClean();
+                navigate(paths.vaccinations.getHref());
+              });
+            }}
+          />
+        </Suspense>
     </PageLayout>
     </form>
   );

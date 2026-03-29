@@ -1,11 +1,14 @@
-import { useState, useEffect, useTransition, useCallback, useMemo, useActionState } from "react";
+import { useState, useEffect, useCallback, useMemo, useActionState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { addWeeks, addYears, format } from "date-fns";
+import { toast } from "sonner";
 import { paths } from "@/config/paths";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetVaccination } from "../api/get-vaccination";
 import { useCreateVaccination } from "../api/create-vaccination";
 import { useUpdateVaccination } from "../api/update-vaccination";
+import { useDeleteVaccination } from "../api/delete-vaccination";
 import type { CreateVaccinationRequest, UpdateVaccinationRequest } from "../api/types";
 
 interface VaccinationFormState {
@@ -36,6 +39,23 @@ const DEFAULT_FORM: VaccinationFormState = {
   remarks: "",
 };
 
+// BUG-026: calculate next date based on vaccination date and schedule type
+function calculateNextDate(vaccinationDate: string, scheduleType: string): string {
+  if (!vaccinationDate || scheduleType === "other") return "";
+  const date = new Date(vaccinationDate);
+  if (isNaN(date.getTime())) return "";
+  switch (scheduleType) {
+    case "3weeks":
+      return format(addWeeks(date, 3), "yyyy-MM-dd");
+    case "4weeks":
+      return format(addWeeks(date, 4), "yyyy-MM-dd");
+    case "1year":
+      return format(addYears(date, 1), "yyyy-MM-dd");
+    default:
+      return "";
+  }
+}
+
 export function useVaccinationForm(id?: string) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -54,6 +74,10 @@ export function useVaccinationForm(id?: string) {
   const { data: petFromEdit } = useGetPet(editPetId);
   const createMutation = useCreateVaccination();
   const updateMutation = useUpdateVaccination();
+  const deleteMutation = useDeleteVaccination();
+
+  // BUG-024/074: validation errors
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Local overrides: tracks user edits on top of server data
   const [localOverrides, setLocalOverrides] = useState<Partial<VaccinationFormState>>({});
@@ -89,6 +113,26 @@ export function useVaccinationForm(id?: string) {
    */
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
+      // BUG-024/074: バリデーション
+      const errors: Record<string, string> = {};
+      if (!isEdit) {
+        if (!formData.vaccineId || formData.vaccineId === "0") {
+          errors.vaccineId = "ワクチン種別を選択してください";
+        }
+        if (!formData.date) {
+          errors.date = "接種日を入力してください";
+        }
+      } else {
+        if (!formData.date) {
+          errors.date = "接種日を入力してください";
+        }
+      }
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors);
+        return { success: false, timestamp: Date.now() };
+      }
+      setFieldErrors({});
+
       try {
         if (isEdit && id) {
           const toRFC3339 = (d: string) => d ? `${d}T00:00:00Z` : undefined;
@@ -99,6 +143,7 @@ export function useVaccinationForm(id?: string) {
             remarks: formData.remarks || undefined,
           };
           await updateMutation.mutateAsync({ id, req });
+          toast.success("予防接種情報を更新しました");
         } else {
           const pet = selectedPets[0];
           if (!pet) return { success: false, timestamp: Date.now() };
@@ -112,9 +157,12 @@ export function useVaccinationForm(id?: string) {
             remarks: formData.remarks || undefined,
           };
           await createMutation.mutateAsync(req);
+          toast.success("予防接種を登録しました");
         }
         return { success: true, timestamp: Date.now() };
-      } catch (error) {
+      } catch {
+        // BUG-024/074: API error toast
+        toast.error("保存に失敗しました");
         return { success: false, timestamp: Date.now() };
       }
     },
@@ -152,15 +200,49 @@ export function useVaccinationForm(id?: string) {
   const isSaving = isPending;
 
   const setVaccineId = useCallback((v: string) => setField("vaccineId", v), [setField]);
-  const setDate = useCallback((v: string) => setField("date", v), [setField]);
+
+  // BUG-026: auto-calculate nextDate when date changes
+  const setDate = useCallback((v: string) => {
+    setLocalOverrides((prev) => {
+      const scheduleType = prev.nextScheduleType ?? DEFAULT_NEXT_SCHEDULE_TYPE;
+      const calculated = calculateNextDate(v, scheduleType);
+      return { ...prev, date: v, ...(calculated ? { nextDate: calculated } : {}) };
+    });
+  }, []);
+
   const setSupplemental = useCallback((v: string) => setField("supplemental", v), [setField]);
   const setLot1 = useCallback((v: string) => setField("lot1", v), [setField]);
   const setLot2 = useCallback((v: string) => setField("lot2", v), [setField]);
   const setLot3 = useCallback((v: string) => setField("lot3", v), [setField]);
   const setLot4 = useCallback((v: string) => setField("lot4", v), [setField]);
-  const setNextScheduleType = useCallback((v: string) => setField("nextScheduleType", v), [setField]);
+
+  // BUG-026: auto-calculate nextDate when schedule type changes
+  const setNextScheduleType = useCallback((v: string) => {
+    setLocalOverrides((prev) => {
+      const currentDate = prev.date ?? "";
+      const calculated = calculateNextDate(currentDate, v);
+      return { ...prev, nextScheduleType: v, ...(calculated ? { nextDate: calculated } : {}) };
+    });
+  }, []);
+
   const setNextDate = useCallback((v: string) => setField("nextDate", v), [setField]);
   const setRemarks = useCallback((v: string) => setField("remarks", v), [setField]);
+
+  // BUG-025: delete handler
+  const handleDelete = useCallback((onSuccess?: () => void) => {
+    if (!isEdit || !id) return;
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success("予防接種情報を削除しました");
+        onSuccess?.();
+      },
+      onError: () => {
+        toast.error("削除に失敗しました");
+      },
+    });
+  }, [isEdit, id, deleteMutation]);
+
+  const isDeleting = deleteMutation.isPending;
 
   const form = useMemo(() => ({
     vaccineId: formData.vaccineId,
@@ -210,5 +292,8 @@ export function useVaccinationForm(id?: string) {
     formAction,
     formState,
     isSaving,
+    fieldErrors,
+    handleDelete,
+    isDeleting,
   };
 }
