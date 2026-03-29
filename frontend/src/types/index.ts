@@ -30,6 +30,8 @@ export interface MenuItem {
     icon?: ReactNode;
     label: string;
     path?: string;
+    /** 権限チェック用リソース識別子。省略時は常に表示 */
+    resource?: string;
     subItems?: MenuItem[];
 }
 

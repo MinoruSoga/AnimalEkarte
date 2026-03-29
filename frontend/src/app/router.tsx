@@ -5,6 +5,23 @@ import { Layout } from "@/components/shared/Layout/Layout";
 import { RootErrorBoundary, RouteErrorBoundary } from "@/components/errors/RouteErrorBoundary";
 import { RequirePermission } from "@/components/shared/RequirePermission";
 import { AuthProvider } from "@/features/auth";
+import {
+  ResourceDashboard,
+  ResourceOwners,
+  ResourceReservations,
+  ResourceMedicalRecords,
+  ResourceHospitalization,
+  ResourceTrimming,
+  ResourceExaminations,
+  ResourceAccounting,
+  ResourceVaccinations,
+  ResourceCheckups,
+  ResourceInventory,
+  ResourceEstimates,
+  ResourceShifts,
+  ResourceMaster,
+  ResourceHospitalSettings,
+} from "@/types/generated/models";
 
 /* bundle-dynamic-imports: ログインページは未認証ユーザー専用。認証済みユーザーのバンドルに含めない */
 const Login = lazy(() =>
@@ -21,6 +38,20 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    path: "/forgot-password",
+    lazy: async () => {
+      const { ForgotPasswordPage } = await import("@/features/auth/routes/ForgotPasswordPage");
+      return { Component: ForgotPasswordPage };
+    },
+  },
+  {
+    path: "/reset-password",
+    lazy: async () => {
+      const { ResetPasswordPage } = await import("@/features/auth/routes/ResetPasswordPage");
+      return { Component: ResetPasswordPage };
+    },
+  },
+  {
     // AuthProvider を保護ルート側にのみ配置。
     // /login は上のルートで AuthProvider 外に定義されているため GET /v1/me は実行されない。
     element: (
@@ -34,7 +65,7 @@ export const router = createBrowserRouter([
       {
         path: "/",
         element: (
-          <RequirePermission resource="dashboard">
+          <RequirePermission resource={ResourceDashboard}>
             <Outlet />
           </RequirePermission>
         ),
@@ -42,10 +73,11 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { Dashboard } = await import("@/features/dashboard/routes/Dashboard");
+              const { Dashboard } = await import("@/features/dashboard");
               return { Component: Dashboard };
             },
           },
+
         ],
       },
 
@@ -53,7 +85,7 @@ export const router = createBrowserRouter([
       {
         path: "/owners",
         element: (
-          <RequirePermission resource="owners">
+          <RequirePermission resource={ResourceOwners}>
             <Outlet />
           </RequirePermission>
         ),
@@ -88,33 +120,32 @@ export const router = createBrowserRouter([
           },
         ],
       },
-
-      // ── Reservations ─────────────────────────────────────────────
-      {
-        path: "/reservations",
-        element: (
-          <RequirePermission resource="reservations">
-            <Outlet />
-          </RequirePermission>
-        ),
-        children: [
-          {
-            index: true,
-            lazy: async () => {
-              const { ReservationManagement } = await import(
-                "@/features/reservations/routes/ReservationManagement"
-              );
-              return { Component: ReservationManagement };
-            },
-          },
-        ],
+// ── Reservations ─────────────────────────────────────────────
+{
+  path: "/reservations",
+  element: (
+    <RequirePermission resource={ResourceReservations}>
+      <Outlet />
+    </RequirePermission>
+  ),
+  errorElement: <RouteErrorBoundary />,
+  children: [
+    {
+      index: true,
+      lazy: async () => {
+        const { ReservationManagement } = await import("@/features/reservations");
+        return { Component: ReservationManagement };
       },
+    },
+  ],
+},
+
 
       // ── Medical Records ──────────────────────────────────────────
       {
         path: "/medical-records",
         element: (
-          <RequirePermission resource="medical-records">
+          <RequirePermission resource={ResourceMedicalRecords}>
             <Outlet />
           </RequirePermission>
         ),
@@ -123,36 +154,28 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { MedicalRecords } = await import(
-                "@/features/medical-records/routes/MedicalRecords"
-              );
+              const { MedicalRecords } = await import("@/features/medical-records");
               return { Component: MedicalRecords };
             },
           },
           {
             path: "select-pet",
             lazy: async () => {
-              const { MedicalRecordPetSelection } = await import(
-                "@/features/medical-records/routes/MedicalRecordPetSelection"
-              );
+              const { MedicalRecordPetSelection } = await import("@/features/medical-records");
               return { Component: MedicalRecordPetSelection };
             },
           },
           {
             path: "new",
             lazy: async () => {
-              const { MedicalRecordForm } = await import(
-                "@/features/medical-records/routes/MedicalRecordForm"
-              );
+              const { MedicalRecordForm } = await import("@/features/medical-records");
               return { Component: MedicalRecordForm };
             },
           },
           {
             path: ":id",
             lazy: async () => {
-              const { MedicalRecordForm } = await import(
-                "@/features/medical-records/routes/MedicalRecordForm"
-              );
+              const { MedicalRecordForm } = await import("@/features/medical-records");
               return { Component: MedicalRecordForm };
             },
           },
@@ -163,7 +186,7 @@ export const router = createBrowserRouter([
       {
         path: "/hospitalization",
         element: (
-          <RequirePermission resource="hospitalization">
+          <RequirePermission resource={ResourceHospitalization}>
             <Outlet />
           </RequirePermission>
         ),
@@ -172,45 +195,35 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { HospitalizationList } = await import(
-                "@/features/hospitalization/routes/HospitalizationList"
-              );
+              const { HospitalizationList } = await import("@/features/hospitalization");
               return { Component: HospitalizationList };
             },
           },
           {
             path: "select-pet",
             lazy: async () => {
-              const { HospitalizationPetSelection } = await import(
-                "@/features/hospitalization/routes/HospitalizationPetSelection"
-              );
+              const { HospitalizationPetSelection } = await import("@/features/hospitalization");
               return { Component: HospitalizationPetSelection };
             },
           },
           {
             path: "new",
             lazy: async () => {
-              const { HospitalizationForm } = await import(
-                "@/features/hospitalization/routes/HospitalizationForm"
-              );
+              const { HospitalizationForm } = await import("@/features/hospitalization");
               return { Component: HospitalizationForm };
             },
           },
           {
             path: ":id",
             lazy: async () => {
-              const { HospitalizationDetail } = await import(
-                "@/features/hospitalization/routes/HospitalizationDetail"
-              );
+              const { HospitalizationDetail } = await import("@/features/hospitalization");
               return { Component: HospitalizationDetail };
             },
           },
           {
             path: ":id/edit",
             lazy: async () => {
-              const { HospitalizationForm } = await import(
-                "@/features/hospitalization/routes/HospitalizationForm"
-              );
+              const { HospitalizationForm } = await import("@/features/hospitalization");
               return { Component: HospitalizationForm };
             },
           },
@@ -221,7 +234,7 @@ export const router = createBrowserRouter([
       {
         path: "/trimming",
         element: (
-          <RequirePermission resource="trimming">
+          <RequirePermission resource={ResourceTrimming}>
             <Outlet />
           </RequirePermission>
         ),
@@ -230,36 +243,28 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { TrimmingList } = await import(
-                "@/features/trimming/routes/TrimmingList"
-              );
+              const { TrimmingList } = await import("@/features/trimming");
               return { Component: TrimmingList };
             },
           },
           {
             path: "select-pet",
             lazy: async () => {
-              const { TrimmingPetSelection } = await import(
-                "@/features/trimming/routes/TrimmingPetSelection"
-              );
+              const { TrimmingPetSelection } = await import("@/features/trimming");
               return { Component: TrimmingPetSelection };
             },
           },
           {
             path: "new",
             lazy: async () => {
-              const { TrimmingForm } = await import(
-                "@/features/trimming/routes/TrimmingForm"
-              );
+              const { TrimmingForm } = await import("@/features/trimming");
               return { Component: TrimmingForm };
             },
           },
           {
             path: ":id",
             lazy: async () => {
-              const { TrimmingForm } = await import(
-                "@/features/trimming/routes/TrimmingForm"
-              );
+              const { TrimmingForm } = await import("@/features/trimming");
               return { Component: TrimmingForm };
             },
           },
@@ -270,7 +275,7 @@ export const router = createBrowserRouter([
       {
         path: "/examinations",
         element: (
-          <RequirePermission resource="examinations">
+          <RequirePermission resource={ResourceExaminations}>
             <Outlet />
           </RequirePermission>
         ),
@@ -279,36 +284,28 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { ExaminationsList } = await import(
-                "@/features/examinations/routes/ExaminationsList"
-              );
+              const { ExaminationsList } = await import("@/features/examinations");
               return { Component: ExaminationsList };
             },
           },
           {
             path: "select-pet",
             lazy: async () => {
-              const { ExaminationPetSelection } = await import(
-                "@/features/examinations/routes/ExaminationPetSelection"
-              );
+              const { ExaminationPetSelection } = await import("@/features/examinations");
               return { Component: ExaminationPetSelection };
             },
           },
           {
             path: "new",
             lazy: async () => {
-              const { ExaminationForm } = await import(
-                "@/features/examinations/routes/ExaminationForm"
-              );
+              const { ExaminationForm } = await import("@/features/examinations");
               return { Component: ExaminationForm };
             },
           },
           {
             path: ":id",
             lazy: async () => {
-              const { ExaminationForm } = await import(
-                "@/features/examinations/routes/ExaminationForm"
-              );
+              const { ExaminationForm } = await import("@/features/examinations");
               return { Component: ExaminationForm };
             },
           },
@@ -319,7 +316,7 @@ export const router = createBrowserRouter([
       {
         path: "/accounting",
         element: (
-          <RequirePermission resource="accounting">
+          <RequirePermission resource={ResourceAccounting}>
             <Outlet />
           </RequirePermission>
         ),
@@ -366,7 +363,7 @@ export const router = createBrowserRouter([
       {
         path: "/vaccinations",
         element: (
-          <RequirePermission resource="vaccinations">
+          <RequirePermission resource={ResourceVaccinations}>
             <Outlet />
           </RequirePermission>
         ),
@@ -375,36 +372,28 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { VaccinationList } = await import(
-                "@/features/vaccinations/routes/VaccinationList"
-              );
+              const { VaccinationList } = await import("@/features/vaccinations");
               return { Component: VaccinationList };
             },
           },
           {
             path: "select-pet",
             lazy: async () => {
-              const { VaccinationPetSelection } = await import(
-                "@/features/vaccinations/routes/VaccinationPetSelection"
-              );
+              const { VaccinationPetSelection } = await import("@/features/vaccinations");
               return { Component: VaccinationPetSelection };
             },
           },
           {
             path: "new",
             lazy: async () => {
-              const { VaccinationForm } = await import(
-                "@/features/vaccinations/routes/VaccinationForm"
-              );
+              const { VaccinationForm } = await import("@/features/vaccinations");
               return { Component: VaccinationForm };
             },
           },
           {
             path: ":id",
             lazy: async () => {
-              const { VaccinationForm } = await import(
-                "@/features/vaccinations/routes/VaccinationForm"
-              );
+              const { VaccinationForm } = await import("@/features/vaccinations");
               return { Component: VaccinationForm };
             },
           },
@@ -415,7 +404,7 @@ export const router = createBrowserRouter([
       {
         path: "/checkups",
         element: (
-          <RequirePermission resource="checkups">
+          <RequirePermission resource={ResourceCheckups}>
             <Outlet />
           </RequirePermission>
         ),
@@ -423,9 +412,7 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { CheckupsList } = await import(
-                "@/features/checkups/routes/CheckupsList"
-              );
+              const { CheckupsList } = await import("@/features/checkups");
               return { Component: CheckupsList };
             },
           },
@@ -436,7 +423,7 @@ export const router = createBrowserRouter([
       {
         path: "/inventory",
         element: (
-          <RequirePermission resource="inventory">
+          <RequirePermission resource={ResourceInventory}>
             <Outlet />
           </RequirePermission>
         ),
@@ -445,27 +432,21 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { InventoryList } = await import(
-                "@/features/inventory/routes/InventoryList"
-              );
+              const { InventoryList } = await import("@/features/inventory");
               return { Component: InventoryList };
             },
           },
           {
             path: "new",
             lazy: async () => {
-              const { InventoryForm } = await import(
-                "@/features/inventory/routes/InventoryForm"
-              );
+              const { InventoryForm } = await import("@/features/inventory");
               return { Component: InventoryForm };
             },
           },
           {
             path: ":id",
             lazy: async () => {
-              const { InventoryForm } = await import(
-                "@/features/inventory/routes/InventoryForm"
-              );
+              const { InventoryForm } = await import("@/features/inventory");
               return { Component: InventoryForm };
             },
           },
@@ -476,7 +457,7 @@ export const router = createBrowserRouter([
       {
         path: "/estimates",
         element: (
-          <RequirePermission resource="estimates">
+          <RequirePermission resource={ResourceEstimates}>
             <Outlet />
           </RequirePermission>
         ),
@@ -484,36 +465,28 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { EstimateList } = await import(
-                "@/features/estimates/routes/EstimateList"
-              );
+              const { EstimateList } = await import("@/features/estimates");
               return { Component: EstimateList };
             },
           },
           {
             path: "new",
             lazy: async () => {
-              const { EstimateForm } = await import(
-                "@/features/estimates/routes/EstimateForm"
-              );
+              const { EstimateForm } = await import("@/features/estimates");
               return { Component: EstimateForm };
             },
           },
           {
             path: ":id",
             lazy: async () => {
-              const { EstimateDetail } = await import(
-                "@/features/estimates/routes/EstimateDetail"
-              );
+              const { EstimateDetail } = await import("@/features/estimates");
               return { Component: EstimateDetail };
             },
           },
           {
             path: ":id/edit",
             lazy: async () => {
-              const { EstimateForm } = await import(
-                "@/features/estimates/routes/EstimateForm"
-              );
+              const { EstimateForm } = await import("@/features/estimates");
               return { Component: EstimateForm };
             },
           },
@@ -524,7 +497,7 @@ export const router = createBrowserRouter([
       {
         path: "/shifts",
         element: (
-          <RequirePermission resource="shifts">
+          <RequirePermission resource={ResourceShifts}>
             <Outlet />
           </RequirePermission>
         ),
@@ -532,9 +505,7 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { ShiftCalendarPage } = await import(
-                "@/features/shifts/routes/ShiftCalendarPage"
-              );
+              const { ShiftCalendarPage } = await import("@/features/shifts");
               return { Component: ShiftCalendarPage };
             },
           },
@@ -545,7 +516,7 @@ export const router = createBrowserRouter([
       {
         path: "/settings",
         element: (
-          <RequirePermission resource="master">
+          <RequirePermission resource={ResourceMaster}>
             <Outlet />
           </RequirePermission>
         ),
@@ -553,144 +524,112 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { MasterSettingsIndex } = await import(
-                "@/features/master/routes/MasterSettingsIndex"
-              );
+              const { MasterSettingsIndex } = await import("@/features/master");
               return { Component: MasterSettingsIndex };
             },
           },
           {
             path: "staff",
             lazy: async () => {
-              const { StaffSettings } = await import(
-                "@/features/master/routes/StaffSettings"
-              );
+              const { StaffSettings } = await import("@/features/master");
               return { Component: StaffSettings };
             },
           },
           {
             path: "treatment-items",
             lazy: async () => {
-              const { TreatmentPlanMaster } = await import(
-                "@/features/master/routes/TreatmentPlanMaster"
-              );
+              const { TreatmentPlanMaster } = await import("@/features/master");
               return { Component: TreatmentPlanMaster };
             },
           },
           {
             path: "diagnosis",
             lazy: async () => {
-              const { DiagnosisSettings } = await import(
-                "@/features/master/routes/DiagnosisSettings"
-              );
+              const { DiagnosisSettings } = await import("@/features/master");
               return { Component: DiagnosisSettings };
             },
           },
           {
             path: "animal-species",
             lazy: async () => {
-              const { AnimalSpeciesSettings } = await import(
-                "@/features/master/routes/AnimalSpeciesSettings"
-              );
+              const { AnimalSpeciesSettings } = await import("@/features/master");
               return { Component: AnimalSpeciesSettings };
             },
           },
           {
             path: "trimming",
             lazy: async () => {
-              const { TrimmingSettings } = await import(
-                "@/features/master/routes/TrimmingSettings"
-              );
+              const { TrimmingSettings } = await import("@/features/master");
               return { Component: TrimmingSettings };
             },
           },
           {
             path: "medicine",
             lazy: async () => {
-              const { MedicineSettings } = await import(
-                "@/features/master/routes/MedicineSettings"
-              );
+              const { MedicineSettings } = await import("@/features/master");
               return { Component: MedicineSettings };
             },
           },
           {
             path: "service-type",
             lazy: async () => {
-              const { ServiceTypeSettings } = await import(
-                "@/features/master/routes/ServiceTypeSettings"
-              );
+              const { ServiceTypeSettings } = await import("@/features/master");
               return { Component: ServiceTypeSettings };
             },
           },
           {
             path: "hospitalization",
             lazy: async () => {
-              const { HospitalizationSettings } = await import(
-                "@/features/master/routes/HospitalizationSettings"
-              );
+              const { HospitalizationSettings } = await import("@/features/master");
               return { Component: HospitalizationSettings };
             },
           },
           {
             path: "cage",
             lazy: async () => {
-              const { CageSettings } = await import(
-                "@/features/master/routes/CageSettings"
-              );
+              const { CageSettings } = await import("@/features/master");
               return { Component: CageSettings };
             },
           },
           {
             path: "merchandise-items",
             lazy: async () => {
-              const { MerchandiseItemSettings } = await import(
-                "@/features/master/routes/MerchandiseItemSettings"
-              );
+              const { MerchandiseItemSettings } = await import("@/features/master");
               return { Component: MerchandiseItemSettings };
             },
           },
           {
             path: "insurance",
             lazy: async () => {
-              const { InsuranceSettings } = await import(
-                "@/features/master/routes/InsuranceSettings"
-              );
+              const { InsuranceSettings } = await import("@/features/master");
               return { Component: InsuranceSettings };
             },
           },
           {
             path: "job-title",
             lazy: async () => {
-              const { JobTitleSettings } = await import(
-                "@/features/master/routes/JobTitleSettings"
-              );
+              const { JobTitleSettings } = await import("@/features/master");
               return { Component: JobTitleSettings };
             },
           },
           {
             path: "inquiry-templates",
             lazy: async () => {
-              const { InterviewTemplateSettings } = await import(
-                "@/features/master/routes/InterviewTemplateSettings"
-              );
+              const { InterviewTemplateSettings } = await import("@/features/master");
               return { Component: InterviewTemplateSettings };
             },
           },
           {
             path: "interview/chief-complaint",
             lazy: async () => {
-              const { ChiefComplaintSettings } = await import(
-                "@/features/master/routes/ChiefComplaintSettings"
-              );
+              const { ChiefComplaintSettings } = await import("@/features/master");
               return { Component: ChiefComplaintSettings };
             },
           },
           {
             path: "interview/templates",
             lazy: async () => {
-              const { InterviewTemplateSettings } = await import(
-                "@/features/master/routes/InterviewTemplateSettings"
-              );
+              const { InterviewTemplateSettings } = await import("@/features/master");
               return { Component: InterviewTemplateSettings };
             },
           },
@@ -698,9 +637,7 @@ export const router = createBrowserRouter([
           {
             path: "user-accounts",
             lazy: async () => {
-              const { UserAccountSettings } = await import(
-                "@/features/master/routes/UserAccountSettings"
-              );
+              const { UserAccountSettings } = await import("@/features/master");
               return { Component: UserAccountSettings };
             },
           },
@@ -708,9 +645,7 @@ export const router = createBrowserRouter([
           {
             path: "permission-groups",
             lazy: async () => {
-              const { PermissionGroupSettings } = await import(
-                "@/features/master/routes/PermissionGroupSettings"
-              );
+              const { PermissionGroupSettings } = await import("@/features/master");
               return { Component: PermissionGroupSettings };
             },
           },
@@ -721,7 +656,7 @@ export const router = createBrowserRouter([
       {
         path: "/settings/clinic",
         element: (
-          <RequirePermission resource="hospital-settings">
+          <RequirePermission resource={ResourceHospitalSettings}>
             <Outlet />
           </RequirePermission>
         ),
@@ -729,9 +664,7 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { ClinicMasterSettings } = await import(
-                "@/features/hospital-settings/routes/ClinicMasterSettings"
-              );
+              const { ClinicMasterSettings } = await import("@/features/hospital-settings");
               return { Component: ClinicMasterSettings };
             },
           },

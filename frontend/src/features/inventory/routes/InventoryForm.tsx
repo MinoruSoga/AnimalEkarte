@@ -20,17 +20,13 @@ import {
 } from "@/components/ui/select";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
-import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
-import { handleApiError } from "@/lib/handle-api-error";
+import { useEffect } from "react";
 
 // Relative
-import {
-  useGetInventoryItem,
-  useCreateInventoryItem,
-  useUpdateInventoryItem,
-} from "../api/inventory";
+import { useInventoryForm } from "../hooks/use-inventory-form";
 
 // Types
 import type { InventoryItem } from "@/types";
@@ -275,31 +271,31 @@ const SupplierInfoSection = memo(function SupplierInfoSection({
 export function InventoryForm() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const isEdit = Boolean(id);
+
+  const {
+    isEdit,
+    isLoading,
+    existingItem,
+    category,
+    setCategory,
+    resolvedExpiry,
+    setExpiryDate,
+    resolvedLastRestocked,
+    setLastRestocked,
+    formAction,
+    formState,
+    isPending,
+  } = useInventoryForm(id);
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
-  const { data: existingItem, isLoading } = useGetInventoryItem(id ?? "");
-  const createMutation = useCreateInventoryItem();
-  const updateMutation = useUpdateInventoryItem();
-
-  // rerender-transitions: API 書き込みの pending 状態を useTransition で管理
-  // useState(false) + setIsPending パターンを禁止し try-finally 漏れを防ぐ
-  const [isSavePending, startSaveTransition] = useTransition();
-
-  const [category, setCategory] = useState<InventoryItem["category"]>(
-    (existingItem?.category as InventoryItem["category"]) ?? "medicine"
-  );
-  const [expiryDate, setExpiryDate] = useState("");
-  const [lastRestocked, setLastRestocked] = useState("");
-  const resolvedExpiry =
-    expiryDate ||
-    (existingItem?.expiry_date ? existingItem.expiry_date.slice(0, 10) : "");
-  const resolvedLastRestocked =
-    lastRestocked ||
-    (existingItem?.last_restocked
-      ? existingItem.last_restocked.slice(0, 10)
-      : "");
+  // React 19 Action の成功を検知して遷移
+  useEffect(() => {
+    if (formState.success) {
+      markClean();
+      navigate(paths.inventory.getHref());
+    }
+  }, [formState.success, formState.timestamp, navigate, markClean]);
 
   const handleBack = useCallback(() => {
     navigate(paths.inventory.getHref());
@@ -308,72 +304,17 @@ export function InventoryForm() {
   // rerender-functional-setstate: setCategory は stable setter なので useCallback 内 deps 不要
   const handleCategoryChange = useCallback((value: string) => {
     setCategory(value as InventoryItem["category"]);
-  }, []);
+  }, [setCategory]);
 
   // rerender-functional-setstate: setExpiryDate は stable setter なので useCallback 内 deps 不要
   const handleExpiryChange = useCallback((value: string) => {
     setExpiryDate(value);
-  }, []);
+  }, [setExpiryDate]);
 
   // rerender-functional-setstate: setLastRestocked は stable setter なので useCallback 内 deps 不要
   const handleLastRestockedChange = useCallback((value: string) => {
     setLastRestocked(value);
-  }, []);
-
-  const handleSubmit = useCallback(
-    (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      const formData = new FormData(e.currentTarget);
-
-      const quantityStr = formData.get("quantity") as string;
-      const minStockLevelStr = formData.get("minStockLevel") as string;
-      const expiryDateStr = formData.get("expiryDate") as string;
-      const lastRestockedStr = formData.get("lastRestocked") as string;
-      const resolvedCategory = category || "medicine";
-
-      // rerender-transitions: mutateAsync を useTransition で包んで pending を管理
-      startSaveTransition(async () => {
-        try {
-          if (isEdit && id) {
-            const req: UpdateInventoryItemRequest = {
-              name: formData.get("name") as string,
-              category: resolvedCategory,
-              quantity: quantityStr ? Number(quantityStr) : undefined,
-              unit: formData.get("unit") as string,
-              min_stock_level: minStockLevelStr
-                ? Number(minStockLevelStr)
-                : undefined,
-              location: (formData.get("location") as string) || undefined,
-              expiry_date: expiryDateStr || undefined,
-              supplier: (formData.get("supplier") as string) || undefined,
-              last_restocked: lastRestockedStr || undefined,
-            };
-            await updateMutation.mutateAsync({ id, req });
-          } else {
-            const req: CreateInventoryItemRequest = {
-              name: formData.get("name") as string,
-              category: resolvedCategory,
-              quantity: quantityStr ? Number(quantityStr) : 0,
-              unit: formData.get("unit") as string,
-              min_stock_level: minStockLevelStr
-                ? Number(minStockLevelStr)
-                : 0,
-              location: (formData.get("location") as string) || undefined,
-              expiry_date: expiryDateStr || undefined,
-              supplier: (formData.get("supplier") as string) || undefined,
-            };
-            await createMutation.mutateAsync(req);
-          }
-          markClean();
-          navigate(paths.inventory.getHref());
-        } catch (error) {
-          handleApiError(error, "保存");
-        }
-      });
-    },
-    // rerender-dependencies: オブジェクト全体でなく primitive を deps に入れる
-    [navigate, isEdit, id, category, createMutation, updateMutation, markClean]
-  );
+  }, [setLastRestocked]);
 
   if (isEdit && isLoading) {
     return (
@@ -394,6 +335,7 @@ export function InventoryForm() {
       headerAction={
         <Button
           variant="ghost"
+          type="button"
           className="h-10 text-sm gap-2"
           onClick={handleBack}
         >
@@ -403,8 +345,8 @@ export function InventoryForm() {
       }
       maxWidth="max-w-3xl"
     >
-      <NavigationBlocker when={isDirty && !isSavePending} />
-      <form onSubmit={handleSubmit} onChange={markDirty} className="space-y-6">
+      <NavigationBlocker when={isDirty && !isPending} />
+      <form action={formAction} onChange={markDirty} className="space-y-6">
         <BasicInfoSection
           defaultName={existingItem?.name}
           defaultUnit={existingItem?.unit}
@@ -440,10 +382,10 @@ export function InventoryForm() {
           >
             キャンセル
           </Button>
-          <PrimaryButton type="submit" disabled={isSavePending}>
+          <SubmitButton className="h-10">
             <Save className={`mr-1.5 ${ICON.action}`} />
             {isEdit ? "更新" : "登録"}
-          </PrimaryButton>
+          </SubmitButton>
         </div>
       </form>
     </PageLayout>

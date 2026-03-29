@@ -5,7 +5,7 @@
  */
 
 // features（app層なので両 feature を import 可能）
-import { OwnerForm } from "@/features/owners/routes/OwnerForm";
+import { OwnerForm } from "@/features/owners";
 import { createPet, useCreatePet } from "@/features/pets/api/create-pet";
 import { useUpdatePet } from "@/features/pets/api/update-pet";
 import { useDeletePet } from "@/features/pets/api/delete-pet";

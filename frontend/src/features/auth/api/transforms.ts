@@ -52,8 +52,8 @@ export const backendMeResponseSchema = z.object({
   // clinic は /me レスポンスのメイン医院詳細。未所属の場合は null
   clinic: meClinicInfoSchema.nullable().optional(),
   clinics: z.array(clinicMembershipSchema),
-  // permissions: clinicId → resource → CRUD（BEがUNION計算済み）
-  permissions: z.record(z.string(), z.record(z.string(), resourcePermissionSchema)),
+  // permissions: resource → CRUD（BEがUNION計算済みのフラット構造）
+  permissions: z.record(z.string(), resourcePermissionSchema),
 });
 
 export type BackendMeResponse = z.infer<typeof backendMeResponseSchema>;

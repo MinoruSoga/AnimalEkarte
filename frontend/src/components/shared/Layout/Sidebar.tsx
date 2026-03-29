@@ -31,8 +31,46 @@ import {
 import { useState, useEffect, useMemo, memo } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 import { paths } from "@/config/paths";
+import {
+  ResourceDashboard,
+  ResourceOwners,
+  ResourceReservations,
+  ResourceMedicalRecords,
+  ResourceExaminations,
+  ResourceAccounting,
+  ResourceHospitalization,
+  ResourceVaccinations,
+  ResourceCheckups,
+  ResourceInventory,
+  ResourceShifts,
+  ResourceTrimming,
+  ResourceMaster,
+  ResourceHospitalSettings,
+} from "@/types/generated/models";
 import type { MenuItem } from "@/types";
+
+/* ================================================================== */
+/*  SidebarItemWithPermission — resource がある場合のみ権限チェック    */
+/* ================================================================== */
+
+interface SidebarItemWithPermissionProps {
+  item: MenuItem;
+  collapsed?: boolean;
+}
+
+const SidebarItemWithPermission = memo(function SidebarItemWithPermission({
+  item,
+  collapsed = false,
+}: SidebarItemWithPermissionProps) {
+  // hooks のルール: 常に呼び出す。resource が空の場合は hasPermission で管理者バイパスが効くため
+  // resource フィールドがない項目（"" を渡す）は常に表示したいので別の方法を使う。
+  // resource が undefined の場合は権限チェックをスキップ（常に表示）
+  const { canView } = usePermission(item.resource ?? "");
+  if (item.resource !== undefined && !canView) return null;
+  return <SidebarItem item={item} collapsed={collapsed} level={0} />;
+});
 
 /* ================================================================== */
 /*  SidebarItem                                                        */
@@ -174,25 +212,26 @@ export function Sidebar() {
   }, []);
 
   const menuItems: MenuItem[] = useMemo(() => [
-    { icon: <LayoutDashboard className={ICON.toolbar} />, label: "当日の受付",  path: paths.home.getHref() },
-    { icon: <Users         className={ICON.toolbar} />, label: "飼主・ペット", path: paths.owners.getHref() },
-    { icon: <Calendar      className={ICON.toolbar} />, label: "予約管理",     path: paths.reservations.getHref() },
-    { icon: <FileText      className={ICON.toolbar} />, label: "カルテ",       path: paths.medicalRecords.getHref() },
-    { icon: <TestTube      className={ICON.toolbar} />, label: "検査管理",     path: paths.examinations.getHref() },
-    { icon: <CreditCard    className={ICON.toolbar} />, label: "会計管理",     path: paths.accounting.getHref() },
-    { icon: <Bed           className={ICON.toolbar} />, label: "入院・ホテル", path: paths.hospitalization.getHref() },
-    { icon: <Syringe       className={ICON.toolbar} />, label: "予防接種",     path: paths.vaccinations.getHref() },
-    { icon: <ClipboardCheck className={ICON.toolbar} />, label: "定期健診",    path: "/checkups" },
-    { icon: <Package       className={ICON.toolbar} />, label: "在庫管理",     path: paths.inventory.getHref() },
-    { icon: <CalendarDays  className={ICON.toolbar} />, label: "シフト管理",   path: paths.shifts.getHref() },
-    { icon: <Scissors      className={ICON.toolbar} />, label: "トリミング",   path: paths.trimming.getHref() },
+    { icon: <LayoutDashboard className={ICON.toolbar} />, label: "当日の受付",  path: paths.home.getHref(),            resource: ResourceDashboard },
+    { icon: <Users         className={ICON.toolbar} />, label: "飼主・ペット", path: paths.owners.getHref(),          resource: ResourceOwners },
+    { icon: <Calendar      className={ICON.toolbar} />, label: "予約管理",     path: paths.reservations.getHref(),    resource: ResourceReservations },
+    { icon: <FileText      className={ICON.toolbar} />, label: "カルテ",       path: paths.medicalRecords.getHref(),  resource: ResourceMedicalRecords },
+    { icon: <TestTube      className={ICON.toolbar} />, label: "検査管理",     path: paths.examinations.getHref(),    resource: ResourceExaminations },
+    { icon: <CreditCard    className={ICON.toolbar} />, label: "会計管理",     path: paths.accounting.getHref(),      resource: ResourceAccounting },
+    { icon: <Bed           className={ICON.toolbar} />, label: "入院・ホテル", path: paths.hospitalization.getHref(), resource: ResourceHospitalization },
+    { icon: <Syringe       className={ICON.toolbar} />, label: "予防接種",     path: paths.vaccinations.getHref(),    resource: ResourceVaccinations },
+    { icon: <ClipboardCheck className={ICON.toolbar} />, label: "定期健診",    path: "/checkups",                     resource: ResourceCheckups },
+    { icon: <Package       className={ICON.toolbar} />, label: "在庫管理",     path: paths.inventory.getHref(),       resource: ResourceInventory },
+    { icon: <CalendarDays  className={ICON.toolbar} />, label: "シフト管理",   path: paths.shifts.getHref(),          resource: ResourceShifts },
+    { icon: <Scissors      className={ICON.toolbar} />, label: "トリミング",   path: paths.trimming.getHref(),        resource: ResourceTrimming },
     {
       icon: <Settings className={ICON.toolbar} />,
       label: "マスタ設定",
       path: paths.settings.getHref(),
+      resource: ResourceMaster,
       subItems: [
         // 基本設定
-        { icon: <Building2    className={ICON.toolbar} />, label: "医院",       path: paths.settings.clinic.getHref() },
+        { icon: <Building2    className={ICON.toolbar} />, label: "医院",       path: paths.settings.clinic.getHref(), resource: ResourceHospitalSettings },
         { icon: <PawPrint     className={ICON.toolbar} />, label: "動物種類",   path: paths.settings.animalSpecies.getHref() },
         // カルテ
         {
@@ -264,7 +303,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav aria-label="メインナビゲーション" className="flex-1 px-1 py-2 space-y-px overflow-y-auto">
         {menuItems.map(item => (
-          <SidebarItem key={item.label} item={item} collapsed={collapsed} />
+          <SidebarItemWithPermission key={item.label} item={item} collapsed={collapsed} />
         ))}
       </nav>
 

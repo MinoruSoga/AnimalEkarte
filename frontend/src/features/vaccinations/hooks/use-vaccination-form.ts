@@ -1,4 +1,4 @@
-import { useState, useEffect, useTransition, useCallback, useMemo } from "react";
+import { useState, useEffect, useTransition, useCallback, useMemo, useActionState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { paths } from "@/config/paths";
 import { usePetSelection } from "@/hooks/use-pet-selection";
@@ -79,7 +79,47 @@ export function useVaccinationForm(id?: string) {
     setLocalOverrides((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  const [isSaveTransitionPending, startSaveTransition] = useTransition();
+  interface FormState {
+    success: boolean;
+    timestamp: number;
+  }
+
+  /**
+   * React 19 useActionState を使用したフォームアクション
+   */
+  const [formState, formAction, isPending] = useActionState(
+    async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
+      try {
+        if (isEdit && id) {
+          const toRFC3339 = (d: string) => d ? `${d}T00:00:00Z` : undefined;
+          const req: UpdateVaccinationRequest = {
+            date: toRFC3339(formData.date),
+            next_date: formData.nextDate ? `${formData.nextDate}T00:00:00Z` : null,
+            lot1: formData.lot1 || undefined,
+            remarks: formData.remarks || undefined,
+          };
+          await updateMutation.mutateAsync({ id, req });
+        } else {
+          const pet = selectedPets[0];
+          if (!pet) return { success: false, timestamp: Date.now() };
+          const req: CreateVaccinationRequest = {
+            medical_record_id: null,
+            pet_id: Number(pet.id),
+            vaccine_id: Number(formData.vaccineId),
+            date: formData.date ? `${formData.date}T00:00:00Z` : new Date().toISOString(),
+            next_date: formData.nextDate ? `${formData.nextDate}T00:00:00Z` : null,
+            lot1: formData.lot1 || undefined,
+            remarks: formData.remarks || undefined,
+          };
+          await createMutation.mutateAsync(req);
+        }
+        return { success: true, timestamp: Date.now() };
+      } catch (error) {
+        return { success: false, timestamp: Date.now() };
+      }
+    },
+    { success: false, timestamp: 0 }
+  );
 
   // History Filter State
   const [filterStartDate, setFilterStartDate] = useState("");
@@ -105,44 +145,11 @@ export function useVaccinationForm(id?: string) {
     }
   }, [isEdit, petFromEdit, setSelectedPets]);
 
-  const handleSave = () => {
-    startSaveTransition(() => {
-      if (isEdit && id) {
-        const toRFC3339 = (d: string) => d ? `${d}T00:00:00Z` : undefined;
-        const req: UpdateVaccinationRequest = {
-          date: toRFC3339(formData.date),
-          next_date: formData.nextDate ? `${formData.nextDate}T00:00:00Z` : null,
-          lot1: formData.lot1 || undefined,
-          remarks: formData.remarks || undefined,
-        };
-        updateMutation.mutate(
-          { id, req },
-          { onSuccess: () => navigate(paths.vaccinations.getHref()) }
-        );
-      } else {
-        const pet = selectedPets[0];
-        if (!pet) return;
-        const req: CreateVaccinationRequest = {
-          medical_record_id: null,
-          pet_id: Number(pet.id),
-          vaccine_id: Number(formData.vaccineId),
-          date: formData.date ? `${formData.date}T00:00:00Z` : new Date().toISOString(),
-          next_date: formData.nextDate ? `${formData.nextDate}T00:00:00Z` : null,
-          lot1: formData.lot1 || undefined,
-          remarks: formData.remarks || undefined,
-        };
-        createMutation.mutate(req, {
-          onSuccess: () => navigate(paths.vaccinations.getHref()),
-        });
-      }
-    });
-  };
-
   const handleClearHistoryFilter = () => {
     setHistorySearchTerm("");
   };
 
-  const isSaving = createMutation.isPending || updateMutation.isPending || isSaveTransitionPending;
+  const isSaving = isPending;
 
   const setVaccineId = useCallback((v: string) => setField("vaccineId", v), [setField]);
   const setDate = useCallback((v: string) => setField("date", v), [setField]);
@@ -200,7 +207,8 @@ export function useVaccinationForm(id?: string) {
       sortOrder, setSortOrder,
       handleClearHistoryFilter,
     },
-    handleSave,
+    formAction,
+    formState,
     isSaving,
   };
 }

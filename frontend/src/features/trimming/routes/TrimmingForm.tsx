@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { MasterSelectTrigger } from "@/components/shared/MasterSelectModal";
 import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
@@ -403,11 +403,22 @@ export function TrimmingForm() {
     handleCompletedImageChange,
     removeStyleImage,
     removeCompletedImage,
-    handleSave,
+    formAction,
+    formState,
     handleDelete,
     isSaving,
     isDeleting,
   } = useTrimmingForm(id);
+
+  // React 19 Action の成功を検知して遷移
+  useEffect(() => {
+    if (formState.success) {
+      markClean();
+      const redirectPath: string =
+        typeof location.state?.from === "string" ? location.state.from : "/trimming";
+      navigate(redirectPath);
+    }
+  }, [formState.success, formState.timestamp, navigate, markClean, location.state]);
 
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
@@ -450,10 +461,6 @@ export function TrimmingForm() {
     markDirty();
     setFormData(updates);
   }, [markDirty, setFormData]);
-
-  const handleSaveClick = useCallback(() => {
-    handleSave(markClean);
-  }, [handleSave, markClean]);
 
   const handleDeleteClick = useCallback(() => {
     handleDelete(() => {
@@ -517,6 +524,7 @@ export function TrimmingForm() {
             <Button
               onClick={() => setDeleteConfirmOpen(true)}
               variant="ghost-danger"
+              type="button"
               className="h-10 rounded-[6px] text-sm px-4"
               disabled={isDeleting}
             >
@@ -524,15 +532,15 @@ export function TrimmingForm() {
               削除
             </Button>
           ) : null}
-          <PrimaryButton onClick={handleSaveClick} disabled={isSaving} className="h-10">
-            {isSaving ? "保存中..." : "保存"}
-          </PrimaryButton>
+          <SubmitButton className="h-10">
+            保存
+          </SubmitButton>
         </div>
       }
     >
       {/* NavigationBlocker: isSaving 中はブロック無効化 */}
       <NavigationBlocker when={isDirty && !isSaving} />
-
+      <form action={formAction}>
       {/* rendering-conditional-render: && → ? ... : null */}
       {selectedPet ? (
         <div className="space-y-6">
@@ -623,6 +631,7 @@ export function TrimmingForm() {
           onConfirm={handleDeleteClick}
         />
       </Suspense>
+      </form>
     </PageLayout>
   );
 }

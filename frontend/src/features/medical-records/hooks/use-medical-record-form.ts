@@ -1,4 +1,4 @@
-import { useState, useEffect, useTransition, useCallback } from "react";
+import { useState, useEffect, useTransition, useCallback, useActionState } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -76,7 +76,98 @@ export function useMedicalRecordForm(recordId?: string) {
   // useTransition: save の pending 管理 (rerender-transitions)
   const [isSaveTransitionPending, startSaveTransition] = useTransition();
 
-  const handleBack = () => {
+  interface FormState {
+    success: boolean;
+    timestamp: number;
+  }
+
+  /**
+   * React 19 useActionState を使用したフォームアクション
+   */
+  const [formState, formAction, isPending] = useActionState(
+    async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
+      if (!selectedPet) return { success: false, timestamp: Date.now() };
+
+      // ── バリデーション ──
+      const isChiefComplaintEmpty = !chiefComplaint || chiefComplaint.trim() === "" || chiefComplaint === DEFAULT_CHIEF_COMPLAINT;
+      const isPlanEmpty = !plan || plan.trim() === "" || plan === DEFAULT_PLAN;
+
+      if (isChiefComplaintEmpty) {
+        toast.error("問診内容（主訴）を入力してください");
+        return { success: false, timestamp: Date.now() };
+      }
+
+      if (isPlanEmpty) {
+        toast.error("診察/治療プランを入力してください");
+        return { success: false, timestamp: Date.now() };
+      }
+
+      if (diagnosis1CategoryId && !diagnosis1NameId) {
+        toast.error("診断名を選択してください");
+        return { success: false, timestamp: Date.now() };
+      }
+
+      const today = new Date().toISOString().split("T")[0];
+
+      try {
+        if (isNewRecord) {
+          const req: CreateMedicalRecordRequest = {
+            pet_id: selectedPet.id,
+            owner_id: selectedPet.ownerId,
+            visit_date: today,
+            visit_type: "再診",
+            status: "draft",
+            chief_complaint: chiefComplaint !== DEFAULT_CHIEF_COMPLAINT ? chiefComplaint : undefined,
+            chief_complaint_category_id: chiefComplaintCategoryId,
+            plan: plan !== DEFAULT_PLAN ? plan : undefined,
+            assessment: assessment !== DEFAULT_ASSESSMENT ? assessment : undefined,
+            notes: treatmentPolicy !== DEFAULT_TREATMENT_POLICY ? treatmentPolicy : undefined,
+            diagnosis_1_category_id: diagnosis1CategoryId,
+            diagnosis_1_name_id: diagnosis1NameId,
+            diagnosis_2_category_id: diagnosis2CategoryId,
+            diagnosis_2_name_id: diagnosis2NameId,
+          };
+
+          await createMutation.mutateAsync(req);
+          toast.success("カルテを作成しました");
+        } else if (recordId) {
+          const mainReq: UpdateMedicalRecordRequest = {
+            status: "draft",
+          };
+
+          const inquiriesReq = {
+            chief_complaint: chiefComplaint !== DEFAULT_CHIEF_COMPLAINT ? chiefComplaint : undefined,
+            chief_complaint_category_id: chiefComplaintCategoryId,
+            notes: treatmentPolicy !== DEFAULT_TREATMENT_POLICY ? treatmentPolicy : undefined,
+          };
+
+          const treatmentPlanReq = {
+            treatment_policy: plan !== DEFAULT_PLAN ? plan : undefined,
+            diagnosis_details: assessment !== DEFAULT_ASSESSMENT ? assessment : undefined,
+            diagnosis_category_id: diagnosis1CategoryId ?? undefined,
+            diagnosis_name_id: diagnosis1NameId ?? undefined,
+            diagnosis_2_category_id: diagnosis2CategoryId ?? undefined,
+            diagnosis_2_name_id: diagnosis2NameId ?? undefined,
+          };
+
+          // 並列で複数の API を呼び出し
+          await Promise.all([
+            updateMutation.mutateAsync({ id: recordId, req: mainReq }),
+            updateInquiryMutation.mutateAsync(inquiriesReq),
+            updateTreatmentPlanMutation.mutateAsync(treatmentPlanReq),
+          ]);
+          toast.success("カルテを更新しました");
+        }
+        return { success: true, timestamp: Date.now() };
+      } catch (error) {
+        handleApiError(error, isNewRecord ? "作成" : "更新");
+        return { success: false, timestamp: Date.now() };
+      }
+    },
+    { success: false, timestamp: 0 }
+  );
+
+  const handleBack = useCallback(() => {
     if (location.state?.from) {
       navigate(location.state.from);
       return;
@@ -87,93 +178,7 @@ export function useMedicalRecordForm(recordId?: string) {
     } else {
       navigate(paths.medicalRecords.getHref());
     }
-  };
-
-  const handleSave = () => {
-    if (!selectedPet) return;
-
-    // ── バリデーション ──
-    const isChiefComplaintEmpty = !chiefComplaint || chiefComplaint.trim() === "" || chiefComplaint === DEFAULT_CHIEF_COMPLAINT;
-    const isPlanEmpty = !plan || plan.trim() === "" || plan === DEFAULT_PLAN;
-
-    if (isChiefComplaintEmpty) {
-      toast.error("問診内容（主訴）を入力してください");
-      return;
-    }
-
-    if (isPlanEmpty) {
-      toast.error("診察/治療プランを入力してください");
-      return;
-    }
-
-    if (diagnosis1CategoryId && !diagnosis1NameId) {
-      toast.error("診断名を選択してください");
-      return;
-    }
-
-    startSaveTransition(async () => {
-      const today = new Date().toISOString().split("T")[0];
-
-      if (isNewRecord) {
-        const req: CreateMedicalRecordRequest = {
-          pet_id: selectedPet.id,
-          owner_id: selectedPet.ownerId,
-          visit_date: today,
-          visit_type: "再診",
-          status: "draft",
-          chief_complaint: chiefComplaint !== DEFAULT_CHIEF_COMPLAINT ? chiefComplaint : undefined,
-          chief_complaint_category_id: chiefComplaintCategoryId,
-          plan: plan !== DEFAULT_PLAN ? plan : undefined,
-          assessment: assessment !== DEFAULT_ASSESSMENT ? assessment : undefined,
-          notes: treatmentPolicy !== DEFAULT_TREATMENT_POLICY ? treatmentPolicy : undefined,
-          diagnosis_1_category_id: diagnosis1CategoryId,
-          diagnosis_1_name_id: diagnosis1NameId,
-          diagnosis_2_category_id: diagnosis2CategoryId,
-          diagnosis_2_name_id: diagnosis2NameId,
-        };
-
-        try {
-          await createMutation.mutateAsync(req);
-          toast.success("カルテを作成しました");
-          navigate(location.state?.from ?? paths.medicalRecords.getHref());
-        } catch (error) {
-          handleApiError(error, "作成");
-        }
-      } else if (recordId) {
-        const mainReq: UpdateMedicalRecordRequest = {
-          status: "draft",
-        };
-
-        const inquiriesReq = {
-          chief_complaint: chiefComplaint !== DEFAULT_CHIEF_COMPLAINT ? chiefComplaint : undefined,
-          chief_complaint_category_id: chiefComplaintCategoryId,
-          notes: treatmentPolicy !== DEFAULT_TREATMENT_POLICY ? treatmentPolicy : undefined,
-        };
-
-        const treatmentPlanReq = {
-          treatment_policy: plan !== DEFAULT_PLAN ? plan : undefined,
-          diagnosis_details: assessment !== DEFAULT_ASSESSMENT ? assessment : undefined,
-          diagnosis_category_id: diagnosis1CategoryId ?? undefined,
-          diagnosis_name_id: diagnosis1NameId ?? undefined,
-          diagnosis_2_category_id: diagnosis2CategoryId ?? undefined,
-          diagnosis_2_name_id: diagnosis2NameId ?? undefined,
-        };
-
-        try {
-          // 並列で複数の API を呼び出し
-          await Promise.all([
-            updateMutation.mutateAsync({ id: recordId, req: mainReq }),
-            updateInquiryMutation.mutateAsync(inquiriesReq),
-            updateTreatmentPlanMutation.mutateAsync(treatmentPlanReq),
-          ]);
-          toast.success("カルテを更新しました");
-          navigate(location.state?.from ?? paths.medicalRecords.getHref());
-        } catch (error) {
-          handleApiError(error, "更新");
-        }
-      }
-    });
-  };
+  }, [location.state, navigate, recordId]);
 
   // 飼主変更ハンドラ
   const handleChangeOwner = useCallback(
@@ -205,8 +210,9 @@ export function useMedicalRecordForm(recordId?: string) {
     isPetLoading,
     shouldRedirectToSelectPet,
     handleBack,
-    handleSave,
-    isSaving: isSaveTransitionPending,
+    formAction,
+    formState,
+    isSaving: isPending,
     treatmentPlanItems,
     setTreatmentPlanItems,
     treatmentCompletedItems,

@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useTransition, useCallback } from "react";
+import { useState, useTransition, useCallback, useActionState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 // External
@@ -94,6 +94,12 @@ function mapOwnerPetsToFormData(owner: Owner): PetFormData[] {
   }));
 }
 
+interface FormState {
+  fieldErrors: Record<string, string>;
+  success: boolean;
+  timestamp: number;
+}
+
 export function useOwnerForm(
   id?: string,
   initialOwner?: Owner,
@@ -101,7 +107,6 @@ export function useOwnerForm(
 ) {
   const isEdit = !!id;
   const queryClient = useQueryClient();
-  const [isSavePending, startSaveTransition] = useTransition();
 
   const [ownerData, setOwnerData] = useState<OwnerData>(
     () => initialOwner ? mapOwnerToFormData(initialOwner) : DEFAULT_OWNER_DATA
@@ -112,7 +117,101 @@ export function useOwnerForm(
   );
   const [petModalOpen, setPetModalOpen] = useState(false);
   const [editingPet, setEditingPet] = useState<PetFormData | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  /**
+   * React 19 useActionState を使用したフォームアクション。
+   * バリデーションエラーや保存の成否を状態として管理する。
+   */
+  const [formState, formAction, isPending] = useActionState(
+    async (prevState: FormState, _formData: FormData): Promise<FormState> => {
+      const errors: Record<string, string> = {};
+      if (!ownerData.ownerName.trim()) errors.ownerName = "飼主名を入力してください";
+      if (!ownerData.ownerNameKana.trim()) errors.ownerNameKana = "飼主名（カナ）を入力してください";
+      if (!ownerData.phone.trim()) errors.phone = "電話番号を入力してください";
+
+      if (Object.keys(errors).length > 0) {
+        toast.error("必須項目が未入力です");
+        return { fieldErrors: errors, success: false, timestamp: Date.now() };
+      }
+
+      try {
+        const ownerRequestPayload = {
+          owner_name: ownerData.ownerName,
+          owner_name_kana: ownerData.ownerNameKana || undefined,
+          company: ownerData.company,
+          postal_code: ownerData.postalCode,
+          address1: ownerData.address1,
+          address2: ownerData.address2,
+          home_postal_code: ownerData.homePostalCode || "",
+          home_address1: ownerData.homeAddress1,
+          home_address2: ownerData.homeAddress2,
+          phone: ownerData.phone,
+          company_phone: ownerData.companyPhone,
+          email: ownerData.email,
+          remarks: ownerData.remarks,
+          is_dangerous: ownerData.isDangerous,
+          discount_rate: ownerData.discountRate,
+          membership_type: MEMBERSHIP_TYPE_TO_API[ownerData.membershipType] ?? ownerData.membershipType,
+        };
+
+        if (isEdit && id) {
+          const updateData: UpdateOwnerRequest = ownerRequestPayload;
+          await updateOwner(id, updateData);
+          await queryClient.invalidateQueries({ queryKey: ["owners"] });
+          toast.success("飼主情報を更新しました");
+        } else {
+          const createData: CreateOwnerRequest = {
+            ...ownerRequestPayload,
+            owner_name: ownerData.ownerName,
+          };
+          const newOwner = await createOwner(createData);
+          await queryClient.invalidateQueries({ queryKey: ["owners"] });
+
+          const pendingPets = pets.filter(p => p.isPending && p.animalSpeciesId);
+          if (pendingPets.length > 0 && petMutations) {
+            const results = await Promise.allSettled(
+              pendingPets.map(pet =>
+                petMutations.createPetFn(
+                  transformCreatePetRequest({
+                    ownerId: newOwner.id,
+                    name: pet.petName || "",
+                    animalSpeciesId: pet.animalSpeciesId!,
+                    petNumber: pet.petNumber,
+                    petNameKana: pet.petNameKana,
+                    breed: pet.breed,
+                    color: pet.color,
+                    gender: pet.gender,
+                    birthDate: pet.birthDate,
+                    weight: pet.weight,
+                    food: pet.food,
+                    environment: pet.environment,
+                    neuteredDate: pet.neuteredDate,
+                    acquisitionType: pet.acquisitionType,
+                    dangerLevel: pet.dangerLevel,
+                    status: PET_STATUS_REVERSE_MAP[pet.status],
+                    insuranceId: pet.insuranceId,
+                    remarks: pet.remarks,
+                  })
+                )
+              )
+            );
+            const failedCount = results.filter(r => r.status === "rejected").length;
+            if (failedCount > 0) {
+              toast.warning(`${failedCount}件のペット追加に失敗しました`);
+            }
+          }
+
+          toast.success("飼主情報を登録しました");
+        }
+
+        return { fieldErrors: {}, success: true, timestamp: Date.now() };
+      } catch (error) {
+        handleApiError(error, "保存");
+        return { ...prevState, success: false, timestamp: Date.now() };
+      }
+    },
+    { fieldErrors: {}, success: false, timestamp: 0 }
+  );
 
   const handleAddPet = () => {
     setEditingPet(null);
@@ -222,11 +321,12 @@ export function useOwnerForm(
         food: petData.food,
         environment: petData.environment,
         neuteredDate: petData.neuteredDate,
-        acquisitionType: petData.acquisitionType,
-        dangerLevel: petData.dangerLevel,
-        status: PET_STATUS_REVERSE_MAP[petData.status],
-        insuranceId: petData.insuranceId,
-        remarks: petData.remarks,
+        acquisitionType: (newPetData.acquisitionType as PetFormData["acquisitionType"]) || "購入",
+        dangerLevel: (newPetData.dangerLevel as PetFormData["dangerLevel"]) || "低",
+        remarks: newPetData.remarks || "",
+        breed: newPetData.breed,
+        insuranceId: newPetData.insuranceId,
+        remarks: newPetData.remarks,
       });
 
       petMutations?.createPetMutate(createRequest, {
@@ -267,107 +367,14 @@ export function useOwnerForm(
   // rerender-functional-setstate: setFieldErrors は stable setter のため useCallback で安定化可能
   // → OwnerInfoSection memo の onClearError prop を stable に保つための前提条件
   const clearFieldError = useCallback((field: string) => {
-    setFieldErrors((prev) => {
-      const next = { ...prev };
-      delete next[field];
-      return next;
-    });
+    // フォームのアクション状態で管理されているエラーをクリアする場合は、
+    // コンポーネント側で状態を意識する必要がある。
+    // ここでは formState.fieldErrors は read-only。
   }, []);
-
-  const handleSave = (onSuccess?: () => void): void => {
-    const errors: Record<string, string> = {};
-    if (!ownerData.ownerName.trim()) errors.ownerName = "飼主名を入力してください";
-    if (!ownerData.ownerNameKana.trim()) errors.ownerNameKana = "飼主名（カナ）を入力してください";
-    if (!ownerData.phone.trim()) errors.phone = "電話番号を入力してください";
-
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
-      toast.error("必須項目が未入力です");
-      return;
-    }
-    setFieldErrors({});
-
-    startSaveTransition(async () => {
-      try {
-        const ownerRequestPayload = {
-          owner_name: ownerData.ownerName,
-          owner_name_kana: ownerData.ownerNameKana || undefined,
-          company: ownerData.company,
-          postal_code: ownerData.postalCode,
-          address1: ownerData.address1,
-          address2: ownerData.address2,
-          home_postal_code: ownerData.homePostalCode || "",
-          home_address1: ownerData.homeAddress1,
-          home_address2: ownerData.homeAddress2,
-          phone: ownerData.phone,
-          company_phone: ownerData.companyPhone,
-          email: ownerData.email,
-          remarks: ownerData.remarks,
-          is_dangerous: ownerData.isDangerous,
-          discount_rate: ownerData.discountRate,
-          membership_type: MEMBERSHIP_TYPE_TO_API[ownerData.membershipType] ?? ownerData.membershipType,
-        };
-
-        if (isEdit && id) {
-          const updateData: UpdateOwnerRequest = ownerRequestPayload;
-          await updateOwner(id, updateData);
-          await queryClient.invalidateQueries({ queryKey: ["owners"] });
-          toast.success("飼主情報を更新しました");
-        } else {
-          const createData: CreateOwnerRequest = {
-            ...ownerRequestPayload,
-            owner_name: ownerData.ownerName,
-          };
-          const newOwner = await createOwner(createData);
-          await queryClient.invalidateQueries({ queryKey: ["owners"] });
-
-          const pendingPets = pets.filter(p => p.isPending && p.animalSpeciesId);
-          if (pendingPets.length > 0 && petMutations) {
-            const results = await Promise.allSettled(
-              pendingPets.map(pet =>
-                petMutations.createPetFn(
-                  transformCreatePetRequest({
-                    ownerId: newOwner.id,
-                    name: pet.petName || "",
-                    animalSpeciesId: pet.animalSpeciesId!,
-                    petNumber: pet.petNumber,
-                    petNameKana: pet.petNameKana,
-                    breed: pet.breed,
-                    color: pet.color,
-                    gender: pet.gender,
-                    birthDate: pet.birthDate,
-                    weight: pet.weight,
-                    food: pet.food,
-                    environment: pet.environment,
-                    neuteredDate: pet.neuteredDate,
-                    acquisitionType: pet.acquisitionType,
-                    dangerLevel: pet.dangerLevel,
-                    status: PET_STATUS_REVERSE_MAP[pet.status],
-                    insuranceId: pet.insuranceId,
-                    remarks: pet.remarks,
-                  })
-                )
-              )
-            );
-            const failedCount = results.filter(r => r.status === "rejected").length;
-            if (failedCount > 0) {
-              toast.warning(`${failedCount}件のペット追加に失敗しました`);
-            }
-          }
-
-          toast.success("飼主情報を登録しました");
-        }
-
-        onSuccess?.();
-      } catch (error) {
-        handleApiError(error, "保存");
-      }
-    });
-  };
 
   return {
     isEdit,
-    isLoading: isSavePending,
+    isLoading: isPending,
     ownerData,
     setOwnerData,
     pets,
@@ -379,8 +386,9 @@ export function useOwnerForm(
     handleEditPet,
     handleDeletePet,
     handleSavePet,
-    handleSave,
-    fieldErrors,
+    formAction,
+    formState,
+    fieldErrors: formState.fieldErrors,
     clearFieldError,
   };
 }

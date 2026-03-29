@@ -1,4 +1,4 @@
-import { useState, useEffect, useTransition, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useTransition, useCallback, useMemo, useRef, useActionState } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
 import { usePetSelection } from "@/hooks/use-pet-selection";
@@ -54,8 +54,63 @@ export function useTrimmingForm(id?: string) {
   const deleteMutation = useDeleteTrimming();
 
   // useTransition: save/delete の pending 管理 (rerender-transitions)
-  const [isSaveTransitionPending, startSaveTransition] = useTransition();
   const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
+
+  interface FormState {
+    success: boolean;
+    timestamp: number;
+  }
+
+  /**
+   * React 19 useActionState を使用したフォームアクション
+   */
+  const [formState, formAction, isPending] = useActionState(
+    async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
+      try {
+        if (isEdit && id) {
+          const req: UpdateTrimmingRequest = {
+            style_request: formData.styleRequest || undefined,
+            bw: formData.bw ? Number(formData.bw) : undefined,
+            bw_unit: formData.bwUnit || undefined,
+            bt: formData.bt ? Number(formData.bt) : undefined,
+            used_shampoo: formData.usedShampoo || undefined,
+            used_ribbon: formData.usedRibbon || undefined,
+            remarks: formData.remarks || undefined,
+            option_ids: formData.optionIds.length > 0 ? formData.optionIds.map(Number) : undefined,
+          };
+          await updateMutation.mutateAsync({ id, req });
+          toast.success("トリミング情報を更新しました");
+        } else {
+          const pet = selectedPets[0];
+          if (!pet) return { success: false, timestamp: Date.now() };
+          // バリデーション: staff と course は必須
+          if (!formData.staffId) {
+            toast.error("担当スタッフを選択してください");
+            return { success: false, timestamp: Date.now() };
+          }
+          if (!formData.courseId) {
+            toast.error("コースを選択してください");
+            return { success: false, timestamp: Date.now() };
+          }
+          const req: CreateTrimmingRequest = {
+            pet_id: Number(pet.id),
+            staff_id: Number(formData.staffId),
+            course_id: Number(formData.courseId),
+            date: new Date().toISOString(),
+            style_request: formData.styleRequest || undefined,
+            remarks: formData.remarks || undefined,
+          };
+          await createMutation.mutateAsync(req);
+          toast.success("トリミング情報を登録しました");
+        }
+        return { success: true, timestamp: Date.now() };
+      } catch (error) {
+        toast.error("保存に失敗しました");
+        return { success: false, timestamp: Date.now() };
+      }
+    },
+    { success: false, timestamp: 0 }
+  );
 
   const [localOverrides, setLocalOverrides] = useState<Partial<TrimmingFormData>>({});
 
@@ -165,65 +220,7 @@ export function useTrimmingForm(id?: string) {
     });
   }, [isEdit, id, deleteMutation, startDeleteTransition]);
 
-  const handleSave = useCallback((onSuccess?: () => void): boolean => {
-    const redirectPath: string =
-      typeof location.state?.from === "string" ? location.state.from : "/trimming";
-
-    startSaveTransition(() => {
-      if (isEdit && id) {
-        const req: UpdateTrimmingRequest = {
-          style_request: formData.styleRequest || undefined,
-          bw: formData.bw ? Number(formData.bw) : undefined,
-          bw_unit: formData.bwUnit || undefined,
-          bt: formData.bt ? Number(formData.bt) : undefined,
-          used_shampoo: formData.usedShampoo || undefined,
-          used_ribbon: formData.usedRibbon || undefined,
-          remarks: formData.remarks || undefined,
-          option_ids: formData.optionIds.length > 0 ? formData.optionIds.map(Number) : undefined,
-        };
-        updateMutation.mutate(
-          { id, req },
-          {
-            onSuccess: () => {
-              toast.success("トリミング情報を更新しました");
-              onSuccess?.();
-              navigate(redirectPath);
-            },
-          }
-        );
-      } else {
-        const pet = selectedPets[0];
-        if (!pet) return;
-        // バリデーション: staff と course は必須
-        if (!formData.staffId) {
-          toast.error("担当スタッフを選択してください");
-          return;
-        }
-        if (!formData.courseId) {
-          toast.error("コースを選択してください");
-          return;
-        }
-        const req: CreateTrimmingRequest = {
-          pet_id: Number(pet.id),
-          staff_id: Number(formData.staffId),
-          course_id: Number(formData.courseId),
-          date: new Date().toISOString(),
-          style_request: formData.styleRequest || undefined,
-          remarks: formData.remarks || undefined,
-        };
-        createMutation.mutate(req, {
-          onSuccess: () => {
-            toast.success("トリミング情報を登録しました");
-            onSuccess?.();
-            navigate(redirectPath);
-          },
-        });
-      }
-    });
-    return true;
-  }, [isEdit, id, formData, selectedPets, location.state, updateMutation, createMutation, navigate, startSaveTransition]);
-
-  const isSaving = createMutation.isPending || updateMutation.isPending || isSaveTransitionPending;
+  const isSaving = isPending;
   const isDeleting = deleteMutation.isPending || isDeleteTransitionPending;
   const mode = isEdit ? ("edit" as const) : ("new" as const);
 
@@ -238,7 +235,8 @@ export function useTrimmingForm(id?: string) {
     handleCompletedImageChange,
     removeStyleImage,
     removeCompletedImage,
-    handleSave,
+    formAction,
+    formState,
     handleDelete,
     isSaving,
     isDeleting,

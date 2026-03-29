@@ -1,6 +1,6 @@
 // React/Framework
 import { lazy, memo, Suspense, useCallback, useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router";
 
 // External
 import { HeartPulse, Trash2 } from "lucide-react";
@@ -8,6 +8,7 @@ import { HeartPulse, Trash2 } from "lucide-react";
 // Internal
 import { paths } from "@/config/paths";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
@@ -37,6 +38,7 @@ import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { id: recordId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     isNewRecord,
     activeTab,
@@ -45,7 +47,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     isPetLoading,
     shouldRedirectToSelectPet,
     handleBack,
-    handleSave,
+    formAction,
+    formState,
     isSaving,
     treatmentPlanItems,
     setTreatmentPlanItems,
@@ -70,6 +73,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     ownerDiscountRate,
     handleChangeOwner,
   } = useMedicalRecordForm(recordId);
+
+  // React 19 Action の成功を検知して遷移
+  useEffect(() => {
+    if (formState.success) {
+      markClean();
+      navigate(location.state?.from ?? paths.medicalRecords.getHref());
+    }
+  }, [formState.success, formState.timestamp, navigate, markClean, location.state]);
 
   const { user } = useAuth();
 
@@ -165,11 +176,6 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setTreatmentPlanItems(items);
   }, [markDirty, setTreatmentPlanItems]);
 
-  const handleSaveClick = useCallback(() => {
-    markClean();
-    handleSave();
-  }, [markClean, handleSave]);
-
   const handleSelectStaff = useCallback((newStaffName: string) => {
     setStaffName(newStaffName);
   }, []);
@@ -187,6 +193,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   }
 
   return (
+    <form action={formAction}>
     <PageLayout
       title={recordId ? "カルテ編集" : "カルテ入力"}
       onBack={handleBack}
@@ -348,13 +355,11 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               バイタル記録
             </Button>
           ) : null}
-          <Button
-            onClick={handleSaveClick}
-            disabled={isSaving}
+          <SubmitButton
             className={`${STYLE.btnPrimary} px-5`}
           >
-            {isSaving ? "保存中..." : "保存"}
-          </Button>
+            保存
+          </SubmitButton>
         </div>
       ) : null}
 
@@ -417,5 +422,6 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         </Suspense>
       ) : null}
     </PageLayout>
+    </form>
   );
 });

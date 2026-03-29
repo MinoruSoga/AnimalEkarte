@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, lazy, Suspense, memo, useCallback } from "react";
+import { useState, lazy, Suspense, memo, useCallback, useEffect } from "react";
 import { useNavigate, useParams, useLoaderData } from "react-router";
 
 // External
@@ -46,6 +46,7 @@ import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
@@ -451,10 +452,19 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
     handleEditPet,
     handleDeletePet,
     handleSavePet,
-    handleSave,
+    formAction,
+    formState,
     fieldErrors,
     clearFieldError,
   } = useOwnerForm(ownerId, initialOwner, petMutations);
+
+  // React 19 Action の成功を検知して遷移
+  useEffect(() => {
+    if (formState.success) {
+      markClean();
+      navigate(paths.owners.getHref());
+    }
+  }, [formState.success, formState.timestamp, navigate, markClean]);
 
   const handleBack = () => {
     navigate(paths.owners.getHref());
@@ -484,13 +494,6 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
     setOwnerData(prev => ({ ...prev, [field]: value }));
     markDirty();
   }, [setOwnerData, markDirty]);
-
-  const handleSubmit = () => {
-    handleSave(() => {
-      markClean();
-      navigate(paths.owners.getHref());
-    });
-  };
 
   const handleConfirmDeletePet = () => {
     if (deletePetTarget) {
@@ -523,22 +526,18 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
   );
 
   return (
-    <PageLayout
-      title={isEdit ? "飼主・ペット　編集" : "飼主・ペット　登録"}
-      onBack={handleBack}
-      maxWidth="max-w-[1400px]"
-      headerAction={
-        <Button
-          size="sm"
-          onClick={handleSubmit}
-          className={`${STYLE.confirmPrimary} px-4`}
-          disabled={isLoading}
-        >
-          {isLoading ? "保存中..." : isEdit ? "更新" : "登録"}
-        </Button>
-      }
-    >
-      <NavigationBlocker when={isDirty && !isLoading} />
+    <form action={formAction}>
+      <PageLayout
+        title={isEdit ? "飼主・ペット　編集" : "飼主・ペット　登録"}
+        onBack={handleBack}
+        maxWidth="max-w-[1400px]"
+        headerAction={
+          <SubmitButton size="sm">
+            {isEdit ? "更新" : "登録"}
+          </SubmitButton>
+        }
+      >
+        <NavigationBlocker when={isDirty && !isLoading} />
 
       {/* Owner Information Form */}
       {/* rerender-memo: OwnerInfoSection はペット操作・モーダル開閉では再レンダーしない */}
@@ -629,5 +628,6 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
         variant="destructive"
       />
     </PageLayout>
+    </form>
   );
 }

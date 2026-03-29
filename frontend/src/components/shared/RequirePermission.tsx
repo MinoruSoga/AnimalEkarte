@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
+import type { Resource } from "@/types/generated/models";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import type { ResourceAction } from "@/features/auth/types";
 
 interface RequirePermissionProps {
-  resource: string;
+  resource: Resource;
   action?: ResourceAction;
   children: ReactNode;
   /** 権限がない場合に表示するフォールバック。省略時は AccessDenied を表示 */

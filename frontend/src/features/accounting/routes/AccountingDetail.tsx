@@ -1,6 +1,6 @@
 // React/Framework
 import { ICON } from "@/lib/design-tokens";
-import { useState, useMemo, useCallback, memo, useTransition, lazy, Suspense, useDeferredValue } from "react";
+import { useState, useMemo, useCallback, memo, useTransition, lazy, Suspense, useDeferredValue, useActionState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 
 // External
@@ -65,6 +65,7 @@ const AccountingDocument = lazy(() =>
 import { paths } from "@/config/paths";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 
 // Types
 import type { Accounting, AccountingItem, PaymentInfo, ItemCategory, PaymentMethod } from "../types";
@@ -377,9 +378,7 @@ interface PaymentCardProps {
   onPaymentMethodChange: (v: string) => void;
   receivedAmount: string;
   onReceivedAmountChange: (v: string) => void;
-  onComplete: () => void;
   isCompleted: boolean;
-  isSaving: boolean;
 }
 
 const PaymentCard = memo(function PaymentCard({
@@ -389,9 +388,7 @@ const PaymentCard = memo(function PaymentCard({
   onPaymentMethodChange,
   receivedAmount,
   onReceivedAmountChange,
-  onComplete,
   isCompleted,
-  isSaving,
 }: PaymentCardProps) {
   return (
     <Card className="flex-1">
@@ -491,20 +488,19 @@ const PaymentCard = memo(function PaymentCard({
           </span>
         </div>
 
-        <Button
+        <SubmitButton
           className="w-full h-14 text-lg font-bold mt-4"
           size="lg"
-          onClick={onComplete}
           disabled={
             changeAmount < 0 ||
             !receivedAmount ||
-            isCompleted ||
-            isSaving
+            isCompleted
           }
+          loadingText="処理中..."
         >
           <Save className={`mr-2 ${ICON.action}`} />
-          {isCompleted ? "精算完了済み" : isSaving ? "処理中..." : "会計を確定する"}
-        </Button>
+          {isCompleted ? "精算完了済み" : "会計を確定する"}
+        </SubmitButton>
       </CardContent>
     </Card>
   );
@@ -658,7 +654,6 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const [isSaving, startSaveTransition] = useTransition();
   const [, startTaxUpdateTransition] = useTransition();
 
   const locationState = location.state as { accountingItems?: AccountingItem[] } | null;
@@ -730,6 +725,90 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
   // Document Preview State
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewType, setPreviewType] = useState<"receipt" | "statement">("receipt");
+
+  interface FormState {
+    success: boolean;
+    timestamp: number;
+  }
+
+  /**
+   * React 19 useActionState を使用した会計確定アクション
+   */
+  const [formState, formAction, isPending] = useActionState(
+    async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
+      if (!accounting || !calculation) return { success: false, timestamp: Date.now() };
+
+      const paymentInfo: PaymentInfo = {
+        subtotal: calculation.subtotal,
+        taxTotal: calculation.taxTotal,
+        totalAmount: calculation.totalAmount,
+        insuranceAmount: calculation.insuranceAmount,
+        discountAmount: 0,
+        billingAmount: calculation.billingAmount,
+        receivedAmount: calculation.received,
+        changeAmount: calculation.changeAmount,
+        method: paymentMethod as PaymentMethod,
+        insuranceRatio: hasInsurance ? parseFloat(insuranceRatio) : undefined,
+      };
+
+      try {
+        if (!id) {
+          // 新規会計: まず作成してから完了状態に更新
+          const created = await createAccounting({
+            pet_id: Number(accounting.petId),
+            owner_id: Number(accounting.ownerId),
+            scheduled_date: accounting.scheduledDate,
+            subtotal: calculation.subtotal,
+            tax_total: calculation.taxTotal,
+            total_amount: calculation.totalAmount,
+          });
+          await updateAccounting(created.id, {
+            status: "completed",
+            subtotal: calculation.subtotal,
+            tax_total: calculation.taxTotal,
+            total_amount: calculation.totalAmount,
+            insurance_ratio: hasInsurance ? parseFloat(insuranceRatio) : null,
+            insurance_amount:
+              calculation.insuranceAmount !== 0 ? calculation.insuranceAmount : null,
+            billing_amount: calculation.billingAmount,
+            received_amount: calculation.received,
+            change_amount: calculation.changeAmount,
+            payment_method: paymentMethod as PaymentMethod,
+            completed_at: new Date().toISOString(),
+          });
+          queryClient.invalidateQueries({ queryKey: ["accountings"] });
+          toast.success("会計を登録・完了しました");
+          navigate(paths.accounting.detail.getHref(created.id));
+        } else {
+          // 既存会計: 直接更新
+          await updateAccounting(id, {
+            status: "completed",
+            subtotal: calculation.subtotal,
+            tax_total: calculation.taxTotal,
+            total_amount: calculation.totalAmount,
+            insurance_ratio: hasInsurance ? parseFloat(insuranceRatio) : null,
+            insurance_amount:
+              calculation.insuranceAmount !== 0 ? calculation.insuranceAmount : null,
+            billing_amount: calculation.billingAmount,
+            received_amount: calculation.received,
+            change_amount: calculation.changeAmount,
+            payment_method: paymentMethod as PaymentMethod,
+            completed_at: new Date().toISOString(),
+          });
+          setCompletedPayment(paymentInfo);
+          queryClient.invalidateQueries({ queryKey: ["accountings"] });
+          queryClient.invalidateQueries({ queryKey: ["accounting", id] });
+          queryClient.invalidateQueries({ queryKey: ["accounting-detail", id] });
+          toast.success("会計を完了しました");
+        }
+        return { success: true, timestamp: Date.now() };
+      } catch {
+        toast.error("会計の処理に失敗しました");
+        return { success: false, timestamp: Date.now() };
+      }
+    },
+    { success: false, timestamp: 0 }
+  );
 
   // clinic 情報（AccountingDocument に props 注入）
   const { user } = useAuth();
@@ -836,80 +915,6 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
     [id, queryClient],
   );
 
-  const handleComplete = useCallback(() => {
-    if (!accounting || !calculation) return;
-
-    const paymentInfo: PaymentInfo = {
-      subtotal: calculation.subtotal,
-      taxTotal: calculation.taxTotal,
-      totalAmount: calculation.totalAmount,
-      insuranceAmount: calculation.insuranceAmount,
-      discountAmount: 0,
-      billingAmount: calculation.billingAmount,
-      receivedAmount: calculation.received,
-      changeAmount: calculation.changeAmount,
-      method: paymentMethod as PaymentMethod,
-      insuranceRatio: hasInsurance ? parseFloat(insuranceRatio) : undefined,
-    };
-
-    startSaveTransition(async () => {
-      try {
-        if (!id) {
-          // 新規会計: まず作成してから完了状態に更新
-          const created = await createAccounting({
-            pet_id: Number(accounting.petId),
-            owner_id: Number(accounting.ownerId),
-            scheduled_date: accounting.scheduledDate,
-            subtotal: calculation.subtotal,
-            tax_total: calculation.taxTotal,
-            total_amount: calculation.totalAmount,
-          });
-          await updateAccounting(created.id, {
-            status: "completed",
-            subtotal: calculation.subtotal,
-            tax_total: calculation.taxTotal,
-            total_amount: calculation.totalAmount,
-            insurance_ratio: hasInsurance ? parseFloat(insuranceRatio) : null,
-            insurance_amount:
-              calculation.insuranceAmount !== 0 ? calculation.insuranceAmount : null,
-            billing_amount: calculation.billingAmount,
-            received_amount: calculation.received,
-            change_amount: calculation.changeAmount,
-            payment_method: paymentMethod as PaymentMethod,
-            completed_at: new Date().toISOString(),
-          });
-          queryClient.invalidateQueries({ queryKey: ["accountings"] });
-          toast.success("会計を登録・完了しました");
-          navigate(paths.accounting.detail.getHref(created.id));
-          return;
-        }
-
-        // 既存会計: 直接更新
-        await updateAccounting(id, {
-          status: "completed",
-          subtotal: calculation.subtotal,
-          tax_total: calculation.taxTotal,
-          total_amount: calculation.totalAmount,
-          insurance_ratio: hasInsurance ? parseFloat(insuranceRatio) : null,
-          insurance_amount:
-            calculation.insuranceAmount !== 0 ? calculation.insuranceAmount : null,
-          billing_amount: calculation.billingAmount,
-          received_amount: calculation.received,
-          change_amount: calculation.changeAmount,
-          payment_method: paymentMethod as PaymentMethod,
-          completed_at: new Date().toISOString(),
-        });
-        setCompletedPayment(paymentInfo);
-        queryClient.invalidateQueries({ queryKey: ["accountings"] });
-        queryClient.invalidateQueries({ queryKey: ["accounting", id] });
-        queryClient.invalidateQueries({ queryKey: ["accounting-detail", id] });
-        toast.success("会計を完了しました");
-      } catch {
-        toast.error("会計の更新に失敗しました");
-      }
-    });
-  }, [accounting, calculation, paymentMethod, hasInsurance, insuranceRatio, id, queryClient, navigate]);
-
   const handlePrint = useCallback((type: "receipt" | "statement") => {
     setPreviewType(type);
     setPreviewOpen(true);
@@ -920,6 +925,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
 
   return (
     <>
+    <form action={formAction}>
       <PageLayout
         className="print:hidden"
         title="会計精算"
@@ -974,9 +980,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
               onPaymentMethodChange={(v) => setPaymentMethod(v as PaymentMethod)}
               receivedAmount={receivedAmount}
               onReceivedAmountChange={setReceivedAmount}
-              onComplete={handleComplete}
               isCompleted={accounting.status === "completed"}
-              isSaving={isSaving}
             />
 
             {id && accounting.status === "completed" ? (
@@ -1025,6 +1029,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
           </DialogContent>
         </Dialog>
       </PageLayout>
+    </form>
 
       {/* Hidden Print Area */}
       {accounting.payment ? (

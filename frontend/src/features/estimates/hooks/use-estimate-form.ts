@@ -1,5 +1,6 @@
-import { useState, useTransition, useCallback } from 'react';
+import { useState, useTransition, useCallback, useActionState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { toast } from "sonner";
 import type { Estimate, EstimateStatus } from '../types';
 import { useCreateEstimate } from '../api/create-estimate';
 import { useUpdateEstimate } from '../api/update-estimate';
@@ -37,15 +38,77 @@ function buildInitialState(estimate?: Estimate): EstimateFormState {
   };
 }
 
+interface FormState {
+  success: boolean;
+  timestamp: number;
+}
+
 export function useEstimateForm(estimate?: Estimate) {
   const navigate = useNavigate();
   const isEdit = !!estimate;
 
   const [form, setForm] = useState<EstimateFormState>(() => buildInitialState(estimate));
-  const [isSaving, startSaveTransition] = useTransition();
+
+  // Sync with estimate data if it loads later
+  useEffect(() => {
+    if (estimate) {
+      setForm(buildInitialState(estimate));
+    }
+  }, [estimate]);
 
   const { mutateAsync: createEstimate } = useCreateEstimate();
   const { mutateAsync: updateEstimate } = useUpdateEstimate();
+
+  const [formState, formAction, isPending] = useActionState(
+    async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
+      if (!form.title.trim()) {
+        toast.error("タイトルを入力してください");
+        return { success: false, timestamp: Date.now() };
+      }
+
+      try {
+        if (isEdit && estimate) {
+          const req: UpdateEstimateRequest = {
+            title: form.title,
+            status: form.status,
+            subtotal: form.subtotal,
+            tax_total: form.taxTotal,
+            total_amount: form.totalAmount,
+            insurance_amount: form.insuranceAmount,
+            discount_amount: form.discountAmount,
+            valid_until: form.validUntil || null,
+            comment: form.comment,
+            notes: form.notes,
+          };
+          await updateEstimate({ id: estimate.id, data: req });
+          toast.success("見積書を更新しました");
+        } else {
+          const req: CreateEstimateRequest = {
+            title: form.title,
+            status: form.status,
+            owner_id: form.ownerId ? Number(form.ownerId) : null,
+            medical_record_id: form.medicalRecordId ? Number(form.medicalRecordId) : null,
+            subtotal: form.subtotal,
+            tax_total: form.taxTotal,
+            total_amount: form.totalAmount,
+            insurance_amount: form.insuranceAmount,
+            discount_amount: form.discountAmount,
+            valid_until: form.validUntil || null,
+            comment: form.comment,
+            notes: form.notes,
+          };
+          const created = await createEstimate(req);
+          toast.success("見積書を作成しました");
+          // Navigation is handled in the component via useEffect
+        }
+        return { success: true, timestamp: Date.now() };
+      } catch (error) {
+        toast.error("保存に失敗しました");
+        return { success: false, timestamp: Date.now() };
+      }
+    },
+    { success: false, timestamp: 0 }
+  );
 
   const handleChange = useCallback(<K extends keyof EstimateFormState>(
     field: K,
@@ -53,46 +116,6 @@ export function useEstimateForm(estimate?: Estimate) {
   ) => {
     setForm(prev => ({ ...prev, [field]: value }));
   }, []);
-
-  const handleSubmit = useCallback(() => {
-    if (!form.title.trim()) return;
-
-    startSaveTransition(async () => {
-      if (isEdit && estimate) {
-        const req: UpdateEstimateRequest = {
-          title: form.title,
-          status: form.status,
-          subtotal: form.subtotal,
-          tax_total: form.taxTotal,
-          total_amount: form.totalAmount,
-          insurance_amount: form.insuranceAmount,
-          discount_amount: form.discountAmount,
-          valid_until: form.validUntil || null,
-          comment: form.comment,
-          notes: form.notes,
-        };
-        await updateEstimate({ id: estimate.id, data: req });
-        navigate(`/estimates/${estimate.id}`);
-      } else {
-        const req: CreateEstimateRequest = {
-          title: form.title,
-          status: form.status,
-          owner_id: form.ownerId ? Number(form.ownerId) : null,
-          medical_record_id: form.medicalRecordId ? Number(form.medicalRecordId) : null,
-          subtotal: form.subtotal,
-          tax_total: form.taxTotal,
-          total_amount: form.totalAmount,
-          insurance_amount: form.insuranceAmount,
-          discount_amount: form.discountAmount,
-          valid_until: form.validUntil || null,
-          comment: form.comment,
-          notes: form.notes,
-        };
-        const created = await createEstimate(req);
-        navigate(`/estimates/${created.id}`);
-      }
-    });
-  }, [form, isEdit, estimate, createEstimate, updateEstimate, navigate, startSaveTransition]);
 
   const handleCancel = useCallback(() => {
     if (isEdit && estimate) {
@@ -102,5 +125,5 @@ export function useEstimateForm(estimate?: Estimate) {
     }
   }, [isEdit, estimate, navigate]);
 
-  return { form, handleChange, handleSubmit, handleCancel, isPending: isSaving };
+  return { form, handleChange, formAction, formState, handleCancel, isPending };
 }

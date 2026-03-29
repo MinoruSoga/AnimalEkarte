@@ -7,6 +7,7 @@ import { Trash2 } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -42,7 +43,6 @@ interface FormFieldsSectionProps {
   isDeleting: boolean;
   onSetFormData: (next: Partial<ExaminationRecord>) => void;
   onBack: () => void;
-  onSaveClick: () => void;
   onDeleteClick: () => void;
 }
 
@@ -55,7 +55,6 @@ const FormFieldsSection = memo(function FormFieldsSection({
   isDeleting,
   onSetFormData,
   onBack,
-  onSaveClick,
   onDeleteClick,
 }: FormFieldsSectionProps) {
   return (
@@ -134,6 +133,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
         {isEdit ? (
           <Button
             variant="ghost"
+            type="button"
             className={`h-10 text-sm ${STYLE.btnDangerGhost} mr-auto`}
             onClick={onDeleteClick}
             disabled={isDeleting}
@@ -142,14 +142,12 @@ const FormFieldsSection = memo(function FormFieldsSection({
             {isDeleting ? "削除中..." : "削除"}
           </Button>
         ) : null}
-        <Button variant="outline" onClick={onBack} className="h-10 text-sm">キャンセル</Button>
-        <Button
+        <Button variant="outline" type="button" onClick={onBack} className="h-10 text-sm">キャンセル</Button>
+        <SubmitButton
           className={`${C.bgAccent} ${C.bgAccentHover} text-white h-10 text-sm`}
-          onClick={onSaveClick}
-          disabled={isSaving}
         >
-          {isSaving ? "保存中..." : "保存"}
-        </Button>
+          保存
+        </SubmitButton>
       </div>
     </div>
   );
@@ -199,12 +197,21 @@ export function ExaminationForm() {
     formData,
     setFormData,
     petSelection,
-    handleSave,
+    formAction,
+    formState,
     handleDelete,
     isEdit,
     isSaving,
     isDeleting,
   } = useExaminationForm(id, medicalRecordId ?? undefined);
+
+  // React 19 Action の成功を検知して遷移
+  useEffect(() => {
+    if (formState.success) {
+      markClean();
+      navigate(paths.examinations.getHref());
+    }
+  }, [formState.success, formState.timestamp, navigate, markClean]);
 
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
@@ -226,11 +233,6 @@ export function ExaminationForm() {
     markDirty();
     setFormData(next);
   }, [markDirty, setFormData]);
-
-  const handleSaveClick = useCallback(() => {
-    markClean();
-    handleSave();
-  }, [markClean, handleSave]);
 
   const handleDeleteClick = useCallback(() => {
     setIsDeleteConfirmOpen(true);
@@ -263,6 +265,7 @@ export function ExaminationForm() {
       align="left"
     >
       <NavigationBlocker when={isDirty && !isSaving} />
+      <form action={formAction}>
       <div className="flex flex-col gap-4">
         {/* rerender-memo: PatientInfoCard — フォームフィールド変更では再レンダーしない */}
         {selectedPet ? (
@@ -291,7 +294,6 @@ export function ExaminationForm() {
           isDeleting={isDeleting}
           onSetFormData={handleSetFormData}
           onBack={handleBack}
-          onSaveClick={handleSaveClick}
           onDeleteClick={handleDeleteClick}
         />
 
@@ -303,6 +305,7 @@ export function ExaminationForm() {
           />
         ) : null}
       </div>
+      </form>
     </PageLayout>
   );
 }

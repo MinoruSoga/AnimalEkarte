@@ -36,6 +36,8 @@ const UserPermissionPanel = memo(function UserPermissionPanel({
   clinicId,
   onClose,
 }: UserPermissionPanelProps) {
+  const { user: currentUser, refreshPermissions } = useAuth();
+  const currentUserId = currentUser?.id;
   const { data: detail, isLoading: isDetailLoading } = useGetUser(user.id);
   const { data: groups = [] } = useGetPermissionGroups(clinicId);
   const setGroupsMutation = useSetUserPermissionGroups(clinicId);
@@ -59,13 +61,17 @@ const UserPermissionPanel = memo(function UserPermissionPanel({
     startSaveTransition(async () => {
       try {
         await setGroupsMutation.mutateAsync({ userId: user.id, groupIds: selectedGroupIds });
+        // 自分自身の権限グループが変更された場合は即時キャッシュ更新
+        if (currentUserId === user.id) {
+          await refreshPermissions();
+        }
         toast.success("権限グループを更新しました");
         onClose();
       } catch {
         toast.error("更新に失敗しました");
       }
     });
-  }, [user.id, selectedGroupIds, setGroupsMutation, onClose]);
+  }, [user.id, selectedGroupIds, setGroupsMutation, onClose, currentUserId, refreshPermissions]);
 
   const handleGroupsChange = useCallback((ids: number[]) => {
     setSelectedGroupIds(ids);

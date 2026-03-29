@@ -7,10 +7,11 @@ import {
   useMemo,
 } from "react";
 import type { ReactNode } from "react";
-import type { AuthContextValue, AuthUser, ResourceAction } from "../types";
+import type { AuthContextValue, AuthUser, Resource, ResourceAction } from "../types";
 import { login as loginApi } from "../api/login";
 import { logout as logoutApi } from "../api/logout";
 import { refreshToken } from "../api/refresh-token";
+import { useGetMe } from "../api/get-me";
 
 /* セッション情報は httpOnly Cookie で管理するため localStorage への保存は不要。
  * 選択中のクリニック ID のみ localStorage に残す（権限情報ではないためリスク低） */
@@ -52,6 +53,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSwitchingClinic, setIsSwitchingClinic] = useState(false);
 
+  // 初回マウント時のセッション復元（httpOnly Cookie の有効性確認）
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -74,6 +76,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       cancelled = true;
     };
   }, []);
+
+  // /me の定期ポーリング結果でユーザー情報（権限含む）を同期
+  // 認証済みかつローディング完了後のみポーリングを有効化
+  const { data: meData } = useGetMe(user !== null && !isLoading);
+  useEffect(() => {
+    if (meData) {
+      setUser(meData);
+    }
+  }, [meData]);
 
   const login = useCallback(async (email: string, password: string) => {
     const result = await loginApi(email, password);
@@ -107,18 +118,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 
   const hasPermission = useCallback(
-    (resource: string, action: ResourceAction): boolean => {
-      if (!user || !currentClinicId) return false;
+    (resource: Resource, action: ResourceAction): boolean => {
+      if (!user) return false;
       // system_admin / clinic_admin はバイパス（BEも全権限 true で返すが念のため）
       if (user.userType === "system_admin" || user.userType === "clinic_admin") return true;
-      const clinicPerms = user.permissions[currentClinicId];
-      if (!clinicPerms) return false;
-      const resourcePerms = clinicPerms[resource];
+      const resourcePerms = user.permissions[resource];
       if (!resourcePerms) return false;
       return resourcePerms[action] === true;
     },
-    [user, currentClinicId],
+    [user],
   );
+
+  const refreshPermissions = useCallback(async () => {
+    const result = await refreshToken();
+    if (result) {
+      setUser(result.user);
+    }
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -131,6 +147,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       logout,
       switchClinic,
       hasPermission,
+      refreshPermissions,
     }),
     [
       user,
@@ -141,6 +158,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       logout,
       switchClinic,
       hasPermission,
+      refreshPermissions,
     ],
   );
 

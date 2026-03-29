@@ -6,6 +6,8 @@ import {
   useMemo,
   useState,
   useTransition,
+  useActionState,
+  useEffect,
 } from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
@@ -22,6 +24,7 @@ import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import {
@@ -158,7 +161,73 @@ export function ClinicMasterSettings() {
   const createMutation = useCreateClinic();
   const updateMutation = useUpdateClinic();
   const deleteMutation = useDeleteClinic();
-  const [_isSavePending, startSaveTransition] = useTransition();
+
+  interface FormState {
+    success: boolean;
+    timestamp: number;
+  }
+
+  /**
+   * React 19 useActionState を使用したフォームアクション
+   */
+  const [formState, formAction, isPending] = useActionState(
+    async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
+      const fd = formData;
+      if (!fd.name) {
+        toast.error("院名は必須です");
+        return { success: false, timestamp: Date.now() };
+      }
+
+      try {
+        if (selectedItem?.id) {
+          const req: UpdateClinicRequest = {
+            name: fd.name,
+            postal_code: fd.postal_code || undefined,
+            address: fd.address || undefined,
+            phone_number: fd.phone_number || undefined,
+            fax_number: fd.fax_number || undefined,
+            registration_number: fd.registration_number || undefined,
+            director_name: fd.director_name || undefined,
+            email: fd.email || undefined,
+            website: fd.website || undefined,
+            is_active: fd.is_active,
+            standard_tax_rate: fd.standard_tax_rate,
+            reduced_tax_rate: fd.reduced_tax_rate,
+          };
+          await updateMutation.mutateAsync({ id: selectedItem.id, req });
+          toast.success("更新しました");
+        } else {
+          const req: CreateClinicRequest = {
+            name: fd.name,
+            postal_code: fd.postal_code || undefined,
+            address: fd.address || undefined,
+            phone_number: fd.phone_number || undefined,
+            fax_number: fd.fax_number || undefined,
+            registration_number: fd.registration_number || undefined,
+            director_name: fd.director_name || undefined,
+            email: fd.email || undefined,
+            website: fd.website || undefined,
+          };
+          await createMutation.mutateAsync(req);
+          toast.success("登録しました");
+        }
+        return { success: true, timestamp: Date.now() };
+      } catch (error) {
+        toast.error("保存に失敗しました");
+        return { success: false, timestamp: Date.now() };
+      }
+    },
+    { success: false, timestamp: 0 }
+  );
+
+  // React 19 Action の成功を検知してパネルを閉じる
+  useEffect(() => {
+    if (formState.success) {
+      setIsEditing(false);
+      setSelectedItem(null);
+      setFormData(DEFAULT_FORM_DATA);
+    }
+  }, [formState.success, formState.timestamp]);
 
   const filteredItems = useMemo(() => {
     const clinics = rawClinics ?? [];
@@ -204,66 +273,6 @@ export function ClinicMasterSettings() {
   }, []);
 
   const selectedItemId = selectedItem?.id ?? null;
-
-  const handleSave = useCallback(() => {
-    const fd = formData;
-    if (!fd.name) {
-      toast.error("院名は必須です");
-      return;
-    }
-
-    startSaveTransition(async () => {
-      if (selectedItemId !== null) {
-        const req: UpdateClinicRequest = {
-          name: fd.name,
-          postal_code: fd.postal_code || undefined,
-          address: fd.address || undefined,
-          phone_number: fd.phone_number || undefined,
-          fax_number: fd.fax_number || undefined,
-          registration_number: fd.registration_number || undefined,
-          director_name: fd.director_name || undefined,
-          email: fd.email || undefined,
-          website: fd.website || undefined,
-          is_active: fd.is_active,
-          standard_tax_rate: fd.standard_tax_rate,
-          reduced_tax_rate: fd.reduced_tax_rate,
-        };
-        await updateMutation.mutateAsync(
-          { id: selectedItemId, req },
-          {
-            onSuccess: () => {
-              toast.success("更新しました");
-              setIsEditing(false);
-            },
-            onError: () => {
-              toast.error("更新に失敗しました");
-            },
-          },
-        );
-      } else {
-        const req: CreateClinicRequest = {
-          name: fd.name,
-          postal_code: fd.postal_code || undefined,
-          address: fd.address || undefined,
-          phone_number: fd.phone_number || undefined,
-          fax_number: fd.fax_number || undefined,
-          registration_number: fd.registration_number || undefined,
-          director_name: fd.director_name || undefined,
-          email: fd.email || undefined,
-          website: fd.website || undefined,
-        };
-        await createMutation.mutateAsync(req, {
-          onSuccess: () => {
-            toast.success("登録しました");
-            setIsEditing(false);
-          },
-          onError: () => {
-            toast.error("登録に失敗しました");
-          },
-        });
-      }
-    });
-  }, [formData, selectedItemId, startSaveTransition, updateMutation, createMutation]);
 
   const pendingDeleteId = pendingDelete?.id ?? null;
 
@@ -372,6 +381,7 @@ export function ClinicMasterSettings() {
             </div>
 
             {/* Body */}
+            <form action={formAction} className="flex-1 flex flex-col min-h-0">
             <div className={STYLE.sidePeekBody}>
               <div className="px-16 pb-8">
                 {/* Page icon */}
@@ -602,14 +612,13 @@ export function ClinicMasterSettings() {
               >
                 キャンセル
               </button>
-              <button
-                type="button"
-                onClick={handleSave}
+              <SubmitButton
                 className={STYLE.sidePeekSaveBtn}
               >
                 保存
-              </button>
+              </SubmitButton>
             </div>
+            </form>
           </div>
         ) : null}
       </div>

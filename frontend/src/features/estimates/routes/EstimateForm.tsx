@@ -1,8 +1,9 @@
 import { ICON } from "@/lib/design-tokens";
-import { memo, useCallback } from 'react';
-import { useParams } from 'react-router';
+import { memo, useCallback, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router';
 import { FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -240,14 +241,29 @@ const TextSection = memo(function TextSection({
 });
 
 function EstimateFormContent({ id }: { id?: string }) {
+  const navigate = useNavigate();
   const { data: estimate, isLoading } = useGetEstimate(id);
-  const { form, handleChange, handleSubmit, handleCancel, isPending } = useEstimateForm(
+  const { form, handleChange, formAction, formState, handleCancel, isPending } = useEstimateForm(
     id ? estimate : undefined
   );
 
   const isEdit = !!id;
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
+
+  // React 19 Action の成功を検知して遷移
+  useEffect(() => {
+    if (formState.success) {
+      markClean();
+      if (isEdit && estimate) {
+        navigate(`/estimates/${estimate.id}`);
+      } else {
+        // Since we don't have the new ID easily here, we might need to handle it in hook
+        // but for now redirect to list
+        navigate('/estimates');
+      }
+    }
+  }, [formState.success, formState.timestamp, navigate, markClean, isEdit, estimate]);
 
   // rerender-memo: memo'd セクションに渡すハンドラを useCallback で安定化
   const handleChangeWithDirty = useCallback(
@@ -258,11 +274,6 @@ function EstimateFormContent({ id }: { id?: string }) {
     [markDirty, handleChange]
   );
 
-  const handleSubmitClick = useCallback(() => {
-    markClean();
-    handleSubmit();
-  }, [markClean, handleSubmit]);
-
   if (isEdit && isLoading) {
     return (
       <div className="flex justify-center items-center p-8">
@@ -272,22 +283,22 @@ function EstimateFormContent({ id }: { id?: string }) {
   }
 
   return (
+    <form action={formAction}>
     <PageLayout
       title={isEdit ? '見積書編集' : '新規見積書作成'}
       icon={<FileText className={`${ICON.page} text-[#37352F]`} />}
       headerAction={
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleCancel} className="h-9 text-sm">
+          <Button variant="outline" type="button" size="sm" onClick={handleCancel} className="h-9 text-sm">
             キャンセル
           </Button>
-          <Button
+          <SubmitButton
             size="sm"
-            onClick={handleSubmitClick}
-            disabled={isPending || !form.title.trim()}
+            disabled={!form.title.trim()}
             className="h-9 bg-[#37352F] hover:bg-[#37352F]/90 text-white text-sm"
           >
-            {isPending ? '保存中...' : isEdit ? '更新' : '作成'}
-          </Button>
+            {isEdit ? '更新' : '作成'}
+          </SubmitButton>
         </div>
       }
       maxWidth="max-w-2xl"
@@ -320,6 +331,7 @@ function EstimateFormContent({ id }: { id?: string }) {
         />
       </div>
     </PageLayout>
+    </form>
   );
 }
 

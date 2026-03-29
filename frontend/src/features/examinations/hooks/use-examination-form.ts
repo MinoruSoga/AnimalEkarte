@@ -1,4 +1,4 @@
-import { useState, useEffect, useTransition, useCallback } from "react";
+import { useState, useEffect, useTransition, useCallback, useActionState } from "react";
 import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router";
 import type { ExaminationRecord } from "@/types";
@@ -37,8 +37,49 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
   const deleteMutation = useDeleteExamination();
 
   // useTransition: save/delete の pending 管理 (rerender-transitions)
-  const [isSaveTransitionPending, startSaveTransition] = useTransition();
   const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
+
+  interface FormState {
+    success: boolean;
+    timestamp: number;
+  }
+
+  /**
+   * React 19 useActionState を使用したフォームアクション
+   */
+  const [formState, formAction, isPending] = useActionState(
+    async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
+      try {
+        if (isEdit && id) {
+          const req: UpdateExaminationRequest = {
+            status: formDataWithPet.status ? EXAM_STATUS_JA_TO_EN[formDataWithPet.status] : undefined,
+            result_summary: formDataWithPet.resultSummary,
+            machine: formDataWithPet.machine,
+            date: formDataWithPet.date,
+          };
+          await updateMutation.mutateAsync({ id, req });
+        } else {
+          const pet = selectedPets[0];
+          if (!pet) return { success: false, timestamp: Date.now() };
+          const req: CreateExaminationRequest = {
+            medical_record_id: medicalRecordId ? Number(medicalRecordId) : null,
+            pet_id: Number(pet.id) || null,
+            exam_type_id: Number(formDataWithPet.testTypeId) || 0,
+            doctor_id: formDataWithPet.doctorId ? Number(formDataWithPet.doctorId) : null,
+            date: formDataWithPet.date ?? new Date().toISOString(),
+            result_summary: formDataWithPet.resultSummary,
+            machine: formDataWithPet.machine,
+          };
+          await createMutation.mutateAsync(req);
+        }
+        return { success: true, timestamp: Date.now() };
+      } catch (error) {
+        toast.error("保存に失敗しました");
+        return { success: false, timestamp: Date.now() };
+      }
+    },
+    { success: false, timestamp: 0 }
+  );
 
   // Local overrides applied on top of server data (only tracks user edits in edit mode)
   const [localOverrides, setLocalOverrides] = useState<Partial<ExaminationRecord>>({});
@@ -76,38 +117,6 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
         }
       : formData;
 
-  const handleSave = () => {
-    startSaveTransition(() => {
-      if (isEdit && id) {
-        const req: UpdateExaminationRequest = {
-          status: formDataWithPet.status ? EXAM_STATUS_JA_TO_EN[formDataWithPet.status] : undefined,
-          result_summary: formDataWithPet.resultSummary,
-          machine: formDataWithPet.machine,
-          date: formDataWithPet.date,
-        };
-        updateMutation.mutate(
-          { id, req },
-          { onSuccess: () => navigate(paths.examinations.getHref()) }
-        );
-      } else {
-        const pet = selectedPets[0];
-        if (!pet) return;
-        const req: CreateExaminationRequest = {
-          medical_record_id: medicalRecordId ? Number(medicalRecordId) : null,
-          pet_id: Number(pet.id) || null,
-          exam_type_id: Number(formDataWithPet.testTypeId) || 0,
-          doctor_id: formDataWithPet.doctorId ? Number(formDataWithPet.doctorId) : null,
-          date: formDataWithPet.date ?? new Date().toISOString(),
-          result_summary: formDataWithPet.resultSummary,
-          machine: formDataWithPet.machine,
-        };
-        createMutation.mutate(req, {
-          onSuccess: () => navigate(paths.examinations.getHref()),
-        });
-      }
-    });
-  };
-
   const handleDelete = useCallback((onSuccess?: () => void) => {
     if (!isEdit || !id) return;
     startDeleteTransition(() => {
@@ -120,14 +129,15 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
     });
   }, [isEdit, id, deleteMutation, startDeleteTransition]);
 
-  const isSaving = createMutation.isPending || updateMutation.isPending || isSaveTransitionPending;
+  const isSaving = isPending;
   const isDeleting = deleteMutation.isPending || isDeleteTransitionPending;
 
   return {
     formData: formDataWithPet,
     setFormData,
     petSelection,
-    handleSave,
+    formAction,
+    formState,
     handleDelete,
     isEdit,
     isSaving,

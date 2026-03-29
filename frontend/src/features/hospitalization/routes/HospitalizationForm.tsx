@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 // Internal
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -54,8 +55,22 @@ export function HospitalizationForm() {
       setGlobalDiscountAmount,
       calculateTotals,
       petSelection,
-      handleSave
+      formAction,
+      formState,
+      handleFormDataChange: handleFormDataChangeRaw
   } = useHospitalizationForm(hospitalizationId);
+
+  // React 19 Action の成功を検知して遷移
+  useEffect(() => {
+    if (formState.success) {
+      markClean();
+      if (location.state?.from) {
+        navigate(location.state.from as string);
+      } else {
+        navigate(paths.hospitalization.getHref());
+      }
+    }
+  }, [formState.success, formState.timestamp, navigate, markClean, location.state]);
 
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
@@ -81,15 +96,10 @@ export function HospitalizationForm() {
     });
   }, [hospitalizationId, deleteMutation, navigate]);
 
-  const handleFormChange = useCallback((updates: Parameters<typeof handleFormDataChange>[0]) => {
+  const handleFormChange = useCallback((updates: Parameters<typeof handleFormDataChangeRaw>[0]) => {
     markDirty();
-    handleFormDataChange(updates);
-  }, [markDirty, handleFormDataChange]);
-
-  const handleSaveClick = useCallback(() => {
-    markClean();
-    handleSave();
-  }, [markClean, handleSave]);
+    handleFormDataChangeRaw(updates);
+  }, [markDirty, handleFormDataChangeRaw]);
 
   const handleGlobalDiscountChange = useCallback((val: number) => {
     markDirty();
@@ -112,6 +122,7 @@ export function HospitalizationForm() {
 
   return (
     <>
+    <form action={formAction}>
     <PageLayout
       title={hospitalizationId ? "入院編集" : "入院登録"}
       onBack={handleBack}
@@ -123,6 +134,7 @@ export function HospitalizationForm() {
                 <>
                   <Button
                     variant="outline"
+                    type="button"
                     className={`gap-2 h-10 text-sm px-4 ${C.text}`}
                     onClick={() => navigate(`/hospitalization/${hospitalizationId}`)}
                   >
@@ -131,6 +143,7 @@ export function HospitalizationForm() {
                   </Button>
                   <Button
                     variant="ghost"
+                    type="button"
                     className={`${STYLE.btnDangerGhost} h-10 text-sm px-4`}
                     onClick={() => setIsDeleteConfirmOpen(true)}
                   >
@@ -139,13 +152,11 @@ export function HospitalizationForm() {
                   </Button>
                 </>
             ) : null}
-            <Button
+            <SubmitButton
             className={`${C.bgAccent} ${C.bgAccentHover} text-white rounded-[6px] h-10 text-sm px-4`}
-            onClick={handleSaveClick}
-            disabled={isSaving}
             >
-            {isSaving ? "保存中..." : hospitalizationId ? "更新" : "登録"}
-            </Button>
+            {hospitalizationId ? "更新" : "登録"}
+            </SubmitButton>
         </div>
       }
     >
@@ -212,7 +223,8 @@ export function HospitalizationForm() {
             setGlobalDiscountAmount={handleGlobalDiscountAmountChange}
         />
     </PageLayout>
-      <ConfirmDialog
+    </form>
+    <ConfirmDialog
         open={isDeleteConfirmOpen}
         onClose={() => setIsDeleteConfirmOpen(false)}
         title="入院を削除しますか？"

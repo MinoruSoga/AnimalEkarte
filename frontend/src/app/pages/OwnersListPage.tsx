@@ -4,7 +4,7 @@
  * feature 間 import を排除する（依存逆転）。
  */
 
-import { OwnersList } from "@/features/owners/routes/OwnersList";
+import { OwnersList } from "@/features/owners";
 import { updatePet } from "@/features/pets/api/update-pet";
 
 export function OwnersListPage() {

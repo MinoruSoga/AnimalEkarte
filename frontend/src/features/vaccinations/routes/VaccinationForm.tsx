@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
@@ -351,8 +352,18 @@ export function VaccinationForm() {
       petSelection,
       form,
       historyFilter,
-      handleSave
+      formAction,
+      formState,
+      isSaving
   } = useVaccinationForm(id);
+
+  // React 19 Action の成功を検知して遷移
+  useEffect(() => {
+    if (formState.success) {
+      markClean();
+      navigate(paths.vaccinations.getHref());
+    }
+  }, [formState.success, formState.timestamp, navigate, markClean]);
 
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
@@ -412,13 +423,12 @@ export function VaccinationForm() {
   const handleVaccineIdChange = useCallback((v: string) => { markDirty(); setVaccineId(v); }, [markDirty, setVaccineId]);
   const handleNextScheduleTypeChange = useCallback((v: string) => { markDirty(); setNextScheduleType(v); }, [markDirty, setNextScheduleType]);
 
-  const handleSaveClick = useCallback(() => { markClean(); handleSave(); }, [markClean, handleSave]);
-
   // 早期 return（hooks より後）
   if (!selectedPet && !isEdit && petId) return null;
   if (!selectedPet && !isEdit) return null;
 
   return (
+    <form action={formAction}>
     <PageLayout
       title={isEdit ? "予防接種詳細・編集" : "新規予防接種登録"}
       onBack={handleBack}
@@ -428,18 +438,18 @@ export function VaccinationForm() {
             {isEdit ? (
                 <Button
                     variant="ghost"
+                    type="button"
                     className={`${STYLE.btnDangerGhost} px-4 h-10 text-sm`}
                 >
                     <Trash2 className={`mr-1.5 ${ICON.action}`} />
                     削除
                 </Button>
             ) : null}
-            <Button
-                onClick={handleSaveClick}
+            <SubmitButton
                 className={`${C.bgAccent} ${C.bgAccentHover} text-white shadow-sm px-6 h-10 text-sm`}
             >
                 保存
-            </Button>
+            </SubmitButton>
         </div>
       }
     >
@@ -499,5 +509,6 @@ export function VaccinationForm() {
             />
         </div>
     </PageLayout>
+    </form>
   );
 }

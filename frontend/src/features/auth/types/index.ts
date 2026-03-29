@@ -12,7 +12,10 @@ import {
   StaffRoleTrimmer,
   StaffRoleReception,
   StaffRoleManager,
+  type Resource,
 } from "@/types/generated/models";
+
+export type { Resource };
 
 /** @see {@link import("@/types/generated/models").UserType} */
 export const USER_TYPE_VALUES = [UserTypeSystemAdmin, UserTypeClinicAdmin, UserTypeStaff] as const;
@@ -60,11 +63,8 @@ export interface ResourcePermission {
   delete: boolean;
 }
 
-/** resource → CRUD */
+/** resource → CRUD（バックエンドが UNION 計算済みのフラット実効権限） */
 export type ResourcePermissions = Record<string, ResourcePermission>;
-
-/** clinicId → resource → CRUD（バックエンドが UNION 計算済みの実効権限） */
-export type ClinicEffectivePermissions = Record<string, ResourcePermissions>;
 
 /** @see {@link import("@/types/generated/models").UserClinicMembership} */
 export interface ClinicMembership {
@@ -101,7 +101,7 @@ export interface AuthUser {
   /** メイン医院の詳細情報。/me レスポンスから取得。null の場合は未所属 */
   clinic: AuthClinic | null;
   clinics: ClinicMembership[];
-  permissions: ClinicEffectivePermissions;
+  permissions: ResourcePermissions;
 }
 
 export interface AuthContextValue {
@@ -113,7 +113,9 @@ export interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   switchClinic: (clinicId: string) => Promise<void>;
-  hasPermission: (resource: string, action: ResourceAction) => boolean;
+  hasPermission: (resource: Resource, action: ResourceAction) => boolean;
+  /** /me を再取得してユーザー（権限含む）を更新する */
+  refreshPermissions: () => Promise<void>;
 }
 
 export interface ProtectedRouteProps {
