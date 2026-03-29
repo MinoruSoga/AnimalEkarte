@@ -62,6 +62,9 @@ func (m *mrMockOwnerRepo) Update(_ context.Context, _, _ uint64, _ map[string]an
 	return nil
 }
 func (m *mrMockOwnerRepo) Delete(_ context.Context, _, _ uint64) error { return nil }
+func (m *mrMockOwnerRepo) FindByEmail(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
+	return nil, nil
+}
 
 // mrMockPetRepo は MedicalRecord テスト用 PetRepository モック（FindByID のみ）
 type mrMockPetRepo struct {

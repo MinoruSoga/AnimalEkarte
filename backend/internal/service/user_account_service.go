@@ -80,7 +80,7 @@ func NewUserAccountService(repo repository.UserAccountRepository, permRepo repos
 func (s *userAccountService) FindByEmail(ctx context.Context, email string) (*UserAccountResult, error) {
 	account, err := s.repo.FindByEmail(ctx, email)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find user account by email: %w", err)
+		return nil, apperrors.Wrap(err, "failed to find user account by email")
 	}
 	return &UserAccountResult{
 		ID:           account.ID,
@@ -96,7 +96,7 @@ func (s *userAccountService) FindByEmail(ctx context.Context, email string) (*Us
 func (s *userAccountService) GetMemberships(ctx context.Context, userID uint64) ([]MembershipResult, error) {
 	data, err := s.repo.FindByIDWithMemberships(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user memberships: %w", err)
+		return nil, apperrors.Wrap(err, "failed to get user memberships")
 	}
 	results := make([]MembershipResult, 0, len(data.Memberships))
 	for _, m := range data.Memberships {
@@ -112,7 +112,7 @@ func (s *userAccountService) GetMemberships(ctx context.Context, userID uint64) 
 func (s *userAccountService) GetWithMemberships(ctx context.Context, userIDStr string) (*repository.UserAccountWithMemberships, error) {
 	id, err := strconv.ParseUint(userIDStr, 10, 64)
 	if err != nil {
-		return nil, apperrors.Wrap(fmt.Errorf("invalid user id: %s", userIDStr), "parse user id")
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("invalid user id: %s", userIDStr))
 	}
 	return s.repo.FindByIDWithMemberships(ctx, id)
 }
@@ -126,7 +126,7 @@ func (s *userAccountService) ListUsers(ctx context.Context, clinicID uint64) ([]
 func (s *userAccountService) CreateUser(ctx context.Context, clinicID uint64, input *CreateUserAccountInput) (*model.UserAccount, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
+		return nil, apperrors.Wrap(err, "hash password")
 	}
 
 	account := &model.UserAccount{
@@ -138,7 +138,7 @@ func (s *userAccountService) CreateUser(ctx context.Context, clinicID uint64, in
 	}
 
 	if err := s.repo.Create(ctx, account, clinicID, input.StaffID, input.IsMain); err != nil {
-		return nil, fmt.Errorf("failed to create user account: %w", err)
+		return nil, apperrors.Wrap(err, "failed to create user account")
 	}
 
 	slog.InfoContext(ctx, "user account created",
@@ -169,7 +169,7 @@ func (s *userAccountService) UpdateUser(ctx context.Context, id uint64, input *U
 		return apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, id, fields); err != nil {
-		return fmt.Errorf("failed to update user account: %w", err)
+		return apperrors.Wrap(err, "failed to update user account")
 	}
 	slog.InfoContext(ctx, "user account updated", slog.Uint64("user_id", id))
 	return nil
@@ -178,7 +178,7 @@ func (s *userAccountService) UpdateUser(ctx context.Context, id uint64, input *U
 // DeleteUser はユーザーアカウントを論理削除する
 func (s *userAccountService) DeleteUser(ctx context.Context, id uint64) error {
 	if err := s.repo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("failed to delete user account: %w", err)
+		return apperrors.Wrap(err, "failed to delete user account")
 	}
 	slog.InfoContext(ctx, "user account deleted", slog.Uint64("user_id", id))
 	return nil
@@ -190,7 +190,7 @@ func (s *userAccountService) SetPermissionGroups(ctx context.Context, userID uin
 	if s.permRepo != nil {
 		for _, groupID := range input.GroupIDs {
 			if err := s.permRepo.VerifyGroupExists(ctx, groupID); err != nil {
-				return fmt.Errorf("permission group %d not found: %w", groupID, apperrors.ErrNotFound)
+				return apperrors.Wrap(apperrors.ErrNotFound, fmt.Sprintf("permission group %d not found", groupID))
 			}
 		}
 	}

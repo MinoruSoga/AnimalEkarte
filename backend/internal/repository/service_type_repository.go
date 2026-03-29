@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -42,11 +41,9 @@ func (r *serviceTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([
 
 func (r *serviceTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ServiceType, error) {
 	var st model.ServiceType
-	if err := r.db.WithContext(ctx).First(&st, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("service_type", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find service type by id")
+	err := r.db.WithContext(ctx).First(&st, "id = ? AND clinic_id = ?", id, clinicID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "service_type", fmt.Sprintf("%d", id))
 	}
 	return &st, nil
 }

@@ -22,10 +22,13 @@ type CageService interface {
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-type cageService struct{ repo repository.CageRepository }
+type cageService struct {
+	repo                repository.CageRepository
+	hospitalizationRepo repository.HospitalizationRepository
+}
 
-func NewCageService(repo repository.CageRepository) CageService {
-	return &cageService{repo: repo}
+func NewCageService(repo repository.CageRepository, hospitalizationRepo repository.HospitalizationRepository) CageService {
+	return &cageService{repo: repo, hospitalizationRepo: hospitalizationRepo}
 }
 
 func (s *cageService) List(ctx context.Context, cageType *string) ([]model.Cage, error) {
@@ -44,12 +47,19 @@ func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input Upd
 	}
 	cage, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update cage: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update cage")
 	}
 	slog.InfoContext(ctx, "cage updated", slog.Uint64("cage_id", id))
 	return cage, nil
 }
 func (s *cageService) Delete(ctx context.Context, id uint64) error {
+	exists, err := s.hospitalizationRepo.ExistsByCageID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to check hospitalization dependency: %w", err)
+	}
+	if exists {
+		return apperrors.WrapAlreadyExists("cage", "このケージは入院データで使用中のため削除できません")
+	}
 	return s.repo.Delete(ctx, id)
 }
 

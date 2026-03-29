@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -65,16 +64,14 @@ func (r *trimmingRepository) FindAll(ctx context.Context, clinicID uint64, petID
 
 func (r *trimmingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingRecord, error) {
 	var trimming model.TrimmingRecord
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Preload("Pet").
 		Preload("Staff").
 		Preload("Course").
 		Preload("Options").
-		First(&trimming, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("trimming_record", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find trimming record by id")
+		First(&trimming, "id = ? AND clinic_id = ?", id, clinicID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "trimming_record", fmt.Sprintf("%d", id))
 	}
 	return &trimming, nil
 }

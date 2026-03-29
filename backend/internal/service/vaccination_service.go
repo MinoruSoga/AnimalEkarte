@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -36,6 +35,9 @@ func (s *vaccinationService) GetByID(ctx context.Context, clinicID, id uint64) (
 }
 
 func (s *vaccinationService) Create(ctx context.Context, vaccination *model.Vaccination) error {
+	if vaccination.VaccineID == 0 {
+		return apperrors.WrapInvalidInput("vaccine_id is required")
+	}
 	return s.repo.Create(ctx, vaccination)
 }
 
@@ -49,7 +51,7 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 	}
 	vaccination, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update vaccination: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update vaccination")
 	}
 	slog.InfoContext(ctx, "vaccination updated",
 		slog.Uint64("vaccination_id", id),

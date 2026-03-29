@@ -83,7 +83,7 @@ func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *
 		Note:      input.Note,
 	}
 	if err := s.repo.Create(ctx, entry); err != nil {
-		return nil, fmt.Errorf("failed to create shift entry: %w", err)
+		return nil, apperrors.Wrap(err, "failed to create shift entry")
 	}
 	slog.InfoContext(ctx, "shift entry created",
 		slog.Uint64("shift_entry_id", entry.ID),
@@ -97,7 +97,7 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, fmt.Errorf("failed to update shift entry: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update shift entry")
 	}
 	slog.InfoContext(ctx, "shift entry updated", slog.Uint64("shift_entry_id", id))
 	return s.repo.FindByID(ctx, clinicID, id)
@@ -105,7 +105,7 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 
 func (s *shiftEntryService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		return fmt.Errorf("failed to delete shift entry: %w", err)
+		return apperrors.Wrap(err, "failed to delete shift entry")
 	}
 	slog.InfoContext(ctx, "shift entry deleted", slog.Uint64("shift_entry_id", id))
 	return nil

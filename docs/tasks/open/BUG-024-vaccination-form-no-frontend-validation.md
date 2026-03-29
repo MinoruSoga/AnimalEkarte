@@ -46,3 +46,10 @@
 
 ### バックエンド
 - `backend/internal/service/` または `handler/` の `vaccine_i_d` タイポを `vaccine_id` に修正
+
+## 派生イシュー
+
+| イシュー | 領域 | 内容 |
+|---------|------|------|
+| BUG-024（FE） | Frontend | 予防接種フォームの必須バリデーション実装（vaccine_id・date 未選択時エラー表示） |
+| BUG-024（BE） | Backend | エラー文字列タイポ `vaccine_i_d` → `vaccine_id` を修正 |

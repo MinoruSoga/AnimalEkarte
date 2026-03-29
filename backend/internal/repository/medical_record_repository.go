@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -45,39 +44,38 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicID uint64, 
 		q = q.Where("date <= ?", *endDate)
 	}
 	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "count medical records")
+		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
 	}
 	if err := q.Offset((page - 1) * limit).Limit(limit).Order("date DESC, created_at DESC").
 		Preload("Owner").Preload("Pet.AnimalSpecies").Preload("Doctor").Preload("Inquiry").Preload("Billing").
 		Find(&records).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "find medical records")
+		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
 	}
 	return records, total, nil
 }
 
 func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 	var record model.MedicalRecord
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Preload("Treatments").
 		Preload("Vitals").
 		Preload("Doctor").
 		Preload("Owner").
 		Preload("Pet.AnimalSpecies").
-		First(&record, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find medical record by id")
+		First(&record, "id = ? AND clinic_id = ?", id, clinicID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
 	}
 	return &record, nil
 }
 
 func (r *medicalRecordRepository) Create(ctx context.Context, record *model.MedicalRecord) error {
-	if err := r.db.WithContext(ctx).Create(record).Error; err != nil {
+	err := r.db.WithContext(ctx).Create(record).Error
+	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("medical_record", record.RecordNo)
 		}
-		return apperrors.Wrap(err, "create medical record")
+		return apperrors.FromGORM(err, "medical_record", "")
 	}
 	return nil
 }
@@ -88,7 +86,7 @@ func (r *medicalRecordRepository) UpdateFields(ctx context.Context, clinicID, id
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return nil, apperrors.Wrap(result.Error, "update medical record")
+		return nil, apperrors.FromGORM(result.Error, "medical_record", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))
@@ -99,7 +97,7 @@ func (r *medicalRecordRepository) UpdateFields(ctx context.Context, clinicID, id
 func (r *medicalRecordRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.MedicalRecord{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete medical record")
+		return apperrors.FromGORM(result.Error, "medical_record", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))

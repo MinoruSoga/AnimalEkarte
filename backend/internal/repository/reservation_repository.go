@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -18,6 +17,8 @@ type ReservationRepository interface {
 	Create(ctx context.Context, reservation *model.ReservationAppointment) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	ExistsByServiceTypeID(ctx context.Context, serviceTypeID uint64) (bool, error)
+	ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error)
 }
 
 type reservationRepository struct {
@@ -59,17 +60,15 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 
 func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error) {
 	var reservation model.ReservationAppointment
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Preload("Pet").
 		Preload("Pet.Owner").
 		Preload("Pet.AnimalSpecies").
 		Preload("ServiceType").
 		Preload("Doctor").
-		First(&reservation, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find reservation by id")
+		First(&reservation, "id = ? AND clinic_id = ?", id, clinicID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
 	}
 	return &reservation, nil
 }
@@ -107,4 +106,26 @@ func (r *reservationRepository) Delete(ctx context.Context, clinicID, id uint64)
 		return apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *reservationRepository) ExistsByServiceTypeID(ctx context.Context, serviceTypeID uint64) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.ReservationAppointment{}).
+		Where("service_type_id = ?", serviceTypeID).
+		Count(&count).Error
+	if err != nil {
+		return false, apperrors.Wrap(err, "check reservation by service_type_id")
+	}
+	return count > 0, nil
+}
+
+func (r *reservationRepository) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.ReservationAppointment{}).
+		Where("doctor_id = ?", staffID).
+		Count(&count).Error
+	if err != nil {
+		return false, apperrors.Wrap(err, "check reservation by staff_id")
+	}
+	return count > 0, nil
 }

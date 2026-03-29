@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -52,13 +51,11 @@ func (r *treatmentRepository) ListByMedicalRecordID(ctx context.Context, medical
 
 func (r *treatmentRepository) FindByID(ctx context.Context, id uint64) (*model.Treatment, error) {
 	var treatment model.Treatment
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Where("id = ? AND deleted_at IS NULL", id).
-		First(&treatment).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("treatment", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find treatment by id")
+		First(&treatment).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "treatment", fmt.Sprintf("%d", id))
 	}
 	return &treatment, nil
 }

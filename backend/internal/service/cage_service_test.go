@@ -48,6 +48,37 @@ func (m *mockCageRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 	return nil
 }
 
+// mockHospitalizationForCage は Cage テストで使用する HospitalizationRepository のスタブ
+type mockHospitalizationForCage struct {
+	existsByCageIDFn func(ctx context.Context, cageID uint64) (bool, error)
+}
+
+func (m *mockHospitalizationForCage) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Hospitalization, int64, error) {
+	return nil, 0, nil
+}
+func (m *mockHospitalizationForCage) FindByID(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+	return nil, nil
+}
+func (m *mockHospitalizationForCage) Create(_ context.Context, _ *model.Hospitalization) error {
+	return nil
+}
+func (m *mockHospitalizationForCage) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+	return nil, nil
+}
+func (m *mockHospitalizationForCage) Delete(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *mockHospitalizationForCage) ExistsByCageID(ctx context.Context, cageID uint64) (bool, error) {
+	if m.existsByCageIDFn != nil {
+		return m.existsByCageIDFn(ctx, cageID)
+	}
+	return false, nil
+}
+
+func newTestCageService(repo *mockCageRepository) CageService {
+	return NewCageService(repo, &mockHospitalizationForCage{})
+}
+
 func TestCageService_List(t *testing.T) {
 	cageType := string(model.CageTypeDog)
 
@@ -103,7 +134,7 @@ func TestCageService_List(t *testing.T) {
 					return tt.repoCages, tt.repoErr
 				},
 			}
-			svc := NewCageService(repo)
+			svc := newTestCageService(repo)
 
 			cages, err := svc.List(context.Background(), tt.cageType)
 
@@ -166,7 +197,7 @@ func TestCageService_GetByID(t *testing.T) {
 					return tt.repoCage, tt.repoErr
 				},
 			}
-			svc := NewCageService(repo)
+			svc := newTestCageService(repo)
 
 			cage, err := svc.GetByID(context.Background(), tt.id)
 
@@ -235,7 +266,7 @@ func TestCageService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewCageService(repo)
+			svc := newTestCageService(repo)
 
 			err := svc.Create(context.Background(), tt.cage)
 
@@ -312,7 +343,7 @@ func TestCageService_Update(t *testing.T) {
 					return tt.repoCage, tt.repoErr
 				},
 			}
-			svc := NewCageService(repo)
+			svc := newTestCageService(repo)
 
 			cage, err := svc.Update(context.Background(), tt.clinicID, tt.id, tt.input)
 
@@ -363,7 +394,7 @@ func TestCageService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewCageService(repo)
+			svc := newTestCageService(repo)
 
 			err := svc.Delete(context.Background(), tt.id)
 

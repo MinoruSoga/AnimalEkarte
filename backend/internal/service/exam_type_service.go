@@ -3,7 +3,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -44,7 +43,7 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 	}
 	exType, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update exam type: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update exam type")
 	}
 	slog.InfoContext(ctx, "exam type updated", slog.Uint64("exam_type_id", id))
 	return exType, nil

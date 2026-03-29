@@ -1277,6 +1277,9 @@ CREATE INDEX idx_permission_groups_company ON permission_groups(company_id) WHER
 -- 権限グループ: company内でname重複不可（論理削除を除く）
 CREATE UNIQUE INDEX uk_permission_groups_name ON permission_groups(company_id, name) WHERE deleted_at IS NULL;
 
+-- 飼主: clinic内でemail重複不可（論理削除を除く・空文字除く）
+CREATE UNIQUE INDEX uk_owners_clinic_email ON owners(clinic_id, email) WHERE deleted_at IS NULL AND email IS NOT NULL AND email != '';
+
 -- ユーザー→グループ: ユーザー別
 CREATE INDEX idx_user_permission_groups_user ON user_permission_groups(user_id);
 

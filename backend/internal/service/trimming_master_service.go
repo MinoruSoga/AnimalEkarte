@@ -3,7 +3,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -46,7 +45,7 @@ func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64,
 	}
 	course, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update trimming course: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update trimming course")
 	}
 	slog.InfoContext(ctx, "trimming course updated", slog.Uint64("trimming_course_id", id))
 	return course, nil
@@ -131,7 +130,7 @@ func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64,
 	}
 	option, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update trimming option: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update trimming option")
 	}
 	slog.InfoContext(ctx, "trimming option updated", slog.Uint64("trimming_option_id", id))
 	return option, nil

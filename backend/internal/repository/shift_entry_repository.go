@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -27,6 +26,7 @@ type ShiftEntryRepository interface {
 	Create(ctx context.Context, entry *model.ShiftEntry) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
+	ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error)
 }
 
 type shiftEntryRepository struct{ db *gorm.DB }
@@ -64,14 +64,12 @@ func (r *shiftEntryRepository) List(ctx context.Context, clinicID uint64, filter
 
 func (r *shiftEntryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ShiftEntry, error) {
 	var entry model.ShiftEntry
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Preload("Staff").
 		Where("id = ? AND clinic_id = ?", id, clinicID).
-		First(&entry).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("shift_entry", strconv.FormatUint(id, 10))
-		}
-		return nil, apperrors.Wrap(err, "find shift entry by id")
+		First(&entry).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "shift_entry", strconv.FormatUint(id, 10))
 	}
 	return &entry, nil
 }
@@ -114,4 +112,15 @@ func (r *shiftEntryRepository) Delete(ctx context.Context, clinicID, id uint64) 
 		return apperrors.WrapNotFound("shift_entry", strconv.FormatUint(id, 10))
 	}
 	return nil
+}
+
+func (r *shiftEntryRepository) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.ShiftEntry{}).
+		Where("staff_id = ?", staffID).
+		Count(&count).Error
+	if err != nil {
+		return false, apperrors.Wrap(err, "check shift entry by staff_id")
+	}
+	return count > 0, nil
 }

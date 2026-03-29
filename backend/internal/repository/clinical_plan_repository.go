@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -36,17 +35,15 @@ func (r *clinicalPlanRepository) FindByMedicalRecordID(ctx context.Context, medi
 		Where("medical_record_id = ?", medicalRecordID).
 		First(&plan).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("clinical_plan", fmt.Sprintf("%d", medicalRecordID))
-		}
-		return nil, apperrors.Wrap(err, "find clinical_plan by medical_record_id")
+		return nil, apperrors.FromGORM(err, "clinical_plan", fmt.Sprintf("%d", medicalRecordID))
 	}
 	return &plan, nil
 }
 
 func (r *clinicalPlanRepository) Create(ctx context.Context, plan *model.ClinicalPlan) error {
-	if err := r.db.WithContext(ctx).Create(plan).Error; err != nil {
-		return apperrors.Wrap(err, "create clinical_plan")
+	err := r.db.WithContext(ctx).Create(plan).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "clinical_plan", "")
 	}
 	return nil
 }
@@ -57,7 +54,7 @@ func (r *clinicalPlanRepository) Update(ctx context.Context, id uint64, fields m
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update clinical_plan")
+		return apperrors.FromGORM(result.Error, "clinical_plan", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("clinical_plan", fmt.Sprintf("%d", id))
@@ -70,7 +67,7 @@ func (r *clinicalPlanRepository) Delete(ctx context.Context, id uint64) error {
 		Where("id = ?", id).
 		Delete(&model.ClinicalPlan{})
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete clinical_plan")
+		return apperrors.FromGORM(result.Error, "clinical_plan", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("clinical_plan", fmt.Sprintf("%d", id))

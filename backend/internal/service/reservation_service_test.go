@@ -41,6 +41,14 @@ func (m *mockReservationRepository) Delete(ctx context.Context, clinicID, id uin
 	return m.deleteFn(ctx, clinicID, id)
 }
 
+func (m *mockReservationRepository) ExistsByServiceTypeID(_ context.Context, _ uint64) (bool, error) {
+	return false, nil
+}
+
+func (m *mockReservationRepository) ExistsByStaffID(_ context.Context, _ uint64) (bool, error) {
+	return false, nil
+}
+
 func ptrTime(t time.Time) *time.Time { return &t }
 
 func TestReservationService_List(t *testing.T) {

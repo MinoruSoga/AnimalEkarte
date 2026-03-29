@@ -50,7 +50,7 @@ const CageSidePanel = memo(function CageSidePanel({
   }));
   return (
     <MasterSidePanel isNew={item === null} title={f.name} onTitleChange={(v) => setF((p) => ({ ...p, name: v }))}
-      onClose={onClose} onSave={() => onSave(f)} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onClose={onClose} action={() => onSave(f)} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<Building2 className={LAYOUT.pageIcon.innerIcon} />}>
       <StatusToggleButton isActive={f.isActive} onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))} />
       <PropertyRow label="エリア">

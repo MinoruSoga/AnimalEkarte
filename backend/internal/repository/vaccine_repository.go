@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -41,11 +40,9 @@ func (r *vaccineRepository) FindAll(ctx context.Context, species *string) ([]mod
 
 func (r *vaccineRepository) FindByID(ctx context.Context, id uint64) (*model.Vaccine, error) {
 	var vaccine model.Vaccine
-	if err := r.db.WithContext(ctx).First(&vaccine, "id = ?", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("vaccine", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find vaccine by id")
+	err := r.db.WithContext(ctx).First(&vaccine, "id = ?", id).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "vaccine", fmt.Sprintf("%d", id))
 	}
 	return &vaccine, nil
 }

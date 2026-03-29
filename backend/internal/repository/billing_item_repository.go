@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -31,11 +30,9 @@ func NewBillingItemRepository(db *gorm.DB) BillingItemRepository {
 
 func (r *billingItemRepository) FindByID(ctx context.Context, id uint64) (*model.BillingItem, error) {
 	var item model.BillingItem
-	if err := r.db.WithContext(ctx).First(&item, "id = ?", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("billing_item", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find billing item by id")
+	err := r.db.WithContext(ctx).First(&item, "id = ?", id).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("%d", id))
 	}
 	return &item, nil
 }

@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -66,14 +65,12 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 
 func (r *vaccinationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error) {
 	var vaccination model.Vaccination
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Where("vaccinations.id = ? AND vaccinations.clinic_id = ?", id, clinicID).
 		Preload("Vaccine").Preload("Pet").Preload("Pet.Owner").Preload("Doctor").
-		First(&vaccination).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find vaccination by id")
+		First(&vaccination).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "vaccination", fmt.Sprintf("%d", id))
 	}
 	return &vaccination, nil
 }

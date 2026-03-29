@@ -41,6 +41,10 @@ func (m *mockHospitalizationRepository) Delete(ctx context.Context, clinicID, id
 	return m.deleteFn(ctx, clinicID, id)
 }
 
+func (m *mockHospitalizationRepository) ExistsByCageID(_ context.Context, _ uint64) (bool, error) {
+	return false, nil
+}
+
 func TestHospitalizationService_List(t *testing.T) {
 	petID := uint64(5)
 	ownerID := uint64(2)

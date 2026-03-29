@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -64,7 +63,7 @@ func (s *permissionGroupService) List(ctx context.Context, companyID uint64) ([]
 func (s *permissionGroupService) GetByID(ctx context.Context, id uint64) (*model.PermissionGroup, error) {
 	g, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("permission group not found: %w", apperrors.ErrNotFound)
+		return nil, apperrors.Wrap(apperrors.ErrNotFound, "permission group not found")
 	}
 	return g, nil
 }
@@ -82,9 +81,9 @@ func (s *permissionGroupService) Create(ctx context.Context, companyID uint64, i
 	}
 	if err := s.repo.Create(ctx, group); err != nil {
 		if apperrors.IsAlreadyExists(err) {
-			return nil, fmt.Errorf("permission group name already exists: %w", apperrors.ErrAlreadyExists)
+			return nil, apperrors.Wrap(apperrors.ErrAlreadyExists, "permission group name already exists")
 		}
-		return nil, fmt.Errorf("failed to create permission group: %w", err)
+		return nil, apperrors.Wrap(err, "failed to create permission group")
 	}
 	slog.InfoContext(ctx, "permission group created", "id", group.ID, "company_id", companyID, "name", group.Name)
 	return group, nil

@@ -3,7 +3,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -129,7 +128,7 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 	}
 
 	if err := s.repo.Create(ctx, item); err != nil {
-		return nil, fmt.Errorf("failed to create merchandise item: %w", err)
+		return nil, apperrors.Wrap(err, "failed to create merchandise item")
 	}
 
 	slog.InfoContext(ctx, "merchandise item created",
@@ -147,7 +146,7 @@ func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64
 	}
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, fmt.Errorf("failed to update merchandise item: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update merchandise item")
 	}
 
 	slog.InfoContext(ctx, "merchandise item updated",
@@ -166,11 +165,11 @@ func (s *merchandiseItemService) Reorder(ctx context.Context, clinicID uint64, i
 
 func (s *merchandiseItemService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return fmt.Errorf("failed to get merchandise item: %w", err)
+		return apperrors.Wrap(err, "failed to get merchandise item")
 	}
 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		return fmt.Errorf("failed to delete merchandise item: %w", err)
+		return apperrors.Wrap(err, "failed to delete merchandise item")
 	}
 	slog.InfoContext(ctx, "merchandise item deleted",
 		slog.Uint64("clinic_id", clinicID),

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -82,7 +81,7 @@ func (s *treatmentPlanService) Create(ctx context.Context, medicalRecordID, hosp
 		SortOrder:         input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, plan); err != nil {
-		return nil, fmt.Errorf("failed to create treatment plan: %w", err)
+		return nil, apperrors.Wrap(err, "failed to create treatment plan")
 	}
 	slog.InfoContext(ctx, "treatment plan created", slog.Uint64("treatment_plan_id", plan.ID))
 	return s.repo.FindByID(ctx, plan.ID)
@@ -94,7 +93,7 @@ func (s *treatmentPlanService) Update(ctx context.Context, id uint64, input *Upd
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, id, fields); err != nil {
-		return nil, fmt.Errorf("failed to update treatment plan: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update treatment plan")
 	}
 	slog.InfoContext(ctx, "treatment plan updated", slog.Uint64("treatment_plan_id", id))
 	return s.repo.FindByID(ctx, id)
@@ -102,7 +101,7 @@ func (s *treatmentPlanService) Update(ctx context.Context, id uint64, input *Upd
 
 func (s *treatmentPlanService) Delete(ctx context.Context, id uint64) error {
 	if err := s.repo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("failed to delete treatment plan: %w", err)
+		return apperrors.Wrap(err, "failed to delete treatment plan")
 	}
 	slog.InfoContext(ctx, "treatment plan deleted", slog.Uint64("treatment_plan_id", id))
 	return nil

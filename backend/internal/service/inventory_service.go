@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -49,7 +48,7 @@ func (s *inventoryService) Update(ctx context.Context, clinicID, id uint64, inpu
 	}
 	item, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update inventory item: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update inventory item")
 	}
 	slog.InfoContext(ctx, "inventory item updated", slog.Uint64("inventory_id", id))
 	return item, nil

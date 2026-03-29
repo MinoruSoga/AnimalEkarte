@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -37,7 +36,7 @@ func (s *reservationService) GetByID(ctx context.Context, clinicID, id uint64) (
 
 func (s *reservationService) Create(ctx context.Context, reservation *model.ReservationAppointment) error {
 	if err := s.repo.Create(ctx, reservation); err != nil {
-		return fmt.Errorf("failed to create reservation: %w", err)
+		return apperrors.Wrap(err, "failed to create reservation")
 	}
 	slog.InfoContext(ctx, "reservation created",
 		slog.Uint64("reservation_id", reservation.ID),
@@ -55,7 +54,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	}
 	reservation, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update reservation: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update reservation")
 	}
 	slog.InfoContext(ctx, "reservation updated",
 		slog.Uint64("reservation_id", id),

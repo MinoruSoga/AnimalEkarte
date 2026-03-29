@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -87,17 +86,15 @@ func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, pet
 
 func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
 	var billing model.Billing
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Preload("Items").
 		Preload("Payments").
 		Preload("Refunds").
 		Preload("Owner").
 		Preload("Pet").
-		First(&billing, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("billing", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find billing by id")
+		First(&billing, "id = ? AND clinic_id = ?", id, clinicID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", id))
 	}
 	// Preload した Refunds から TotalRefundedAmount を計算（FindAll と同じ算出ロジック）
 	var total int64

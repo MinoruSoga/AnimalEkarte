@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -53,11 +52,9 @@ func NewUserAccountRepository(db *gorm.DB) UserAccountRepository {
 // アカウントが存在しない場合は ErrNotFound を返す。
 func (r *userAccountRepository) FindByEmail(ctx context.Context, email string) (*model.UserAccount, error) {
 	var account model.UserAccount
-	if err := r.db.WithContext(ctx).First(&account, "email = ? AND deleted_at IS NULL", email).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("user_account", email)
-		}
-		return nil, apperrors.Wrap(err, "find user account by email")
+	err := r.db.WithContext(ctx).First(&account, "email = ? AND deleted_at IS NULL", email).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "user_account", email)
 	}
 	return &account, nil
 }
@@ -65,12 +62,10 @@ func (r *userAccountRepository) FindByEmail(ctx context.Context, email string) (
 // FindActiveByID はアクティブなユーザーをIDで取得する（アカウント停止・論理削除を除外）
 func (r *userAccountRepository) FindActiveByID(ctx context.Context, id uint64) (*model.UserAccount, error) {
 	var account model.UserAccount
-	if err := r.db.WithContext(ctx).
-		First(&account, "id = ? AND status = 'active' AND deleted_at IS NULL", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("user_account", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find active user account by id")
+	err := r.db.WithContext(ctx).
+		First(&account, "id = ? AND status = 'active' AND deleted_at IS NULL", id).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "user_account", fmt.Sprintf("%d", id))
 	}
 	return &account, nil
 }
@@ -132,14 +127,12 @@ func (r *userAccountRepository) Delete(ctx context.Context, id uint64) error {
 // FindByIDWithMemberships はIDでユーザーを取得し、所属クリニックも合わせて返す。
 func (r *userAccountRepository) FindByIDWithMemberships(ctx context.Context, id uint64) (*UserAccountWithMemberships, error) {
 	var account model.UserAccount
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Preload("Staff").
 		Preload("JobTitle").
-		First(&account, "id = ? AND deleted_at IS NULL", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("user_account", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find user account by id")
+		First(&account, "id = ? AND deleted_at IS NULL", id).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "user_account", fmt.Sprintf("%d", id))
 	}
 
 	memberships := make([]model.UserClinicMembership, 0)

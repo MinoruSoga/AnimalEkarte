@@ -3,7 +3,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -46,7 +45,7 @@ func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id ui
 	}
 	plan, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update hospitalization plan: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update hospitalization plan")
 	}
 	slog.InfoContext(ctx, "hospitalization plan updated", slog.Uint64("hospitalization_plan_id", id))
 	return plan, nil

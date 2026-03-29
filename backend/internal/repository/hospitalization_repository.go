@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -17,6 +16,7 @@ type HospitalizationRepository interface {
 	Create(ctx context.Context, hospitalization *model.Hospitalization) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	ExistsByCageID(ctx context.Context, cageID uint64) (bool, error)
 }
 
 type hospitalizationRepository struct {
@@ -48,19 +48,19 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64
 		q = q.Where("hospitalizations.start_date <= ?", *endDate)
 	}
 	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "count hospitalizations")
+		return nil, 0, apperrors.FromGORM(err, "hospitalization", "")
 	}
 	if err := q.Preload("Pet.AnimalSpecies").Preload("Owner").Preload("Cage").Preload("Doctor").
 		Offset((page - 1) * limit).Limit(limit).Order("start_date DESC, created_at DESC").
 		Find(&hospitalizations).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "find hospitalizations")
+		return nil, 0, apperrors.FromGORM(err, "hospitalization", "")
 	}
 	return hospitalizations, total, nil
 }
 
 func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
 	var hospitalization model.Hospitalization
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Preload("Pet.AnimalSpecies").
 		Preload("Owner").
 		Preload("Cage").
@@ -68,21 +68,20 @@ func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id u
 		Preload("CarePlanItems").
 		Preload("DailyRecords").
 		Preload("TreatmentPlans").
-		First(&hospitalization, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("hospitalization", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find hospitalization by id")
+		First(&hospitalization, "id = ? AND clinic_id = ?", id, clinicID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "hospitalization", fmt.Sprintf("%d", id))
 	}
 	return &hospitalization, nil
 }
 
 func (r *hospitalizationRepository) Create(ctx context.Context, hospitalization *model.Hospitalization) error {
-	if err := r.db.WithContext(ctx).Create(hospitalization).Error; err != nil {
+	err := r.db.WithContext(ctx).Create(hospitalization).Error
+	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("hospitalization", hospitalization.StartDate.String())
 		}
-		return apperrors.Wrap(err, "create hospitalization")
+		return apperrors.FromGORM(err, "hospitalization", "")
 	}
 	return nil
 }
@@ -93,7 +92,7 @@ func (r *hospitalizationRepository) UpdateFields(ctx context.Context, clinicID, 
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return nil, apperrors.Wrap(result.Error, "update hospitalization")
+		return nil, apperrors.FromGORM(result.Error, "hospitalization", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("hospitalization", fmt.Sprintf("%d", id))
@@ -104,10 +103,21 @@ func (r *hospitalizationRepository) UpdateFields(ctx context.Context, clinicID, 
 func (r *hospitalizationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Hospitalization{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete hospitalization")
+		return apperrors.FromGORM(result.Error, "hospitalization", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("hospitalization", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *hospitalizationRepository) ExistsByCageID(ctx context.Context, cageID uint64) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.Hospitalization{}).
+		Where("cage_id = ?", cageID).
+		Count(&count).Error
+	if err != nil {
+		return false, apperrors.FromGORM(err, "hospitalization", "")
+	}
+	return count > 0, nil
 }

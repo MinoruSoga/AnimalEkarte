@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -57,12 +56,10 @@ func (r *merchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64
 
 func (r *merchandiseItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
 	var item model.MerchandiseItem
-	if err := r.db.WithContext(ctx).
-		First(&item, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("merchandise_item", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find merchandise item by id")
+	err := r.db.WithContext(ctx).
+		First(&item, "id = ? AND clinic_id = ?", id, clinicID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "merchandise_item", fmt.Sprintf("%d", id))
 	}
 	return &item, nil
 }

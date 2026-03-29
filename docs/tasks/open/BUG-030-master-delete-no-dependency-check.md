@@ -49,3 +49,9 @@
 - `backend/internal/service/service_type_service.go`
 - `backend/internal/service/staff_service.go`（または masters_service.go）
 - `backend/internal/service/cage_service.go`（または masters_service.go）
+
+## 派生イシュー
+
+| イシュー | 領域 | 内容 |
+|---------|------|------|
+| BUG-030（BE） | Backend | サービス種別・スタッフ・ケージ削除時の依存チェック実装（依存あり → ErrConflict → 409 Conflict） |

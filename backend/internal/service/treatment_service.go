@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strconv"
 
@@ -122,7 +121,7 @@ func (s *treatmentService) Create(ctx context.Context, medicalRecordID uint64, i
 	}
 
 	if err := s.repo.Create(ctx, treatment); err != nil {
-		return nil, fmt.Errorf("failed to create treatment: %w", err)
+		return nil, apperrors.Wrap(err, "failed to create treatment")
 	}
 
 	slog.InfoContext(ctx, "treatment created",
@@ -136,7 +135,7 @@ func (s *treatmentService) Update(ctx context.Context, medicalRecordID, treatmen
 	// 所属確認
 	existing, err := s.repo.FindByID(ctx, treatmentID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get treatment: %w", err)
+		return nil, apperrors.Wrap(err, "failed to get treatment")
 	}
 	if existing.MedicalRecordID != medicalRecordID {
 		return nil, apperrors.WrapNotFound("treatment", strconv.FormatUint(treatmentID, 10))
@@ -159,7 +158,7 @@ func (s *treatmentService) Update(ctx context.Context, medicalRecordID, treatmen
 	}
 
 	if err := s.repo.Update(ctx, treatmentID, fields); err != nil {
-		return nil, fmt.Errorf("failed to update treatment: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update treatment")
 	}
 
 	slog.InfoContext(ctx, "treatment updated",
@@ -172,14 +171,14 @@ func (s *treatmentService) Update(ctx context.Context, medicalRecordID, treatmen
 func (s *treatmentService) Delete(ctx context.Context, medicalRecordID, treatmentID uint64) error {
 	existing, err := s.repo.FindByID(ctx, treatmentID)
 	if err != nil {
-		return fmt.Errorf("failed to get treatment: %w", err)
+		return apperrors.Wrap(err, "failed to get treatment")
 	}
 	if existing.MedicalRecordID != medicalRecordID {
 		return apperrors.WrapNotFound("treatment", strconv.FormatUint(treatmentID, 10))
 	}
 
 	if err := s.repo.Delete(ctx, treatmentID); err != nil {
-		return fmt.Errorf("failed to delete treatment: %w", err)
+		return apperrors.Wrap(err, "failed to delete treatment")
 	}
 
 	slog.InfoContext(ctx, "treatment deleted",
@@ -199,7 +198,7 @@ func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, medicalRecor
 	}
 
 	if err := s.repo.BulkUpdateSortOrder(ctx, updates); err != nil {
-		return fmt.Errorf("failed to bulk update treatment sort order: %w", err)
+		return apperrors.Wrap(err, "failed to bulk update treatment sort order")
 	}
 
 	slog.InfoContext(ctx, "treatments bulk sort_order updated",

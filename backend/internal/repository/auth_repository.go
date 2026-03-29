@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -44,10 +43,7 @@ func (r *authRepository) FindRefreshToken(ctx context.Context, tokenHash string)
 		Where("token_hash = ? AND revoked_at IS NULL", tokenHash).
 		First(&token).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("refresh_token", tokenHash)
-		}
-		return nil, apperrors.Wrap(err, "find refresh token")
+		return nil, apperrors.FromGORM(err, "refresh_token", tokenHash)
 	}
 	return &token, nil
 }
@@ -78,10 +74,7 @@ func (r *authRepository) FindPasswordResetToken(ctx context.Context, tokenHash s
 		Where("token_hash = ? AND used_at IS NULL", tokenHash).
 		First(&token).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("password_reset_token", tokenHash)
-		}
-		return nil, apperrors.Wrap(err, "find password reset token")
+		return nil, apperrors.FromGORM(err, "password_reset_token", tokenHash)
 	}
 	return &token, nil
 }

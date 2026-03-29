@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -45,33 +44,32 @@ func (r *estimateRepository) FindAll(ctx context.Context, clinicID uint64, owner
 	}
 
 	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "count estimates")
+		return nil, 0, apperrors.FromGORM(err, "estimate", "")
 	}
 	if err := q.Preload("Owner").Preload("Items").
 		Offset((page - 1) * limit).Limit(limit).Order("created_at DESC").Find(&estimates).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "find estimates")
+		return nil, 0, apperrors.FromGORM(err, "estimate", "")
 	}
 	return estimates, total, nil
 }
 
 func (r *estimateRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error) {
 	var estimate model.Estimate
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Preload("Owner").
 		Preload("Items").
 		Preload("CreatedStaff").
-		First(&estimate, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("estimate", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find estimate by id")
+		First(&estimate, "id = ? AND clinic_id = ?", id, clinicID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "estimate", fmt.Sprintf("%d", id))
 	}
 	return &estimate, nil
 }
 
 func (r *estimateRepository) Create(ctx context.Context, estimate *model.Estimate) error {
-	if err := r.db.WithContext(ctx).Create(estimate).Error; err != nil {
-		return apperrors.Wrap(err, "create estimate")
+	err := r.db.WithContext(ctx).Create(estimate).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "estimate", "")
 	}
 	return nil
 }
@@ -82,7 +80,7 @@ func (r *estimateRepository) Update(ctx context.Context, clinicID, id uint64, fi
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update estimate")
+		return apperrors.FromGORM(result.Error, "estimate", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("estimate", fmt.Sprintf("%d", id))
@@ -93,7 +91,7 @@ func (r *estimateRepository) Update(ctx context.Context, clinicID, id uint64, fi
 func (r *estimateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Estimate{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete estimate")
+		return apperrors.FromGORM(result.Error, "estimate", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("estimate", fmt.Sprintf("%d", id))

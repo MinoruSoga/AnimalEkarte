@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -54,7 +53,7 @@ func NewAuthService(authRepo repository.AuthRepository, userRepo repository.User
 func (s *authService) CreateRefreshToken(ctx context.Context, userID, clinicID uint64) (string, error) {
 	rawToken, err := generateSecureToken()
 	if err != nil {
-		return "", fmt.Errorf("generate refresh token: %w", err)
+		return "", apperrors.Wrap(err, "generate refresh token")
 	}
 
 	token := &model.RefreshToken{
@@ -64,7 +63,7 @@ func (s *authService) CreateRefreshToken(ctx context.Context, userID, clinicID u
 		ExpiresAt: time.Now().Add(refreshTokenDuration),
 	}
 	if err := s.authRepo.CreateRefreshToken(ctx, token); err != nil {
-		return "", fmt.Errorf("save refresh token: %w", err)
+		return "", apperrors.Wrap(err, "save refresh token")
 	}
 	return rawToken, nil
 }
@@ -81,12 +80,12 @@ func (s *authService) RefreshToken(ctx context.Context, rawToken string) (userID
 
 	// ローテーション: 古いトークンを無効化して新しいトークンを発行
 	if revokeErr := s.authRepo.RevokeRefreshToken(ctx, hash); revokeErr != nil {
-		return 0, 0, "", fmt.Errorf("revoke old refresh token: %w", revokeErr)
+		return 0, 0, "", apperrors.Wrap(revokeErr, "revoke old refresh token")
 	}
 
 	newRaw, createErr := s.CreateRefreshToken(ctx, token.UserID, token.ClinicID)
 	if createErr != nil {
-		return 0, 0, "", fmt.Errorf("create new refresh token: %w", createErr)
+		return 0, 0, "", apperrors.Wrap(createErr, "create new refresh token")
 	}
 
 	return token.UserID, token.ClinicID, newRaw, nil
@@ -111,7 +110,7 @@ func (s *authService) ForgotPassword(ctx context.Context, email string) error {
 
 	rawToken, err := generateSecureToken()
 	if err != nil {
-		return fmt.Errorf("generate password reset token: %w", err)
+		return apperrors.Wrap(err, "generate password reset token")
 	}
 
 	resetToken := &model.PasswordResetToken{
@@ -120,7 +119,7 @@ func (s *authService) ForgotPassword(ctx context.Context, email string) error {
 		ExpiresAt: time.Now().Add(passwordResetDuration),
 	}
 	if err := s.authRepo.CreatePasswordResetToken(ctx, resetToken); err != nil {
-		return fmt.Errorf("save password reset token: %w", err)
+		return apperrors.Wrap(err, "save password reset token")
 	}
 
 	// dev環境ではログ出力（本番環境ではメール送信）
@@ -148,22 +147,22 @@ func (s *authService) ResetPassword(ctx context.Context, rawToken, newPassword s
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
-		return fmt.Errorf("hash password: %w", err)
+		return apperrors.Wrap(err, "hash password")
 	}
 
 	if err := s.userRepo.Update(ctx, token.UserID, map[string]any{
 		"password_hash": string(passwordHash),
 	}); err != nil {
-		return fmt.Errorf("update password: %w", err)
+		return apperrors.Wrap(err, "update password")
 	}
 
 	if err := s.authRepo.MarkPasswordResetTokenUsed(ctx, hash); err != nil {
-		return fmt.Errorf("mark reset token as used: %w", err)
+		return apperrors.Wrap(err, "mark reset token as used")
 	}
 
 	// 全セッションを無効化する
 	if err := s.authRepo.RevokeAllUserTokens(ctx, token.UserID); err != nil {
-		return fmt.Errorf("revoke all user tokens: %w", err)
+		return apperrors.Wrap(err, "revoke all user tokens")
 	}
 
 	slog.InfoContext(ctx, "password reset completed", slog.Uint64("user_id", token.UserID))
@@ -177,7 +176,7 @@ func (s *authService) ChangePassword(ctx context.Context, userID uint64, current
 
 	account, err := s.userRepo.FindActiveByID(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("find user: %w", err)
+		return apperrors.Wrap(err, "find user")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(currentPassword)); err != nil {
@@ -186,18 +185,18 @@ func (s *authService) ChangePassword(ctx context.Context, userID uint64, current
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
-		return fmt.Errorf("hash new password: %w", err)
+		return apperrors.Wrap(err, "hash new password")
 	}
 
 	if err := s.userRepo.Update(ctx, userID, map[string]any{
 		"password_hash": string(passwordHash),
 	}); err != nil {
-		return fmt.Errorf("update password: %w", err)
+		return apperrors.Wrap(err, "update password")
 	}
 
 	// 全セッションを無効化する（全端末ログアウト）
 	if err := s.authRepo.RevokeAllUserTokens(ctx, userID); err != nil {
-		return fmt.Errorf("revoke all user tokens: %w", err)
+		return apperrors.Wrap(err, "revoke all user tokens")
 	}
 
 	slog.InfoContext(ctx, "password changed", slog.Uint64("user_id", userID))

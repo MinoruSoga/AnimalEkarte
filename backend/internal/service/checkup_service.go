@@ -85,7 +85,7 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 		Result:          input.Result,
 	}
 	if err := s.repo.Create(ctx, checkup); err != nil {
-		return nil, fmt.Errorf("failed to create checkup: %w", err)
+		return nil, apperrors.Wrap(err, "failed to create checkup")
 	}
 	slog.InfoContext(ctx, "checkup created",
 		slog.Uint64("checkup_id", checkup.ID),
@@ -101,13 +101,13 @@ func (s *checkupService) Update(ctx context.Context, medicalRecordID, checkupID 
 	// 親カルテ所属確認
 	existing, err := s.repo.FindByID(ctx, checkupID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get checkup: %w", err)
+		return nil, apperrors.Wrap(err, "failed to get checkup")
 	}
 	if existing.MedicalRecordID != medicalRecordID {
 		return nil, apperrors.WrapNotFound("checkup", fmt.Sprintf("%d", checkupID))
 	}
 	if err := s.repo.Update(ctx, checkupID, fields); err != nil {
-		return nil, fmt.Errorf("failed to update checkup: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update checkup")
 	}
 	slog.InfoContext(ctx, "checkup updated",
 		slog.Uint64("checkup_id", checkupID),
@@ -118,13 +118,13 @@ func (s *checkupService) Update(ctx context.Context, medicalRecordID, checkupID 
 func (s *checkupService) Delete(ctx context.Context, medicalRecordID, checkupID uint64) error {
 	existing, err := s.repo.FindByID(ctx, checkupID)
 	if err != nil {
-		return fmt.Errorf("failed to get checkup: %w", err)
+		return apperrors.Wrap(err, "failed to get checkup")
 	}
 	if existing.MedicalRecordID != medicalRecordID {
 		return apperrors.WrapNotFound("checkup", fmt.Sprintf("%d", checkupID))
 	}
 	if err := s.repo.Delete(ctx, checkupID); err != nil {
-		return fmt.Errorf("failed to delete checkup: %w", err)
+		return apperrors.Wrap(err, "failed to delete checkup")
 	}
 	slog.InfoContext(ctx, "checkup deleted",
 		slog.Uint64("checkup_id", checkupID),

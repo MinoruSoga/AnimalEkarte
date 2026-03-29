@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -37,7 +36,7 @@ func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uint6
 
 func (s *hospitalizationService) Create(ctx context.Context, hospitalization *model.Hospitalization) error {
 	if err := s.repo.Create(ctx, hospitalization); err != nil {
-		return fmt.Errorf("failed to create hospitalization: %w", err)
+		return apperrors.Wrap(err, "failed to create hospitalization")
 	}
 	slog.InfoContext(ctx, "hospitalization created",
 		slog.Uint64("hospitalization_id", hospitalization.ID),
@@ -55,7 +54,7 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 	}
 	hosp, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update hospitalization: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update hospitalization")
 	}
 	slog.InfoContext(ctx, "hospitalization updated",
 		slog.Uint64("hospitalization_id", id),

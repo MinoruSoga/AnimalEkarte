@@ -38,3 +38,9 @@ API `GET /masters/diagnosis-names?category_id=X` へのパラメータ付き呼�
 
 ## 発見日
 2026-03-28
+
+## 派生イシュー
+
+| イシュー | 領域 | 内容 |
+|---------|------|------|
+| BUG-040（FE） | Frontend | 診断カテゴリ選択時に `GET /masters/diagnosis-names?category_id=X` でフィルタリング実装 |

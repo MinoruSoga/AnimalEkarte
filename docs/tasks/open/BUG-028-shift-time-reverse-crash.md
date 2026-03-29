@@ -46,3 +46,10 @@
 
 ## 関連バグ
 - BUG-027: トリミング登録フォームの必須バリデーションエラーが表示されない
+
+## 派生イシュー
+
+| イシュー | 領域 | 内容 |
+|---------|------|------|
+| BUG-028（FE） | Frontend | シフト追加ダイアログに end_time > start_time バリデーション追加 |
+| BUG-028（BE） | Backend | シフト POST/PATCH で end_time <= start_time を 400 Bad Request で返す |

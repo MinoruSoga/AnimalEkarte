@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -37,11 +36,9 @@ func (r *procedureRepository) FindAll(ctx context.Context) ([]model.Procedure, e
 
 func (r *procedureRepository) FindByID(ctx context.Context, id uint64) (*model.Procedure, error) {
 	var procedure model.Procedure
-	if err := r.db.WithContext(ctx).First(&procedure, "id = ?", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("procedure", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find procedure by id")
+	err := r.db.WithContext(ctx).First(&procedure, "id = ?", id).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "procedure", fmt.Sprintf("%d", id))
 	}
 	return &procedure, nil
 }

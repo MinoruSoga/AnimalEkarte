@@ -3,7 +3,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -68,7 +67,7 @@ func (s *animalSpeciesService) Create(ctx context.Context, input *CreateAnimalSp
 		SortOrder: input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, species); err != nil {
-		return nil, fmt.Errorf("failed to create animal species: %w", err)
+		return nil, apperrors.Wrap(err, "failed to create animal species")
 	}
 	slog.InfoContext(ctx, "animal species created",
 		slog.Uint64("species_id", species.ID),
@@ -82,7 +81,7 @@ func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *Upd
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, id, fields); err != nil {
-		return nil, fmt.Errorf("failed to update animal species: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update animal species")
 	}
 	slog.InfoContext(ctx, "animal species updated",
 		slog.Uint64("species_id", id))

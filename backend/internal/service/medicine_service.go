@@ -179,7 +179,7 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 	}
 
 	if err := s.repo.Create(ctx, medicine); err != nil {
-		return nil, fmt.Errorf("failed to create medicine: %w", err)
+		return nil, apperrors.Wrap(err, "failed to create medicine")
 	}
 
 	slog.InfoContext(ctx, "medicine created",
@@ -197,7 +197,7 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 	}
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, fmt.Errorf("failed to update medicine: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update medicine")
 	}
 
 	slog.InfoContext(ctx, "medicine updated",
@@ -217,14 +217,14 @@ func (s *medicineService) Reorder(ctx context.Context, clinicID uint64, ids []ui
 func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error {
 	m, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		return fmt.Errorf("failed to get medicine: %w", err)
+		return apperrors.Wrap(err, "failed to get medicine")
 	}
 
 	// カテゴリ（parent_id = NULL）の場合、子アイテムが存在すれば削除を拒否する
 	if m.ParentID == nil {
 		count, err := s.repo.CountChildren(ctx, clinicID, id)
 		if err != nil {
-			return fmt.Errorf("failed to count medicine children: %w", err)
+			return apperrors.Wrap(err, "failed to count medicine children")
 		}
 		if count > 0 {
 			return apperrors.WrapInvalidInput(
@@ -234,7 +234,7 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 	}
 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		return fmt.Errorf("failed to delete medicine: %w", err)
+		return apperrors.Wrap(err, "failed to delete medicine")
 	}
 	slog.InfoContext(ctx, "medicine deleted",
 		slog.Uint64("clinic_id", clinicID),

@@ -3,7 +3,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -111,7 +110,7 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	}
 
 	if err := s.repo.Create(ctx, item); err != nil {
-		return nil, fmt.Errorf("failed to create billing item: %w", err)
+		return nil, apperrors.Wrap(err, "failed to create billing item")
 	}
 
 	if err := s.recalculateTotals(ctx, input.BillingID); err != nil {
@@ -131,7 +130,7 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 func (s *billingItemService) UpdateItem(ctx context.Context, id uint64, input *UpdateBillingItemInput) (*model.BillingItem, error) {
 	item, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get billing item: %w", err)
+		return nil, apperrors.Wrap(err, "failed to get billing item")
 	}
 
 	fields := buildBillingItemUpdateFields(input)
@@ -140,7 +139,7 @@ func (s *billingItemService) UpdateItem(ctx context.Context, id uint64, input *U
 	}
 
 	if err := s.repo.UpdateFields(ctx, id, fields); err != nil {
-		return nil, fmt.Errorf("failed to update billing item: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update billing item")
 	}
 
 	if err := s.recalculateTotals(ctx, item.BillingID); err != nil {
@@ -160,12 +159,12 @@ func (s *billingItemService) UpdateItem(ctx context.Context, id uint64, input *U
 func (s *billingItemService) DeleteItem(ctx context.Context, id uint64) error {
 	item, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return fmt.Errorf("failed to get billing item: %w", err)
+		return apperrors.Wrap(err, "failed to get billing item")
 	}
 	billingID := item.BillingID
 
 	if err := s.repo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("failed to delete billing item: %w", err)
+		return apperrors.Wrap(err, "failed to delete billing item")
 	}
 
 	if err := s.recalculateTotals(ctx, billingID); err != nil {
@@ -186,7 +185,7 @@ func (s *billingItemService) DeleteItem(ctx context.Context, id uint64) error {
 func (s *billingItemService) recalculateTotals(ctx context.Context, billingID uint64) error {
 	items, err := s.repo.FindByBillingID(ctx, billingID)
 	if err != nil {
-		return fmt.Errorf("find billing items: %w", err)
+		return apperrors.Wrap(err, "find billing items")
 	}
 	subtotal, taxTotal, totalAmount := CalculateBillingTotals(items)
 	return s.repo.UpdateBillingTotals(ctx, billingID, subtotal, taxTotal, totalAmount)

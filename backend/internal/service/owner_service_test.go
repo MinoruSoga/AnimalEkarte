@@ -15,6 +15,7 @@ import (
 type mockOwnerRepository struct {
 	findAllFn        func(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error)
 	findByIDFn       func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
+	findByEmailFn    func(ctx context.Context, clinicID uint64, email string) (*model.Owner, error)
 	createWithPetsFn func(ctx context.Context, owner *model.Owner, pets []model.Pet) error
 	updateFn         func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	deleteFn         func(ctx context.Context, clinicID, id uint64) error
@@ -26,6 +27,13 @@ func (m *mockOwnerRepository) FindAll(ctx context.Context, clinicID uint64, page
 
 func (m *mockOwnerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
 	return m.findByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockOwnerRepository) FindByEmail(ctx context.Context, clinicID uint64, email string) (*model.Owner, error) {
+	if m.findByEmailFn != nil {
+		return m.findByEmailFn(ctx, clinicID, email)
+	}
+	return nil, nil
 }
 
 func (m *mockOwnerRepository) CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error {

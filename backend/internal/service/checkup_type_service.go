@@ -3,7 +3,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -46,7 +45,7 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 	}
 	checkupType, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update checkup type: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update checkup type")
 	}
 	slog.InfoContext(ctx, "checkup type updated", slog.Uint64("checkup_type_id", id))
 	return checkupType, nil

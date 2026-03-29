@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,8 +65,46 @@ func (m *mockServiceTypeRepository) Reorder(ctx context.Context, clinicID uint64
 	return nil
 }
 
+// mockReservationForServiceType は ServiceType テストで使用する ReservationRepository のスタブ
+type mockReservationForServiceType struct {
+	existsByServiceTypeIDFn func(ctx context.Context, serviceTypeID uint64) (bool, error)
+	existsByStaffIDFn       func(ctx context.Context, staffID uint64) (bool, error)
+}
+
+func (m *mockReservationForServiceType) FindAll(_ context.Context, _ uint64, _, _ int, _ *time.Time, _ *string, _, _ *uint64) ([]model.ReservationAppointment, int64, error) {
+	return nil, 0, nil
+}
+func (m *mockReservationForServiceType) FindByID(_ context.Context, _, _ uint64) (*model.ReservationAppointment, error) {
+	return nil, nil
+}
+func (m *mockReservationForServiceType) Create(_ context.Context, _ *model.ReservationAppointment) error {
+	return nil
+}
+func (m *mockReservationForServiceType) UpdateFields(_ context.Context, _, _ uint64, _ map[string]any) (*model.ReservationAppointment, error) {
+	return nil, nil
+}
+func (m *mockReservationForServiceType) Delete(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *mockReservationForServiceType) ExistsByServiceTypeID(ctx context.Context, serviceTypeID uint64) (bool, error) {
+	if m.existsByServiceTypeIDFn != nil {
+		return m.existsByServiceTypeIDFn(ctx, serviceTypeID)
+	}
+	return false, nil
+}
+func (m *mockReservationForServiceType) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {
+	if m.existsByStaffIDFn != nil {
+		return m.existsByStaffIDFn(ctx, staffID)
+	}
+	return false, nil
+}
+
 func newTestServiceTypeService(repo *mockServiceTypeRepository) ServiceTypeService {
-	return NewServiceTypeService(repo)
+	return NewServiceTypeService(repo, &mockReservationForServiceType{})
+}
+
+func newTestServiceTypeServiceWithReservation(repo *mockServiceTypeRepository, reservationRepo *mockReservationForServiceType) ServiceTypeService {
+	return NewServiceTypeService(repo, reservationRepo)
 }
 
 // ---- List ----

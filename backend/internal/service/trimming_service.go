@@ -2,8 +2,8 @@
 package service
 
 import (
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
@@ -100,11 +100,11 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 		CompletedImage: input.CompletedImage,
 	}
 	if err := s.repo.Create(ctx, clinicID, trimming); err != nil {
-		return nil, fmt.Errorf("failed to create trimming record: %w", err)
+		return nil, apperrors.Wrap(err, "failed to create trimming record")
 	}
 	if len(input.OptionIDs) > 0 {
 		if err := s.repo.SetOptions(ctx, trimming.ID, input.OptionIDs); err != nil {
-			return nil, fmt.Errorf("failed to set trimming options: %w", err)
+			return nil, apperrors.Wrap(err, "failed to set trimming options")
 		}
 	}
 	return s.repo.FindByID(ctx, clinicID, trimming.ID)
@@ -113,7 +113,7 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input *UpdateTrimmingInput) (*model.TrimmingRecord, error) {
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get trimming record: %w", err)
+		return nil, apperrors.Wrap(err, "failed to get trimming record")
 	}
 	if input.Date != nil {
 		existing.Date = *input.Date
@@ -158,11 +158,11 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 		existing.CompletedImage = *input.CompletedImage
 	}
 	if err := s.repo.Update(ctx, clinicID, existing); err != nil {
-		return nil, fmt.Errorf("failed to update trimming record: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update trimming record")
 	}
 	if input.OptionIDs != nil {
 		if err := s.repo.SetOptions(ctx, id, *input.OptionIDs); err != nil {
-			return nil, fmt.Errorf("failed to set trimming options: %w", err)
+			return nil, apperrors.Wrap(err, "failed to set trimming options")
 		}
 	}
 	return s.repo.FindByID(ctx, clinicID, id)

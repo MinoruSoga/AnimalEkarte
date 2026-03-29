@@ -68,7 +68,7 @@ func (s *dailyRecordService) GetOrCreateByDate(ctx context.Context, hospitalizat
 func (s *dailyRecordService) AddVitalRecord(ctx context.Context, hospitalizationID uint64, date time.Time, input *CreateVitalRecordInput) (*model.DailyRecord, error) {
 	daily, err := s.repo.GetOrCreateByDate(ctx, hospitalizationID, date)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get or create daily record: %w", err)
+		return nil, apperrors.Wrap(err, "failed to get or create daily record")
 	}
 
 	dailyID := daily.ID
@@ -83,7 +83,7 @@ func (s *dailyRecordService) AddVitalRecord(ctx context.Context, hospitalization
 		StaffID:         input.StaffID,
 	}
 	if err := s.repo.CreateVitalRecord(ctx, vr); err != nil {
-		return nil, fmt.Errorf("failed to create vital record: %w", err)
+		return nil, apperrors.Wrap(err, "failed to create vital record")
 	}
 
 	slog.InfoContext(ctx, "vital record added",
@@ -117,7 +117,7 @@ func (s *dailyRecordService) AddCareLogRecord(ctx context.Context, hospitalizati
 
 	daily, err := s.repo.GetOrCreateByDate(ctx, hospitalizationID, date)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get or create daily record: %w", err)
+		return nil, apperrors.Wrap(err, "failed to get or create daily record")
 	}
 
 	cr := &model.CareLogRecord{
@@ -130,7 +130,7 @@ func (s *dailyRecordService) AddCareLogRecord(ctx context.Context, hospitalizati
 		Notes:         input.Notes,
 	}
 	if err := s.repo.CreateCareLogRecord(ctx, cr); err != nil {
-		return nil, fmt.Errorf("failed to create care log record: %w", err)
+		return nil, apperrors.Wrap(err, "failed to create care log record")
 	}
 
 	slog.InfoContext(ctx, "care log record added",
@@ -144,7 +144,7 @@ func (s *dailyRecordService) AddCareLogRecord(ctx context.Context, hospitalizati
 func (s *dailyRecordService) AddStaffNoteRecord(ctx context.Context, hospitalizationID uint64, date time.Time, input *CreateStaffNoteRecordInput) (*model.DailyRecord, error) {
 	daily, err := s.repo.GetOrCreateByDate(ctx, hospitalizationID, date)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get or create daily record: %w", err)
+		return nil, apperrors.Wrap(err, "failed to get or create daily record")
 	}
 
 	sn := &model.StaffNoteRecord{
@@ -154,7 +154,7 @@ func (s *dailyRecordService) AddStaffNoteRecord(ctx context.Context, hospitaliza
 		StaffID:       input.StaffID,
 	}
 	if err := s.repo.CreateStaffNoteRecord(ctx, sn); err != nil {
-		return nil, fmt.Errorf("failed to create staff note record: %w", err)
+		return nil, apperrors.Wrap(err, "failed to create staff note record")
 	}
 
 	slog.InfoContext(ctx, "staff note record added",

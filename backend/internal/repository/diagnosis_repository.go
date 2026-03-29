@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -38,36 +37,35 @@ func (r *diagnosisCategoryRepository) FindAll(ctx context.Context, clinicID uint
 	}
 
 	if err := buildBase().Count(&total).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "count diagnosis categories")
+		return nil, 0, apperrors.FromGORM(err, "diagnosis_category", "")
 	}
 	if err := buildBase().
 		Offset((page - 1) * limit).Limit(limit).
 		Order("sort_order ASC, name ASC").
 		Find(&categories).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "find diagnosis categories")
+		return nil, 0, apperrors.FromGORM(err, "diagnosis_category", "")
 	}
 	return categories, total, nil
 }
 
 func (r *diagnosisCategoryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisCategory, error) {
 	var category model.DiagnosisCategory
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Preload("Names").
-		First(&category, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("diagnosis_category", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find diagnosis category by id")
+		First(&category, "id = ? AND clinic_id = ?", id, clinicID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "diagnosis_category", fmt.Sprintf("%d", id))
 	}
 	return &category, nil
 }
 
 func (r *diagnosisCategoryRepository) Create(ctx context.Context, category *model.DiagnosisCategory) error {
-	if err := r.db.WithContext(ctx).Create(category).Error; err != nil {
+	err := r.db.WithContext(ctx).Create(category).Error
+	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("diagnosis_category", category.Name)
 		}
-		return apperrors.Wrap(err, "create diagnosis category")
+		return apperrors.FromGORM(err, "diagnosis_category", "")
 	}
 	return nil
 }
@@ -78,7 +76,7 @@ func (r *diagnosisCategoryRepository) Update(ctx context.Context, clinicID, id u
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update diagnosis category")
+		return apperrors.FromGORM(result.Error, "diagnosis_category", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("diagnosis_category", fmt.Sprintf("%d", id))
@@ -91,7 +89,7 @@ func (r *diagnosisCategoryRepository) Delete(ctx context.Context, clinicID, id u
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Delete(&model.DiagnosisCategory{})
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete diagnosis category")
+		return apperrors.FromGORM(result.Error, "diagnosis_category", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("diagnosis_category", fmt.Sprintf("%d", id))
@@ -101,20 +99,21 @@ func (r *diagnosisCategoryRepository) Delete(ctx context.Context, clinicID, id u
 
 // Reorder はトランザクション内でカテゴリの sort_order を ids の順序で更新する (#019)
 func (r *diagnosisCategoryRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.DiagnosisCategory{}).
 				Where("id = ? AND clinic_id = ?", id, clinicID).
 				Update("sort_order", i+1)
 			if result.Error != nil {
-				return apperrors.Wrap(result.Error, "reorder diagnosis category")
+				return apperrors.FromGORM(result.Error, "diagnosis_category", fmt.Sprintf("%d", id))
 			}
 			if result.RowsAffected == 0 {
 				return apperrors.WrapInvalidInput(fmt.Sprintf("diagnosis_category id %d not found in this clinic", id))
 			}
 		}
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("reorder diagnosis category: %w", err)
 	}
 	return nil
@@ -147,13 +146,13 @@ func (r *diagnosisNameRepository) FindAll(ctx context.Context, clinicID uint64, 
 	}
 
 	if err := buildBase().Count(&total).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "count diagnosis names")
+		return nil, 0, apperrors.FromGORM(err, "diagnosis_name", "")
 	}
 	if err := buildBase().
 		Offset((page - 1) * limit).Limit(limit).
 		Order("sort_order ASC, name ASC").
 		Find(&names).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "find diagnosis names")
+		return nil, 0, apperrors.FromGORM(err, "diagnosis_name", "")
 	}
 	return names, total, nil
 }
@@ -168,35 +167,34 @@ func (r *diagnosisNameRepository) FindByCategoryID(ctx context.Context, clinicID
 	}
 
 	if err := buildBase().Count(&total).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "count diagnosis names by category id")
+		return nil, 0, apperrors.FromGORM(err, "diagnosis_name", "")
 	}
 	if err := buildBase().
 		Offset((page - 1) * limit).Limit(limit).
 		Order("sort_order ASC, name ASC").
 		Find(&names).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "find diagnosis names by category id")
+		return nil, 0, apperrors.FromGORM(err, "diagnosis_name", "")
 	}
 	return names, total, nil
 }
 
 func (r *diagnosisNameRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error) {
 	var name model.DiagnosisName
-	if err := r.db.WithContext(ctx).
-		First(&name, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("diagnosis_name", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find diagnosis name by id")
+	err := r.db.WithContext(ctx).
+		First(&name, "id = ? AND clinic_id = ?", id, clinicID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "diagnosis_name", fmt.Sprintf("%d", id))
 	}
 	return &name, nil
 }
 
 func (r *diagnosisNameRepository) Create(ctx context.Context, name *model.DiagnosisName) error {
-	if err := r.db.WithContext(ctx).Create(name).Error; err != nil {
+	err := r.db.WithContext(ctx).Create(name).Error
+	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("diagnosis_name", name.Name)
 		}
-		return apperrors.Wrap(err, "create diagnosis name")
+		return apperrors.FromGORM(err, "diagnosis_name", "")
 	}
 	return nil
 }
@@ -207,7 +205,7 @@ func (r *diagnosisNameRepository) Update(ctx context.Context, clinicID, id uint6
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update diagnosis name")
+		return apperrors.FromGORM(result.Error, "diagnosis_name", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("diagnosis_name", fmt.Sprintf("%d", id))
@@ -220,7 +218,7 @@ func (r *diagnosisNameRepository) Delete(ctx context.Context, clinicID, id uint6
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Delete(&model.DiagnosisName{})
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete diagnosis name")
+		return apperrors.FromGORM(result.Error, "diagnosis_name", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("diagnosis_name", fmt.Sprintf("%d", id))
@@ -230,20 +228,21 @@ func (r *diagnosisNameRepository) Delete(ctx context.Context, clinicID, id uint6
 
 // Reorder はトランザクション内で診断名の sort_order を ids の順序で更新する (#019)
 func (r *diagnosisNameRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.DiagnosisName{}).
 				Where("id = ? AND clinic_id = ?", id, clinicID).
 				Update("sort_order", i+1)
 			if result.Error != nil {
-				return apperrors.Wrap(result.Error, "reorder diagnosis name")
+				return apperrors.FromGORM(result.Error, "diagnosis_name", fmt.Sprintf("%d", id))
 			}
 			if result.RowsAffected == 0 {
 				return apperrors.WrapInvalidInput(fmt.Sprintf("diagnosis_name id %d not found in this clinic", id))
 			}
 		}
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("reorder diagnosis name: %w", err)
 	}
 	return nil

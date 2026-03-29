@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -52,7 +51,7 @@ func (s *companyService) Update(ctx context.Context, input *UpdateCompanyInput) 
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, fields); err != nil {
-		return nil, fmt.Errorf("failed to update company: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update company")
 	}
 	slog.InfoContext(ctx, "company updated")
 	return s.repo.Get(ctx)

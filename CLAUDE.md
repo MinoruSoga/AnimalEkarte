@@ -1,5 +1,8 @@
 # Animal Ekarte - 動物病院向け電子カルテシステム
 
+> **⚠️ Note for Gemini CLI**: 
+> Gemini CLI を使用する場合は、プロジェクトルートの **`GEMINI.md`** および **`.gemini/styleguide.md`** を最優先の真実（Source of Truth）として参照してください。
+
 ## ⚠️ Claude Code への指示 (最重要)
 **このプロジェクトの詳細な開発ルール・コマンド・ベストプラクティスは `.claude/CLAUDE.md` に集約されています。**
 タスクを開始する前に、必ず `.claude/CLAUDE.md` を読み込み、プロジェクトのコンテキストとルールを理解してください。

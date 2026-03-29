@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -46,7 +45,7 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 	}
 	exam, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update examination: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update examination")
 	}
 	slog.InfoContext(ctx, "examination updated", slog.Uint64("examination_id", id))
 	return exam, nil

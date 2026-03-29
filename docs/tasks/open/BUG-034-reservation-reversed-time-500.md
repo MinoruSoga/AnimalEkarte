@@ -40,3 +40,10 @@
 
 ## 対象ファイル（推定）
 - `backend/internal/service/reservation_service.go`
+
+## 派生イシュー
+
+| イシュー | 領域 | 内容 |
+|---------|------|------|
+| BUG-034（FE） | Frontend | 予約フォームで end_time < start_time 時にフロントエンドバリデーションエラーを表示 |
+| BUG-034（BE） | Backend | 予約 POST で end_time <= start_time を 400 Bad Request で返す（500 を排除） |

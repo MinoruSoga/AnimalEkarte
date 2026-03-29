@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -51,35 +50,34 @@ func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 
 	var total int64
 	if err := buildBase().Count(&total).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "count exams")
+		return nil, 0, apperrors.FromGORM(err, "exam", "")
 	}
 
 	exams := make([]model.Examination, 0)
 	if err := buildBase().Preload("ExaminationType").Preload("Pet.Owner").Preload("Doctor").Preload("Items").
 		Offset((page - 1) * limit).Limit(limit).Order("exams.date DESC, exams.created_at DESC").
 		Find(&exams).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "find exams")
+		return nil, 0, apperrors.FromGORM(err, "exam", "")
 	}
 	return exams, total, nil
 }
 
 func (r *examinationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error) {
 	var exam model.Examination
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Where("exams.id = ? AND exams.clinic_id = ?", id, clinicID).
 		Preload("ExaminationType").Preload("Pet.Owner").Preload("Doctor").Preload("Items").
-		First(&exam).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("exam", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find exam by id")
+		First(&exam).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "exam", fmt.Sprintf("%d", id))
 	}
 	return &exam, nil
 }
 
 func (r *examinationRepository) Create(ctx context.Context, exam *model.Examination) error {
-	if err := r.db.WithContext(ctx).Create(exam).Error; err != nil {
-		return apperrors.Wrap(err, "create exam")
+	err := r.db.WithContext(ctx).Create(exam).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "exam", "")
 	}
 	return nil
 }
@@ -90,7 +88,7 @@ func (r *examinationRepository) UpdateFields(ctx context.Context, clinicID, id u
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return nil, apperrors.Wrap(result.Error, "update exam")
+		return nil, apperrors.FromGORM(result.Error, "exam", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("exam", fmt.Sprintf("%d", id))
@@ -103,7 +101,7 @@ func (r *examinationRepository) Delete(ctx context.Context, clinicID, id uint64)
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Delete(&model.Examination{})
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete exam")
+		return apperrors.FromGORM(result.Error, "exam", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("exam", fmt.Sprintf("%d", id))

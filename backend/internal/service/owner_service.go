@@ -138,16 +138,27 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 	}
 	for i := range input.Pets {
 		if err := validatePetGender(input.Pets[i].Gender); err != nil {
-			return nil, fmt.Errorf("pets[%d]: %w", i, err)
+			return nil, apperrors.Wrap(err, fmt.Sprintf("pets[%d]", i))
 		}
 		if err := validatePetStatus(input.Pets[i].Status); err != nil {
-			return nil, fmt.Errorf("pets[%d]: %w", i, err)
+			return nil, apperrors.Wrap(err, fmt.Sprintf("pets[%d]", i))
 		}
 		if err := validatePetAcquisitionType(input.Pets[i].AcquisitionType); err != nil {
-			return nil, fmt.Errorf("pets[%d]: %w", i, err)
+			return nil, apperrors.Wrap(err, fmt.Sprintf("pets[%d]", i))
 		}
 		if err := validatePetDangerLevel(input.Pets[i].DangerLevel); err != nil {
-			return nil, fmt.Errorf("pets[%d]: %w", i, err)
+			return nil, apperrors.Wrap(err, fmt.Sprintf("pets[%d]", i))
+		}
+	}
+
+	// メールアドレス重複チェック（空でない場合のみ）
+	if input.Email != "" {
+		existing, err := s.repo.FindByEmail(ctx, clinicID, input.Email)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to check email uniqueness")
+		}
+		if existing != nil {
+			return nil, apperrors.WrapAlreadyExists("owner", "このメールアドレスはすでに登録されています")
 		}
 	}
 
@@ -233,6 +244,17 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 	if input.MembershipType != nil {
 		if err := validateMembershipType(*input.MembershipType); err != nil {
 			return nil, err
+		}
+	}
+
+	// メールアドレス変更時の重複チェック（空でない場合のみ）
+	if input.Email != nil && *input.Email != "" {
+		existing, err := s.repo.FindByEmail(ctx, clinicID, *input.Email)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to check email uniqueness")
+		}
+		if existing != nil && existing.ID != id {
+			return nil, apperrors.WrapAlreadyExists("owner", "このメールアドレスはすでに登録されています")
 		}
 	}
 

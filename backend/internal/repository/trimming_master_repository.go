@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -39,11 +38,9 @@ func (r *trimmingCourseRepository) FindAll(ctx context.Context, clinicID uint64)
 
 func (r *trimmingCourseRepository) FindByID(ctx context.Context, id uint64) (*model.TrimmingCourse, error) {
 	var course model.TrimmingCourse
-	if err := r.db.WithContext(ctx).First(&course, "id = ?", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("trimming_course", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find trimming course by id")
+	err := r.db.WithContext(ctx).First(&course, "id = ?", id).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "trimming_course", fmt.Sprintf("%d", id))
 	}
 	return &course, nil
 }
@@ -130,11 +127,9 @@ func (r *trimmingOptionRepository) FindAll(ctx context.Context, clinicID uint64)
 
 func (r *trimmingOptionRepository) FindByID(ctx context.Context, id uint64) (*model.TrimmingOption, error) {
 	var option model.TrimmingOption
-	if err := r.db.WithContext(ctx).First(&option, "id = ?", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("trimming_option", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find trimming option by id")
+	err := r.db.WithContext(ctx).First(&option, "id = ?", id).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("%d", id))
 	}
 	return &option, nil
 }

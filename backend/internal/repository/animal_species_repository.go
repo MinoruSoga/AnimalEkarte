@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -42,12 +41,10 @@ func (r *animalSpeciesRepository) FindAll(ctx context.Context) ([]model.AnimalSp
 
 func (r *animalSpeciesRepository) FindByID(ctx context.Context, id uint64) (*model.AnimalSpecies, error) {
 	var species model.AnimalSpecies
-	if err := r.db.WithContext(ctx).
-		First(&species, "id = ?", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("animal_species", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find animal species by id")
+	err := r.db.WithContext(ctx).
+		First(&species, "id = ?", id).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "animal_species", fmt.Sprintf("%d", id))
 	}
 	return &species, nil
 }

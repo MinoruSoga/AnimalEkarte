@@ -15,6 +15,7 @@ import (
 type OwnerRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
+	FindByEmail(ctx context.Context, clinicID uint64, email string) (*model.Owner, error)
 	CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -61,6 +62,18 @@ func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*m
 	err := r.db.WithContext(ctx).Preload("Pets").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance").First(&owner, "id = ? AND clinic_id = ?", id, clinicID).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
+	}
+	return &owner, nil
+}
+
+func (r *ownerRepository) FindByEmail(ctx context.Context, clinicID uint64, email string) (*model.Owner, error) {
+	var owner model.Owner
+	err := r.db.WithContext(ctx).First(&owner, "clinic_id = ? AND email = ?", clinicID, email).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, apperrors.Wrap(err, "find owner by email")
 	}
 	return &owner, nil
 }

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -70,7 +69,7 @@ func (s *recordImageService) Create(ctx context.Context, medicalRecordID uint64,
 		SortOrder:       input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, image); err != nil {
-		return nil, fmt.Errorf("failed to create record image: %w", err)
+		return nil, apperrors.Wrap(err, "failed to create record image")
 	}
 	slog.InfoContext(ctx, "record image created",
 		slog.Uint64("image_id", image.ID),
@@ -81,13 +80,13 @@ func (s *recordImageService) Create(ctx context.Context, medicalRecordID uint64,
 func (s *recordImageService) Delete(ctx context.Context, medicalRecordID, imageID uint64) error {
 	image, err := s.repo.FindByID(ctx, imageID)
 	if err != nil {
-		return fmt.Errorf("failed to get record image: %w", err)
+		return apperrors.Wrap(err, "failed to get record image")
 	}
 	if image.MedicalRecordID != medicalRecordID {
 		return apperrors.WrapNotFound("record_image", "not found in this medical record")
 	}
 	if err := s.repo.Delete(ctx, imageID); err != nil {
-		return fmt.Errorf("failed to delete record image: %w", err)
+		return apperrors.Wrap(err, "failed to delete record image")
 	}
 	slog.InfoContext(ctx, "record image deleted", slog.Uint64("image_id", imageID))
 	return nil

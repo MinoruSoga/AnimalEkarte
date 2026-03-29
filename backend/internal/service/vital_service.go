@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -66,7 +65,7 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 		Notes:           input.Notes,
 	}
 	if err := s.repo.Create(ctx, vital); err != nil {
-		return nil, fmt.Errorf("failed to create vital record: %w", err)
+		return nil, apperrors.Wrap(err, "failed to create vital record")
 	}
 	slog.InfoContext(ctx, "vital created",
 		slog.Uint64("vital_id", vital.ID),
@@ -78,7 +77,7 @@ func (s *vitalService) Update(ctx context.Context, medicalRecordID, vitalID uint
 	// 所属確認: このvitalIDがmedicalRecordIDに属しているか検証
 	existing, err := s.repo.FindByID(ctx, vitalID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get vital record: %w", err)
+		return nil, apperrors.Wrap(err, "failed to get vital record")
 	}
 	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
 		return nil, apperrors.WrapNotFound("vital", "not found in medical record")
@@ -89,7 +88,7 @@ func (s *vitalService) Update(ctx context.Context, medicalRecordID, vitalID uint
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, vitalID, fields); err != nil {
-		return nil, fmt.Errorf("failed to update vital record: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update vital record")
 	}
 	slog.InfoContext(ctx, "vital updated",
 		slog.Uint64("vital_id", vitalID),
@@ -101,13 +100,13 @@ func (s *vitalService) Delete(ctx context.Context, medicalRecordID, vitalID uint
 	// 所属確認: このvitalIDがmedicalRecordIDに属しているか検証
 	existing, err := s.repo.FindByID(ctx, vitalID)
 	if err != nil {
-		return fmt.Errorf("failed to get vital record: %w", err)
+		return apperrors.Wrap(err, "failed to get vital record")
 	}
 	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
 		return apperrors.WrapNotFound("vital", "not found in medical record")
 	}
 	if err := s.repo.Delete(ctx, vitalID); err != nil {
-		return fmt.Errorf("failed to delete vital record: %w", err)
+		return apperrors.Wrap(err, "failed to delete vital record")
 	}
 	slog.InfoContext(ctx, "vital deleted",
 		slog.Uint64("vital_id", vitalID),

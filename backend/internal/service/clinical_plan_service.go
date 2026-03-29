@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -41,14 +40,14 @@ func (s *clinicalPlanService) GetOrCreate(ctx context.Context, medicalRecordID u
 	plan, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
 	if err != nil {
 		if !apperrors.IsNotFound(err) {
-			return nil, fmt.Errorf("failed to get clinical plan: %w", err)
+			return nil, apperrors.Wrap(err, "failed to get clinical plan")
 		}
 		// 存在しない場合は空レコードを自動作成
 		plan = &model.ClinicalPlan{
 			MedicalRecordID: medicalRecordID,
 		}
 		if err := s.repo.Create(ctx, plan); err != nil {
-			return nil, fmt.Errorf("failed to create clinical plan: %w", err)
+			return nil, apperrors.Wrap(err, "failed to create clinical plan")
 		}
 		slog.InfoContext(ctx, "clinical_plan created",
 			slog.Uint64("clinical_plan_id", plan.ID),
@@ -68,7 +67,7 @@ func (s *clinicalPlanService) Update(ctx context.Context, medicalRecordID uint64
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, plan.ID, fields); err != nil {
-		return nil, fmt.Errorf("failed to update clinical plan: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update clinical plan")
 	}
 	slog.InfoContext(ctx, "clinical_plan updated",
 		slog.Uint64("clinical_plan_id", plan.ID),
@@ -79,10 +78,10 @@ func (s *clinicalPlanService) Update(ctx context.Context, medicalRecordID uint64
 func (s *clinicalPlanService) Delete(ctx context.Context, medicalRecordID uint64) error {
 	plan, err := s.repo.FindByMedicalRecordID(ctx, medicalRecordID)
 	if err != nil {
-		return fmt.Errorf("failed to get clinical plan: %w", err)
+		return apperrors.Wrap(err, "failed to get clinical plan")
 	}
 	if err := s.repo.Delete(ctx, plan.ID); err != nil {
-		return fmt.Errorf("failed to delete clinical plan: %w", err)
+		return apperrors.Wrap(err, "failed to delete clinical plan")
 	}
 	slog.InfoContext(ctx, "clinical_plan deleted",
 		slog.Uint64("clinical_plan_id", plan.ID),

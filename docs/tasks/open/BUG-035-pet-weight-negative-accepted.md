@@ -38,3 +38,10 @@
 ## 対象ファイル（推定）
 - `backend/internal/service/pet_service.go`（または masters_service.go）
 - フロントエンドのペット編集フォームコンポーネント
+
+## 派生イシュー
+
+| イシュー | 領域 | 内容 |
+|---------|------|------|
+| BUG-035（BE） | Backend | pet_service の体重バリデーションで負値を 400 Bad Request で返す |
+| BUG-035（FE） | Frontend | ペット編集フォームの体重フィールドに `min="0"` 属性を設定 |

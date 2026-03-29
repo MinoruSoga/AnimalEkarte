@@ -1,17 +1,17 @@
 package service
 
 import (
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 )
 
 // generateSecureToken は暗号学的に安全な32バイトのランダムトークンを生成する
 func generateSecureToken() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
-		return "", fmt.Errorf("generate secure token: %w", err)
+		return "", apperrors.Wrap(err, "generate secure token")
 	}
 	return hex.EncodeToString(b), nil
 }

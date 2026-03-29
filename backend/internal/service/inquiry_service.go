@@ -1,8 +1,8 @@
 package service
 
 import (
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"context"
-	"fmt"
 	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/model"
@@ -51,7 +51,7 @@ func (s *inquiryService) Upsert(ctx context.Context, input UpsertInquiryInput) (
 		slog.ErrorContext(ctx, "failed to upsert inquiry",
 			slog.Uint64("medical_record_id", input.MedicalRecordID),
 			slog.String("error", err.Error()))
-		return nil, fmt.Errorf("failed to upsert inquiry: %w", err)
+		return nil, apperrors.Wrap(err, "failed to upsert inquiry")
 	}
 	slog.InfoContext(ctx, "inquiry upserted", slog.Uint64("medical_record_id", input.MedicalRecordID))
 	return result, nil

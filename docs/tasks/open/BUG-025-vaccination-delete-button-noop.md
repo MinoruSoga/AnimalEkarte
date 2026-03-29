@@ -34,3 +34,9 @@
 - 削除確認ダイアログ（`AlertDialog` または `ConfirmDialog`）を表示
 - 確認後に `DELETE /v1/vaccinations/:id` を呼び出す API 関数を作成・呼び出し
 - 削除成功後に `/vaccinations` へリダイレクト
+
+## 派生イシュー
+
+| イシュー | 領域 | 内容 |
+|---------|------|------|
+| BUG-025（FE） | Frontend | 予防接種編集フォームの削除ボタンに handleDelete + 確認ダイアログ実装 |

@@ -3,7 +3,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -49,7 +48,7 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	}
 	procedure, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update procedure: %w", err)
+		return nil, apperrors.Wrap(err, "failed to update procedure")
 	}
 	slog.InfoContext(ctx, "procedure updated", slog.Uint64("procedure_id", id))
 	return procedure, nil

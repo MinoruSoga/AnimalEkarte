@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -31,29 +30,29 @@ func NewCheckupTypeRepository(db *gorm.DB) CheckupTypeRepository {
 
 func (r *checkupTypeRepository) FindAll(ctx context.Context) ([]model.CheckupType, error) {
 	checkupTypes := make([]model.CheckupType, 0)
-	if err := r.db.WithContext(ctx).Order("sort_order ASC, name ASC").Find(&checkupTypes).Error; err != nil {
-		return nil, apperrors.Wrap(err, "find checkup types")
+	err := r.db.WithContext(ctx).Order("sort_order ASC, name ASC").Find(&checkupTypes).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "checkup_type", "")
 	}
 	return checkupTypes, nil
 }
 
 func (r *checkupTypeRepository) FindByID(ctx context.Context, id uint64) (*model.CheckupType, error) {
 	var checkupType model.CheckupType
-	if err := r.db.WithContext(ctx).First(&checkupType, "id = ?", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("checkup_type", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find checkup type by id")
+	err := r.db.WithContext(ctx).First(&checkupType, "id = ?", id).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "checkup_type", fmt.Sprintf("%d", id))
 	}
 	return &checkupType, nil
 }
 
 func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.CheckupType) error {
-	if err := r.db.WithContext(ctx).Create(checkupType).Error; err != nil {
+	err := r.db.WithContext(ctx).Create(checkupType).Error
+	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("checkup_type", checkupType.Name)
 		}
-		return apperrors.Wrap(err, "create checkup type")
+		return apperrors.FromGORM(err, "checkup_type", "")
 	}
 	return nil
 }
@@ -64,7 +63,7 @@ func (r *checkupTypeRepository) UpdateFields(ctx context.Context, clinicID, id u
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return nil, apperrors.Wrap(result.Error, "update checkup type")
+		return nil, apperrors.FromGORM(result.Error, "checkup_type", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return nil, apperrors.WrapNotFound("checkup_type", fmt.Sprintf("%d", id))
@@ -75,7 +74,7 @@ func (r *checkupTypeRepository) UpdateFields(ctx context.Context, clinicID, id u
 func (r *checkupTypeRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.CheckupType{}, "id = ?", id)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete checkup type")
+		return apperrors.FromGORM(result.Error, "checkup_type", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("checkup_type", fmt.Sprintf("%d", id))
@@ -84,20 +83,21 @@ func (r *checkupTypeRepository) Delete(ctx context.Context, id uint64) error {
 }
 
 func (r *checkupTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.CheckupType{}).
 				Where("id = ? AND clinic_id = ?", id, clinicID).
 				Update("sort_order", i+1)
 			if result.Error != nil {
-				return apperrors.Wrap(result.Error, "reorder checkup type")
+				return apperrors.FromGORM(result.Error, "checkup_type", fmt.Sprintf("%d", id))
 			}
 			if result.RowsAffected == 0 {
 				return apperrors.WrapInvalidInput(fmt.Sprintf("checkup_type id %d not found in this clinic", id))
 			}
 		}
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("reorder checkup type: %w", err)
 	}
 	return nil
