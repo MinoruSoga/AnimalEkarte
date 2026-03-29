@@ -55,7 +55,7 @@ func main() {
 	svcs := service.NewServices(repos)
 
 	// ハンドラー初期化
-	h := handler.New(cfg, svcs)
+	h := handler.New(cfg, svcs, repos)
 
 	// ルーター設定
 	r := gin.New()

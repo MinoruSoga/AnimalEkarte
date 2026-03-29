@@ -578,11 +578,11 @@ CREATE TABLE user_clinic_memberships (
 );
 
 -- ------------------------------------
--- 28. permission_groups（権限グループ定義）
+-- 28. permission_groups（権限グループ定義: company単位で管理）
 -- ------------------------------------
 CREATE TABLE permission_groups (
     id          BIGSERIAL    PRIMARY KEY,
-    clinic_id   bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    company_id  bigint       NOT NULL REFERENCES company(id) ON DELETE RESTRICT,
     name        varchar(100) NOT NULL,
     description text         NOT NULL DEFAULT '',
     color       varchar(7)   NOT NULL DEFAULT '#6B7280',
@@ -602,7 +602,13 @@ CREATE TABLE permission_group_rules (
     can_create boolean     NOT NULL DEFAULT false,
     can_edit   boolean     NOT NULL DEFAULT false,
     can_delete boolean     NOT NULL DEFAULT false,
-    CONSTRAINT uk_permission_group_rules UNIQUE (group_id, resource)
+    CONSTRAINT uk_permission_group_rules UNIQUE (group_id, resource),
+    CONSTRAINT chk_permission_group_rules_resource CHECK (resource IN (
+        'dashboard', 'owners', 'reservations', 'medical-records',
+        'hospitalization', 'trimming', 'examinations', 'accounting',
+        'vaccinations', 'checkups', 'inventory', 'estimates',
+        'shifts', 'master', 'hospital-settings'
+    ))
 );
 
 -- ------------------------------------
@@ -613,6 +619,34 @@ CREATE TABLE user_permission_groups (
     group_id bigint NOT NULL REFERENCES permission_groups(id) ON DELETE CASCADE,
     PRIMARY KEY (user_id, group_id)
 );
+
+-- ------------------------------------
+-- 31. refresh_tokens（リフレッシュトークン管理）
+-- ------------------------------------
+CREATE TABLE refresh_tokens (
+    id          BIGSERIAL   PRIMARY KEY,
+    user_id     bigint      NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
+    clinic_id   bigint      NOT NULL REFERENCES clinics(id),
+    token_hash  varchar(64) NOT NULL UNIQUE,
+    expires_at  timestamptz NOT NULL,
+    revoked_at  timestamptz NULL,
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_refresh_tokens_hash ON refresh_tokens(token_hash) WHERE revoked_at IS NULL;
+CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id, expires_at DESC);
+
+-- ------------------------------------
+-- 32. password_reset_tokens（パスワードリセットトークン管理）
+-- ------------------------------------
+CREATE TABLE password_reset_tokens (
+    id         BIGSERIAL   PRIMARY KEY,
+    user_id    bigint      NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
+    token_hash varchar(64) NOT NULL UNIQUE,
+    expires_at timestamptz NOT NULL,
+    used_at    timestamptz NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_password_reset_tokens_hash ON password_reset_tokens(token_hash) WHERE used_at IS NULL;
 
 -- ==========================================================================
 -- レイヤー4: pets依存
@@ -1237,8 +1271,11 @@ CREATE UNIQUE INDEX idx_user_clinic_memberships_user_clinic ON user_clinic_membe
 -- ユーザー所属: 主所属医院は1件のみ（部分インデックス）
 CREATE UNIQUE INDEX idx_user_clinic_memberships_main ON user_clinic_memberships(user_id) WHERE is_main = true;
 
--- 権限グループ: クリニック別（論理削除対応）
-CREATE INDEX idx_permission_groups_clinic ON permission_groups(clinic_id) WHERE deleted_at IS NULL;
+-- 権限グループ: company別（論理削除対応）
+CREATE INDEX idx_permission_groups_company ON permission_groups(company_id) WHERE deleted_at IS NULL;
+
+-- 権限グループ: company内でname重複不可（論理削除を除く）
+CREATE UNIQUE INDEX uk_permission_groups_name ON permission_groups(company_id, name) WHERE deleted_at IS NULL;
 
 -- ユーザー→グループ: ユーザー別
 CREATE INDEX idx_user_permission_groups_user ON user_permission_groups(user_id);

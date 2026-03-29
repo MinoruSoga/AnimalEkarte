@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -37,14 +39,28 @@ type ruleRequest struct {
 	CanDelete bool   `json:"can_delete"`
 }
 
-// ListPermissionGroups godoc
-// GET /api/v1/permission-groups — clinic_id（JWTクレーム）に紐づくグループ一覧を返す
-func (h *Handler) ListPermissionGroups(c *gin.Context) {
+// extractCompanyID はJWT認証済みコンテキストのclinic_idからcompanyIDを取得するヘルパー
+func (h *Handler) extractCompanyID(c *gin.Context) (uint64, bool) {
 	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return 0, false
+	}
+	clinic, err := h.svc.Clinic.GetClinicByID(c.Request.Context(), clinicID)
+	if err != nil {
+		RespondError(c, err)
+		return 0, false
+	}
+	return clinic.CompanyID, true
+}
+
+// ListPermissionGroups godoc
+// GET /api/v1/permission-groups — company単位の権限グループ一覧を返す
+func (h *Handler) ListPermissionGroups(c *gin.Context) {
+	companyID, ok := h.extractCompanyID(c)
 	if !ok {
 		return
 	}
-	groups, err := h.svc.PermissionGroup.List(c.Request.Context(), clinicID)
+	groups, err := h.svc.PermissionGroup.List(c.Request.Context(), companyID)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -55,7 +71,7 @@ func (h *Handler) ListPermissionGroups(c *gin.Context) {
 // CreatePermissionGroup godoc
 // POST /api/v1/permission-groups — 新規グループを作成する
 func (h *Handler) CreatePermissionGroup(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	companyID, ok := h.extractCompanyID(c)
 	if !ok {
 		return
 	}
@@ -64,7 +80,7 @@ func (h *Handler) CreatePermissionGroup(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": parseBindError(err)})
 		return
 	}
-	group, err := h.svc.PermissionGroup.Create(c.Request.Context(), clinicID, service.CreatePermissionGroupInput{
+	group, err := h.svc.PermissionGroup.Create(c.Request.Context(), companyID, service.CreatePermissionGroupInput{
 		Name:        req.Name,
 		Description: req.Description,
 		Color:       req.Color,
@@ -146,8 +162,12 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 	}
 	rules := make([]service.RuleInput, len(req.Rules))
 	for i, r := range req.Rules {
+		if !isValidResource(r.Resource) {
+			RespondError(c, apperrors.WrapInvalidInput("invalid resource: "+r.Resource))
+			return
+		}
 		rules[i] = service.RuleInput{
-			Resource:  r.Resource,
+			Resource:  model.Resource(r.Resource),
 			CanView:   r.CanView,
 			CanCreate: r.CanCreate,
 			CanEdit:   r.CanEdit,
@@ -159,6 +179,16 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// isValidResource は与えられた文字列が有効なリソース識別子かどうかを検証する
+func isValidResource(r string) bool {
+	for _, valid := range model.AllResources {
+		if string(valid) == r {
+			return true
+		}
+	}
+	return false
 }
 
 // RegisterPermissionGroupRoutes はルーティングを登録する

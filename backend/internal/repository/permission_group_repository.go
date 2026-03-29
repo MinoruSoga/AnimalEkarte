@@ -6,17 +6,20 @@ import (
 
 	"gorm.io/gorm"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // PermissionGroupRepository は権限グループのデータアクセスインターフェース
 type PermissionGroupRepository interface {
-	FindByClinicID(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error)
+	FindByCompanyID(ctx context.Context, companyID uint64) ([]model.PermissionGroup, error)
 	FindByID(ctx context.Context, id uint64) (*model.PermissionGroup, error)
 	Create(ctx context.Context, group *model.PermissionGroup) error
 	UpdateFields(ctx context.Context, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, id uint64) error
 	SetRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
+	HasPermission(ctx context.Context, userID uint64, resource model.Resource, action string) (bool, error)
+	VerifyGroupExists(ctx context.Context, groupID uint64) error
 }
 
 type permissionGroupRepository struct {
@@ -28,11 +31,11 @@ func NewPermissionGroupRepository(db *gorm.DB) PermissionGroupRepository {
 	return &permissionGroupRepository{db: db}
 }
 
-func (r *permissionGroupRepository) FindByClinicID(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error) {
+func (r *permissionGroupRepository) FindByCompanyID(ctx context.Context, companyID uint64) ([]model.PermissionGroup, error) {
 	var groups []model.PermissionGroup
 	err := r.db.WithContext(ctx).
 		Preload("Rules").
-		Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Where("company_id = ? AND deleted_at IS NULL", companyID).
 		Order("id ASC").
 		Find(&groups).Error
 	return groups, err
@@ -81,4 +84,53 @@ func (r *permissionGroupRepository) SetRules(ctx context.Context, groupID uint64
 		return fmt.Errorf("set permission group rules: %w", err)
 	}
 	return nil
+}
+
+// VerifyGroupExists は権限グループが存在するかどうかを確認する（BUG-031: 存在しない場合はErrNotFoundを返す）
+func (r *permissionGroupRepository) VerifyGroupExists(ctx context.Context, groupID uint64) error {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.PermissionGroup{}).
+		Where("id = ? AND deleted_at IS NULL", groupID).
+		Count(&count).Error
+	if err != nil {
+		return fmt.Errorf("verify group exists: %w", err)
+	}
+	if count == 0 {
+		return apperrors.WrapNotFound("permission_group", fmt.Sprintf("%d", groupID))
+	}
+	return nil
+}
+
+// HasPermission はユーザーが指定リソースに対して指定アクションの権限を持つかどうかを確認する
+func (r *permissionGroupRepository) HasPermission(ctx context.Context, userID uint64, resource model.Resource, action string) (bool, error) {
+	type result struct {
+		HasPerm bool
+	}
+	var res result
+
+	column := ""
+	switch action {
+	case "view":
+		column = "bool_or(pgr.can_view)"
+	case "create":
+		column = "bool_or(pgr.can_create)"
+	case "edit":
+		column = "bool_or(pgr.can_edit)"
+	case "delete":
+		column = "bool_or(pgr.can_delete)"
+	default:
+		return false, nil
+	}
+
+	err := r.db.WithContext(ctx).Raw(fmt.Sprintf(`
+		SELECT COALESCE(%s, false) AS has_perm
+		FROM user_permission_groups upg
+		JOIN permission_groups pg ON pg.id = upg.group_id AND pg.deleted_at IS NULL
+		JOIN permission_group_rules pgr ON pgr.group_id = pg.id AND pgr.resource = ?
+		WHERE upg.user_id = ?
+	`, column), string(resource), userID).Scan(&res).Error
+	if err != nil {
+		return false, fmt.Errorf("check permission: %w", err)
+	}
+	return res.HasPerm, nil
 }

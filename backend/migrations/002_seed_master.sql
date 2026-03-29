@@ -121,11 +121,11 @@ SELECT setval(pg_get_serial_sequence('user_clinic_memberships', 'id'), (SELECT M
 -- -----------------------------------------------------------------------------
 -- 7b. permission_groups（権限グループ）& user_permission_groups（割当）
 -- -----------------------------------------------------------------------------
--- 八王子院 (clinic_id=3): 管理者・執行・一般 の3グループ
-INSERT INTO permission_groups (id, clinic_id, name, description, color) VALUES
-    (1, 3, '管理者', '全機能フルアクセス・権限設定管理', '#EF4444'),
-    (2, 3, '執行',   '業務全般閲覧・権限設定変更',       '#6366F1'),
-    (3, 3, '一般',   '基本的な業務操作',                 '#10B981')
+-- ノア動物病院 (company_id=1): 管理者・執行・一般 の3グループ
+INSERT INTO permission_groups (id, company_id, name, description, color) VALUES
+    (1, 1, '管理者', '全機能フルアクセス・権限設定管理', '#EF4444'),
+    (2, 1, '執行',   '業務全般閲覧・権限設定変更',       '#6366F1'),
+    (3, 1, '一般',   '基本的な業務操作',                 '#10B981')
 ON CONFLICT DO NOTHING;
 
 -- グループルール（管理者: 全リソースフルアクセス）

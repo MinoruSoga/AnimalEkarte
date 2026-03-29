@@ -76,10 +76,10 @@ type UserClinicMembership struct {
 
 func (UserClinicMembership) TableName() string { return "user_clinic_memberships" }
 
-// PermissionGroup は権限グループ定義
+// PermissionGroup は権限グループ定義（company単位で管理）
 type PermissionGroup struct {
 	ID          uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
-	ClinicID    uint64         `gorm:"not null"                 json:"clinic_id"`
+	CompanyID   uint64         `gorm:"not null"                 json:"company_id"`
 	Name        string         `gorm:"not null"                 json:"name"`
 	Description string         `gorm:"default:''"               json:"description"`
 	Color       string         `gorm:"default:'#6B7280'"        json:"color"`
@@ -95,13 +95,13 @@ func (PermissionGroup) TableName() string { return "permission_groups" }
 
 // PermissionGroupRule はグループ×ページ×CRUD権限
 type PermissionGroupRule struct {
-	ID        uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
-	GroupID   uint64 `gorm:"not null"                 json:"group_id"`
-	Resource  string `gorm:"not null"                 json:"resource"`
-	CanView   bool   `gorm:"not null;default:false"   json:"can_view"`
-	CanCreate bool   `gorm:"not null;default:false"   json:"can_create"`
-	CanEdit   bool   `gorm:"not null;default:false"   json:"can_edit"`
-	CanDelete bool   `gorm:"not null;default:false"   json:"can_delete"`
+	ID        uint64   `gorm:"primaryKey;autoIncrement" json:"id"`
+	GroupID   uint64   `gorm:"not null"                 json:"group_id"`
+	Resource  Resource `gorm:"not null"                 json:"resource"`
+	CanView   bool     `gorm:"not null;default:false"   json:"can_view"`
+	CanCreate bool     `gorm:"not null;default:false"   json:"can_create"`
+	CanEdit   bool     `gorm:"not null;default:false"   json:"can_edit"`
+	CanDelete bool     `gorm:"not null;default:false"   json:"can_delete"`
 }
 
 func (PermissionGroupRule) TableName() string { return "permission_group_rules" }

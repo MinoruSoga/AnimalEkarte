@@ -110,6 +110,31 @@ export interface AnimalSpecies {
 }
 
 //////////
+// source: auth.go
+
+/**
+ * RefreshToken はリフレッシュトークンのDBモデル
+ */
+export interface RefreshToken {
+  id: number /* uint64 */;
+  user_id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  expires_at: string;
+  revoked_at?: string;
+  created_at: string;
+}
+/**
+ * PasswordResetToken はパスワードリセットトークンのDBモデル
+ */
+export interface PasswordResetToken {
+  id: number /* uint64 */;
+  user_id: number /* uint64 */;
+  expires_at: string;
+  used_at?: string;
+  created_at: string;
+}
+
+//////////
 // source: billing_refund.go
 
 export interface BillingRefund {
@@ -296,11 +321,11 @@ export interface UserClinicMembership {
   joined_at: string;
 }
 /**
- * PermissionGroup は権限グループ定義
+ * PermissionGroup は権限グループ定義（company単位で管理）
  */
 export interface PermissionGroup {
   id: number /* uint64 */;
-  clinic_id: number /* uint64 */;
+  company_id: number /* uint64 */;
   name: string;
   description: string;
   color: string;
@@ -318,7 +343,7 @@ export interface PermissionGroup {
 export interface PermissionGroupRule {
   id: number /* uint64 */;
   group_id: number /* uint64 */;
-  resource: string;
+  resource: Resource;
   can_view: boolean;
   can_create: boolean;
   can_edit: boolean;
@@ -1022,6 +1047,29 @@ export interface Owner {
    */
   pets?: Pet[];
 }
+
+//////////
+// source: permission.go
+
+/**
+ * Resource はフロントエンドのページ識別子（権限管理用）
+ */
+export type Resource = string;
+export const ResourceDashboard: Resource = "dashboard";
+export const ResourceOwners: Resource = "owners";
+export const ResourceReservations: Resource = "reservations";
+export const ResourceMedicalRecords: Resource = "medical-records";
+export const ResourceHospitalization: Resource = "hospitalization";
+export const ResourceTrimming: Resource = "trimming";
+export const ResourceExaminations: Resource = "examinations";
+export const ResourceAccounting: Resource = "accounting";
+export const ResourceVaccinations: Resource = "vaccinations";
+export const ResourceCheckups: Resource = "checkups";
+export const ResourceInventory: Resource = "inventory";
+export const ResourceEstimates: Resource = "estimates";
+export const ResourceShifts: Resource = "shifts";
+export const ResourceMaster: Resource = "master";
+export const ResourceHospitalSettings: Resource = "hospital-settings";
 
 //////////
 // source: pet.go

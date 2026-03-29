@@ -15,6 +15,7 @@ import (
 
 type mockUserAccountRepository struct {
 	findByEmailFn             func(ctx context.Context, email string) (*model.UserAccount, error)
+	findActiveByIDFn          func(ctx context.Context, id uint64) (*model.UserAccount, error)
 	findByIDWithMembershipsFn func(ctx context.Context, userID uint64) (*repository.UserAccountWithMemberships, error)
 	findByClinicIDFn          func(ctx context.Context, clinicID uint64) ([]model.UserAccount, error)
 	createFn                  func(ctx context.Context, account *model.UserAccount, clinicID uint64, staffID *uint64, isMain bool) error
@@ -26,6 +27,13 @@ type mockUserAccountRepository struct {
 
 func (m *mockUserAccountRepository) FindByEmail(ctx context.Context, email string) (*model.UserAccount, error) {
 	return m.findByEmailFn(ctx, email)
+}
+
+func (m *mockUserAccountRepository) FindActiveByID(ctx context.Context, id uint64) (*model.UserAccount, error) {
+	if m.findActiveByIDFn != nil {
+		return m.findActiveByIDFn(ctx, id)
+	}
+	return &model.UserAccount{ID: id}, nil
 }
 
 func (m *mockUserAccountRepository) FindByIDWithMemberships(ctx context.Context, userID uint64) (*repository.UserAccountWithMemberships, error) {
@@ -102,7 +110,7 @@ func TestUserAccountService_FindByEmail(t *testing.T) {
 					return tt.repoAccount, tt.repoErr
 				},
 			}
-			svc := NewUserAccountService(repo)
+			svc := NewUserAccountService(repo, nil)
 
 			result, err := svc.FindByEmail(context.Background(), tt.email)
 
@@ -168,7 +176,7 @@ func TestUserAccountService_GetMemberships(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewUserAccountService(repo)
+			svc := NewUserAccountService(repo, nil)
 
 			memberships, err := svc.GetMemberships(context.Background(), tt.userID)
 
@@ -223,7 +231,7 @@ func TestUserAccountService_GetWithMemberships(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewUserAccountService(repo)
+			svc := NewUserAccountService(repo, nil)
 
 			result, err := svc.GetWithMemberships(context.Background(), tt.userIDStr)
 
@@ -282,7 +290,7 @@ func TestUserAccountService_ListUsers(t *testing.T) {
 					return tt.repoUsers, tt.repoErr
 				},
 			}
-			svc := NewUserAccountService(repo)
+			svc := NewUserAccountService(repo, nil)
 
 			users, err := svc.ListUsers(context.Background(), tt.clinicID)
 
@@ -354,7 +362,7 @@ func TestUserAccountService_CreateUser(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewUserAccountService(repo)
+			svc := NewUserAccountService(repo, nil)
 
 			account, err := svc.CreateUser(context.Background(), tt.clinicID, tt.input)
 
@@ -416,7 +424,7 @@ func TestUserAccountService_UpdateUser(t *testing.T) {
 					return tt.repoUpdateErr
 				},
 			}
-			svc := NewUserAccountService(repo)
+			svc := NewUserAccountService(repo, nil)
 
 			err := svc.UpdateUser(context.Background(), tt.id, tt.input)
 
@@ -463,7 +471,7 @@ func TestUserAccountService_DeleteUser(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewUserAccountService(repo)
+			svc := NewUserAccountService(repo, nil)
 
 			err := svc.DeleteUser(context.Background(), tt.id)
 

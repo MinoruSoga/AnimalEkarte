@@ -31,7 +31,7 @@ type SetPermissionGroupRulesInput struct {
 
 // RuleInput は個別ルールの入力値
 type RuleInput struct {
-	Resource  string
+	Resource  model.Resource
 	CanView   bool
 	CanCreate bool
 	CanEdit   bool
@@ -40,9 +40,9 @@ type RuleInput struct {
 
 // PermissionGroupService は権限グループのビジネスロジックインターフェース
 type PermissionGroupService interface {
-	List(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error)
+	List(ctx context.Context, companyID uint64) ([]model.PermissionGroup, error)
 	GetByID(ctx context.Context, id uint64) (*model.PermissionGroup, error)
-	Create(ctx context.Context, clinicID uint64, input CreatePermissionGroupInput) (*model.PermissionGroup, error)
+	Create(ctx context.Context, companyID uint64, input CreatePermissionGroupInput) (*model.PermissionGroup, error)
 	Update(ctx context.Context, id uint64, input UpdatePermissionGroupInput) error
 	Delete(ctx context.Context, id uint64) error
 	SetRules(ctx context.Context, groupID uint64, input SetPermissionGroupRulesInput) error
@@ -57,8 +57,8 @@ func NewPermissionGroupService(repo repository.PermissionGroupRepository) Permis
 	return &permissionGroupService{repo: repo}
 }
 
-func (s *permissionGroupService) List(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error) {
-	return s.repo.FindByClinicID(ctx, clinicID)
+func (s *permissionGroupService) List(ctx context.Context, companyID uint64) ([]model.PermissionGroup, error) {
+	return s.repo.FindByCompanyID(ctx, companyID)
 }
 
 func (s *permissionGroupService) GetByID(ctx context.Context, id uint64) (*model.PermissionGroup, error) {
@@ -69,21 +69,24 @@ func (s *permissionGroupService) GetByID(ctx context.Context, id uint64) (*model
 	return g, nil
 }
 
-func (s *permissionGroupService) Create(ctx context.Context, clinicID uint64, input CreatePermissionGroupInput) (*model.PermissionGroup, error) {
+func (s *permissionGroupService) Create(ctx context.Context, companyID uint64, input CreatePermissionGroupInput) (*model.PermissionGroup, error) {
 	color := input.Color
 	if color == "" {
 		color = "#6B7280"
 	}
 	group := &model.PermissionGroup{
-		ClinicID:    clinicID,
+		CompanyID:   companyID,
 		Name:        input.Name,
 		Description: input.Description,
 		Color:       color,
 	}
 	if err := s.repo.Create(ctx, group); err != nil {
+		if apperrors.IsAlreadyExists(err) {
+			return nil, fmt.Errorf("permission group name already exists: %w", apperrors.ErrAlreadyExists)
+		}
 		return nil, fmt.Errorf("failed to create permission group: %w", err)
 	}
-	slog.InfoContext(ctx, "permission group created", "id", group.ID, "clinic_id", clinicID, "name", group.Name)
+	slog.InfoContext(ctx, "permission group created", "id", group.ID, "company_id", companyID, "name", group.Name)
 	return group, nil
 }
 

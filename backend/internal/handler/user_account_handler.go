@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -258,10 +259,19 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 // RegisterUserRoutes はユーザー管理関連のルートを登録する
 func (h *Handler) RegisterUserRoutes(rg *gin.RouterGroup) {
 	users := rg.Group("/users")
-	users.GET("", h.ListUsers)
-	users.POST("", h.CreateUser)
+
+	// 自分のパスワード変更（認証済みユーザー全員: BUG-062）
+	users.PUT("/me/password", h.ChangeMyPassword)
+
+	// 閲覧は全員許可
 	users.GET("/:id", h.GetUser)
-	users.PATCH("/:id", h.UpdateUser)
-	users.DELETE("/:id", h.DeleteUser)
-	users.PUT("/:id/permission-groups", h.SetUserPermissionGroups)
+
+	// 作成・更新・削除・権限グループ割当は clinic_admin 以上のみ（BE-080）
+	adminUsers := users.Group("")
+	adminUsers.Use(middleware.RequireClinicAdmin())
+	adminUsers.GET("", h.ListUsers)
+	adminUsers.POST("", h.CreateUser)
+	adminUsers.PATCH("/:id", h.UpdateUser)
+	adminUsers.DELETE("/:id", h.DeleteUser)
+	adminUsers.PUT("/:id/permission-groups", h.SetUserPermissionGroups)
 }

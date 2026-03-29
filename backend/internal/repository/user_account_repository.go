@@ -14,6 +14,7 @@ import (
 // UserAccountRepository はユーザーアカウントのデータアクセス層
 type UserAccountRepository interface {
 	FindByEmail(ctx context.Context, email string) (*model.UserAccount, error)
+	FindActiveByID(ctx context.Context, id uint64) (*model.UserAccount, error)
 	FindByIDWithMemberships(ctx context.Context, id uint64) (*UserAccountWithMemberships, error)
 	FindByClinicID(ctx context.Context, clinicID uint64) ([]model.UserAccount, error)
 	Create(ctx context.Context, account *model.UserAccount, clinicID uint64, staffID *uint64, isMain bool) error
@@ -23,9 +24,8 @@ type UserAccountRepository interface {
 	FindPermissionGroupIDs(ctx context.Context, userID uint64) ([]uint64, error)
 }
 
-// EffectivePermissionRow は実効権限計算用のクエリ結果行
+// EffectivePermissionRow は実効権限計算用のクエリ結果行（company単位）
 type EffectivePermissionRow struct {
-	ClinicID  uint64
 	Resource  string
 	CanView   bool
 	CanCreate bool
@@ -58,6 +58,19 @@ func (r *userAccountRepository) FindByEmail(ctx context.Context, email string) (
 			return nil, apperrors.WrapNotFound("user_account", email)
 		}
 		return nil, apperrors.Wrap(err, "find user account by email")
+	}
+	return &account, nil
+}
+
+// FindActiveByID はアクティブなユーザーをIDで取得する（アカウント停止・論理削除を除外）
+func (r *userAccountRepository) FindActiveByID(ctx context.Context, id uint64) (*model.UserAccount, error) {
+	var account model.UserAccount
+	if err := r.db.WithContext(ctx).
+		First(&account, "id = ? AND status = 'active' AND deleted_at IS NULL", id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperrors.WrapNotFound("user_account", fmt.Sprintf("%d", id))
+		}
+		return nil, apperrors.Wrap(err, "find active user account by id")
 	}
 	return &account, nil
 }
@@ -183,12 +196,11 @@ func (r *userAccountRepository) FindPermissionGroupIDs(ctx context.Context, user
 	return ids, nil
 }
 
-// findEffectivePermissions はユーザーの全クリニックの実効権限を取得する（グループUNION計算）
+// findEffectivePermissions はユーザーの実効権限を取得する（company単位グループUNION計算）
 func (r *userAccountRepository) findEffectivePermissions(ctx context.Context, userID uint64) ([]EffectivePermissionRow, error) {
 	var rows []EffectivePermissionRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT
-			pg.clinic_id,
 			pgr.resource,
 			bool_or(pgr.can_view)   AS can_view,
 			bool_or(pgr.can_create) AS can_create,
@@ -198,7 +210,7 @@ func (r *userAccountRepository) findEffectivePermissions(ctx context.Context, us
 		JOIN permission_groups pg ON pg.id = upg.group_id AND pg.deleted_at IS NULL
 		JOIN permission_group_rules pgr ON pgr.group_id = pg.id
 		WHERE upg.user_id = ?
-		GROUP BY pg.clinic_id, pgr.resource
+		GROUP BY pgr.resource
 	`, userID).Scan(&rows).Error
 	return rows, err
 }

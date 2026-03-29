@@ -67,12 +67,13 @@ type MembershipResult struct {
 }
 
 type userAccountService struct {
-	repo repository.UserAccountRepository
+	repo     repository.UserAccountRepository
+	permRepo repository.PermissionGroupRepository
 }
 
 // NewUserAccountService は UserAccountService を初期化して返す
-func NewUserAccountService(repo repository.UserAccountRepository) UserAccountService {
-	return &userAccountService{repo: repo}
+func NewUserAccountService(repo repository.UserAccountRepository, permRepo repository.PermissionGroupRepository) UserAccountService {
+	return &userAccountService{repo: repo, permRepo: permRepo}
 }
 
 // FindByEmail はメールアドレスでユーザーアカウントを取得する
@@ -185,6 +186,14 @@ func (s *userAccountService) DeleteUser(ctx context.Context, id uint64) error {
 
 // SetPermissionGroups はユーザーのグループ割当を全置換する
 func (s *userAccountService) SetPermissionGroups(ctx context.Context, userID uint64, input SetPermissionGroupsInput) error {
+	// 各group_idの存在確認（BUG-031: 存在しないgroup_id → 404を返す）
+	if s.permRepo != nil {
+		for _, groupID := range input.GroupIDs {
+			if err := s.permRepo.VerifyGroupExists(ctx, groupID); err != nil {
+				return fmt.Errorf("permission group %d not found: %w", groupID, apperrors.ErrNotFound)
+			}
+		}
+	}
 	slog.InfoContext(ctx, "setting user permission groups", slog.Uint64("user_id", userID), slog.Any("group_ids", input.GroupIDs))
 	return s.repo.SetPermissionGroups(ctx, userID, input.GroupIDs)
 }
