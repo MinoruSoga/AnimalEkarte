@@ -50,6 +50,7 @@ import { useGetAccountingDetail } from "../api/get-accounting";
 import { createAccounting } from "../api/create-accounting";
 import { updateAccounting } from "../api/update-accounting";
 import { updateBillingItem } from "../api/update-billing-item";
+import { createBillingItem } from "../api/create-billing-item";
 import { useGetRefunds } from "../api/get-refunds";
 import { createRefund } from "../api/create-refund";
 import { useGetAllMerchandiseItems } from "../api/get-merchandise-items";
@@ -655,6 +656,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
   const location = useLocation();
   const queryClient = useQueryClient();
   const [, startTaxUpdateTransition] = useTransition();
+  const [, startAddItemTransition] = useTransition();
 
   const locationState = location.state as { accountingItems?: AccountingItem[] } | null;
 
@@ -864,8 +866,9 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
     const unitPrice = parseInt(price, 10);
     const qty = 1;
     const rate = taxRate ?? 0.1;
+    const tempId = `manual_${crypto.randomUUID()}`;
     const newItem: AccountingItem = {
-      id: `manual_${crypto.randomUUID()}`,
+      id: tempId,
       category: category as ItemCategory,
       name,
       unitPrice,
@@ -878,10 +881,37 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
       source: "manual",
     };
 
+    // 楽観的UI更新: まずローカルに追加
     setLocalItems((prev) => [...(prev ?? []), newItem]);
     setNewItemOpen(false);
     toast.success("明細を追加しました");
-  }, []);
+
+    // 既存の会計 (id あり) の場合は POST API を呼び出してサーバーに永続化
+    if (id) {
+      startAddItemTransition(async () => {
+        try {
+          await createBillingItem({
+            billing_id: Number(id),
+            category,
+            name,
+            unit_price: unitPrice,
+            quantity: qty,
+            tax_type: "excluded",
+            tax_rate: rate,
+            is_insurance_applicable: false,
+            source: "manual",
+          });
+          // サーバーの最新データで同期（楽観的追加済みのためローカル状態をリセット）
+          setLocalItems(null);
+          queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(id) });
+        } catch {
+          // 失敗時はローカル追加をロールバック
+          setLocalItems((prev) => (prev ?? []).filter((i) => i.id !== tempId));
+          toast.error("明細の追加に失敗しました");
+        }
+      });
+    }
+  }, [id, queryClient]);
 
   const handleDeleteItem = useCallback((itemId: string) => {
     setLocalItems((prev) => (prev ?? []).filter((i) => i.id !== itemId));

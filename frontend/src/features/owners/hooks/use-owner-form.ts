@@ -1,6 +1,7 @@
 // React/Framework
-import { useState, useTransition, useCallback, useActionState } from "react";
+import { useState, useCallback, useActionState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 
 // External
 import { toast } from "sonner";
@@ -98,6 +99,8 @@ interface FormState {
   fieldErrors: Record<string, string>;
   success: boolean;
   timestamp: number;
+  /** 新規登録成功時の飼主ID（詳細ページへのリダイレクト用）*/
+  createdOwnerId?: string;
 }
 
 export function useOwnerForm(
@@ -129,6 +132,24 @@ export function useOwnerForm(
       if (!ownerData.ownerNameKana.trim()) errors.ownerNameKana = "飼主名（カナ）を入力してください";
       if (!ownerData.phone.trim()) errors.phone = "電話番号を入力してください";
 
+      // BUG-066: 電話番号フォーマットバリデーション
+      if (ownerData.phone.trim() && !/^[0-9\-+()]{7,20}$/.test(ownerData.phone.trim())) {
+        errors.phone = "電話番号の形式が正しくありません（例: 090-1234-5678）";
+      }
+
+      // BUG-066: メールアドレスフォーマットバリデーション
+      if (ownerData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerData.email.trim())) {
+        errors.email = "メールアドレスの形式が正しくありません";
+      }
+
+      // BUG-066: 値引率バリデーション
+      if (ownerData.discountRate !== undefined && ownerData.discountRate !== null) {
+        const rate = Number(ownerData.discountRate);
+        if (!isNaN(rate) && (rate < 0 || rate > 100)) {
+          errors.discountRate = "値引率は0〜100の範囲で入力してください";
+        }
+      }
+
       if (Object.keys(errors).length > 0) {
         toast.error("必須項目が未入力です");
         return { fieldErrors: errors, success: false, timestamp: Date.now() };
@@ -159,6 +180,7 @@ export function useOwnerForm(
           await updateOwner(id, updateData);
           await queryClient.invalidateQueries({ queryKey: ["owners"] });
           toast.success("飼主情報を更新しました");
+          return { fieldErrors: {}, success: true, timestamp: Date.now() };
         } else {
           const createData: CreateOwnerRequest = {
             ...ownerRequestPayload,
@@ -202,10 +224,21 @@ export function useOwnerForm(
           }
 
           toast.success("飼主情報を登録しました");
+          // BUG-065: 新規登録後に詳細ページへリダイレクトするため createdOwnerId を返す
+          return { fieldErrors: {}, success: true, timestamp: Date.now(), createdOwnerId: newOwner.id };
         }
-
-        return { fieldErrors: {}, success: true, timestamp: Date.now() };
       } catch (error) {
+        // BUG-064: 409 Conflict はメールアドレス重複エラーとして扱う
+        if (axios.isAxiosError(error) && error.response?.status === 409) {
+          const emailError = "このメールアドレスはすでに登録されています";
+          toast.error(emailError);
+          return {
+            ...prevState,
+            fieldErrors: { ...prevState.fieldErrors, email: emailError },
+            success: false,
+            timestamp: Date.now(),
+          };
+        }
         handleApiError(error, "保存");
         return { ...prevState, success: false, timestamp: Date.now() };
       }
@@ -321,12 +354,11 @@ export function useOwnerForm(
         food: petData.food,
         environment: petData.environment,
         neuteredDate: petData.neuteredDate,
-        acquisitionType: (newPetData.acquisitionType as PetFormData["acquisitionType"]) || "購入",
-        dangerLevel: (newPetData.dangerLevel as PetFormData["dangerLevel"]) || "低",
-        remarks: newPetData.remarks || "",
-        breed: newPetData.breed,
-        insuranceId: newPetData.insuranceId,
-        remarks: newPetData.remarks,
+        acquisitionType: petData.acquisitionType,
+        dangerLevel: petData.dangerLevel,
+        status: PET_STATUS_REVERSE_MAP[petData.status],
+        insuranceId: petData.insuranceId,
+        remarks: petData.remarks,
       });
 
       petMutations?.createPetMutate(createRequest, {
@@ -390,5 +422,6 @@ export function useOwnerForm(
     formState,
     fieldErrors: formState.fieldErrors,
     clearFieldError,
+    createdOwnerId: formState.createdOwnerId,
   };
 }

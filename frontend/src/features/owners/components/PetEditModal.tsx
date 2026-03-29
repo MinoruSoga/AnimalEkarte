@@ -160,6 +160,12 @@ export function PetEditModal({
     if (!formData.petName.trim()) errors.petName = "ペット名を入力してください";
     if (!formData.animalSpeciesId) errors.animalSpeciesId = "CFBEを選択してください";
     if (!formData.gender) errors.gender = "性別を選択してください";
+    if (formData.weight !== "" && formData.weight !== undefined) {
+      const weightNum = parseFloat(formData.weight);
+      if (!isNaN(weightNum) && weightNum < 0) {
+        errors.weight = "体重は0以上の値を入力してください";
+      }
+    }
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -177,6 +183,35 @@ export function PetEditModal({
       toast.success("ペットを追加しました");
     }
   };
+
+  const handleCancel = useCallback(() => {
+    // BUG-052: キャンセル時にフォーム状態を初期値にリセット
+    setFormData({
+      id: petData?.id || "",
+      petNumber: petData?.petNumber || "",
+      petName: petData?.petName || "",
+      petNameKana: petData?.petNameKana || "",
+      species: petData?.species || "",
+      animalSpeciesId: petData?.animalSpeciesId || "",
+      gender: petData?.gender || "",
+      birthDate: petData?.birthDate || "",
+      breed: petData?.breed || "",
+      color: petData?.color || "",
+      weight: petData?.weight || "",
+      neuteredDate: petData?.neuteredDate || "",
+      acquisitionType: (petData?.acquisitionType || "購入") as typeof ACQUISITION_TYPE_VALUES[number],
+      dangerLevel: (petData?.dangerLevel || "低") as typeof DANGER_LEVEL_VALUES[number],
+      food: petData?.food || "",
+      environment: petData?.environment || "",
+      status: petData?.status || "生存",
+      remarks: petData?.remarks || "",
+      insuranceId: petData?.insuranceId || "",
+      insuranceName: petData?.insuranceName,
+      insuranceDetails: petData?.insuranceDetails,
+    });
+    setFieldErrors({});
+    onOpenChange(false);
+  }, [petData, onOpenChange]);
 
   const isEdit = !!petData?.id;
   const [isOwnerSearchOpen, setIsOwnerSearchOpen] = useState(false);
@@ -367,12 +402,16 @@ export function PetEditModal({
                 min={0}
                 step={0.1}
                 value={formData.weight || ""}
-                onChange={(v) =>
-                  setFormData(prev => ({ ...prev, weight: v }))
-                }
+                aria-invalid={!!fieldErrors.weight}
+                aria-describedby={fieldErrors.weight ? "weight-error" : undefined}
+                onChange={(v) => {
+                  setFormData(prev => ({ ...prev, weight: v }));
+                  clearFieldError("weight");
+                }}
                 suffix="kg"
-                className={INPUT_CLS}
+                className={`${INPUT_CLS} ${fieldErrors.weight ? STYLE.formInputError : ""}`}
               />
+              <FormFieldError id="weight-error" message={fieldErrors.weight} />
             </div>
 
             <div className="space-y-1">
@@ -477,6 +516,35 @@ export function PetEditModal({
               </Select>
             </div>
 
+            {/* BUG-036: ペット生死ステータス */}
+            <div className="space-y-1">
+              <Label className={LABEL_CLS}>生死ステータス</Label>
+              <div className="flex gap-4 h-9 items-center">
+                <label className={`flex items-center gap-1.5 text-sm cursor-pointer ${C.text}`}>
+                  <input
+                    type="radio"
+                    name="petStatus"
+                    value="生存"
+                    checked={formData.status === "生存"}
+                    onChange={() => setFormData(prev => ({ ...prev, status: "生存" }))}
+                    className="accent-current"
+                  />
+                  生存
+                </label>
+                <label className={`flex items-center gap-1.5 text-sm cursor-pointer ${C.text}`}>
+                  <input
+                    type="radio"
+                    name="petStatus"
+                    value="死亡"
+                    checked={formData.status === "死亡"}
+                    onChange={() => setFormData(prev => ({ ...prev, status: "死亡" }))}
+                    className="accent-current"
+                  />
+                  死亡
+                </label>
+              </div>
+            </div>
+
             <div className="space-y-1">
               <Label htmlFor="remarks" className={LABEL_CLS}>
                 備考・特記事項
@@ -498,7 +566,7 @@ export function PetEditModal({
           <Button
             variant="outline"
             className={`h-11 text-sm ${C.borderMedium}`}
-            onClick={() => onOpenChange(false)}
+            onClick={handleCancel}
           >
             キャンセル
           </Button>

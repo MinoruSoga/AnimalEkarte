@@ -297,7 +297,15 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
         {pet.ownerNumber ?? "-"}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
-        {pet.ownerName}
+        <span className="flex items-center gap-1.5">
+          {pet.ownerName}
+          {/* BUG-043: 危険度「高」ペットを持つ飼主を視覚的に強調 */}
+          {pet.dangerLevel === "高" ? (
+            <span className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold bg-red-100 text-red-700 border border-red-300">
+              ⚠ 危険
+            </span>
+          ) : null}
+        </span>
       </TableCell>
       <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap hidden lg:table-cell`}>
         {pet.petNumber || "-"}

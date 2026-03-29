@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useState, useCallback } from "react";
 import { FileText } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -24,6 +24,14 @@ import type {
   UpdateInquiryTemplateRequest,
 } from "@/features/master/api/inquiry-templates";
 
+// BUG-042: Map English snake_case category codes to Japanese labels
+const INQUIRY_CATEGORY_LABELS: Record<string, string> = {
+  chief_complaint: "主訴",
+  history: "既往歴",
+  current_medications: "現在の投薬",
+  notes: "メモ/備考",
+};
+
 const COLUMNS = [
   { header: "カテゴリ", className: "w-[150px]" },
   { header: "タイトル", className: "flex-1" },
@@ -39,19 +47,52 @@ const SidePanel = memo(function SidePanel({
   const [f, setF] = useState<FormData>(() => ({
     category: item?.category ?? "", title: item?.title ?? "", content: item?.content ?? "", isActive: item?.isActive ?? true,
   }));
+  const [isDirty, setIsDirty] = useState(false);
+
+  const handleTitleChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, title: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleCategoryChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setF((p) => ({ ...p, category: e.target.value }));
+    setIsDirty(true);
+  }, []);
+
+  const handleContentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setF((p) => ({ ...p, content: e.target.value }));
+    setIsDirty(true);
+  }, []);
+
+  const handleToggleActive = useCallback(() => {
+    setF((p) => ({ ...p, isActive: !p.isActive }));
+    setIsDirty(true);
+  }, []);
+
+  const handleSave = useCallback(() => {
+    onSave(f);
+    setIsDirty(false);
+  }, [f, onSave]);
+
+  const handleClose = useCallback(() => {
+    setIsDirty(false);
+    onClose();
+  }, [onClose]);
+
   return (
     <MasterSidePanel isNew={item === null} title={f.title}
-      onTitleChange={(v) => setF((p) => ({ ...p, title: v }))} onClose={onClose} onSave={() => onSave(f)}
+      onTitleChange={handleTitleChange} onClose={handleClose} onSave={handleSave}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      isDirty={isDirty}
       icon={<FileText className={LAYOUT.pageIcon.innerIcon} />}>
-      <StatusToggleButton isActive={f.isActive} onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))} />
+      <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="カテゴリ">
         <input type="text" className={MASTER_INPUT_CLASS} value={f.category}
-          onChange={(e) => setF((p) => ({ ...p, category: e.target.value }))} placeholder="カテゴリを入力" />
+          onChange={handleCategoryChange} placeholder="カテゴリを入力" />
       </PropertyRow>
       <PropertyRow label="テンプレート内容">
         <textarea className={`${MASTER_INPUT_CLASS} min-h-[150px] resize-none`} value={f.content}
-          onChange={(e) => setF((p) => ({ ...p, content: e.target.value }))} placeholder="テンプレート内容を入力" />
+          onChange={handleContentChange} placeholder="テンプレート内容を入力" />
       </PropertyRow>
     </MasterSidePanel>
   );
@@ -84,7 +125,7 @@ export function InterviewTemplateSettings() {
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={(item, onEdit) => (
         <DataTableRow key={item.id} onClick={() => onEdit(item)}>
-          <TableCell className={`text-base ${C.text}`}>{item.category}</TableCell>
+          <TableCell className={`text-base ${C.text}`}>{INQUIRY_CATEGORY_LABELS[item.category] ?? item.category}</TableCell>
           <TableCell className={`font-medium text-base ${C.text}`}>{item.title}</TableCell>
           <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
           <TableCell className="p-0 text-right"><RowActionButton onClick={() => onEdit(item)} /></TableCell>

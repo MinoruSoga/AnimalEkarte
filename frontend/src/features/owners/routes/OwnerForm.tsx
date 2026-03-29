@@ -384,7 +384,16 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="email" className={`text-sm ${C.text60}`}>メールアドレス</Label>
-        <Input id="email" type="email" value={ownerData.email} onChange={(e) => onChange("email", e.target.value)} className={INPUT_CLS} />
+        <Input
+          id="email"
+          type="email"
+          value={ownerData.email}
+          aria-invalid={!!fieldErrors.email}
+          aria-describedby={fieldErrors.email ? "email-error" : undefined}
+          onChange={(e) => { onChange("email", e.target.value); onClearError("email"); }}
+          className={`${INPUT_CLS} ${fieldErrors.email ? STYLE.formInputError : ""}`}
+        />
+        <FormFieldError id="email-error" message={fieldErrors.email} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="homeAddress2" className={`text-sm ${C.text60}`}>住所2(自宅)</Label>
@@ -418,10 +427,13 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
           min={0}
           max={100}
           value={ownerData.discountRate || ""}
-          onChange={(v) => onChange("discountRate", Number(v))}
+          aria-invalid={!!fieldErrors.discountRate}
+          aria-describedby={fieldErrors.discountRate ? "discountRate-error" : undefined}
+          onChange={(v) => { onChange("discountRate", Number(v)); onClearError("discountRate"); }}
           suffix="%"
-          className={INPUT_CLS}
+          className={`${INPUT_CLS} ${fieldErrors.discountRate ? STYLE.formInputError : ""}`}
         />
+        <FormFieldError id="discountRate-error" message={fieldErrors.discountRate} />
       </div>
     </div>
   );
@@ -456,15 +468,21 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
     formState,
     fieldErrors,
     clearFieldError,
+    createdOwnerId,
   } = useOwnerForm(ownerId, initialOwner, petMutations);
 
   // React 19 Action の成功を検知して遷移
+  // BUG-065: 新規登録後は詳細ページへリダイレクト
   useEffect(() => {
     if (formState.success) {
       markClean();
-      navigate(paths.owners.getHref());
+      if (!isEdit && createdOwnerId) {
+        navigate(paths.owners.detail.getHref(createdOwnerId));
+      } else {
+        navigate(paths.owners.getHref());
+      }
     }
-  }, [formState.success, formState.timestamp, navigate, markClean]);
+  }, [formState.success, formState.timestamp, navigate, markClean, isEdit, createdOwnerId]);
 
   const handleBack = () => {
     navigate(paths.owners.getHref());

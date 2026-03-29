@@ -5,6 +5,8 @@ interface SidePeekTitleInputProps {
   onChange: (v: string) => void;
   placeholder?: string;
   autoFocus?: boolean;
+  /** Called when the user presses Enter in the title field */
+  onSave?: () => void;
 }
 
 export function SidePeekTitleInput({
@@ -12,7 +14,15 @@ export function SidePeekTitleInput({
   onChange,
   placeholder = "無題",
   autoFocus = true,
+  onSave,
 }: SidePeekTitleInputProps) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onSave?.();
+    }
+  };
+
   return (
     <div className="pb-1 mb-4">
       <input
@@ -25,6 +35,7 @@ export function SidePeekTitleInput({
         }}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={handleKeyDown}
         placeholder={placeholder}
         autoFocus={autoFocus}
       />

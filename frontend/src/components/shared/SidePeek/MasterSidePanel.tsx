@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { STYLE } from "@/lib/design-tokens";
+import { NavigationBlocker } from "@/components/shared/NavigationBlocker/NavigationBlocker";
 import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
 import { SidePeekToolbar } from "@/components/shared/SidePeek/SidePeekToolbar";
 import { SidePeekBody } from "@/components/shared/SidePeek/SidePeekBody";
@@ -16,6 +17,8 @@ interface MasterSidePanelProps {
   icon: ReactNode;
   isPending?: boolean;
   titlePlaceholder?: string;
+  /** When true, shows a navigation blocker dialog if the user tries to navigate away */
+  isDirty?: boolean;
   children: ReactNode;
 }
 
@@ -29,10 +32,25 @@ export function MasterSidePanel({
   icon,
   isPending,
   titlePlaceholder,
+  isDirty = false,
   children,
 }: MasterSidePanelProps) {
+  // BUG-048: Save on Enter in any text input (not in textarea or button)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const tag = (e.target as HTMLElement).tagName;
+    if (e.key === "Enter" && tag !== "TEXTAREA" && tag !== "BUTTON") {
+      e.preventDefault();
+      onSave();
+    }
+  };
+
   return (
-    <SidePeekPanel>
+    <SidePeekPanel onKeyDown={handleKeyDown}>
+      <NavigationBlocker
+        when={isDirty}
+        title="変更が保存されていません"
+        description="変更が保存されていません。ページを離れますか？"
+      />
       <SidePeekToolbar isNew={isNew} onClose={onClose} onDelete={onDelete} />
       <SidePeekBody>
         <div className="pt-4 pb-2">
@@ -42,6 +60,7 @@ export function MasterSidePanel({
           value={title}
           onChange={onTitleChange}
           placeholder={titlePlaceholder}
+          onSave={onSave}
         />
         <div className={`${STYLE.sectionDivider} mb-1`} />
         <div className="py-1">{children}</div>

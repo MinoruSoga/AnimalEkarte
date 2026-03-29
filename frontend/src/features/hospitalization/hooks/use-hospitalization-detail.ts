@@ -54,8 +54,8 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
       await updateHosp({
         id: hospitalizationId,
         req: {
-          status: "退院済",
-          end_date: new Date().toISOString().split("T")[0],
+          status: "discharged",
+          end_date: new Date().toISOString(),
         },
       });
       toast.success("退院処理が完了しました");

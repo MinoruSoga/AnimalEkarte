@@ -74,8 +74,8 @@ export function HospitalizationBasicInfo({ formData, onChange, cageItems }: Hosp
           />
           <span className="text-[#37352F]/40 text-sm">〜</span>
           <NotionDatePicker
-            value=""
-            onChange={() => {}}
+            value={formData.endDate ?? ""}
+            onChange={(v) => onChange({ endDate: v })}
             placeholder="終了日"
             className="flex-1"
           />
