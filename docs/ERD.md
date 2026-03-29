@@ -1,13 +1,39 @@
 # ノア動物病院 電子カルテシステム ER図 (Entity Relationship Diagram)
 
-バージョン: v25.0（ERD・Migration・Model 完全同期）
-更新日: 2026-03-26
+バージョン: v27.0（NULL列・型・不足列の一括同期）
+更新日: 2026-03-29
 状態: Production Ready
 
-本ドキュメントは、Animal Ekarteの全56テーブルとそのリレーションを定義します。
+本ドキュメントは、Animal Ekarteの全57テーブルとそのリレーションを定義します。
 PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 
 ---
+
+## 変更概要（v26.0 → v27.0）
+
+| 変更内容 | 詳細 |
+|---------|------|
+| 全テーブルの NULL 列を migration と同期 | `NOT NULL DEFAULT now()` な `created_at`/`updated_at` を YES→NO に修正。`NOT NULL DEFAULT ''` な text 列も同様 |
+| `vital_records.weight_unit` 列追加 | migration に存在するが ERD 未記載だった `weight_unit body_weight_unit DEFAULT 'Kg'` を追加 |
+| `clinical_plans.diagnosis_2_*` 列追加 | migration に存在するが ERD 未記載だった `diagnosis_2_category_id`/`diagnosis_2_name_id` を追加 |
+| `trimming_records` 列修正 | 存在しない `weight` 列を削除。`bw text` → `numeric(6,2)`、`bt text` → `numeric(4,1)` に型修正 |
+| `medicines`/`consultations`/`procedures`/`hospitalization_plans` に `tax_type`/`tax_rate` 追加 | v24.0 で migration に追加されたが詳細セクションが未更新だった列を補完 |
+| `billing_items`/`estimate_items` に `tax_type` 追加・`quantity` 型修正 | `integer` → `numeric(10,1)`、`tax_type NOT NULL DEFAULT 'excluded'` 列追加 |
+| `medicines.default_quantity` 型修正 | `integer` → `numeric(10,1)` |
+| `treatment_plans.quantity`/`discount_rate` 型修正 | `integer` → `numeric(10,1)`、`numeric` → `numeric(5,2)` |
+| `hospitalization.status` デフォルト修正 | `'予約'`（日本語）→ `'reserved'`（English ENUM値） |
+| `inventory_items.deleted_at` 追加 | migration に存在するが ERD 未記載だった論理削除列を追加 |
+| `record_images.updated_at` NULL 修正 | ERD に誤って NO と記載されていた `created_at` を NO（NOT NULL）に修正 |
+| `staff_note_records.time` 型修正 | `text` → `time`（migration と一致） |
+| `job_titles.description` NULL 修正 | YES → NO（NOT NULL DEFAULT ''） |
+
+## 変更概要（v25.0 → v26.0）
+
+| 変更内容 | 詳細 |
+|---------|------|
+| `user_permissions` テーブル廃止 → `permission_groups` / `permission_group_rules` / `user_permission_groups` に置換 | migration と不一致だった旧 ENUM ベース権限テーブルを削除。RBAC 3テーブル体制に更新 |
+| `permission_type` ENUM 削除 | migration に存在しない架空 ENUM。削除 |
+| テーブル総数 56 → 57 に更新 | user_permissions(1) → permission_groups + permission_group_rules + user_permission_groups(3) で +2 |
 
 ## 変更概要（v24.0 → v25.0）
 
@@ -154,7 +180,7 @@ PostgreSQL 18 + Go/GORM（クリーンアーキテクチャ）で実装。
 | 法人テーブル追加 | `company`（ノア動物病院法人情報、シングルトン） |
 | 医院テーブル追加 | `clinics`（八王子医院・城東医院・敷島医院等） |
 | clinic_id追加予定 | `003_add_clinic_id.sql` にて以下テーブルに追加予定: owners, staffs, inventory_items, cages, service_types, consultations, procedures, hospitalization_plans, trimming_courses, trimming_options, exam_types, vaccines, medicines, insurances, diagnosis_categories, checkup_types |
-| clinic_id保持済 | `user_clinic_memberships`, `user_permissions` のみ現時点で保持 |
+| clinic_id保持済 | `user_clinic_memberships`, `permission_groups` のみ現時点で保持（`user_permissions` は廃止済み） |
 
 ## 変更概要（v7.0 → v8.0）
 
@@ -225,7 +251,9 @@ v10.0 にて24テーブルへの `clinic_id` 追加完了（003_add_clinic_id.sq
 | 2 | `clinics` | 医院情報 | 各医院（八王子・城東・敷島） |
 | 3 | `user_accounts` | 認証 | ログインアカウント |
 | 4 | `user_clinic_memberships` | 認証 | ユーザーの医院所属 |
-| 5 | `user_permissions` | 認証 | ユーザーの権限 |
+| 5 | `permission_groups` | 認証 | 権限グループ定義（RBAC） |
+| 5b | `permission_group_rules` | 認証 | グループ×リソース×CRUD権限 |
+| 5c | `user_permission_groups` | 認証 | ユーザー→グループ紐付け |
 | 6 | `owners` | コア | 飼い主 |
 | 7 | `pets` | コア | ペット |
 | 8 | `animal_species` | マスタ | ペット種類マスタ（犬・猫・鳥等） |
@@ -347,13 +375,30 @@ erDiagram
         timestamptz joined_at
     }
 
-    user_permissions {
+    permission_groups {
         bigint id PK
-        bigint user_id FK
         bigint clinic_id FK
-        permission_type permission "UK: user_id+clinic_id+permission"
-        bigint granted_by FK
-        timestamptz granted_at
+        varchar name
+        text description
+        varchar color
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
+    }
+
+    permission_group_rules {
+        bigint id PK
+        bigint group_id FK
+        varchar resource "UK: group_id+resource"
+        boolean can_view
+        boolean can_create
+        boolean can_edit
+        boolean can_delete
+    }
+
+    user_permission_groups {
+        bigint user_id FK "PK複合"
+        bigint group_id FK "PK複合"
     }
 
     %% ===== コア =====
@@ -736,6 +781,8 @@ erDiagram
         text physical_exam
         bigint diagnosis_category_id FK
         bigint diagnosis_name_id FK
+        bigint diagnosis_2_category_id FK
+        bigint diagnosis_2_name_id FK
         text diagnosis_details
         text treatment_policy
         timestamptz created_at
@@ -1165,11 +1212,12 @@ erDiagram
 
     %% 認証
     user_accounts ||--o{ user_clinic_memberships : "user_id"
-    user_accounts ||--o{ user_permissions : "user_id"
+    user_accounts ||--o{ user_permission_groups : "user_id"
     user_accounts }o--|| staffs : "staff_id"
-    user_permissions }o--|| user_accounts : "granted_by"
     clinics ||--o{ user_clinic_memberships : "clinic_id"
-    clinics ||--o{ user_permissions : "clinic_id"
+    clinics ||--o{ permission_groups : "clinic_id"
+    permission_groups ||--o{ permission_group_rules : "group_id"
+    permission_groups ||--o{ user_permission_groups : "group_id"
 
     %% コア
     owners ||--o{ pets : "owner_id"
@@ -1194,6 +1242,8 @@ erDiagram
     medical_records ||--o| clinical_plans : "medical_record_id"
     clinical_plans }o--|| diagnosis_categories : "diagnosis_category_id"
     clinical_plans }o--|| diagnosis_names : "diagnosis_name_id"
+    clinical_plans }o--|| diagnosis_categories : "diagnosis_2_category_id"
+    clinical_plans }o--|| diagnosis_names : "diagnosis_2_name_id"
 
     medical_records ||--o{ treatments : "medical_record_id"
     consultations ||--o{ treatments : "consultation_id"
@@ -1360,7 +1410,6 @@ erDiagram
 | `membership_type` | non_member, member, deceased, transferred |
 | `next_schedule_type` | 3weeks, 4weeks, 1year, other |
 | `payment_method` | cash, credit_card, electronic_money |
-| `permission_type` | account_admin, medical, medical_read, trimming, billing, reception, hospitalization, master_admin, shift_admin, inventory |
 | `pet_gender` | male, female, unknown |
 | `pet_status` | alive, deceased |
 | `plan_timing` | morning, noon, night |
@@ -1393,17 +1442,18 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | bigint | NO | - | PK (BIGSERIAL) |
 | name | text | NO | | 法人名 |
-| postal_code | text | YES | '' | 郵便番号 |
-| address | text | YES | '' | 住所 |
-| phone_number | text | YES | '' | 電話番号 |
-| fax_number | text | YES | '' | FAX番号 |
-| registration_number | text | YES | '' | 登録番号 |
-| director_name | text | YES | '' | 院長名 |
-| email | text | YES | '' | メールアドレス |
-| website | text | YES | '' | ウェブサイトURL |
-| logo_url | text | YES | '' | ロゴ画像URL |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| postal_code | text | NO | '' | 郵便番号 |
+| address | text | NO | '' | 住所 |
+| phone_number | text | NO | '' | 電話番号 |
+| fax_number | text | NO | '' | FAX番号 |
+| registration_number | text | NO | '' | 登録番号 |
+| invoice_registration_number | text | NO | '' | インボイス登録番号 |
+| director_name | text | NO | '' | 院長名 |
+| email | text | NO | '' | メールアドレス |
+| website | text | NO | '' | ウェブサイトURL |
+| logo_url | text | NO | '' | ロゴ画像URL |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 ---
 
@@ -1416,18 +1466,20 @@ erDiagram
 | id | bigint | NO | - | PK (BIGSERIAL) |
 | company_id | bigint | NO | | company.id FK |
 | name | text | NO | | 医院名 |
-| postal_code | text | YES | '' | 郵便番号 |
-| address | text | YES | '' | 住所 |
-| phone_number | text | YES | '' | 電話番号 |
-| fax_number | text | YES | '' | FAX番号 |
-| registration_number | text | YES | '' | 登録番号 |
-| director_name | text | YES | '' | 院長名 |
-| email | text | YES | '' | メールアドレス |
-| website | text | YES | '' | ウェブサイトURL |
-| logo_url | text | YES | '' | ロゴ画像URL |
-| is_active | boolean | YES | true | 有効フラグ |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| postal_code | text | NO | '' | 郵便番号 |
+| address | text | NO | '' | 住所 |
+| phone_number | text | NO | '' | 電話番号 |
+| fax_number | text | NO | '' | FAX番号 |
+| registration_number | text | NO | '' | 登録番号 |
+| director_name | text | NO | '' | 院長名 |
+| email | text | NO | '' | メールアドレス |
+| website | text | NO | '' | ウェブサイトURL |
+| logo_url | text | NO | '' | ロゴ画像URL |
+| is_active | boolean | NO | true | 有効フラグ |
+| standard_tax_rate | numeric | NO | 0.10 | 標準税率 |
+| reduced_tax_rate | numeric | NO | 0.08 | 軽減税率 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 ---
 
@@ -1443,16 +1495,16 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | bigint | NO | - | PK (BIGSERIAL) |
 | email | text | NO | | メールアドレス（UNIQUE） |
-| password_hash | text | NO | | bcryptハッシュ化パスワード（JSON非公開） |
+| password_hash | text | NO | '' | bcryptハッシュ化パスワード（JSON非公開） |
 | display_name | text | NO | | 表示名 |
-| display_name_kana | text | YES | '' | 表示名カナ |
+| display_name_kana | text | NO | '' | 表示名カナ |
 | user_type | user_type | NO | 'staff' | ユーザー種別 |
 | job_title_id | bigint | YES | NULL | job_titles.id FK（職種） |
 | status | account_status | YES | 'active' | アカウント状態 |
-| avatar_url | text | YES | '' | アバター画像URL |
-| staff_id | bigint | YES | | staffs.id FK |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| avatar_url | text | NO | '' | アバター画像URL |
+| staff_id | bigint | YES | NULL | staffs.id FK |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
@@ -1483,25 +1535,65 @@ erDiagram
 
 ---
 
-#### `user_permissions`
+#### `permission_groups`
 
-用途: ユーザーの医院別権限。医院ごとに複数の権限を付与可能。
+用途: 権限グループ定義。clinic 単位（TASK-049 完了後は company 単位に移行予定）。
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | bigint | NO | - | PK (BIGSERIAL) |
+| clinic_id | bigint | NO | | clinics.id FK（TASK-049後: company_id） |
+| name | varchar(100) | NO | | グループ名 |
+| description | text | NO | '' | グループ説明 |
+| color | varchar(7) | NO | '#6B7280' | 表示カラー（HEX） |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
+| deleted_at | timestamptz | YES | NULL | 論理削除日時 |
+
+**FK:**
+- `clinic_id` → `clinics.id` (RESTRICT)
+
+**インデックス:** `(clinic_id) WHERE deleted_at IS NULL`
+
+---
+
+#### `permission_group_rules`
+
+用途: グループ×リソース×CRUD の細粒度権限ルール。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| id | bigint | NO | - | PK (BIGSERIAL) |
+| group_id | bigint | NO | | permission_groups.id FK |
+| resource | varchar(50) | NO | | リソースキー（例: `medical-records`） |
+| can_view | boolean | NO | false | 閲覧権限 |
+| can_create | boolean | NO | false | 作成権限 |
+| can_edit | boolean | NO | false | 編集権限 |
+| can_delete | boolean | NO | false | 削除権限 |
+
+**FK:**
+- `group_id` → `permission_groups.id` (CASCADE)
+
+**UNIQUE制約:** `(group_id, resource)`
+
+---
+
+#### `user_permission_groups`
+
+用途: ユーザーと権限グループの中間テーブル（多対多）。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
 | user_id | bigint | NO | | user_accounts.id FK |
-| clinic_id | bigint | NO | | clinics.id FK |
-| permission | permission_type | NO | | 権限種別 |
-| granted_by | bigint | YES | | 付与者 user_accounts.id FK |
-| granted_at | timestamptz | YES | now() | 付与日時 |
+| group_id | bigint | NO | | permission_groups.id FK |
+
+**PK:** `(user_id, group_id)` 複合主キー
 
 **FK:**
 - `user_id` → `user_accounts.id` (CASCADE)
-- `clinic_id` → `clinics.id` (RESTRICT)
-- `granted_by` → `user_accounts.id` (SET NULL)
+- `group_id` → `permission_groups.id` (CASCADE)
 
-**UNIQUE制約:** `(user_id, clinic_id, permission)` — 同一ユーザー・医院・権限の重複登録防止
+**インデックス:** `(user_id)`, `(group_id)`
 
 ---
 
@@ -1516,26 +1608,26 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | bigint | NO | - | PK (BIGSERIAL) |
-| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| clinic_id | bigint | NO | - | FK → clinics(id) RESTRICT（所属医院） |
 | owner_name | text | NO | | 飼い主名 |
-| owner_name_kana | text | YES | '' | 飼い主名カナ |
+| owner_name_kana | text | NO | '' | 飼い主名カナ |
 | birth_date | date | YES | | 生年月日 |
-| company | text | YES | '' | 会社名 |
-| postal_code | text | YES | '' | 郵便番号（会社） |
-| address1 | text | YES | '' | 住所1（会社） |
-| address2 | text | YES | '' | 住所2（会社） |
-| home_postal_code | text | YES | '' | 郵便番号（自宅） |
-| home_address1 | text | YES | '' | 住所1（自宅） |
-| home_address2 | text | YES | '' | 住所2（自宅） |
-| phone | text | YES | '' | 電話番号 |
-| company_phone | text | YES | '' | 会社電話番号 |
-| email | text | YES | '' | メールアドレス |
-| remarks | text | YES | '' | 備考 |
-| is_dangerous | boolean | YES | false | 危険フラグ |
-| discount_rate | numeric | YES | 0 | 割引率 |
-| membership_type | membership_type | YES | '非会員' | 会員種別 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| company | text | NO | '' | 会社名 |
+| postal_code | text | NO | '' | 郵便番号（会社） |
+| address1 | text | NO | '' | 住所1（会社） |
+| address2 | text | NO | '' | 住所2（会社） |
+| home_postal_code | text | NO | '' | 郵便番号（自宅） |
+| home_address1 | text | NO | '' | 住所1（自宅） |
+| home_address2 | text | NO | '' | 住所2（自宅） |
+| phone | text | NO | '' | 電話番号 |
+| company_phone | text | NO | '' | 会社電話番号 |
+| email | text | NO | '' | メールアドレス |
+| remarks | text | NO | '' | 備考 |
+| is_dangerous | boolean | NO | false | 危険フラグ |
+| discount_rate | numeric(5,2) | NO | 0 | 割引率 |
+| membership_type | membership_type | NO | 'non_member' | 会員種別 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
@@ -1552,29 +1644,29 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | bigint | NO | - | PK (BIGSERIAL) |
-| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| clinic_id | bigint | NO | - | FK → clinics(id) RESTRICT（所属医院） |
 | owner_id | bigint | NO | | owners.id FK |
-| pet_number | text | YES | '' | ペット番号 |
+| pet_number | text | NO | '' | ペット番号 |
 | name | text | NO | | ペット名 |
-| pet_name_kana | text | YES | '' | ペット名カナ |
+| pet_name_kana | text | NO | '' | ペット名カナ |
 | animal_species_id | bigint | NO | | animal_species.id FK（種類） |
-| gender | pet_gender | YES | '不明' | 性別 |
-| status | pet_status | YES | '生存' | 生存状態 |
+| gender | pet_gender | NO | 'unknown' | 性別 |
+| status | pet_status | NO | 'alive' | 生存状態 |
 | birth_date | date | YES | | 誕生日 |
-| breed | text | YES | '' | 品種 |
-| color | text | YES | '' | 毛色 |
-| weight | numeric | YES | | 体重(kg) |
+| breed | text | NO | '' | 品種 |
+| color | text | NO | '' | 毛色 |
+| weight | numeric(6,2) | YES | | 体重(kg) |
 | neutered_date | date | YES | | 去勢・避妊手術日 |
 | acquisition_type | acquisition_type | YES | | 取得区分 |
-| danger_level | danger_level | YES | '低' | 危険度 |
-| food | text | YES | '' | 食事内容 |
-| environment | text | YES | '' | 飼育環境 |
-| phone | text | YES | '' | ペット専用電話 |
+| danger_level | danger_level | NO | 'low' | 危険度 |
+| food | text | NO | '' | 食事内容 |
+| environment | text | NO | '' | 飼育環境 |
+| phone | text | NO | '' | ペット専用電話 |
 | last_visit | date | YES | | 最終来院日 |
 | insurance_id | bigint | YES | | insurances.id FK |
-| remarks | text | YES | '' | 備考 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| remarks | text | NO | '' | 備考 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
@@ -1599,10 +1691,10 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | bigint | NO | - | PK (BIGSERIAL) |
 | name | text | NO | | 種類名（犬・猫・鳥・その他 等） |
-| is_active | boolean | YES | true | 状態 |
+| is_active | boolean | NO | true | 状態 |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:** なし（システム共通マスタ）
 
@@ -1616,15 +1708,15 @@ erDiagram
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | id | bigint | NO | - | PK (BIGSERIAL) |
-| clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
+| clinic_id | bigint | NO | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | スタッフ名 |
-| is_active | boolean | YES | true | 状態 |
-| staff_role | staff_role | NO | | 役割 |
-| license_number | text | YES | '' | 免許番号 |
-| job_title_id | bigint | YES | - | job_titles.id FK（職種） |
+| is_active | boolean | NO | true | 状態 |
+| staff_role | staff_role | NO | | 役割（ENUM: veterinarian/nurse/trimmer/reception/manager） |
+| license_number | text | NO | '' | 免許番号 |
+| job_title_id | bigint | YES | NULL | job_titles.id FK（職種） |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
@@ -1644,7 +1736,7 @@ erDiagram
 | id | bigint | NO | - | PK |
 | clinic_id | bigint | NO | - | clinics.id FK（所属医院） |
 | name | text | NO | '' | 職種名（例: 獣医師, 看護師） |
-| description | text | YES | '' | 説明 |
+| description | text | NO | '' | 説明 |
 | sort_order | int | NO | 0 | 表示順 |
 | is_active | boolean | NO | true | 有効フラグ |
 | created_at | timestamptz | NO | now() | 作成日時 |
@@ -1668,13 +1760,14 @@ erDiagram
 | quantity | integer | YES | 0 | 在庫数量 |
 | unit | text | NO | '' | 単位 |
 | min_stock_level | integer | YES | 0 | 最低在庫数 |
-| location | text | YES | '' | 保管場所 |
+| location | text | NO | '' | 保管場所 |
 | expiry_date | date | YES | | 有効期限 |
-| supplier | text | YES | '' | 仕入先 |
+| supplier | text | NO | '' | 仕入先 |
 | last_restocked | date | YES | | 最終補充日 |
 | status | inventory_status | YES | 'sufficient' | 在庫状態 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
+| deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -1694,11 +1787,11 @@ erDiagram
 | name | text | NO | | 検査種別名 |
 | parent_id | bigint | YES | NULL | 親検査種別ID FK → exam_types(id) SET NULL |
 | price | integer | YES | | 価格 |
-| is_active | boolean | YES | true | 状態 |
-| description | text | YES | '' | 説明 |
+| is_active | boolean | NO | true | 状態 |
+| description | text | NO | '' | 説明 |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -1717,12 +1810,12 @@ erDiagram
 | id | bigint | NO | - | PK (BIGSERIAL) |
 | exam_type_id | bigint | NO | | exam_types.id FK |
 | name | text | NO | | 検査項目名 |
-| inspection_value | text | YES | '' | 検査値（テンプレート） |
-| normal_value | text | YES | '' | 正常値 |
-| unit | text | YES | '' | 単位 |
+| inspection_value | text | NO | '' | 検査値（テンプレート） |
+| normal_value | text | NO | '' | 正常値 |
+| unit | text | NO | '' | 単位 |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:** `exam_type_id` → `exam_types.id` (CASCADE)
 
@@ -1739,14 +1832,14 @@ erDiagram
 | name | text | NO | | ワクチン名 |
 | parent_id | bigint | YES | NULL | 親ワクチンID FK → vaccines(id) SET NULL |
 | price | integer | YES | | 価格 |
-| is_active | boolean | YES | true | 状態 |
-| description | text | YES | '' | 説明 |
+| is_active | boolean | NO | true | 状態 |
+| description | text | NO | '' | 説明 |
 | species | vaccine_species | YES | | 対象動物種 |
-| interval | text | YES | '' | 接種間隔 |
+| interval | text | NO | '' | 接種間隔 |
 | inventory_id | bigint | YES | | inventory_items.id FK |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -1768,15 +1861,17 @@ erDiagram
 | name | text | NO | | 薬剤名 |
 | parent_id | bigint | YES | NULL | 親薬剤ID（カテゴリ medicine を参照）FK → medicines(id) SET NULL |
 | price | integer | YES | | 価格 |
-| is_active | boolean | YES | true | 状態 |
-| description | text | YES | '' | 説明 |
+| is_active | boolean | NO | true | 状態 |
+| description | text | NO | '' | 説明 |
 | dosage_form | dosage_form | YES | | 剤形 |
 | medicine_unit | medicine_unit | YES | | 単位 |
 | inventory_id | bigint | YES | | inventory_items.id FK |
-| default_quantity | integer | YES | 1 | デフォルト数量 |
+| default_quantity | numeric(10,1) | YES | 1 | デフォルト数量 |
+| tax_type | tax_type | NO | 'excluded' | 課税区分（included/excluded/exempt） |
+| tax_rate | numeric | NO | 0.10 | 税率（小数） |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -1796,13 +1891,13 @@ erDiagram
 | id | bigint | NO | - | PK (BIGSERIAL) |
 | clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 保険名 |
-| is_active | boolean | YES | true | 状態 |
-| description | text | YES | '' | 説明 |
+| is_active | boolean | NO | true | 状態 |
+| description | text | NO | '' | 説明 |
 | coverage_rate | integer | NO | - | 補償率(%) CHECK (0 <= coverage_rate AND coverage_rate <= 100) |
-| contact_phone | text | YES | '' | 問い合わせ電話番号 |
+| contact_phone | text | NO | '' | 問い合わせ電話番号 |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -1821,13 +1916,13 @@ erDiagram
 | clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | ケージ名 |
 | price | integer | YES | | 価格 |
-| is_active | boolean | YES | true | 状態 |
-| description | text | YES | '' | 説明 |
+| is_active | boolean | NO | true | 状態 |
+| description | text | NO | '' | 説明 |
 | cage_type | cage_type | NO | | ケージ種別 |
 | cage_size | cage_size | NO | | ケージサイズ |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -1845,12 +1940,12 @@ erDiagram
 | id | bigint | NO | - | PK (BIGSERIAL) |
 | clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | サービス種別名 |
-| is_active | boolean | YES | true | 状態 |
-| description | text | YES | '' | 説明 |
-| color | text | YES | '#3B82F6' | 表示色（HEX） |
+| is_active | boolean | NO | true | 状態 |
+| description | text | NO | '' | 説明 |
+| color | text | NO | '#3B82F6' | 表示色（HEX） |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -1870,13 +1965,15 @@ erDiagram
 | name | text | NO | | 診察項目名 |
 | parent_id | bigint | YES | NULL | 親診察項目ID FK → consultations(id) SET NULL |
 | price | integer | YES | | 価格 |
-| is_active | boolean | YES | true | 状態 |
-| description | text | YES | '' | 説明 |
-| time_condition | text | YES | '' | 時間条件 |
+| is_active | boolean | NO | true | 状態 |
+| description | text | NO | '' | 説明 |
+| time_condition | text | NO | '' | 時間条件 |
 | duration | integer | YES | | 標準診察時間(分) |
+| tax_type | tax_type | NO | 'excluded' | 課税区分（included/excluded/exempt） |
+| tax_rate | numeric | NO | 0.10 | 税率（小数） |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -1897,13 +1994,15 @@ erDiagram
 | name | text | NO | | 処置項目名 |
 | parent_id | bigint | YES | NULL | 親処置項目ID FK → procedures(id) SET NULL |
 | price | integer | YES | | 価格 |
-| is_active | boolean | YES | true | 状態 |
-| description | text | YES | '' | 説明 |
+| is_active | boolean | NO | true | 状態 |
+| description | text | NO | '' | 説明 |
 | duration | integer | YES | | 所要時間目安(分) |
 | anesthesia | anesthesia_type | YES | 'none' | 麻酔種別 |
+| tax_type | tax_type | NO | 'excluded' | 課税区分（included/excluded/exempt） |
+| tax_rate | numeric | NO | 0.10 | 税率（小数） |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -1923,13 +2022,15 @@ erDiagram
 | clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | プラン名 |
 | price | integer | YES | | 価格 |
-| is_active | boolean | YES | true | 状態 |
-| description | text | YES | '' | 説明 |
+| is_active | boolean | NO | true | 状態 |
+| description | text | NO | '' | 説明 |
 | body_size | body_size | YES | | 体格区分 |
 | billing_unit | billing_unit | YES | 'per_day' | 課金単位 |
+| tax_type | tax_type | NO | 'excluded' | 課税区分（included/excluded/exempt） |
+| tax_rate | numeric | NO | 0.10 | 税率（小数） |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -1948,13 +2049,13 @@ erDiagram
 | clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | コース名 |
 | price | integer | YES | | 価格 |
-| is_active | boolean | YES | true | 状態 |
-| description | text | YES | '' | 説明 |
+| is_active | boolean | NO | true | 状態 |
+| description | text | NO | '' | 説明 |
 | target_size | target_size | YES | | 対象サイズ |
 | duration | integer | YES | | 所要時間(分) |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -1973,13 +2074,13 @@ erDiagram
 | clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | オプション名 |
 | price | integer | YES | | 価格 |
-| is_active | boolean | YES | true | 状態 |
-| description | text | YES | '' | 説明 |
+| is_active | boolean | NO | true | 状態 |
+| description | text | NO | '' | 説明 |
 | duration | integer | YES | | 追加所要時間(分) |
 | combinable | boolean | NO | true | 他オプションと組み合わせ可能か |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -2023,11 +2124,11 @@ erDiagram
 | id | bigint | NO | - | PK (BIGSERIAL) |
 | clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | カテゴリ名 |
-| is_active | boolean | YES | true | 状態 |
-| description | text | YES | '' | 説明 |
+| is_active | boolean | NO | true | 状態 |
+| description | text | NO | '' | 説明 |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -2045,12 +2146,12 @@ erDiagram
 | id | bigint | NO | - | PK (BIGSERIAL) |
 | clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 診断名 |
-| is_active | boolean | YES | true | 状態 |
-| description | text | YES | '' | 説明 |
+| is_active | boolean | NO | true | 状態 |
+| description | text | NO | '' | 説明 |
 | diagnosis_category_id | bigint | NO | | diagnosis_categories.id FK |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -2071,13 +2172,13 @@ erDiagram
 | name | text | NO | | 健診種別名 |
 | parent_id | bigint | YES | NULL | 親健診種別ID FK → checkup_types(id) SET NULL |
 | price | integer | YES | | 価格 |
-| is_active | boolean | YES | true | 状態 |
-| description | text | YES | '' | 説明 |
-| interval | text | YES | '' | 推奨間隔 |
-| target_age | text | YES | '' | 対象年齢 |
+| is_active | boolean | NO | true | 状態 |
+| description | text | NO | '' | 説明 |
+| interval | text | NO | '' | 推奨間隔 |
+| target_age | text | NO | '' | 対象年齢 |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
@@ -2097,11 +2198,11 @@ erDiagram
 | id | bigint | NO | - | PK (BIGSERIAL) |
 | clinic_id | bigint | NO | - | FK → clinics(id) RESTRICT（所属医院） |
 | name | text | NO | | 区分名 |
-| description | text | YES | '' | 説明 |
-| is_active | boolean | YES | true | 状態 |
+| description | text | NO | '' | 説明 |
+| is_active | boolean | NO | true | 状態 |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -2121,10 +2222,10 @@ erDiagram
 | category | text | NO | '' | 使用フィールド区分（chief_complaint / history / current_medications / allergy_info / notes 等） |
 | title | text | NO | | 定型文タイトル |
 | content | text | NO | '' | 定型文本文 |
-| is_active | boolean | YES | true | 状態 |
+| is_active | boolean | NO | true | 状態 |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -2154,9 +2255,9 @@ erDiagram
 | pet_id | bigint | YES | | FK → pets(id) RESTRICT |
 | doctor_id | bigint | YES | | FK → staffs(id) SET NULL（担当医師） |
 | reservation_appointment_id | bigint | YES | NULL | reservation_appointments.id FK SET NULL（紐づく予約） |
-| status | medical_record_status | YES | '作成中' | カルテ状態 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| status | medical_record_status | YES | 'draft' | カルテ状態 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
@@ -2178,18 +2279,22 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | bigint | NO | - | PK (BIGSERIAL) |
 | medical_record_id | bigint | NO | | FK → medical_records(id) CASCADE（UNIQUE） |
-| physical_exam | text | YES | '' | 身体検査所見（O: Objective） |
+| physical_exam | text | NO | '' | 身体検査所見（O: Objective） |
 | diagnosis_category_id | bigint | YES | | FK → diagnosis_categories(id) SET NULL（診断カテゴリ） |
 | diagnosis_name_id | bigint | YES | | FK → diagnosis_names(id) SET NULL（診断病名） |
-| diagnosis_details | text | YES | '' | 診断詳細（A: Assessment） |
-| treatment_policy | text | YES | '' | 治療方針（P: Plan） |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| diagnosis_2_category_id | bigint | YES | | FK → diagnosis_categories(id) SET NULL（第2診断カテゴリ） |
+| diagnosis_2_name_id | bigint | YES | | FK → diagnosis_names(id) SET NULL（第2診断病名） |
+| diagnosis_details | text | NO | '' | 診断詳細（A: Assessment） |
+| treatment_policy | text | NO | '' | 治療方針（P: Plan） |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `medical_record_id` → `medical_records.id` (CASCADE) UNIQUE
 - `diagnosis_category_id` → `diagnosis_categories.id` (SET NULL)
 - `diagnosis_name_id` → `diagnosis_names.id` (SET NULL)
+- `diagnosis_2_category_id` → `diagnosis_categories.id` (SET NULL)
+- `diagnosis_2_name_id` → `diagnosis_names.id` (SET NULL)
 
 **インデックス:** `medical_record_id` UNIQUE（1:1保証）
 
@@ -2204,20 +2309,20 @@ erDiagram
 | id | bigint | NO | - | PK (BIGSERIAL) |
 | medical_record_id | bigint | NO | - | FK → medical_records(id) CASCADE, UNIQUE |
 | chief_complaint_category_id | bigint | YES | - | FK → chief_complaint_categories(id) SET NULL（主訴区分） |
-| chief_complaint | text | YES | '' | 主訴 |
-| history | text | YES | '' | 既往歴・現病歴 |
-| current_medications | text | YES | '' | 現在の投薬状況 |
-| allergy_info | text | YES | '' | アレルギー情報 |
-| last_meal | text | YES | '' | 最終食事 |
-| last_defecation | text | YES | '' | 最終排便 |
-| last_urination | text | YES | '' | 最終排尿 |
+| chief_complaint | text | NO | '' | 主訴 |
+| history | text | NO | '' | 既往歴・現病歴 |
+| current_medications | text | NO | '' | 現在の投薬状況 |
+| allergy_info | text | NO | '' | アレルギー情報 |
+| last_meal | text | NO | '' | 最終食事 |
+| last_defecation | text | NO | '' | 最終排便 |
+| last_urination | text | NO | '' | 最終排尿 |
 | appetite | appetite_level | YES | - | 食欲レベル |
 | water_intake | water_intake_level | YES | - | 飲水量レベル |
-| owner_observations | text | YES | '' | 飼主の気になる点 |
-| notes | text | YES | '' | その他メモ |
+| owner_observations | text | NO | '' | 飼主の気になる点 |
+| notes | text | NO | '' | その他メモ |
 | staff_id | bigint | YES | - | FK → staffs(id) SET NULL（問診担当） |
-| created_at | timestamptz | YES | now() | |
-| updated_at | timestamptz | YES | now() | |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK**: medical_record_id → medical_records(id) CASCADE, chief_complaint_category_id → chief_complaint_categories(id) SET NULL, staff_id → staffs(id) SET NULL
 
@@ -2240,16 +2345,16 @@ erDiagram
 | selected | boolean | YES | false | 選択フラグ |
 | status | treatment_status | YES | 'pending' | 処置状態 |
 | content | text | NO | '' | 内容 |
-| memo | text | YES | '' | メモ |
+| memo | text | NO | '' | メモ |
 | insurance | boolean | YES | false | 保険適用フラグ |
 | unit_price | integer | YES | 0 | 単価 |
-| quantity | integer | YES | 1 | 数量 |
-| discount_rate | numeric | YES | 0 | 割引率 |
+| quantity | numeric(10,1) | YES | 1 | 数量 |
+| discount_rate | numeric(5,2) | YES | 0 | 割引率 |
 | discount_amount | integer | YES | 0 | 割引額 |
 | inventory_id | bigint | YES | | inventory_items.id FK |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
@@ -2279,6 +2384,7 @@ erDiagram
 | heart_rate | integer | YES | | 心拍数（bpm） |
 | respiration_rate | integer | YES | | 呼吸数（回/分） |
 | weight | numeric | YES | | 体重（kg） |
+| weight_unit | body_weight_unit | YES | 'Kg' | 体重単位（Kg/g） |
 | notes | text | NO | '' | 備考 |
 | created_at | timestamptz | NO | now() | 作成日時 |
 | updated_at | timestamptz | NO | now() | 更新日時 |
@@ -2312,10 +2418,10 @@ erDiagram
 | exam_type_id | bigint | NO | | exam_types.id FK |
 | doctor_id | bigint | YES | | staffs.id FK |
 | status | examination_status | YES | 'pending' | 検査状態 |
-| result_summary | text | YES | '' | 検査結果サマリ |
-| machine | text | YES | '' | 使用機器 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| result_summary | text | NO | '' | 検査結果サマリ |
+| machine | text | NO | '' | 使用機器 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
@@ -2337,15 +2443,15 @@ erDiagram
 | exam_id | bigint | NO | | exams.id FK |
 | exam_type_item_id | bigint | YES | | exam_type_items.id FK（検査項目定義への参照） |
 | name | text | NO | '' | 検査項目名 |
-| inspection_value | text | YES | '' | 検査値 |
-| normal_value | text | YES | '' | 正常値 |
-| result | text | YES | '' | 結果コメント |
-| unit | text | YES | '' | 単位 |
-| ref | text | YES | '' | 参考値 |
+| inspection_value | text | NO | '' | 検査値 |
+| normal_value | text | NO | '' | 正常値 |
+| result | text | NO | '' | 結果コメント |
+| unit | text | NO | '' | 単位 |
+| ref | text | NO | '' | 参考値 |
 | status | examination_result_status | YES | 'normal' | 結果状態 |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `exam_id` → `exams.id` (CASCADE)
@@ -2368,17 +2474,18 @@ erDiagram
 | next_date | date | YES | | 次回接種予定日 |
 | next_schedule_type | next_schedule_type | YES | | 次回スケジュール種別 |
 | doctor_id | bigint | YES | | staffs.id FK |
-| supplemental | text | YES | '' | 補足情報 |
-| lot1 | text | YES | '' | ロット番号1 |
-| lot2 | text | YES | '' | ロット番号2 |
-| lot3 | text | YES | '' | ロット番号3 |
-| lot4 | text | YES | '' | ロット番号4 |
-| remarks | text | YES | '' | 備考 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| supplemental | text | NO | '' | 補足情報 |
+| lot1 | text | NO | '' | ロット番号1 |
+| lot2 | text | NO | '' | ロット番号2 |
+| lot3 | text | NO | '' | ロット番号3 |
+| lot4 | text | NO | '' | ロット番号4 |
+| remarks | text | NO | '' | 備考 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
+- `clinic_id` → `clinics.id` (RESTRICT)
 - `medical_record_id` → `medical_records.id` (CASCADE)
 - `pet_id` → `pets.id` (RESTRICT)
 - `vaccine_id` → `vaccines.id` (RESTRICT)
@@ -2400,9 +2507,9 @@ erDiagram
 | date | date | NO | | 健診日 |
 | next_date | date | YES | | 次回健診予定日 |
 | doctor_id | bigint | YES | | staffs.id FK |
-| result | text | YES | '' | 健診結果 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| result | text | NO | '' | 健診結果 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
@@ -2423,17 +2530,17 @@ erDiagram
 | id | bigint | NO | - | PK (BIGSERIAL) |
 | medical_record_id | bigint | NO | - | FK → medical_records(id) CASCADE |
 | image_url | text | NO | '' | 画像URL（オブジェクトストレージ） |
-| thumbnail_url | text | YES | '' | サムネイルURL |
+| thumbnail_url | text | NO | '' | サムネイルURL |
 | file_name | text | NO | '' | 元ファイル名 |
 | file_size | bigint | YES | 0 | ファイルサイズ（bytes） |
-| mime_type | text | YES | '' | MIMEタイプ |
+| mime_type | text | NO | '' | MIMEタイプ |
 | image_type | medical_image_type | NO | 'other' | 画像種別 |
-| description | text | YES | '' | 説明・所見メモ |
+| description | text | NO | '' | 説明・所見メモ |
 | taken_at | timestamptz | YES | - | 撮影日時 |
 | exam_id | bigint | YES | - | FK → exams(id) SET NULL |
 | staff_id | bigint | YES | - | FK → staffs(id) SET NULL（撮影者） |
 | sort_order | integer | YES | 0 | 表示順 |
-| created_at | timestamptz | YES | now() | |
+| created_at | timestamptz | NO | now() | 作成日時 |
 | updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK**: medical_record_id → medical_records(id) CASCADE, exam_id → exams(id) SET NULL, staff_id → staffs(id) SET NULL
@@ -2452,7 +2559,7 @@ erDiagram
 | clinic_id | bigint | NO | - | clinics.id FK（所属医院、RESTRICT） |
 | estimate_no | text | NO | - | 見積書番号（clinic_id + estimate_no UNIQUE） |
 | medical_record_id | bigint | YES | - | FK → medical_records(id) SET NULL |
-| title | text | YES | '' | 件名 |
+| title | text | NO | '' | 件名 |
 | owner_id | bigint | YES | - | FK → owners(id) SET NULL |
 | status | estimate_status | YES | 'draft' | draft/sent/approved/rejected |
 | subtotal | integer | NO | 0 | 小計 |
@@ -2461,11 +2568,11 @@ erDiagram
 | insurance_amount | integer | YES | 0 | 保険適用額 |
 | discount_amount | integer | YES | 0 | 値引き額 |
 | valid_until | date | YES | - | 有効期限 |
-| comment | text | YES | '' | コメント |
-| notes | text | YES | '' | 備考 |
+| comment | text | NO | '' | コメント |
+| notes | text | NO | '' | 備考 |
 | created_by | bigint | YES | - | FK → staffs(id) SET NULL（作成者） |
-| created_at | timestamptz | YES | now() | |
-| updated_at | timestamptz | YES | now() | |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK**: clinic_id → clinics(id) RESTRICT, medical_record_id → medical_records(id) RESTRICT, owner_id → owners(id) SET NULL, created_by → staffs(id) SET NULL
@@ -2485,17 +2592,18 @@ erDiagram
 | name | text | NO | '' | 項目名 |
 | category | item_category | NO | - | 区分 |
 | unit_price | integer | NO | 0 | 単価 |
-| quantity | integer | NO | 1 | 数量 |
-| tax_rate | numeric | YES | 0.10 | 税率 |
-| discount_rate | numeric | YES | 0 | 割引率 |
+| quantity | numeric(10,1) | NO | 1 | 数量 |
+| tax_type | tax_type | NO | 'excluded' | 課税区分（included/excluded/exempt） |
+| tax_rate | numeric(3,2) | YES | 0.10 | 税率 |
+| discount_rate | numeric(5,2) | YES | 0 | 割引率 |
 | discount_amount | integer | YES | 0 | 値引額 |
 | is_insurance_applicable | boolean | YES | false | 保険適用可否 |
 | consultation_id | bigint | YES | - | FK → consultations(id) SET NULL |
 | procedure_id | bigint | YES | - | FK → procedures(id) SET NULL |
 | medicine_id | bigint | YES | - | FK → medicines(id) SET NULL |
 | sort_order | integer | YES | 0 | 表示順 |
-| created_at | timestamptz | YES | now() | |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK**: estimate_id → estimates(id) CASCADE, consultation_id → consultations(id) SET NULL, procedure_id → procedures(id) SET NULL, medicine_id → medicines(id) SET NULL
 
@@ -2516,10 +2624,10 @@ erDiagram
 | confirmed_at | timestamptz | YES | - | 確認日時 |
 | returned_by | bigint | YES | - | FK → staffs(id) SET NULL（差戻し者） |
 | returned_at | timestamptz | YES | - | 差戻し日時 |
-| return_reason | text | YES | '' | 差戻し理由 |
-| memo | text | YES | '' | メモ |
-| created_at | timestamptz | YES | now() | |
-| updated_at | timestamptz | YES | now() | |
+| return_reason | text | NO | '' | 差戻し理由 |
+| memo | text | NO | '' | メモ |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK**: medical_record_id → medical_records(id) CASCADE, confirmed_by → staffs(id) SET NULL, returned_by → staffs(id) SET NULL
 
@@ -2548,9 +2656,9 @@ erDiagram
 | doctor_id | bigint | YES | | staffs.id FK |
 | is_designated | boolean | YES | false | 担当医指名フラグ |
 | status | reservation_status | YES | 'pending' | 予約状態 |
-| notes | text | YES | '' | 備考 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| notes | text | NO | '' | 備考 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
@@ -2581,14 +2689,14 @@ erDiagram
 | hospitalization_type | hospitalization_type | NO | | 入院種別 |
 | start_date | date | NO | | 入院開始日 |
 | end_date | date | NO | | 入院終了日 |
-| status | hospitalization_status | YES | '予約' | 入院状態 |
+| status | hospitalization_status | YES | 'reserved' | 入院状態 |
 | cage_id | bigint | YES | | cages.id FK |
 | doctor_id | bigint | YES | | staffs.id FK |
-| memo | text | YES | '' | メモ |
-| owner_request | text | YES | '' | 飼い主要望 |
-| staff_notes | text | YES | '' | スタッフメモ |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| memo | text | NO | '' | メモ |
+| owner_request | text | NO | '' | 飼い主要望 |
+| staff_notes | text | NO | '' | スタッフメモ |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
@@ -2612,8 +2720,8 @@ erDiagram
 | hospitalization_id | bigint | NO | | hospitalizations.id FK |
 | clinic_id | bigint | NO | | clinics.id FK（所属医院） |
 | date | date | NO | | 日付 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `hospitalization_id` → `hospitalizations.id` (CASCADE)
@@ -2633,18 +2741,18 @@ erDiagram
 | hospitalization_id | bigint | NO | | hospitalizations.id FK |
 | type | care_plan_type | NO | | ケアプラン種別 |
 | name | text | NO | '' | 項目名 |
-| description | text | YES | '' | 説明 |
+| description | text | NO | '' | 説明 |
 | timing | plan_timing[] | YES | '{}' | 実施タイミング（配列） |
 | status | care_plan_status | YES | 'active' | 状態 |
-| notes | text | YES | '' | 備考 |
+| notes | text | NO | '' | 備考 |
 | medicine_id | bigint | YES | | medicines.id FK |
 | procedure_id | bigint | YES | | procedures.id FK |
 | hospitalization_plan_id | bigint | YES | | hospitalization_plans.id FK |
 | unit_price | integer | YES | 0 | 単価 |
-| category | text | YES | '' | カテゴリ |
+| category | text | NO | '' | カテゴリ |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `hospitalization_id` → `hospitalizations.id` (CASCADE)
@@ -2667,11 +2775,11 @@ erDiagram
 | time | time | NO | | 実施時刻 |
 | type | care_log_type | NO | | ケアログ種別 |
 | status | care_log_status | NO | 'completed' | 実施状態 |
-| value | text | YES | '' | 値（量・回数等） |
+| value | text | NO | '' | 値（量・回数等） |
 | staff_id | bigint | YES | | staffs.id FK |
-| notes | text | YES | '' | 備考 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| notes | text | NO | '' | 備考 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `daily_record_id` → `daily_records.id` (CASCADE)
@@ -2687,11 +2795,11 @@ erDiagram
 |---------|-----|------|-----------|------|
 | id | bigint | NO | - | PK (BIGSERIAL) |
 | daily_record_id | bigint | NO | | daily_records.id FK |
-| time | text | NO | '' | 記録時刻 |
+| time | time | NO | | 記録時刻 |
 | content | text | NO | '' | 内容 |
 | staff_id | bigint | YES | | staffs.id FK |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `daily_record_id` → `daily_records.id` (CASCADE)
@@ -2709,16 +2817,16 @@ erDiagram
 | medical_record_id | bigint | YES | | medical_records.id FK（外来カルテ） |
 | hospitalization_id | bigint | YES | | hospitalizations.id FK（入院） |
 | treatment_content | text | NO | '' | 治療内容 |
-| memo | text | YES | '' | メモ |
+| memo | text | NO | '' | メモ |
 | insurance | boolean | YES | false | 保険適用フラグ |
 | unit_price | integer | YES | 0 | 単価 |
-| quantity | integer | YES | 1 | 数量 |
-| discount_rate | numeric | YES | 0 | 割引率 |
+| quantity | numeric(10,1) | YES | 1 | 数量 |
+| discount_rate | numeric(5,2) | YES | 0 | 割引率 |
 | discount_amount | integer | YES | 0 | 割引額 |
 | subtotal | integer | YES | 0 | 小計 |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
@@ -2743,21 +2851,20 @@ erDiagram
 | clinic_id | bigint | NO  | - | FK → clinics(id) RESTRICT（所属医院） |
 | date | date | NO | | トリミング日 |
 | pet_id | bigint | YES | | pets.id FK |
-| weight | text | YES | '' | 体重 |
-| style_request | text | YES | '' | スタイルリクエスト |
+| style_request | text | NO | '' | スタイルリクエスト |
 | staff_id | bigint | YES | | staffs.id FK |
 | status | trimming_status | YES | 'reserved' | 状態 |
 | course_id | bigint | YES | | trimming_courses.id FK |
-| bw | text | YES | '' | 体重測定値 |
+| bw | numeric(6,2) | YES | | 体重測定値（body weight） |
 | bw_unit | body_weight_unit | YES | 'Kg' | 体重単位 |
-| bt | text | YES | '' | 体温 |
-| used_shampoo | text | YES | '' | 使用シャンプー |
-| used_ribbon | text | YES | '' | 使用リボン |
-| remarks | text | YES | '' | 備考 |
-| style_image | text | YES | '' | スタイル見本画像URL |
-| completed_image | text | YES | '' | 完成画像URL |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| bt | numeric(4,1) | YES | | 体温（body temperature, ℃） |
+| used_shampoo | text | NO | '' | 使用シャンプー |
+| used_ribbon | text | NO | '' | 使用リボン |
+| remarks | text | NO | '' | 備考 |
+| style_image | text | NO | '' | スタイル見本画像URL |
+| completed_image | text | NO | '' | 完成画像URL |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
@@ -2780,8 +2887,8 @@ erDiagram
 | trimming_record_id | bigint | NO | | trimming_records.id FK |
 | option_id | bigint | NO | | trimming_options.id FK |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `trimming_record_id` → `trimming_records.id` (CASCADE)
@@ -2814,9 +2921,9 @@ erDiagram
 | status | billing_status | YES | 'waiting' | 会計状態 |
 | scheduled_date | date | NO | | 会計予定日 |
 | completed_at | timestamptz | YES | | 会計完了日時 |
-| memo | text | YES | '' | メモ |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| memo | text | NO | '' | メモ |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:**
@@ -2841,12 +2948,13 @@ erDiagram
 | category | item_category | NO | | 明細カテゴリ |
 | name | text | NO | '' | 項目名 |
 | unit_price | integer | NO | 0 | 単価 |
-| quantity | integer | NO | 1 | 数量 |
-| tax_rate | numeric | YES | 0.10 | 税率 |
+| quantity | numeric(10,1) | NO | 1 | 数量 |
+| tax_type | tax_type | NO | 'excluded' | 課税区分（included/excluded/exempt） |
+| tax_rate | numeric(3,2) | YES | 0.10 | 税率 |
 | is_insurance_applicable | boolean | YES | false | 保険適用フラグ |
 | source | item_source | YES | 'manual' | 明細元 |
 | sort_order | integer | YES | 0 | 並び順 |
-| created_at | timestamptz | YES | now() | 作成日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
 | deleted_at | timestamptz | YES | NULL | 論理削除日時（NULL = 有効） |
 
 **FK:** `billing_id` → `billings.id` (CASCADE)
@@ -2864,7 +2972,7 @@ erDiagram
 | subtotal | numeric | NO | 0 | 小計 |
 | tax_total | numeric | NO | 0 | 消費税合計 |
 | total_amount | numeric | NO | 0 | 合計金額 |
-| insurance_name | text | YES | '' | 保険名（会計確定時スナップショット、変更後も履歴保持のため意図的に保持） |
+| insurance_name | text | NO | '' | 保険名（会計確定時スナップショット、変更後も履歴保持のため意図的に保持） |
 | insurance_ratio | numeric | YES | 0 | 保険補償率スナップショット（同上） |
 | insurance_amount | numeric | YES | 0 | 保険補填額 |
 | discount_amount | numeric | YES | 0 | 割引額 |
@@ -2872,8 +2980,8 @@ erDiagram
 | received_amount | numeric | YES | 0 | 受取金額 |
 | change_amount | numeric | YES | 0 | お釣り |
 | method | payment_method | YES | 'cash' | 支払い方法 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:** `billing_id` → `billings.id` (CASCADE)
 
@@ -2920,9 +3028,9 @@ erDiagram
 | shift_type | shift_type | NO | | シフト種別 |
 | start_time | time | YES | | 開始時刻 |
 | end_time | time | YES | | 終了時刻 |
-| note | text | YES | '' | 備考 |
-| created_at | timestamptz | YES | now() | 作成日時 |
-| updated_at | timestamptz | YES | now() | 更新日時 |
+| note | text | NO | '' | 備考 |
+| created_at | timestamptz | NO | now() | 作成日時 |
+| updated_at | timestamptz | NO | now() | 更新日時 |
 
 **FK:**
 - `clinic_id` → `clinics.id` (RESTRICT)
@@ -3306,13 +3414,24 @@ FK なし（システム共通マスタ）
 | clinic_id | clinics.id | RESTRICT |
 | user_id | user_accounts.id | CASCADE |
 
-### user_permissions
+### permission_groups
 
 | FK元カラム | 参照先 | 削除時 |
 | ----------- | ------- | -------- |
 | clinic_id | clinics.id | RESTRICT |
-| granted_by | user_accounts.id | SET NULL |
+
+### permission_group_rules
+
+| FK元カラム | 参照先 | 削除時 |
+| ----------- | ------- | -------- |
+| group_id | permission_groups.id | CASCADE |
+
+### user_permission_groups
+
+| FK元カラム | 参照先 | 削除時 |
+| ----------- | ------- | -------- |
 | user_id | user_accounts.id | CASCADE |
+| group_id | permission_groups.id | CASCADE |
 
 ### vaccinations
 
@@ -3543,7 +3662,7 @@ v10.0 にて24テーブル、v19.0 にて estimates を追加し計25テーブ�
 | diagnosis_names | 医院別の診断名 |
 | checkup_types | 医院別の健診種別 |
 
-**clinic_id を保持するテーブル（全体）:** `user_clinic_memberships`, `user_permissions` + 上記25テーブル（計27テーブル）。
+**clinic_id を保持するテーブル（全体）:** `user_clinic_memberships`, `permission_groups` + 上記25テーブル（計27テーブル）。
 
 ### chief_complaint 移行（004_migrate_chief_complaint.sql 予定）
 

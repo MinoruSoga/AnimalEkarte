@@ -68,8 +68,10 @@ Client
   3. claims を gin.Context に格納
        c.Set("user_id",   "42")
        c.Set("clinic_id", "1")
-       c.Set("user_type", "doctor")
+       c.Set("user_type", "staff")  // "system_admin" | "clinic_admin" | "staff"
   4. c.Next() で次のハンドラへ
+     ⚠️ BUG-061: DB の account_status を確認しない（停止アカウントが通過する）
+     ⚠️ BUG-063: deleted_at IS NULL を確認しない（論理削除済みユーザーが通過する）
 
 [Handler: ListOwners]
   1. extractClinicID(c)

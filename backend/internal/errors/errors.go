@@ -3,6 +3,8 @@ package errors
 import (
 	"errors"
 	"fmt"
+
+	"gorm.io/gorm"
 )
 
 // センチネルエラー
@@ -86,4 +88,15 @@ func WrapForbidden(message string) error {
 		Message: message,
 		Err:     ErrForbidden,
 	}
+}
+
+// FromGORM は GORM のエラーを AppError に変換する
+func FromGORM(err error, resource string, id string) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return WrapNotFound(resource, id)
+	}
+	return Wrap(err, fmt.Sprintf("database error on %s", resource))
 }

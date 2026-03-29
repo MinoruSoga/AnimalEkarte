@@ -15,7 +15,7 @@ Animal Ekarte（動物病院電子カルテシステム）の技術ドキュメ�
 | **[SPECIFICATION.md](./SPECIFICATION.md)** | 🎯 技術仕様書（技術スタック、アーキテクチャ、Feature一覧、ルーティング）⚠️初期設計版 | エンジニア全員 |
 | **[DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)** | 🎨 デザインシステム v3.0（Notionトークン、D&D、アクセシビリティ） | フロントエンド開発者 |
 | **[AUTH.md](./AUTH.md)** | 🔐 認証・認可設計（RBAC、マルチクリニック、権限マトリクス） | エンジニア全員 |
-| **[ERD.md](./ERD.md)** | 🗄️ ER図 v5.0（全45テーブル・専用マスタテーブル版） | バックエンド開発者 |
+| **[ERD.md](./ERD.md)** | 🗄️ ER図 v27.0（全57テーブル） | バックエンド開発者 |
 | **[ATTRIBUTIONS.md](./ATTRIBUTIONS.md)** | 📄 ライセンス・帰属情報 | プロジェクト管理者 |
 
 ### 画面仕様
@@ -81,7 +81,7 @@ Animal Ekarte（動物病院電子カルテシステム）の技術ドキュメ�
 ### 概要
 
 - **ER図**: [ERD.md](./ERD.md)
-- **テーブル数**: 45（コア 29 + マスタ 16）
+- **テーブル数**: 57（詳細は ERD.md v27.0 参照）
 - **マスタカテゴリ**: 16種類
 
 ### テーブル構成
@@ -97,7 +97,7 @@ Animal Ekarte（動物病院電子カルテシステム）の技術ドキュメ�
 | **予防接種・健診** | 3 | `vaccination_records`, `checkup_records`, `treatment_plans` |
 | **在庫** | 1 | `inventory_items` |
 | **シフト** | 1 | `shift_entries` |
-| **認証** | 4 | `clinics`, `user_accounts`, `user_clinic_memberships`, `user_permissions` |
+| **認証** | 8 | `company`, `clinics`, `user_accounts`, `user_clinic_memberships`, `job_titles`, `permission_groups`, `permission_group_rules`, `user_permission_groups` |
 | **マスタ（16テーブル）** | 16 | `examination_types`, `vaccines`, `medicines`, `staffs`, `insurances`, `cages`, `service_types`, `consultations`, `procedures`, `hospitalization_plans`, `trimming_courses`, `trimming_options`, `diagnosis_categories`, `diagnosis_names`, `checkup_types`, `examination_type_items` |
 
 詳細は [ERD.md](./ERD.md) を参照。
@@ -154,7 +154,7 @@ AnimalEkarte/
 │   ├── DESIGN_SYSTEM.md     # UI デザイン（v3.0）
 │   ├── SCREENS.md           # 画面仕様（v3.0、全42ルート）
 │   ├── AUTH.md              # 認証・認可設計（RBAC）
-│   ├── ERD.md               # データベース ER 図（v5.0、45テーブル）
+│   ├── ERD.md               # データベース ER 図（v27.0、57テーブル）
 │   ├── SCREENS_MASTER.md    # マスタ管理画面仕様
 │   ├── SCREENS_VALIDATION.md # バリデーション・データ型仕様
 │   ├── SCREENS_README.md    # 画面仕様書ガイド

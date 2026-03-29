@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset restart-api restart-front build-prod lint lint-fix test test-cover build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check
+.PHONY: up down build logs logs-api logs-front ps db clean reset restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -81,6 +81,18 @@ test:
 test-cover:
 	docker compose exec backend go test -cover ./...
 
+# リンター実行（フロントエンド）
+lint-front:
+	docker compose exec frontend npm run lint
+
+# テスト実行（フロントエンド）
+test-front:
+	docker compose exec frontend npm run test:run
+
+# フロントエンドビルド
+build-front:
+	docker compose exec frontend npm run build
+
 # 型定義生成（Go model → TypeScript型）
 # backend/internal/model/*.go が single source of truth
 codegen:
@@ -133,6 +145,9 @@ help:
 	@echo "  lint-fix      Goリンター実行（自動修正）"
 	@echo "  test          Goテスト実行"
 	@echo "  test-cover    Goテスト実行（カバレッジ付き）"
+	@echo "  lint-front    フロントエンドリンター実行"
+	@echo "  test-front    フロントエンドテスト実行"
+	@echo "  build-front   フロントエンドビルド"
 	@echo "  codegen       型定義生成（Go model → TypeScript型）"
 	@echo "  codegen-check 型定義の差分チェック（CI用）"
 	@echo "  schema-check  GoモデルとDBスキーマの差分チェック"
