@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, lazy, Suspense } from "react";
+import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react";
 import {
   Dialog,
   DialogContent,
@@ -108,6 +108,39 @@ export function PetEditModal({
     });
   }, []);
 
+  // FE-147: open が true になるたびに formData・fieldErrors を petData で再初期化する。
+  // キャンセル・ESC・背景クリック・保存後など、どの閉じ方をしても次回オープン時に
+  // クリーンな状態で始まることを保証する。
+  useEffect(() => {
+    if (!open) return;
+    setFormData({
+      id: petData?.id || "",
+      petNumber: petData?.petNumber || "",
+      petName: petData?.petName || "",
+      petNameKana: petData?.petNameKana || "",
+      species: petData?.species || "",
+      animalSpeciesId: petData?.animalSpeciesId || "",
+      gender: petData?.gender || "",
+      birthDate: petData?.birthDate || "",
+      breed: petData?.breed || "",
+      color: petData?.color || "",
+      weight: petData?.weight || "",
+      neuteredDate: petData?.neuteredDate || "",
+      acquisitionType: (petData?.acquisitionType || "購入") as typeof ACQUISITION_TYPE_VALUES[number],
+      dangerLevel: (petData?.dangerLevel || "低") as typeof DANGER_LEVEL_VALUES[number],
+      food: petData?.food || "",
+      environment: petData?.environment || "",
+      status: petData?.status || "生存",
+      remarks: petData?.remarks || "",
+      insuranceId: petData?.insuranceId || "",
+      insuranceName: petData?.insuranceName,
+      insuranceDetails: petData?.insuranceDetails,
+    });
+    setFieldErrors({});
+  // petData の各フィールドではなく petData 参照自体の変化（open トリガー）で十分
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   // rerender-memo + js-cache-function-results:
   // animalSpeciesList / insuranceList は React Query でキャッシュされた API マスタデータ。
   // formData のキー入力ごとにモーダルが再レンダーされるが、リストが変わらない限り
@@ -184,34 +217,11 @@ export function PetEditModal({
     }
   };
 
+  // FE-147: フォームリセットは useEffect(open) が担うため、
+  // handleCancel はモーダルを閉じるだけでよい。
   const handleCancel = useCallback(() => {
-    // BUG-052: キャンセル時にフォーム状態を初期値にリセット
-    setFormData({
-      id: petData?.id || "",
-      petNumber: petData?.petNumber || "",
-      petName: petData?.petName || "",
-      petNameKana: petData?.petNameKana || "",
-      species: petData?.species || "",
-      animalSpeciesId: petData?.animalSpeciesId || "",
-      gender: petData?.gender || "",
-      birthDate: petData?.birthDate || "",
-      breed: petData?.breed || "",
-      color: petData?.color || "",
-      weight: petData?.weight || "",
-      neuteredDate: petData?.neuteredDate || "",
-      acquisitionType: (petData?.acquisitionType || "購入") as typeof ACQUISITION_TYPE_VALUES[number],
-      dangerLevel: (petData?.dangerLevel || "低") as typeof DANGER_LEVEL_VALUES[number],
-      food: petData?.food || "",
-      environment: petData?.environment || "",
-      status: petData?.status || "生存",
-      remarks: petData?.remarks || "",
-      insuranceId: petData?.insuranceId || "",
-      insuranceName: petData?.insuranceName,
-      insuranceDetails: petData?.insuranceDetails,
-    });
-    setFieldErrors({});
     onOpenChange(false);
-  }, [petData, onOpenChange]);
+  }, [onOpenChange]);
 
   const isEdit = !!petData?.id;
   const [isOwnerSearchOpen, setIsOwnerSearchOpen] = useState(false);
