@@ -202,7 +202,8 @@ INSERT INTO user_permission_groups (user_id, group_id) VALUES (8, 3) ON CONFLICT
 SELECT setval(pg_get_serial_sequence('permission_groups', 'id'), (SELECT MAX(id) FROM permission_groups));
 
 -- -----------------------------------------------------------------------------
--- 8. service_types（サービス種別: 8件）
+-- 8. service_types（サービス種別: 7件）
+-- 「再診」は visit_type（予約区分: 初診/再診）で管理するため service_types には含めない
 -- -----------------------------------------------------------------------------
 INSERT INTO service_types (id, clinic_id, name, is_active, description, color, sort_order) VALUES
     (1, 3, '一般診療',     true, '内科・外科・皮膚科などの一般的な診療', '#3B82F6', 1),
@@ -211,8 +212,7 @@ INSERT INTO service_types (id, clinic_id, name, is_active, description, color, s
     (4, 3, '手術・処置',   true, '去勢・避妊・その他外科手術',           '#EF4444', 4),
     (5, 3, 'トリミング',   true, 'グルーミング・爪切り・耳掃除など',     '#F59E0B', 5),
     (6, 3, '入院',         true, '入院・ホテル管理',                     '#6B7280', 6),
-    (7, 3, '検査',         true, '血液検査・尿検査・画像診断など',       '#EC4899', 7),
-    (8, 3, '再診',         true, '前回診察の経過確認・投薬管理',         '#06B6D4', 8)
+    (7, 3, '検査',         true, '血液検査・尿検査・画像診断など',       '#EC4899', 7)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('service_types', 'id'), (SELECT MAX(id) FROM service_types));
@@ -589,15 +589,15 @@ SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
 -- =============================================================================
 INSERT INTO reservation_appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, service_type_id, doctor_id, is_designated, status, notes) VALUES
     (1,  3, '2026-03-12 09:00:00+09', '2026-03-12 09:30:00+09', 1,  1,  'revisit', 1, 1, true,  'completed',      '皮膚の経過観察'),
-    (2,  3, '2026-03-12 09:30:00+09', '2026-03-12 10:00:00+09', 2,  3,  'revisit', 8, 2, false, 'accounting',     '猫の定期検診'),
+    (2,  3, '2026-03-12 09:30:00+09', '2026-03-12 10:00:00+09', 2,  3,  'revisit', 1, 2, false, 'accounting',     '猫の定期検診'),
     (3,  3, '2026-03-12 10:00:00+09', '2026-03-12 10:30:00+09', 3,  5,  'revisit', 1, 1, true,  'in_consultation', '足を引きずっている'),
     (4,  3, '2026-03-12 10:30:00+09', '2026-03-12 11:00:00+09', 4,  7,  'first',   2, 2, false, 'checked_in',     'ワクチン接種希望'),
     (5,  3, '2026-03-12 14:00:00+09', '2026-03-12 14:30:00+09', 5,  9,  'revisit', 1, 1, false, 'confirmed',      '食欲低下が続いている'),
-    (6,  3, '2026-03-13 09:00:00+09', '2026-03-13 09:30:00+09', 6,  10, 'revisit', 8, 2, true,  'confirmed',      '耳の治療経過確認'),
+    (6,  3, '2026-03-13 09:00:00+09', '2026-03-13 09:30:00+09', 6,  10, 'revisit', 1, 2, true,  'confirmed',      '耳の治療経過確認'),
     (7,  3, '2026-03-13 10:00:00+09', '2026-03-13 10:30:00+09', 7,  11, 'first',   1, 1, false, 'confirmed',      '嘔吐が続いている'),
     (8,  3, '2026-03-14 09:30:00+09', '2026-03-14 10:00:00+09', 8,  12, 'revisit', 1, 2, false, 'confirmed',      'インコの羽毛の状態確認'),
     (9,  3, '2026-03-15 11:00:00+09', '2026-03-15 11:30:00+09', 9,  13, 'first',   2, 1, false, 'confirmed',      '初回ワクチン接種'),
-    (10, 3, '2026-03-16 14:00:00+09', '2026-03-16 14:30:00+09', 10, 14, 'revisit', 8, 2, true,  'confirmed',      '腎臓値の経過観察')
+    (10, 3, '2026-03-16 14:00:00+09', '2026-03-16 14:30:00+09', 10, 14, 'revisit', 1, 2, true,  'confirmed',      '腎臓値の経過観察')
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('reservation_appointments', 'id'), (SELECT MAX(id) FROM reservation_appointments));
