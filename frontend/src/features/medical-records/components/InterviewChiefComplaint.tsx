@@ -9,7 +9,7 @@ import { FileText, Settings } from "lucide-react";
 import { paths } from "@/config/paths";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { CharCountTextarea } from "@/components/shared/CharCountTextarea";
 import {
   Select,
   SelectContent,
@@ -112,10 +112,11 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
 
         <div className="flex-1 flex flex-col gap-1.5 min-h-0">
           <Label className={`text-sm ${C.text60}`}>主訴詳細</Label>
-          <Textarea
+          <CharCountTextarea
             value={chiefComplaint}
-            onChange={(e) => setChiefComplaint(e.target.value)}
-            className={`flex-1 ${STYLE.textarea} min-h-0`}
+            onChange={setChiefComplaint}
+            className="flex-1 min-h-0"
+            textareaClassName={`${STYLE.textarea} min-h-0`}
           />
         </div>
       </div>

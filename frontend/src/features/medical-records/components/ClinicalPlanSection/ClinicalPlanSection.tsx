@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 
 // Internal
-import { Textarea } from "@/components/ui/textarea";
+import { CharCountTextarea } from "@/components/shared/CharCountTextarea";
 import { C, STYLE } from "@/lib/design-tokens";
 
 // Relative
@@ -73,11 +73,11 @@ export function ClinicalPlanSection({ medicalRecordId, onRegisterSave }: Clinica
         {/* 身体検査所見 */}
         <div className="flex flex-col gap-1.5">
           <label className={STYLE.formLabel}>身体検査所見</label>
-          <Textarea
+          <CharCountTextarea
             value={physicalExam}
-            onChange={(e) => setPhysicalExam(e.target.value)}
+            onChange={setPhysicalExam}
             placeholder="身体検査所見を入力してください"
-            className={`min-h-[100px] ${C.text} text-sm`}
+            textareaClassName={`min-h-[100px] ${C.text} text-sm`}
           />
         </div>
 
@@ -116,22 +116,22 @@ export function ClinicalPlanSection({ medicalRecordId, onRegisterSave }: Clinica
         {/* 診断詳細 */}
         <div className="flex flex-col gap-1.5">
           <label className={STYLE.formLabel}>診断詳細</label>
-          <Textarea
+          <CharCountTextarea
             value={diagnosisDetails}
-            onChange={(e) => setDiagnosisDetails(e.target.value)}
+            onChange={setDiagnosisDetails}
             placeholder="診断詳細を入力してください"
-            className={`min-h-[100px] ${C.text} text-sm`}
+            textareaClassName={`min-h-[100px] ${C.text} text-sm`}
           />
         </div>
 
         {/* 治療方針 */}
         <div className="flex flex-col gap-1.5">
           <label className={STYLE.formLabel}>治療方針</label>
-          <Textarea
+          <CharCountTextarea
             value={treatmentPolicy}
-            onChange={(e) => setTreatmentPolicy(e.target.value)}
+            onChange={setTreatmentPolicy}
             placeholder="治療方針を入力してください"
-            className={`min-h-[100px] ${C.text} text-sm`}
+            textareaClassName={`min-h-[100px] ${C.text} text-sm`}
           />
         </div>
 

@@ -5,7 +5,7 @@ import { memo } from "react";
 import { ChevronRight } from "lucide-react";
 
 // Internal
-import { Textarea } from "@/components/ui/textarea";
+import { CharCountTextarea } from "@/components/shared/CharCountTextarea";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 
 interface InterviewTreatmentPolicyProps {
@@ -30,10 +30,11 @@ export const InterviewTreatmentPolicy = memo(function InterviewTreatmentPolicy({
           </span>
         </h4>
       </div>
-      <Textarea
+      <CharCountTextarea
         value={treatmentPolicy}
-        onChange={(e) => setTreatmentPolicy(e.target.value)}
-        className={`flex-1 ${STYLE.textarea} min-h-0`}
+        onChange={setTreatmentPolicy}
+        className="flex-1 min-h-0"
+        textareaClassName={`${STYLE.textarea} min-h-0`}
       />
     </div>
   );
