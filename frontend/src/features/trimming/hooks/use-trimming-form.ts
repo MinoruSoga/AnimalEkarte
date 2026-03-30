@@ -59,6 +59,42 @@ export function useTrimmingForm(id?: string) {
   // BUG-027: inline field validation errors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  // localOverrides・formData を useActionState の前に宣言: callback 内で formData を参照するため
+  const [localOverrides, setLocalOverrides] = useState<Partial<TrimmingFormData>>({});
+
+  // 編集モード: サーバーデータを全フィールド復元（初回のみ）
+  // rerender-use-ref-transient-values: フラグを useState → useRef に変更して setState-in-effect を排除
+  const serverDataLoadedRef = useRef(false);
+  useEffect(() => {
+    if (isEdit && existingTrimming && !serverDataLoadedRef.current) {
+      serverDataLoadedRef.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 非同期サーバーデータでフォームを初期化するパターン（初回1回のみ）
+      setLocalOverrides({
+        styleRequest: existingTrimming.styleRequest,
+        courseId: existingTrimming.courseId ?? "",
+        optionIds: existingTrimming.optionIds ?? [],
+        bw: existingTrimming.bw ?? "",
+        bwUnit: existingTrimming.bwUnit ?? "Kg",
+        bt: existingTrimming.bt ?? "",
+        usedShampoo: existingTrimming.usedShampoo ?? "",
+        usedRibbon: existingTrimming.usedRibbon ?? "",
+        remarks: existingTrimming.remarks ?? "",
+        staffId: existingTrimming.staffId ?? "",
+        staffName: existingTrimming.staff ?? "",
+      });
+    }
+  }, [isEdit, existingTrimming]);
+
+  // useMemo: formData の参照を安定化して handleSave 等の deps を最小化 (rerender-dependencies)
+  const formData = useMemo<TrimmingFormData>(
+    () => ({ ...defaultFormData, ...localOverrides }),
+    [localOverrides]
+  );
+
+  const setFormData = useCallback((next: Partial<TrimmingFormData>) => {
+    setLocalOverrides((prev) => ({ ...prev, ...next }));
+  }, []);
+
   interface FormState {
     success: boolean;
     timestamp: number;
@@ -118,41 +154,6 @@ export function useTrimmingForm(id?: string) {
     },
     { success: false, timestamp: 0 }
   );
-
-  const [localOverrides, setLocalOverrides] = useState<Partial<TrimmingFormData>>({});
-
-  // 編集モード: サーバーデータを全フィールド復元（初回のみ）
-  // rerender-use-ref-transient-values: フラグを useState → useRef に変更して setState-in-effect を排除
-  const serverDataLoadedRef = useRef(false);
-  useEffect(() => {
-    if (isEdit && existingTrimming && !serverDataLoadedRef.current) {
-      serverDataLoadedRef.current = true;
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- 非同期サーバーデータでフォームを初期化するパターン（初回1回のみ）
-      setLocalOverrides({
-        styleRequest: existingTrimming.styleRequest,
-        courseId: existingTrimming.courseId ?? "",
-        optionIds: existingTrimming.optionIds ?? [],
-        bw: existingTrimming.bw ?? "",
-        bwUnit: existingTrimming.bwUnit ?? "Kg",
-        bt: existingTrimming.bt ?? "",
-        usedShampoo: existingTrimming.usedShampoo ?? "",
-        usedRibbon: existingTrimming.usedRibbon ?? "",
-        remarks: existingTrimming.remarks ?? "",
-        staffId: existingTrimming.staffId ?? "",
-        staffName: existingTrimming.staff ?? "",
-      });
-    }
-  }, [isEdit, existingTrimming]);
-
-  // useMemo: formData の参照を安定化して handleSave 等の deps を最小化 (rerender-dependencies)
-  const formData = useMemo<TrimmingFormData>(
-    () => ({ ...defaultFormData, ...localOverrides }),
-    [localOverrides]
-  );
-
-  const setFormData = useCallback((next: Partial<TrimmingFormData>) => {
-    setLocalOverrides((prev) => ({ ...prev, ...next }));
-  }, []);
 
   const [styleImagePreview, setStyleImagePreview] = useState<string | null>(null);
   const [completedImagePreview, setCompletedImagePreview] = useState<string | null>(null);

@@ -132,16 +132,26 @@ const DiagnosisCategorySidePanel = memo(function DiagnosisCategorySidePanel({
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,
   }));
+  const [nameError, setNameError] = useState("");
+  const handleAction = () => {
+    if (!formData.name.trim()) {
+      setNameError("名称を入力してください");
+      return;
+    }
+    setNameError("");
+    onSave(formData);
+  };
 
   return (
     <MasterSidePanel
       isNew={item === null}
       title={formData.name}
-      onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+      onTitleChange={(v) => { setFormData((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
       onClose={onClose}
-      action={() => onSave(formData)}
+      action={handleAction}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<FolderTree className={LAYOUT.pageIcon.innerIcon} />}
+      titleError={nameError}
     >
       <StatusToggleButton
         isActive={formData.isActive}
@@ -187,6 +197,15 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,
   }));
+  const [nameError, setNameError] = useState("");
+  const handleAction = () => {
+    if (!formData.name.trim()) {
+      setNameError("診断病名を入力してください");
+      return;
+    }
+    setNameError("");
+    onSave(formData);
+  };
 
   // js-cache-function-results: API由来のJSXリストをuseMemoでキャッシュ
   const categorySelectItems = useMemo(
@@ -200,11 +219,12 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
     <MasterSidePanel
       isNew={item === null}
       title={formData.name}
-      onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+      onTitleChange={(v) => { setFormData((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
       onClose={onClose}
-      action={() => onSave(formData)}
+      action={handleAction}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<ClipboardList className={LAYOUT.pageIcon.innerIcon} />}
+      titleError={nameError}
     >
       <StatusToggleButton
         isActive={formData.isActive}

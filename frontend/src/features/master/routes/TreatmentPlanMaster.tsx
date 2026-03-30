@@ -183,16 +183,26 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
     taxType: (item?.taxType ?? "excluded") as TaxType,
     taxRate: item?.taxRate ?? 0.1,
   }));
+  const [nameError, setNameError] = useState("");
+  const handleAction = () => {
+    if (!formData.name.trim()) {
+      setNameError("名称を入力してください");
+      return;
+    }
+    setNameError("");
+    onSave(formData);
+  };
 
   return (
     <MasterSidePanel
       isNew={item === null}
       title={formData.name}
-      onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
+      onTitleChange={(v) => { setFormData((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
       onClose={onClose}
-      action={() => onSave(formData)}
+      action={handleAction}
       onDelete={item !== null ? onDeleteRequest : undefined}
       icon={<Stethoscope className={LAYOUT.pageIcon.innerIcon} />}
+      titleError={nameError}
     >
       <StatusToggleButton
         isActive={formData.isActive}

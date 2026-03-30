@@ -263,6 +263,15 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
   handleSave,
   handleDeleteRequest,
 }: MedicineSidePanelProps) {
+  const [nameError, setNameError] = useState("");
+  const handleAction = () => {
+    if (!formData.name.trim()) {
+      setNameError("名称を入力してください");
+      return;
+    }
+    setNameError("");
+    handleSave();
+  };
   return (
     <AnimatePresence>
       {isEditing ? (
@@ -277,12 +286,13 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
           <MasterSidePanel
             isNew={!selectedMedicine}
             title={formData.name}
-            onTitleChange={(v) => updateForm({ name: v })}
+            onTitleChange={(v) => { updateForm({ name: v }); if (v.trim()) setNameError(""); }}
             onClose={handleCloseEdit}
-            action={handleSave}
+            action={handleAction}
             onDelete={selectedMedicine ? handleDeleteRequest : undefined}
             icon={<Pill className={LAYOUT.pageIcon.innerIcon} />}
             titlePlaceholder="薬品名"
+            titleError={nameError}
           >
             {/* Properties */}
             {/* Parent category select */}

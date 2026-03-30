@@ -48,10 +48,12 @@ const SidePanel = memo(function SidePanel({
     category: item?.category ?? "", title: item?.title ?? "", content: item?.content ?? "", isActive: item?.isActive ?? true,
   }));
   const [isDirty, setIsDirty] = useState(false);
+  const [nameError, setNameError] = useState("");
 
   const handleTitleChange = useCallback((v: string) => {
     setF((p) => ({ ...p, title: v }));
     setIsDirty(true);
+    if (v.trim()) setNameError("");
   }, []);
 
   const handleCategoryChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,6 +72,11 @@ const SidePanel = memo(function SidePanel({
   }, []);
 
   const handleSave = useCallback(() => {
+    if (!f.title.trim()) {
+      setNameError("タイトルを入力してください");
+      return;
+    }
+    setNameError("");
     onSave(f);
     setIsDirty(false);
   }, [f, onSave]);
@@ -84,7 +91,8 @@ const SidePanel = memo(function SidePanel({
       onTitleChange={handleTitleChange} onClose={handleClose} action={handleSave}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       isDirty={isDirty}
-      icon={<FileText className={LAYOUT.pageIcon.innerIcon} />}>
+      icon={<FileText className={LAYOUT.pageIcon.innerIcon} />}
+      titleError={nameError}>
       <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="カテゴリ">
         <input type="text" className={MASTER_INPUT_CLASS} value={f.category}
