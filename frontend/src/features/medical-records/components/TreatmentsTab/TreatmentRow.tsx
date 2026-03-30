@@ -1,5 +1,5 @@
 // React/Framework
-import { memo, useState, useCallback, useRef, useEffect } from "react";
+import { memo, useState, useCallback, useRef, useEffect, useLayoutEffect } from "react";
 
 // External
 import { ChevronUp, ChevronDown, Shield } from "lucide-react";
@@ -42,6 +42,10 @@ interface TreatmentRowProps {
   onMoveUp: (treatmentId: string) => void;
   onMoveDown: (treatmentId: string) => void;
   isUpdating: boolean;
+  /** 新規追加直後に数量フィールドへ自動フォーカスする */
+  autoFocusQuantity?: boolean;
+  /** autoFocusQuantity 完了後に親へ通知するコールバック */
+  onAutoFocusDone?: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────
@@ -55,6 +59,8 @@ export const TreatmentRow = memo(function TreatmentRow({
   onMoveUp,
   onMoveDown,
   isUpdating,
+  autoFocusQuantity = false,
+  onAutoFocusDone,
 }: TreatmentRowProps) {
   // インライン編集用ローカル状態
   const [editField, setEditField] = useState<string | null>(null);
@@ -82,6 +88,16 @@ export const TreatmentRow = memo(function TreatmentRow({
       inputRef.current.select();
     }
   }, [editField]);
+
+  // 新規追加直後: 数量フィールドへ自動フォーカス
+  useLayoutEffect(() => {
+    if (autoFocusQuantity) {
+      setEditField("quantity");
+      onAutoFocusDone?.();
+    }
+    // autoFocusQuantity は初回マウント時のみ使用するので deps に入れない
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── handlers ──
 

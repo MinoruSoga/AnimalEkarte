@@ -43,6 +43,17 @@ const ITEM_TYPE_OPTIONS: { value: TreatmentItemType; label: string }[] = [
   { value: "other", label: "その他" },
 ];
 
+const ADMIN_ROUTE_OPTIONS = [
+  { value: "", label: "投与方法を選択" },
+  { value: "経口", label: "経口" },
+  { value: "注射", label: "注射" },
+  { value: "外用", label: "外用" },
+  { value: "点眼", label: "点眼" },
+  { value: "点耳", label: "点耳" },
+  { value: "吸入", label: "吸入" },
+  { value: "その他", label: "その他" },
+] as const;
+
 // ── Props ─────────────────────────────────────────────────────────────
 
 interface TreatmentsTabProps {
@@ -62,7 +73,10 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
   // 追加フォームの状態
   const [addItemType, setAddItemType] = useState<TreatmentItemType>("consultation");
   const [addContent, setAddContent] = useState("");
+  const [addAdminRoute, setAddAdminRoute] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  // 直前の追加後に最終行へ自動フォーカスするフラグ
+  const [focusLastRow, setFocusLastRow] = useState(false);
 
   // sort_order 昇順でソート済みリスト
   const sortedTreatments = useMemo(() => {
@@ -151,6 +165,11 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
       sortedTreatments.length > 0
         ? sortedTreatments[sortedTreatments.length - 1].sort_order + 1
         : 0;
+    // 薬品の場合、投与方法を memo に付記する（BE-MEDI-010: 専用カラム実装まで）
+    const memoWithRoute =
+      addItemType === "medicine" && addAdminRoute
+        ? `[投与方法: ${addAdminRoute}]`
+        : "";
     createMutation.mutate(
       {
         item_type: addItemType,
@@ -161,18 +180,22 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
         insurance: false,
         discount_amount: 0,
         sort_order: nextOrder,
+        memo: memoWithRoute,
       },
       {
         onSuccess: () => {
+          setFocusLastRow(true);
           setAddContent("");
+          setAddAdminRoute("");
           setIsAdding(false);
         },
       }
     );
-  }, [addItemType, addContent, sortedTreatments, createMutation]);
+  }, [addItemType, addContent, addAdminRoute, sortedTreatments, createMutation]);
 
   const handleAddCancel = useCallback(() => {
     setAddContent("");
+    setAddAdminRoute("");
     setIsAdding(false);
   }, []);
 
@@ -218,6 +241,8 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
                     deleteMutation.isPending ||
                     reorderMutation.isPending
                   }
+                  autoFocusQuantity={focusLastRow && idx === sortedTreatments.length - 1}
+                  onAutoFocusDone={focusLastRow && idx === sortedTreatments.length - 1 ? () => setFocusLastRow(false) : undefined}
                 />
               ))
             )}
@@ -229,7 +254,10 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
           <div className={`flex items-center gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
             <select
               value={addItemType}
-              onChange={(e) => setAddItemType(e.target.value as TreatmentItemType)}
+              onChange={(e) => {
+                setAddItemType(e.target.value as TreatmentItemType);
+                setAddAdminRoute("");
+              }}
               className={`h-8 text-sm rounded-[3px] border ${C.borderMedium} bg-white px-2 ${C.text}`}
             >
               {ITEM_TYPE_OPTIONS.map((opt) => (
@@ -238,6 +266,19 @@ export function TreatmentsTab({ medicalRecordId, ownerDiscountRate = 0 }: Treatm
                 </option>
               ))}
             </select>
+            {addItemType === "medicine" ? (
+              <select
+                value={addAdminRoute}
+                onChange={(e) => setAddAdminRoute(e.target.value)}
+                className={`h-8 text-sm rounded-[3px] border ${C.borderMedium} bg-white px-2 ${C.text}`}
+              >
+                {ADMIN_ROUTE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            ) : null}
             <input
               autoFocus
               type="text"
