@@ -55,45 +55,22 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [currentClinicId, setCurrentClinicId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Use React 19 use() to suspend until the initial auth check completes.
+  const initialResult = use(initialAuthPromise);
+
+  const [user, setUser] = useState<AuthUser | null>(initialResult?.user ?? null);
+  const [currentClinicId, setCurrentClinicId] = useState<string | null>(() => {
+    if (!initialResult) return null;
+    const storedClinic = readClinicFromStorage();
+    const validClinic = initialResult.user.clinics.some((c) => c.clinicId === storedClinic);
+    return validClinic ? storedClinic : initialResult.user.mainClinicId;
+  });
+  
   const [isSwitchingClinic, setIsSwitchingClinic] = useState(false);
-
-  // 初回マウント時のセッション復元
-  useEffect(() => {
-    let cancelled = false;
-
-    // BUG-047: FOUC (Flash of Unauthenticated Content) 防止
-    // refreshToken 完了まで isLoading=true を維持
-    const initAuth = async () => {
-      try {
-        const result = await refreshToken();
-        if (cancelled) return;
-
-        if (result) {
-          setUser(result.user);
-          const storedClinic = readClinicFromStorage();
-          const validClinic = result.user.clinics.some((c) => c.clinicId === storedClinic);
-          setCurrentClinicId(validClinic ? storedClinic : result.user.mainClinicId);
-        }
-      } catch {
-        // ignore errors on initialization
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    };
-
-    initAuth();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
 
   // /me の定期ポーリング結果でユーザー情報（権限含む）を同期
   // 認証済みかつローディング完了後のみポーリングを有効化
-  const { data: meData } = useGetMe(user !== null && !isLoading);
+  const { data: meData } = useGetMe(user !== null);
   useEffect(() => {
     if (meData) {
       setUser(meData);
@@ -155,7 +132,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       user,
       currentClinicId,
       isAuthenticated: user !== null,
-      isLoading,
+      isLoading: false, // In React 19 use() pattern, if we are here, we are not loading.
       isSwitchingClinic,
       login,
       logout,
@@ -166,7 +143,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [
       user,
       currentClinicId,
-      isLoading,
       isSwitchingClinic,
       login,
       logout,

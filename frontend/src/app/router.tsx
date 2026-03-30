@@ -55,9 +55,11 @@ export const router = createBrowserRouter([
     // AuthProvider を保護ルート側にのみ配置。
     // /login は上のルートで AuthProvider 外に定義されているため GET /v1/me は実行されない。
     element: (
-      <AuthProvider>
-        <Layout />
-      </AuthProvider>
+      <Suspense fallback={null}>
+        <AuthProvider>
+          <Layout />
+        </AuthProvider>
+      </Suspense>
     ),
     errorElement: <RootErrorBoundary />,
     children: [

@@ -31,6 +31,7 @@ const OwnerSearchModal = lazy(() =>
   import("@/components/shared/OwnerSearchModal/OwnerSearchModal").then((m) => ({ default: m.OwnerSearchModal }))
 );
 import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
+import { useGetPetMedicalHistory } from "../api/get-medical-records";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { usePermission } from "@/features/auth/hooks/use-permission";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
@@ -79,6 +80,12 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     } = useMedicalRecordForm();
 
     useTitle(recordId ? `カルテ編集 (#${recordId})` : "カルテ入力");
+
+    // FEAT-003: ペットの過去カルテ履歴を実APIから取得（現在のレコードは除外）
+    const { historyItems } = useGetPetMedicalHistory(
+      selectedPet?.id,
+      recordId,
+    );
 
     const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
@@ -311,6 +318,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               setChiefComplaintCategoryId={handleSetChiefComplaintCategoryId}
               treatmentPolicy={treatmentPolicy}
               setTreatmentPolicy={handleSetTreatmentPolicy}
+              historyItems={historyItems}
             />
           </div>
         ) : null}
