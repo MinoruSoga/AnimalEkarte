@@ -81,6 +81,19 @@ func (m *mockClinicalPlanService) Delete(ctx context.Context, medicalRecordID ui
 	return nil
 }
 
+// ---- mock InquiryService ----
+
+type mockInquiryService struct {
+	upsertFn func(ctx context.Context, input service.UpsertInquiryInput) (*model.Inquiry, error)
+}
+
+func (m *mockInquiryService) Upsert(ctx context.Context, input service.UpsertInquiryInput) (*model.Inquiry, error) {
+	if m.upsertFn != nil {
+		return m.upsertFn(ctx, input)
+	}
+	return &model.Inquiry{}, nil
+}
+
 // ---- test helper ----
 
 func newHandlerWithMedicalRecordSvc(mrSvc service.MedicalRecordService, cpSvc service.ClinicalPlanService) *Handler {
@@ -88,6 +101,7 @@ func newHandlerWithMedicalRecordSvc(mrSvc service.MedicalRecordService, cpSvc se
 		svc: &service.Services{
 			MedicalRecord: mrSvc,
 			ClinicalPlan:  cpSvc,
+			Inquiry:       &mockInquiryService{},
 		},
 	}
 }
