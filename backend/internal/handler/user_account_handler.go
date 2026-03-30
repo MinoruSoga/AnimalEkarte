@@ -53,6 +53,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		UserType:    model.UserType(req.UserType),
 		StaffID:     req.StaffID,
 		IsMain:      req.IsMain,
+		GroupIDs:    req.GroupIDs, // BUG-095: 初期グループ割当（省略可）
 	}
 
 	account, err := h.svc.UserAccount.CreateUser(c.Request.Context(), clinicID, input)

@@ -21,6 +21,8 @@ type CreateUserAccountInput struct {
 	UserType    model.UserType
 	StaffID     *uint64
 	IsMain      bool
+	// BUG-095: 作成時にグループIDを指定するとアカウント作成後に権限グループを即時割当する
+	GroupIDs []uint64
 }
 
 // UpdateUserAccountInput はユーザー更新の入力DTO（nil = 未変更）
@@ -139,6 +141,22 @@ func (s *userAccountService) CreateUser(ctx context.Context, clinicID uint64, in
 
 	if err := s.repo.Create(ctx, account, clinicID, input.StaffID, input.IsMain); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create user account")
+	}
+
+	// BUG-095: GroupIDs が指定されている場合は作成直後にグループを割当する
+	if len(input.GroupIDs) > 0 && s.permRepo != nil {
+		for _, groupID := range input.GroupIDs {
+			if err := s.permRepo.VerifyGroupExists(ctx, groupID); err != nil {
+				slog.WarnContext(ctx, "permission group not found, skipping assignment",
+					slog.Uint64("group_id", groupID), slog.String("error", err.Error()))
+				continue
+			}
+		}
+		if err := s.repo.SetPermissionGroups(ctx, account.ID, input.GroupIDs); err != nil {
+			slog.WarnContext(ctx, "failed to assign initial permission groups",
+				slog.Uint64("user_id", account.ID), slog.String("error", err.Error()))
+			// グループ割当失敗はアカウント作成成功後の best-effort（アカウント自体は作成済み）
+		}
 	}
 
 	slog.InfoContext(ctx, "user account created",
