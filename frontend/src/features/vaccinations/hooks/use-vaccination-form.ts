@@ -24,7 +24,13 @@ interface VaccinationFormState {
   remarks: string;
 }
 
-const DEFAULT_NEXT_SCHEDULE_TYPE = "4weeks" as const;
+const DEFAULT_NEXT_SCHEDULE_TYPE = "1year" as const;
+
+// BUG-026: vaccine interval mapping (vaccine_id → schedule type)
+const VACCINE_SCHEDULE_MAP: Record<string, string> = {
+  "1": "1year", // 混合ワクチン（年1回）
+  "2": "1year", // 狂犬病ワクチン（年1回）
+};
 
 const DEFAULT_FORM: VaccinationFormState = {
   vaccineId: "",
@@ -199,7 +205,20 @@ export function useVaccinationForm(id?: string) {
 
   const isSaving = isPending;
 
-  const setVaccineId = useCallback((v: string) => setField("vaccineId", v), [setField]);
+  // BUG-026: when vaccine type changes, auto-update nextScheduleType and recalculate nextDate
+  const setVaccineId = useCallback((v: string) => {
+    setLocalOverrides((prev) => {
+      const scheduleType = VACCINE_SCHEDULE_MAP[v] ?? DEFAULT_NEXT_SCHEDULE_TYPE;
+      const currentDate = prev.date ?? "";
+      const calculated = calculateNextDate(currentDate, scheduleType);
+      return {
+        ...prev,
+        vaccineId: v,
+        nextScheduleType: scheduleType,
+        ...(calculated ? { nextDate: calculated } : {}),
+      };
+    });
+  }, []);
 
   // BUG-026: auto-calculate nextDate when date changes
   const setDate = useCallback((v: string) => {

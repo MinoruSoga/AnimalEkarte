@@ -51,6 +51,15 @@ const EMPTY_ADD_FORM: AddFormState = {
   result: "",
 };
 
+// BUG-090: 実施日のデフォルト値として本日の日付を返す
+function todayISODate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function makeDefaultAddForm(): AddFormState {
+  return { ...EMPTY_ADD_FORM, date: todayISODate() };
+}
+
 // ── 編集行コンポーネント ───────────────────────────────────────────────
 
 interface EditRowProps {
@@ -167,7 +176,8 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
-  const [addForm, setAddForm] = useState<AddFormState>(EMPTY_ADD_FORM);
+  // BUG-090: lazy init で本日日付をデフォルト値にセット
+  const [addForm, setAddForm] = useState<AddFormState>(() => makeDefaultAddForm());
 
   // js-cache-function-results: checkupTypes 由来の option リストをキャッシュ
   const checkupTypeOptions = useMemo(
@@ -202,7 +212,7 @@ export function CheckupsTab({ medicalRecordId }: CheckupsTabProps) {
     };
     createMutation.mutate(input, {
       onSuccess: () => {
-        setAddForm(EMPTY_ADD_FORM);
+        setAddForm(makeDefaultAddForm());
         setIsAdding(false);
         toast.success("健診記録を追加しました");
       },

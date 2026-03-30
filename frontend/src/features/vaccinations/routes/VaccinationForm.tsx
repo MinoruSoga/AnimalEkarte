@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 
 // Relative
 import { useVaccinationForm } from "../hooks/use-vaccination-form";
@@ -43,6 +44,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
       formAction,
       formState,
       isSaving,
+      fieldErrors,
       handleDelete,
       isDeleting
   } = useVaccinationForm(id);
@@ -121,16 +123,17 @@ export const VaccinationForm = memo(function VaccinationForm() {
             <div className="bg-white p-6 rounded-lg border border-[rgba(55,53,47,0.09)] space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                        <Label>接種日</Label>
+                        <Label htmlFor="vaccination-date">接種日<span className="text-red-500 ml-1">*</span></Label>
                         <NotionDatePicker
                             value={date}
                             onChange={(v) => { markDirty(); setDate(v); }}
                         />
+                        <FormFieldError message={fieldErrors.date} />
                     </div>
                     <div className="space-y-2">
-                        <Label>ワクチン</Label>
+                        <Label htmlFor="vaccine-select">ワクチン<span className="text-red-500 ml-1">*</span></Label>
                         <Select value={vaccineId} onValueChange={(v) => { markDirty(); setVaccineId(v); }}>
-                            <SelectTrigger>
+                            <SelectTrigger id="vaccine-select">
                                 <SelectValue placeholder="選択してください" />
                             </SelectTrigger>
                             <SelectContent>
@@ -138,6 +141,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
                                 <SelectItem value="2">狂犬病ワクチン</SelectItem>
                             </SelectContent>
                         </Select>
+                        <FormFieldError message={fieldErrors.vaccineId} />
                     </div>
                 </div>
 

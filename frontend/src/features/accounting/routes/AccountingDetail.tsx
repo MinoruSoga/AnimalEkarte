@@ -799,7 +799,9 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
           const created = await createAccounting({
             pet_id: Number(accounting.petId),
             owner_id: Number(accounting.ownerId),
-            scheduled_date: accounting.scheduledDate,
+            scheduled_date: accounting.scheduledDate
+              ? `${accounting.scheduledDate}T00:00:00Z`
+              : new Date().toISOString(),
             subtotal: calculation.subtotal,
             tax_total: calculation.taxTotal,
             total_amount: calculation.totalAmount,

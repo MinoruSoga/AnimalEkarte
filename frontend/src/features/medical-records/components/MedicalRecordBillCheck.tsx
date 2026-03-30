@@ -99,11 +99,11 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
     updateTreatmentMutation.mutate({ treatmentId: String(id), input });
   }, [updateTreatmentMutation]);
 
+  const deleteMutation = useDeleteTreatment(medicalRecordId);
+
   const handleRemoveItem = useCallback((id: number) => {
     deleteMutation.mutate(String(id));
   }, [deleteMutation]);
-
-  const deleteMutation = useDeleteTreatment(medicalRecordId);
 
   const handleSelectTreatment = useCallback((item: TreatmentMasterItem) => {
     const nextOrder = treatments.length > 0 ? Math.max(...treatments.map(t => t.sort_order)) + 1 : 0;
