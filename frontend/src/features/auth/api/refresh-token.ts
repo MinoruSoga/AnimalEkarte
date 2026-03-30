@@ -26,8 +26,7 @@ export async function refreshToken(): Promise<RefreshResponse | null> {
         // 正常なセッション失効
         return null;
       }
-      // 5xx など予期しないエラーは警告を出す
-      console.warn("[refreshToken] unexpected error", status, error.message);
+      // 5xx など予期しないエラーは null を返してログアウト扱いにする
     }
     return null;
   }
