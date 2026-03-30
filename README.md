@@ -1,129 +1,100 @@
-# Animal Ekarte
+# Animal Ekarte (アニマル・カルテ)
 
-動物病院向け電子カルテ管理システム
+動物病院向け電子カルテ管理システム。最新の React 19 と Go による高機能かつ保守性の高いアーキテクチャを採用しています。
 
-## 技術スタック
+## 🎯 プロジェクトの現状と規約 (MUST READ)
+
+本プロジェクトは、React 19 への完全移行およびバックエンドエラー処理の標準化を完了しています。開発にあたっては、以下のドキュメントを最優先で参照してください。
+
+- **[.claude/CLAUDE.md](.claude/CLAUDE.md)**: **【Single Source of Truth】** 開発規約・アーキテクチャ・最新ルールの集約地点。
+- **[GEMINI.md](GEMINI.md)**: Gemini CLI 向けの最適化されたコンテキスト。
+- **[.gemini/styleguide.md](.gemini/styleguide.md)**: 詳細なスタイルガイド・実装パターン。
+
+---
+
+## 🛠 技術スタック
 
 | レイヤー | 技術 |
 |---------|------|
 | Frontend | React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui |
-| Backend | Go / Gin / Air (Hot Reload) |
-| Database | PostgreSQL 18 |
-| Infrastructure | Docker Compose |
+| Backend | Go 1.25 / Gin / GORM / Air (Hot Reload) |
+| Database | PostgreSQL 17 (Docker: postgres:17-alpine) |
+| Testing | MSW (Mock Service Worker), Vitest, testify |
+| Infrastructure | Docker Compose, Terraform (AWS) |
 
-## 前提条件
+---
 
+## 🔧 セットアップ & 運用
+
+### 前提条件
 - Docker / Docker Compose
 - Make
 
-## セットアップ
-
+### クイックスタート
 ```bash
-# リポジトリをクローン
-git clone <repository-url>
-cd AnimalEkarte
-
-# .env ファイルを作成
+# 1. 環境変数の準備
 cp .env.example .env
-# DB_USER, DB_PASSWORD, DB_NAME を設定
 
-# コンテナ起動
+# 2. コンテナ起動（初期化含む）
 make up
+
+# 3. 型定義の同期
+make codegen
 ```
 
-起動後のアクセス先：
+| サービス | URL | 備考 |
+|---------|-----|-----|
+| Frontend | http://localhost:3000 | |
+| Backend API | http://localhost:8080/api/v1 | |
+| PostgreSQL | localhost:5434 | |
 
-| サービス | URL |
-|---------|-----|
-| Frontend | http://localhost:3000 |
-| Backend API | http://localhost:8080 |
-| PostgreSQL | localhost:5434 |
+---
 
-## 開発コマンド
+## 開発コマンド (Makefile)
 
-```bash
-make up              # コンテナ起動
-make build           # コンテナ起動（ビルド付き）
-make down            # コンテナ停止
-make logs            # 全ログ表示
-make logs-api        # APIログ表示
-make logs-front      # フロントエンドログ表示
-make ps              # コンテナ状態確認
-make db              # DB接続（psql）
-make restart-api     # API再起動
-make restart-front   # フロントエンド再起動
-make clean           # キャッシュクリア＆再ビルド
-make reset           # 完全リセット（データ削除）
-```
+### 基本操作
+- `make up` / `make down`: コンテナの起動・停止
+- `make build`: コンテナのビルドと起動
+- `make logs`: 全ログの表示
+- `make db`: DB接続 (psql)
+- `make reset`: DBの完全初期化（データの全削除を伴う）
 
-### 品質管理
+### 品質管理 & 生成
+- `make lint`: Go リンター実行
+- `make lint-front`: **(New)** フロントエンド リンター実行
+- `make test`: Go テスト実行
+- `make test-front`: **(New)** フロントエンド テスト (Vitest) 実行
+- `make codegen`: Goモデルから TypeScript型を自動生成
 
-```bash
-make lint            # Go リンター実行
-make lint-fix        # Go リンター実行（自動修正）
-make test            # Go テスト実行
-make test-cover      # Go テスト実行（カバレッジ付き）
-```
+> **⚠️ 注意: コマンド実行ルール**
+> すべてのコマンドは Docker 経由で実行してください。ローカル環境への npm/go インストールは不要です。
 
-> **⚠️ npm / go コマンドはローカルで直接実行しないこと。必ず Docker 経由で実行する。**
->
-> ```bash
-> # ✅ 正しい実行方法
-> docker compose exec frontend npm run build
-> docker compose exec backend go test ./...
-> ```
+---
 
-## プロジェクト構成
+## 🏗 アーキテクチャの特徴
 
-```
-AnimalEkarte/
-├── backend/
-│   ├── cmd/              # エントリーポイント
-│   ├── internal/         # 内部パッケージ
-│   │   ├── handler/      # HTTP ハンドラ
-│   │   ├── service/      # ビジネスロジック
-│   │   ├── repository/   # データアクセス
-│   │   ├── model/        # ドメインモデル
-│   │   ├── errors/       # エラー定義
-│   │   ├── config/       # 設定
-│   │   └── logger/       # ロガー
-│   ├── migrations/       # DB マイグレーション
-│   └── docs/             # Swagger ドキュメント
-├── frontend/
-│   └── src/
-│       ├── app/          # アプリケーション層（ルーター、プロバイダ）
-│       ├── components/   # 共通コンポーネント（ui/, shared/, layouts/）
-│       ├── features/     # 機能別モジュール（bulletproof-react準拠）
-│       ├── hooks/        # 共有hooks
-│       ├── lib/          # ユーティリティ
-│       ├── types/        # 型定義
-│       └── testing/      # テスト設定
-├── docs/                 # 技術ドキュメント
-├── docker-compose.yml
-├── Makefile
-└── .env
-```
+### Frontend (React 19 Idiomatic)
+- **Action Pattern**: `useActionState` と `SubmitButton` による宣言的フォーム管理。
+- **Feature Indexing**: 各機能の `index.ts` (Public API) を通じた厳格なカプセル化。
+- **Dependency Inversion**: `app/pages/` で各機能を合成し、機能間直接インポートを排除。
+- **Design Tokens**: `design-tokens.ts` による Notion 風テーマの完全制御。
 
-## ドキュメント (Documentation)
+### Backend (Clean Architecture)
+- **Unified Error Handling**: `apperrors` パッケージによる統一的なエラーラッピング。
+- **Single Source of Truth**: Go のモデル定義からフロントエンドの型を自動生成。
 
-### 📚 設計・仕様
-- **[画面定義書 (Screens)](docs/SCREENS.md)**: 全画面の構成・項目・ロジック。
-- **[フロントエンド設計 (Frontend)](docs/FRONTEND_ARCHITECTURE.md)**: ディレクトリ構成・状態管理・バリデーション。
-- **[バックエンド設計 (Backend)](docs/architecture.md)**: 軽量レイヤードアーキテクチャ・責務分離。
-- **[データベース設計 (ERD)](docs/ERD.md)**: テーブル定義・リレーション。
-- **[データフロー](docs/data-flow.md)**: リクエスト〜レスポンスの詳細フロー。
-- **[デザインシステム](docs/DESIGN_SYSTEM.md)**: Notion風UIのトンマナ・UIコンポーネント規約。
+---
 
-### ⚙️ 運用・品質
-- **[開発・運用ガイド (OPERATIONS)](docs/OPERATIONS.md)**: Codegen・DB管理・デプロイ手順。
-- **[テスト戦略 (Testing)](docs/TESTING_STRATEGY.md)**: テスト方針・モック戦略。
-- **[インフラ構成 (AWS)](docs/infra/docs_infra_architecture.md)**: TerraformによるAWSリソース構成。
+## 📚 関連ドキュメント
 
-### 📜 規約
-- [コーディング規約](CODING_RULES.md)
-- [Frontend コーディング規約](frontend/CODING_RULES.md)
-- [Backend コーディング規約](backend/CODING_RULES.md)
+| カテゴリ | ドキュメント |
+|:---|:---|
+| **設計** | [architecture.md](docs/architecture.md), [ERD.md](docs/ERD.md), [AUTH.md](docs/AUTH.md) |
+| **仕様** | [screens/](docs/screens/) (画面定義), [SPECIFICATION.md](docs/SPECIFICATION.md) |
+| **履歴** | [archive/](docs/archive/) (刷新前の設計図、過去のタスク履歴) |
+
+---
 
 ## ライセンス
 
-Private
+Private / Proprietary
