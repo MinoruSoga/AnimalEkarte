@@ -26,9 +26,8 @@ import {
   LogOut,
   User,
   PawPrint,
-  Briefcase,
 } from "lucide-react";
-import { useState, useEffect, useMemo, memo } from "react";
+import { useState, useEffect, memo } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { usePermission } from "@/features/auth/hooks/use-permission";
@@ -222,56 +221,6 @@ export function Sidebar() {
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);
-
-  const menuItems: MenuItem[] = useMemo(() => [
-    { icon: <LayoutDashboard className={ICON.toolbar} />, label: "当日の受付",  path: paths.home.getHref(),            resource: ResourceDashboard },
-    { icon: <Users         className={ICON.toolbar} />, label: "飼主・ペット", path: paths.owners.getHref(),          resource: ResourceOwners },
-    { icon: <Calendar      className={ICON.toolbar} />, label: "予約管理",     path: paths.reservations.getHref(),    resource: ResourceReservations },
-    { icon: <FileText      className={ICON.toolbar} />, label: "カルテ",       path: paths.medicalRecords.getHref(),  resource: ResourceMedicalRecords },
-    { icon: <TestTube      className={ICON.toolbar} />, label: "検査管理",     path: paths.examinations.getHref(),    resource: ResourceExaminations },
-    { icon: <CreditCard    className={ICON.toolbar} />, label: "会計管理",     path: paths.accounting.getHref(),      resource: ResourceAccounting },
-    { icon: <Bed           className={ICON.toolbar} />, label: "入院・ホテル", path: paths.hospitalization.getHref(), resource: ResourceHospitalization },
-    { icon: <Syringe       className={ICON.toolbar} />, label: "予防接種",     path: paths.vaccinations.getHref(),    resource: ResourceVaccinations },
-    { icon: <ClipboardCheck className={ICON.toolbar} />, label: "定期健診",    path: "/checkups",                     resource: ResourceCheckups },
-    { icon: <Package       className={ICON.toolbar} />, label: "在庫管理",     path: paths.inventory.getHref(),       resource: ResourceInventory },
-    { icon: <CalendarDays  className={ICON.toolbar} />, label: "シフト管理",   path: paths.shifts.getHref(),          resource: ResourceShifts },
-    { icon: <Scissors      className={ICON.toolbar} />, label: "トリミング",   path: paths.trimming.getHref(),        resource: ResourceTrimming },
-    {
-      icon: <Settings className={ICON.toolbar} />,
-      label: "マスタ設定",
-      path: paths.settings.getHref(),
-      resource: ResourceMaster,
-      subItems: [
-        // 基本設定
-        { icon: <Building2    className={ICON.toolbar} />, label: "医院",       path: paths.settings.clinic.getHref(), resource: ResourceHospitalSettings },
-        { icon: <PawPrint     className={ICON.toolbar} />, label: "動物種類",   path: paths.settings.animalSpecies.getHref() },
-        // カルテ
-        {
-          icon: <FileText className={ICON.toolbar} />,
-          label: "カルテ",
-          subItems: [
-            { icon: <ClipboardList  className={ICON.toolbar} />, label: "診療項目", path: paths.settings.treatmentItems.getHref() },
-            { icon: <Clipboard      className={ICON.toolbar} />, label: "診断病名", path: paths.settings.diagnosis.getHref() },
-            { icon: <ClipboardCheck className={ICON.toolbar} />, label: "問診",     path: paths.settings.inquiryTemplates.getHref() },
-            { icon: <Pill           className={ICON.toolbar} />, label: "薬剤",     path: paths.settings.medicine.getHref() },
-          ],
-        },
-        // 診療関連
-        { icon: <Activity     className={ICON.toolbar} />, label: "診療サービス", path: paths.settings.serviceType.getHref() },
-        // 入院・ケージ管理
-        { icon: <Bed          className={ICON.toolbar} />, label: "入院",       path: paths.settings.hospitalization.getHref() },
-        { icon: <Building2    className={ICON.toolbar} />, label: "ケージ",     path: paths.settings.cage.getHref() },
-        // トリミング
-        { icon: <Scissors     className={ICON.toolbar} />, label: "トリミング", path: paths.settings.trimming.getHref() },
-        // スタッフ・権限・保険
-        { icon: <Users        className={ICON.toolbar} />, label: "スタッフ",     path: paths.settings.staff.getHref() },
-        { icon: <Shield       className={ICON.toolbar} />, label: "権限グループ", path: paths.settings.permissionGroups.getHref() },
-        { icon: <Briefcase    className={ICON.toolbar} />, label: "職種",         path: paths.settings.jobTitle.getHref() },
-        { icon: <ShieldCheck  className={ICON.toolbar} />, label: "保険",         path: paths.settings.insurance.getHref() },
-        { icon: <Package      className={ICON.toolbar} />, label: "物販",         path: paths.settings.merchandiseItems.getHref() },
-      ],
-    },
-  ], []);
 
   return (
     <div
