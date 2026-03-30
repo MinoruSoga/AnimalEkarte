@@ -122,13 +122,16 @@ export function LoginForm() {
         // AuthProvider がマウントされ GET /v1/me でセッションが復元される。
         navigate("/");
       } catch (err) {
-        // BUG-047: 401エラーは日本語メッセージに変換し、生のHTTPエラー文字列を表示しない
-        if (isAxiosError(err) && err.response?.status === 401) {
+        // BUG-047: axios エラーを日本語メッセージに変換し、生のHTTPエラー文字列を表示しない
+        if (isAxiosError(err) && !err.response) {
+          // ネットワーク到達不能（DNS失敗・タイムアウト等）
+          setError("接続できません。ネットワークをご確認ください");
+        } else if (isAxiosError(err) && err.response?.status === 401) {
           setError("メールアドレスまたはパスワードが違います");
         } else if (isAxiosError(err) && err.response?.status === 403) {
           setError("このアカウントはアクセスが制限されています");
-        } else if (isAxiosError(err) && !err.response) {
-          setError("ネットワークエラーが発生しました。接続を確認してください");
+        } else if (isAxiosError(err) && err.response != null && err.response.status >= 500) {
+          setError("サーバーエラーが発生しました。しばらくしてからお試しください");
         } else {
           setError("ログインに失敗しました。しばらくしてから再度お試しください");
         }
