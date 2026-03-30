@@ -36,4 +36,5 @@ type updateMedicalRecordRequest struct {
 	DoctorID                 *uint64    `json:"doctor_id"`
 	ReservationAppointmentID *uint64    `json:"reservation_appointment_id"`
 	Status                   *string    `json:"status"`
+	Version                  *int       `json:"version"` // 楽観的ロック用
 }

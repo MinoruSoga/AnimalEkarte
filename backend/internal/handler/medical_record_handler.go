@@ -251,6 +251,7 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 		DoctorID:                 input.DoctorID,
 		ReservationAppointmentID: input.ReservationAppointmentID,
 		Status:                   status,
+		Version:                  input.Version,
 	}
 
 	ctx := c.Request.Context()

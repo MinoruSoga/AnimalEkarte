@@ -86,6 +86,17 @@ func (s *medicalRecordService) Create(ctx context.Context, record *model.Medical
 }
 
 func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, input UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
+	// 楽観的ロックチェックのため現在のレコードを取得
+	existing, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get medical record")
+	}
+
+	// version が指定されている場合は一致確認
+	if input.Version != nil && existing.Version != *input.Version {
+		return nil, apperrors.WrapConflict("他のユーザーがこのカルテを変更しました。再読み込みしてください")
+	}
+
 	// owner_id 変更時: クリニック所属確認
 	if input.OwnerID != nil {
 		if _, err := s.ownerRepo.FindByID(ctx, clinicID, *input.OwnerID); err != nil {
@@ -104,6 +115,9 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
+	// バージョンをインクリメント
+	fields["version"] = existing.Version + 1
+
 	record, err := s.repo.UpdateFields(ctx, clinicID, id, fields)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update medical record")
@@ -126,6 +140,7 @@ type UpdateMedicalRecordInput struct {
 	DoctorID                 *uint64
 	ReservationAppointmentID *uint64
 	Status                   *model.MedicalRecordStatus
+	Version                  *int // 楽観的ロック用: nil の場合はチェックをスキップ
 }
 
 func buildMedicalRecordUpdateFields(input UpdateMedicalRecordInput) map[string]any {

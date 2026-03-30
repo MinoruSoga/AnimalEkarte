@@ -42,7 +42,7 @@ CREATE TYPE vaccine_species AS ENUM ('dog', 'cat', 'both');
 CREATE TYPE medical_record_status AS ENUM ('draft', 'finalized');
 CREATE TYPE treatment_item_type AS ENUM ('consultation', 'procedure', 'medicine', 'other');
 CREATE TYPE treatment_status AS ENUM ('pending', 'completed', 'not_applicable');
-CREATE TYPE examination_status AS ENUM ('pending', 'in_progress', 'completed');
+CREATE TYPE examination_status AS ENUM ('pending', 'in_progress', 'result_entered', 'completed', 'confirmed');
 CREATE TYPE examination_result_status AS ENUM ('normal', 'high', 'low');
 CREATE TYPE next_schedule_type AS ENUM ('3weeks', '4weeks', '1year', 'other');
 CREATE TYPE appetite_level AS ENUM ('normal', 'increased', 'decreased', 'none');
@@ -735,6 +735,7 @@ CREATE TABLE medical_records (
     doctor_id                  bigint                         REFERENCES staffs(id) ON DELETE SET NULL,
     reservation_appointment_id bigint                         REFERENCES reservation_appointments(id) ON DELETE SET NULL,
     status                     medical_record_status          DEFAULT 'draft',
+    version                    INTEGER               NOT NULL DEFAULT 1,
     created_at                 timestamptz           NOT NULL DEFAULT now(),
     updated_at                 timestamptz           NOT NULL DEFAULT now(),
     deleted_at                 timestamptz

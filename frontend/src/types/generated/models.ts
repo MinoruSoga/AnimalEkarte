@@ -110,6 +110,59 @@ export interface AnimalSpecies {
 }
 
 //////////
+// source: audit_log.go
+
+/**
+ * AuditLog は権限変更・認証操作の記録。削除禁止テーブル。
+ */
+export interface AuditLog {
+  id: number /* uint64 */;
+  clinic_id?: number /* uint64 */;
+  actor_id?: number /* uint64 */;
+  actor_type: string;
+  action: string;
+  resource: string;
+  resource_id?: number /* uint64 */;
+  old_value: string /* []byte */;
+  new_value: string /* []byte */;
+  ip_address: string;
+  user_agent: string;
+  created_at: string;
+}
+/**
+ * 監査アクション定数
+ */
+export const AuditActionPermissionGroupCreate = "permission_group.create";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionPermissionGroupUpdate = "permission_group.update";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionPermissionGroupDelete = "permission_group.delete";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionPermissionRulesUpdate = "permission_rules.update";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionUserPermissionGroupSet = "user_permission_group.set";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionAuthLoginSuccess = "auth.login.success";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionAuthLoginFailure = "auth.login.failure";
+/**
+ * 監査アクション定数
+ */
+export const AuditActionAuthLogout = "auth.logout";
+
+//////////
 // source: auth.go
 
 /**
@@ -537,7 +590,9 @@ export interface EstimateItem {
 export type ExaminationStatus = string;
 export const ExaminationStatusPending: ExaminationStatus = "pending";
 export const ExaminationStatusInProgress: ExaminationStatus = "in_progress";
+export const ExaminationStatusResultEntered: ExaminationStatus = "result_entered";
 export const ExaminationStatusCompleted: ExaminationStatus = "completed";
+export const ExaminationStatusConfirmed: ExaminationStatus = "confirmed";
 export type ExaminationResultStatus = string;
 export const ExaminationResultStatusNormal: ExaminationResultStatus = "normal";
 export const ExaminationResultStatusHigh: ExaminationResultStatus = "high";
@@ -935,6 +990,7 @@ export interface MedicalRecord {
   doctor_id?: number /* uint64 */;
   reservation_appointment_id?: number /* uint64 */;
   status: MedicalRecordStatus;
+  version: number /* int */;
   created_at: string;
   updated_at: string;
   /**

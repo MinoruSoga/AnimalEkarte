@@ -243,7 +243,10 @@ export function useMedicalRecordForm(recordId?: string) {
         try {
           await updateMutation.mutateAsync({
             id: recordId,
-            req: { doctor_id: Number(newDoctorId) } as UpdateMedicalRecordRequest,
+            req: {
+              doctor_id: Number(newDoctorId),
+              version: existingRecord?.version,
+            } as UpdateMedicalRecordRequest,
           });
           toast.success(`担当医を ${newDoctorName} に変更しました`);
         } catch (error) {
@@ -251,7 +254,7 @@ export function useMedicalRecordForm(recordId?: string) {
         }
       });
     },
-    [recordId, updateMutation],
+    [recordId, updateMutation, existingRecord?.version],
   );
 
   // 飼主変更ハンドラ
@@ -262,7 +265,10 @@ export function useMedicalRecordForm(recordId?: string) {
         try {
           await updateMutation.mutateAsync({
             id: recordId,
-            req: { owner_id: Number(newOwner.id) } as UpdateMedicalRecordRequest,
+            req: {
+              owner_id: Number(newOwner.id),
+              version: existingRecord?.version,
+            } as UpdateMedicalRecordRequest,
           });
           toast.success(`飼主を ${newOwner.name} に変更しました`);
         } catch (error) {
@@ -270,7 +276,7 @@ export function useMedicalRecordForm(recordId?: string) {
         }
       });
     },
-    [recordId, updateMutation],
+    [recordId, updateMutation, existingRecord?.version],
   );
 
   // 新規作成時: ページ表示と同時にカルテを自動作成
