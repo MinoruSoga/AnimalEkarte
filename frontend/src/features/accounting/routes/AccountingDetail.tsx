@@ -776,7 +776,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
   /**
    * React 19 useActionState を使用した会計確定アクション
    */
-  const [formState, formAction, isPending] = useActionState(
+  const [_formState, formAction, _isPending] = useActionState(
     async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
       if (!accounting || !calculation) return { success: false, timestamp: Date.now() };
 

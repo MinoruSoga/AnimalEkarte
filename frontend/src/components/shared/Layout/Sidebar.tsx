@@ -1,4 +1,4 @@
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import {
   LayoutDashboard,
   Users,
@@ -27,8 +27,6 @@ import {
   User,
   PawPrint,
   Briefcase,
-  EyeOff,
-  Eye,
 } from "lucide-react";
 import { useState, useEffect, useMemo, memo } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
@@ -325,6 +323,9 @@ export function Sidebar() {
             { icon: <Calendar      className={ICON.toolbar} />, label: "予約管理",     path: paths.reservations.getHref(),    resource: ResourceReservations },
             { icon: <FileText      className={ICON.toolbar} />, label: "カルテ",       path: paths.medicalRecords.getHref(),  resource: ResourceMedicalRecords },
             { icon: <TestTube      className={ICON.toolbar} />, label: "検査管理",     path: paths.examinations.getHref(),    resource: ResourceExaminations },
+            { icon: <Scissors      className={ICON.toolbar} />, label: "トリミング",   path: paths.trimming.getHref(),        resource: ResourceTrimming },
+            { icon: <Syringe       className={ICON.toolbar} />, label: "予防接種",     path: paths.vaccinations.getHref(),    resource: ResourceVaccinations },
+            { icon: <ClipboardCheck className={ICON.toolbar} />, label: "定期健診",    path: "/checkups",                     resource: ResourceCheckups },
           ].map(item => (
             <SidebarItemWithPermission key={item.label} item={item as MenuItem} collapsed={collapsed} />
           ))}
@@ -336,11 +337,8 @@ export function Sidebar() {
           {[
             { icon: <CreditCard    className={ICON.toolbar} />, label: "会計管理",     path: paths.accounting.getHref(),      resource: ResourceAccounting },
             { icon: <Bed           className={ICON.toolbar} />, label: "入院・ホテル", path: paths.hospitalization.getHref(), resource: ResourceHospitalization },
-            { icon: <Syringe       className={ICON.toolbar} />, label: "予防接種",     path: paths.vaccinations.getHref(),    resource: ResourceVaccinations },
-            { icon: <ClipboardCheck className={ICON.toolbar} />, label: "定期健診",    path: "/checkups",                     resource: ResourceCheckups },
             { icon: <Package       className={ICON.toolbar} />, label: "在庫管理",     path: paths.inventory.getHref(),       resource: ResourceInventory },
             { icon: <CalendarDays  className={ICON.toolbar} />, label: "シフト管理",   path: paths.shifts.getHref(),          resource: ResourceShifts },
-            { icon: <Scissors      className={ICON.toolbar} />, label: "トリミング",   path: paths.trimming.getHref(),        resource: ResourceTrimming },
           ].map(item => (
             <SidebarItemWithPermission key={item.label} item={item as MenuItem} collapsed={collapsed} />
           ))}

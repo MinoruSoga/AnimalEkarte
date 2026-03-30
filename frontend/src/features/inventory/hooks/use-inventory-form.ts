@@ -1,7 +1,5 @@
 import { useState, useActionState, useEffect } from "react";
-import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { paths } from "@/config/paths";
 import { handleApiError } from "@/lib/handle-api-error";
 import {
   useGetInventoryItem,
@@ -20,7 +18,6 @@ interface FormState {
 }
 
 export function useInventoryForm(id?: string) {
-  const navigate = useNavigate();
   const isEdit = Boolean(id);
 
   const { data: existingItem, isLoading } = useGetInventoryItem(id ?? "");
@@ -34,6 +31,7 @@ export function useInventoryForm(id?: string) {
   // Sync category with existing data
   useEffect(() => {
     if (existingItem?.category) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 既存データのカテゴリを同期するパターン
       setCategory(existingItem.category as InventoryItem["category"]);
     }
   }, [existingItem]);

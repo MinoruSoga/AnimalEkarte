@@ -12,7 +12,7 @@ import { ClinicalPlanSection } from "./ClinicalPlanSection/ClinicalPlanSection";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
 import type { TreatmentItemType, UpdateTreatmentInput } from "../types";
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { C, LAYOUT } from "@/lib/design-tokens";
 
 export interface DiagnosisPlanProps {
   isNewRecord?: boolean;

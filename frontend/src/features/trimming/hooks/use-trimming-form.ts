@@ -1,5 +1,5 @@
 import { useState, useEffect, useTransition, useCallback, useMemo, useRef, useActionState } from "react";
-import { useNavigate, useSearchParams, useLocation } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
@@ -39,7 +39,6 @@ const defaultFormData: TrimmingFormData = {
 
 export function useTrimmingForm(id?: string) {
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
   const isEdit = !!id;
@@ -147,7 +146,7 @@ export function useTrimmingForm(id?: string) {
           toast.success("トリミング情報を登録しました");
         }
         return { success: true, timestamp: Date.now() };
-      } catch (error) {
+      } catch {
         toast.error("保存に失敗しました");
         return { success: false, timestamp: Date.now() };
       }

@@ -213,6 +213,7 @@ export function useOwnerForm(
 
   // Sync manual errors when formState changes (new submission)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- ActionState のエラーをフォームフィールドに同期するパターン
     setManualErrors(formState.fieldErrors || {});
   }, [formState.fieldErrors, formState.timestamp]);
 

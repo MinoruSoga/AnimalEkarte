@@ -50,6 +50,7 @@ export const CarePlanDialog = memo(function CarePlanDialog({
     // ダイアログ open 時にフォームを初期化
     useEffect(() => {
         if (open) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- ダイアログ open 時のフォームリセットパターン
             setFormData(editingPlan ?? DEFAULT_FORM_STATE);
         }
     }, [open, editingPlan]);

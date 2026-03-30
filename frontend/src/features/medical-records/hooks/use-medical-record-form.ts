@@ -92,7 +92,6 @@ export function useMedicalRecordForm(recordId?: string) {
   // 既存カルテデータをフォームに反映
   useEffect(() => {
     if (!existingRecord) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 非同期サーバーデータでフォームを初期化するパターン。React 18 が自動バッチするため実害なし
     if (existingRecord.chiefComplaint) setChiefComplaint(existingRecord.chiefComplaint);
     if (existingRecord.plan) setPlan(existingRecord.plan);
     if (existingRecord.assessment) setAssessment(existingRecord.assessment);

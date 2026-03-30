@@ -169,7 +169,7 @@ export function ClinicMasterSettings() {
   /**
    * React 19 useActionState を使用したフォームアクション
    */
-  const [formState, formAction, isPending] = useActionState(
+  const [formState, formAction, _isPending] = useActionState(
     async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
       const fd = formData;
       if (!fd.name) {
@@ -211,7 +211,7 @@ export function ClinicMasterSettings() {
           toast.success("登録しました");
         }
         return { success: true, timestamp: Date.now() };
-      } catch (error) {
+      } catch {
         toast.error("保存に失敗しました");
         return { success: false, timestamp: Date.now() };
       }
@@ -222,6 +222,7 @@ export function ClinicMasterSettings() {
   // React 19 Action の成功を検知してパネルを閉じる
   useEffect(() => {
     if (formState.success) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- ActionState の成功を検知してUIをリセットするパターン
       setIsEditing(false);
       setSelectedItem(null);
       setFormData(DEFAULT_FORM_DATA);
@@ -270,8 +271,6 @@ export function ClinicMasterSettings() {
     setSelectedItem(null);
     setFormData(DEFAULT_FORM_DATA);
   }, []);
-
-  const selectedItemId = selectedItem?.id ?? null;
 
   const pendingDeleteId = pendingDelete?.id ?? null;
 

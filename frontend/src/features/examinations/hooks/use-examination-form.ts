@@ -97,7 +97,7 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
           await createMutation.mutateAsync(req);
         }
         return { success: true, timestamp: Date.now() };
-      } catch (error) {
+      } catch {
         toast.error("保存に失敗しました");
         return { success: false, timestamp: Date.now() };
       }

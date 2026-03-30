@@ -53,6 +53,7 @@ export function useEstimateForm(estimate?: Estimate) {
   // Sync with estimate data if it loads later
   useEffect(() => {
     if (estimate) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 非同期サーバーデータでフォームを初期化するパターン
       setForm(buildInitialState(estimate));
     }
   }, [estimate]);
@@ -98,7 +99,7 @@ export function useEstimateForm(estimate?: Estimate) {
             comment: form.comment,
             notes: form.notes,
           };
-          const created = await createEstimate(req);
+          await createEstimate(req);
           toast.success("見積書を作成しました");
           // Navigation is handled in the component via useEffect
         }

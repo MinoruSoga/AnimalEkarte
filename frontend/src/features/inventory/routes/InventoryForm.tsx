@@ -1,6 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
-import { useState, useCallback, useTransition, memo } from "react";
+import { useCallback, memo } from "react";
 import { useNavigate, useParams } from "react-router";
 
 // External
@@ -31,10 +30,6 @@ import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Types
 import type { InventoryItem } from "@/types";
-import type {
-  CreateInventoryItemRequest,
-  UpdateInventoryItemRequest,
-} from "../api/types";
 
 const CATEGORY_OPTIONS: { value: InventoryItem["category"]; label: string }[] =
   [

@@ -54,7 +54,6 @@ const FormFieldsSection = memo(function FormFieldsSection({
   examTypes,
   staffList,
   isEdit,
-  isSaving,
   isDeleting,
   canEdit,
   canDelete,

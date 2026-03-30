@@ -70,7 +70,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const validClinic = result.user.clinics.some((c) => c.clinicId === storedClinic);
           setCurrentClinicId(validClinic ? storedClinic : result.user.mainClinicId);
         }
-      } catch (error) {
+      } catch {
         // ignore errors on initialization
       } finally {
         if (!cancelled) setIsLoading(false);
