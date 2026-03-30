@@ -118,6 +118,7 @@ export function useOwnerForm(
   );
   const [petModalOpen, setPetModalOpen] = useState(false);
   const [editingPet, setEditingPet] = useState<PetFormData | null>(null);
+  const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
 
   /**
    * React 19 useActionState を使用したフォームアクション。
@@ -213,6 +214,11 @@ export function useOwnerForm(
     },
     { fieldErrors: {}, success: false, timestamp: 0 }
   );
+
+  // Sync manual errors when formState changes (new submission)
+  useEffect(() => {
+    setManualErrors(formState.fieldErrors);
+  }, [formState.fieldErrors, formState.timestamp]);
 
   const handleAddPet = () => {
     setEditingPet(null);
@@ -363,30 +369,34 @@ export function useOwnerForm(
       });
     }
   };
+// rerender-functional-setstate: setManualErrors は stable setter のため useCallback で安定化可能
+const clearFieldError = useCallback((field: string) => {
+  setManualErrors((prev) => {
+    if (!prev[field]) return prev;
+    const next = { ...prev };
+    delete next[field];
+    return next;
+  });
+}, []);
 
-  // rerender-functional-setstate: setFieldErrors は stable setter のため useCallback で安定化可能
-  const clearFieldError = useCallback((field: string) => {
-    // フォームのアクション状態で管理されているエラーをクリアする場合は、
-    // コンポーネント側で状態を意識する必要がある。
-  }, []);
-
-  return {
-    isEdit,
-    isLoading: isPending,
-    ownerData,
-    setOwnerData,
-    pets,
-    setPets,
-    petModalOpen,
-    setPetModalOpen,
-    editingPet,
-    handleAddPet,
-    handleEditPet,
-    handleDeletePet,
-    handleSavePet,
-    formAction,
-    formState,
-    fieldErrors: formState.fieldErrors,
-    clearFieldError,
-  };
+return {
+  isEdit,
+  isLoading: isPending,
+  ownerData,
+  setOwnerData,
+  pets,
+  setPets,
+  petModalOpen,
+  setPetModalOpen,
+  editingPet,
+  handleAddPet,
+  handleEditPet,
+  handleDeletePet,
+  handleSavePet,
+  formAction,
+  formState,
+  fieldErrors: manualErrors,
+  clearFieldError,
+};
 }
+

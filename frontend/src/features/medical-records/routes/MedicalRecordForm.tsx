@@ -1,6 +1,6 @@
 // React/Framework
 import { lazy, memo, Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router";
+import { useParams, useNavigate } from "react-router";
 
 // External
 import { HeartPulse, Trash2 } from "lucide-react";
@@ -38,7 +38,6 @@ import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { id: recordId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const {
     isNewRecord,
     activeTab,
@@ -49,7 +48,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     handleBack,
     formAction,
     formState,
-    isSaving,
+    isCreating,
     treatmentPlanItems,
     setTreatmentPlanItems,
     chiefComplaint,
@@ -79,6 +78,12 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
+  // activeTab を保存時に正確に参照するための ref
+  const activeTabRef = useRef(activeTab);
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
   const clinicalPlanSaveRef = useRef<(() => Promise<void>) | null>(null);
   const estimateSaveRef = useRef<(() => Promise<void>) | null>(null);
 
@@ -90,21 +95,24 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     estimateSaveRef.current = fn;
   }, []);
 
-  // React 19 Action の成功を検知して遷移
+  // React 19 Action の成功を検知してタブ別サブ保存を実行
   useEffect(() => {
     if (!formState.success) return;
 
+    const currentTab = activeTabRef.current;
+
     const doPostSave = async () => {
       try {
-        await Promise.all([
-          clinicalPlanSaveRef.current ? clinicalPlanSaveRef.current() : Promise.resolve(),
-          estimateSaveRef.current ? estimateSaveRef.current() : Promise.resolve(),
-        ]);
+        if (currentTab === "診察/治療プラン") {
+          await (clinicalPlanSaveRef.current?.() ?? Promise.resolve());
+        } else if (currentTab === "見積書") {
+          await (estimateSaveRef.current?.() ?? Promise.resolve());
+        }
       } catch {
-        // サブコンポーネントの保存失敗はナビゲーションをブロックしない
+        // サブ保存失敗はページ表示に影響しない
       }
       markClean();
-      navigate(location.state?.from ?? paths.medicalRecords.getHref());
+      // ナビゲーションなし: タブに留まる
     };
 
     doPostSave();
@@ -391,8 +399,9 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           ) : null}
           <SubmitButton
             className={`${STYLE.btnPrimary} px-5`}
+            disabled={isCreating}
           >
-            保存
+            {isCreating ? "カルテ作成中..." : "保存"}
           </SubmitButton>
         </div>
       ) : null}

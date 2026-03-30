@@ -1,4 +1,4 @@
-import { useState, useEffect, useTransition, useCallback, useActionState } from "react";
+import { useState, useEffect, useRef, useTransition, useCallback, useActionState } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -10,7 +10,7 @@ import { useCreateMedicalRecord } from "../api/create-medical-record";
 import { useUpdateMedicalRecord } from "../api/update-medical-record";
 import { useUpdateInquiry } from "../api/inquiries";
 import { useUpdateTreatmentPlan } from "../api/treatment-plans";
-import type { CreateMedicalRecordRequest, UpdateMedicalRecordRequest } from "../api/types";
+import type { UpdateMedicalRecordRequest } from "../api/types";
 import type { TreatmentItem } from "../components/TreatmentTable";
 
 const DEFAULT_CHIEF_COMPLAINT = "# どんな症状\n\n# どこが\n\n# いつから\n\n# その他・備考\n\n# フリースペース";
@@ -27,6 +27,8 @@ export function useMedicalRecordForm(recordId?: string) {
 
   const [activeTab, setActiveTab] = useState("問診");
   const [visitType, setVisitType] = useState("再診");
+  const [isCreating, setIsCreating] = useState(false);
+  const hasAutoCreatedRef = useRef(false);
   const [treatmentPlanItems, setTreatmentPlanItems] = useState<TreatmentItem[]>([]);
   const [treatmentCompletedItems, setTreatmentCompletedItems] = useState<TreatmentItem[]>([]);
 
@@ -83,85 +85,49 @@ export function useMedicalRecordForm(recordId?: string) {
   }
 
   /**
-   * React 19 useActionState を使用したフォームアクション
+   * React 19 useActionState を使用したタブ別保存アクション
+   * 自動作成でカルテは必ず存在するため isNewRecord 分岐なし
    */
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
-      if (!selectedPet) return { success: false, timestamp: Date.now() };
-
-      // ── バリデーション ──
-      const isChiefComplaintEmpty = !chiefComplaint || chiefComplaint.trim() === "" || chiefComplaint === DEFAULT_CHIEF_COMPLAINT;
-      const isPlanEmpty = !plan || plan.trim() === "" || plan === DEFAULT_PLAN;
-
-      if (isChiefComplaintEmpty) {
-        toast.error("問診内容（主訴）を入力してください");
-        return { success: false, timestamp: Date.now() };
-      }
-
-      if (isPlanEmpty) {
-        toast.error("診察/治療プランを入力してください");
-        return { success: false, timestamp: Date.now() };
-      }
-
-      if (diagnosis1CategoryId && !diagnosis1NameId) {
-        toast.error("診断名を選択してください");
-        return { success: false, timestamp: Date.now() };
-      }
-
-      const today = new Date().toISOString().split("T")[0];
+      if (!recordId) return { success: false, timestamp: Date.now() };
 
       try {
-        if (isNewRecord) {
-          const req: CreateMedicalRecordRequest = {
-            pet_id: selectedPet.id,
-            owner_id: selectedPet.ownerId,
-            visit_date: today,
-            visit_type: visitType,
-            status: "draft",
-            chief_complaint: chiefComplaint !== DEFAULT_CHIEF_COMPLAINT ? chiefComplaint : undefined,
-            chief_complaint_category_id: chiefComplaintCategoryId,
-            plan: plan !== DEFAULT_PLAN ? plan : undefined,
-            assessment: assessment !== DEFAULT_ASSESSMENT ? assessment : undefined,
-            notes: treatmentPolicy !== DEFAULT_TREATMENT_POLICY ? treatmentPolicy : undefined,
-            diagnosis_1_category_id: diagnosis1CategoryId,
-            diagnosis_1_name_id: diagnosis1NameId,
-            diagnosis_2_category_id: diagnosis2CategoryId,
-            diagnosis_2_name_id: diagnosis2NameId,
-          };
+        switch (activeTab) {
+          case "問診":
+            await updateInquiryMutation.mutateAsync({
+              chief_complaint: chiefComplaint !== DEFAULT_CHIEF_COMPLAINT ? chiefComplaint : undefined,
+              chief_complaint_category_id: chiefComplaintCategoryId,
+              notes: treatmentPolicy !== DEFAULT_TREATMENT_POLICY ? treatmentPolicy : undefined,
+            });
+            break;
 
-          await createMutation.mutateAsync(req);
-          toast.success("カルテを作成しました");
-        } else if (recordId) {
-          const mainReq: UpdateMedicalRecordRequest = {
-            status: "draft",
-          };
+          case "診察/治療プラン": {
+            if (diagnosis1CategoryId && !diagnosis1NameId) {
+              toast.error("診断名を選択してください");
+              return { success: false, timestamp: Date.now() };
+            }
+            await updateTreatmentPlanMutation.mutateAsync({
+              treatment_policy: plan !== DEFAULT_PLAN ? plan : undefined,
+              diagnosis_details: assessment !== DEFAULT_ASSESSMENT ? assessment : undefined,
+              diagnosis_category_id: diagnosis1CategoryId ?? undefined,
+              diagnosis_name_id: diagnosis1NameId ?? undefined,
+              diagnosis_2_category_id: diagnosis2CategoryId ?? undefined,
+              diagnosis_2_name_id: diagnosis2NameId ?? undefined,
+            });
+            break;
+          }
 
-          const inquiriesReq = {
-            chief_complaint: chiefComplaint !== DEFAULT_CHIEF_COMPLAINT ? chiefComplaint : undefined,
-            chief_complaint_category_id: chiefComplaintCategoryId,
-            notes: treatmentPolicy !== DEFAULT_TREATMENT_POLICY ? treatmentPolicy : undefined,
-          };
-
-          const treatmentPlanReq = {
-            treatment_policy: plan !== DEFAULT_PLAN ? plan : undefined,
-            diagnosis_details: assessment !== DEFAULT_ASSESSMENT ? assessment : undefined,
-            diagnosis_category_id: diagnosis1CategoryId ?? undefined,
-            diagnosis_name_id: diagnosis1NameId ?? undefined,
-            diagnosis_2_category_id: diagnosis2CategoryId ?? undefined,
-            diagnosis_2_name_id: diagnosis2NameId ?? undefined,
-          };
-
-          // 並列で複数の API を呼び出し
-          await Promise.all([
-            updateMutation.mutateAsync({ id: recordId, req: mainReq }),
-            updateInquiryMutation.mutateAsync(inquiriesReq),
-            updateTreatmentPlanMutation.mutateAsync(treatmentPlanReq),
-          ]);
-          toast.success("カルテを更新しました");
+          // 治療・予防接種・定期健診・検査・画像タブは
+          // インラインCRUDが行単位で保存済み → formAction では何もしない
+          default:
+            break;
         }
+
+        toast.success("保存しました");
         return { success: true, timestamp: Date.now() };
       } catch (error) {
-        handleApiError(error, isNewRecord ? "作成" : "更新");
+        handleApiError(error, "保存");
         return { success: false, timestamp: Date.now() };
       }
     },
@@ -219,6 +185,36 @@ export function useMedicalRecordForm(recordId?: string) {
     [recordId, updateMutation, startSaveTransition],
   );
 
+  // 新規作成時: ページ表示と同時にカルテを自動作成して編集URLに置換ナビゲーション
+  useEffect(() => {
+    if (!isNewRecord || !selectedPet || hasAutoCreatedRef.current) return;
+    hasAutoCreatedRef.current = true;
+
+    const autoCreate = async () => {
+      setIsCreating(true);
+      try {
+        const today = new Date().toISOString().split("T")[0];
+        const record = await createMutation.mutateAsync({
+          pet_id: selectedPet.id,
+          owner_id: selectedPet.ownerId,
+          visit_date: today,
+          visit_type: visitType,
+          status: "draft",
+        });
+        // 編集URLに置換ナビゲーション（ブラウザ履歴を汚さない）
+        navigate(paths.medicalRecords.detail.getHref(record.id), { replace: true });
+      } catch (error) {
+        handleApiError(error, "カルテ作成");
+        hasAutoCreatedRef.current = false; // エラー時はリトライ可能に
+      } finally {
+        setIsCreating(false);
+      }
+    };
+
+    autoCreate();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNewRecord, selectedPet?.id]);
+
   // petIdがなく新規作成の場合はselect-petへリダイレクト（呼び出し元で判定）
   const shouldRedirectToSelectPet = isNewRecord && !petId;
 
@@ -235,6 +231,7 @@ export function useMedicalRecordForm(recordId?: string) {
     formAction,
     formState,
     isSaving: isPending,
+    isCreating,
     treatmentPlanItems,
     setTreatmentPlanItems,
     treatmentCompletedItems,

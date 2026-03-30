@@ -10,12 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
-type updateInquiryRequest struct {
-	ChiefComplaint           *string `json:"chief_complaint"`
-	ChiefComplaintCategoryID *uint64 `json:"chief_complaint_category_id"`
-	Notes                    *string `json:"notes"`
-}
-
 // UpdateInquiry godoc
 // PATCH /medical-records/:id/inquiries
 func (h *Handler) UpdateInquiry(c *gin.Context) {

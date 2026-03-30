@@ -22,69 +22,6 @@ const (
 	legacyCookieName = "auth_token"
 )
 
-// MeClinicMembership は GET /me のクリニック所属情報
-type MeClinicMembership struct {
-	ClinicID   string `json:"clinic_id"`
-	ClinicName string `json:"clinic_name"`
-	IsMain     bool   `json:"is_main"`
-}
-
-// MeClinicInfo は GET /me のメイン医院詳細情報
-type MeClinicInfo struct {
-	ID                 string  `json:"id"`
-	Name               string  `json:"name"`
-	PostalCode         string  `json:"postal_code"`
-	Address            string  `json:"address"`
-	PhoneNumber        string  `json:"phone_number"`
-	FaxNumber          string  `json:"fax_number"`
-	RegistrationNumber string  `json:"registration_number"`
-	DirectorName       string  `json:"director_name"`
-	Email              string  `json:"email"`
-	Website            string  `json:"website"`
-	LogoURL            *string `json:"logo_url"`
-}
-
-// ResourcePermission は1リソースのCRUD権限
-type ResourcePermission struct {
-	View   bool `json:"view"`
-	Create bool `json:"create"`
-	Edit   bool `json:"edit"`
-	Delete bool `json:"delete"`
-}
-
-// EffectivePermissions は resource → CRUD のフラットマップ（company単位）
-// 例: {"accounting": {View: true, Create: true, Edit: false, Delete: false}}
-type EffectivePermissions = map[string]ResourcePermission
-
-// MeResponse は GET /me のレスポンス（フロントエンド AuthUser と対応）
-type MeResponse struct {
-	ID           string               `json:"id"`
-	Email        string               `json:"email"`
-	DisplayName  string               `json:"display_name"`
-	UserType     string               `json:"user_type"`
-	StaffRole    *string              `json:"staff_role"`
-	JobTitle     *string              `json:"job_title"`
-	AvatarURL    *string              `json:"avatar_url"`
-	MainClinicID string               `json:"main_clinic_id"`
-	Clinic       *MeClinicInfo        `json:"clinic"`
-	Clinics      []MeClinicMembership `json:"clinics"`
-	Permissions  EffectivePermissions `json:"permissions"`
-}
-
-// LoginInput はログインリクエストのボディ
-type LoginInput struct {
-	Email    string `json:"email"    binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8"`
-}
-
-// LoginResponse はログイン成功時のレスポンス
-type LoginResponse struct {
-	Token     string      `json:"token"` // JWT トークン（Authorization Bearer で送信）
-	ExpiresAt int64       `json:"expires_at"`
-	UserType  string      `json:"user_type"`
-	User      *MeResponse `json:"user"`
-}
-
 // buildMeResponse はユーザーデータと補助情報からMeResponseを構築する。
 // clinicNameMap はクリニックID（string）→クリニック名のマップ。
 // mainClinicID はJWTクレームまたはログイン時のメインクリニックID（string）。
@@ -485,23 +422,6 @@ func buildAllPermissions() EffectivePermissions {
 		m[string(res)] = ResourcePermission{View: true, Create: true, Edit: true, Delete: true}
 	}
 	return m
-}
-
-// forgotPasswordRequest はパスワードリセットリクエストのボディ
-type forgotPasswordRequest struct {
-	Email string `json:"email" binding:"required,email"`
-}
-
-// resetPasswordRequest はパスワードリセット実行のボディ
-type resetPasswordRequest struct {
-	Token       string `json:"token"        binding:"required"`
-	NewPassword string `json:"new_password" binding:"required,min=8"`
-}
-
-// changePasswordRequest はパスワード変更リクエストのボディ
-type changePasswordRequest struct {
-	CurrentPassword string `json:"current_password" binding:"required"`
-	NewPassword     string `json:"new_password"     binding:"required,min=8"`
 }
 
 // ForgotPassword godoc
