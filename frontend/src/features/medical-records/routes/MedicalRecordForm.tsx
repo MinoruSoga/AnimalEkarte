@@ -3,7 +3,7 @@ import { lazy, memo, Suspense, useCallback, useEffect, useRef, useState } from "
 import { useParams, useNavigate } from "react-router";
 
 // External
-import { HeartPulse, Trash2 } from "lucide-react";
+import { HeartPulse, Printer, Trash2 } from "lucide-react";
 
 // Internal
 import { paths } from "@/config/paths";
@@ -32,6 +32,9 @@ const OwnerSearchModal = lazy(() =>
 );
 import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
 import { useGetPetMedicalHistory } from "../api/get-medical-records";
+import { useGetClinicalPlan } from "../api/clinical-plan";
+import { useGetTreatments } from "../api/treatments";
+import { MedicalRecordPrintView } from "../components/MedicalRecordPrintView";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { usePermission } from "@/features/auth/hooks/use-permission";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
@@ -137,11 +140,16 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { user } = useAuth();
   const { canEdit, canDelete } = usePermission("medical-records");
 
+  // 印刷用データ（React Query キャッシュ共有 — 子コンポーネントが既にフェッチ済み）
+  const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "");
+  const { data: treatments = [] } = useGetTreatments(recordId ?? "");
+
   // ローカル状態: 担当者（hookに追加するまでの暫定）
   const [staffName, setStaffName] = useState(() => user?.displayName ?? "");
   const VISIT_TYPE_OPTIONS = ["初診", "再診", "緊急", "往診"] as const;
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isVitalsOpen, setIsVitalsOpen] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [isOwnerSearchOpen, setIsOwnerSearchOpen] = useState(false);
   // 一度マウントしたタブを記録してhide/show方式で管理
@@ -420,6 +428,23 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               バイタル記録
             </Button>
           ) : null}
+          {!isNewRecord ? (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsPrinting(true);
+                // ブラウザ印刷ダイアログを非同期で開く（DOM更新を待つ）
+                setTimeout(() => {
+                  window.print();
+                  setIsPrinting(false);
+                }, 100);
+              }}
+              className="h-10 text-sm px-4"
+            >
+              <Printer className={ICON.action} />
+              印刷
+            </Button>
+          ) : null}
           {canEdit ? (
             <SubmitButton
               className={`${STYLE.btnPrimary} px-5`}
@@ -490,6 +515,35 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         </Suspense>
       ) : null}
     </PageLayout>
+
+    {/* Print area — hidden on screen, visible on print */}
+    {isPrinting && !isNewRecord && selectedPet ? (
+      <div className="hidden print:block fixed inset-0 bg-white z-[9999]">
+        <style type="text/css" media="print">
+          {`@page { size: A4 portrait; margin: 15mm; } body { margin: 0; -webkit-print-color-adjust: exact; }`}
+        </style>
+        <MedicalRecordPrintView
+          recordNo={recordId}
+          date={new Date().toLocaleDateString("ja-JP")}
+          doctorName={staffName}
+          pet={{
+            name: selectedPet.name,
+            species: selectedPet.species,
+            ownerName: selectedPet.ownerName,
+          }}
+          clinic={{
+            name: user?.clinic?.name,
+            address: user?.clinic?.address,
+            phone: user?.clinic?.phoneNumber,
+          }}
+          chiefComplaint={chiefComplaint}
+          treatmentPolicy={treatmentPolicy}
+          physicalExam={clinicalPlan?.physical_exam}
+          diagnosisDetails={clinicalPlan?.diagnosis_details}
+          treatments={treatments}
+        />
+      </div>
+    ) : null}
     </form>
   );
 });
