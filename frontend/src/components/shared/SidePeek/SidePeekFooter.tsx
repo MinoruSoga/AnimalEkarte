@@ -1,8 +1,9 @@
 import { STYLE } from "@/lib/design-tokens";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 
 interface SidePeekFooterProps {
   onCancel: () => void;
-  onSave: () => void;
+  onSave?: () => void;
   saveLabel?: string;
   isPending?: boolean;
 }
@@ -11,21 +12,21 @@ export function SidePeekFooter({
   onCancel,
   onSave,
   saveLabel = "保存",
-  isPending = false,
+  isPending,
 }: SidePeekFooterProps) {
   return (
     <div className={STYLE.sidePeekFooter}>
       <button type="button" onClick={onCancel} className={STYLE.sidePeekCancelBtn}>
         キャンセル
       </button>
-      <button
-        type="button"
+      <SubmitButton
         onClick={onSave}
         disabled={isPending}
-        className={`${STYLE.sidePeekSaveBtn} disabled:opacity-50 disabled:cursor-not-allowed`}
+        className={STYLE.sidePeekSaveBtn}
+        loadingText="保存中..."
       >
-        {isPending ? "保存中..." : saveLabel}
-      </button>
+        {saveLabel}
+      </SubmitButton>
     </div>
   );
 }

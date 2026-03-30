@@ -12,7 +12,8 @@ interface MasterSidePanelProps {
   title: string;
   onTitleChange: (v: string) => void;
   onClose: () => void;
-  onSave: () => void;
+  onSave?: () => void;
+  action?: (formData: FormData) => void;
   onDelete?: () => void;
   icon: ReactNode;
   isPending?: boolean;
@@ -28,6 +29,7 @@ export function MasterSidePanel({
   onTitleChange,
   onClose,
   onSave,
+  action,
   onDelete,
   icon,
   isPending,
@@ -39,18 +41,16 @@ export function MasterSidePanel({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const tag = (e.target as HTMLElement).tagName;
     if (e.key === "Enter" && tag !== "TEXTAREA" && tag !== "BUTTON") {
-      e.preventDefault();
-      onSave();
+      if (onSave) {
+        e.preventDefault();
+        onSave();
+      }
+      // If action is used, standard form submission will handle Enter
     }
   };
 
-  return (
-    <SidePeekPanel onKeyDown={handleKeyDown}>
-      <NavigationBlocker
-        when={isDirty}
-        title="変更が保存されていません"
-        description="変更が保存されていません。ページを離れますか？"
-      />
+  const content = (
+    <>
       <SidePeekToolbar isNew={isNew} onClose={onClose} onDelete={onDelete} />
       <SidePeekBody>
         <div className="pt-4 pb-2">
@@ -66,6 +66,23 @@ export function MasterSidePanel({
         <div className="py-1">{children}</div>
       </SidePeekBody>
       <SidePeekFooter onCancel={onClose} onSave={onSave} isPending={isPending} />
+    </>
+  );
+
+  return (
+    <SidePeekPanel onKeyDown={handleKeyDown}>
+      <NavigationBlocker
+        when={isDirty}
+        title="変更が保存されていません"
+        description="変更が保存されていません。ページを離れますか？"
+      />
+      {action ? (
+        <form action={action} className="flex-1 flex flex-col min-h-0">
+          {content}
+        </form>
+      ) : (
+        content
+      )}
     </SidePeekPanel>
   );
 }
