@@ -61,6 +61,31 @@ export function useTrimmingForm(id?: string) {
   // localOverrides・formData を useActionState の前に宣言: callback 内で formData を参照するため
   const [localOverrides, setLocalOverrides] = useState<Partial<TrimmingFormData>>({});
 
+  // --- Draft Persistence (Local Storage) ---
+  const DRAFT_KEY = `trimming-draft-${id || "new"}`;
+
+  // Load draft on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(DRAFT_KEY);
+    if (saved) {
+      try {
+        const draft = JSON.parse(saved);
+        setLocalOverrides((prev) => ({ ...prev, ...draft }));
+        toast.info("未保存の下書きを復元しました", { duration: 2000 });
+      } catch { /* ignore */ }
+    }
+  }, [DRAFT_KEY]);
+
+  // Save draft on changes
+  useEffect(() => {
+    const draft = { ...localOverrides };
+    delete (draft as any).styleImage;
+    delete (draft as any).completedImage;
+    if (Object.keys(draft).length > 0) {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    }
+  }, [DRAFT_KEY, localOverrides]);
+
   // 編集モード: サーバーデータを全フィールド復元（初回のみ）
   // rerender-use-ref-transient-values: フラグを useState → useRef に変更して setState-in-effect を排除
   const serverDataLoadedRef = useRef(false);
@@ -117,6 +142,7 @@ export function useTrimmingForm(id?: string) {
             option_ids: formData.optionIds.length > 0 ? formData.optionIds.map(Number) : undefined,
           };
           await updateMutation.mutateAsync({ id, req });
+          localStorage.removeItem(DRAFT_KEY);
           toast.success("トリミング情報を更新しました");
         } else {
           const pet = selectedPets[0];
@@ -143,6 +169,7 @@ export function useTrimmingForm(id?: string) {
             remarks: formData.remarks || undefined,
           };
           await createMutation.mutateAsync(req);
+          localStorage.removeItem(DRAFT_KEY);
           toast.success("トリミング情報を登録しました");
         }
         return { success: true, timestamp: Date.now() };
