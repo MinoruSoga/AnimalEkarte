@@ -253,9 +253,9 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       </div>
 
       {/* Content Area */}
-      <div className="mt-4 flex-1 flex flex-col">
+      <div className="mt-4 flex-1 min-h-0 flex flex-col">
         {mountedTabs.has("問診") ? (
-          <div className={`flex-1 min-h-0 flex flex-col${activeTab === "問診" ? "" : " hidden"}`}>
+          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === "問診" ? "" : "hidden"}`}>
             <MedicalRecordInterview
               chiefComplaint={chiefComplaint}
               setChiefComplaint={handleSetChiefComplaint}
@@ -267,7 +267,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           </div>
         ) : null}
         {mountedTabs.has("診察/治療プラン") ? (
-          <div style={{ display: activeTab === "診察/治療プラン" ? "block" : "none" }}>
+          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === "診察/治療プラン" ? "" : "hidden"}`}>
             <MedicalRecordDiagnosisPlan
               isNewRecord={isNewRecord}
               items={treatmentPlanItems}
@@ -290,7 +290,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           </div>
         ) : null}
         {mountedTabs.has("治療") ? (
-          <div style={{ display: activeTab === "治療" ? "block" : "none" }}>
+          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === "治療" ? "" : "hidden"}`}>
             <MedicalRecordTreatment
               medicalRecordId={recordId ?? ""}
               isNewRecord={isNewRecord}
@@ -298,12 +298,12 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           </div>
         ) : null}
         {mountedTabs.has("予防接種") ? (
-          <div style={{ display: activeTab === "予防接種" ? "block" : "none" }}>
+          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === "予防接種" ? "" : "hidden"}`}>
             <MedicalRecordVaccination petId={selectedPet?.id} />
           </div>
         ) : null}
         {mountedTabs.has("定期健診") ? (
-          <div style={{ display: activeTab === "定期健診" ? "block" : "none" }}>
+          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === "定期健診" ? "" : "hidden"}`}>
             {isNewRecord || !recordId ? (
               <div className={`flex items-center justify-center h-48 text-sm ${C.text40}`}>
                 カルテを保存してから使用できます
@@ -314,22 +314,22 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           </div>
         ) : null}
         {mountedTabs.has("検査") ? (
-          <div style={{ display: activeTab === "検査" ? "block" : "none" }}>
+          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === "検査" ? "" : "hidden"}`}>
             <MedicalRecordExamination isNewRecord={isNewRecord} petId={selectedPet?.id} />
           </div>
         ) : null}
         {mountedTabs.has("画像") ? (
-          <div style={{ display: activeTab === "画像" ? "block" : "none" }}>
+          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === "画像" ? "" : "hidden"}`}>
             <MedicalRecordImage isNewRecord={isNewRecord} medicalRecordId={recordId} />
           </div>
         ) : null}
         {mountedTabs.has("見積書") ? (
-          <div style={{ display: activeTab === "見積書" ? "block" : "none" }}>
+          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === "見積書" ? "" : "hidden"}`}>
             <MedicalRecordEstimate isNewRecord={isNewRecord} ownerDiscountRate={ownerDiscountRate} medicalRecordId={recordId} />
           </div>
         ) : null}
         {mountedTabs.has("会計(医師確認)") ? (
-          <div style={{ display: activeTab === "会計(医師確認)" ? "block" : "none" }}>
+          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === "会計(医師確認)" ? "" : "hidden"}`}>
             <MedicalRecordBillCheck
               isNewRecord={isNewRecord}
               medicalRecordId={recordId}

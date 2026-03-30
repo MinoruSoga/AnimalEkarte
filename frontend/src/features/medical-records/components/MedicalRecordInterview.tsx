@@ -69,10 +69,10 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
     historyItems && historyItems.length > 0 ? historyItems : DEFAULT_HISTORY_ITEMS;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 lg:grid-rows-[1fr] gap-3 flex-1 min-h-0">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 min-h-0">
       {/* Left Column: 主訴情報 (Chief Complaint) */}
       <InterviewChiefComplaint
-        className="col-span-1 lg:col-span-3"
+        className="col-span-1 lg:col-span-3 h-full"
         chiefComplaint={chiefComplaint}
         setChiefComplaint={setChiefComplaint}
         chiefComplaintCategoryId={chiefComplaintCategoryId}
@@ -83,14 +83,14 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
 
       {/* Middle Column: 治療方針 (Treatment Policy) */}
       <InterviewTreatmentPolicy
-        className="col-span-1 lg:col-span-4"
+        className="col-span-1 lg:col-span-4 h-full"
         treatmentPolicy={treatmentPolicy}
         setTreatmentPolicy={setTreatmentPolicy}
       />
 
       {/* Right Column: カルテ履歴 (Medical History) */}
       <InterviewHistory
-        className="col-span-1 lg:col-span-5"
+        className="col-span-1 lg:col-span-5 h-full"
         historyItems={resolvedHistoryItems}
       />
     </div>
