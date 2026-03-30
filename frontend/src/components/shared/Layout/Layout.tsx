@@ -1,14 +1,16 @@
-import { Navigate, Outlet } from "react-router";
+import { Navigate, Outlet, useLocation } from "react-router";
 import { Sidebar } from "./Sidebar";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 
 export function Layout() {
   const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) return null;
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    // BUG-047: Redirect back to original destination after login
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
   return (

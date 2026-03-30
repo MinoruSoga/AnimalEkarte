@@ -1,5 +1,5 @@
 import { useState, useCallback, memo } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useLocation } from "react-router";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import Eye from "lucide-react/dist/esm/icons/eye";
 import EyeOff from "lucide-react/dist/esm/icons/eye-off";
@@ -71,6 +71,7 @@ const INPUT_BASE = `w-full h-[48px] text-base rounded-[3px] ${C.bgInputLogin} bo
 
 export function LoginForm() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -90,7 +91,8 @@ export function LoginForm() {
 
       try {
         await loginApi(emailValue, passwordValue);
-        navigate("/");
+        const from = (location.state as any)?.from || "/";
+        navigate(from, { replace: true });
         return { error: null };
       } catch (err) {
         let msg = "ログインに失敗しました。しばらくしてから再度お試しください";

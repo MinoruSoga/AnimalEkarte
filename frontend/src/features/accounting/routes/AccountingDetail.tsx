@@ -902,9 +902,12 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
             is_insurance_applicable: false,
             source: "manual",
           });
-          // サーバーの最新データで同期（楽観的追加済みのためローカル状態をリセット）
+          // サーバーの最新データを取得してからローカル状態をリセット。
+          // invalidateQueries だと再取得完了前に setLocalItems(null) が走り、
+          // displayItems が古い baseAccounting.items にフォールバックして物販が消える。
+          // refetchQueries で await することで「取得完了後にリセット」を保証する。
+          await queryClient.refetchQueries({ queryKey: queryKeys.accountings.detail(id) });
           setLocalItems(null);
-          queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(id) });
         } catch (error) {
           // 失敗時はローカル追加をロールバック
           setLocalItems((prev) => (prev ?? []).filter((i) => i.id !== tempId));
