@@ -48,6 +48,9 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	// Health check エンドポイント（ルートレベル）
 	r.GET("/health", h.Health)
 
+	// Static file serving for uploaded images
+	r.Static("/uploads", "/app/uploads")
+
 	// レートリミッター初期化
 	rateLimitStore := middleware.NewRateLimitStore()
 

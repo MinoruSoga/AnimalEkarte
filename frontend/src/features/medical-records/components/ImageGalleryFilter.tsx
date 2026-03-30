@@ -1,6 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
-import React from "react";
+import React, { useRef } from "react";
 
 // External
 import { Upload } from "lucide-react";
@@ -17,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ICON } from "@/lib/design-tokens";
 
 interface ImageGalleryFilterProps {
   searchTerm: string;
@@ -27,6 +27,8 @@ interface ImageGalleryFilterProps {
   onDateEndChange: (value: string) => void;
   sortOrder: string;
   onSortOrderChange: (value: string) => void;
+  isUploading?: boolean;
+  onFilesSelected: (files: File[]) => void;
 }
 
 export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
@@ -38,16 +40,43 @@ export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
   onDateEndChange,
   sortOrder,
   onSortOrderChange,
+  isUploading = false,
+  onFilesSelected,
 }: ImageGalleryFilterProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) {
+      onFilesSelected(files);
+    }
+    // Reset input so the same file can be re-selected
+    e.target.value = "";
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex justify-end">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,application/pdf"
+          multiple
+          className="hidden"
+          onChange={handleFileChange}
+        />
         <Button
           size="sm"
           className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4"
+          onClick={handleUploadClick}
+          disabled={isUploading}
         >
           <Upload className={ICON.action} />
-          画像アップロード
+          {isUploading ? "アップロード中..." : "画像アップロード"}
         </Button>
       </div>
 

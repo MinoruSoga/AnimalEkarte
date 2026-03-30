@@ -8,6 +8,7 @@ export interface ImageGalleryItem {
   name: string;
   src: string | null;
   label: string;
+  mimeType?: string;
 }
 
 export interface ImageGalleryGroup {
@@ -40,6 +41,7 @@ function groupImagesByDate(images: RecordImage[]): ImageGalleryGroup[] {
       name: img.file_name || img.description || `画像${img.id}`,
       src: img.image_url || null,
       label: img.description || img.file_name || `画像${img.id}`,
+      mimeType: img.mime_type || undefined,
     });
   });
 

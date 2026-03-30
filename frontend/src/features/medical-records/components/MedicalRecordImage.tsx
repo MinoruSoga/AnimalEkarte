@@ -1,8 +1,9 @@
 // React/Framework
-import { memo, useDeferredValue, useMemo, useState } from "react";
+import { memo, useCallback, useDeferredValue, useMemo, useState } from "react";
 
 // Relative
 import { useGetRecordImages } from "../api/get-record-images";
+import { useUploadImages, useDeleteImage } from "../api/record-images";
 import { ImageGalleryFilter } from "./ImageGalleryFilter";
 import { ImageGalleryGroup } from "./ImageGalleryGroup";
 
@@ -20,10 +21,14 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
   const [sortOrder, setSortOrder] = useState("desc");
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const { data: apiImageGroups = [], isLoading } = useGetRecordImages(
-    isNewRecord ? undefined : medicalRecordId,
-  );
+  const resolvedId = isNewRecord ? undefined : medicalRecordId;
+
+  const { data: apiImageGroups = [], isLoading } = useGetRecordImages(resolvedId);
+
+  const uploadMutation = useUploadImages(resolvedId ?? "");
+  const deleteMutation = useDeleteImage(resolvedId ?? "");
 
   const imageGroups = useMemo(
     () =>
@@ -33,6 +38,25 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
           : true,
       ),
     [apiImageGroups, deferredSearch],
+  );
+
+  const handleFilesSelected = useCallback(
+    (files: File[]) => {
+      if (!resolvedId) return;
+      uploadMutation.mutate(files);
+    },
+    [resolvedId, uploadMutation],
+  );
+
+  const handleDeleteImage = useCallback(
+    (imageId: number) => {
+      if (!resolvedId) return;
+      setDeletingId(imageId);
+      deleteMutation.mutate(imageId, {
+        onSettled: () => setDeletingId(null),
+      });
+    },
+    [resolvedId, deleteMutation],
   );
 
   return (
@@ -47,6 +71,8 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
         onDateEndChange={setDateEnd}
         sortOrder={sortOrder}
         onSortOrderChange={setSortOrder}
+        isUploading={uploadMutation.isPending}
+        onFilesSelected={handleFilesSelected}
       />
 
       {/* Results Title */}
@@ -65,10 +91,16 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
         </div>
       ) : null}
       <div className="flex flex-col gap-6 pl-1">
-        {!isLoading &&
-          imageGroups.map((group) => (
-            <ImageGalleryGroup key={group.id} group={group} />
-          ))}
+        {!isLoading
+          ? imageGroups.map((group) => (
+              <ImageGalleryGroup
+                key={group.id}
+                group={group}
+                onDeleteImage={resolvedId ? handleDeleteImage : undefined}
+                isDeletingId={deletingId}
+              />
+            ))
+          : null}
       </div>
     </div>
   );
