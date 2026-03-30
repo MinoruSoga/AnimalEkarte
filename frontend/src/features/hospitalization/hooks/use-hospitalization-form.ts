@@ -1,5 +1,5 @@
-import { useState, useEffect, useTransition, useActionState, useCallback } from "react";
-import { useNavigate, useSearchParams, useLocation } from "react-router";
+import { useState, useEffect, useActionState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
@@ -15,9 +15,8 @@ import { createHospitalization } from "../api/create-hospitalization";
 import { updateHospitalization } from "../api/update-hospitalization";
 import { useGetHospitalizationRaw } from "../api/get-hospitalization";
 
-export function useHospitalizationForm(id?: string, onSuccess?: () => void) {
+export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
   const isEdit = !!id;

@@ -123,7 +123,11 @@ export function useHospitalizations(searchTerm: string, statusFilter: Hospitaliz
         if (targetHosp) {
             // Swap: Update both sequentially
             await updateHospitalization(sourceHosp.id, { cage_id: targetCageId });
-            await updateHospitalization(targetHosp.id, { cage_id: sourceHosp.cageId || "" });
+            // 元のケージがない場合は cage_id フィールドを送らない（空文字列は uint64 として不正）
+            const swapPayload = sourceHosp.cageId
+              ? { cage_id: sourceHosp.cageId }
+              : {};
+            await updateHospitalization(targetHosp.id, swapPayload);
         } else {
             // Move to empty
             await updateHospitalization(sourceHosp.id, { cage_id: targetCageId });

@@ -42,9 +42,8 @@ export function HospitalizationForm() {
 
   const {
       isEdit,
-      isSaving,
       formData,
-      handleFormDataChange,
+      handleFormDataChange: handleFormDataChangeRaw,
       treatmentPlans,
       addTreatmentPlan,
       removeTreatmentPlan,
@@ -57,7 +56,6 @@ export function HospitalizationForm() {
       petSelection,
       formAction,
       formState,
-      handleFormDataChange: handleFormDataChangeRaw
   } = useHospitalizationForm(hospitalizationId);
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
