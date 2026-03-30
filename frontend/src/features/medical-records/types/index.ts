@@ -109,6 +109,8 @@ export interface ReturnBillingReviewInput {
 
 // ── Vital (バイタル) ──────────────────────────────────────────────────
 
+export type BodyWeightUnit = "Kg" | "g";
+
 export interface Vital {
   id: string;
   medical_record_id: string;
@@ -117,6 +119,7 @@ export interface Vital {
   heart_rate?: number | null;
   respiratory_rate?: number | null;
   body_weight?: number | null;
+  weight_unit: BodyWeightUnit;
   note?: string | null;
   created_at: string;
   updated_at: string;
@@ -128,6 +131,7 @@ export interface CreateVitalInput {
   heart_rate?: number | null;
   respiratory_rate?: number | null;
   body_weight?: number | null;
+  weight_unit: BodyWeightUnit;
   note?: string | null;
 }
 
@@ -137,5 +141,6 @@ export interface UpdateVitalInput {
   heart_rate?: number | null;
   respiratory_rate?: number | null;
   body_weight?: number | null;
+  weight_unit?: BodyWeightUnit;
   note?: string | null;
 }

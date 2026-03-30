@@ -19,7 +19,7 @@ import { useGetVitals } from "@/features/medical-records/api/vitals";
 import { useCreateVital } from "@/features/medical-records/api/vitals";
 import { useUpdateVital } from "@/features/medical-records/api/vitals";
 import { useDeleteVital } from "@/features/medical-records/api/vitals";
-import type { Vital, CreateVitalInput, UpdateVitalInput } from "@/features/medical-records/types";
+import type { Vital, CreateVitalInput, UpdateVitalInput, BodyWeightUnit } from "@/features/medical-records/types";
 
 // ── 静的定数 ─────────────────────────────────────────────────────────
 
@@ -30,7 +30,7 @@ const TABLE_HEADER = (
       <th className={`px-3 text-right text-xs font-medium ${C.text70} w-24`}>体温 (℃)</th>
       <th className={`px-3 text-right text-xs font-medium ${C.text70} w-24`}>心拍数 (bpm)</th>
       <th className={`px-3 text-right text-xs font-medium ${C.text70} w-24`}>呼吸数 (/min)</th>
-      <th className={`px-3 text-right text-xs font-medium ${C.text70} w-24`}>体重 (kg)</th>
+      <th className={`px-3 text-right text-xs font-medium ${C.text70} w-32`}>体重</th>
       <th className={`px-3 text-left text-xs font-medium ${C.text70}`}>メモ</th>
       <th className={`px-2 text-right text-xs font-medium ${C.text70} w-24`}>操作</th>
     </tr>
@@ -60,6 +60,7 @@ interface AddFormState {
   heart_rate: string;
   respiratory_rate: string;
   body_weight: string;
+  weight_unit: BodyWeightUnit;
   note: string;
 }
 
@@ -69,6 +70,7 @@ const EMPTY_ADD_FORM: AddFormState = {
   heart_rate: "",
   respiratory_rate: "",
   body_weight: "",
+  weight_unit: "Kg",
   note: "",
 };
 
@@ -97,11 +99,12 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
     heart_rate: vital.heart_rate != null ? String(vital.heart_rate) : "",
     respiratory_rate: vital.respiratory_rate != null ? String(vital.respiratory_rate) : "",
     body_weight: vital.body_weight != null ? String(vital.body_weight) : "",
+    weight_unit: vital.weight_unit ?? "Kg",
     note: vital.note ?? "",
   });
 
   const handleChange = useCallback(
-    (field: keyof typeof form, value: string) => {
+    (field: string, value: any) => {
       setForm((prev) => ({ ...prev, [field]: value }));
     },
     []
@@ -130,6 +133,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
       heart_rate: parseNumField(form.heart_rate),
       respiratory_rate: parseNumField(form.respiratory_rate),
       body_weight: parseNumField(form.body_weight),
+      weight_unit: form.weight_unit as BodyWeightUnit,
       note: form.note.trim() || null,
     };
     onSave(vital.id, input);
@@ -174,14 +178,23 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
         />
       </td>
       <td className="px-3 py-2">
-        <input
-          type="number"
-          step="0.01"
-          value={form.body_weight}
-          onChange={(e) => handleChange("body_weight", e.target.value)}
-          placeholder="-"
-          className={EDIT_INPUT_CLASS}
-        />
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            step="0.01"
+            value={form.body_weight}
+            onChange={(e) => handleChange("body_weight", e.target.value)}
+            placeholder="-"
+            className={`${EDIT_INPUT_CLASS} text-right`}
+          />
+          <button
+            type="button"
+            onClick={() => handleChange("weight_unit", form.weight_unit === "Kg" ? "g" : "Kg")}
+            className={`text-[10px] px-1 h-6 rounded border ${C.borderMedium} bg-gray-50 hover:bg-gray-100 min-w-[24px]`}
+          >
+            {form.weight_unit}
+          </button>
+        </div>
       </td>
       <td className="px-3 py-2">
         <input
@@ -314,6 +327,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
       heart_rate: parseNumField(addForm.heart_rate),
       respiratory_rate: parseNumField(addForm.respiratory_rate),
       body_weight: parseNumField(addForm.body_weight),
+      weight_unit: addForm.weight_unit,
       note: addForm.note.trim() || null,
     };
     createMutation.mutate(input, {
@@ -414,6 +428,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
                     </td>
                     <td className={`px-3 text-sm text-right ${C.text}`}>
                       {displayNum(vital.body_weight)}
+                      <span className="ml-0.5 text-[10px] text-gray-400">{vital.weight_unit}</span>
                     </td>
                     <td className={`px-3 text-sm ${C.text60}`}>
                       {vital.note ? vital.note : "-"}
@@ -472,14 +487,23 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
               placeholder="呼吸数"
               className={`${ADD_INPUT_CLASS} w-20`}
             />
-            <input
-              type="number"
-              step="0.01"
-              value={addForm.body_weight}
-              onChange={(e) => handleAddFormChange("body_weight", e.target.value)}
-              placeholder="体重"
-              className={`${ADD_INPUT_CLASS} w-20`}
-            />
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                step="0.01"
+                value={addForm.body_weight}
+                onChange={(e) => handleAddFormChange("body_weight", e.target.value)}
+                placeholder="体重"
+                className={`${ADD_INPUT_CLASS} w-20 text-right`}
+              />
+              <button
+                type="button"
+                onClick={() => handleAddFormChange("weight_unit", addForm.weight_unit === "Kg" ? "g" : "Kg")}
+                className={`text-[10px] px-1 h-6 rounded border ${C.borderMedium} bg-gray-50 hover:bg-gray-100 min-w-[24px]`}
+              >
+                {addForm.weight_unit}
+              </button>
+            </div>
             <input
               type="text"
               value={addForm.note}

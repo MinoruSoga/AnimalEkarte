@@ -1,7 +1,6 @@
 // React/Framework
-import { useState, useCallback, useActionState } from "react";
+import { useState, useTransition, useCallback, useActionState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
 
 // External
 import { toast } from "sonner";
@@ -18,12 +17,6 @@ import type { OwnerData, PetFormData, MembershipType } from "../types";
 // feature 内
 import { createOwner } from "../api/create-owner";
 import { updateOwner } from "../api/update-owner";
-
-// BUG-067: NULL バイト・制御文字を除去して安全なテキストを返す（多層防衛）
-// eslint-disable-next-line no-control-regex
-const CONTROL_CHAR_RE = /[\x00-\x1F\x7F]/g;
-const sanitizeText = (value: string): string =>
-  value.replace(CONTROL_CHAR_RE, "").trim();
 
 const MEMBERSHIP_TYPE_TO_API: Record<string, string> = {
   "非会員": "non_member",
@@ -104,9 +97,8 @@ function mapOwnerPetsToFormData(owner: Owner): PetFormData[] {
 interface FormState {
   fieldErrors: Record<string, string>;
   success: boolean;
+  ownerId?: string;
   timestamp: number;
-  /** 新規登録成功時の飼主ID（詳細ページへのリダイレクト用）*/
-  createdOwnerId?: string;
 }
 
 export function useOwnerForm(
@@ -138,45 +130,26 @@ export function useOwnerForm(
       if (!ownerData.ownerNameKana.trim()) errors.ownerNameKana = "飼主名（カナ）を入力してください";
       if (!ownerData.phone.trim()) errors.phone = "電話番号を入力してください";
 
-      // BUG-066: 電話番号フォーマットバリデーション
-      if (ownerData.phone.trim() && !/^[0-9\-+()]{7,20}$/.test(ownerData.phone.trim())) {
-        errors.phone = "電話番号の形式が正しくありません（例: 090-1234-5678）";
-      }
-
-      // BUG-066: メールアドレスフォーマットバリデーション
-      if (ownerData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerData.email.trim())) {
-        errors.email = "メールアドレスの形式が正しくありません";
-      }
-
-      // BUG-066: 値引率バリデーション
-      if (ownerData.discountRate !== undefined && ownerData.discountRate !== null) {
-        const rate = Number(ownerData.discountRate);
-        if (!isNaN(rate) && (rate < 0 || rate > 100)) {
-          errors.discountRate = "値引率は0〜100の範囲で入力してください";
-        }
-      }
-
       if (Object.keys(errors).length > 0) {
         toast.error("必須項目が未入力です");
         return { fieldErrors: errors, success: false, timestamp: Date.now() };
       }
 
       try {
-        // BUG-067: NULL バイト・制御文字を除去してから送信
         const ownerRequestPayload = {
-          owner_name: sanitizeText(ownerData.ownerName),
-          owner_name_kana: ownerData.ownerNameKana ? sanitizeText(ownerData.ownerNameKana) : undefined,
-          company: sanitizeText(ownerData.company),
-          postal_code: sanitizeText(ownerData.postalCode),
-          address1: sanitizeText(ownerData.address1),
-          address2: sanitizeText(ownerData.address2),
-          home_postal_code: ownerData.homePostalCode ? sanitizeText(ownerData.homePostalCode) : "",
-          home_address1: sanitizeText(ownerData.homeAddress1),
-          home_address2: sanitizeText(ownerData.homeAddress2),
-          phone: sanitizeText(ownerData.phone),
-          company_phone: sanitizeText(ownerData.companyPhone),
-          email: sanitizeText(ownerData.email),
-          remarks: ownerData.remarks.replace(CONTROL_CHAR_RE, ""),
+          owner_name: ownerData.ownerName,
+          owner_name_kana: ownerData.ownerNameKana || undefined,
+          company: ownerData.company,
+          postal_code: ownerData.postalCode,
+          address1: ownerData.address1,
+          address2: ownerData.address2,
+          home_postal_code: ownerData.homePostalCode || "",
+          home_address1: ownerData.homeAddress1,
+          home_address2: ownerData.homeAddress2,
+          phone: ownerData.phone,
+          company_phone: ownerData.companyPhone,
+          email: ownerData.email,
+          remarks: ownerData.remarks,
           is_dangerous: ownerData.isDangerous,
           discount_rate: ownerData.discountRate,
           membership_type: MEMBERSHIP_TYPE_TO_API[ownerData.membershipType] ?? ownerData.membershipType,
@@ -231,21 +204,9 @@ export function useOwnerForm(
           }
 
           toast.success("飼主情報を登録しました");
-          // BUG-065: 新規登録後に詳細ページへリダイレクトするため createdOwnerId を返す
-          return { fieldErrors: {}, success: true, timestamp: Date.now(), createdOwnerId: newOwner.id };
+          return { fieldErrors: {}, success: true, ownerId: newOwner.id, timestamp: Date.now() };
         }
       } catch (error) {
-        // BUG-064: 409 Conflict はメールアドレス重複エラーとして扱う
-        if (axios.isAxiosError(error) && error.response?.status === 409) {
-          const emailError = "このメールアドレスはすでに登録されています";
-          toast.error(emailError);
-          return {
-            ...prevState,
-            fieldErrors: { ...prevState.fieldErrors, email: emailError },
-            success: false,
-            timestamp: Date.now(),
-          };
-        }
         handleApiError(error, "保存");
         return { ...prevState, success: false, timestamp: Date.now() };
       }
@@ -404,11 +365,9 @@ export function useOwnerForm(
   };
 
   // rerender-functional-setstate: setFieldErrors は stable setter のため useCallback で安定化可能
-  // → OwnerInfoSection memo の onClearError prop を stable に保つための前提条件
   const clearFieldError = useCallback((field: string) => {
     // フォームのアクション状態で管理されているエラーをクリアする場合は、
     // コンポーネント側で状態を意識する必要がある。
-    // ここでは formState.fieldErrors は read-only。
   }, []);
 
   return {
@@ -429,6 +388,5 @@ export function useOwnerForm(
     formState,
     fieldErrors: formState.fieldErrors,
     clearFieldError,
-    createdOwnerId: formState.createdOwnerId,
   };
 }
