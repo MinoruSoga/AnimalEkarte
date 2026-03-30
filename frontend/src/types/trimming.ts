@@ -72,8 +72,8 @@ export interface TrimmingFormData {
   usedRibbon: string;
   remarks: string;
   completedImage: File | null;
-  courseId: string;
-  optionIds: string[];
-  staffId: string;
+  courseId: string | number;
+  optionIds: (string | number)[];
+  staffId: string | number;
   staffName: string;
 }

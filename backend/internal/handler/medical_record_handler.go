@@ -161,30 +161,32 @@ func buildMedicalRecord(clinicID uint64, input *createMedicalRecordRequest) (*mo
 	return record, nil
 }
 
-// createClinicalPlanIfNeeded は plan/assessment/diagnosis フィールドが存在する場合に
-// ClinicalPlan を best-effort で作成・更新する。失敗してもカルテ作成は完了済みのためエラーログのみ。
-func (h *Handler) createClinicalPlanIfNeeded(ctx context.Context, recordID uint64, input *createMedicalRecordRequest) {
-	if input.Plan == nil && input.Assessment == nil && input.Diagnosis1CategoryID == nil && input.Diagnosis1NameID == nil {
-		return
+// createSubRecords はカルテ作成時に inquiry / clinical_plan を空レコードで自動作成する（best-effort）。
+// フロントエンドはタブごとに PATCH で保存するため、サブテーブルが存在しない場合に 404 とならないよう
+// カルテ作成と同時に空レコードを用意する。失敗してもカルテ作成は完了済みのためエラーは握りつぶす。
+func (h *Handler) createSubRecords(ctx context.Context, recordID uint64, input *createMedicalRecordRequest) {
+	// 1. inquiry: フィールドの有無に関わらず常に upsert（空でも OK）
+	inquiryInput := service.UpsertInquiryInput{
+		MedicalRecordID:          recordID,
+		ChiefComplaintCategoryID: input.ChiefComplaintCategoryID,
+		ChiefComplaint:           input.ChiefComplaint,
+		Notes:                    input.Notes,
 	}
-	clinicalPlanInput := &service.UpdateClinicalPlanInput{
-		TreatmentPolicy:  input.Plan,
-		DiagnosisDetails: input.Assessment,
+	_, _ = h.svc.Inquiry.Upsert(ctx, inquiryInput)
+
+	// 2. clinical_plan: 常に GetOrCreate で空レコードを確保し、フィールドがあれば更新
+	_, _ = h.svc.ClinicalPlan.GetOrCreate(ctx, recordID)
+	if input.Plan != nil || input.Assessment != nil || input.Diagnosis1CategoryID != nil || input.Diagnosis1NameID != nil {
+		clinicalPlanInput := &service.UpdateClinicalPlanInput{
+			TreatmentPolicy:      input.Plan,
+			DiagnosisDetails:     input.Assessment,
+			DiagnosisCategoryID:  input.Diagnosis1CategoryID,
+			DiagnosisNameID:      input.Diagnosis1NameID,
+			Diagnosis2CategoryID: input.Diagnosis2CategoryID,
+			Diagnosis2NameID:     input.Diagnosis2NameID,
+		}
+		_, _ = h.svc.ClinicalPlan.Update(ctx, recordID, clinicalPlanInput)
 	}
-	if input.Diagnosis1CategoryID != nil {
-		clinicalPlanInput.DiagnosisCategoryID = input.Diagnosis1CategoryID
-	}
-	if input.Diagnosis1NameID != nil {
-		clinicalPlanInput.DiagnosisNameID = input.Diagnosis1NameID
-	}
-	if input.Diagnosis2CategoryID != nil {
-		clinicalPlanInput.Diagnosis2CategoryID = input.Diagnosis2CategoryID
-	}
-	if input.Diagnosis2NameID != nil {
-		clinicalPlanInput.Diagnosis2NameID = input.Diagnosis2NameID
-	}
-	// best-effort: failure is intentionally ignored; service layer logs the error
-	_, _ = h.svc.ClinicalPlan.Update(ctx, recordID, clinicalPlanInput)
 }
 
 // CreateMedicalRecord godoc
@@ -208,7 +210,7 @@ func (h *Handler) CreateMedicalRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	h.createClinicalPlanIfNeeded(ctx, record.ID, &input)
+	h.createSubRecords(ctx, record.ID, &input)
 	c.JSON(http.StatusCreated, record)
 }
 

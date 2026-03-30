@@ -14,14 +14,15 @@ import (
 
 // Handler はHTTPハンドラーのルートコンテナ
 type Handler struct {
-	cfg   *config.Config
-	svc   *service.Services
-	repos *repository.Repositories
+	cfg       *config.Config
+	svc       *service.Services
+	repos     *repository.Repositories
+	auditRepo repository.AuditRepository
 }
 
 // New はHandlerを初期化して返す
 func New(cfg *config.Config, svc *service.Services, repos *repository.Repositories) *Handler {
-	return &Handler{cfg: cfg, svc: svc, repos: repos}
+	return &Handler{cfg: cfg, svc: svc, repos: repos, auditRepo: repos.Audit}
 }
 
 // PaginatedResponse はページネーション付きレスポンスの共通構造

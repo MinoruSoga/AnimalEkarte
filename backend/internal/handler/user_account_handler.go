@@ -157,6 +157,8 @@ func (h *Handler) SetUserPermissionGroups(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	h.writeAuditLog(c, model.AuditActionUserPermissionGroupSet, "user_permission_group", &id,
+		nil, nil)
 	c.Status(http.StatusNoContent)
 }
 

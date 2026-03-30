@@ -486,7 +486,7 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
     if (formState.success) {
       markClean();
       if (!isEdit && formState.data) {
-        navigate(paths.owners.detail.getHref(formState.data));
+        navigate(paths.owners.detail.getHref(formState.data as string));
       } else if (isEdit) {
         navigate(paths.owners.getHref());
       }

@@ -610,12 +610,10 @@ export function TrimmingForm() {
           open={courseModalOpen}
           onOpenChange={setCourseModalOpen}
           title="コース選択"
-          description="施術するコースを選択してください"
           items={courses}
           selectedValue={formData.courseId}
           matchBy="id"
           onSelect={(item) => handleFormChange({ courseId: item.id })}
-          masterCategory="trimming_course"
         />
 
         {/* Staff Modal */}
@@ -623,12 +621,10 @@ export function TrimmingForm() {
           open={staffModalOpen}
           onOpenChange={setStaffModalOpen}
           title="担当スタッフ選択"
-          description="担当するスタッフを選択してください"
           items={activeStaffItems}
           selectedValue={formData.staffName}
           matchBy="name"
           onSelect={(item) => handleFormChange({ staffName: item.name, staffId: item.id })}
-          masterCategory="staff"
         />
 
         {/* Delete Confirmation Dialog */}

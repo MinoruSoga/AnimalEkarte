@@ -8,6 +8,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -61,6 +62,8 @@ func (h *Handler) CreatePermissionGroup(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	h.writeAuditLog(c, model.AuditActionPermissionGroupCreate, "permission_group", &group.ID, nil,
+		repository.MarshalAuditJSON(map[string]any{"name": req.Name, "description": req.Description}))
 	c.JSON(http.StatusCreated, group)
 }
 
@@ -101,6 +104,8 @@ func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	h.writeAuditLog(c, model.AuditActionPermissionGroupUpdate, "permission_group", &id,
+		nil, repository.MarshalAuditJSON(map[string]any{"name": req.Name, "description": req.Description}))
 	c.Status(http.StatusNoContent)
 }
 
@@ -116,6 +121,7 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	h.writeAuditLog(c, model.AuditActionPermissionGroupDelete, "permission_group", &id, nil, nil)
 	c.Status(http.StatusNoContent)
 }
 
@@ -150,6 +156,8 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	h.writeAuditLog(c, model.AuditActionPermissionRulesUpdate, "permission_group", &id,
+		nil, repository.MarshalAuditJSON(req.Rules))
 	c.Status(http.StatusNoContent)
 }
 

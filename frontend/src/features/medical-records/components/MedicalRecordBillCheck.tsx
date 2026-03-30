@@ -9,7 +9,7 @@ import { useGetBillingReview, useConfirmBillingReview, useReturnBillingReview } 
 import type { CreateTreatmentInput, UpdateTreatmentInput, TreatmentItemType } from "../types";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { CheckCircle2, RotateCcw } from "lucide-react";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 
 const TreatmentSearchDialog = lazy(() =>
