@@ -9,6 +9,7 @@ interface PatientInfoCardProps {
   petName: string;
   petNumber: string;
   weight: string;
+  status?: "alive" | "deceased";
   staffName?: string;
   staffLabel?: string;
   serviceType?: string;
@@ -33,6 +34,7 @@ export function PatientInfoCard({
   petName,
   petNumber,
   weight,
+  status = "alive",
   staffName = "医師A",
   staffLabel = "",
   serviceType = "診療",
@@ -49,9 +51,11 @@ export function PatientInfoCard({
   onOwnerClick,
   onServiceTypeClick,
 }: PatientInfoCardProps) {
+  const isDeceased = status === "deceased";
+
   return (
     <div
-      className={`${sticky ? "sticky top-0 z-10" : ""} bg-white px-4 py-2.5 border-b ${C.borderMedium}`}
+      className={`${sticky ? "sticky top-0 z-10" : ""} ${isDeceased ? "bg-gray-50/80" : "bg-white"} px-4 py-2.5 border-b ${C.borderMedium} transition-colors`}
     >
       <div className="flex flex-wrap items-center gap-3">
         {/* Avatar */}
@@ -59,7 +63,7 @@ export function PatientInfoCard({
           <ImageWithFallback
             src={imgEllipse1}
             alt="Pet"
-            className={`size-full rounded-full object-cover border ${C.borderLight}`}
+            className={`size-full rounded-full object-cover border ${C.borderLight} ${isDeceased ? "grayscale opacity-60" : ""}`}
           />
         </div>
 
@@ -77,7 +81,14 @@ export function PatientInfoCard({
             ) : (
               <span className={`text-base font-medium ${C.text}`}>{ownerName}</span>
             )}
-            <span className={`text-base font-medium ${C.text}`}>{petName}</span>
+            <span className={`text-base font-medium ${isDeceased ? C.text60 : C.text}`}>
+              {petName}
+            </span>
+            {isDeceased ? (
+              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${C.bgDanger} text-white uppercase tracking-wider ml-1`}>
+                【死亡】
+              </span>
+            ) : null}
           </div>
           <div className={`flex items-center gap-3 text-sm ${C.text60}`}>
             {petNumber ? (

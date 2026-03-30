@@ -61,6 +61,11 @@ export function useMedicalRecordForm(recordId?: string) {
         if (draft.treatmentPolicy) setTreatmentPolicy(draft.treatmentPolicy);
         if (draft.plan) setPlan(draft.plan);
         if (draft.assessment) setAssessment(draft.assessment);
+        if (draft.visitType) setVisitType(draft.visitType);
+        if (draft.diagnosis1CategoryId) setDiagnosis1CategoryId(draft.diagnosis1CategoryId);
+        if (draft.diagnosis1NameId) setDiagnosis1NameId(draft.diagnosis1NameId);
+        if (draft.diagnosis2CategoryId) setDiagnosis2CategoryId(draft.diagnosis2CategoryId);
+        if (draft.diagnosis2NameId) setDiagnosis2NameId(draft.diagnosis2NameId);
         toast.info("未保存の下書きを復元しました", { duration: 2000 });
       } catch { /* ignore */ }
     }
@@ -69,9 +74,17 @@ export function useMedicalRecordForm(recordId?: string) {
   // Save draft on changes
   useEffect(() => {
     if (!recordId) return;
-    const draft = { chiefComplaint, treatmentPolicy, plan, assessment };
+    const draft = { 
+      chiefComplaint, treatmentPolicy, plan, assessment, 
+      visitType,
+      diagnosis1CategoryId, diagnosis1NameId,
+      diagnosis2CategoryId, diagnosis2NameId 
+    };
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-  }, [recordId, DRAFT_KEY, chiefComplaint, treatmentPolicy, plan, assessment]);
+  }, [
+    recordId, DRAFT_KEY, chiefComplaint, treatmentPolicy, plan, assessment, 
+    visitType, diagnosis1CategoryId, diagnosis1NameId, diagnosis2CategoryId, diagnosis2NameId
+  ]);
 
   // 編集モード: カルテからpetIdを取得
   const { data: existingRecord } = useGetMedicalRecord(recordId ?? "");
