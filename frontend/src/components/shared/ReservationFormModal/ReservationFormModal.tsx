@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useState, useEffect, useCallback, memo } from "react";
 
 // External
@@ -40,10 +40,10 @@ interface ReservationFormModalProps {
 
 const StepIndicator = memo(function StepIndicator({ step, label, active }: { step: number; label: string; active: boolean }) {
   return (
-    <div className={`flex items-center gap-1.5 text-xs ${active ? "text-blue-600" : "text-[#37352F]/30"}`}>
+    <div className={`flex items-center gap-1.5 text-xs ${active ? "text-blue-600" : C.text30}`}>
       <span
         className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors ${
-          active ? "bg-blue-600 text-white" : "bg-[#37352F]/10 text-[#37352F]/30"
+          active ? "bg-blue-600 text-white" : `${C.bgPrimary10} ${C.text30}`
         }`}
       >
         {step}
@@ -55,13 +55,13 @@ const StepIndicator = memo(function StepIndicator({ step, label, active }: { ste
 
 const SelectedPetChip = memo(function SelectedPetChip({ pet, onRemove }: { pet: Pet; onRemove: () => void }) {
   return (
-    <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-[rgba(55,53,47,0.12)] shadow-sm">
-      <PawPrint className={`${ICON.action} text-[#37352F]/60 flex-shrink-0`} />
-      <span className="text-sm font-bold text-[#37352F]">{pet.name}</span>
-      <Badge variant="outline" className="text-[11px] font-normal text-[#37352F]/60 bg-[#F7F6F3] border-[rgba(55,53,47,0.12)] h-5">
+    <div className={`flex items-center gap-2 bg-white p-2 rounded-lg border ${C.borderMediumLight} shadow-sm`}>
+      <PawPrint className={`${ICON.action} ${C.text60} flex-shrink-0`} />
+      <span className={`text-sm font-bold ${C.text}`}>{pet.name}</span>
+      <Badge variant="outline" className={`text-[11px] font-normal ${C.text60} ${C.bgPage} ${C.borderMediumLight} h-5`}>
         {pet.species}
       </Badge>
-      <span className="text-[11px] text-[#37352F]/60 ml-auto">
+      <span className={`text-[11px] ${C.text60} ml-auto`}>
         No. {pet.ownerId} {pet.ownerName}
       </span>
       <button
@@ -174,7 +174,7 @@ export function ReservationFormModal({
               ) : (
                 <Calendar className={`${ICON.page} text-blue-600`} />
               )}
-              <DialogTitle className="text-sm font-bold text-[#37352F]">
+              <DialogTitle className={`text-sm font-bold ${C.text}`}>
                 {isEditMode ? "予約編集" : "新規予約作成"}
               </DialogTitle>
             </div>
@@ -211,13 +211,13 @@ export function ReservationFormModal({
           {/* Left Panel: Patient Selection Table */}
           <div
             className={cn(
-              "w-full lg:w-7/12 border-b lg:border-b-0 lg:border-r bg-[#FAFAF8] p-4 flex flex-col overflow-hidden min-h-[300px] lg:min-h-auto flex-1",
+              `w-full lg:w-7/12 border-b lg:border-b-0 lg:border-r ${C.bgSubtle} p-4 flex flex-col overflow-hidden min-h-[300px] lg:min-h-auto flex-1`,
               mobilePanel !== "search" && "hidden lg:flex"
             )}
           >
             <div className="mb-3 flex items-center gap-2 shrink-0">
-              <Search className={`${ICON.action} text-[#37352F]/60`} />
-              <Label className="text-sm font-bold text-[#37352F]">患者検索</Label>
+              <Search className={`${ICON.action} ${C.text60}`} />
+              <Label className={`text-sm font-bold ${C.text}`}>患者検索</Label>
             </div>
             <div className="flex-1 overflow-hidden flex flex-col min-h-0">
               <PatientSelectionTable
@@ -236,8 +236,8 @@ export function ReservationFormModal({
           >
             <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
               {/* Selected Patient Summary (Top of Form) */}
-              <div className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? "bg-gradient-to-r from-blue-50/50 to-cyan-50/50 border-blue-100" : "bg-[#F7F6F3] border-[rgba(55,53,47,0.12)]"}`}>
-                <Label className="text-[12px] text-[#37352F]/40 font-bold tracking-widest uppercase block mb-3">
+              <div className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? "bg-gradient-to-r from-blue-50/50 to-cyan-50/50 border-blue-100" : `${C.bgPage} ${C.borderMediumLight}`}`}>
+                <Label className={`text-[12px] ${C.text40} font-bold tracking-widest uppercase block mb-3`}>
                   予約対象（選択中）
                 </Label>
 
@@ -255,8 +255,8 @@ export function ReservationFormModal({
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-20 text-center">
-                    <PawPrint className={`${ICON.lg} text-[#37352F]/10 mb-2`} />
-                    <div className="text-[12px] text-[#37352F]/40">
+                    <PawPrint className={`${ICON.lg} ${C.text15} mb-2`} />
+                    <div className={`text-[12px] ${C.text40}`}>
                       左側から患者を選択してください
                     </div>
                   </div>
@@ -268,7 +268,7 @@ export function ReservationFormModal({
 
               {/* Form Fields */}
               <div className="space-y-4">
-                <Label className="text-sm font-bold text-[#37352F]">予約詳細</Label>
+                <Label className={`text-sm font-bold ${C.text}`}>予約詳細</Label>
                 <ReservationFormFields
                   formData={formData}
                   onChange={(data) => {
@@ -296,8 +296,8 @@ export function ReservationFormModal({
 
         <DialogFooter className="p-4 border-t bg-white shrink-0 h-14 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
-            <PawPrint className={`${ICON.action} text-[#37352F]/60`} />
-            <span className="text-sm text-[#37352F]/60">
+            <PawPrint className={`${ICON.action} ${C.text60}`} />
+            <span className={`text-sm ${C.text60}`}>
               {selectedPets.length}頭 選択中
             </span>
           </div>
@@ -307,7 +307,7 @@ export function ReservationFormModal({
             </Button>
             <Button
               onClick={handleSave}
-              className="bg-[#37352F] text-white hover:bg-[#37352F]/90 h-10 text-sm min-w-[100px]"
+              className={`${C.bgPrimary} text-white ${C.hoverBgPrimaryDark} h-10 text-sm min-w-[100px]`}
             >
               {isEditMode ? "更新する" : "予約を確定"}
             </Button>
