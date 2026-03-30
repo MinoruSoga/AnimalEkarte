@@ -120,6 +120,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
     email: "",
     password: "",
   }));
+  const [nameError, setNameError] = useState("");
 
   // ── Permission groups state ──────────────────────
   // null = ユーザーがまだ編集していない（サーバーデータを使用）
@@ -145,6 +146,11 @@ const StaffSidePanel = memo(function StaffSidePanel({
   );
 
   const handleSave = useCallback(() => {
+    if (!f.name.trim()) {
+      setNameError("氏名を入力してください");
+      return;
+    }
+    setNameError("");
     onSave(f);
     if (!isNew && linkedUserId) {
       onSaveGroups(linkedUserId, groupIds);
@@ -155,11 +161,12 @@ const StaffSidePanel = memo(function StaffSidePanel({
     <MasterSidePanel
       isNew={isNew}
       title={f.name}
-      onTitleChange={(v) => setF((p) => ({ ...p, name: v }))}
+      onTitleChange={(v) => { setF((p) => ({ ...p, name: v })); if (v.trim()) setNameError(""); }}
       onClose={onClose}
       action={handleSave}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<UserRound className={LAYOUT.pageIcon.innerIcon} />}
+      titleError={nameError}
     >
       <StatusToggleButton
         isActive={f.isActive}

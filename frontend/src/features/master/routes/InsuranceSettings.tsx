@@ -36,11 +36,22 @@ const InsuranceSidePanel = memo(function InsuranceSidePanel({
     coverageRate: item?.coverageRate != null ? String(item.coverageRate) : "0",
     contactPhone: item?.contactPhone ?? "", isActive: item?.isActive ?? true,
   }));
+  const [nameError, setNameError] = useState("");
+  const handleAction = () => {
+    if (!f.name.trim()) {
+      setNameError("名称を入力してください");
+      return;
+    }
+    setNameError("");
+    onSave(f);
+  };
   return (
     <MasterSidePanel isNew={item === null} title={f.name}
-      onTitleChange={(v) => setF((p) => ({ ...p, name: v }))} onClose={onClose} action={() => onSave(f)}
+      onTitleChange={(v) => { setF((p) => ({ ...p, name: v })); if (v.trim()) setNameError(""); }}
+      onClose={onClose} action={handleAction}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
-      icon={<Shield className={LAYOUT.pageIcon.innerIcon} />}>
+      icon={<Shield className={LAYOUT.pageIcon.innerIcon} />}
+      titleError={nameError}>
       <StatusToggleButton isActive={f.isActive} onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))} />
       <PropertyRow label="補償率(%)">
         <input type="number" min={0} max={100} className={MASTER_INPUT_CLASS}

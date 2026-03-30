@@ -79,17 +79,27 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
     taxRate: item?.taxRate ?? 0.1,
     isActive: item?.isActive ?? true,
   }));
+  const [nameError, setNameError] = useState("");
+  const handleAction = () => {
+    if (!f.name.trim()) {
+      setNameError("名称を入力してください");
+      return;
+    }
+    setNameError("");
+    onSave(f);
+  };
 
   return (
     <MasterSidePanel
       isNew={item === null}
       title={f.name}
-      onTitleChange={(v) => setF((p) => ({ ...p, name: v }))}
+      onTitleChange={(v) => { setF((p) => ({ ...p, name: v })); if (v.trim()) setNameError(""); }}
       onClose={onClose}
-      action={() => onSave(f)}
+      action={handleAction}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<ShoppingBag className={LAYOUT.pageIcon.innerIcon} />}
       titlePlaceholder="品目名"
+      titleError={nameError}
     >
       <StatusToggleButton isActive={f.isActive} onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))} />
       <PropertyRow label="カテゴリ">

@@ -39,11 +39,22 @@ const SidePanel = memo(function SidePanel({
   const [f, setF] = useState<FormData>(() => ({
     name: item?.name ?? "", description: item?.description ?? "", isActive: item?.isActive ?? true,
   }));
+  const [nameError, setNameError] = useState("");
+  const handleAction = () => {
+    if (!f.name.trim()) {
+      setNameError("名称を入力してください");
+      return;
+    }
+    setNameError("");
+    onSave(f);
+  };
   return (
     <MasterSidePanel isNew={item === null} title={f.name}
-      onTitleChange={(v) => setF((p) => ({ ...p, name: v }))} onClose={onClose} action={() => onSave(f)}
+      onTitleChange={(v) => { setF((p) => ({ ...p, name: v })); if (v.trim()) setNameError(""); }}
+      onClose={onClose} action={handleAction}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
-      icon={<MessageSquareText className={LAYOUT.pageIcon.innerIcon} />}>
+      icon={<MessageSquareText className={LAYOUT.pageIcon.innerIcon} />}
+      titleError={nameError}>
       <StatusToggleButton isActive={f.isActive} onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))} />
       <PropertyRow label="説明">
         <textarea className={`${MASTER_INPUT_CLASS} min-h-[80px] resize-none`}

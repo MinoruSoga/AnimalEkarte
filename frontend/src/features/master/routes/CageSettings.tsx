@@ -48,10 +48,21 @@ const CageSidePanel = memo(function CageSidePanel({
     name: item?.name ?? "", cageType: item?.cageType ?? "general", cageSize: item?.cageSize ?? "medium",
     price: item?.price ?? 0, description: item?.description ?? "", isActive: item?.isActive ?? true,
   }));
+  const [nameError, setNameError] = useState("");
+  const handleAction = () => {
+    if (!f.name.trim()) {
+      setNameError("名称を入力してください");
+      return;
+    }
+    setNameError("");
+    onSave(f);
+  };
   return (
-    <MasterSidePanel isNew={item === null} title={f.name} onTitleChange={(v) => setF((p) => ({ ...p, name: v }))}
-      onClose={onClose} action={() => onSave(f)} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
-      icon={<Building2 className={LAYOUT.pageIcon.innerIcon} />}>
+    <MasterSidePanel isNew={item === null} title={f.name}
+      onTitleChange={(v) => { setF((p) => ({ ...p, name: v })); if (v.trim()) setNameError(""); }}
+      onClose={onClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      icon={<Building2 className={LAYOUT.pageIcon.innerIcon} />}
+      titleError={nameError}>
       <StatusToggleButton isActive={f.isActive} onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))} />
       <PropertyRow label="エリア">
         <Select value={f.cageType} onValueChange={(v) => setF((p) => ({ ...p, cageType: v as CageType }))}>

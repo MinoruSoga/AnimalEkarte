@@ -721,6 +721,45 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
   const [receivedAmount, setReceivedAmount] = useState(() => baseAccounting?.payment?.receivedAmount?.toString() ?? "");
   const [paymentMethod, setPaymentMethod] = useState(() => baseAccounting?.payment?.method ?? "cash");
 
+  // 金額計算（useActionState の前に配置：callback 内で参照するため）
+  const calculation = useMemo(() => {
+    if (!accounting) return null;
+
+    let subtotal = 0;
+    let taxTotal = 0;
+
+    for (const item of accounting.items) {
+      subtotal += item.subtotal;
+      taxTotal += item.taxAmount;
+    }
+
+    const totalAmount = subtotal + taxTotal;
+
+    let insuranceAmount = 0;
+    if (hasInsurance) {
+      const insuranceTargetTotal = accounting.items
+        .filter((item) => item.isInsuranceApplicable)
+        .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+
+      const ratio = parseFloat(insuranceRatio);
+      insuranceAmount = Math.floor(insuranceTargetTotal * ratio) * -1;
+    }
+
+    const billingAmount = totalAmount + insuranceAmount;
+    const received = parseInt(receivedAmount || "0", 10);
+    const changeAmount = received > billingAmount ? received - billingAmount : 0;
+
+    return {
+      subtotal,
+      taxTotal,
+      totalAmount,
+      insuranceAmount,
+      billingAmount,
+      received,
+      changeAmount,
+    };
+  }, [accounting, hasInsurance, insuranceRatio, receivedAmount]);
+
   // 追加アイテム用State
   const [newItemOpen, setNewItemOpen] = useState(false);
   const [isRefunding, startRefundTransition] = useTransition();
@@ -823,45 +862,6 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
       invoiceRegistrationNumber,
     };
   }, [user?.clinic, invoiceRegistrationNumber]);
-
-  // 金額計算
-  const calculation = useMemo(() => {
-    if (!accounting) return null;
-
-    let subtotal = 0;
-    let taxTotal = 0;
-
-    for (const item of accounting.items) {
-      subtotal += item.subtotal;
-      taxTotal += item.taxAmount;
-    }
-
-    const totalAmount = subtotal + taxTotal;
-
-    let insuranceAmount = 0;
-    if (hasInsurance) {
-      const insuranceTargetTotal = accounting.items
-        .filter((item) => item.isInsuranceApplicable)
-        .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-
-      const ratio = parseFloat(insuranceRatio);
-      insuranceAmount = Math.floor(insuranceTargetTotal * ratio) * -1;
-    }
-
-    const billingAmount = totalAmount + insuranceAmount;
-    const received = parseInt(receivedAmount || "0", 10);
-    const changeAmount = received > billingAmount ? received - billingAmount : 0;
-
-    return {
-      subtotal,
-      taxTotal,
-      totalAmount,
-      insuranceAmount,
-      billingAmount,
-      received,
-      changeAmount,
-    };
-  }, [accounting, hasInsurance, insuranceRatio, receivedAmount]);
 
   const handleAddItem = useCallback((name: string, price: string, category: string, taxRate?: number) => {
     const unitPrice = parseInt(price, 10);

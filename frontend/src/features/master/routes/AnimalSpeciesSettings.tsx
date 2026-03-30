@@ -33,10 +33,21 @@ const SidePanel = memo(function SidePanel({
   item, onClose, onSave, onDeleteRequest,
 }: { item: AnimalSpecies | null; onClose: () => void; onSave: (d: FormData) => void; onDeleteRequest: (i: AnimalSpecies) => void; }) {
   const [f, setF] = useState<FormData>(() => ({ name: item?.name ?? "", isActive: item?.isActive ?? true }));
+  const [nameError, setNameError] = useState("");
+  const handleAction = () => {
+    if (!f.name.trim()) {
+      setNameError("名称を入力してください");
+      return;
+    }
+    setNameError("");
+    onSave(f);
+  };
   return (
-    <MasterSidePanel isNew={item === null} title={f.name} onTitleChange={(v) => setF((p) => ({ ...p, name: v }))}
-      onClose={onClose} action={() => onSave(f)} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
-      icon={<PawPrint className={LAYOUT.pageIcon.innerIcon} />}>
+    <MasterSidePanel isNew={item === null} title={f.name}
+      onTitleChange={(v) => { setF((p) => ({ ...p, name: v })); if (v.trim()) setNameError(""); }}
+      onClose={onClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      icon={<PawPrint className={LAYOUT.pageIcon.innerIcon} />}
+      titleError={nameError}>
       <StatusToggleButton isActive={f.isActive} onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))} />
     </MasterSidePanel>
   );

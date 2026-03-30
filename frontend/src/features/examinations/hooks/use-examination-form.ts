@@ -39,6 +39,30 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
   // useTransition: save/delete の pending 管理 (rerender-transitions)
   const [isDeleteTransitionPending, startDeleteTransition] = useTransition();
 
+  // Local overrides applied on top of server data (only tracks user edits in edit mode)
+  // useActionState の前に宣言: callback 内で formDataWithPet を参照するため
+  const [localOverrides, setLocalOverrides] = useState<Partial<ExaminationRecord>>({});
+
+  // Merge: server data as base + user edits on top
+  const formData: Partial<ExaminationRecord> =
+    isEdit && existingExam
+      ? { ...existingExam, ...localOverrides }
+      : { status: "依頼中" as const, ownerName: "", petName: "", ...localOverrides };
+
+  const setFormData = (next: Partial<ExaminationRecord>) => {
+    setLocalOverrides((prev) => ({ ...prev, ...next }));
+  };
+
+  // Derive form data with pet info at render time (no setState-in-useEffect)
+  const formDataWithPet =
+    selectedPets.length > 0
+      ? {
+          ...formData,
+          ownerName: selectedPets[0].ownerName,
+          petName: selectedPets[0].name,
+        }
+      : formData;
+
   interface FormState {
     success: boolean;
     timestamp: number;
@@ -81,19 +105,6 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
     { success: false, timestamp: 0 }
   );
 
-  // Local overrides applied on top of server data (only tracks user edits in edit mode)
-  const [localOverrides, setLocalOverrides] = useState<Partial<ExaminationRecord>>({});
-
-  // Merge: server data as base + user edits on top
-  const formData: Partial<ExaminationRecord> =
-    isEdit && existingExam
-      ? { ...existingExam, ...localOverrides }
-      : { status: "依頼中" as const, ownerName: "", petName: "", ...localOverrides };
-
-  const setFormData = (next: Partial<ExaminationRecord>) => {
-    setLocalOverrides((prev) => ({ ...prev, ...next }));
-  };
-
   // New mode: populate pet selection from petId query param
   useEffect(() => {
     if (!isEdit) {
@@ -106,16 +117,6 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
       // If petId is provided but petFromQuery is not yet resolved, wait
     }
   }, [isEdit, petId, petFromQuery, isPetLoading, setSelectedPets, navigate]);
-
-  // Derive form data with pet info at render time (no setState-in-useEffect)
-  const formDataWithPet =
-    selectedPets.length > 0
-      ? {
-          ...formData,
-          ownerName: selectedPets[0].ownerName,
-          petName: selectedPets[0].name,
-        }
-      : formData;
 
   const handleDelete = useCallback((onSuccess?: () => void) => {
     if (!isEdit || !id) return;
