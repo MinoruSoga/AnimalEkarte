@@ -23,6 +23,7 @@ import {
   ClipboardCheck,
   Clipboard,
   ClipboardList,
+  KeyRound,
   LogOut,
   User,
   PawPrint,
@@ -30,6 +31,7 @@ import {
 import { useState, useEffect, memo } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { ChangePasswordDialog } from "@/features/auth/components/ChangePasswordDialog";
 import { usePermission } from "@/features/auth/hooks/use-permission";
 import { paths } from "@/config/paths";
 import {
@@ -102,7 +104,7 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
       className={[
         "w-full flex items-center gap-3 px-3 h-12 rounded-[3px] text-base transition-colors",
         isActive
-          ? `bg-[#038B94]/8 ${C.text} border-l-2 border-l-[#038B94]`
+          ? STYLE.sidebarItemActive
           : `${C.text65} ${C.hoverBgLight} ${C.hoverText}`,
         collapsed ? "justify-center" : "",
         level === 1 ? "pl-8" : level > 1 ? "pl-14" : "",
@@ -127,7 +129,7 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
                 }
               }}
               aria-label={isExpanded ? `${item.label}を折りたむ` : `${item.label}を展開`}
-              className="p-0.5 rounded hover:bg-[rgba(55,53,47,0.08)] transition-colors"
+              className={`p-0.5 rounded ${C.hoverBgMd} transition-colors`}
             >
               <ChevronDown className={`${ICON.xs} transition-transform${isExpanded ? " rotate-180" : ""}`} />
             </span>
@@ -212,6 +214,7 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 1280,
   );
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const { user, logout } = useAuth();
   const clinicName = user?.clinic?.name ?? "";
 
@@ -332,23 +335,39 @@ export function Sidebar() {
       {/* Footer */}
       <div className={`border-t ${C.borderDivider} px-1 py-1.5`}>
         {!collapsed ? (
-          <div className={`flex items-center gap-2 px-2 py-1 rounded-[3px] ${C.hoverBgLight} transition-colors`}>
-            <div className={`size-[26px] rounded-full flex items-center justify-center shrink-0 ${C.bgHoverMd}`}>
-              <User className={`size-[13px] ${C.text50}`} />
+          <>
+            <div className={`flex items-center gap-2 px-2 py-1 rounded-[3px] ${C.hoverBgLight} transition-colors`}>
+              <div className={`size-[26px] rounded-full flex items-center justify-center shrink-0 ${C.bgHoverMd}`}>
+                <User className={`size-[13px] ${C.text50}`} />
+              </div>
+              <p className={`flex-1 min-w-0 text-base ${C.text} truncate`}>
+                {user?.displayName ?? ""}
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsChangePasswordOpen(true)}
+                aria-label="パスワード変更"
+                title="パスワード変更"
+                className={`size-7 flex items-center justify-center rounded-[3px] ${C.text35} ${C.hoverText} ${C.hoverBgMedium} transition-colors shrink-0`}
+              >
+                <KeyRound className={ICON.action} />
+              </button>
+              <button
+                type="button"
+                onClick={logout}
+                aria-label="ログアウト"
+                title="ログアウト"
+                className={`size-7 flex items-center justify-center rounded-[3px] ${C.text35} ${C.hoverText} ${C.hoverBgMedium} transition-colors shrink-0`}
+              >
+                <LogOut className={ICON.action} />
+              </button>
             </div>
-            <p className={`flex-1 min-w-0 text-base ${C.text} truncate`}>
-              {user?.displayName ?? ""}
-            </p>
-            <button
-              type="button"
-              onClick={logout}
-              aria-label="ログアウト"
-              title="ログアウト"
-              className={`size-7 flex items-center justify-center rounded-[3px] ${C.text35} ${C.hoverText} ${C.hoverBgMedium} transition-colors shrink-0`}
-            >
-              <LogOut className={ICON.action} />
-            </button>
-          </div>
+            <ChangePasswordDialog
+              open={isChangePasswordOpen}
+              onOpenChange={setIsChangePasswordOpen}
+              onSuccess={logout}
+            />
+          </>
         ) : (
           <div className="flex items-center justify-center h-[30px]">
             <LogOut className={`${ICON.action} ${C.text40}`} />
