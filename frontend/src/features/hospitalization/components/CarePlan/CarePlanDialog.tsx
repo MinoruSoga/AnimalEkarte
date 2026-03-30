@@ -1,5 +1,5 @@
 // React/Framework
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 
 // External
 import { Search } from "lucide-react";
@@ -46,19 +46,13 @@ export const CarePlanDialog = memo(function CarePlanDialog({
 }: CarePlanDialogProps) {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [formData, setFormData] = useState<Partial<CarePlanItem>>(DEFAULT_FORM_STATE);
-    const [prevOpen, setPrevOpen] = useState(false);
 
-    // Reset or Populate form when dialog opens or editingPlan changes
-    if (open !== prevOpen) {
-        setPrevOpen(open);
+    // ダイアログ open 時にフォームを初期化
+    useEffect(() => {
         if (open) {
-            if (editingPlan) {
-                setFormData(editingPlan);
-            } else {
-                setFormData(DEFAULT_FORM_STATE);
-            }
+            setFormData(editingPlan ?? DEFAULT_FORM_STATE);
         }
-    }
+    }, [open, editingPlan]);
 
     const handleSave = () => {
         if (!formData.name || !formData.type) return;

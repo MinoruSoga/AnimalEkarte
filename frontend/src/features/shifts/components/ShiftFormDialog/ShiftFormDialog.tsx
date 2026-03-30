@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useTransition, useActionState } from "react";
+import { useState, useEffect, useCallback, useTransition } from "react";
 import {
   Dialog,
   DialogContent,
@@ -7,7 +7,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -60,11 +59,6 @@ interface FormValues {
   note: string;
 }
 
-interface ActionFormState {
-  success: boolean;
-  timestamp: number;
-}
-
 export function ShiftFormDialog({
   open,
   onClose,
@@ -98,45 +92,45 @@ export function ShiftFormDialog({
   const { mutateAsync: createShift } = useCreateShift();
   const { mutateAsync: updateShift } = useUpdateShift();
   const { mutateAsync: deleteShift } = useDeleteShift();
+  const [isPending, startSaveTransition] = useTransition();
   const [isDeletePending, startDeleteTransition] = useTransition();
 
-  const [formState, formAction, isPending] = useActionState(
-    async (_prevState: ActionFormState, _formData: FormData): Promise<ActionFormState> => {
-      if (form.startTime && form.endTime) {
-        if (form.endTime <= form.startTime) {
-          setTimeError("終了時刻は開始時刻より後に設定してください");
-          return { success: false, timestamp: Date.now() };
-        }
+  const handleSubmit = useCallback(
+    (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      if (form.startTime && form.endTime && form.endTime <= form.startTime) {
+        setTimeError("終了時刻は開始時刻より後に設定してください");
+        return;
       }
       setTimeError("");
-
-      try {
-        if (isEdit && editShift) {
-          const input: UpdateShiftInput = {
-            shift_type: form.shiftType,
-            start_time: form.startTime || undefined,
-            end_time: form.endTime || undefined,
-            note: form.note || undefined,
-          };
-          await updateShift({ id: editShift.id, input });
-        } else {
-          const input: CreateShiftInput = {
-            staff_id: staffId,
-            date,
-            shift_type: form.shiftType,
-            start_time: form.startTime || undefined,
-            end_time: form.endTime || undefined,
-            note: form.note || undefined,
-          };
-          await createShift(input);
+      startSaveTransition(async () => {
+        try {
+          if (isEdit && editShift) {
+            const input: UpdateShiftInput = {
+              shift_type: form.shiftType,
+              start_time: form.startTime || undefined,
+              end_time: form.endTime || undefined,
+              note: form.note || undefined,
+            };
+            await updateShift({ id: editShift.id, input });
+          } else {
+            const input: CreateShiftInput = {
+              staff_id: staffId,
+              date,
+              shift_type: form.shiftType,
+              start_time: form.startTime || undefined,
+              end_time: form.endTime || undefined,
+              note: form.note || undefined,
+            };
+            await createShift(input);
+          }
+          onClose();
+        } catch {
+          // エラーはReact QueryがToast等で処理
         }
-        onClose();
-        return { success: true, timestamp: Date.now() };
-      } catch {
-        return { success: false, timestamp: Date.now() };
-      }
+      });
     },
-    { success: false, timestamp: 0 }
+    [form, isEdit, editShift, staffId, date, updateShift, createShift, onClose],
   );
 
   const handleShiftTypeChange = useCallback((value: string) => {
@@ -182,7 +176,7 @@ export function ShiftFormDialog({
           </p>
         </DialogHeader>
 
-        <form action={formAction} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="shift-type">シフト種別</Label>
             <Select value={form.shiftType} onValueChange={handleShiftTypeChange}>
@@ -247,9 +241,9 @@ export function ShiftFormDialog({
             <Button type="button" variant="outline" onClick={onClose} disabled={isPending || isDeletePending}>
               キャンセル
             </Button>
-            <SubmitButton size="sm">
-              保存
-            </SubmitButton>
+            <Button type="submit" size="sm" disabled={isPending || isDeletePending}>
+              {isPending ? "保存中..." : "保存"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
