@@ -77,7 +77,7 @@ export function useMedicalRecordForm(recordId?: string) {
   const updateTreatmentPlanMutation = useUpdateTreatmentPlan(recordId ?? "");
 
   // useTransition: save の pending 管理 (rerender-transitions)
-  const [isSaveTransitionPending, startSaveTransition] = useTransition();
+  const [, startSaveTransition] = useTransition();
 
   interface FormState {
     success: boolean;

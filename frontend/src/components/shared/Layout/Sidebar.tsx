@@ -52,27 +52,6 @@ import {
 import type { MenuItem } from "@/types";
 
 /* ================================================================== */
-/*  SidebarItemWithPermission — resource がある場合のみ権限チェック    */
-/* ================================================================== */
-
-interface SidebarItemWithPermissionProps {
-  item: MenuItem;
-  collapsed?: boolean;
-}
-
-const SidebarItemWithPermission = memo(function SidebarItemWithPermission({
-  item,
-  collapsed = false,
-}: SidebarItemWithPermissionProps) {
-  // hooks のルール: 常に呼び出す。resource が空の場合は hasPermission で管理者バイパスが効くため
-  // resource フィールドがない項目（"" を渡す）は常に表示したいので別の方法を使う。
-  // resource が undefined の場合は権限チェックをスキップ（常に表示）
-  const { canView } = usePermission(item.resource ?? "");
-  if (item.resource !== undefined && !canView) return null;
-  return <SidebarItem item={item} collapsed={collapsed} level={0} />;
-});
-
-/* ================================================================== */
 /*  SidebarItem                                                        */
 /* ================================================================== */
 
@@ -185,12 +164,45 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
       {hasSubItems && isExpanded && !collapsed ? (
         <div className="space-y-0.5 mt-0.5 mb-1">
           {item.subItems?.map(sub => (
-            <SidebarItem key={sub.label} item={sub} collapsed={collapsed} level={level + 1} />
+            <SidebarItemWithPermission key={sub.label} item={sub} collapsed={collapsed} level={level + 1} />
           ))}
         </div>
       ) : null}
     </div>
   );
+});
+
+/* ================================================================== */
+/*  SidebarItemWithPermission — resource がある場合のみ権限チェック    */
+/* ================================================================== */
+
+interface SidebarItemWithPermissionProps {
+  item: MenuItem;
+  collapsed?: boolean;
+  level?: number;
+}
+
+/**
+ * メニュー項目を権限チェックしてレンダリングするコンポーネント。
+ *
+ * - `item.resource` が設定されている場合、`usePermission` で `canView` を確認し、
+ *   `false` なら `null` を返す（非表示）。
+ * - `item.resource` が未設定の場合（サブアイテムの一部等）は常に表示する。
+ * - `clinic_admin` / `system_admin` は `useAuth.hasPermission` 内部で常に `true` を返す。
+ *
+ * フックのルール（ループ内での呼び出し禁止）を遵守するため、
+ * 各メニュー項目をこのコンポーネントに切り出し、フック呼び出しをここで行う。
+ */
+const SidebarItemWithPermission = memo(function SidebarItemWithPermission({
+  item,
+  collapsed = false,
+  level = 0,
+}: SidebarItemWithPermissionProps) {
+  // hooks のルール: 常に呼び出す（条件付き呼び出し禁止）。
+  // resource が undefined の場合は空文字を渡し、下記の条件分岐で権限チェック結果を無視する。
+  const { canView } = usePermission(item.resource ?? "");
+  if (item.resource !== undefined && !canView) return null;
+  return <SidebarItem item={item} collapsed={collapsed} level={level} />;
 });
 
 /* ================================================================== */

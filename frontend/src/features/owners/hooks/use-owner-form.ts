@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useTransition, useCallback, useActionState } from "react";
+import { useState, useCallback, useActionState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 // External
@@ -120,7 +120,7 @@ export function useOwnerForm(
    * バリデーションエラーや保存の成否を状態として管理する。
    */
   const [formState, formAction, isPending] = useActionState(
-    async (prevState: FormState, _formData: FormData): Promise<FormState> => {
+    async (prevState: ActionState, _formData: FormData): Promise<ActionState> => {
       const errors: Record<string, string> = {};
       if (!ownerData.ownerName.trim()) errors.ownerName = "飼主名を入力してください";
       if (!ownerData.ownerNameKana.trim()) errors.ownerNameKana = "飼主名（カナ）を入力してください";

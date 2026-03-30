@@ -1,6 +1,6 @@
 // React/Framework
 import { ICON, C } from "@/lib/design-tokens";
-import { useState, useMemo, useCallback, memo, useTransition, lazy, Suspense, useDeferredValue, useActionState, useEffect } from "react";
+import { useState, useMemo, useCallback, memo, useTransition, lazy, Suspense, useDeferredValue, useActionState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 
 // External

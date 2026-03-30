@@ -1,10 +1,9 @@
 // React/Framework
-import { memo, useCallback, useEffect, useState, Suspense } from "react";
-import { useNavigate, useParams, useLocation } from "react-router";
+import { memo, useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router";
 
 // External
-import { Trash2, FileText } from "lucide-react";
-import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 
 // Internal
 import { paths } from "@/config/paths";
@@ -33,14 +32,12 @@ import { useVaccinationForm } from "../hooks/use-vaccination-form";
 
 export const VaccinationForm = memo(function VaccinationForm() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { id } = useParams();
   
   const {
       isEdit,
       petSelection,
       form,
-      historyFilter,
       formAction,
       formState,
       isSaving,

@@ -104,7 +104,7 @@ const EditRow = memo(function EditRow({ vital, onSave, onCancel, isPending }: Ed
   });
 
   const handleChange = useCallback(
-    (field: string, value: any) => {
+    (field: string, value: string | BodyWeightUnit) => {
       setForm((prev) => ({ ...prev, [field]: value }));
     },
     []
