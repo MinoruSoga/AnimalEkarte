@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useTransition, useCallback, useActionState } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
@@ -109,6 +110,7 @@ export function useMedicalRecordForm(recordId?: string) {
   const { owner } = useGetOwner(resolvedOwnerId);
   const ownerDiscountRate = owner?.discountRate ?? 0;
 
+  const queryClient = useQueryClient();
   const createMutation = useCreateMedicalRecord();
   const updateMutation = useUpdateMedicalRecord();
   const updateInquiryMutation = useUpdateInquiry(recordId ?? "");
@@ -164,6 +166,8 @@ export function useMedicalRecordForm(recordId?: string) {
 
         localStorage.removeItem(DRAFT_KEY);
         toast.success("保存しました");
+        // BUG-MEDI-009: カルテ保存後にダッシュボードのキャッシュを無効化して診療中カードを更新
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] });
         return { success: true, timestamp: Date.now() };
       } catch (error) {
         handleApiError(error, "保存");

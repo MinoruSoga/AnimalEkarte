@@ -43,6 +43,8 @@ interface TreatmentTableProps {
   onOpenSearch?: () => void;
   onAddRow?: () => void;
   showStatus?: boolean;
+  /** BUG-051: 確認済み等で全入力を無効化する */
+  disabled?: boolean;
 }
 
 export const TreatmentTable = memo(function TreatmentTable({
@@ -52,6 +54,7 @@ export const TreatmentTable = memo(function TreatmentTable({
   onOpenSearch,
   onAddRow,
   showStatus = false,
+  disabled = false,
 }: TreatmentTableProps) {
   const gridColsClass = showStatus
     ? "grid-cols-[80px_3fr_2fr_0.8fr_1fr_0.8fr_1fr_1fr_1fr_0.8fr]"
@@ -95,6 +98,7 @@ export const TreatmentTable = memo(function TreatmentTable({
                   <Select
                     value={item.status || "未完了"}
                     onValueChange={(val) => onUpdate(item.id, "status", val)}
+                    disabled={disabled}
                   >
                     <SelectTrigger className="h-full w-full border-none bg-transparent p-0 text-sm justify-center text-center font-medium focus:ring-0">
                       <SelectValue />
@@ -112,6 +116,7 @@ export const TreatmentTable = memo(function TreatmentTable({
                   value={item.content}
                   onChange={(val) => onUpdate(item.id, "content", val)}
                   placeholder="治療内容を入力"
+                  disabled={disabled}
                 />
               </Cell>
               <Cell>
@@ -119,12 +124,13 @@ export const TreatmentTable = memo(function TreatmentTable({
                   value={item.memo}
                   onChange={(val) => onUpdate(item.id, "memo", val)}
                   placeholder="メモ"
+                  disabled={disabled}
                 />
               </Cell>
               <Cell
                 align="center"
-                onClick={() => onUpdate(item.id, "insurance", !item.insurance)}
-                className="cursor-pointer hover:bg-gray-50"
+                onClick={disabled ? undefined : () => onUpdate(item.id, "insurance", !item.insurance)}
+                className={disabled ? undefined : "cursor-pointer hover:bg-gray-50"}
               >
                 {item.insurance ? (
                   <Circle className={`${ICON.action} text-[#EA3323]`} />
@@ -139,17 +145,20 @@ export const TreatmentTable = memo(function TreatmentTable({
                   onChange={(val) => onUpdate(item.id, "unitPrice", Number(val))}
                   align="right"
                   className="font-mono"
+                  disabled={disabled}
                 />
               </Cell>
               <Cell>
+                {/* BUG-TRT-001: min="0.1" → min="1" に変更（float32精度 0.10000000149011612 問題の回避） */}
                 <TableInput
                   type="number"
-                  step="0.1"
-                  min="0.1"
+                  step="1"
+                  min="1"
                   value={item.quantity}
                   onChange={(val) => onUpdate(item.id, "quantity", Number(val))}
                   align="right"
                   className="font-mono"
+                  disabled={disabled}
                 />
               </Cell>
               <Cell>
@@ -159,6 +168,7 @@ export const TreatmentTable = memo(function TreatmentTable({
                   onChange={(val) => onUpdate(item.id, "discountRate", Number(val))}
                   align="right"
                   className="font-mono"
+                  disabled={disabled}
                 />
               </Cell>
               <Cell>
@@ -168,33 +178,39 @@ export const TreatmentTable = memo(function TreatmentTable({
                   onChange={(val) => onUpdate(item.id, "discountAmount", Number(val))}
                   align="right"
                   className="font-mono"
+                  disabled={disabled}
                 />
               </Cell>
               <Cell align="right" className="font-mono font-medium px-2">
                 {calcLineItemAmount(item).total.toLocaleString()}
               </Cell>
               <Cell align="center" last>
-                <DeleteIconButton
-                  onClick={() => onRemove(item.id)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity"
-                />
+                {disabled ? null : (
+                  <DeleteIconButton
+                    onClick={() => onRemove(item.id)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  />
+                )}
               </Cell>
             </div>
           ))}
         </div>
       </ScrollArea>
 
-      <div className="p-2 bg-[#F7F6F3] border-t border-[rgba(55,53,47,0.16)] flex justify-center">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-10 text-sm gap-2 text-muted-foreground hover:text-primary"
-          onClick={onOpenSearch || onAddRow}
-        >
-          <PlusCircle className={ICON.action} />
-          {onOpenSearch ? "行を追加（検索）" : "行を追加"}
-        </Button>
-      </div>
+      {/* BUG-051: disabled 時は行追加ボタンを非表示 */}
+      {disabled ? null : (
+        <div className="p-2 bg-[#F7F6F3] border-t border-[rgba(55,53,47,0.16)] flex justify-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-10 text-sm gap-2 text-muted-foreground hover:text-primary"
+            onClick={onOpenSearch || onAddRow}
+          >
+            <PlusCircle className={ICON.action} />
+            {onOpenSearch ? "行を追加（検索）" : "行を追加"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 });
@@ -262,6 +278,7 @@ function TableInput({
   min,
   align = "left",
   className,
+  disabled,
 }: {
   value: string | number;
   onChange: (val: string) => void;
@@ -271,6 +288,7 @@ function TableInput({
   min?: string;
   align?: "left" | "right";
   className?: string;
+  disabled?: boolean;
 }) {
   return (
     <Input
@@ -279,9 +297,11 @@ function TableInput({
       min={min}
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
       className={cn(
         "h-full w-full border-none bg-transparent rounded-none focus-visible:ring-0 px-3 text-sm shadow-none",
         align === "right" && "text-right",
+        disabled && "opacity-60 cursor-not-allowed",
         className
       )}
       placeholder={placeholder}

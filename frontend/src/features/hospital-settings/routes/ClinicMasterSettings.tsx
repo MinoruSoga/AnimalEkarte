@@ -26,6 +26,7 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
+import { NavigationBlocker } from "@/components/shared/NavigationBlocker/NavigationBlocker";
 import {
   useGetClinics,
   useCreateClinic,
@@ -290,6 +291,8 @@ export function ClinicMasterSettings() {
 
   return (
     <>
+      {/* BUG-053: 編集パネルが開いている間はナビゲーションをブロック */}
+      <NavigationBlocker when={isEditing} />
       <div className="flex h-full">
         {/* Left: List */}
         <div className="flex-1 min-w-0">

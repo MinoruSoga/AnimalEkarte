@@ -7,7 +7,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { useSortableData } from "@/hooks/use-sortable-data";
 
 // External
-import { Plus, Syringe, FileSpreadsheet, Calendar, User } from "lucide-react";
+import { Plus, Syringe, FileSpreadsheet, Calendar, User, Pencil, Trash2 } from "lucide-react";
 
 // Internal
 import { paths } from "@/config/paths";
@@ -18,7 +18,8 @@ import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
-import { RowActionButton } from "@/components/shared/RowActionButton";
+import { RowActionDropdown } from "@/components/shared/RowActionDropdown/RowActionDropdown";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { usePagination } from "@/hooks/use-pagination";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
@@ -26,6 +27,7 @@ import { FilteringIndicator } from "@/components/shared/FilteringIndicator/Filte
 
 // Relative
 import { useFilterVaccinations } from "../hooks/use-vaccinations";
+import { useDeleteVaccination } from "../api/delete-vaccination";
 import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Types
@@ -59,8 +61,10 @@ const VACCINATION_SORT_PROPERTIES: SortProperty[] = [
 export function VaccinationList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { canCreate, canEdit } = usePermission("vaccinations");
+  const { canCreate, canEdit, canDelete } = usePermission("vaccinations");
   const [searchTerm, setSearchTerm] = useState("");
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const deleteMutation = useDeleteVaccination();
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearchTerm = useDeferredValue(searchTerm);
   const isFiltering = searchTerm !== deferredSearchTerm;
@@ -133,6 +137,13 @@ export function VaccinationList() {
     navigate(`/vaccinations/${id}`);
   }, [navigate]);
 
+  const handleDeleteConfirm = useCallback(() => {
+    if (!pendingDeleteId) return;
+    deleteMutation.mutate(pendingDeleteId, {
+      onSuccess: () => setPendingDeleteId(null),
+    });
+  }, [pendingDeleteId, deleteMutation]);
+
   const columns = useMemo(() => [
     {
       header: (
@@ -185,20 +196,28 @@ export function VaccinationList() {
   ], [directionFor, toggleSort]);
 
   // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
-  const renderRow = useCallback((r: VaccinationRecord) => (
-    <DataTableRow key={r.id} onClick={() => handleEdit(r.id)}>
-      <TableCell className="font-mono text-base text-[#37352F] py-2">{r.date}</TableCell>
-      <TableCell className="text-base text-[#37352F] py-2">{r.ownerName}</TableCell>
-      <TableCell className="text-base text-[#37352F] py-2">{r.petName}</TableCell>
-      <TableCell className="text-base font-medium text-[#37352F] py-2">{r.vaccineName}</TableCell>
-      <TableCell className="font-mono text-base text-[#37352F] py-2">{r.nextDate}</TableCell>
-      <TableCell className="text-right py-2">
-        {canEdit ? <RowActionButton onClick={() => handleEdit(r.id)} /> : null}
-      </TableCell>
-    </DataTableRow>
-  ), [handleEdit, canEdit]);
+  const renderRow = useCallback((r: VaccinationRecord) => {
+    const actions = [
+      ...(canEdit ? [{ label: "編集", icon: Pencil, onClick: () => handleEdit(r.id) }] : []),
+      ...(canDelete ? [{ label: "削除", icon: Trash2, onClick: () => setPendingDeleteId(r.id), variant: "destructive" as const }] : []),
+    ];
+    return (
+      <DataTableRow key={r.id} onClick={() => handleEdit(r.id)}>
+        <TableCell className="font-mono text-base text-[#37352F] py-2">{r.date}</TableCell>
+        <TableCell className="text-base text-[#37352F] py-2">{r.ownerName}</TableCell>
+        <TableCell className="text-base text-[#37352F] py-2">{r.petName}</TableCell>
+        <TableCell className="text-base font-medium text-[#37352F] py-2">{r.vaccineName}</TableCell>
+        <TableCell className="font-mono text-base text-[#37352F] py-2">{r.nextDate}</TableCell>
+        <TableCell className="text-right py-2">
+          {/* BUG-089: 行操作ドロップダウン（編集・削除） */}
+          {actions.length > 0 ? <RowActionDropdown actions={actions} /> : null}
+        </TableCell>
+      </DataTableRow>
+    );
+  }, [handleEdit, canEdit, canDelete]);
 
   return (
+    <>
     <PageLayout
       title="予防接種管理"
       icon={<Syringe className={`${ICON.page} text-[#37352F]`} />}
@@ -255,5 +274,17 @@ export function VaccinationList() {
         ) : null}
       </div>
     </PageLayout>
+
+    {/* BUG-089: 削除確認ダイアログ */}
+    <ConfirmDialog
+      open={pendingDeleteId !== null}
+      onClose={() => setPendingDeleteId(null)}
+      title="予防接種記録を削除しますか？"
+      description="この操作は取り消せません。"
+      confirmLabel="削除"
+      variant="destructive"
+      onConfirm={handleDeleteConfirm}
+    />
+    </>
   );
 }

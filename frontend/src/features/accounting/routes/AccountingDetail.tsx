@@ -60,6 +60,7 @@ import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSele
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import { queryKeys } from "@/lib/query-keys";
 import { handleApiError } from "@/lib/handle-api-error";
+import { calculateBillingTotals } from "@/lib/calculations";
 // bundle-dynamic-imports: 191行のコンポーネントを遅延ロード
 const AccountingDocument = lazy(() =>
   import("../components/AccountingDocument").then((m) => ({ default: m.AccountingDocument }))
@@ -721,38 +722,33 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
   const [receivedAmount, setReceivedAmount] = useState(() => baseAccounting?.payment?.receivedAmount?.toString() ?? "");
   const [paymentMethod, setPaymentMethod] = useState(() => baseAccounting?.payment?.method ?? "cash");
 
-  // 金額計算（useActionState の前に配置：callback 内で参照するため）
+  // 金額計算
   const calculation = useMemo(() => {
     if (!accounting) return null;
 
-    let subtotal = 0;
-    let taxTotal = 0;
+    // 1. 保険適用対象の抽出
+    const insuranceTargetTotal = accounting.items
+      .filter((item) => item.isInsuranceApplicable)
+      .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
-    for (const item of accounting.items) {
-      subtotal += item.subtotal;
-      taxTotal += item.taxAmount;
-    }
+    // 2. 共通ユーティリティによる基本計算
+    const billingResult = calculateBillingTotals(accounting.items, 0, 0);
 
-    const totalAmount = subtotal + taxTotal;
-
+    // 3. 保険負担額の計算（負数として返却）
     let insuranceAmount = 0;
     if (hasInsurance) {
-      const insuranceTargetTotal = accounting.items
-        .filter((item) => item.isInsuranceApplicable)
-        .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-
       const ratio = parseFloat(insuranceRatio);
       insuranceAmount = Math.floor(insuranceTargetTotal * ratio) * -1;
     }
 
-    const billingAmount = totalAmount + insuranceAmount;
+    const billingAmount = Math.max(0, billingResult.total + insuranceAmount);
     const received = parseInt(receivedAmount || "0", 10);
     const changeAmount = received > billingAmount ? received - billingAmount : 0;
 
     return {
-      subtotal,
-      taxTotal,
-      totalAmount,
+      subtotal: billingResult.subtotal,
+      taxTotal: billingResult.tax,
+      totalAmount: billingResult.total,
       insuranceAmount,
       billingAmount,
       received,
@@ -904,14 +900,9 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
             is_insurance_applicable: false,
             source: "manual",
           });
-          // サーバーの最新データを取得してからローカル状態をリセット。
-          // invalidateQueries だと再取得完了前に setLocalItems(null) が走り、
-          // displayItems が古い baseAccounting.items にフォールバックして物販が消える。
-          // refetchQueries で await することで「取得完了後にリセット」を保証する。
           await queryClient.refetchQueries({ queryKey: queryKeys.accountings.detail(id) });
           setLocalItems(null);
         } catch (error) {
-          // 失敗時はローカル追加をロールバック
           setLocalItems((prev) => (prev ?? []).filter((i) => i.id !== tempId));
           handleApiError(error, "明細の追加");
         }

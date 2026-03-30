@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { Search, ListFilter } from "lucide-react";
+import { Search, ListFilter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { STYLE, ICON } from "@/lib/design-tokens";
 import { FilterRuleRow } from "./FilterRuleRow";
@@ -92,9 +92,15 @@ export function NotionFilter({
     [activeSorts, onSortChange],
   );
 
+  // BUG-091: 検索バーを閉じる際に searchTerm もクリアして全件表示に戻す
   const handleSearchToggle = useCallback(() => {
-    setSearchOpen((prev) => !prev);
-  }, []);
+    setSearchOpen((prev) => {
+      if (prev && onSearchChange) {
+        onSearchChange("");
+      }
+      return !prev;
+    });
+  }, [onSearchChange]);
 
   const hasSortProps = sortProperties && activeSorts && onSortChange;
   const hasActiveSorts = activeSorts && activeSorts.length > 0;
@@ -181,6 +187,17 @@ export function NotionFilter({
             className={STYLE.searchInput}
             autoFocus
           />
+          {/* BUG-091: 検索クリアボタン - searchTerm が空でないときのみ表示 */}
+          {searchTerm ? (
+            <button
+              type="button"
+              onClick={() => onSearchChange("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-sm text-[#37352F]/40 hover:text-[#37352F]/80 hover:bg-[#F1F1EF] transition-colors"
+              aria-label="検索をクリア"
+            >
+              <X className="size-3.5" />
+            </button>
+          ) : null}
         </div>
       ) : null}
 

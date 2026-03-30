@@ -13,6 +13,8 @@ interface TreatmentDetailedSummaryProps {
   onUpdateDiscountRate?: (value: number) => void;
   onUpdateDiscountAmount: (value: number) => void;
   isDiscountRateReadonly?: boolean;
+  /** BUG-051: 確認済み等で全入力を無効化する */
+  disabled?: boolean;
 }
 
 export const TreatmentDetailedSummary = React.memo(function TreatmentDetailedSummary({
@@ -24,6 +26,7 @@ export const TreatmentDetailedSummary = React.memo(function TreatmentDetailedSum
   onUpdateDiscountRate,
   onUpdateDiscountAmount,
   isDiscountRateReadonly = false,
+  disabled = false,
 }: TreatmentDetailedSummaryProps) {
   return (
     <div className="grid grid-cols-2 gap-0 mt-2 border border-[rgba(55,53,47,0.16)] rounded-lg bg-white text-sm overflow-hidden mb-8 shadow-sm">
@@ -68,6 +71,7 @@ export const TreatmentDetailedSummary = React.memo(function TreatmentDetailedSum
                   onChange={(v) => onUpdateDiscountRate?.(Number(v))}
                   suffix="%"
                   align="right"
+                  disabled={disabled}
                 />
               </>
             )}
@@ -80,6 +84,7 @@ export const TreatmentDetailedSummary = React.memo(function TreatmentDetailedSum
               onChange={(v) => onUpdateDiscountAmount(Number(v))}
               suffix="円"
               align="right"
+              disabled={disabled}
             />
           </div>
           <div className="p-2 text-right text-[#37352F] border-r border-[rgba(55,53,47,0.16)] h-full flex items-center justify-end font-mono font-medium">

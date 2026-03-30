@@ -83,6 +83,9 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
 
+  // BUG-MEDI-005: タブ切替時にスクロール位置をトップにリセットするための ref
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   // activeTab を保存時に正確に参照するための ref
   const activeTabRef = useRef(activeTab);
   useEffect(() => {
@@ -157,6 +160,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   ];
 
   // タブ切り替え: 一度開いたタブはhide/showで状態を維持する
+  // BUG-MEDI-005: タブ切替時にスクロール位置をトップにリセット
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
     setMountedTabs((prev) => {
@@ -165,6 +169,9 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       next.add(tab);
       return next;
     });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
   }, [setActiveTab]);
 
   const handleSetChiefComplaint = useCallback((val: string) => {
@@ -242,6 +249,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       title={recordId ? "カルテ編集" : "カルテ入力"}
       onBack={handleBack}
       maxWidth="max-w-[1440px]"
+      scrollContainerRef={scrollContainerRef}
     >
       <NavigationBlocker when={isDirty} />
       {/* Sticky Header: Patient Info + Tabs */}
@@ -254,6 +262,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           weight={selectedPet.weight || "-"}
           status={selectedPet.status === "deceased" ? "deceased" : "alive"}
           staffName={staffName}
+          staffLabel="担当医: "
           serviceType={visitType}
           serviceTypeLabel="来院種別"
           onServiceTypeClick={() => {
