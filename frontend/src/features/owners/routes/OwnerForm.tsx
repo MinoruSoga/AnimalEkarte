@@ -48,6 +48,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import { useTitle } from "@/hooks/use-title";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
@@ -479,6 +480,8 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
     fieldErrors,
     clearFieldError,
   } = useOwnerForm(ownerId, initialOwner, petMutations);
+
+  useTitle(isEdit ? `飼主編集 (${ownerData.ownerName})` : "飼主登録");
 
   // React 19 Action の成功を検知して遷移
   // BUG-065: 新規登録後は詳細ページへリダイレクト

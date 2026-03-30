@@ -92,3 +92,17 @@ func (r *inventoryRepository) Delete(ctx context.Context, clinicID, id uint64) e
 	}
 	return nil
 }
+
+func (r *inventoryRepository) DecreaseStock(ctx context.Context, id uint64, quantity float64) error {
+	result := r.db.WithContext(ctx).
+		Model(&model.InventoryItem{}).
+		Where("id = ?", id).
+		UpdateColumn("quantity", gorm.Expr("quantity - ?", int(quantity)))
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "inventory_item", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("inventory_item", fmt.Sprintf("%d", id))
+	}
+	return nil
+}

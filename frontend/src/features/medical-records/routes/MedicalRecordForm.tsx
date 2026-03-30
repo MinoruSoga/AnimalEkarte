@@ -35,6 +35,7 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { usePermission } from "@/features/auth/hooks/use-permission";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import { useTitle } from "@/hooks/use-title";
 
 export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { id: recordId } = useParams();
@@ -75,9 +76,12 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setVisitType,
     handleChangeDoctor,
     handleChangeOwner,
-  } = useMedicalRecordForm(recordId);
+    } = useMedicalRecordForm();
 
-  const { isDirty, markDirty, markClean } = useUnsavedChanges();
+    useTitle(recordId ? `カルテ編集 (#${recordId})` : "カルテ入力");
+
+    const { isDirty, markDirty, markClean } = useUnsavedChanges();
+
 
   // activeTab を保存時に正確に参照するための ref
   const activeTabRef = useRef(activeTab);
