@@ -1,51 +1,48 @@
-import { useState, useCallback, useTransition } from "react";
+import { useActionState } from "react";
 import { Link } from "react-router";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import { C } from "@/lib/design-tokens";
+import { handleApiError } from "@/lib/handle-api-error";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { forgotPassword } from "../api/forgot-password";
 
 const INPUT_BASE = `w-full h-[48px] text-base rounded-[3px] ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 focus:ring-[#038B94] focus:border-transparent disabled:opacity-60`;
 
+type ForgotPasswordState =
+  | { status: "idle"; error: null }
+  | { status: "sent" }
+  | { status: "error"; error: string };
+
+const INITIAL_STATE: ForgotPasswordState = { status: "idle", error: null };
+
 export function ForgotPasswordPage() {
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
-  const [isPending, startTransition] = useTransition();
-
-  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
-    setError(null);
-  }, []);
-
-  const handleSubmit = useCallback(
-    (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-
-      const form = e.currentTarget;
-      const emailValue = (form.elements.namedItem("forgot-email") as HTMLInputElement).value.trim();
-
-      if (!emailValue) {
-        setError("メールアドレスを入力してください");
-        return;
+  const [state, formAction] = useActionState(
+    async (
+      _prev: ForgotPasswordState,
+      formData: FormData,
+    ): Promise<ForgotPasswordState> => {
+      const email = (formData.get("forgot-email") as string).trim();
+      if (!email) {
+        return { status: "error", error: "メールアドレスを入力してください" };
       }
 
-      startTransition(async () => {
-        try {
-          await forgotPassword({ email: emailValue });
-          setSent(true);
-        } catch {
-          // セキュリティ上、存在しないアドレスでも成功として扱う
-          setSent(true);
-        }
-      });
+      try {
+        await forgotPassword({ email });
+        // セキュリティ上、アドレス不存在でも成功として扱う
+        return { status: "sent" };
+      } catch (err) {
+        handleApiError(err, "パスワードリセットメール送信");
+        return { status: "sent" };
+      }
     },
-    [],
+    INITIAL_STATE,
   );
 
+  const errorMessage = state.status === "error" ? state.error : null;
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F1F0EE] p-4">
+    <div className={`min-h-screen flex items-center justify-center ${C.bgPage} p-4`}>
       <div className="w-full max-w-[380px] mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -60,9 +57,9 @@ export function ForgotPasswordPage() {
           </p>
         </div>
 
-        {sent ? (
+        {state.status === "sent" ? (
           <div className="space-y-4">
-            <div className={`rounded-[3px] p-4 bg-[#038B94]/10 border border-[#038B94]/20`}>
+            <div className={`rounded-[3px] p-4 ${C.bgStatusGreen} border ${C.borderStatusGreen}`}>
               <p className={`text-sm ${C.text}`}>
                 パスワードリセットのリンクをメールに送信しました。メールをご確認ください。
               </p>
@@ -75,29 +72,27 @@ export function ForgotPasswordPage() {
             </Link>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          <form action={formAction} noValidate className="space-y-4">
             <div className="space-y-1.5">
               <label htmlFor="forgot-email" className={`text-sm block ${C.text65}`}>
                 メールアドレス
               </label>
               <input
                 id="forgot-email"
+                name="forgot-email"
                 type="email"
                 autoComplete="email"
-                value={email}
-                onChange={handleEmailChange}
                 placeholder="例: user@example.com"
                 className={`${INPUT_BASE} px-2.5`}
-                aria-invalid={error !== null}
-                aria-describedby={error ? "forgot-error" : undefined}
-                disabled={isPending}
+                aria-invalid={errorMessage !== null}
+                aria-describedby={errorMessage ? "forgot-error" : undefined}
               />
             </div>
 
-            <FormFieldError id="forgot-error" message={error} />
+            <FormFieldError id="forgot-error" message={errorMessage} />
 
             <SubmitButton
-              className="w-full h-[52px] text-base font-medium rounded-[3px] bg-[#038B94] hover:bg-[#027A82] transition-colors text-white"
+              className={`w-full h-[52px] text-base font-medium rounded-[3px] ${C.bgBrand} hover:opacity-90 transition-opacity text-white`}
               loadingText="送信中..."
             >
               リセットリンクを送信
