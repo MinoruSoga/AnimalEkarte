@@ -57,6 +57,19 @@ globs: ["**/*.{ts,tsx,js,jsx,go}"]
 4. Feature-internal imports (同一feature内のみ)
 5. Type imports (`type` keyword付き)
 
+### Styling & Design Tokens
+- **MANDATORY**: すべてのスタイリング（Tailwind 4, Inline styles）で `src/lib/design-tokens.ts` の定数 (`C`, `STYLE`) を使用する。
+- **PROHIBITED**: Hexカラー（`#37352F` など）の直接指定は厳禁。
+
+```typescript
+// ✅ 正しい
+import { C, STYLE } from '@/lib/design-tokens';
+<div className={cn(STYLE.FLEX_CENTER, "p-4")} style={{ color: C.TEXT_MAIN }}>
+
+// ❌ 禁止
+<div className="flex items-center justify-center p-4" style={{ color: '#37352F' }}>
+```
+
 ### React 19 Patterns
 - コンポーネントは関数宣言で定義（`FC`型は使わない）
 - `ref`は通常のpropとして渡す（`forwardRef`は不要）
@@ -71,10 +84,10 @@ globs: ["**/*.{ts,tsx,js,jsx,go}"]
 - Hardcoded values (use env vars or constants)
 - `FC` / `React.FC` type annotation
 - `forwardRef` wrapper（React 19ではref as prop）
-- Cross-feature imports（feature間の直接import）
+- Cross-feature imports（feature間の直接import。app層で合成すること）
 - `export *` wildcard re-exports（tree-shaking阻害）
 - `&&` for conditional rendering（use `? (...) : null` instead）
-- Barrel index imports（import directly from source files）
+- **Deep imports from features**: `@/features/xxx/components/YYY` などの深掘り import は禁止。必ず feature の `index.ts` (Feature Indexing) を経由すること。
 
 ### Performance Rules（Vercel React Best Practices）
 
@@ -91,6 +104,6 @@ globs: ["**/*.{ts,tsx,js,jsx,go}"]
 | `rendering-hoist-jsx` | コンポーネント外の静的 JSX（Select 選択肢など）はモジュール定数に巻き上げ |
 | `rendering-conditional-render` | 条件付きレンダリングは必ず `condition ? <X /> : null`（`&&` 禁止） |
 | `bundle-dynamic-imports` | 重いモーダル・ダイアログは `lazy()` + `Suspense` で遅延ロード |
-| `bundle-barrel-imports` | feature api/utils は barrel index 経由でなく直接ファイルから import |
+| `bundle-feature-indexing` | 外部からの利用は Feature の `index.ts` を経由すること |
 | `async-parallel` | loader 内の独立フェッチは `Promise.all` / `Promise.allSettled` で並列実行 |
 | `js-cache-function-results` | API 由来の JSX リスト生成は `useMemo([list])` でキャッシュ |

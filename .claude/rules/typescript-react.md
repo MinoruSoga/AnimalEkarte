@@ -54,35 +54,54 @@ export const OwnerCard: FC<Props> = () => {};
 export const OwnerCard = forwardRef(({ owner }, ref) => <div ref={ref} />);
 ```
 
-### 3. React 19 hooks パターン
+### 3. React 19 hooks パターン（Actions）
+
+データ更新（Mutation）は **React 19 Action** パターンを標準とする。
 
 ```typescript
-// ★ useTransition: 複雑フォーム pending 管理（プロジェクト標準）
-const [isSavePending, startSaveTransition] = useTransition();
+// ✅ MANDATE: useActionState + <form action>
+const [state, formAction, isPending] = useActionState(async (prevState, formData) => {
+  try {
+    const result = await updateOwner(id, formData);
+    return { success: true, data: result };
+  } catch (error) {
+    handleApiError(error, "更新");
+    return { success: false, error };
+  }
+}, null);
 
-const handleSave = () => {
-  startSaveTransition(async () => {
-    await saveOwner(formData);
-  });
+return (
+  <form action={formAction}>
+    <Input name="name" defaultValue={owner.name} />
+    {/* ✅ MANDATE: すべてのフォームで SubmitButton を使用 */}
+    <SubmitButton>保存</SubmitButton>
+  </form>
+);
+
+// ❌ 禁止: useState + onSubmit での手動ローディング管理
+const [isLoading, setIsLoading] = useState(false);
+const handleSubmit = async (e) => {
+  setIsLoading(true); // 禁止
+  await api();
+  setIsLoading(false);
 };
-
-// useActionState: シンプルな非制御フォーム（FormData使用時のみ）
-const [state, formAction, isPending] = useActionState(submitAction, null);
-
-// useOptimistic: 楽観的UI更新
-const [optimisticOwners, addOptimisticOwner] = useOptimistic(owners, (state, newOwner) => [
-  ...state,
-  newOwner,
-]);
-
-// use(): Promise/Context直接読み取り
-const ownerData = use(ownerPromise);
-
-// useFormStatus: フォーム子コンポーネント内
-const { pending } = useFormStatus();
 ```
 
-### 4. 命名規則
+### 4. デザイントークン（デザインシステム）
+
+スタイリングには必ず `src/lib/design-tokens.ts` の定数を使用する。
+
+```typescript
+import { C, STYLE } from '@/lib/design-tokens';
+
+// ✅ 正しい: トークンを使用
+<div className={cn(STYLE.FLEX_BETWEEN, "p-4")} style={{ color: C.TEXT_MAIN }}>
+
+// ❌ 禁止: Hexカラーの直接指定
+<div style={{ color: '#37352F' }}>
+```
+
+### 5. 命名規則
 
 ```typescript
 // コンポーネント: PascalCase
@@ -118,7 +137,7 @@ interface Owner {}
 type OwnerStatus = 'active' | 'inactive';
 ```
 
-### 5. 条件レンダー（`&&` 禁止）
+### 6. 条件レンダー（`&&` 禁止）
 
 ```typescript
 // ❌ 禁止: &&（0や空文字が漏れる）
@@ -130,30 +149,29 @@ type OwnerStatus = 'active' | 'inactive';
 {items.length > 0 ? <List items={items} /> : null}
 ```
 
-### 6. import順序・barrel index禁止
+### 7. import順序・Feature Indexing推奨
+
+外部モジュールから feature を利用する場合、必ず `index.ts` を経由する。
 
 ```typescript
-// ❌ 禁止: barrel index経由import
-import { OwnerCard } from '@/features/owners';
-import { usePets } from '@/features/pets';
+// ✅ 正しい: Feature Indexing 経由（推奨）
+import { OwnerCard, useOwners } from '@/features/owners';
 
-// ✅ 正しい: 直接ファイル import（tree-shaking優先）
+// ❌ 禁止: Feature 内部ファイルへの深掘り import
 import { OwnerCard } from '@/features/owners/components/OwnerCard';
-import { usePets } from '@/features/pets/hooks/use-pets';
-import { Owner } from '@/types';
-import { cn } from '@/lib/utils';
+import { useOwners } from '@/features/owners/hooks/use-owners';
 
-// Import順序: React → 外部lib → 内部modules → types → styles
+// Import順序: React → 外部lib → 内部共通 (@/) → Feature-internal → styles
 import { useState } from 'react';
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { getOwners } from '../api/get-owners';
+import { C } from '@/lib/design-tokens';
+import { getOwners } from '../api/get-owners'; // 同一feature内
 import type { Owner } from '@/types';
-import styles from './owner-card.module.css';
 ```
 
-### 7. フォーム管理パターン
+### 8. フォーム管理パターン
 
 ```typescript
 // useCallback でハンドラ安定化（memo の前提条件）
@@ -174,7 +192,7 @@ const filteredOwners = useMemo(
 );
 ```
 
-### 8. memo() で最適化
+### 9. memo() で最適化
 
 ```typescript
 // ✅ 大型フォームをセクションに分割
@@ -204,8 +222,10 @@ const OwnerInfoSection = memo(function OwnerInfoSection({ data, onChange }: Prop
 - [ ] Hook = camelCase
 - [ ] 関数 = camelCase
 - [ ] 定数 = UPPER_SNAKE_CASE
+- [ ] スタイリング = デザイントークン（`C`, `STYLE`）使用。Hexカラー禁止。
 - [ ] 条件レンダー = 三項演算子（`&&` 禁止）
-- [ ] import は直接ファイル（barrel禁止）
+- [ ] 外部からの Feature 利用 = `index.ts` 経由（Feature Indexing）
+- [ ] フォーム = `useActionState` + `SubmitButton` 使用
 - [ ] useCallback でハンドラ安定化
 - [ ] 複雑フォーム = useTransition（useState + setIsPending 禁止）
 - [ ] 検索フィルタ = useDeferredValue
