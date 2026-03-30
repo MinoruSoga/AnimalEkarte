@@ -124,6 +124,10 @@ const ItemListCard = memo(function ItemListCard({
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [merchandiseSearch, setMerchandiseSearch] = useState("");
   const deferredMerchandiseSearch = useDeferredValue(merchandiseSearch);
+  // BUG-088: 手動入力モード
+  const [addMode, setAddMode] = useState<"master" | "manual">("master");
+  const [manualName, setManualName] = useState("");
+  const [manualPrice, setManualPrice] = useState("");
 
   // マスタデータ取得
   const { data: merchandiseItems = [] } = useGetAllMerchandiseItems();
@@ -161,65 +165,136 @@ const ItemListCard = memo(function ItemListCard({
           <DialogContent className="sm:max-w-lg max-h-[70vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>物販・その他追加</DialogTitle>
-              <DialogDescription>マスタから品目を選択してください。</DialogDescription>
+              <DialogDescription>マスタから選択するか、手動入力で追加できます。</DialogDescription>
             </DialogHeader>
-            <div className="flex items-center gap-2 py-2">
-              <Input
-                autoFocus
-                value={merchandiseSearch}
-                onChange={(e) => setMerchandiseSearch(e.target.value)}
-                placeholder="品目名で検索..."
-                className="flex-1 h-9"
-              />
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-[120px] h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MERCHANDISE_CATEGORY_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* BUG-088: モード切替タブ */}
+            <div className="flex gap-0 border-b">
+              <button
+                type="button"
+                onClick={() => setAddMode("master")}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  addMode === "master"
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                マスタから選択
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddMode("manual")}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  addMode === "manual"
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                手動入力
+              </button>
             </div>
-            <div className="flex-1 overflow-auto min-h-[200px] border rounded-md">
-              {filteredMerchandise.length > 0 ? (
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50 text-xs">
-                      <th className="px-3 py-2 text-left font-medium">品目名</th>
-                      <th className="px-3 py-2 text-left font-medium w-[70px]">区分</th>
-                      <th className="px-3 py-2 text-right font-medium w-[90px]">単価</th>
-                      <th className="px-3 py-2 text-right font-medium w-[60px]">税率</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredMerchandise.map((item) => (
-                      <tr
-                        key={item.id}
-                        onClick={() => handleSelectMerchandise(item)}
-                        className="border-b cursor-pointer hover:bg-muted/30 transition-colors"
-                      >
-                        <td className="px-3 py-2 text-sm font-medium">{item.name}</td>
-                        <td className="px-3 py-2 text-sm text-muted-foreground">
-                          {CATEGORY_LABELS[item.category as ItemCategory] ?? item.category}
-                        </td>
-                        <td className="px-3 py-2 text-sm text-right font-mono">
-                          ¥{item.unitPrice.toLocaleString()}
-                        </td>
-                        <td className="px-3 py-2 text-sm text-right text-muted-foreground">
-                          {item.taxRate === 0.1 ? "10%" : item.taxRate === 0.08 ? "8%" : `${item.taxRate * 100}%`}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="flex items-center justify-center h-full text-sm text-muted-foreground py-8">
-                  該当する品目がありません
+
+            {addMode === "master" ? (
+              <>
+                <div className="flex items-center gap-2 py-2">
+                  <Input
+                    autoFocus
+                    value={merchandiseSearch}
+                    onChange={(e) => setMerchandiseSearch(e.target.value)}
+                    placeholder="品目名で検索..."
+                    className="flex-1 h-9"
+                  />
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="w-[120px] h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MERCHANDISE_CATEGORY_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
-            </div>
+                <div className="flex-1 overflow-auto min-h-[200px] border rounded-md">
+                  {filteredMerchandise.length > 0 ? (
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b bg-muted/50 text-xs">
+                          <th className="px-3 py-2 text-left font-medium">品目名</th>
+                          <th className="px-3 py-2 text-left font-medium w-[70px]">区分</th>
+                          <th className="px-3 py-2 text-right font-medium w-[90px]">単価</th>
+                          <th className="px-3 py-2 text-right font-medium w-[60px]">税率</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredMerchandise.map((item) => (
+                          <tr
+                            key={item.id}
+                            onClick={() => handleSelectMerchandise(item)}
+                            className="border-b cursor-pointer hover:bg-muted/30 transition-colors"
+                          >
+                            <td className="px-3 py-2 text-sm font-medium">{item.name}</td>
+                            <td className="px-3 py-2 text-sm text-muted-foreground">
+                              {CATEGORY_LABELS[item.category as ItemCategory] ?? item.category}
+                            </td>
+                            <td className="px-3 py-2 text-sm text-right font-mono">
+                              ¥{item.unitPrice.toLocaleString()}
+                            </td>
+                            <td className="px-3 py-2 text-sm text-right text-muted-foreground">
+                              {item.taxRate === 0.1 ? "10%" : item.taxRate === 0.08 ? "8%" : `${item.taxRate * 100}%`}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-sm text-muted-foreground py-8">
+                      該当する品目がありません
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              /* 手動入力フォーム */
+              <div className="flex flex-col gap-4 py-4">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="manual-name" className="text-sm">品目名 <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="manual-name"
+                    autoFocus
+                    value={manualName}
+                    onChange={(e) => setManualName(e.target.value)}
+                    placeholder="例: 診察料（その他）"
+                    className="h-9"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="manual-price" className="text-sm">単価（円）<span className="text-red-500">*</span></Label>
+                  <Input
+                    id="manual-price"
+                    type="number"
+                    min={0}
+                    value={manualPrice}
+                    onChange={(e) => setManualPrice(e.target.value)}
+                    placeholder="例: 3000"
+                    className="h-9"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  className="w-full"
+                  disabled={!manualName.trim() || !manualPrice}
+                  onClick={() => {
+                    if (!manualName.trim() || !manualPrice) return;
+                    onAddItem(manualName.trim(), manualPrice, "other");
+                    setManualName("");
+                    setManualPrice("");
+                    onNewItemOpenChange(false);
+                  }}
+                >
+                  追加する
+                </Button>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </CardHeader>

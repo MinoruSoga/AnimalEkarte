@@ -41,6 +41,28 @@ const OwnerSearchModal = lazy(() =>
 const LABEL_CLS = `text-sm ${C.text60}`;
 const INPUT_CLS = STYLE.formInput;
 
+// BUG-100: 動物種別ごとの品種サジェスト（ハードコード）
+// 動物種別名（animalSpeciesList から取得した name）をキーとする
+const BREED_SUGGESTIONS: Record<string, string[]> = {
+  "犬": [
+    "柴犬", "トイプードル", "チワワ", "ダックスフンド", "フレンチブルドッグ",
+    "ゴールデンレトリバー", "ラブラドールレトリバー", "ポメラニアン", "ビーグル",
+    "シバイヌ(赤)", "シバイヌ(黒)", "ミニチュアシュナウザー", "マルチーズ",
+    "ヨークシャーテリア", "シーズー", "ボーダーコリー", "コーギー", "ハスキー",
+    "サモエド", "柴ミックス", "雑種",
+  ],
+  "猫": [
+    "アメリカンショートヘア", "スコティッシュフォールド", "ロシアンブルー",
+    "メインクーン", "ペルシャ", "ノルウェージャンフォレストキャット", "ラグドール",
+    "ベンガル", "マンチカン", "ヒマラヤン", "アビシニアン", "バーマン",
+    "ブリティッシュショートヘア", "日本猫", "雑種",
+  ],
+  "鳥": ["セキセイインコ", "オカメインコ", "コザクラインコ", "文鳥", "カナリア", "その他"],
+  "ウサギ": ["ネザーランドドワーフ", "ホーランドロップ", "ミニレッキス", "その他"],
+  "ハムスター": ["ゴールデンハムスター", "ジャンガリアン", "キャンベル", "その他"],
+  "フェレット": ["フェレット"],
+};
+
 // rendering-hoist-jsx: 静的 SelectItem リストはコンポーネント外に定数として定義し
 // キー入力のたびに JSX ノードを再生成するコストを排除する
 const GENDER_SELECT_ITEMS = PET_GENDER_VALUES.map((g) => (
@@ -169,6 +191,8 @@ export function PetEditModal({
       ...prev,
       animalSpeciesId: value,
       species: selected?.name ?? prev.species,
+      // BUG-100: 種別変更時に品種をリセット
+      breed: "",
     }));
     clearFieldError("animalSpeciesId");
   }, [animalSpeciesList, clearFieldError]);
@@ -379,14 +403,24 @@ export function PetEditModal({
               <Label htmlFor="breed" className={LABEL_CLS}>
                 BREED
               </Label>
+              {/* BUG-100: 種別に応じたサジェスト付き datalist + 自由テキスト */}
               <Input
                 id="breed"
+                list={BREED_SUGGESTIONS[formData.species] ? "breed-suggestions" : undefined}
                 value={formData.breed || ""}
                 onChange={(e) =>
                   setFormData(prev => ({ ...prev, breed: e.target.value }))
                 }
+                placeholder={BREED_SUGGESTIONS[formData.species] ? "品種を選択または入力..." : undefined}
                 className={INPUT_CLS}
               />
+              {BREED_SUGGESTIONS[formData.species] ? (
+                <datalist id="breed-suggestions">
+                  {BREED_SUGGESTIONS[formData.species].map((b) => (
+                    <option key={b} value={b} />
+                  ))}
+                </datalist>
+              ) : null}
             </div>
 
             <div className="space-y-1">
