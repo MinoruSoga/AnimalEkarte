@@ -12,13 +12,14 @@ import (
 )
 
 // verifyMedicalRecordOwnership は clinicID + medicalRecordID の組み合わせを検証し、
-// テナント分離を保証するヘルパー。
-func (h *Handler) verifyMedicalRecordOwnership(c *gin.Context, clinicID, medicalRecordID uint64) bool {
-	if _, err := h.svc.MedicalRecord.GetByID(c.Request.Context(), clinicID, medicalRecordID); err != nil {
+// テナント分離を保証するヘルパー。検証済みの MedicalRecord と成否を返す。
+func (h *Handler) verifyMedicalRecordOwnership(c *gin.Context, clinicID, medicalRecordID uint64) (*model.MedicalRecord, bool) {
+	mr, err := h.svc.MedicalRecord.GetByID(c.Request.Context(), clinicID, medicalRecordID)
+	if err != nil {
 		RespondError(c, err)
-		return false
+		return nil, false
 	}
-	return true
+	return mr, true
 }
 
 // ListRecordImages godoc
@@ -33,7 +34,7 @@ func (h *Handler) ListRecordImages(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
 		return
 	}
-	if !h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID) {
+	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID); !ok {
 		return
 	}
 
@@ -62,7 +63,7 @@ func (h *Handler) CreateRecordImage(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
 		return
 	}
-	if !h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID) {
+	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID); !ok {
 		return
 	}
 
@@ -111,7 +112,7 @@ func (h *Handler) DeleteRecordImage(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
 		return
 	}
-	if !h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID) {
+	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID); !ok {
 		return
 	}
 

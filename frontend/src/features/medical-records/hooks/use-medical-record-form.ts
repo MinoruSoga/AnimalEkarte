@@ -47,6 +47,32 @@ export function useMedicalRecordForm(recordId?: string) {
   const [diagnosis2CategoryId, setDiagnosis2CategoryId] = useState<number | null>(null);
   const [diagnosis2NameId, setDiagnosis2NameId] = useState<number | null>(null);
 
+  // --- Draft Persistence (Local Storage) ---
+  const DRAFT_KEY = `medical-record-draft-${recordId}`;
+
+  // Load draft on mount
+  useEffect(() => {
+    if (!recordId) return;
+    const saved = localStorage.getItem(DRAFT_KEY);
+    if (saved) {
+      try {
+        const draft = JSON.parse(saved);
+        if (draft.chiefComplaint) setChiefComplaint(draft.chiefComplaint);
+        if (draft.treatmentPolicy) setTreatmentPolicy(draft.treatmentPolicy);
+        if (draft.plan) setPlan(draft.plan);
+        if (draft.assessment) setAssessment(draft.assessment);
+        toast.info("未保存の下書きを復元しました", { duration: 2000 });
+      } catch { /* ignore */ }
+    }
+  }, [recordId, DRAFT_KEY]);
+
+  // Save draft on changes
+  useEffect(() => {
+    if (!recordId) return;
+    const draft = { chiefComplaint, treatmentPolicy, plan, assessment };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  }, [recordId, DRAFT_KEY, chiefComplaint, treatmentPolicy, plan, assessment]);
+
   // 編集モード: カルテからpetIdを取得
   const { data: existingRecord } = useGetMedicalRecord(recordId ?? "");
 
@@ -124,6 +150,7 @@ export function useMedicalRecordForm(recordId?: string) {
             break;
         }
 
+        localStorage.removeItem(DRAFT_KEY);
         toast.success("保存しました");
         return { success: true, timestamp: Date.now() };
       } catch (error) {

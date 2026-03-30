@@ -46,16 +46,16 @@ const (
 )
 
 type ShiftEntry struct {
-	ID        uint64     `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	ClinicID  uint64     `gorm:"not null"                                       json:"clinic_id"`
-	StaffID   uint64     `gorm:"not null"                                       json:"staff_id"`
-	Date      time.Time  `gorm:"type:date;not null"                             json:"date"`
-	ShiftType ShiftType  `gorm:"type:shift_type;not null"                       json:"shift_type"`
-	StartTime *time.Time `gorm:"type:time"                                     json:"start_time,omitempty"`
-	EndTime   *time.Time `gorm:"type:time"                                     json:"end_time,omitempty"`
-	Note      string     `gorm:"default:''"                                     json:"note"`
-	CreatedAt time.Time  `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt time.Time  `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	ID        uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID  uint64    `gorm:"not null"                                       json:"clinic_id"`
+	StaffID   uint64    `gorm:"not null"                                       json:"staff_id"`
+	Date      time.Time `gorm:"type:date;not null"                             json:"date"`
+	ShiftType ShiftType `gorm:"type:shift_type;not null"                       json:"shift_type"`
+	StartTime *string   `gorm:"type:time"                                     json:"start_time,omitempty"`
+	EndTime   *string   `gorm:"type:time"                                     json:"end_time,omitempty"`
+	Note      string    `gorm:"default:''"                                     json:"note"`
+	CreatedAt time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
 	Staff *Staff `gorm:"foreignKey:StaffID" json:"staff,omitempty"`

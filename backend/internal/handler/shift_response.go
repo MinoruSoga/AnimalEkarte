@@ -25,10 +25,10 @@ type shiftResponse struct {
 func toShiftResponse(s *model.ShiftEntry) shiftResponse {
 	var startTime, endTime string
 	if s.StartTime != nil {
-		startTime = s.StartTime.Format("15:04:05")
+		startTime = *s.StartTime
 	}
 	if s.EndTime != nil {
-		endTime = s.EndTime.Format("15:04:05")
+		endTime = *s.EndTime
 	}
 	r := shiftResponse{
 		ID:        strconv.FormatUint(s.ID, 10),

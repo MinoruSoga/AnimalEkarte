@@ -12,6 +12,21 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+// normalizeTimeString は "15:04" または "15:04:05" 形式の時刻文字列を "15:04:05" に正規化する。
+// 不正な形式の場合は nil を返す。
+func normalizeTimeString(s *string) *string {
+	if s == nil || *s == "" {
+		return nil
+	}
+	for _, layout := range []string{"15:04:05", "15:04"} {
+		if t, err := time.Parse(layout, *s); err == nil {
+			normalized := t.Format("15:04:05")
+			return &normalized
+		}
+	}
+	return nil
+}
+
 // CreateShiftEntryInput はシフト作成の入力DTO
 type CreateShiftEntryInput struct {
 	StaffID   uint64
@@ -60,18 +75,6 @@ func (s *shiftEntryService) List(ctx context.Context, clinicID uint64, yearMonth
 	return s.repo.List(ctx, clinicID, filter)
 }
 
-func parseTimeString(s *string) *time.Time {
-	if s == nil || *s == "" {
-		return nil
-	}
-	for _, layout := range []string{"15:04:05", "15:04"} {
-		if t, err := time.Parse(layout, *s); err == nil {
-			return &t
-		}
-	}
-	return nil
-}
-
 // requiresTimeSlot は時刻（start_time/end_time）が必要なシフト種別かどうかを返す。
 // off・paid_leave は時刻不要。
 func requiresTimeSlot(shiftType model.ShiftType) bool {
@@ -84,22 +87,32 @@ func requiresTimeSlot(shiftType model.ShiftType) bool {
 }
 
 // validateShiftTimes は時刻が必要なシフト種別で end_time <= start_time でないかを検証する。
-func validateShiftTimes(shiftType model.ShiftType, startTime, endTime *time.Time) error {
+// startTime/endTime は "15:04:05" 形式の文字列。
+func validateShiftTimes(shiftType model.ShiftType, startTime, endTime *string) error {
 	if !requiresTimeSlot(shiftType) {
 		return nil
 	}
 	if startTime == nil || endTime == nil {
 		return nil
 	}
-	if !endTime.After(*startTime) {
+	const layout = "15:04:05"
+	st, err := time.Parse(layout, *startTime)
+	if err != nil {
+		return nil
+	}
+	et, err := time.Parse(layout, *endTime)
+	if err != nil {
+		return nil
+	}
+	if !et.After(st) {
 		return apperrors.Wrap(apperrors.ErrInvalidInput, "end_time must be after start_time")
 	}
 	return nil
 }
 
 func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *CreateShiftEntryInput) (*model.ShiftEntry, error) {
-	startTime := parseTimeString(input.StartTime)
-	endTime := parseTimeString(input.EndTime)
+	startTime := normalizeTimeString(input.StartTime)
+	endTime := normalizeTimeString(input.EndTime)
 
 	// BUG-028: 時刻バリデーション（off/paid_leave は除外）
 	if err := validateShiftTimes(input.ShiftType, startTime, endTime); err != nil {
@@ -144,10 +157,10 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 	effectiveStart := existing.StartTime
 	effectiveEnd := existing.EndTime
 	if input.StartTime != nil {
-		effectiveStart = parseTimeString(input.StartTime)
+		effectiveStart = normalizeTimeString(input.StartTime)
 	}
 	if input.EndTime != nil {
-		effectiveEnd = parseTimeString(input.EndTime)
+		effectiveEnd = normalizeTimeString(input.EndTime)
 	}
 	if err := validateShiftTimes(effectiveShiftType, effectiveStart, effectiveEnd); err != nil {
 		return nil, err
@@ -174,10 +187,10 @@ func buildShiftEntryUpdateFields(input *UpdateShiftEntryInput) map[string]any {
 		fields["shift_type"] = *input.ShiftType
 	}
 	if input.StartTime != nil {
-		fields["start_time"] = parseTimeString(input.StartTime)
+		fields["start_time"] = normalizeTimeString(input.StartTime)
 	}
 	if input.EndTime != nil {
-		fields["end_time"] = parseTimeString(input.EndTime)
+		fields["end_time"] = normalizeTimeString(input.EndTime)
 	}
 	if input.Note != nil {
 		fields["note"] = *input.Note
