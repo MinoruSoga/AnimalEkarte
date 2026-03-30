@@ -16,18 +16,20 @@ interface MedicalRecordEstimateProps {
   isNewRecord?: boolean;
   ownerDiscountRate?: number;
   medicalRecordId?: string;
+  onRegisterSave?: (fn: () => Promise<void>) => void;
 }
 
 export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
   isNewRecord = false,
   ownerDiscountRate = 0,
   medicalRecordId,
+  onRegisterSave,
 }: MedicalRecordEstimateProps) {
   const [subject, setSubject] = useState("");
   const [comment, setComment] = useState("");
   const [remarks, setRemarks] = useState("");
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
-  const [isSavePending, startSaveTransition] = useTransition();
+  const [, startSaveTransition] = useTransition();
 
   const [items, setItems] = useState<TreatmentItem[]>([]);
 
@@ -92,7 +94,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
     return { subtotal: sub, tax: taxAmount, total: sub + taxAmount };
   }, [items]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async (): Promise<void> => {
     if (!medicalRecordId) {
       toast.error("カルテを保存してから見積書を保存してください");
       return;
@@ -113,17 +115,21 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       medical_record_id: Number(medicalRecordId),
     };
 
-    startSaveTransition(async () => {
-      try {
-        if (existingEstimate) {
-          await updateEstimate.mutateAsync(payload);
-        } else {
-          await createEstimate.mutateAsync(payload);
+    await new Promise<void>((resolve, reject) => {
+      startSaveTransition(async () => {
+        try {
+          if (existingEstimate) {
+            await updateEstimate.mutateAsync(payload);
+          } else {
+            await createEstimate.mutateAsync(payload);
+          }
+          toast.success("見積書を保存しました");
+          resolve();
+        } catch {
+          toast.error("保存に失敗しました");
+          reject(new Error("見積書の保存に失敗しました"));
         }
-        toast.success("見積書を保存しました");
-      } catch {
-        toast.error("保存に失敗しました");
-      }
+      });
     });
   }, [
     medicalRecordId,
@@ -138,6 +144,11 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
     updateEstimate,
     createEstimate,
   ]);
+
+  useEffect(() => {
+    if (!onRegisterSave) return;
+    onRegisterSave(handleSave);
+  }, [onRegisterSave, handleSave]);
 
   const handlePdfExport = useCallback(() => {
     toast.info("PDF出力機能は準備中です");
@@ -198,16 +209,8 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
           variant="outline"
           className="h-10 px-4 text-sm border-[rgba(55,53,47,0.16)] text-[#37352F] hover:bg-[#F7F6F3]"
           onClick={handlePdfExport}
-          disabled={isSavePending}
         >
           PDF出力
-        </Button>
-        <Button
-          className="h-10 px-4 text-sm bg-[#37352F] text-white hover:bg-[#37352F]/90"
-          onClick={handleSave}
-          disabled={isSavePending || isNewRecord}
-        >
-          {isSavePending ? "保存中..." : "保存"}
         </Button>
       </div>
     </div>

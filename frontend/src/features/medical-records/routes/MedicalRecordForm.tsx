@@ -1,5 +1,5 @@
 // React/Framework
-import { lazy, memo, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 
 // External
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 
 // Relative
 import { MedicalRecordInterview } from "../components/MedicalRecordInterview";
@@ -79,13 +79,37 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
+  const clinicalPlanSaveRef = useRef<(() => Promise<void>) | null>(null);
+  const estimateSaveRef = useRef<(() => Promise<void>) | null>(null);
+
+  const handleRegisterClinicalPlanSave = useCallback((fn: () => Promise<void>) => {
+    clinicalPlanSaveRef.current = fn;
+  }, []);
+
+  const handleRegisterEstimateSave = useCallback((fn: () => Promise<void>) => {
+    estimateSaveRef.current = fn;
+  }, []);
+
   // React 19 Action の成功を検知して遷移
   useEffect(() => {
-    if (formState.success) {
+    if (!formState.success) return;
+
+    const doPostSave = async () => {
+      try {
+        await Promise.all([
+          clinicalPlanSaveRef.current ? clinicalPlanSaveRef.current() : Promise.resolve(),
+          estimateSaveRef.current ? estimateSaveRef.current() : Promise.resolve(),
+        ]);
+      } catch {
+        // サブコンポーネントの保存失敗はナビゲーションをブロックしない
+      }
       markClean();
       navigate(location.state?.from ?? paths.medicalRecords.getHref());
-    }
-  }, [formState.success, formState.timestamp, navigate, markClean, location.state]);
+    };
+
+    doPostSave();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formState.success, formState.timestamp]);
 
   const { user } = useAuth();
 
@@ -199,7 +223,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   }
 
   return (
-    <form action={formAction} className="flex-1 min-h-0 flex flex-col h-full">
+    <form action={formAction} className={LAYOUT.fullHeight}>
     <PageLayout
       title={recordId ? "カルテ編集" : "カルテ入力"}
       onBack={handleBack}
@@ -253,9 +277,9 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       </div>
 
       {/* Content Area */}
-      <div className="mt-4 flex-1 min-h-0 flex flex-col">
+      <div className={`mt-4 ${LAYOUT.fullHeight}`}>
         {mountedTabs.has("問診") ? (
-          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === "問診" ? "" : "hidden"}`}>
+          <div className={`${LAYOUT.fullHeight} ${activeTab === "問診" ? "" : "hidden"}`}>
             <MedicalRecordInterview
               chiefComplaint={chiefComplaint}
               setChiefComplaint={handleSetChiefComplaint}
@@ -267,7 +291,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           </div>
         ) : null}
         {mountedTabs.has("診察/治療プラン") ? (
-          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === "診察/治療プラン" ? "" : "hidden"}`}>
+          <div className={`${LAYOUT.fullHeight} ${activeTab === "診察/治療プラン" ? "" : "hidden"}`}>
             <MedicalRecordDiagnosisPlan
               isNewRecord={isNewRecord}
               items={treatmentPlanItems}
@@ -286,11 +310,12 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               setDiagnosis2NameId={handleSetDiagnosis2NameId}
               medicalRecordId={recordId}
               ownerDiscountRate={ownerDiscountRate}
+              onRegisterClinicalPlanSave={handleRegisterClinicalPlanSave}
             />
           </div>
         ) : null}
         {mountedTabs.has("治療") ? (
-          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === "治療" ? "" : "hidden"}`}>
+          <div className={`${LAYOUT.fullHeight} ${activeTab === "治療" ? "" : "hidden"}`}>
             <MedicalRecordTreatment
               medicalRecordId={recordId ?? ""}
               isNewRecord={isNewRecord}
@@ -298,12 +323,12 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           </div>
         ) : null}
         {mountedTabs.has("予防接種") ? (
-          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === "予防接種" ? "" : "hidden"}`}>
+          <div className={`${LAYOUT.fullHeight} ${activeTab === "予防接種" ? "" : "hidden"}`}>
             <MedicalRecordVaccination petId={selectedPet?.id} />
           </div>
         ) : null}
         {mountedTabs.has("定期健診") ? (
-          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === "定期健診" ? "" : "hidden"}`}>
+          <div className={`${LAYOUT.fullHeight} ${activeTab === "定期健診" ? "" : "hidden"}`}>
             {isNewRecord || !recordId ? (
               <div className={`flex items-center justify-center h-48 text-sm ${C.text40}`}>
                 カルテを保存してから使用できます
@@ -314,22 +339,22 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           </div>
         ) : null}
         {mountedTabs.has("検査") ? (
-          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === "検査" ? "" : "hidden"}`}>
+          <div className={`${LAYOUT.fullHeight} ${activeTab === "検査" ? "" : "hidden"}`}>
             <MedicalRecordExamination isNewRecord={isNewRecord} petId={selectedPet?.id} />
           </div>
         ) : null}
         {mountedTabs.has("画像") ? (
-          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === "画像" ? "" : "hidden"}`}>
+          <div className={`${LAYOUT.fullHeight} ${activeTab === "画像" ? "" : "hidden"}`}>
             <MedicalRecordImage isNewRecord={isNewRecord} medicalRecordId={recordId} />
           </div>
         ) : null}
         {mountedTabs.has("見積書") ? (
-          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === "見積書" ? "" : "hidden"}`}>
-            <MedicalRecordEstimate isNewRecord={isNewRecord} ownerDiscountRate={ownerDiscountRate} medicalRecordId={recordId} />
+          <div className={`${LAYOUT.fullHeight} ${activeTab === "見積書" ? "" : "hidden"}`}>
+            <MedicalRecordEstimate isNewRecord={isNewRecord} ownerDiscountRate={ownerDiscountRate} medicalRecordId={recordId} onRegisterSave={handleRegisterEstimateSave} />
           </div>
         ) : null}
         {mountedTabs.has("会計(医師確認)") ? (
-          <div className={`flex-1 min-h-0 flex flex-col ${activeTab === "会計(医師確認)" ? "" : "hidden"}`}>
+          <div className={`${LAYOUT.fullHeight} ${activeTab === "会計(医師確認)" ? "" : "hidden"}`}>
             <MedicalRecordBillCheck
               isNewRecord={isNewRecord}
               medicalRecordId={recordId}

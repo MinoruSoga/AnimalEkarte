@@ -32,6 +32,7 @@ export interface DiagnosisPlanProps {
   setDiagnosis2NameId?: (id: number | null) => void;
   medicalRecordId?: string;
   ownerDiscountRate?: number;
+  onRegisterClinicalPlanSave?: (fn: () => Promise<void>) => void;
 }
 
 export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPlan({
@@ -50,6 +51,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
   setDiagnosis2NameId,
   medicalRecordId,
   ownerDiscountRate = 0,
+  onRegisterClinicalPlanSave,
 }: DiagnosisPlanProps) {
   // 制御型propsが渡された場合はそれを使用し、渡されない場合は内部stateにフォールバック
   const [internalPolicy, setInternalPolicy] = useState("# 治療方針");
@@ -177,7 +179,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
       />
 
       {!isNewRecord && medicalRecordId ? (
-        <ClinicalPlanSection medicalRecordId={medicalRecordId} />
+        <ClinicalPlanSection medicalRecordId={medicalRecordId} onRegisterSave={onRegisterClinicalPlanSave} />
       ) : null}
 
       {/* Bottom Section: Treatment Plan */}

@@ -64,8 +64,6 @@ import { MEMBERSHIP_TYPE_VALUES } from "../types";
 import type { MembershipType } from "../types";
 import type { OwnerLoaderData } from "../loaders";
 
-const INPUT_CLS = STYLE.formInput;
-
 // rerender-memo: 会員区分ボタンを memo 化して ownerData の他フィールド変更による
 // 不要な再レンダリングと inline onClick 生成を排除する
 interface MembershipTypeButtonsProps {
@@ -248,7 +246,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
             type="text"
             value={ownerData.ownerId}
             disabled
-            className={`${INPUT_CLS} disabled:opacity-50`}
+            className={`${STYLE.formInput} disabled:opacity-50`}
           />
         ) : (
           <p className={`flex h-9 items-center px-3 text-sm ${C.text40} italic`}>
@@ -264,7 +262,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
             placeholder="123-4567"
             value={ownerData.postalCode}
             onChange={(e) => onChange("postalCode", e.target.value)}
-            className={INPUT_CLS}
+            className={STYLE.formInput}
           />
           <Button
             type="button"
@@ -283,7 +281,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
           id="company"
           value={ownerData.company}
           onChange={(e) => onChange("company", e.target.value)}
-          className={INPUT_CLS}
+          className={STYLE.formInput}
         />
       </div>
       <div className="space-y-1.5">
@@ -302,13 +300,13 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
           aria-invalid={!!fieldErrors.ownerName}
           aria-describedby={fieldErrors.ownerName ? "ownerName-error" : undefined}
           onChange={(e) => { onChange("ownerName", e.target.value); onClearError("ownerName"); }}
-          className={`${INPUT_CLS} ${fieldErrors.ownerName ? STYLE.formInputError : ""}`}
+          className={`${STYLE.formInput} ${fieldErrors.ownerName ? STYLE.formInputError : ""}`}
         />
         <FormFieldError id="ownerName-error" message={fieldErrors.ownerName} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="address1" className={`text-sm ${C.text60}`}>住所1（会社）</Label>
-        <Input id="address1" value={ownerData.address1} onChange={(e) => onChange("address1", e.target.value)} className={INPUT_CLS} />
+        <Input id="address1" value={ownerData.address1} onChange={(e) => onChange("address1", e.target.value)} className={STYLE.formInput} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="homePostalCode" className={`text-sm ${C.text60}`}>郵便番号(自宅)</Label>
@@ -318,7 +316,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
             placeholder="123-4567"
             value={ownerData.homePostalCode || ""}
             onChange={(e) => onChange("homePostalCode", e.target.value)}
-            className={INPUT_CLS}
+            className={STYLE.formInput}
           />
           <Button
             type="button"
@@ -364,17 +362,17 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
           aria-invalid={!!fieldErrors.ownerNameKana}
           aria-describedby={fieldErrors.ownerNameKana ? "ownerNameKana-error" : undefined}
           onChange={(e) => { onChange("ownerNameKana", e.target.value); onClearError("ownerNameKana"); }}
-          className={`${INPUT_CLS} ${fieldErrors.ownerNameKana ? STYLE.formInputError : ""}`}
+          className={`${STYLE.formInput} ${fieldErrors.ownerNameKana ? STYLE.formInputError : ""}`}
         />
         <FormFieldError id="ownerNameKana-error" message={fieldErrors.ownerNameKana} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="address2" className={`text-sm ${C.text60}`}>住所2（会社）</Label>
-        <Input id="address2" value={ownerData.address2} onChange={(e) => onChange("address2", e.target.value)} className={INPUT_CLS} />
+        <Input id="address2" value={ownerData.address2} onChange={(e) => onChange("address2", e.target.value)} className={STYLE.formInput} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="homeAddress1" className={`text-sm ${C.text60}`}>住所1(自宅)</Label>
-        <Input id="homeAddress1" value={ownerData.homeAddress1} onChange={(e) => onChange("homeAddress1", e.target.value)} className={INPUT_CLS} />
+        <Input id="homeAddress1" value={ownerData.homeAddress1} onChange={(e) => onChange("homeAddress1", e.target.value)} className={STYLE.formInput} />
       </div>
 
       {/* Row 4 */}
@@ -391,13 +389,13 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
           aria-invalid={!!fieldErrors.email}
           aria-describedby={fieldErrors.email ? "email-error" : undefined}
           onChange={(e) => { onChange("email", e.target.value); onClearError("email"); }}
-          className={`${INPUT_CLS} ${fieldErrors.email ? STYLE.formInputError : ""}`}
+          className={`${STYLE.formInput} ${fieldErrors.email ? STYLE.formInputError : ""}`}
         />
         <FormFieldError id="email-error" message={fieldErrors.email} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="homeAddress2" className={`text-sm ${C.text60}`}>住所2(自宅)</Label>
-        <Input id="homeAddress2" value={ownerData.homeAddress2} onChange={(e) => onChange("homeAddress2", e.target.value)} className={INPUT_CLS} />
+        <Input id="homeAddress2" value={ownerData.homeAddress2} onChange={(e) => onChange("homeAddress2", e.target.value)} className={STYLE.formInput} />
       </div>
 
       {/* Row 5 */}
@@ -412,13 +410,13 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
           aria-invalid={!!fieldErrors.phone}
           aria-describedby={fieldErrors.phone ? "phone-error" : undefined}
           onChange={(e) => { onChange("phone", e.target.value); onClearError("phone"); }}
-          className={`${INPUT_CLS} ${fieldErrors.phone ? STYLE.formInputError : ""}`}
+          className={`${STYLE.formInput} ${fieldErrors.phone ? STYLE.formInputError : ""}`}
         />
         <FormFieldError id="phone-error" message={fieldErrors.phone} />
       </div>
       <div className="space-y-1.5 col-span-1 lg:col-span-2">
         <Label htmlFor="companyPhone" className={`text-sm ${C.text60}`}>会社 電話番号</Label>
-        <Input id="companyPhone" value={ownerData.companyPhone} onChange={(e) => onChange("companyPhone", e.target.value)} className={INPUT_CLS} />
+        <Input id="companyPhone" value={ownerData.companyPhone} onChange={(e) => onChange("companyPhone", e.target.value)} className={STYLE.formInput} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="discountRate" className={`text-sm ${C.text60}`}>値引率 (%)</Label>
@@ -431,7 +429,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
           aria-describedby={fieldErrors.discountRate ? "discountRate-error" : undefined}
           onChange={(v) => { onChange("discountRate", Number(v)); onClearError("discountRate"); }}
           suffix="%"
-          className={`${INPUT_CLS} ${fieldErrors.discountRate ? STYLE.formInputError : ""}`}
+          className={`${STYLE.formInput} ${fieldErrors.discountRate ? STYLE.formInputError : ""}`}
         />
         <FormFieldError id="discountRate-error" message={fieldErrors.discountRate} />
       </div>

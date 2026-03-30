@@ -560,6 +560,20 @@ export const LAYOUT = {
     h:             "h-[53px]",
   },
 
+  /** 
+   * Full height flex container pattern.
+   * flex-1: Fills the remaining space.
+   * min-h-0: Overrides min-height: auto to allow the container to shrink and enable internal scrolling.
+   * flex-col h-full: Ensures vertical orientation and inheritance.
+   */
+  fullHeight:      "flex-1 min-h-0 flex flex-col h-full",
+
+  /** 
+   * Technical fix for Flexbox/Grid content overflow.
+   * Forces the element to be able to shrink smaller than its content, enabling 'overflow: auto' to work.
+   */
+  flexShrinkFix:   "min-h-0 min-w-0",
+
   /* ── Touch Targets (tablet-first) ── */
   touch: {
     /** Primary action buttons, input fields */
@@ -759,6 +773,9 @@ export const STYLE = {
     "ring-2 ring-red-300 border-red-400",
   formCard:
     `bg-white p-6 rounded-lg shadow-sm border ${C.borderMedium}`,
+
+  /** Standard multi-line text area */
+  textarea:     `w-full rounded-[3px] border ${C.borderMedium} bg-white p-3 text-sm ${C.text} outline-none focus:border-[#2383E2] transition-colors resize-none leading-relaxed font-mono`,
 } as const;
 
 /* ================================================================== */

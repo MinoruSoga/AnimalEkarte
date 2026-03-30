@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback } from "react";
 
 // Internal
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { C, STYLE } from "@/lib/design-tokens";
 
@@ -14,11 +13,12 @@ import type { UpdateClinicalPlanInput } from "@/features/medical-records/api/cli
 
 interface ClinicalPlanSectionProps {
   medicalRecordId: string;
+  onRegisterSave?: (fn: () => Promise<void>) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────
 
-export function ClinicalPlanSection({ medicalRecordId }: ClinicalPlanSectionProps) {
+export function ClinicalPlanSection({ medicalRecordId, onRegisterSave }: ClinicalPlanSectionProps) {
   const { data, isLoading } = useGetClinicalPlan(medicalRecordId);
   const updateMutation = useUpdateClinicalPlan(medicalRecordId);
 
@@ -40,7 +40,7 @@ export function ClinicalPlanSection({ medicalRecordId }: ClinicalPlanSectionProp
     }
   }, [data]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async (): Promise<void> => {
     const input: UpdateClinicalPlanInput = {
       physical_exam: physicalExam,
       diagnosis_category_id: diagnosisCategoryId ? Number(diagnosisCategoryId) : null,
@@ -48,8 +48,14 @@ export function ClinicalPlanSection({ medicalRecordId }: ClinicalPlanSectionProp
       diagnosis_details: diagnosisDetails,
       treatment_policy: treatmentPolicy,
     };
-    updateMutation.mutate(input);
+    await updateMutation.mutateAsync(input);
   }, [physicalExam, diagnosisCategoryId, diagnosisNameId, diagnosisDetails, treatmentPolicy, updateMutation]);
+
+  // Register save function with parent
+  useEffect(() => {
+    if (!onRegisterSave) return;
+    onRegisterSave(handleSave);
+  }, [onRegisterSave, handleSave]);
 
   if (isLoading) {
     return (
@@ -129,16 +135,6 @@ export function ClinicalPlanSection({ medicalRecordId }: ClinicalPlanSectionProp
           />
         </div>
 
-        {/* Save Button */}
-        <div className="flex justify-end pt-1">
-          <Button
-            onClick={handleSave}
-            disabled={updateMutation.isPending}
-            className={`${STYLE.btnPrimary} px-5`}
-          >
-            {updateMutation.isPending ? "保存中..." : "保存"}
-          </Button>
-        </div>
       </div>
     </div>
   );

@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { C, LAYOUT, ICON } from "@/lib/design-tokens";
+import { C, LAYOUT, ICON, STYLE } from "@/lib/design-tokens";
 
 // Relative
 import { useGetChiefComplaintCategories } from "../api/get-chief-complaint-categories";
@@ -115,7 +115,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
           <Textarea
             value={chiefComplaint}
             onChange={(e) => setChiefComplaint(e.target.value)}
-            className={`flex-1 resize-none bg-white ${C.borderMedium} text-sm p-3 leading-relaxed font-mono min-h-0`}
+            className={`flex-1 ${STYLE.textarea} min-h-0`}
           />
         </div>
       </div>
