@@ -53,29 +53,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSwitchingClinic, setIsSwitchingClinic] = useState(false);
 
-  // 初回マウント時のセッション復元（httpOnly Cookie の有効性確認）
+  // 初回マウント時のセッション復元
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+
+    // BUG-047: FOUC (Flash of Unauthenticated Content) 防止
+    // refreshToken 完了まで isLoading=true を維持
+    const initAuth = async () => {
       try {
         const result = await refreshToken();
         if (cancelled) return;
+
         if (result) {
           setUser(result.user);
           const storedClinic = readClinicFromStorage();
           const validClinic = result.user.clinics.some((c) => c.clinicId === storedClinic);
           setCurrentClinicId(validClinic ? storedClinic : result.user.mainClinicId);
         }
-      } catch {
-        /* refreshToken は内部で catch して null を返すが、念のため */
+      } catch (error) {
+        // ignore errors on initialization
       } finally {
         if (!cancelled) setIsLoading(false);
       }
-    })();
+    };
+
+    initAuth();
     return () => {
       cancelled = true;
     };
   }, []);
+
 
   // /me の定期ポーリング結果でユーザー情報（権限含む）を同期
   // 認証済みかつローディング完了後のみポーリングを有効化
