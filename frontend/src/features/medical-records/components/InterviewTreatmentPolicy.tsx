@@ -20,8 +20,8 @@ export const InterviewTreatmentPolicy = memo(function InterviewTreatmentPolicy({
   setTreatmentPolicy,
 }: InterviewTreatmentPolicyProps) {
   return (
-    <div className={`flex flex-col ${className ?? ""}`}>
-      <div className="pb-1.5">
+    <div className={`flex flex-col ${className ?? ""} h-full`}>
+      <div className="pb-1.5 shrink-0">
         <h4 className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
           <ChevronRight className={ICON.action} />
           治療方針
@@ -33,7 +33,7 @@ export const InterviewTreatmentPolicy = memo(function InterviewTreatmentPolicy({
       <Textarea
         value={treatmentPolicy}
         onChange={(e) => setTreatmentPolicy(e.target.value)}
-        className={`flex-1 field-sizing-fixed resize-none bg-white ${C.borderMedium} text-sm p-3 leading-relaxed font-mono`}
+        className={`flex-1 resize-none bg-white ${C.borderMedium} text-sm p-3 leading-relaxed font-mono min-h-0`}
       />
     </div>
   );

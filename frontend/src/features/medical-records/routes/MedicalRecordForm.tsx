@@ -199,7 +199,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   }
 
   return (
-    <form action={formAction}>
+    <form action={formAction} className="flex-1 min-h-0 flex flex-col h-full">
     <PageLayout
       title={recordId ? "カルテ編集" : "カルテ入力"}
       onBack={handleBack}

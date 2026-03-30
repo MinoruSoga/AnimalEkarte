@@ -115,7 +115,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
           <Textarea
             value={chiefComplaint}
             onChange={(e) => setChiefComplaint(e.target.value)}
-            className={`flex-1 field-sizing-fixed resize-none bg-white ${C.borderMedium} text-sm p-3 leading-relaxed font-mono`}
+            className={`flex-1 resize-none bg-white ${C.borderMedium} text-sm p-3 leading-relaxed font-mono min-h-0`}
           />
         </div>
       </div>
