@@ -76,7 +76,7 @@ export function ServiceTypeSettings() {
   const deleteMutation = useDeleteServiceType();
   const reorderMutation = useReorderServiceTypes();
 
-  const crud = useMasterCRUD<ServiceType>({ data, deleteMutation, entityLabel: "予約区分" });
+  const crud = useMasterCRUD<ServiceType>({ data, deleteMutation, entityLabel: "診療サービス" });
 
   const resetOrderRef = useRef<() => void>(() => {});
   const handleReorder = useCallback((newIds: string[]) => {
@@ -97,8 +97,8 @@ export function ServiceTypeSettings() {
   });
 
   return (
-    <MasterCRUDPage title="予約区分マスタ" icon={<Activity className={`${ICON.page} text-[#37352F]`} />}
-      entityLabel="予約区分" searchPlaceholder="予約区分名で検索..." emptyMessage="予約区分が登録されていません"
+    <MasterCRUDPage title="診療サービスマスタ" icon={<Activity className={`${ICON.page} text-[#37352F]`} />}
+      entityLabel="診療サービス" searchPlaceholder="診療サービス名で検索..." emptyMessage="診療サービスが登録されていません"
       crud={crud} handleSave={handleSave} columns={COLUMNS}
       filterProperties={[MASTER_STATUS_FILTER]}
       renderRow={() => null}
@@ -107,7 +107,7 @@ export function ServiceTypeSettings() {
       <DndContext sensors={sensors} collisionDetection={closestCenter}
         onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
         <SortableContext items={orderedItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-          <DataTable columns={COLUMNS} data={orderedItems} emptyMessage="予約区分が登録されていません"
+          <DataTable columns={COLUMNS} data={orderedItems} emptyMessage="診療サービスが登録されていません"
             renderRow={(item) => (
               <SortableDataTableRow key={item.id} id={item.id} onClick={() => crud.handleEdit(item)}>
                 <TableCell className={`font-medium text-base ${C.text}`}>

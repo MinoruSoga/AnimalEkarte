@@ -197,7 +197,7 @@ export function ReservationDetailModal({
                   ) : null}
                 </div>
               </InfoRow>
-              <InfoRow label="予約区分">
+              <InfoRow label="診療サービス">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full shrink-0" style={appointment ? getColor(appointment.type).dotStyle : undefined} />
                   <Tag className={`${ICON.xs} ${C.text40}`} />

@@ -189,7 +189,7 @@ export function ReservationFormFields({
               />
             }
           >
-            予約区分
+            診療サービス
           </FieldLabel>
           <Select
             value={formData.type || ""}
@@ -211,7 +211,7 @@ export function ReservationFormFields({
           ) : null}
         </div>
         <div className="space-y-1.5">
-          <FieldLabel>初診/再診</FieldLabel>
+          <FieldLabel>予約区分</FieldLabel>
           <RadioGroup
             value={formData.visitType || ""}
             onValueChange={(v: string) => {

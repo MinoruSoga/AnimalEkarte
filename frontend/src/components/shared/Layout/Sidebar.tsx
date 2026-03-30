@@ -245,7 +245,7 @@ export function Sidebar() {
           ],
         },
         // 診療関連
-        { icon: <Activity     className={ICON.toolbar} />, label: "予約区分",   path: paths.settings.serviceType.getHref() },
+        { icon: <Activity     className={ICON.toolbar} />, label: "診療サービス", path: paths.settings.serviceType.getHref() },
         // 入院・ケージ管理
         { icon: <Bed          className={ICON.toolbar} />, label: "入院",       path: paths.settings.hospitalization.getHref() },
         { icon: <Building2    className={ICON.toolbar} />, label: "ケージ",     path: paths.settings.cage.getHref() },
