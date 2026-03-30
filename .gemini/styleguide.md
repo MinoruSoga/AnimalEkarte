@@ -57,7 +57,11 @@
   - **Global State**: Use Zustand only for minimal UI state (e.g., sidebar collapse).
 - **Styling**:
   - Use **Tailwind CSS 4**.
-  - Use `src/lib/design-tokens.ts` (`C` and `STYLE` constants) for consistent Notion-like styling.
+  - **MANDATORY**: Use `src/lib/design-tokens.ts` (`C` and `STYLE` constants) for all colors and common styles. **DO NOT** hardcode hex colors like `#37352F` in JSX.
+- **Error Handling**:
+  - **MANDATORY**: Use `handleApiError(error, "context")` in all `catch` blocks to ensure unified error reporting.
+- **Imports**:
+  - **MANDATORY**: Use the `@/` alias for all cross-feature or cross-layer imports. Relative paths (e.g., `../../`) are strictly forbidden across different modules.
 - **Testing**:
   - **Tooling**: Vitest + React Testing Library.
   - **Placement**: Test files (`[Target].test.tsx`) must be in the same directory as the target.
