@@ -133,6 +133,8 @@ export function ReservationFormModal({
     }
   }, [isOpen, initialData, setSelectedPets]);
 
+  const isEditMode = initialData && initialData.id;
+
   const handleSave = useCallback(() => {
     const errors: Record<string, string> = {};
     if (selectedPets.length === 0) {
@@ -170,8 +172,6 @@ export function ReservationFormModal({
     setValidationErrors({});
     onSave(formData, selectedPets);
   }, [formData, selectedPets, onSave, isEditMode]);
-
-  const isEditMode = initialData && initialData.id;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
