@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  use,
 } from "react";
 import type { ReactNode } from "react";
 import type { AuthContextValue, AuthUser, Resource, ResourceAction } from "../types";
@@ -42,6 +43,12 @@ function removeClinicFromStorage(): void {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+/**
+ * Initial session restoration promise.
+ * Defined outside to be stable across re-renders during hydration.
+ */
+const initialAuthPromise = refreshToken().catch(() => null);
 
 interface AuthProviderProps {
   children: ReactNode;
