@@ -10,6 +10,8 @@ import { useDeleteTrimming } from "../api/delete-trimming";
 import type { CreateTrimmingRequest, UpdateTrimmingRequest, TrimmingFormData } from "@/types/trimming";
 import type { Pet } from "@/types";
 import { paths } from "@/config/paths";
+import type { ActionState } from "@/types/form";
+import { INITIAL_ACTION_STATE } from "@/types/form";
 
 const defaultFormData: TrimmingFormData = {
   styleRequest: "",
@@ -78,9 +80,9 @@ export function useTrimmingForm(id?: string) {
 
   // Save draft on changes
   useEffect(() => {
-    const draft = { ...localOverrides };
-    delete (draft as any).styleImage;
-    delete (draft as any).completedImage;
+    const draft: Partial<TrimmingFormData> = { ...localOverrides };
+    delete draft.styleImage;
+    delete draft.completedImage;
     if (Object.keys(draft).length > 0) {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     }
@@ -119,16 +121,11 @@ export function useTrimmingForm(id?: string) {
     setLocalOverrides((prev) => ({ ...prev, ...next }));
   }, []);
 
-  interface FormState {
-    success: boolean;
-    timestamp: number;
-  }
-
   /**
    * React 19 useActionState を使用したフォームアクション
    */
   const [formState, formAction, isPending] = useActionState(
-    async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
+    async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
       try {
         if (isEdit && id) {
           const req: UpdateTrimmingRequest = {
@@ -157,7 +154,7 @@ export function useTrimmingForm(id?: string) {
           }
           if (Object.keys(errors).length > 0) {
             setFieldErrors(errors);
-            return { success: false, timestamp: Date.now() };
+            return { success: false, fieldErrors: errors, timestamp: Date.now() };
           }
           setFieldErrors({});
           const req: CreateTrimmingRequest = {
@@ -178,7 +175,7 @@ export function useTrimmingForm(id?: string) {
         return { success: false, timestamp: Date.now() };
       }
     },
-    { success: false, timestamp: 0 }
+    INITIAL_ACTION_STATE
   );
 
   const [styleImagePreview, setStyleImagePreview] = useState<string | null>(null);

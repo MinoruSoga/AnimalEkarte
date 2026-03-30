@@ -35,3 +35,9 @@ func isUniqueConstraintErr(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
+
+// isFKConstraintErr はPostgreSQLの外部キー制約違反（23503）を判定する
+func isFKConstraintErr(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23503"
+}

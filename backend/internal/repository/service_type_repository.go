@@ -79,6 +79,10 @@ func (r *serviceTypeRepository) Update(ctx context.Context, clinicID, id uint64,
 func (r *serviceTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.ServiceType{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
+		// BUG-030: ON DELETE RESTRICT の FK 制約違反は 409 Conflict に変換する
+		if isFKConstraintErr(result.Error) {
+			return apperrors.WrapConflict("このサービス種別は予約に使用されているため削除できません")
+		}
 		return apperrors.Wrap(result.Error, "delete service type")
 	}
 	if result.RowsAffected == 0 {

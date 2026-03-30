@@ -63,8 +63,6 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
     const result: typeof allPets = [];
     for (const pet of allPets) {
       if (result.length >= MAX_RESULTS) break;
-      // BUG-077: 死亡ペットを検索結果から除外
-      if (pet.status === "死亡") continue;
       if (searchParams.ownerId && !pet.ownerId.includes(searchParams.ownerId)) continue;
       if (searchParams.ownerName && !pet.ownerName.includes(searchParams.ownerName)) continue;
       if (searchParams.phone && (!pet.phone || !pet.phone.includes(searchParams.phone))) continue;
@@ -184,40 +182,46 @@ export function PatientSelectionTable({ onSelect, selectedPets }: PatientSelecti
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPets.map((pet) => (
-                  <TableRow
-                    key={pet.id}
-                    className={`transition-colors ${C.hoverBgLight} cursor-pointer h-9 ${
-                      isSelected(pet) ? C.bgPage : ""
-                    }`}
-                    onClick={() => onSelect(pet)}
-                  >
-                    <TableCell className={`text-sm py-1 font-mono ${C.text}`}>{pet.ownerId}</TableCell>
-                    <TableCell className={`text-sm py-1 font-medium ${C.text}`}>{pet.ownerName}</TableCell>
-                    <TableCell className={`text-sm py-1 font-bold ${C.text}`}>{pet.name}</TableCell>
-                    <TableCell className={`text-sm py-1 ${C.text}`}>{pet.species}</TableCell>
-                    <TableCell className={`text-sm py-1 ${C.text}`}>{pet.gender || "-"}</TableCell>
-                    <TableCell className={`text-sm py-1 font-mono ${C.text}`}>{pet.birthDate || "-"}</TableCell>
-                    <TableCell className={`text-sm py-1 font-mono ${C.text}`}>{pet.weight || "-"}</TableCell>
-                    <TableCell className="py-1">
-                      <Button
-                        size="sm"
-                        className={`h-9 gap-1 text-sm px-2 transition-colors ${
-                          isSelected(pet)
-                            ? `${C.bgPrimary} text-white ${C.hoverBgPrimaryDark}`
-                            : `bg-white border ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle}`
-                        }`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelect(pet);
-                        }}
-                      >
-                        <Check className={`${ICON.xs} ${isSelected(pet) ? "" : "opacity-0"}`} />
-                        {isSelected(pet) ? "選択中" : "選択"}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredPets.map((pet) => {
+                  const isDeceased = pet.status === "死亡";
+                  return (
+                    <TableRow
+                      key={pet.id}
+                      className={`transition-colors ${C.hoverBgLight} cursor-pointer h-9 ${
+                        isSelected(pet) ? C.bgPage : ""
+                      } ${isDeceased ? "opacity-50 grayscale-[0.5]" : ""}`}
+                      onClick={() => !isDeceased && onSelect(pet)}
+                    >
+                      <TableCell className={`text-sm py-1 font-mono ${C.text}`}>{pet.ownerId}</TableCell>
+                      <TableCell className={`text-sm py-1 font-medium ${C.text}`}>{pet.ownerName}</TableCell>
+                      <TableCell className={`text-sm py-1 font-bold ${C.text}`}>{pet.name}</TableCell>
+                      <TableCell className={`text-sm py-1 ${C.text}`}>{pet.species}</TableCell>
+                      <TableCell className={`text-sm py-1 ${C.text}`}>{pet.gender || "-"}</TableCell>
+                      <TableCell className={`text-sm py-1 font-mono ${C.text}`}>{pet.birthDate || "-"}</TableCell>
+                      <TableCell className={`text-sm py-1 font-mono ${C.text}`}>{pet.weight || "-"}</TableCell>
+                      <TableCell className="py-1">
+                        <Button
+                          size="sm"
+                          disabled={isDeceased}
+                          className={`h-9 gap-1 text-sm px-2 transition-colors ${
+                            isDeceased
+                              ? "bg-gray-100 text-gray-400 border-transparent cursor-not-allowed"
+                              : isSelected(pet)
+                              ? `${C.bgPrimary} text-white ${C.hoverBgPrimaryDark}`
+                              : `bg-white border ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle}`
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!isDeceased) onSelect(pet);
+                          }}
+                        >
+                          <Check className={`${ICON.xs} ${isSelected(pet) ? "" : "opacity-0"}`} />
+                          {isDeceased ? "死亡" : isSelected(pet) ? "選択中" : "選択"}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

@@ -54,7 +54,14 @@ func (r *permissionGroupRepository) FindByID(ctx context.Context, id uint64) (*m
 }
 
 func (r *permissionGroupRepository) Create(ctx context.Context, group *model.PermissionGroup) error {
-	return r.db.WithContext(ctx).Create(group).Error
+	if err := r.db.WithContext(ctx).Create(group).Error; err != nil {
+		// BUG-032: 同一 company 内のグループ名重複は 409 に変換する
+		if isUniqueConstraintErr(err) {
+			return apperrors.WrapAlreadyExists("permission_group", group.Name)
+		}
+		return apperrors.Wrap(err, "create permission group")
+	}
+	return nil
 }
 
 func (r *permissionGroupRepository) UpdateFields(ctx context.Context, id uint64, fields map[string]any) error {

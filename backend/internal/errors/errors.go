@@ -81,6 +81,21 @@ func IsAlreadyExists(err error) bool {
 	return errors.Is(err, ErrAlreadyExists)
 }
 
+// WrapConflict は依存データによる操作不可エラーを生成する（409 Conflict）
+// 削除時に FK 参照先が存在する場合など。
+func WrapConflict(message string) error {
+	return &AppError{
+		Code:    "CONFLICT",
+		Message: message,
+		Err:     ErrAlreadyExists, // ErrAlreadyExists → 409 Conflict にマッピング済み
+	}
+}
+
+// IsConflict は 409 Conflict 系エラーかどうかを判定する
+func IsConflict(err error) bool {
+	return errors.Is(err, ErrAlreadyExists)
+}
+
 // WrapForbidden はアクセス拒否エラーを生成する
 func WrapForbidden(message string) error {
 	return &AppError{
