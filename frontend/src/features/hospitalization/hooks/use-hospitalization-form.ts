@@ -1,21 +1,21 @@
-import { useState, useEffect, useActionState } from "react";
+import { useState, useEffect, useActionState, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
-import type { TreatmentPlan } from "@/types";
-import type { Pet } from "@/types";
+import type { TreatmentPlan, Pet } from "@/types";
 import type { HospitalizationFormData } from "../types";
 import { usePetSelection } from "@/hooks/use-pet-selection";
-
-const MS_PER_DAY = 86_400_000;
-const DEFAULT_HOSPITALIZATION_DAYS = 7;
 import { useGetPet } from "@/hooks/use-pet";
 import { createHospitalization } from "../api/create-hospitalization";
 import { updateHospitalization } from "../api/update-hospitalization";
 import { useGetHospitalizationRaw } from "../api/get-hospitalization";
+import { calculateBillingTotals } from "@/lib/calculations";
+
+const MS_PER_DAY = 86_400_000;
+const DEFAULT_HOSPITALIZATION_DAYS = 7;
 
 export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
   const navigate = useNavigate();
@@ -26,10 +26,8 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
   const petSelection = usePetSelection();
   const { selectedPets, setSelectedPets } = petSelection;
 
-  // petId が URL にある場合は React Query でフェッチ（cross-feature 直接呼び出しを回避）
   const { data: petFromQuery, isLoading: isPetLoading } = useGetPet(petId ?? "");
 
-  // rerender-lazy-state-init: Date.now() は impure。lazy init で初回レンダーのみ実行
   const [formData, setFormData] = useState<HospitalizationFormData>(() => ({
     hospitalizationType: "入院",
     ownerName: "",
@@ -81,9 +79,6 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
   const [globalDiscount, setGlobalDiscount] = useState(0);
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
 
-  /**
-   * React 19 useActionState を使用したフォームアクション
-   */
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
       if (!selectedPets.length) {
@@ -138,7 +133,6 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
 
   useEffect(() => {
     if (!hospitalizationData) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 非同期サーバーデータでフォームを初期化するパターン。React 18 が自動バッチするため実害なし
     setFormData((prev) => ({
       ...prev,
       hospitalizationType:
@@ -156,7 +150,6 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
       ownerRequest: hospitalizationData.owner_request ?? "",
       staffNotes: hospitalizationData.staff_notes ?? "",
     }));
-    // ペット情報を復元
     if (hospitalizationData.pet && hospitalizationData.owner_id) {
       setSelectedPets([
         {
@@ -178,7 +171,6 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
     }
   }, [isError]);
 
-  // petId が URL から来た場合: usePetInfo の結果を selectedPets に反映
   useEffect(() => {
     if (!petId || id) return;
     if (isPetLoading) return;
@@ -190,7 +182,6 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
     }
   }, [petId, id, petFromQuery, isPetLoading, setSelectedPets, navigate]);
 
-  // ペット選択情報をフォームデータにマージ
   const formDataWithPet =
     selectedPets.length > 0
       ? {
@@ -257,21 +248,13 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
   };
 
   const calculateTotals = () => {
-    const subtotalBeforeDiscount = treatmentPlans.reduce(
-      (sum, plan) => sum + plan.subtotal,
-      0
-    );
-    const discountAmount = globalDiscountAmount;
-    const subtotalAfterDiscount = subtotalBeforeDiscount - discountAmount;
-    const consumptionTax = Math.floor(subtotalAfterDiscount * 0.1);
-    const total = subtotalAfterDiscount + consumptionTax;
-
+    const result = calculateBillingTotals(treatmentPlans, globalDiscount, globalDiscountAmount);
     return {
-      subtotalBeforeDiscount,
-      discountAmount,
-      subtotalAfterDiscount,
-      consumptionTax,
-      total,
+      subtotalBeforeDiscount: result.subtotal,
+      discountAmount: result.globalDiscountAmount,
+      subtotalAfterDiscount: result.taxableAmount,
+      consumptionTax: result.tax,
+      total: result.total,
     };
   };
 

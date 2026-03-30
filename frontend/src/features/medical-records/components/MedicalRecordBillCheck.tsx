@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
-import { useGetTreatments, useCreateTreatment, useUpdateTreatment } from "../api/treatments";
+import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
 import { useGetBillingReview, useConfirmBillingReview, useReturnBillingReview } from "../api/billing-review";
 import type { CreateTreatmentInput, UpdateTreatmentInput, TreatmentItemType } from "../types";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { CheckCircle2, RotateCcw } from "lucide-react";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
+import { calculateBillingTotals } from "@/lib/calculations";
 
 const TreatmentSearchDialog = lazy(() =>
   import("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog").then((m) => ({
@@ -36,65 +37,6 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
   const updateTreatmentMutation = useUpdateTreatment(medicalRecordId);
   const confirmMutation = useConfirmBillingReview(medicalRecordId);
   const returnMutation = useReturnBillingReview(medicalRecordId);
-
-  // Treatment[] -> TreatmentItem[] (Backend は全件返すが、会計では selected=true のみ表示する場合が多い)
-  // ここでは selected=true のものだけを会計対象とする
-  const items: TreatmentItem[] = useMemo(() => {
-    return treatments
-      .filter(t => t.selected)
-      .map(t => ({
-        id: Number(t.id),
-        content: t.content,
-        memo: t.memo,
-        insurance: t.insurance,
-        unitPrice: t.unit_price,
-        quantity: t.quantity,
-        discountRate: t.discount_rate,
-        discountAmount: t.discount_amount,
-        status: t.status,
-        selected: t.selected
-      }));
-  }, [treatments]);
-
-  const handleUpdateItem = useCallback((id: number, field: keyof TreatmentItem, value: string | number | boolean) => {
-    // 会計タブでの編集も backend へ同期
-    const input: UpdateTreatmentInput = {};
-    if (field === "content") input.content = String(value);
-    if (field === "memo") input.memo = String(value);
-    if (field === "insurance") input.insurance = Boolean(value);
-    if (field === "unitPrice") input.unit_price = Number(value);
-    if (field === "quantity") input.quantity = Number(value);
-    if (field === "discountRate") input.discount_rate = Number(value) / 100;
-    if (field === "discountAmount") input.discount_amount = Number(value);
-    if (field === "status") input.status = String(value);
-
-    updateTreatmentMutation.mutate({ treatmentId: String(id), input });
-  }, [updateTreatmentMutation]);
-
-  const handleRemoveItem = useCallback((id: number) => {
-    // 会計から外す = selected を false にする（データ自体は消さない）
-    updateTreatmentMutation.mutate({ 
-      treatmentId: String(id), 
-      input: { selected: false } 
-    });
-  }, [updateTreatmentMutation]);
-
-  const handleSelectTreatment = useCallback((item: TreatmentMasterItem) => {
-    const nextOrder = treatments.length > 0 ? Math.max(...treatments.map((t) => t.sort_order)) + 1 : 0;
-    const input: CreateTreatmentInput = {
-      item_type: (item.category === "薬品" ? "medicine" : item.category === "処置" ? "procedure" : "other") as TreatmentItemType,
-      content: item.name,
-      memo: item.category,
-      unit_price: item.unitPrice,
-      quantity: 1,
-      selected: true,
-      insurance: true,
-      discount_amount: 0,
-      sort_order: nextOrder,
-    };
-    createTreatmentMutation.mutate(input);
-    setIsSearchOpen(false);
-  }, [treatments, createTreatmentMutation]);
 
   interface ActionFormState {
     success: boolean;
@@ -127,35 +69,71 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
     });
   }, [returnMutation]);
 
+  const items: TreatmentItem[] = useMemo(() => {
+    return treatments.map(t => ({
+      id: Number(t.id),
+      content: t.content,
+      memo: t.memo,
+      insurance: t.insurance,
+      unitPrice: t.unit_price,
+      quantity: t.quantity,
+      discountRate: t.discount_rate,
+      discountAmount: t.discount_amount,
+      status: t.status,
+      selected: t.selected
+    }));
+  }, [treatments]);
+
+  const handleUpdateItem = useCallback((id: number, field: keyof TreatmentItem, value: string | number | boolean) => {
+    const input: UpdateTreatmentInput = {};
+    if (field === "content") input.content = String(value);
+    if (field === "memo") input.memo = String(value);
+    if (field === "insurance") input.insurance = Boolean(value);
+    if (field === "unitPrice") input.unit_price = Number(value);
+    if (field === "quantity") input.quantity = Number(value);
+    if (field === "discountRate") input.discount_rate = Number(value) / 100;
+    if (field === "discountAmount") input.discount_amount = Number(value);
+    if (field === "status") input.status = String(value);
+    if (field === "selected") input.selected = Boolean(value);
+
+    updateTreatmentMutation.mutate({ treatmentId: String(id), input });
+  }, [updateTreatmentMutation]);
+
+  const handleRemoveItem = useCallback((id: number) => {
+    deleteMutation.mutate(String(id));
+  }, [deleteMutation]);
+
+  const deleteMutation = useDeleteTreatment(medicalRecordId);
+
+  const handleSelectTreatment = useCallback((item: TreatmentMasterItem) => {
+    const nextOrder = treatments.length > 0 ? Math.max(...treatments.map(t => t.sort_order)) + 1 : 0;
+    const input: CreateTreatmentInput = {
+      item_type: (item.category === "薬品" ? "medicine" : item.category === "処置" ? "procedure" : "other") as TreatmentItemType,
+      content: item.name,
+      memo: item.category,
+      unit_price: item.unitPrice,
+      quantity: 1,
+      selected: true,
+      insurance: true,
+      discount_amount: 0,
+      sort_order: nextOrder,
+    };
+    createTreatmentMutation.mutate(input);
+    setIsSearchOpen(false);
+  }, [treatments, createTreatmentMutation]);
+
   const { subtotal, tax, total } = useMemo(() => {
-    // 1. 各明細の合計
-    const itemsSubtotal = items.reduce((sum, item) => {
-      const price = Number(item.unitPrice) || 0;
-      const qty = Number(item.quantity) || 0;
-      const itemDiscount = Number(item.discountAmount) || 0;
-      return sum + (price * qty - itemDiscount);
-    }, 0);
-
-    // 2. 飼主割引（パーセント）を適用
-    const ownerDiscountAmount = Math.floor(itemsSubtotal * (ownerDiscountRate / 100));
-    const afterOwnerDiscount = itemsSubtotal - ownerDiscountAmount;
-
-    // 3. 全体値引き（絶対額）を適用
-    const afterGlobalDiscount = Math.max(0, afterOwnerDiscount - globalDiscountAmount);
-
-    // 4. 消費税 (10%)
-    const taxAmount = Math.floor(afterGlobalDiscount * 0.1);
-
-    return { 
-      subtotal: itemsSubtotal, 
-      tax: taxAmount, 
-      total: afterGlobalDiscount + taxAmount 
+    const result = calculateBillingTotals(items, ownerDiscountRate, globalDiscountAmount);
+    return {
+      subtotal: result.subtotal,
+      tax: result.tax,
+      total: result.total
     };
   }, [items, ownerDiscountRate, globalDiscountAmount]);
 
   if (isNewRecord) {
     return (
-      <div className={`flex items-center justify-center h-48 text-sm ${C.text40}`}>
+      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-lg border border-dashed text-[#37352F]/40">
         カルテを保存してから会計確認を行えます
       </div>
     );
@@ -164,33 +142,47 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
   const isConfirmed = billingReview?.status === "confirmed";
 
   return (
-    <div className="h-[calc(100vh-220px)] min-h-[500px] flex flex-col gap-3 overflow-y-auto pb-10 pr-1 relative">
-      {isConfirmed ? (
-        <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-100 rounded-lg text-green-700 text-sm mb-1">
-          <CheckCircle2 className={ICON.action} />
-          <span>このカルテの会計内容は医師によって確認済みです。</span>
+    <div className="flex flex-col gap-4 relative h-full">
+      <div className="flex-1 min-h-0 flex flex-col">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className={`text-sm font-bold ${C.text}`}>会計確認 (医師)</h2>
+          {isConfirmed ? (
+            <div className={`px-2 py-1 rounded bg-[#DDEDEA] text-[#0F7B6C] text-xs font-bold flex items-center gap-1`}>
+              <CheckCircle2 className="size-3" />
+              確認済み
+            </div>
+          ) : (
+            <div className={`px-2 py-1 rounded bg-[#F1F0EE] text-[#787774] text-xs font-bold`}>
+              未確認
+            </div>
+          )}
         </div>
-      ) : null}
 
-      {/* Items Table */}
-      <TreatmentTable
-        items={items}
-        onUpdate={handleUpdateItem}
-        onRemove={handleRemoveItem}
-        onOpenSearch={() => setIsSearchOpen(true)}
-        showStatus={false}
-      />
+        <div className="flex-1 min-h-0 bg-white rounded-lg border border-[rgba(55,53,47,0.09)] overflow-hidden flex flex-col">
+          <div className="flex-1 min-h-0">
+            <TreatmentTable
+              items={items}
+              onUpdate={handleUpdateItem}
+              onRemove={handleRemoveItem}
+              onOpenSearch={() => setIsSearchOpen(true)}
+              disabled={isConfirmed}
+            />
+          </div>
+        </div>
 
-      {/* Summary Table */}
-      <TreatmentDetailedSummary
-        subtotal={subtotal}
-        tax={tax}
-        total={total}
-        discountRate={ownerDiscountRate}
-        discountAmount={globalDiscountAmount}
-        onUpdateDiscountAmount={setGlobalDiscountAmount}
-        isDiscountRateReadonly
-      />
+        <div className="mt-4">
+          <TreatmentDetailedSummary
+            subtotal={subtotal}
+            tax={tax}
+            total={total}
+            discountRate={ownerDiscountRate}
+            discountAmount={globalDiscountAmount}
+            onUpdateDiscountAmount={setGlobalDiscountAmount}
+            isDiscountRateReadonly
+            disabled={isConfirmed}
+          />
+        </div>
+      </div>
 
       {/* Action Button */}
       <div className="fixed bottom-6 right-6 z-50 flex gap-2">

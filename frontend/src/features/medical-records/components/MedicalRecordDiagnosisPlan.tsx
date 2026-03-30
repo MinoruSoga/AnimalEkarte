@@ -13,6 +13,7 @@ import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
 import type { TreatmentItemType, UpdateTreatmentInput } from "../types";
 import { C, LAYOUT } from "@/lib/design-tokens";
+import { calculateBillingTotals } from "@/lib/calculations";
 
 export interface DiagnosisPlanProps {
   isNewRecord?: boolean;
@@ -129,28 +130,11 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
 
   // Calculations
   const { subtotal, tax, total } = useMemo(() => {
-    // 1. 各明細の合計
-    const itemsSubtotal = treatmentItems.reduce((sum, item) => {
-      const price = Number(item.unitPrice) || 0;
-      const qty = Number(item.quantity) || 0;
-      const itemDiscount = Number(item.discountAmount) || 0;
-      return sum + (price * qty - itemDiscount);
-    }, 0);
-
-    // 2. 飼主割引（パーセント）を適用
-    const ownerDiscountAmount = Math.floor(itemsSubtotal * (ownerDiscountRate / 100));
-    const afterOwnerDiscount = itemsSubtotal - ownerDiscountAmount;
-
-    // 3. 全体値引き（絶対額）を適用
-    const afterGlobalDiscount = Math.max(0, afterOwnerDiscount - globalDiscountAmount);
-
-    // 4. 消費税 (10%)
-    const taxAmount = Math.floor(afterGlobalDiscount * 0.1);
-
-    return { 
-      subtotal: itemsSubtotal, 
-      tax: taxAmount, 
-      total: afterGlobalDiscount + taxAmount 
+    const result = calculateBillingTotals(treatmentItems, ownerDiscountRate, globalDiscountAmount);
+    return {
+      subtotal: result.subtotal,
+      tax: result.tax,
+      total: result.total
     };
   }, [treatmentItems, ownerDiscountRate, globalDiscountAmount]);
 
