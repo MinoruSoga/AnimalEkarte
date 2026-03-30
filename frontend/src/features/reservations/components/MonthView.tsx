@@ -8,6 +8,7 @@ import { ja } from "date-fns/locale";
 
 // Internal
 import { getReservationTypeColor } from "@/utils/status-helpers";
+import { C } from "@/lib/design-tokens";
 
 // Types
 import type { ReservationAppointment } from "@/types";
@@ -30,12 +31,12 @@ interface MonthViewProps {
 const DAYS_OF_WEEK = ["日", "月", "火", "水", "木", "金", "土"] as const;
 
 const HEADER_ROW = (
-  <div className="grid grid-cols-7 border-b border-[rgba(55,53,47,0.16)] bg-[#F7F6F3]">
+  <div className={`grid grid-cols-7 border-b ${C.borderMedium} ${C.bgPage}`}>
     {DAYS_OF_WEEK.map((d, i) => (
       <div
         key={d}
         className={`py-3 text-sm font-bold text-center ${
-          i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : "text-[#37352F]/60"
+          i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : C.text60
         }`}
       >
         {d}
@@ -67,8 +68,8 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
         days.push(
           <div
             key={day.toString()}
-            className={`h-full min-h-[140px] bg-white border-b border-r border-[rgba(55,53,47,0.09)] p-2 transition-colors hover:bg-[#F7F6F3] cursor-pointer flex flex-col
-              ${!isSameMonth(day, monthStart) ? "bg-[#F7F6F3]/30 text-[#37352F]/30" : "text-[#37352F]"}
+            className={`h-full min-h-[140px] bg-white border-b border-r ${C.borderLight} p-2 transition-colors ${C.hoverBgPage} cursor-pointer flex flex-col
+              ${!isSameMonth(day, monthStart) ? `${C.bgPage30} ${C.text30}` : C.text}
               ${isSameDay(day, new Date()) ? "bg-blue-50/30" : ""}
             `}
           >

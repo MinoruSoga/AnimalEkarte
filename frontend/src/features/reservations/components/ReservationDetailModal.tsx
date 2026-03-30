@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { ICON, C } from "@/lib/design-tokens";
 import { ReactNode } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -65,8 +65,8 @@ const DEFAULT_ACTION_CONFIG: ActionConfig = {
 function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between py-2">
-      <span className="text-sm text-[#37352F]/50">{label}</span>
-      <span className="text-sm text-[#37352F]">{children}</span>
+      <span className={`text-sm ${C.text50}`}>{label}</span>
+      <span className={`text-sm ${C.text}`}>{children}</span>
     </div>
   );
 }
@@ -100,7 +100,7 @@ export function ReservationDetailModal({
               <span className={`w-1.5 h-1.5 rounded-full ${visitAccent.dot}`} />
               {appointment.visitType === "first" ? "初診" : "再診"}
             </div>
-            <DialogTitle className="text-sm text-[#37352F]">
+            <DialogTitle className={`text-sm ${C.text}`}>
               {getReservationTypeName(appointment.type)}
             </DialogTitle>
           </div>
@@ -142,16 +142,16 @@ export function ReservationDetailModal({
           ) : null}
 
           {/* Date & Time Card */}
-          <div className="rounded-lg border border-[rgba(55,53,47,0.09)] bg-[#FAFAF8] p-3">
+          <div className={`rounded-lg border ${C.borderLight} ${C.bgSubtle} p-3`}>
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-[#37352F]/5">
-                <Calendar className={`${ICON.action} text-[#37352F]/60`} />
+              <div className={`flex items-center justify-center w-9 h-9 rounded-lg ${C.bgPrimary5}`}>
+                <Calendar className={`${ICON.action} ${C.text60}`} />
               </div>
               <div className="flex-1">
-                <div className="text-sm text-[#37352F]">
+                <div className={`text-sm ${C.text}`}>
                   {format(appointment.start, "yyyy年 M月 d日 (E)", { locale: ja })}
                 </div>
-                <div className="flex items-center gap-1.5 text-sm text-[#37352F]/60 mt-0.5">
+                <div className={`flex items-center gap-1.5 text-sm ${C.text60} mt-0.5`}>
                   <Clock className={ICON.xs} />
                   {format(appointment.start, "H:mm")} – {format(appointment.end, "H:mm")}
                 </div>
@@ -162,10 +162,10 @@ export function ReservationDetailModal({
           {/* Patient Info */}
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 mb-2">
-              <PawPrint className={`${ICON.xs} text-[#37352F]/40`} />
-              <span className="text-sm text-[#37352F]/50 tracking-wide">患者情報</span>
+              <PawPrint className={`${ICON.xs} ${C.text40}`} />
+              <span className={`text-sm ${C.text50} tracking-wide`}>患者情報</span>
             </div>
-            <div className="divide-y divide-[rgba(55,53,47,0.06)]">
+            <div className={`divide-y ${C.divideDividerFaint}`}>
               <InfoRow label="ペット名">
                 <span className="font-medium">{appointment.petName}</span>
               </InfoRow>
@@ -174,7 +174,7 @@ export function ReservationDetailModal({
               </InfoRow>
               {appointment.petId ? (
                 <InfoRow label="カルテNo.">
-                  <span className="font-mono text-[#37352F]/70">{appointment.petId}</span>
+                  <span className={`font-mono ${C.text70}`}>{appointment.petId}</span>
                 </InfoRow>
               ) : null}
             </div>
@@ -183,10 +183,10 @@ export function ReservationDetailModal({
           {/* Medical Details */}
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 mb-2">
-              <Stethoscope className={`${ICON.xs} text-[#37352F]/40`} />
-              <span className="text-sm text-[#37352F]/50 tracking-wide">診療詳細</span>
+              <Stethoscope className={`${ICON.xs} ${C.text40}`} />
+              <span className={`text-sm ${C.text50} tracking-wide`}>診療詳細</span>
             </div>
-            <div className="divide-y divide-[rgba(55,53,47,0.06)]">
+            <div className={`divide-y ${C.divideDividerFaint}`}>
               <InfoRow label="担当医">
                 <div className="flex items-center gap-1.5">
                   {appointment.doctor}
@@ -200,7 +200,7 @@ export function ReservationDetailModal({
               <InfoRow label="予約区分">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full shrink-0" style={appointment ? getColor(appointment.type).dotStyle : undefined} />
-                  <Tag className={`${ICON.xs} text-[#37352F]/40`} />
+                  <Tag className={`${ICON.xs} ${C.text40}`} />
                   {getReservationTypeName(appointment.type)}
                 </div>
               </InfoRow>
@@ -214,12 +214,12 @@ export function ReservationDetailModal({
                 <FileText className={`${ICON.xs}`} />
                 <span>メモ</span>
               </div>
-              <p className="text-sm text-[#37352F]/80 whitespace-pre-wrap leading-relaxed">{appointment.notes}</p>
+              <p className={`text-sm ${C.text80} whitespace-pre-wrap leading-relaxed`}>{appointment.notes}</p>
             </div>
           ) : null}
         </div>
 
-        <DialogFooter className="px-5 py-3 bg-[#FAFAF8] flex flex-row items-center border-t border-[rgba(55,53,47,0.06)]">
+        <DialogFooter className={`px-5 py-3 ${C.bgSubtle} flex flex-row items-center border-t ${C.borderDivider}`}>
           <div className="flex-1">
             {onDelete ? (
               <DeleteIconButton onClick={() => onDelete(appointment)} />
@@ -230,7 +230,7 @@ export function ReservationDetailModal({
               variant="outline"
               size="sm"
               onClick={() => onEdit(appointment)}
-              className="h-9 text-sm gap-1.5 border-[rgba(55,53,47,0.16)] bg-white text-[#37352F] hover:bg-[#F7F6F3]"
+              className={`h-9 text-sm gap-1.5 ${C.borderMedium} bg-white ${C.text} ${C.hoverBgPage}`}
             >
               <Pencil className={`${ICON.xs}`} />
               編集
@@ -238,7 +238,7 @@ export function ReservationDetailModal({
             {onCreateRecord ? (
               <Button
                 size="sm"
-                className="bg-[#37352F] text-white hover:bg-[#37352F]/90 h-9 text-sm gap-1.5 shadow-sm"
+                className={`${C.bgPrimary} text-white ${C.hoverBgPrimaryDark} h-9 text-sm gap-1.5 shadow-sm`}
                 onClick={() => onCreateRecord(appointment)}
               >
                 <actionConfig.Icon className={ICON.action} />

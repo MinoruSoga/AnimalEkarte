@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { ICON, C } from "@/lib/design-tokens";
 import { useState, useMemo, useDeferredValue, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { usePermission } from "@/features/auth/hooks/use-permission";
@@ -174,13 +174,13 @@ export function EstimateList() {
   // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
   const renderRow = useCallback((estimate: Estimate) => (
     <DataTableRow key={estimate.id} onClick={() => navigate(paths.estimates.detail.getHref(estimate.id))}>
-      <TableCell className="font-mono text-base text-[#37352F]/60 py-2">{estimate.estimateNo}</TableCell>
-      <TableCell className="text-base text-[#37352F] py-2 font-medium">{estimate.title}</TableCell>
-      <TableCell className="text-base text-[#37352F] py-2">{estimate.ownerName ?? "-"}</TableCell>
-      <TableCell className="text-base text-[#37352F]/60 py-2">
+      <TableCell className={`font-mono text-base ${C.text60} py-2`}>{estimate.estimateNo}</TableCell>
+      <TableCell className={`text-base ${C.text} py-2 font-medium`}>{estimate.title}</TableCell>
+      <TableCell className={`text-base ${C.text} py-2`}>{estimate.ownerName ?? "-"}</TableCell>
+      <TableCell className={`text-base ${C.text60} py-2`}>
         {estimate.validUntil ? estimate.validUntil.slice(0, 10) : "-"}
       </TableCell>
-      <TableCell className="text-right font-mono font-medium text-base text-[#37352F] py-2">
+      <TableCell className={`text-right font-mono font-medium text-base ${C.text} py-2`}>
         {formatCurrency(estimate.totalAmount)}
       </TableCell>
       <TableCell className="py-2">
@@ -216,7 +216,7 @@ export function EstimateList() {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center p-8">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
+        <div className={`inline-block animate-spin rounded-full h-8 w-8 border-b-2 ${C.borderPrimary}`} />
       </div>
     );
   }
@@ -227,7 +227,7 @@ export function EstimateList() {
   return (
     <PageLayout
       title="見積書管理"
-      icon={<FileText className={`${ICON.page} text-[#37352F]`} />}
+      icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={() => navigate("/estimates/new")}>

@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { ICON, C } from "@/lib/design-tokens";
 import { useState, useMemo, useCallback, Suspense, lazy } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -139,10 +139,10 @@ export function ReservationManagement() {
   }, []);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#F7F6F3] min-w-0 w-full">
+    <div className={`flex-1 flex flex-col h-full ${C.bgPage} min-w-0 w-full`}>
       <FormHeader
         title="予約管理"
-        icon={<CalendarIcon className={`${ICON.page} text-[#37352F]`} />}
+        icon={<CalendarIcon className={`${ICON.page} ${C.text}`} />}
         action={
           <div className="flex items-center gap-2">
             {canCreate ? (
@@ -160,7 +160,7 @@ export function ReservationManagement() {
         {/* Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-4">
-            <div className="flex items-center bg-white rounded-md border border-[rgba(55,53,47,0.16)] p-1 shadow-sm">
+            <div className={`flex items-center bg-white rounded-md border ${C.borderMedium} p-1 shadow-sm`}>
               <Button
                 variant="ghost"
                 size="icon"
@@ -186,7 +186,7 @@ export function ReservationManagement() {
                 <ChevronRight className={ICON.page} />
               </Button>
             </div>
-            <h2 className="text-xl font-bold text-[#37352F] flex items-center gap-2">
+            <h2 className={`text-xl font-bold ${C.text} flex items-center gap-2`}>
               {format(currentDate, "yyyy年 M月", { locale: ja })}
             </h2>
           </div>
@@ -194,7 +194,7 @@ export function ReservationManagement() {
           <div className="flex items-center gap-2">
             {/* Doctor Filter */}
             <Select value={doctorFilter} onValueChange={setDoctorFilter}>
-              <SelectTrigger className="w-[160px] bg-white border-[rgba(55,53,47,0.16)] h-10 text-base">
+              <SelectTrigger className={`w-[160px] bg-white ${C.borderMedium} h-10 text-base`}>
                 <SelectValue placeholder="担当医で絞込" />
               </SelectTrigger>
               <SelectContent>
@@ -211,7 +211,7 @@ export function ReservationManagement() {
               value={view}
               onValueChange={typedSetter(setView, CALENDAR_VIEW_VALUES)}
             >
-              <SelectTrigger className="w-[140px] bg-white border-[rgba(55,53,47,0.16)] h-10 text-base">
+              <SelectTrigger className={`w-[140px] bg-white ${C.borderMedium} h-10 text-base`}>
                 <SelectValue placeholder="表示切替" />
               </SelectTrigger>
               <SelectContent>
@@ -233,7 +233,7 @@ export function ReservationManagement() {
                 className="w-2.5 h-2.5 rounded-full"
                 style={entry.color.dotStyle}
               />
-              <span className="text-base text-[#37352F]/60">{entry.name}</span>
+              <span className={`text-base ${C.text60}`}>{entry.name}</span>
             </div>
           ))}
         </div>
@@ -244,8 +244,8 @@ export function ReservationManagement() {
             fallback={
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
-                  <p className="mt-2 text-[#37352F]/60 text-base">
+                  <div className={`inline-block animate-spin rounded-full h-8 w-8 border-b-2 ${C.borderPrimary}`} />
+                  <p className={`mt-2 ${C.text60} text-base`}>
                     読み込み中...
                   </p>
                 </div>
