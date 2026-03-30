@@ -13,6 +13,8 @@ import { useUpdateInquiry } from "../api/inquiries";
 import { useUpdateTreatmentPlan } from "../api/treatment-plans";
 import type { UpdateMedicalRecordRequest } from "../api/types";
 import type { TreatmentItem } from "../components/TreatmentTable";
+import type { ActionState } from "@/types/form";
+import { INITIAL_ACTION_STATE } from "@/types/form";
 
 const DEFAULT_CHIEF_COMPLAINT = "# どんな症状\n\n# どこが\n\n# いつから\n\n# その他・備考\n\n# フリースペース";
 const DEFAULT_TREATMENT_POLICY = "# 治療方針";
@@ -29,6 +31,35 @@ export function useMedicalRecordForm(recordId?: string) {
   const [activeTab, setActiveTab] = useState("問診");
   const [visitType, setVisitType] = useState("再診");
   const [isCreating, setIsCreating] = useState(false);
+  const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
+
+  // --- Focus Management (Accessibility) ---
+  useEffect(() => {
+    const errorFields = Object.keys(manualErrors);
+    if (errorFields.length === 0) return;
+
+    // 優先順位に基づいたエラーフィールドの特定
+    // key は API のフィールド名、value は DOM ID またはタブ切り替えロジック
+    const PRIORITY_FIELDS = ["chief_complaint", "treatment_policy", "diagnosis1_category_id"];
+    const firstError = PRIORITY_FIELDS.find(f => errorFields.includes(f)) || errorFields[0];
+    
+    // 主訴や治療方針にエラーがある場合は「問診」タブへ強制移動
+    if (["chief_complaint", "treatment_policy"].includes(firstError)) {
+      setActiveTab("問診");
+    } else if (["diagnosis1_category_id", "diagnosis1_name_id"].includes(firstError)) {
+      setActiveTab("診察/治療プラン");
+    }
+
+    // DOMへのフォーカス（少し遅延させてタブ切り替えを待つ）
+    setTimeout(() => {
+      const element = document.getElementById(firstError);
+      if (element) {
+        element.focus();
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 50);
+  }, [manualErrors]);
+
   const hasAutoCreatedRef = useRef(false);
   const [treatmentPlanItems, setTreatmentPlanItems] = useState<TreatmentItem[]>([]);
   const [treatmentCompletedItems, setTreatmentCompletedItems] = useState<TreatmentItem[]>([]);
@@ -117,23 +148,38 @@ export function useMedicalRecordForm(recordId?: string) {
   const updateTreatmentPlanMutation = useUpdateTreatmentPlan(recordId ?? "");
 
   // useTransition: save の pending 管理 (rerender-transitions)
-  const [, startSaveTransition] = useTransition();
+  const [isSavingTransition, startSaveTransition] = useTransition();
 
-  interface FormState {
-    success: boolean;
-    timestamp: number;
-  }
+  // activeTab を保存時に正確に参照するための ref
+  const activeTabRef = useRef(activeTab);
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
 
   /**
    * React 19 useActionState を使用したタブ別保存アクション
-   * 自動作成でカルテは必ず存在するため isNewRecord 分岐なし
    */
-  const [formState, formAction, isPending] = useActionState(
-    async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
+  const [formState, formAction, isSaving] = useActionState(
+    async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
       if (!recordId) return { success: false, timestamp: Date.now() };
 
+      // フロントエンド・バリデーション
+      const errors: Record<string, string> = {};
+      if (!chiefComplaint || chiefComplaint === DEFAULT_CHIEF_COMPLAINT) {
+        errors.chief_complaint = "主訴を入力してください";
+      }
+      
+      if (Object.keys(errors).length > 0) {
+        setManualErrors(errors);
+        toast.error("必須項目が未入力です");
+        return { success: false, fieldErrors: errors, timestamp: Date.now() };
+      }
+
       try {
-        switch (activeTab) {
+        setManualErrors({});
+        const currentTab = activeTabRef.current;
+
+        switch (currentTab) {
           case "問診":
             await updateInquiryMutation.mutateAsync({
               chief_complaint: chiefComplaint !== DEFAULT_CHIEF_COMPLAINT ? chiefComplaint : undefined,
@@ -144,8 +190,10 @@ export function useMedicalRecordForm(recordId?: string) {
 
           case "診察/治療プラン": {
             if (diagnosis1CategoryId && !diagnosis1NameId) {
+              const diagError = { diagnosis1_name_id: "診断名を選択してください" };
+              setManualErrors(diagError);
               toast.error("診断名を選択してください");
-              return { success: false, timestamp: Date.now() };
+              return { success: false, fieldErrors: diagError, timestamp: Date.now() };
             }
             await updateTreatmentPlanMutation.mutateAsync({
               treatment_policy: plan !== DEFAULT_PLAN ? plan : undefined,
@@ -158,15 +206,12 @@ export function useMedicalRecordForm(recordId?: string) {
             break;
           }
 
-          // 治療・予防接種・定期健診・検査・画像タブは
-          // インラインCRUDが行単位で保存済み → formAction では何もしない
           default:
             break;
         }
 
         localStorage.removeItem(DRAFT_KEY);
         toast.success("保存しました");
-        // BUG-MEDI-009: カルテ保存後にダッシュボードのキャッシュを無効化して診療中カードを更新
         queryClient.invalidateQueries({ queryKey: ["dashboard"] });
         return { success: true, timestamp: Date.now() };
       } catch (error) {
@@ -174,7 +219,7 @@ export function useMedicalRecordForm(recordId?: string) {
         return { success: false, timestamp: Date.now() };
       }
     },
-    { success: false, timestamp: 0 }
+    INITIAL_ACTION_STATE
   );
 
   const handleBack = useCallback(() => {
@@ -206,7 +251,7 @@ export function useMedicalRecordForm(recordId?: string) {
         }
       });
     },
-    [recordId, updateMutation, startSaveTransition],
+    [recordId, updateMutation],
   );
 
   // 飼主変更ハンドラ
@@ -225,10 +270,10 @@ export function useMedicalRecordForm(recordId?: string) {
         }
       });
     },
-    [recordId, updateMutation, startSaveTransition],
+    [recordId, updateMutation],
   );
 
-  // 新規作成時: ページ表示と同時にカルテを自動作成して編集URLに置換ナビゲーション
+  // 新規作成時: ページ表示と同時にカルテを自動作成
   useEffect(() => {
     if (!isNewRecord || !selectedPet || hasAutoCreatedRef.current) return;
     hasAutoCreatedRef.current = true;
@@ -244,21 +289,18 @@ export function useMedicalRecordForm(recordId?: string) {
           visit_type: visitType,
           status: "draft",
         });
-        // 編集URLに置換ナビゲーション（ブラウザ履歴を汚さない）
         navigate(paths.medicalRecords.detail.getHref(record.id), { replace: true });
       } catch (error) {
         handleApiError(error, "カルテ作成");
-        hasAutoCreatedRef.current = false; // エラー時はリトライ可能に
+        hasAutoCreatedRef.current = false;
       } finally {
         setIsCreating(false);
       }
     };
 
     autoCreate();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNewRecord, selectedPet?.id]);
 
-  // petIdがなく新規作成の場合はselect-petへリダイレクト（呼び出し元で判定）
   const shouldRedirectToSelectPet = isNewRecord && !petId;
 
   return {
@@ -273,7 +315,7 @@ export function useMedicalRecordForm(recordId?: string) {
     handleBack,
     formAction,
     formState,
-    isSaving: isPending,
+    isSaving: isPending || isSavingTransition,
     isCreating,
     treatmentPlanItems,
     setTreatmentPlanItems,
@@ -306,5 +348,6 @@ export function useMedicalRecordForm(recordId?: string) {
     handleChangeDoctor,
     // 飼主変更
     handleChangeOwner,
+    fieldErrors: manualErrors,
   };
 }

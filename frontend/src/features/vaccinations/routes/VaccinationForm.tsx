@@ -172,6 +172,8 @@ export const VaccinationForm = memo(function VaccinationForm() {
                                 className="flex-1"
                             />
                         </div>
+                        {/* BUG-096: 過去日付エラーメッセージ */}
+                        <FormFieldError message={fieldErrors.nextDate} />
                     </div>
                 </div>
 

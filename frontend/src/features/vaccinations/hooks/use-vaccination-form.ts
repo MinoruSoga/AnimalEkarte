@@ -133,6 +133,14 @@ export function useVaccinationForm(id?: string) {
           errors.date = "接種日を入力してください";
         }
       }
+      // BUG-096: 新規登録時、次回予定日は本日以降
+      if (!isEdit && formData.nextDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (new Date(formData.nextDate) < today) {
+          errors.nextDate = "次回予定日は本日以降の日付を入力してください";
+        }
+      }
       if (Object.keys(errors).length > 0) {
         setFieldErrors(errors);
         return { success: false, timestamp: Date.now() };

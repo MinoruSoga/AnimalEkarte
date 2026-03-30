@@ -148,6 +148,16 @@ export function ReservationFormModal({
     if (formData.start && formData.end && formData.end <= formData.start) {
       errors.time = "終了時刻は開始時刻より後に設定してください";
     }
+    // BUG-098: 新規予約は過去日付不可
+    if (!isEditMode && formData.start) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const reservationDate = new Date(formData.start);
+      reservationDate.setHours(0, 0, 0, 0);
+      if (reservationDate < today) {
+        errors.date = "本日以降の日付を選択してください";
+      }
+    }
 
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
@@ -159,7 +169,7 @@ export function ReservationFormModal({
 
     setValidationErrors({});
     onSave(formData, selectedPets);
-  }, [formData, selectedPets, onSave]);
+  }, [formData, selectedPets, onSave, isEditMode]);
 
   const isEditMode = initialData && initialData.id;
 
