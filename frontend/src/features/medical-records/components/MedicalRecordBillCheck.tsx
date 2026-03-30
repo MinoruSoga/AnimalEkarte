@@ -1,6 +1,7 @@
-import { lazy, memo, Suspense, useState, useMemo, useCallback } from "react";
+import { lazy, memo, Suspense, useState, useMemo, useCallback, useActionState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetTreatments, useCreateTreatment, useUpdateTreatment } from "../api/treatments";
@@ -94,16 +95,26 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
     setIsSearchOpen(false);
   }, [treatments, createTreatmentMutation]);
 
-  const handleConfirm = useCallback(() => {
-    confirmMutation.mutate({
-      confirmed_by: Number(user?.id ?? 0),
-      memo: "医師確認済み"
-    }, {
-      onSuccess: () => {
+  interface ActionFormState {
+    success: boolean;
+    timestamp: number;
+  }
+
+  const [, formAction] = useActionState(
+    async (_prevState: ActionFormState, _formData: FormData): Promise<ActionFormState> => {
+      try {
+        await confirmMutation.mutateAsync({
+          confirmed_by: Number(user?.id ?? 0),
+          memo: "医師確認済み"
+        });
         toast.success("会計確認を完了しました");
+        return { success: true, timestamp: Date.now() };
+      } catch {
+        return { success: false, timestamp: Date.now() };
       }
-    });
-  }, [confirmMutation, user]);
+    },
+    { success: false, timestamp: 0 }
+  );
 
   const handleReturn = useCallback(() => {
     returnMutation.mutate({
@@ -185,23 +196,26 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
         {isConfirmed ? (
           <Button
             variant="outline"
+            type="button"
             onClick={handleReturn}
             disabled={returnMutation.isPending}
-            className="h-10 text-sm gap-2 border-[#E0E0E0] hover:bg-gray-50"
+            className={`h-10 text-sm gap-2 border ${C.borderMedium} ${C.hoverBgLight}`}
           >
             <RotateCcw className={ICON.action} />
             確認を取り消す
           </Button>
         ) : (
-          <Button
-            onClick={handleConfirm}
-            disabled={confirmMutation.isPending || items.length === 0}
-            size="sm"
-            className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white min-w-[120px] shadow-lg h-10 text-sm border-transparent gap-2"
-          >
-            <CheckCircle2 className={ICON.action} />
-            チェック完了
-          </Button>
+          <form action={formAction}>
+            <SubmitButton
+              disabled={items.length === 0}
+              size="sm"
+              className={`${STYLE.confirmPrimary} min-w-[120px] shadow-lg h-10 text-sm gap-2`}
+              loadingText="処理中..."
+            >
+              <CheckCircle2 className={ICON.action} />
+              チェック完了
+            </SubmitButton>
+          </form>
         )}
       </div>
 

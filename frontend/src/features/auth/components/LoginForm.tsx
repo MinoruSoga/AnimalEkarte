@@ -75,72 +75,49 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  interface ActionFormState {
+    error: string | null;
+  }
+
+  const [formState, formAction, isPending] = useActionState(
+    async (_prevState: ActionFormState, formData: FormData): Promise<ActionFormState> => {
+      const emailValue = (formData.get("login-email") as string).trim();
+      const passwordValue = formData.get("login-password") as string;
+
+      if (!emailValue) return { error: "メールアドレスを入力してください" };
+      if (!passwordValue) return { error: "パスワードを入力してください" };
+
+      try {
+        await loginApi(emailValue, passwordValue);
+        navigate("/");
+        return { error: null };
+      } catch (err) {
+        let msg = "ログインに失敗しました。しばらくしてから再度お試しください";
+        if (isAxiosError(err)) {
+          if (!err.response) msg = "接続できません。ネットワークをご確認ください";
+          else if (err.response.status === 401) msg = "メールアドレスまたはパスワードが違います";
+          else if (err.response.status === 403) msg = "このアカウントはアクセスが制限されています";
+          else if (err.response.status >= 500) msg = "サーバーエラーが発生しました。しばらくしてからお試しください";
+        }
+        return { error: msg };
+      }
+    },
+    { error: null }
+  );
 
   const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
-    setError(null);
   }, []);
 
   const handlePasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(e.target.value);
-    setError(null);
   }, []);
 
   const handleSelectDemo = useCallback((demoEmail: string) => {
     setEmail(demoEmail);
     setPassword("password");
-    setError(null);
   }, []);
-
-  // rerender-defer-reads: email/password は controlled input の value に必要だが
-  // submit ハンドラ内では event.currentTarget から読む。
-  // これにより handleSubmit がキー入力のたびに再生成されるのを防ぐ。
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      setError(null);
-
-      const form = e.currentTarget;
-      const emailValue = (form.elements.namedItem("login-email") as HTMLInputElement).value.trim();
-      const passwordValue = (form.elements.namedItem("login-password") as HTMLInputElement).value;
-
-      if (!emailValue) {
-        setError("メールアドレスを入力してください");
-        return;
-      }
-      if (!passwordValue) {
-        setError("パスワードを入力してください");
-        return;
-      }
-
-      setIsSubmitting(true);
-      try {
-        await loginApi(emailValue, passwordValue);
-        // Cookie がセットされたあと保護ルートへ遷移。
-        // AuthProvider がマウントされ GET /v1/me でセッションが復元される。
-        navigate("/");
-      } catch (err) {
-        // BUG-047: axios エラーを日本語メッセージに変換し、生のHTTPエラー文字列を表示しない
-        if (isAxiosError(err) && !err.response) {
-          // ネットワーク到達不能（DNS失敗・タイムアウト等）
-          setError("接続できません。ネットワークをご確認ください");
-        } else if (isAxiosError(err) && err.response?.status === 401) {
-          setError("メールアドレスまたはパスワードが違います");
-        } else if (isAxiosError(err) && err.response?.status === 403) {
-          setError("このアカウントはアクセスが制限されています");
-        } else if (isAxiosError(err) && err.response != null && err.response.status >= 500) {
-          setError("サーバーエラーが発生しました。しばらくしてからお試しください");
-        } else {
-          setError("ログインに失敗しました。しばらくしてから再度お試しください");
-        }
-      } finally {
-        setIsSubmitting(false);
-      }
-    },
-    [navigate], // loginApi は安定した関数参照のため deps 不要
-  );
 
   return (
     <div className="w-full max-w-[380px] mx-auto">
@@ -156,7 +133,7 @@ export function LoginForm() {
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      <form action={formAction} noValidate className="space-y-4">
         {/* Email */}
         <div className="space-y-1.5">
           <label htmlFor="login-email" className={`text-sm block ${C.text65}`}>
@@ -164,15 +141,16 @@ export function LoginForm() {
           </label>
           <input
             id="login-email"
+            name="login-email"
             type="email"
             autoComplete="email"
             value={email}
             onChange={handleEmailChange}
             placeholder="例: admin@example.com"
             className={`${INPUT_BASE} px-2.5`}
-            aria-invalid={error !== null}
-            aria-describedby={error ? "login-error" : undefined}
-            disabled={isSubmitting}
+            aria-invalid={formState.error !== null}
+            aria-describedby={formState.error ? "login-error" : undefined}
+            disabled={isPending}
           />
         </div>
 
@@ -184,15 +162,16 @@ export function LoginForm() {
           <div className="relative">
             <input
               id="login-password"
+              name="login-password"
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               value={password}
               onChange={handlePasswordChange}
               placeholder="パスワードを入力"
               className={`${INPUT_BASE} pl-2.5 pr-10`}
-              aria-invalid={error !== null}
-              aria-describedby={error ? "login-error" : undefined}
-              disabled={isSubmitting}
+              aria-invalid={formState.error !== null}
+              aria-describedby={formState.error ? "login-error" : undefined}
+              disabled={isPending}
             />
             <button
               type="button"
@@ -205,7 +184,7 @@ export function LoginForm() {
           </div>
         </div>
 
-        <FormFieldError id="login-error" message={error} />
+        <FormFieldError id="login-error" message={formState.error} />
 
         {/* Submit */}
         <SubmitButton
