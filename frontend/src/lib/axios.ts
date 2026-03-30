@@ -57,7 +57,8 @@ axios.interceptors.response.use(
         error.response?.status === 401 &&
         window.location.pathname !== "/login"
       ) {
-        window.location.href = "/login";
+        const from = encodeURIComponent(window.location.pathname + window.location.search);
+        window.location.href = `/login?from=${from}`;
       }
       return Promise.reject(error);
     }
@@ -82,7 +83,8 @@ axios.interceptors.response.use(
     } catch (refreshError) {
       processQueue(refreshError as AxiosError);
       if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
+        const from = encodeURIComponent(window.location.pathname + window.location.search);
+        window.location.href = `/login?from=${from}`;
       }
       return Promise.reject(refreshError);
     } finally {

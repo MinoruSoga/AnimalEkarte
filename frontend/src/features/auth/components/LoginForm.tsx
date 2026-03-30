@@ -88,10 +88,17 @@ const [formState, formAction, isPending] = useActionState(
 
     try {
       await loginApi(emailValue, passwordValue);
-      const from = (location.state as { from?: string })?.from || "/";
+
+      // 1. location.state から取得 (内部遷移)
+      // 2. URL クエリパラメータから取得 (Axios インターセプター等からの強制遷移)
+      const searchParams = new URLSearchParams(window.location.search);
+      const queryFrom = searchParams.get("from");
+      const from = (location.state as { from?: string })?.from || queryFrom || "/";
+
       navigate(from, { replace: true });
       return { success: true, error: null, timestamp: Date.now() };
     } catch (err) {
+
       // BUG-047: axios エラーを日本語メッセージに変換
       let msg = "ログインに失敗しました。しばらくしてから再度お試しください";
       if (isAxiosError(err)) {
