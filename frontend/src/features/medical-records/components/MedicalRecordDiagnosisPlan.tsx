@@ -16,21 +16,19 @@ import { C, LAYOUT } from "@/lib/design-tokens";
 
 export interface DiagnosisPlanProps {
   isNewRecord?: boolean;
-  items?: TreatmentItem[];
-  setItems?: React.Dispatch<React.SetStateAction<TreatmentItem[]>>;
   // 制御型props（親フックから状態を受け取る）
-  plan?: string;
-  setPlan?: (value: string) => void;
-  assessment?: string;
-  setAssessment?: (value: string) => void;
-  diagnosis1CategoryId?: number | null;
-  setDiagnosis1CategoryId?: (id: number | null) => void;
-  diagnosis1NameId?: number | null;
-  setDiagnosis1NameId?: (id: number | null) => void;
-  diagnosis2CategoryId?: number | null;
-  setDiagnosis2CategoryId?: (id: number | null) => void;
-  diagnosis2NameId?: number | null;
-  setDiagnosis2NameId?: (id: number | null) => void;
+  plan: string;
+  setPlan: (value: string) => void;
+  assessment: string;
+  setAssessment: (value: string) => void;
+  diagnosis1CategoryId: number | null;
+  setDiagnosis1CategoryId: (id: number | null) => void;
+  diagnosis1NameId: number | null;
+  setDiagnosis1NameId: (id: number | null) => void;
+  diagnosis2CategoryId: number | null;
+  setDiagnosis2CategoryId: (id: number | null) => void;
+  diagnosis2NameId: number | null;
+  setDiagnosis2NameId: (id: number | null) => void;
   medicalRecordId?: string;
   ownerDiscountRate?: number;
   onRegisterClinicalPlanSave?: (fn: () => Promise<void>) => void;
@@ -38,10 +36,10 @@ export interface DiagnosisPlanProps {
 
 export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPlan({
   isNewRecord = false,
-  plan: planProp,
-  setPlan: setPlanProp,
-  assessment: assessmentProp,
-  setAssessment: setAssessmentProp,
+  plan,
+  setPlan,
+  assessment,
+  setAssessment,
   diagnosis1CategoryId,
   setDiagnosis1CategoryId,
   diagnosis1NameId,
@@ -54,14 +52,6 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
   ownerDiscountRate = 0,
   onRegisterClinicalPlanSave,
 }: DiagnosisPlanProps) {
-  // 制御型propsが渡された場合はそれを使用し、渡されない場合は内部stateにフォールバック
-  const [internalPolicy, setInternalPolicy] = useState("# 治療方針");
-  const [internalDiagnosisDetails, setInternalDiagnosisDetails] = useState("# 診断詳細");
-
-  const policy = planProp ?? internalPolicy;
-  const setPolicy = setPlanProp ?? setInternalPolicy;
-  const diagnosisDetails = assessmentProp ?? internalDiagnosisDetails;
-  const setDiagnosisDetails = setAssessmentProp ?? setInternalDiagnosisDetails;
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
 
@@ -166,10 +156,10 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
     <div className={`gap-3 ${LAYOUT.fullHeight}`}>
       <div className="shrink-0">
         <DiagnosisHeader
-          policy={policy}
-          setPolicy={setPolicy}
-          diagnosisDetails={diagnosisDetails}
-          setDiagnosisDetails={setDiagnosisDetails}
+          policy={plan}
+          setPolicy={setPlan}
+          diagnosisDetails={assessment}
+          setDiagnosisDetails={setAssessment}
           diagnosis1CategoryId={diagnosis1CategoryId}
           setDiagnosis1CategoryId={setDiagnosis1CategoryId}
           diagnosis1NameId={diagnosis1NameId}
