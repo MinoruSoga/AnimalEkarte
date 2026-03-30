@@ -98,6 +98,9 @@ func (s *treatmentService) Create(ctx context.Context, medicalRecordID uint64, i
 	if input.UnitPrice < 0 {
 		return nil, apperrors.WrapInvalidInput("金額は0以上を入力してください")
 	}
+	if input.Quantity <= 0 {
+		return nil, apperrors.WrapInvalidInput("数量は0より大きい値を入力してください")
+	}
 	if input.DiscountRate < 0 || input.DiscountRate > 100 {
 		return nil, apperrors.WrapInvalidInput("割引率は0〜100の範囲で入力してください")
 	}

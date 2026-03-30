@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import {
   Select,
   SelectContent,
@@ -19,6 +20,7 @@ import {
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import type { Shift, ShiftType, CreateShiftInput, UpdateShiftInput } from "@/features/shifts/types";
 import { SHIFT_TYPE_LABELS } from "@/features/shifts/types";
+import { ShiftTypeOff } from "@/types/generated/models";
 import { useCreateShift } from "@/features/shifts/api/create-shift";
 import { useUpdateShift } from "@/features/shifts/api/update-shift";
 import { useDeleteShift } from "@/features/shifts/api/delete-shift";
@@ -95,6 +97,10 @@ export function ShiftFormDialog({
   const { mutateAsync: deleteShift } = useDeleteShift();
   const [isPending, startSaveTransition] = useTransition();
   const [isDeletePending, startDeleteTransition] = useTransition();
+  // BUG-093: 削除確認ダイアログの表示状態
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  // BUG-092: 休日・有休は時刻入力不要
+  const isTimeFieldDisabled = form.shiftType === ShiftTypeOff;
 
   const handleSubmit = useCallback(
     (e: React.FormEvent<HTMLFormElement>) => {
@@ -149,8 +155,10 @@ export function ShiftFormDialog({
     [],
   );
 
-  const handleDelete = useCallback(() => {
+  // BUG-093: 削除確認後に実際の削除を実行
+  const handleDeleteConfirm = useCallback(() => {
     if (!editShift) return;
+    setIsDeleteConfirmOpen(false);
     startDeleteTransition(async () => {
       await deleteShift(editShift.id);
       onClose();
@@ -166,6 +174,7 @@ export function ShiftFormDialog({
     : "";
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -188,26 +197,29 @@ export function ShiftFormDialog({
             </Select>
           </div>
 
+          {/* BUG-092: 休日選択時は時刻フィールドを非活性 */}
           <div className="space-y-1.5">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="start-time">開始時刻</Label>
+                <Label htmlFor="start-time" className={isTimeFieldDisabled ? "opacity-40" : ""}>開始時刻</Label>
                 <Input
                   id="start-time"
                   name="startTime"
                   type="time"
                   value={form.startTime}
                   onChange={handleInputChange}
+                  disabled={isTimeFieldDisabled}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="end-time">終了時刻</Label>
+                <Label htmlFor="end-time" className={isTimeFieldDisabled ? "opacity-40" : ""}>終了時刻</Label>
                 <Input
                   id="end-time"
                   name="endTime"
                   type="time"
                   value={form.endTime}
                   onChange={handleInputChange}
+                  disabled={isTimeFieldDisabled}
                 />
               </div>
             </div>
@@ -233,7 +245,7 @@ export function ShiftFormDialog({
                 type="button"
                 variant="destructive"
                 size="sm"
-                onClick={handleDelete}
+                onClick={() => setIsDeleteConfirmOpen(true)}
                 disabled={isPending || isDeletePending}
               >
                 {isDeletePending ? "削除中..." : "削除"}
@@ -249,5 +261,17 @@ export function ShiftFormDialog({
         </form>
       </DialogContent>
     </Dialog>
+
+    {/* BUG-093: 削除確認ダイアログ */}
+    <ConfirmDialog
+      open={isDeleteConfirmOpen}
+      onClose={() => setIsDeleteConfirmOpen(false)}
+      title="このシフトを削除しますか？"
+      description="この操作は取り消せません。"
+      confirmLabel="削除"
+      variant="destructive"
+      onConfirm={handleDeleteConfirm}
+    />
+    </>
   );
 }

@@ -880,8 +880,9 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
       source: "manual",
     };
 
-    // 楽観的UI更新: まずローカルに追加
-    setLocalItems((prev) => [...(prev ?? []), newItem]);
+    // BUG-045: localItems が null (未編集) の場合は baseAccounting.items を seed として使用し、
+    // 既存の治療明細を失わないようにする
+    setLocalItems((prev) => [...(prev ?? baseAccounting?.items ?? []), newItem]);
     setNewItemOpen(false);
     toast.success("明細を追加しました");
 
@@ -908,11 +909,12 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
         }
       });
     }
-  }, [id, queryClient]);
+  }, [id, queryClient, baseAccounting?.items]);
 
+  // BUG-045: 削除時も baseAccounting.items を seed として使用
   const handleDeleteItem = useCallback((itemId: string) => {
-    setLocalItems((prev) => (prev ?? []).filter((i) => i.id !== itemId));
-  }, []);
+    setLocalItems((prev) => (prev ?? baseAccounting?.items ?? []).filter((i) => i.id !== itemId));
+  }, [baseAccounting?.items]);
 
   const handleUpdateItemTax = useCallback(
     (itemId: string, taxType: TaxType, taxRate: number) => {
