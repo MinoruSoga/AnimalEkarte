@@ -126,6 +126,7 @@ export function useOwnerForm(
       if (!ownerData.ownerNameKana.trim()) errors.ownerNameKana = "飼主名（カナ）を入力してください";
       if (!ownerData.phone.trim()) errors.phone = "電話番号を入力してください";
 
+
       if (Object.keys(errors).length > 0) {
         toast.error("必須項目が未入力です");
         return { success: false, fieldErrors: errors, timestamp: Date.now() };

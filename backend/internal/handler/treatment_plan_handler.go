@@ -20,7 +20,7 @@ func (h *Handler) ListTreatmentPlansByMedicalRecord(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if !h.verifyMedicalRecordOwnership(c, clinicID, id) {
+	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, id); !ok {
 		return
 	}
 	plans, err := h.svc.TreatmentPlan.ListByMedicalRecord(c.Request.Context(), id)
@@ -45,7 +45,7 @@ func (h *Handler) CreateTreatmentPlanForMedicalRecord(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if !h.verifyMedicalRecordOwnership(c, clinicID, id) {
+	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, id); !ok {
 		return
 	}
 	var req createTreatmentPlanRequest
@@ -163,7 +163,7 @@ func (h *Handler) UpdateTreatmentPlanInMedicalRecord(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if !h.verifyMedicalRecordOwnership(c, clinicID, mrID) {
+	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, mrID); !ok {
 		return
 	}
 	planID, err := strconv.ParseUint(c.Param("planId"), 10, 64)
@@ -196,7 +196,7 @@ func (h *Handler) DeleteTreatmentPlanInMedicalRecord(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
-	if !h.verifyMedicalRecordOwnership(c, clinicID, mrID) {
+	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, mrID); !ok {
 		return
 	}
 	planID, err := strconv.ParseUint(c.Param("planId"), 10, 64)

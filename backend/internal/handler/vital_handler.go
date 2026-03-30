@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -22,7 +23,7 @@ func (h *Handler) ListVitals(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
 		return
 	}
-	if !h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID) {
+	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID); !ok {
 		return
 	}
 
@@ -51,7 +52,8 @@ func (h *Handler) CreateVital(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
 		return
 	}
-	if !h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID) {
+	mr, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID)
+	if !ok {
 		return
 	}
 
@@ -61,15 +63,19 @@ func (h *Handler) CreateVital(c *gin.Context) {
 		return
 	}
 
+	var petID uint64
+	if mr.PetID != nil {
+		petID = *mr.PetID
+	}
 	input := &service.CreateVitalInput{
-		PetID:           req.PetID,
+		PetID:           petID,
 		RecordedAt:      req.RecordedAt,
 		StaffID:         req.StaffID,
 		Temperature:     req.Temperature,
 		HeartRate:       req.HeartRate,
 		RespirationRate: req.RespirationRate,
 		Weight:          req.Weight,
-		WeightUnit:      req.WeightUnit,
+		WeightUnit:      toBodyWeightUnit(req.WeightUnit),
 		Notes:           req.Notes,
 	}
 
@@ -93,7 +99,7 @@ func (h *Handler) UpdateVital(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
 		return
 	}
-	if !h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID) {
+	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID); !ok {
 		return
 	}
 
@@ -116,6 +122,7 @@ func (h *Handler) UpdateVital(c *gin.Context) {
 		HeartRate:       req.HeartRate,
 		RespirationRate: req.RespirationRate,
 		Weight:          req.Weight,
+		WeightUnit:      toBodyWeightUnit(req.WeightUnit),
 		Notes:           req.Notes,
 	}
 
@@ -139,7 +146,7 @@ func (h *Handler) DeleteVital(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("invalid medical record id"))
 		return
 	}
-	if !h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID) {
+	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, medicalRecordID); !ok {
 		return
 	}
 
@@ -154,6 +161,16 @@ func (h *Handler) DeleteVital(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// toBodyWeightUnit は文字列ポインタを *model.BodyWeightUnit に変換するヘルパー。
+// nil の場合は nil を返し、サービス層でデフォルト値（Kg）が適用される。
+func toBodyWeightUnit(s *string) *model.BodyWeightUnit {
+	if s == nil {
+		return nil
+	}
+	u := model.BodyWeightUnit(*s)
+	return &u
 }
 
 // RegisterVitalRoutes はバイタル関連のルートをmedical-recordsグループに登録する

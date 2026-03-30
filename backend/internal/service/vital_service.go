@@ -19,7 +19,7 @@ type CreateVitalInput struct {
 	HeartRate       *int
 	RespirationRate *int
 	Weight          *float64
-	WeightUnit      string
+	WeightUnit      *model.BodyWeightUnit
 	Notes           string
 }
 
@@ -31,6 +31,7 @@ type UpdateVitalInput struct {
 	HeartRate       *int
 	RespirationRate *int
 	Weight          *float64
+	WeightUnit      *model.BodyWeightUnit
 	Notes           *string
 }
 
@@ -60,11 +61,6 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 		return nil, apperrors.WrapInvalidInput("pet_id is required")
 	}
 
-	weightUnit := model.BodyWeightUnitKg
-	if input.WeightUnit != "" {
-		weightUnit = model.BodyWeightUnit(input.WeightUnit)
-	}
-
 	vital := &model.VitalRecord{
 		PetID:           input.PetID,
 		MedicalRecordID: &medicalRecordID,
@@ -74,7 +70,7 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 		HeartRate:       input.HeartRate,
 		RespirationRate: input.RespirationRate,
 		Weight:          input.Weight,
-		WeightUnit:      weightUnit,
+		WeightUnit:      weightUnitOrDefault(input.WeightUnit),
 		Notes:           input.Notes,
 	}
 	if err := s.repo.Create(ctx, vital); err != nil {
@@ -127,6 +123,14 @@ func (s *vitalService) Delete(ctx context.Context, medicalRecordID, vitalID uint
 	return nil
 }
 
+// weightUnitOrDefault は nil の場合に BodyWeightUnitKg を返すヘルパー。
+func weightUnitOrDefault(u *model.BodyWeightUnit) model.BodyWeightUnit {
+	if u != nil {
+		return *u
+	}
+	return model.BodyWeightUnitKg
+}
+
 // buildVitalUpdateFields はnilでないフィールドのみmap[string]anyに変換する
 func buildVitalUpdateFields(input *UpdateVitalInput) map[string]any {
 	fields := map[string]any{}
@@ -147,6 +151,9 @@ func buildVitalUpdateFields(input *UpdateVitalInput) map[string]any {
 	}
 	if input.Weight != nil {
 		fields["weight"] = *input.Weight
+	}
+	if input.WeightUnit != nil {
+		fields["weight_unit"] = *input.WeightUnit
 	}
 	if input.Notes != nil {
 		fields["notes"] = *input.Notes
