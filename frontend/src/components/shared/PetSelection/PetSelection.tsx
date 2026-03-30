@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Search, Check, X } from "lucide-react";
@@ -27,12 +27,12 @@ export function PetSelection({
   return (
     <div className={cn("flex flex-col gap-2 border rounded-lg p-2 bg-white", className)}>
       <div>
-        <Label className="mb-1 block text-sm font-bold text-[#37352F]">ペット選択</Label>
+        <Label className={cn("mb-1 block text-sm font-bold", C.text)}>ペット選択</Label>
         <div className="relative">
           <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${ICON.action} text-muted-foreground`} />
           <Input
             placeholder="飼主名、ペット名で検索..."
-            className="pl-9 bg-white h-11 text-sm border-[rgba(55,53,47,0.16)]"
+            className={cn("pl-9 bg-white h-11 text-sm", C.borderMedium)}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
           />
@@ -50,21 +50,23 @@ export function PetSelection({
             return (
                 <div
                 key={pet.id}
-                className={`p-2 border-b flex items-start justify-between cursor-pointer transition-colors border-[rgba(55,53,47,0.09)] ${
-                    isSelected ? "bg-blue-50/50" : "hover:bg-[#F7F6F3]"
-                }`}
+                className={cn(
+                  "p-2 border-b flex items-start justify-between cursor-pointer transition-colors",
+                  C.borderLight,
+                  isSelected ? "bg-blue-50/50" : C.hoverBgPage
+                )}
                 onClick={() => onTogglePet(pet)}
                 >
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                        <span className="font-medium text-sm text-[#37352F]">{pet.ownerName}</span>
+                        <span className={cn("font-medium text-sm", C.text)}>{pet.ownerName}</span>
                         <span className="text-sm text-muted-foreground font-mono">
                             ID:{pet.ownerId}
                         </span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="text-sm text-[#37352F] font-bold">{pet.name}</span>
-                        <span className="text-sm text-muted-foreground border rounded px-1.5 bg-white border-[rgba(55,53,47,0.16)]">
+                        <span className={cn("text-sm font-bold", C.text)}>{pet.name}</span>
+                        <span className={cn("text-sm text-muted-foreground border rounded px-1.5 bg-white", C.borderMedium)}>
                             {pet.species}
                         </span>
                     </div>

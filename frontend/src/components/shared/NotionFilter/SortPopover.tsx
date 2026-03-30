@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { memo, useState, useCallback } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,7 +44,7 @@ const SortRuleRow = memo(function SortRuleRow({
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="flex items-center gap-1 px-2 py-1 text-base text-[#37352F] bg-[#F1F1EF] hover:bg-[#E8E7E4] rounded-[3px] transition-colors max-w-[160px] truncate"
+            className={`flex items-center gap-1 px-2 py-1 text-base ${C.text} ${C.bgMutedBadge} hover:bg-[#E8E7E4] rounded-[3px] transition-colors max-w-[160px] truncate`}
           >
             {property?.icon ? (
               <property.icon className={`${ICON.action} shrink-0 opacity-50`} />
@@ -67,7 +67,7 @@ const SortRuleRow = memo(function SortRuleRow({
                   className="text-base"
                 >
                   {prop.icon ? (
-                    <prop.icon className="mr-2 size-5 text-[#37352F]/50" />
+                    <prop.icon className={`mr-2 size-5 ${C.text50}`} />
                   ) : null}
                   {prop.label}
                 </CommandItem>
@@ -81,7 +81,7 @@ const SortRuleRow = memo(function SortRuleRow({
       <button
         type="button"
         onClick={() => onToggleDirection(sort.key)}
-        className="flex items-center gap-1 px-2 py-1 text-base text-[#37352F] bg-[#F1F1EF] hover:bg-[#E8E7E4] rounded-[3px] transition-colors whitespace-nowrap"
+        className={`flex items-center gap-1 px-2 py-1 text-base ${C.text} ${C.bgMutedBadge} hover:bg-[#E8E7E4] rounded-[3px] transition-colors whitespace-nowrap`}
       >
         {sort.direction === "asc" ? (
           <ArrowUp className={`${ICON.page} shrink-0`} />
@@ -95,7 +95,7 @@ const SortRuleRow = memo(function SortRuleRow({
       <button
         type="button"
         onClick={() => onRemove(sort.key)}
-        className="p-0.5 rounded-[3px] text-[#37352F]/30 hover:text-[#37352F]/60 hover:bg-[#F1F1EF] opacity-0 group-hover:opacity-100 transition-opacity ml-auto"
+        className={`p-0.5 rounded-[3px] ${C.text30} ${C.hoverText60} ${C.hoverBgLight} opacity-0 group-hover:opacity-100 transition-opacity ml-auto`}
         aria-label={`${property?.label ?? sort.key} ソートを削除`}
       >
         <X className={ICON.page} />
@@ -172,7 +172,7 @@ export const SortPopover = memo(function SortPopover({
         <Button
           variant="ghost"
           size="sm"
-          className="h-9 w-9 p-0 text-[#37352F]/50 hover:text-[#37352F]/80 hover:bg-[#F1F1EF]"
+          className={`h-9 w-9 p-0 ${C.text50} hover:text-[#37352F]/80 ${C.hoverBgLight}`}
           aria-label="並べ替え"
         >
           <ArrowUpDown className={ICON.lg} />
@@ -180,7 +180,7 @@ export const SortPopover = memo(function SortPopover({
       </PopoverTrigger>
       <PopoverContent className="w-[280px] p-0" align="end">
         <div className="px-3 py-2">
-          <p className="text-base text-[#37352F]/50 font-medium mb-1">並べ替え</p>
+          <p className={`text-base ${C.text50} font-medium mb-1`}>並べ替え</p>
 
           {/* Active sort rules */}
           {activeSorts.length > 0 ? (
@@ -197,7 +197,7 @@ export const SortPopover = memo(function SortPopover({
               ))}
             </div>
           ) : (
-            <p className="text-base text-[#37352F]/30 py-2">
+            <p className={`text-base ${C.text30} py-2`}>
               並べ替えが設定されていません
             </p>
           )}
@@ -205,7 +205,7 @@ export const SortPopover = memo(function SortPopover({
           {/* Add sort */}
           {availableProperties.length > 0 ? (
             addingSort ? (
-              <div className="mt-1 border-t border-[rgba(55,53,47,0.09)] pt-1">
+              <div className={`mt-1 border-t ${C.borderLight} pt-1`}>
                 <Command>
                   <CommandInput placeholder="プロパティを検索..." />
                   <CommandList>
@@ -217,7 +217,7 @@ export const SortPopover = memo(function SortPopover({
                         className="text-base"
                       >
                         {prop.icon ? (
-                          <prop.icon className="mr-2 size-5 text-[#37352F]/50" />
+                          <prop.icon className={`mr-2 size-5 ${C.text50}`} />
                         ) : null}
                         {prop.label}
                       </CommandItem>
@@ -229,7 +229,7 @@ export const SortPopover = memo(function SortPopover({
               <button
                 type="button"
                 onClick={() => setAddingSort(true)}
-                className="flex items-center gap-1 mt-1 px-1 py-1 text-base text-[#37352F]/50 hover:text-[#37352F]/80 hover:bg-[#F1F1EF] rounded-[3px] transition-colors w-full"
+                className={`flex items-center gap-1 mt-1 px-1 py-1 text-base ${C.text50} hover:text-[#37352F]/80 ${C.hoverBgLight} rounded-[3px] transition-colors w-full`}
               >
                 <Plus className={ICON.page} />
                 並べ替えを追加

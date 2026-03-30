@@ -1,4 +1,4 @@
-import { ICON, C } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { Check, Octagon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +32,7 @@ export function PetSelectionResultsTable({ pets, onSelect }: PetSelectionResults
         <Table>
           <TableHeader>
             <TableRow
-              className={`hover:bg-transparent bg-[#F7F6F3] border-b ${C.borderMedium} h-12`}
+              className={`hover:bg-transparent ${C.bgPage} border-b ${C.borderMedium} h-12`}
             >
               <TableHead className={`min-w-[80px] text-sm ${C.text60} whitespace-nowrap h-12`}>飼主No</TableHead>
               <TableHead className={`min-w-[140px] text-sm ${C.text60} whitespace-nowrap h-12`}>飼主名</TableHead>
@@ -68,8 +68,8 @@ export function PetSelectionResultsTable({ pets, onSelect }: PetSelectionResults
                         variant="secondary"
                         className={
                           pet.status === "生存"
-                            ? "bg-[#DDEDEA] text-[#0F7B6C] border-[#DDEDEA] hover:bg-[#DDEDEA] text-xs px-2 py-0 h-7"
-                            : "bg-[#EBECED] text-[#9B9A97] border-[#EBECED] hover:bg-[#EBECED] text-xs px-2 py-0 h-7"
+                            ? `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreen} hover:bg-[#DDEDEA] text-xs px-2 py-0 h-7`
+                            : `${C.bgStatusGray} ${C.textStatusGray} ${C.borderStatusGray} hover:bg-[#EBECED] text-xs px-2 py-0 h-7`
                         }
                       >
                         {pet.status}
@@ -86,7 +86,7 @@ export function PetSelectionResultsTable({ pets, onSelect }: PetSelectionResults
                       size="sm"
                       variant={isDeceased ? "ghost" : "outline"}
                       disabled={isDeceased}
-                      className={`h-11 gap-1 ${isDeceased ? "text-gray-400" : "bg-[#2383E2] hover:bg-[#1B6EC2] text-white"} text-sm px-4`}
+                      className={`h-11 gap-1 ${isDeceased ? "text-gray-400" : `${C.bgAccent} ${C.bgAccentHover} text-white`} text-sm px-4`}
                       onClick={() => onSelect(pet)}
                     >
                       {isDeceased ? (

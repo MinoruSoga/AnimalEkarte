@@ -1,6 +1,7 @@
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { memo, useState, useCallback, useMemo } from "react";
 import { X, ChevronDown } from "lucide-react";
+import { cn } from "@/components/ui/utils";
 import {
   format,
   startOfDay,
@@ -218,7 +219,7 @@ const DateValueEditor = memo(function DateValueEditor({
               const { from, to } = resolvePreset(preset);
               handlePresetClick(from, to, preset.label);
             }}
-            className="w-full text-left px-3 py-1.5 text-sm text-[#37352F] hover:bg-[#F1F1EF] transition-colors"
+            className={cn("w-full text-left px-3 py-1.5 text-sm hover:bg-[#F1F1EF] transition-colors", C.text)}
           >
             {preset.label}
           </button>

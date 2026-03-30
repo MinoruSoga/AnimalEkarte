@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { memo, useState, useCallback } from "react";
 import { ArrowUp, ArrowDown, ChevronDown, X } from "lucide-react";
 import {
@@ -60,7 +60,7 @@ export const SortPill = memo(function SortPill({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1.5 h-8 px-3 text-base font-medium rounded-[3px] bg-[#FAEBDD] text-[#D9730D] hover:bg-[#F5DCC3] transition-colors whitespace-nowrap"
+          className={`inline-flex items-center gap-1.5 h-8 px-3 text-base font-medium rounded-[3px] ${C.bgDiscountLight} ${C.textDiscount} ${C.bgDiscountHover} transition-colors whitespace-nowrap`}
         >
           <DirectionIcon className={`${ICON.page} shrink-0`} />
           <span className="truncate max-w-[140px]">
@@ -75,7 +75,7 @@ export const SortPill = memo(function SortPill({
           <button
             type="button"
             onClick={handleToggle}
-            className="w-full flex items-center gap-2 px-3 py-1.5 text-base text-[#37352F] hover:bg-[#F1F1EF] transition-colors"
+            className={`w-full flex items-center gap-2 px-3 py-1.5 text-base ${C.text} ${C.hoverBgLight} transition-colors`}
           >
             {sort.direction === "asc" ? (
               <ArrowDown className={ICON.page} />
@@ -86,10 +86,10 @@ export const SortPill = memo(function SortPill({
           </button>
 
           {/* Divider */}
-          <div className="border-t border-[rgba(55,53,47,0.09)] my-1" />
+          <div className={`border-t ${C.borderLight} my-1`} />
 
           {/* Property change */}
-          <p className="text-base text-[#37352F]/40 px-3 py-1">
+          <p className={`text-base ${C.text40} px-3 py-1`}>
             プロパティを変更
           </p>
           <Command>
@@ -100,10 +100,10 @@ export const SortPill = memo(function SortPill({
                 <CommandItem
                   key={prop.key}
                   onSelect={() => handleSelectProperty(prop.key)}
-                  className={`text-base ${prop.key === sort.key ? "bg-[#2383E2]/10 text-[#2383E2]" : ""}`}
+                  className={`text-base ${prop.key === sort.key ? `${C.bgAccent8} ${C.accent}` : ""}`}
                 >
                   {prop.icon ? (
-                    <prop.icon className="mr-2 size-5 text-[#37352F]/50" />
+                    <prop.icon className={`mr-2 size-5 ${C.text50}`} />
                   ) : null}
                   {prop.label}
                 </CommandItem>
@@ -112,13 +112,13 @@ export const SortPill = memo(function SortPill({
           </Command>
 
           {/* Divider */}
-          <div className="border-t border-[rgba(55,53,47,0.09)] my-1" />
+          <div className={`border-t ${C.borderLight} my-1`} />
 
           {/* Remove */}
           <button
             type="button"
             onClick={handleRemove}
-            className="w-full flex items-center gap-2 px-3 py-1.5 text-base text-[#EB5757] hover:bg-[#EB5757]/5 transition-colors"
+            className={`w-full flex items-center gap-2 px-3 py-1.5 text-base ${C.danger} ${C.hoverBgDanger5} transition-colors`}
           >
             <X className={ICON.page} />
             削除

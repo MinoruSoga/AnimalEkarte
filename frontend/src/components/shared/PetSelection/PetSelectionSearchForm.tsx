@@ -1,8 +1,9 @@
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/components/ui/utils";
 
 export interface PetSelectionSearchParams {
   ownerId: string;
@@ -35,12 +36,12 @@ const FIELD_DEFS = [
 
 export function PetSelectionSearchForm({ searchParams, setSearchParams, onSearch, onClear }: PetSelectionSearchFormProps) {
   return (
-    <div className="mb-4 rounded-lg bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[rgba(55,53,47,0.16)]">
-      <h2 className="mb-2 text-sm font-medium text-[#37352F]">検索条件</h2>
+    <div className={cn("mb-4 rounded-lg bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border", C.borderMedium)}>
+      <h2 className={cn("mb-2 text-sm font-medium", C.text)}>検索条件</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
         {FIELD_DEFS.map(({ id, label, placeholder }) => (
           <div key={id} className="space-y-1.5">
-            <Label htmlFor={id} className="text-sm text-[#37352F]/60">
+            <Label htmlFor={id} className={cn("text-sm", C.text60)}>
               {label}
             </Label>
             <Input
@@ -50,7 +51,7 @@ export function PetSelectionSearchForm({ searchParams, setSearchParams, onSearch
               onChange={(e) =>
                 setSearchParams({ ...searchParams, [id]: e.target.value })
               }
-              className="text-sm h-11 bg-white text-[#37352F] focus-visible:ring-[#2EAADC] focus-visible:ring-1 border-[rgba(55,53,47,0.16)]"
+              className={cn("text-sm h-11 bg-white focus-visible:ring-1", C.text, C.borderMedium)}
             />
           </div>
         ))}
@@ -60,14 +61,14 @@ export function PetSelectionSearchForm({ searchParams, setSearchParams, onSearch
           variant="outline"
           size="sm"
           onClick={onClear}
-          className="h-11 text-sm border-[rgba(55,53,47,0.16)] text-[#37352F]/60 hover:bg-[#F7F6F3] hover:text-[#37352F]"
+          className={cn("h-11 text-sm", C.borderMedium, C.text60, C.hoverBgPage, C.hoverText)}
         >
           クリア
         </Button>
         <Button
           size="sm"
           onClick={onSearch}
-          className="gap-2 bg-[#2383E2] hover:bg-[#1B6EC2] text-white focus-visible:ring-[#2EAADC] h-11 text-sm"
+          className={cn("gap-2 text-white h-11 text-sm", C.bgAccent, C.bgAccentHover)}
         >
           <Search className={ICON.action} />
           検索

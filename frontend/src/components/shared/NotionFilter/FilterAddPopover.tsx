@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { memo, useState, useCallback, useMemo } from "react";
 import { Plus, ChevronLeft } from "lucide-react";
 import {
@@ -293,7 +293,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
         <Button
           variant="ghost"
           size="sm"
-          className="h-9 gap-2 text-base text-[#37352F]/50 hover:text-[#37352F]/80 hover:bg-[#F1F1EF] px-3"
+          className={`h-9 gap-2 text-base ${C.text50} hover:text-[#37352F]/80 ${C.hoverBgLight} px-3`}
         >
           <Plus className={ICON.page} />
           フィルタを追加
@@ -309,7 +309,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
             <button
               type="button"
               onClick={handleBack}
-              className="flex items-center gap-1 text-base text-[#37352F]/50 hover:text-[#37352F]/80 px-1"
+              className={`flex items-center gap-1 text-base ${C.text50} hover:text-[#37352F]/80 px-1`}
             >
               <ChevronLeft className={ICON.action} />
               戻る
@@ -330,7 +330,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
                   className="text-base"
                 >
                   {prop.icon ? (
-                    <prop.icon className="mr-2 size-5 text-[#37352F]/50" />
+                    <prop.icon className={`mr-2 size-5 ${C.text50}`} />
                   ) : null}
                   {prop.label}
                 </CommandItem>
@@ -340,7 +340,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
         ) : step === "condition" ? (
           /* Step 2: Condition selection (select/multi-select only) */
           <div className="py-1">
-            <p className="text-base text-[#37352F]/40 px-3 py-1.5">
+            <p className={`text-base ${C.text40} px-3 py-1.5`}>
               {selectedProperty?.label} - 条件
             </p>
             {(
@@ -351,7 +351,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
                 key={cond.value}
                 type="button"
                 onClick={() => handleSelectCondition(cond.value)}
-                className="w-full text-left px-3 py-1.5 text-base text-[#37352F] hover:bg-[#F1F1EF] transition-colors"
+                className={`w-full text-left px-3 py-1.5 text-base ${C.text} ${C.hoverBgLight} transition-colors`}
               >
                 {cond.label}
               </button>
@@ -376,7 +376,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
           </Command>
         ) : step === "date-value" ? (
           /* Step 3b: Date range picker — presets + calendar */
-          <div className="flex divide-x divide-[rgba(55,53,47,0.09)]">
+          <div className={`flex divide-x ${C.divideDivider}`}>
             {/* Presets column */}
             <div className="w-[108px] py-1 shrink-0">
               {DATE_PRESETS.map((preset) => (
@@ -384,7 +384,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
                   key={preset.label}
                   type="button"
                   onClick={() => handlePresetClick(preset)}
-                  className="w-full text-left px-3 py-1.5 text-sm text-[#37352F] hover:bg-[#F1F1EF] transition-colors"
+                  className={`w-full text-left px-3 py-1.5 text-sm ${C.text} ${C.hoverBgLight} transition-colors`}
                 >
                   {preset.label}
                 </button>
@@ -394,12 +394,12 @@ export const FilterAddPopover = memo(function FilterAddPopover({
             {/* Calendar column */}
             <div className="p-3">
               {/* FROM → TO header */}
-              <div className="flex items-center justify-center gap-3 mb-3 px-3 py-2 bg-[#F7F6F3] rounded-[4px]">
-                <span className={`text-sm font-mono tabular-nums ${hasFrom ? "text-[#37352F] font-medium" : "text-[#37352F]/30"}`}>
+              <div className={`flex items-center justify-center gap-3 mb-3 px-3 py-2 ${C.bgPage} rounded-[4px]`}>
+                <span className={`text-sm font-mono tabular-nums ${hasFrom ? `${C.text} font-medium` : C.text30}`}>
                   {fromDisplay}
                 </span>
-                <span className="text-[#37352F]/30 text-xs">→</span>
-                <span className={`text-sm font-mono tabular-nums ${hasTo ? "text-[#37352F] font-medium" : "text-[#37352F]/30"}`}>
+                <span className={`${C.text30} text-xs`}>→</span>
+                <span className={`text-sm font-mono tabular-nums ${hasTo ? `${C.text} font-medium` : C.text30}`}>
                   {toDisplay}
                 </span>
               </div>
@@ -418,10 +418,10 @@ export const FilterAddPopover = memo(function FilterAddPopover({
                   month_caption: "flex justify-center items-center h-9 w-full",
                   caption_label: "sr-only",
                   nav: "absolute top-1 left-0 right-0 flex justify-between items-center px-1 pointer-events-none",
-                  button_previous: "size-8 p-0 rounded-sm hover:bg-[#F1F1EF] opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto",
-                  button_next: "size-8 p-0 rounded-sm hover:bg-[#F1F1EF] opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto",
+                  button_previous: `size-8 p-0 rounded-sm ${C.hoverBgLight} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
+                  button_next: `size-8 p-0 rounded-sm ${C.hoverBgLight} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
                   dropdowns: "flex items-center gap-1",
-                  dropdown: "text-sm font-medium bg-transparent border-none cursor-pointer focus:outline-none hover:opacity-70 py-0.5 px-1 rounded hover:bg-[#F1F1EF]",
+                  dropdown: `text-sm font-medium bg-transparent border-none cursor-pointer focus:outline-none hover:opacity-70 py-0.5 px-1 rounded ${C.hoverBgLight}`,
                 }}
                 formatters={{
                   formatMonthDropdown: (month) => {
