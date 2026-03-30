@@ -1,7 +1,7 @@
 // React/Framework
 import { ICON, C } from "@/lib/design-tokens";
-import { useCallback, useDeferredValue, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
@@ -115,6 +115,7 @@ function calculateTotal(accounting: AccountingType) {
 
 export function AccountingList() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit } = usePermission("accounting");
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -199,6 +200,32 @@ export function AccountingList() {
     pageSize: 20,
     resetKey: deferredSearch,
   });
+
+  // FE-144: URLクエリパラメータからページ番号を読み取る
+  const urlPage = Number(searchParams.get("page") ?? 1);
+
+  // FE-144: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
+  useEffect(() => {
+    const clampedPage = Math.max(1, Math.min(urlPage, pagination.totalPages));
+    if (clampedPage !== pagination.currentPage) {
+      pagination.goToPage(clampedPage);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlPage, pagination.totalPages]);
+
+  // FE-144: ページ変更時にURLクエリパラメータを更新
+  const handlePageChange = useCallback((page: number) => {
+    pagination.goToPage(page);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (page === 1) {
+        next.delete("page");
+      } else {
+        next.set("page", String(page));
+      }
+      return next;
+    }, { replace: true });
+  }, [pagination, setSearchParams]);
 
   const handleCreate = useCallback(() => {
     navigate(paths.accounting.selectPet.getHref());
@@ -366,9 +393,9 @@ export function AccountingList() {
             totalCount={pagination.totalCount}
             startIndex={pagination.startIndex}
             endIndex={pagination.endIndex}
-            onPageChange={pagination.goToPage}
-            onPrev={pagination.prevPage}
-            onNext={pagination.nextPage}
+            onPageChange={handlePageChange}
+            onPrev={() => handlePageChange(pagination.currentPage - 1)}
+            onNext={() => handlePageChange(pagination.currentPage + 1)}
           />
         ) : null}
       </div>

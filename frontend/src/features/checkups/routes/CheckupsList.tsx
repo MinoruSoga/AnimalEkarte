@@ -1,6 +1,7 @@
 // React/Framework
 import { ICON } from "@/lib/design-tokens";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 
 // External
 import { Calendar, ClipboardCheck } from "lucide-react";
@@ -42,6 +43,7 @@ const CHECKUPS_SORT_PROPERTIES: SortProperty[] = [
 ];
 
 export function CheckupsList() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
@@ -80,6 +82,32 @@ export function CheckupsList() {
     pageSize: 20,
     resetKey: deferredSearch,
   });
+
+  // FE-144: URLクエリパラメータからページ番号を読み取る
+  const urlPage = Number(searchParams.get("page") ?? 1);
+
+  // FE-144: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
+  useEffect(() => {
+    const clampedPage = Math.max(1, Math.min(urlPage, pagination.totalPages));
+    if (clampedPage !== pagination.currentPage) {
+      pagination.goToPage(clampedPage);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlPage, pagination.totalPages]);
+
+  // FE-144: ページ変更時にURLクエリパラメータを更新
+  const handlePageChange = useCallback((page: number) => {
+    pagination.goToPage(page);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (page === 1) {
+        next.delete("page");
+      } else {
+        next.set("page", String(page));
+      }
+      return next;
+    }, { replace: true });
+  }, [pagination, setSearchParams]);
 
   const columns = useMemo(
     () => [
@@ -191,9 +219,9 @@ export function CheckupsList() {
             totalCount={pagination.totalCount}
             startIndex={pagination.startIndex}
             endIndex={pagination.endIndex}
-            onPageChange={pagination.goToPage}
-            onPrev={pagination.prevPage}
-            onNext={pagination.nextPage}
+            onPageChange={handlePageChange}
+            onPrev={() => handlePageChange(pagination.currentPage - 1)}
+            onNext={() => handlePageChange(pagination.currentPage + 1)}
           />
         ) : null}
       </div>

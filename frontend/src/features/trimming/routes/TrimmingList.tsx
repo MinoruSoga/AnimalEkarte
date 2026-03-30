@@ -1,7 +1,7 @@
 // React/Framework
 import { ICON, C } from "@/lib/design-tokens";
-import { useState, useCallback, useDeferredValue, useMemo, memo } from "react";
-import { useNavigate } from "react-router";
+import { useState, useCallback, useDeferredValue, useEffect, useMemo, memo } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
@@ -150,6 +150,7 @@ const TRIMMING_SORT_PROPERTIES: SortProperty[] = [
 
 export function TrimmingList() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit, canDelete } = usePermission("trimming");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
@@ -199,9 +200,33 @@ export function TrimmingList() {
     startIndex,
     endIndex,
     goToPage,
-    prevPage,
-    nextPage,
   } = usePagination(sortedData, { pageSize: 10 });
+
+  // FE-144: URLクエリパラメータからページ番号を読み取る
+  const urlPage = Number(searchParams.get("page") ?? 1);
+
+  // FE-144: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
+  useEffect(() => {
+    const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
+    if (clampedPage !== currentPage) {
+      goToPage(clampedPage);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlPage, totalPages]);
+
+  // FE-144: ページ変更時にURLクエリパラメータを更新
+  const handlePageChange = useCallback((page: number) => {
+    goToPage(page);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (page === 1) {
+        next.delete("page");
+      } else {
+        next.set("page", String(page));
+      }
+      return next;
+    }, { replace: true });
+  }, [goToPage, setSearchParams]);
 
   const deleteModal = useModalState<{ id: string; label: string }>();
 
@@ -361,9 +386,9 @@ export function TrimmingList() {
           totalCount={filteredRecords.length}
           startIndex={startIndex}
           endIndex={endIndex}
-          onPageChange={goToPage}
-          onPrev={prevPage}
-          onNext={nextPage}
+          onPageChange={handlePageChange}
+          onPrev={() => handlePageChange(currentPage - 1)}
+          onNext={() => handlePageChange(currentPage + 1)}
         />
       </div>
 

@@ -1,6 +1,6 @@
 // React/Framework
-import { type ReactNode, useState, useCallback, useDeferredValue, useMemo } from "react";
-import { useNavigate } from "react-router";
+import { type ReactNode, useState, useCallback, useDeferredValue, useMemo, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
@@ -76,6 +76,7 @@ const MEDICAL_RECORD_SORT_PROPERTIES: SortProperty[] = [
 
 export function MedicalRecords() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
@@ -125,9 +126,33 @@ export function MedicalRecords() {
     startIndex,
     endIndex,
     goToPage,
-    nextPage,
-    prevPage,
   } = usePagination(sortedData, { pageSize: 20, resetKey: searchTerm });
+
+  // FE-144: URLクエリパラメータからページ番号を読み取る
+  const urlPage = Number(searchParams.get("page") ?? 1);
+
+  // FE-144: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
+  useEffect(() => {
+    const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
+    if (clampedPage !== currentPage) {
+      goToPage(clampedPage);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlPage, totalPages]);
+
+  // FE-144: ページ変更時にURLクエリパラメータを更新
+  const handlePageChange = useCallback((page: number) => {
+    goToPage(page);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (page === 1) {
+        next.delete("page");
+      } else {
+        next.set("page", String(page));
+      }
+      return next;
+    }, { replace: true });
+  }, [goToPage, setSearchParams]);
 
   const isFiltering = searchTerm !== deferredSearch;
 
@@ -283,9 +308,9 @@ export function MedicalRecords() {
             totalCount={totalCount}
             startIndex={startIndex}
             endIndex={endIndex}
-            onPageChange={goToPage}
-            onPrev={prevPage}
-            onNext={nextPage}
+            onPageChange={handlePageChange}
+            onPrev={() => handlePageChange(currentPage - 1)}
+            onNext={() => handlePageChange(currentPage + 1)}
           />
         ) : null}
       </div>

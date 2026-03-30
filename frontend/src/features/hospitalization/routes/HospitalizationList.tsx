@@ -1,6 +1,7 @@
 // React/Framework
 import { ICON } from "@/lib/design-tokens";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router";
 
 // External
 import { Plus, LayoutGrid, List, Building2, Calendar, PawPrint } from "lucide-react";
@@ -74,6 +75,7 @@ const HOSPITALIZATION_SORT_PROPERTIES: SortProperty[] = [
 ];
 
 export function HospitalizationList() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     searchTerm, setSearchTerm,
     statusFilter, setStatusFilter,
@@ -193,6 +195,32 @@ export function HospitalizationList() {
     resetKey: `${searchTerm}:${statusFilter}`,
   });
 
+  // FE-144: URLクエリパラメータからページ番号を読み取る
+  const urlPage = Number(searchParams.get("page") ?? 1);
+
+  // FE-144: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
+  useEffect(() => {
+    const clampedPage = Math.max(1, Math.min(urlPage, pagination.totalPages));
+    if (clampedPage !== pagination.currentPage) {
+      pagination.goToPage(clampedPage);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlPage, pagination.totalPages]);
+
+  // FE-144: ページ変更時にURLクエリパラメータを更新
+  const handlePageChange = useCallback((page: number) => {
+    pagination.goToPage(page);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (page === 1) {
+        next.delete("page");
+      } else {
+        next.set("page", String(page));
+      }
+      return next;
+    }, { replace: true });
+  }, [pagination, setSearchParams]);
+
   return (
     <PageLayout
       title="入院・ホテル管理"
@@ -266,9 +294,9 @@ export function HospitalizationList() {
                   totalCount={pagination.totalCount}
                   startIndex={pagination.startIndex}
                   endIndex={pagination.endIndex}
-                  onPageChange={pagination.goToPage}
-                  onPrev={pagination.prevPage}
-                  onNext={pagination.nextPage}
+                  onPageChange={handlePageChange}
+                  onPrev={() => handlePageChange(pagination.currentPage - 1)}
+                  onNext={() => handlePageChange(pagination.currentPage + 1)}
                 />
               ) : null}
             </>
