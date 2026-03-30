@@ -18,7 +18,7 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { getCalendarViewLabel } from "@/utils/status-helpers";
 import { typedSetter } from "@/lib/type-utils";
-import type { CalendarView } from "../types";
+import type { CalendarView, ReservationAppointment } from "../types";
 import { CALENDAR_VIEW_VALUES } from "../types";
 const ReservationFormModal = lazy(() =>
   import("@/components/shared/ReservationFormModal/ReservationFormModal").then((m) => ({
@@ -84,6 +84,28 @@ export function ReservationManagement() {
     handlePetSelectConfirm,
   } = useReservationManagement();
 
+  // BUG-069: ReservationAppointment → ReservationFormData 変換を行うラッパー
+  // handleOpenForm は ReservationFormData を期待するが、詳細モーダルからは ReservationAppointment が来る
+  const handleOpenFormFromAppointment = useCallback(
+    (appointment: ReservationAppointment) => {
+      handleOpenForm({
+        id: appointment.id,
+        start: appointment.start,
+        end: appointment.end,
+        ownerName: appointment.ownerName,
+        petName: appointment.petName,
+        visitType: appointment.visitType,
+        type: appointment.serviceTypeId ?? "",
+        doctor: appointment.doctorId ?? "",
+        isDesignated: appointment.isDesignated,
+        status: appointment.status,
+        notes: appointment.notes,
+        petId: appointment.petId,
+      });
+    },
+    [handleOpenForm],
+  );
+
   const doctorNames = useMemo(
     () =>
       Array.from(
@@ -109,6 +131,12 @@ export function ReservationManagement() {
     () => setCurrentDate((prev) => VIEW_NAV_NEXT[view](prev)),
     [view],
   );
+
+  // BUG-076: 月表示の日付セルクリックで週表示に遷移
+  const handleMonthDateClick = useCallback((date: Date) => {
+    setCurrentDate(date);
+    setView("week");
+  }, []);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#F7F6F3] min-w-0 w-full">
@@ -229,6 +257,7 @@ export function ReservationManagement() {
                 currentDate={currentDate}
                 appointments={filteredAppointments}
                 onAppointmentClick={handleOpenDetail}
+                onDateClick={handleMonthDateClick}
                 dynamicColorMap={dynamicColorMap}
               />
             ) : (
@@ -259,7 +288,7 @@ export function ReservationManagement() {
           isOpen={isDetailOpen}
           onClose={handleCloseDetail}
           appointment={detailAppointment}
-          onEdit={handleOpenForm}
+          onEdit={handleOpenFormFromAppointment}
           onDelete={handleDelete}
           onCreateRecord={handleCreateRecord}
           onStatusChange={handleStatusChange}

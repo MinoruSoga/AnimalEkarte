@@ -71,6 +71,9 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     diagnosis2NameId,
     setDiagnosis2NameId,
     ownerDiscountRate,
+    visitType,
+    setVisitType,
+    handleChangeDoctor,
     handleChangeOwner,
   } = useMedicalRecordForm(recordId);
 
@@ -86,9 +89,9 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
 
   const { user } = useAuth();
 
-  // ローカル状態: 担当者・診療種別（hookに追加するまでの暫定）
+  // ローカル状態: 担当者（hookに追加するまでの暫定）
   const [staffName, setStaffName] = useState(() => user?.displayName ?? "");
-  const [serviceType, setServiceType] = useState("診療");
+  const VISIT_TYPE_OPTIONS = ["初診", "再診", "緊急", "往診"] as const;
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isVitalsOpen, setIsVitalsOpen] = useState(false);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
@@ -176,9 +179,12 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setTreatmentPlanItems(items);
   }, [markDirty, setTreatmentPlanItems]);
 
-  const handleSelectStaff = useCallback((newStaffName: string) => {
+  const handleSelectStaff = useCallback((newStaffId: string, newStaffName: string) => {
     setStaffName(newStaffName);
-  }, []);
+    if (recordId) {
+      handleChangeDoctor(newStaffId, newStaffName);
+    }
+  }, [recordId, handleChangeDoctor, setStaffName]);
 
   const handleStaffModalOpenChange = useCallback((open: boolean) => {
     setIsStaffModalOpen(open);
@@ -209,9 +215,12 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           petNumber={selectedPet.petNumber || selectedPet.id}
           weight={selectedPet.weight || "-"}
           staffName={staffName}
-          serviceType={serviceType}
-          serviceTypeLabel="診療種別"
-          onServiceTypeClick={() => setServiceType(serviceType)}
+          serviceType={visitType}
+          serviceTypeLabel="来院種別"
+          onServiceTypeClick={() => {
+            const idx = VISIT_TYPE_OPTIONS.indexOf(visitType as typeof VISIT_TYPE_OPTIONS[number]);
+            setVisitType(VISIT_TYPE_OPTIONS[(idx + 1) % VISIT_TYPE_OPTIONS.length]);
+          }}
           onStaffClick={() => setIsStaffModalOpen(true)}
           onOwnerClick={!isNewRecord ? () => setIsOwnerSearchOpen(true) : undefined}
           petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}

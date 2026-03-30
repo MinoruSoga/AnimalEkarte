@@ -14,11 +14,12 @@ import (
 
 // mockReservationRepository は ReservationRepository のテスト用モック実装
 type mockReservationRepository struct {
-	findAllFn      func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
-	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
-	createFn       func(ctx context.Context, reservation *model.ReservationAppointment) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error)
-	deleteFn       func(ctx context.Context, clinicID, id uint64) error
+	findAllFn                func(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
+	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
+	createFn                 func(ctx context.Context, reservation *model.ReservationAppointment) error
+	updateFieldsFn           func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error)
+	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
+	findByStaffAndTimeSlotFn func(ctx context.Context, clinicID, staffID uint64, startTime, endTime time.Time, excludeID *uint64) (bool, error)
 }
 
 func (m *mockReservationRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error) {
@@ -46,6 +47,13 @@ func (m *mockReservationRepository) ExistsByServiceTypeID(_ context.Context, _ u
 }
 
 func (m *mockReservationRepository) ExistsByStaffID(_ context.Context, _ uint64) (bool, error) {
+	return false, nil
+}
+
+func (m *mockReservationRepository) FindByStaffAndTimeSlot(ctx context.Context, clinicID, staffID uint64, startTime, endTime time.Time, excludeID *uint64) (bool, error) {
+	if m.findByStaffAndTimeSlotFn != nil {
+		return m.findByStaffAndTimeSlotFn(ctx, clinicID, staffID, startTime, endTime, excludeID)
+	}
 	return false, nil
 }
 
@@ -297,11 +305,16 @@ func TestReservationService_GetByID_NotFound(t *testing.T) {
 
 func TestReservationService_Create(t *testing.T) {
 	now := time.Now()
+	doctorID := uint64(5)
 	tests := []struct {
-		name        string
-		reservation *model.ReservationAppointment
-		repoErr     error
-		wantErr     bool
+		name             string
+		reservation      *model.ReservationAppointment
+		repoErr          error
+		conflictExists   bool
+		conflictErr      error
+		wantErr          bool
+		wantInvalidInput bool
+		wantConflict     bool
 	}{
 		{
 			name: "creates reservation successfully",
@@ -313,8 +326,11 @@ func TestReservationService_Create(t *testing.T) {
 				Status:        model.ReservationStatusPending,
 				VisitType:     model.VisitTypeRevisit,
 			},
-			repoErr: nil,
-			wantErr: false,
+			repoErr:          nil,
+			conflictExists:   false,
+			wantErr:          false,
+			wantInvalidInput: false,
+			wantConflict:     false,
 		},
 		{
 			name: "returns error on repository failure",
@@ -324,8 +340,73 @@ func TestReservationService_Create(t *testing.T) {
 				EndTime:       now.Add(time.Hour),
 				ServiceTypeID: 1,
 			},
-			repoErr: errors.New("db connection error"),
-			wantErr: true,
+			repoErr:          errors.New("db connection error"),
+			conflictExists:   false,
+			wantErr:          true,
+			wantInvalidInput: false,
+			wantConflict:     false,
+		},
+		{
+			// BUG-034: end_time == start_time は 400 Bad Request
+			name: "returns invalid input when end_time equals start_time",
+			reservation: &model.ReservationAppointment{
+				ClinicID:      1,
+				StartTime:     now,
+				EndTime:       now,
+				ServiceTypeID: 1,
+			},
+			repoErr:          nil,
+			conflictExists:   false,
+			wantErr:          true,
+			wantInvalidInput: true,
+			wantConflict:     false,
+		},
+		{
+			// BUG-034: end_time < start_time は 400 Bad Request
+			name: "returns invalid input when end_time is before start_time",
+			reservation: &model.ReservationAppointment{
+				ClinicID:      1,
+				StartTime:     now,
+				EndTime:       now.Add(-time.Minute),
+				ServiceTypeID: 1,
+			},
+			repoErr:          nil,
+			conflictExists:   false,
+			wantErr:          true,
+			wantInvalidInput: true,
+			wantConflict:     false,
+		},
+		{
+			// BUG-080: 同一 staff + 時間帯が重複する場合は 409 Conflict
+			name: "returns conflict when staff has overlapping reservation",
+			reservation: &model.ReservationAppointment{
+				ClinicID:      1,
+				StartTime:     now,
+				EndTime:       now.Add(time.Hour),
+				ServiceTypeID: 1,
+				DoctorID:      &doctorID,
+			},
+			repoErr:          nil,
+			conflictExists:   true,
+			wantErr:          true,
+			wantInvalidInput: false,
+			wantConflict:     true,
+		},
+		{
+			// BUG-080: DoctorID が nil の場合は重複チェックをスキップ
+			name: "skips conflict check when doctor_id is nil",
+			reservation: &model.ReservationAppointment{
+				ClinicID:      1,
+				StartTime:     now,
+				EndTime:       now.Add(time.Hour),
+				ServiceTypeID: 1,
+				DoctorID:      nil,
+			},
+			repoErr:          nil,
+			conflictExists:   false,
+			wantErr:          false,
+			wantInvalidInput: false,
+			wantConflict:     false,
 		},
 	}
 
@@ -335,6 +416,9 @@ func TestReservationService_Create(t *testing.T) {
 				createFn: func(_ context.Context, _ *model.ReservationAppointment) error {
 					return tt.repoErr
 				},
+				findByStaffAndTimeSlotFn: func(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
+					return tt.conflictExists, tt.conflictErr
+				},
 			}
 			svc := NewReservationService(repo)
 
@@ -342,6 +426,12 @@ func TestReservationService_Create(t *testing.T) {
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.wantInvalidInput {
+					assert.True(t, apperrors.IsInvalidInput(err), "expected ErrInvalidInput but got: %v", err)
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsAlreadyExists(err), "expected ErrAlreadyExists but got: %v", err)
+				}
 			} else {
 				assert.NoError(t, err)
 			}

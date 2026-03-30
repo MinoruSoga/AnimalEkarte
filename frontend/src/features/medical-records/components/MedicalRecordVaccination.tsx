@@ -1,5 +1,8 @@
 // React/Framework
-import { memo, useState } from "react";
+import { memo, useMemo, useState } from "react";
+
+// Internal
+import { useGetAllVaccinesMaster } from "@/features/master/api/vaccines-master";
 
 // Relative
 import { useGetPetVaccinations } from "../api/get-pet-vaccinations";
@@ -25,11 +28,18 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
   const [remarks, setRemarks] = useState("");
 
   const { data: historyItems = [], isLoading } = useGetPetVaccinations(petId);
+  const { data: vaccinesMaster = [] } = useGetAllVaccinesMaster();
+
+  const vaccineOptions = useMemo(
+    () => vaccinesMaster.filter((v) => v.isActive).map((v) => ({ value: v.id, label: v.name })),
+    [vaccinesMaster]
+  );
 
   return (
     <div className="grid grid-cols-12 gap-4 h-[calc(100vh-220px)] min-h-[500px] overflow-y-auto pb-20 pr-1">
       {/* Left Column: Form */}
       <VaccinationForm
+        vaccineOptions={vaccineOptions}
         vaccineName={vaccineName}
         setVaccineName={setVaccineName}
         date={date}

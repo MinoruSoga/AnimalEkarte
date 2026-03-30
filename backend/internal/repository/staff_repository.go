@@ -129,7 +129,7 @@ func (r *staffRepository) Reorder(ctx context.Context, clinicID uint64, ids []ui
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("reorder staff: %w", err)
+		return apperrors.Wrap(err, "reorder staff")
 	}
 	return nil
 }

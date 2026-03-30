@@ -99,7 +99,7 @@ func (r *userAccountRepository) Create(ctx context.Context, account *model.UserA
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("create user account: %w", err)
+		return apperrors.Wrap(err, "create user account")
 	}
 	return nil
 }
@@ -169,7 +169,7 @@ func (r *userAccountRepository) SetPermissionGroups(ctx context.Context, userID 
 		}
 		return tx.Create(&rows).Error
 	}); err != nil {
-		return fmt.Errorf("set user permission groups: %w", err)
+		return apperrors.Wrap(err, "set user permission groups")
 	}
 	return nil
 }
@@ -180,7 +180,7 @@ func (r *userAccountRepository) FindPermissionGroupIDs(ctx context.Context, user
 	if err := r.db.WithContext(ctx).
 		Where("user_id = ?", userID).
 		Find(&rows).Error; err != nil {
-		return nil, fmt.Errorf("find user permission group ids: %w", err)
+		return nil, apperrors.Wrap(err, "find user permission group ids")
 	}
 	ids := make([]uint64, len(rows))
 	for i, row := range rows {

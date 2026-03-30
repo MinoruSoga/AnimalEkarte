@@ -114,7 +114,7 @@ func (r *animalSpeciesRepository) Reorder(ctx context.Context, ids []uint64) err
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("reorder animal species: %w", err)
+		return apperrors.Wrap(err, "reorder animal species")
 	}
 	return nil
 }

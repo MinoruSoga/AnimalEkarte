@@ -5,7 +5,7 @@
  */
 
 import { OwnersList } from "@/features/owners";
-import { updatePet } from "@/features/pets/api/update-pet";
+import { updatePet } from "@/features/pets";
 
 export function OwnersListPage() {
   return <OwnersList onUpdatePet={updatePet} />;

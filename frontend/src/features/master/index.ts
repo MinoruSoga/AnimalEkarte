@@ -19,3 +19,4 @@ export { UserAccountSettings } from "./routes/UserAccountSettings";
 
 export { useMasterItems } from "./hooks/use-master-items";
 export { useServiceTypeColorMap } from "./hooks/use-service-type-color-map";
+export { useGetCompany } from "./api/company";

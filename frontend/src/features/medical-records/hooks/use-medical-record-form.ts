@@ -26,6 +26,7 @@ export function useMedicalRecordForm(recordId?: string) {
   const isNewRecord = !recordId;
 
   const [activeTab, setActiveTab] = useState("問診");
+  const [visitType, setVisitType] = useState("再診");
   const [treatmentPlanItems, setTreatmentPlanItems] = useState<TreatmentItem[]>([]);
   const [treatmentCompletedItems, setTreatmentCompletedItems] = useState<TreatmentItem[]>([]);
 
@@ -115,7 +116,7 @@ export function useMedicalRecordForm(recordId?: string) {
             pet_id: selectedPet.id,
             owner_id: selectedPet.ownerId,
             visit_date: today,
-            visit_type: "再診",
+            visit_type: visitType,
             status: "draft",
             chief_complaint: chiefComplaint !== DEFAULT_CHIEF_COMPLAINT ? chiefComplaint : undefined,
             chief_complaint_category_id: chiefComplaintCategoryId,
@@ -180,6 +181,25 @@ export function useMedicalRecordForm(recordId?: string) {
     }
   }, [location.state, navigate, recordId]);
 
+  // 担当医変更ハンドラ
+  const handleChangeDoctor = useCallback(
+    (newDoctorId: string, newDoctorName: string) => {
+      if (!recordId) return;
+      startSaveTransition(async () => {
+        try {
+          await updateMutation.mutateAsync({
+            id: recordId,
+            req: { doctor_id: Number(newDoctorId) } as UpdateMedicalRecordRequest,
+          });
+          toast.success(`担当医を ${newDoctorName} に変更しました`);
+        } catch (error) {
+          handleApiError(error, "担当医変更");
+        }
+      });
+    },
+    [recordId, updateMutation, startSaveTransition],
+  );
+
   // 飼主変更ハンドラ
   const handleChangeOwner = useCallback(
     (newOwner: { id: string; name: string }) => {
@@ -206,6 +226,8 @@ export function useMedicalRecordForm(recordId?: string) {
     isNewRecord,
     activeTab,
     setActiveTab,
+    visitType,
+    setVisitType,
     selectedPet: selectedPet ?? null,
     isPetLoading,
     shouldRedirectToSelectPet,
@@ -240,6 +262,8 @@ export function useMedicalRecordForm(recordId?: string) {
     setDiagnosis2NameId,
     // 飼主割引率
     ownerDiscountRate,
+    // 担当医変更
+    handleChangeDoctor,
     // 飼主変更
     handleChangeOwner,
   };

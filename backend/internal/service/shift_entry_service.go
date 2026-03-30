@@ -72,14 +72,47 @@ func parseTimeString(s *string) *time.Time {
 	return nil
 }
 
+// requiresTimeSlot は時刻（start_time/end_time）が必要なシフト種別かどうかを返す。
+// off・paid_leave は時刻不要。
+func requiresTimeSlot(shiftType model.ShiftType) bool {
+	switch shiftType {
+	case model.ShiftTypeOff, model.ShiftTypePaidLeave:
+		return false
+	default:
+		return true
+	}
+}
+
+// validateShiftTimes は時刻が必要なシフト種別で end_time <= start_time でないかを検証する。
+func validateShiftTimes(shiftType model.ShiftType, startTime, endTime *time.Time) error {
+	if !requiresTimeSlot(shiftType) {
+		return nil
+	}
+	if startTime == nil || endTime == nil {
+		return nil
+	}
+	if !endTime.After(*startTime) {
+		return apperrors.Wrap(apperrors.ErrInvalidInput, "end_time must be after start_time")
+	}
+	return nil
+}
+
 func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *CreateShiftEntryInput) (*model.ShiftEntry, error) {
+	startTime := parseTimeString(input.StartTime)
+	endTime := parseTimeString(input.EndTime)
+
+	// BUG-028: 時刻バリデーション（off/paid_leave は除外）
+	if err := validateShiftTimes(input.ShiftType, startTime, endTime); err != nil {
+		return nil, err
+	}
+
 	entry := &model.ShiftEntry{
 		ClinicID:  clinicID,
 		StaffID:   input.StaffID,
 		Date:      input.Date,
 		ShiftType: input.ShiftType,
-		StartTime: parseTimeString(input.StartTime),
-		EndTime:   parseTimeString(input.EndTime),
+		StartTime: startTime,
+		EndTime:   endTime,
 		Note:      input.Note,
 	}
 	if err := s.repo.Create(ctx, entry); err != nil {
@@ -96,6 +129,30 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
+
+	// BUG-028: 時刻バリデーション。更新後の start_time/end_time を確定させるために既存レコードを取得する。
+	existing, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to find shift entry for update")
+	}
+	// 更新後の shiftType を決定（input に値があれば上書き、なければ既存値）
+	effectiveShiftType := existing.ShiftType
+	if input.ShiftType != nil {
+		effectiveShiftType = *input.ShiftType
+	}
+	// 更新後の start_time/end_time を決定
+	effectiveStart := existing.StartTime
+	effectiveEnd := existing.EndTime
+	if input.StartTime != nil {
+		effectiveStart = parseTimeString(input.StartTime)
+	}
+	if input.EndTime != nil {
+		effectiveEnd = parseTimeString(input.EndTime)
+	}
+	if err := validateShiftTimes(effectiveShiftType, effectiveStart, effectiveEnd); err != nil {
+		return nil, err
+	}
+
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update shift entry")
 	}

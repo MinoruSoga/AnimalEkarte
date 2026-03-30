@@ -136,13 +136,17 @@ func TestShiftEntryService_Create(t *testing.T) {
 	date := time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC)
 	startTime := "09:00:00"
 	endTime := "18:00:00"
+	// BUG-028: end_time <= start_time のテスト用
+	sameTime := "09:00:00"
+	earlierTime := "08:00:00"
 
 	tests := []struct {
-		name     string
-		clinicID uint64
-		input    *CreateShiftEntryInput
-		repoErr  error
-		wantErr  bool
+		name             string
+		clinicID         uint64
+		input            *CreateShiftEntryInput
+		repoErr          error
+		wantErr          bool
+		wantInvalidInput bool
 	}{
 		{
 			name:     "creates shift entry successfully",
@@ -155,8 +159,9 @@ func TestShiftEntryService_Create(t *testing.T) {
 				EndTime:   &endTime,
 				Note:      "Regular shift",
 			},
-			repoErr: nil,
-			wantErr: false,
+			repoErr:          nil,
+			wantErr:          false,
+			wantInvalidInput: false,
 		},
 		{
 			name:     "creates shift without times",
@@ -167,8 +172,54 @@ func TestShiftEntryService_Create(t *testing.T) {
 				ShiftType: model.ShiftTypeOff,
 				Note:      "Day off",
 			},
-			repoErr: nil,
-			wantErr: false,
+			repoErr:          nil,
+			wantErr:          false,
+			wantInvalidInput: false,
+		},
+		{
+			// BUG-028: paid_leave は時刻不要なので end_time <= start_time でもエラーなし
+			name:     "creates paid_leave shift without time validation",
+			clinicID: 1,
+			input: &CreateShiftEntryInput{
+				StaffID:   1,
+				Date:      date,
+				ShiftType: model.ShiftTypePaidLeave,
+				StartTime: &sameTime,
+				EndTime:   &sameTime,
+			},
+			repoErr:          nil,
+			wantErr:          false,
+			wantInvalidInput: false,
+		},
+		{
+			// BUG-028: end_time == start_time は InvalidInput
+			name:     "returns invalid input when end_time equals start_time",
+			clinicID: 1,
+			input: &CreateShiftEntryInput{
+				StaffID:   1,
+				Date:      date,
+				ShiftType: model.ShiftTypeFull,
+				StartTime: &sameTime,
+				EndTime:   &sameTime,
+			},
+			repoErr:          nil,
+			wantErr:          true,
+			wantInvalidInput: true,
+		},
+		{
+			// BUG-028: end_time < start_time は InvalidInput
+			name:     "returns invalid input when end_time is before start_time",
+			clinicID: 1,
+			input: &CreateShiftEntryInput{
+				StaffID:   1,
+				Date:      date,
+				ShiftType: model.ShiftTypeMorning,
+				StartTime: &startTime,
+				EndTime:   &earlierTime,
+			},
+			repoErr:          nil,
+			wantErr:          true,
+			wantInvalidInput: true,
 		},
 		{
 			name:     "returns error when repository fails",
@@ -178,8 +229,9 @@ func TestShiftEntryService_Create(t *testing.T) {
 				Date:      date,
 				ShiftType: model.ShiftTypeMorning,
 			},
-			repoErr: errors.New("db error"),
-			wantErr: true,
+			repoErr:          errors.New("db error"),
+			wantErr:          true,
+			wantInvalidInput: false,
 		},
 	}
 
@@ -200,6 +252,10 @@ func TestShiftEntryService_Create(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, entry)
+				if tt.wantInvalidInput {
+					// apperrors パッケージを直接importしていないが、エラーメッセージで確認
+					assert.Contains(t, err.Error(), "end_time must be after start_time")
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, entry)
@@ -262,11 +318,25 @@ func TestShiftEntryService_Update(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// FindByID は2回呼ばれる: 1回目はバリデーション用（既存レコード取得）、2回目は更新後の取得
+			// バリデーション用に常に有効なエントリを返す基底エントリを用意する
+			baseEntry := &model.ShiftEntry{
+				ID:        1,
+				ClinicID:  1,
+				ShiftType: model.ShiftTypeFull,
+			}
+			callCount := 0
 			repo := &mockShiftEntryRepository{
 				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.repoUpdateErr
 				},
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ShiftEntry, error) {
+					callCount++
+					if callCount == 1 {
+						// 1回目: バリデーション用の既存レコード
+						return baseEntry, nil
+					}
+					// 2回目: 更新後のレコード取得
 					return tt.repoReturnEntry, nil
 				},
 			}

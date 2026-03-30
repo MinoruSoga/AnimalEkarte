@@ -46,7 +46,8 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
   setDiagnosis2NameId,
 }: DiagnosisHeaderDiagnosisProps) {
   const { data: categories = [], isLoading: isCategoriesLoading } = useGetDiagnosisCategories();
-  const { data: names = [], isLoading: isNamesLoading } = useGetDiagnosisNames();
+  const { data: names1 = [], isLoading: isNames1Loading } = useGetDiagnosisNames(diagnosis1CategoryId);
+  const { data: names2 = [], isLoading: isNames2Loading } = useGetDiagnosisNames(diagnosis2CategoryId);
 
   return (
     <div className="col-span-5 flex flex-col min-h-0">
@@ -65,13 +66,16 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
               </Label>
               <Select
                 value={diagnosis1CategoryId ? String(diagnosis1CategoryId) : ""}
-                onValueChange={(value) => setDiagnosis1CategoryId?.(value ? Number(value) : null)}
+                onValueChange={(value) => {
+                  setDiagnosis1CategoryId?.(value ? Number(value) : null);
+                  setDiagnosis1NameId?.(null);
+                }}
                 disabled={isCategoriesLoading}
               >
                 <SelectTrigger className="flex-1 bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
-                  <SelectValue placeholder={isCategoriesLoading ? "読み込み中..." : "選択してください"} />
+                  <SelectValue placeholder={isCategoriesLoading ? "読み込み中..." : "カテゴリを選択"} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[9999]">
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={String(cat.id)}>
                       {cat.name}
@@ -82,13 +86,13 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
               <Select
                 value={diagnosis1NameId ? String(diagnosis1NameId) : ""}
                 onValueChange={(value) => setDiagnosis1NameId?.(value ? Number(value) : null)}
-                disabled={isNamesLoading}
+                disabled={isNames1Loading || !diagnosis1CategoryId}
               >
                 <SelectTrigger className="flex-1 bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
-                  <SelectValue placeholder={isNamesLoading ? "読み込み中..." : "選択してください"} />
+                  <SelectValue placeholder={isNames1Loading ? "読み込み中..." : "病名を選択"} />
                 </SelectTrigger>
-                <SelectContent>
-                  {names.map((name) => (
+                <SelectContent className="z-[9999]">
+                  {names1.map((name) => (
                     <SelectItem key={name.id} value={String(name.id)}>
                       {name.name}
                     </SelectItem>
@@ -103,13 +107,16 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
               </Label>
               <Select
                 value={diagnosis2CategoryId ? String(diagnosis2CategoryId) : ""}
-                onValueChange={(value) => setDiagnosis2CategoryId?.(value ? Number(value) : null)}
+                onValueChange={(value) => {
+                  setDiagnosis2CategoryId?.(value ? Number(value) : null);
+                  setDiagnosis2NameId?.(null);
+                }}
                 disabled={isCategoriesLoading}
               >
                 <SelectTrigger className="flex-1 bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
-                  <SelectValue placeholder={isCategoriesLoading ? "読み込み中..." : "選択してください"} />
+                  <SelectValue placeholder={isCategoriesLoading ? "読み込み中..." : "カテゴリを選択"} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[9999]">
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={String(cat.id)}>
                       {cat.name}
@@ -120,13 +127,13 @@ export const DiagnosisHeaderDiagnosis = React.memo(function DiagnosisHeaderDiagn
               <Select
                 value={diagnosis2NameId ? String(diagnosis2NameId) : ""}
                 onValueChange={(value) => setDiagnosis2NameId?.(value ? Number(value) : null)}
-                disabled={isNamesLoading}
+                disabled={isNames2Loading || !diagnosis2CategoryId}
               >
                 <SelectTrigger className="flex-1 bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm">
-                  <SelectValue placeholder={isNamesLoading ? "読み込み中..." : "選択してください"} />
+                  <SelectValue placeholder={isNames2Loading ? "読み込み中..." : "病名を選択"} />
                 </SelectTrigger>
-                <SelectContent>
-                  {names.map((name) => (
+                <SelectContent className="z-[9999]">
+                  {names2.map((name) => (
                     <SelectItem key={name.id} value={String(name.id)}>
                       {name.name}
                     </SelectItem>

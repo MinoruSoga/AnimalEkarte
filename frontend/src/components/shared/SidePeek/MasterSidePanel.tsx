@@ -18,6 +18,8 @@ interface MasterSidePanelProps {
   icon: ReactNode;
   isPending?: boolean;
   titlePlaceholder?: string;
+  /** BUG-083: inline error message shown below the title field */
+  titleError?: string;
   /** When true, shows a navigation blocker dialog if the user tries to navigate away */
   isDirty?: boolean;
   children: ReactNode;
@@ -34,6 +36,7 @@ export function MasterSidePanel({
   icon,
   isPending,
   titlePlaceholder,
+  titleError,
   isDirty = false,
   children,
 }: MasterSidePanelProps) {
@@ -61,6 +64,7 @@ export function MasterSidePanel({
           onChange={onTitleChange}
           placeholder={titlePlaceholder}
           onSave={onSave}
+          error={titleError}
         />
         <div className={`${STYLE.sectionDivider} mb-1`} />
         <div className="py-1">{children}</div>

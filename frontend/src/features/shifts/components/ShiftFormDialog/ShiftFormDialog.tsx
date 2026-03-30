@@ -16,11 +16,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import type { Shift, ShiftType, CreateShiftInput, UpdateShiftInput } from "../../types";
 import { SHIFT_TYPE_LABELS } from "../../types";
 import { useCreateShift } from "../../api/create-shift";
 import { useUpdateShift } from "../../api/update-shift";
 import { useDeleteShift } from "../../api/delete-shift";
+
+/**
+ * バックエンドから "HH:MM:SS" 形式で来る時刻を "HH:mm" に正規化する。
+ * BUG-029: input[type="time"] は "HH:mm" 形式のみ受け付けるため必要。
+ */
+function normalizeTimeToHHmm(time: string): string {
+  if (!time) return "";
+  // "HH:MM:SS" → "HH:MM"
+  const parts = time.split(":");
+  if (parts.length >= 2) {
+    return `${parts[0].padStart(2, "0")}:${parts[1].padStart(2, "0")}`;
+  }
+  return time;
+}
 
 // 静的 JSX リスト: rendering-hoist-jsx
 const SHIFT_TYPE_OPTIONS = (Object.entries(SHIFT_TYPE_LABELS) as [ShiftType, string][]).map(
@@ -59,20 +74,22 @@ export function ShiftFormDialog({
 
   const [form, setForm] = useState<FormState>(() => ({
     shiftType: editShift?.shift_type ?? "full",
-    startTime: editShift?.start_time ?? "",
-    endTime: editShift?.end_time ?? "",
+    startTime: normalizeTimeToHHmm(editShift?.start_time ?? ""),
+    endTime: normalizeTimeToHHmm(editShift?.end_time ?? ""),
     note: editShift?.note ?? "",
   }));
+  const [timeError, setTimeError] = useState<string>("");
 
   useEffect(() => {
     if (open) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- ダイアログ open 時にフォームをリセット。key prop パターンの代替
       setForm({
         shiftType: editShift?.shift_type ?? "full",
-        startTime: editShift?.start_time ?? "",
-        endTime: editShift?.end_time ?? "",
+        startTime: normalizeTimeToHHmm(editShift?.start_time ?? ""),
+        endTime: normalizeTimeToHHmm(editShift?.end_time ?? ""),
         note: editShift?.note ?? "",
       });
+      setTimeError("");
     }
   }, [open, editShift]);
 
@@ -95,6 +112,10 @@ export function ShiftFormDialog({
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const { name, value } = e.target;
       setForm((prev) => ({ ...prev, [name]: value }));
+      // 時刻フィールド変更時にエラーをクリア
+      if (name === "startTime" || name === "endTime") {
+        setTimeError("");
+      }
     },
     [],
   );
@@ -104,6 +125,16 @@ export function ShiftFormDialog({
       e.preventDefault();
       const currentForm = formRef.current;
       const currentEditShift = editShiftRef.current;
+
+      // BUG-028: end_time > start_time バリデーション
+      if (currentForm.startTime && currentForm.endTime) {
+        if (currentForm.endTime <= currentForm.startTime) {
+          setTimeError("終了時刻は開始時刻より後に設定してください");
+          return;
+        }
+      }
+      setTimeError("");
+
       startSaveTransition(async () => {
         if (isEdit && currentEditShift) {
           const input: UpdateShiftInput = {
@@ -170,27 +201,32 @@ export function ShiftFormDialog({
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="start-time">開始時刻</Label>
-              <Input
-                id="start-time"
-                name="startTime"
-                type="time"
-                value={form.startTime}
-                onChange={handleInputChange}
-              />
+          <div className="space-y-1.5">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="start-time">開始時刻</Label>
+                <Input
+                  id="start-time"
+                  name="startTime"
+                  type="time"
+                  value={form.startTime}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="end-time">終了時刻</Label>
+                <Input
+                  id="end-time"
+                  name="endTime"
+                  type="time"
+                  value={form.endTime}
+                  onChange={handleInputChange}
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="end-time">終了時刻</Label>
-              <Input
-                id="end-time"
-                name="endTime"
-                type="time"
-                value={form.endTime}
-                onChange={handleInputChange}
-              />
-            </div>
+            {timeError ? (
+              <FormFieldError message={timeError} />
+            ) : null}
           </div>
 
           <div className="space-y-1.5">

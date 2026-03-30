@@ -153,12 +153,12 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
 
   return (
     <div className="h-[calc(100vh-220px)] min-h-[500px] flex flex-col gap-3 overflow-y-auto pb-10 pr-1 relative">
-      {isConfirmed && (
+      {isConfirmed ? (
         <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-100 rounded-lg text-green-700 text-sm mb-1">
           <CheckCircle2 className={ICON.action} />
           <span>このカルテの会計内容は医師によって確認済みです。</span>
         </div>
-      )}
+      ) : null}
 
       {/* Items Table */}
       <TreatmentTable

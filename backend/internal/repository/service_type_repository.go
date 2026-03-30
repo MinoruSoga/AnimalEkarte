@@ -103,7 +103,7 @@ func (r *serviceTypeRepository) Reorder(ctx context.Context, clinicID uint64, id
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("reorder service type: %w", err)
+		return apperrors.Wrap(err, "reorder service type")
 	}
 	return nil
 }

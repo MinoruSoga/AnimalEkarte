@@ -3,7 +3,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -55,7 +54,7 @@ func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input Upd
 func (s *cageService) Delete(ctx context.Context, id uint64) error {
 	exists, err := s.hospitalizationRepo.ExistsByCageID(ctx, id)
 	if err != nil {
-		return fmt.Errorf("failed to check hospitalization dependency: %w", err)
+		return apperrors.Wrap(err, "failed to check hospitalization dependency")
 	}
 	if exists {
 		return apperrors.WrapAlreadyExists("cage", "このケージは入院データで使用中のため削除できません")

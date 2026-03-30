@@ -81,7 +81,7 @@ func (r *permissionGroupRepository) SetRules(ctx context.Context, groupID uint64
 		}
 		return tx.Create(&rules).Error
 	}); err != nil {
-		return fmt.Errorf("set permission group rules: %w", err)
+		return apperrors.Wrap(err, "set permission group rules")
 	}
 	return nil
 }
@@ -93,7 +93,7 @@ func (r *permissionGroupRepository) VerifyGroupExists(ctx context.Context, group
 		Where("id = ? AND deleted_at IS NULL", groupID).
 		Count(&count).Error
 	if err != nil {
-		return fmt.Errorf("verify group exists: %w", err)
+		return apperrors.Wrap(err, "verify group exists")
 	}
 	if count == 0 {
 		return apperrors.WrapNotFound("permission_group", fmt.Sprintf("%d", groupID))
@@ -130,7 +130,7 @@ func (r *permissionGroupRepository) HasPermission(ctx context.Context, userID ui
 		WHERE upg.user_id = ?
 	`, column), string(resource), userID).Scan(&res).Error
 	if err != nil {
-		return false, fmt.Errorf("check permission: %w", err)
+		return false, apperrors.Wrap(err, "check permission")
 	}
 	return res.HasPerm, nil
 }

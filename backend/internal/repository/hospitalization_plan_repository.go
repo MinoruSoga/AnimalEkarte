@@ -98,7 +98,7 @@ func (r *hospitalizationPlanRepository) Reorder(ctx context.Context, clinicID ui
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("reorder hospitalization plan: %w", err)
+		return apperrors.Wrap(err, "reorder hospitalization plan")
 	}
 	return nil
 }

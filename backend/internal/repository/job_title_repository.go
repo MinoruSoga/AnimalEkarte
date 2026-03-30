@@ -101,7 +101,7 @@ func (r *jobTitleRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("reorder job title: %w", err)
+		return apperrors.Wrap(err, "reorder job title")
 	}
 	return nil
 }

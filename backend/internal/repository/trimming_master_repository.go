@@ -95,7 +95,7 @@ func (r *trimmingCourseRepository) Reorder(ctx context.Context, clinicID uint64,
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("reorder trimming course: %w", err)
+		return apperrors.Wrap(err, "reorder trimming course")
 	}
 	return nil
 }
@@ -184,7 +184,7 @@ func (r *trimmingOptionRepository) Reorder(ctx context.Context, clinicID uint64,
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("reorder trimming options: %w", err)
+		return apperrors.Wrap(err, "reorder trimming options")
 	}
 	return nil
 }

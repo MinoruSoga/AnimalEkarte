@@ -114,7 +114,7 @@ func (r *diagnosisCategoryRepository) Reorder(ctx context.Context, clinicID uint
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("reorder diagnosis category: %w", err)
+		return apperrors.Wrap(err, "reorder diagnosis category")
 	}
 	return nil
 }
@@ -243,7 +243,7 @@ func (r *diagnosisNameRepository) Reorder(ctx context.Context, clinicID uint64, 
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("reorder diagnosis name: %w", err)
+		return apperrors.Wrap(err, "reorder diagnosis name")
 	}
 	return nil
 }

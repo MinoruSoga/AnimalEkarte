@@ -86,7 +86,7 @@ export function ClinicalPlanSection({ medicalRecordId }: ClinicalPlanSectionProp
                 : diagnosisCategoryId
             }
             onChange={(e) => setDiagnosisCategoryId(e.target.value)}
-            placeholder="診断カテゴリID"
+            placeholder="カテゴリを選択"
             className={`${STYLE.formInput} border rounded-[4px] px-3 outline-none focus:ring-0`}
           />
         </div>
@@ -102,7 +102,7 @@ export function ClinicalPlanSection({ medicalRecordId }: ClinicalPlanSectionProp
                 : diagnosisNameId
             }
             onChange={(e) => setDiagnosisNameId(e.target.value)}
-            placeholder="診断病名ID"
+            placeholder="病名を選択"
             className={`${STYLE.formInput} border rounded-[4px] px-3 outline-none focus:ring-0`}
           />
         </div>

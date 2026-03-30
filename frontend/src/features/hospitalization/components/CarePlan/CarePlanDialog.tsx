@@ -63,10 +63,18 @@ export const CarePlanDialog = memo(function CarePlanDialog({
     const handleSave = () => {
         if (!formData.name || !formData.type) return;
 
+        // type が "treatment" 以外の場合、マスタ由来フィールドを除外して送信
+        const payload: Partial<CarePlanItem> = { ...formData };
+        if (formData.type !== "treatment") {
+            delete payload.unitPrice;
+            delete payload.masterId;
+            delete payload.category;
+        }
+
         if (editingPlan) {
-            onUpdate(editingPlan.id, formData);
+            onUpdate(editingPlan.id, payload);
         } else {
-            onCreate(formData as CreateCarePlanDTO);
+            onCreate(payload as CreateCarePlanDTO);
         }
         onOpenChange(false);
     };
@@ -125,7 +133,15 @@ export const CarePlanDialog = memo(function CarePlanDialog({
                             <Label>種類</Label>
                             <Select
                                 value={formData.type}
-                                onValueChange={(val: "food" | "medicine" | "treatment" | "instruction" | "item") => setFormData((prev) => ({...prev, type: val}))}
+                                onValueChange={(val: "food" | "medicine" | "treatment" | "instruction" | "item") =>
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    type: val,
+                                    unitPrice: undefined,
+                                    masterId: undefined,
+                                    category: undefined,
+                                  }))
+                                }
                             >
                                 <SelectTrigger>
                                     <SelectValue />

@@ -95,6 +95,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
     if (field === "insurance") input.insurance = Boolean(value);
     if (field === "unitPrice") input.unit_price = Number(value);
     if (field === "quantity") input.quantity = Number(value);
+    if (field === "discountRate") input.discount_rate = Number(value) / 100;
     if (field === "discountAmount") input.discount_amount = Number(value);
     if (field === "status") input.status = String(value);
     if (field === "selected") input.selected = Boolean(value);

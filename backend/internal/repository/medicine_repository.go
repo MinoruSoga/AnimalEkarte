@@ -115,7 +115,7 @@ func (r *medicineRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("reorder medicine: %w", err)
+		return apperrors.Wrap(err, "reorder medicine")
 	}
 	return nil
 }

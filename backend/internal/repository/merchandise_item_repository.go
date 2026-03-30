@@ -109,7 +109,7 @@ func (r *merchandiseItemRepository) Reorder(ctx context.Context, clinicID uint64
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("reorder merchandise item: %w", err)
+		return apperrors.Wrap(err, "reorder merchandise item")
 	}
 	return nil
 }

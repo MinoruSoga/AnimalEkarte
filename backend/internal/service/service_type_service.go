@@ -3,7 +3,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -118,7 +117,7 @@ func (s *serviceTypeService) Update(ctx context.Context, clinicID, id uint64, in
 func (s *serviceTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
 	exists, err := s.reservationRepo.ExistsByServiceTypeID(ctx, id)
 	if err != nil {
-		return fmt.Errorf("failed to check reservation dependency: %w", err)
+		return apperrors.Wrap(err, "failed to check reservation dependency")
 	}
 	if exists {
 		return apperrors.WrapAlreadyExists("service_type", "この項目は予約データで使用中のため削除できません")

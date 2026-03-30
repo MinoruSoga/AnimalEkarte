@@ -104,7 +104,7 @@ func (r *treatmentRepository) BulkUpdateSortOrder(ctx context.Context, updates [
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("bulk update treatment sort order: %w", err)
+		return apperrors.Wrap(err, "bulk update treatment sort order")
 	}
 	return nil
 }

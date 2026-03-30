@@ -19,6 +19,10 @@ import type { OwnerData, PetFormData, MembershipType } from "../types";
 import { createOwner } from "../api/create-owner";
 import { updateOwner } from "../api/update-owner";
 
+// BUG-067: NULL バイト・制御文字を除去して安全なテキストを返す（多層防衛）
+const sanitizeText = (value: string): string =>
+  value.replace(/[\u0000-\u001F\u007F]/g, "").trim();
+
 const MEMBERSHIP_TYPE_TO_API: Record<string, string> = {
   "非会員": "non_member",
   "会員": "member",
@@ -156,20 +160,21 @@ export function useOwnerForm(
       }
 
       try {
+        // BUG-067: NULL バイト・制御文字を除去してから送信
         const ownerRequestPayload = {
-          owner_name: ownerData.ownerName,
-          owner_name_kana: ownerData.ownerNameKana || undefined,
-          company: ownerData.company,
-          postal_code: ownerData.postalCode,
-          address1: ownerData.address1,
-          address2: ownerData.address2,
-          home_postal_code: ownerData.homePostalCode || "",
-          home_address1: ownerData.homeAddress1,
-          home_address2: ownerData.homeAddress2,
-          phone: ownerData.phone,
-          company_phone: ownerData.companyPhone,
-          email: ownerData.email,
-          remarks: ownerData.remarks,
+          owner_name: sanitizeText(ownerData.ownerName),
+          owner_name_kana: ownerData.ownerNameKana ? sanitizeText(ownerData.ownerNameKana) : undefined,
+          company: sanitizeText(ownerData.company),
+          postal_code: sanitizeText(ownerData.postalCode),
+          address1: sanitizeText(ownerData.address1),
+          address2: sanitizeText(ownerData.address2),
+          home_postal_code: ownerData.homePostalCode ? sanitizeText(ownerData.homePostalCode) : "",
+          home_address1: sanitizeText(ownerData.homeAddress1),
+          home_address2: sanitizeText(ownerData.homeAddress2),
+          phone: sanitizeText(ownerData.phone),
+          company_phone: sanitizeText(ownerData.companyPhone),
+          email: sanitizeText(ownerData.email),
+          remarks: ownerData.remarks.replace(/[\u0000-\u001F\u007F]/g, ""),
           is_dangerous: ownerData.isDangerous,
           discount_rate: ownerData.discountRate,
           membership_type: MEMBERSHIP_TYPE_TO_API[ownerData.membershipType] ?? ownerData.membershipType,

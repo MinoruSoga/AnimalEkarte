@@ -1,4 +1,5 @@
 import { C, LAYOUT } from "@/lib/design-tokens";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 
 interface SidePeekTitleInputProps {
   value: string;
@@ -7,6 +8,8 @@ interface SidePeekTitleInputProps {
   autoFocus?: boolean;
   /** Called when the user presses Enter in the title field */
   onSave?: () => void;
+  /** BUG-083: inline error message displayed below the title field */
+  error?: string;
 }
 
 export function SidePeekTitleInput({
@@ -15,6 +18,7 @@ export function SidePeekTitleInput({
   placeholder = "無題",
   autoFocus = true,
   onSave,
+  error,
 }: SidePeekTitleInputProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -38,7 +42,9 @@ export function SidePeekTitleInput({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         autoFocus={autoFocus}
+        aria-invalid={!!error}
       />
+      {error ? <FormFieldError message={error} /> : null}
     </div>
   );
 }

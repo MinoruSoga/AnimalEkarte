@@ -97,7 +97,7 @@ func (r *cageRepository) Reorder(ctx context.Context, clinicID uint64, ids []uin
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("reorder cage: %w", err)
+		return apperrors.Wrap(err, "reorder cage")
 	}
 	return nil
 }

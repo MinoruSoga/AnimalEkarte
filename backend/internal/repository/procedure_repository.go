@@ -93,7 +93,7 @@ func (r *procedureRepository) Reorder(ctx context.Context, clinicID uint64, ids 
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("reorder procedure: %w", err)
+		return apperrors.Wrap(err, "reorder procedure")
 	}
 	return nil
 }

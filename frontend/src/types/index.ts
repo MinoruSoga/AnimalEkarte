@@ -170,7 +170,11 @@ export interface ReservationAppointment {
   petName: string;
   visitType: "first" | "revisit";
   type: string;
+  /** service_type の ID 文字列。フォーム編集時の Select 初期値に使用 */
+  serviceTypeId?: string;
   doctor: string;
+  /** doctor の ID 文字列。フォーム編集時の Select 初期値に使用 */
+  doctorId?: string;
   isDesignated: boolean;
   status: "confirmed" | "pending" | "checked_in" | "in_consultation" | "accounting" | "completed" | "cancelled";
   notes?: string;

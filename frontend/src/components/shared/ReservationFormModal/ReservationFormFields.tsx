@@ -172,6 +172,9 @@ export function ReservationFormFields({
               </SelectContent>
             </Select>
           </div>
+          {validationErrors?.time ? (
+            <FormFieldError id="res-time-error" message={validationErrors.time} />
+          ) : null}
         </div>
       </div>
 

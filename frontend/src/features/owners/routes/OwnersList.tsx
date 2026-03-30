@@ -1,6 +1,6 @@
 // React/Framework
-import { useState, useMemo, useCallback, useTransition, useDeferredValue, lazy, Suspense } from "react";
-import { useNavigate, useLoaderData, useRevalidator } from "react-router";
+import { useState, useMemo, useCallback, useTransition, useDeferredValue, lazy, Suspense, useEffect } from "react";
+import { useNavigate, useLoaderData, useRevalidator, useSearchParams } from "react-router";
 
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
@@ -127,6 +127,7 @@ interface OwnersListProps {
 
 export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit, canDelete } = usePermission("owners");
   const revalidator = useRevalidator();
   const { pets } = useLoaderData<OwnersLoaderData>();

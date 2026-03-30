@@ -32,10 +32,12 @@ export const getDiagnosisCategories = async (): Promise<DiagnosisCategoryOption[
   }));
 };
 
-export const getDiagnosisNames = async (): Promise<DiagnosisNameOption[]> => {
+export const getDiagnosisNames = async (categoryId?: number | null): Promise<DiagnosisNameOption[]> => {
+  const params: Record<string, unknown> = { limit: 100 };
+  if (categoryId) params.category_id = categoryId;
   const { data } = await axios.get<DiagnosisName[] | PaginatedResponse<DiagnosisName>>(
     "/v1/masters/diagnosis-names",
-    { params: { limit: 100 } },
+    { params },
   );
   const items = Array.isArray(data) ? data : (data.data ?? []);
   return items.map((item) => ({
@@ -52,10 +54,10 @@ export const useGetDiagnosisCategories = () =>
     gcTime: QUERY_GC_TIMES.LONG,
   });
 
-export const useGetDiagnosisNames = () =>
+export const useGetDiagnosisNames = (categoryId?: number | null) =>
   useQuery({
-    queryKey: ["masters", "diagnosis-names"],
-    queryFn: getDiagnosisNames,
+    queryKey: ["masters", "diagnosis-names", categoryId ?? null],
+    queryFn: () => getDiagnosisNames(categoryId),
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });

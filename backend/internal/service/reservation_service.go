@@ -35,6 +35,22 @@ func (s *reservationService) GetByID(ctx context.Context, clinicID, id uint64) (
 }
 
 func (s *reservationService) Create(ctx context.Context, reservation *model.ReservationAppointment) error {
+	// BUG-034: end_time <= start_time の場合は 400 Bad Request
+	if !reservation.EndTime.After(reservation.StartTime) {
+		return apperrors.Wrap(apperrors.ErrInvalidInput, "end_time must be after start_time")
+	}
+
+	// BUG-080: 同一 staff_id + clinic_id で時間帯が重複する予約の存在チェック
+	if reservation.DoctorID != nil {
+		conflict, err := s.repo.FindByStaffAndTimeSlot(ctx, reservation.ClinicID, *reservation.DoctorID, reservation.StartTime, reservation.EndTime, nil)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to check reservation conflict")
+		}
+		if conflict {
+			return apperrors.Wrap(apperrors.ErrAlreadyExists, "reservation conflict")
+		}
+	}
+
 	if err := s.repo.Create(ctx, reservation); err != nil {
 		return apperrors.Wrap(err, "failed to create reservation")
 	}

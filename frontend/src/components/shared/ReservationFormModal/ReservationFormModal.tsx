@@ -144,6 +144,10 @@ export function ReservationFormModal({
     if (!formData.type) {
       errors.type = "予約区分を選択してください";
     }
+    // BUG-034: end_time > start_time バリデーション
+    if (formData.start && formData.end && formData.end <= formData.start) {
+      errors.time = "終了時刻は開始時刻より後に設定してください";
+    }
 
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);

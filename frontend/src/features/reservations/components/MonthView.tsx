@@ -22,6 +22,8 @@ interface MonthViewProps {
   currentDate: Date;
   appointments: ReservationAppointment[];
   onAppointmentClick: (appointment: ReservationAppointment) => void;
+  /** BUG-076: 日付セルクリックで週表示に遷移するコールバック */
+  onDateClick?: (date: Date) => void;
   dynamicColorMap?: Map<string, ServiceTypeColor>;
 }
 
@@ -42,7 +44,7 @@ const HEADER_ROW = (
   </div>
 );
 
-export const MonthView = memo(function MonthView({ currentDate, appointments, onAppointmentClick, dynamicColorMap }: MonthViewProps) {
+export const MonthView = memo(function MonthView({ currentDate, appointments, onAppointmentClick, onDateClick, dynamicColorMap }: MonthViewProps) {
 
   const rows = useMemo(() => {
     const monthStart = startOfMonth(currentDate);
@@ -71,9 +73,17 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
             `}
           >
             <div className="flex justify-between items-start mb-2">
-                <span className={`text-base font-bold size-7 flex items-center justify-center rounded-full ${isSameDay(day, new Date()) ? "bg-blue-600 text-white shadow-sm" : ""}`}>
-                    {formattedDate}
-                </span>
+                <button
+                  type="button"
+                  className={`text-base font-bold size-7 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, new Date()) ? "bg-blue-600 text-white shadow-sm" : "hover:bg-blue-100 hover:text-blue-700"}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDateClick?.(cloneDay);
+                  }}
+                  aria-label={`${format(cloneDay, "M月d日")}の週表示へ`}
+                >
+                  {formattedDate}
+                </button>
             </div>
             <div className="space-y-1.5 flex-1 overflow-hidden">
                 {dayAppointments.slice(0, 4).map(app => {
@@ -121,7 +131,7 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
     }
 
     return result;
-  }, [currentDate, appointments, dynamicColorMap, onAppointmentClick]);
+  }, [currentDate, appointments, dynamicColorMap, onAppointmentClick, onDateClick]);
 
   return (
     <div className="flex flex-col h-full border-l border-t border-[rgba(55,53,47,0.16)] rounded-lg overflow-hidden bg-white shadow-sm">

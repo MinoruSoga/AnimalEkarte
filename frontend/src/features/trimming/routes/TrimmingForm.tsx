@@ -538,7 +538,7 @@ export function TrimmingForm() {
               削除
             </Button>
           ) : null}
-          <SubmitButton className="h-10">
+          <SubmitButton className="h-10" disabled={isSaving}>
             保存
           </SubmitButton>
         </div>

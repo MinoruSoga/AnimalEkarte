@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import Eye from "lucide-react/dist/esm/icons/eye";
 import EyeOff from "lucide-react/dist/esm/icons/eye-off";
+import { isAxiosError } from "axios";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { C, ICON } from "@/lib/design-tokens";
 // AuthProvider はこのページを囲まないため useAuth() は使用不可。
@@ -120,8 +121,16 @@ export function LoginForm() {
         // AuthProvider がマウントされ GET /v1/me でセッションが復元される。
         navigate("/");
       } catch (err) {
-        const message = err instanceof Error ? err.message : "ログインに失敗しました";
-        setError(message);
+        // BUG-047: 401エラーは日本語メッセージに変換し、生のHTTPエラー文字列を表示しない
+        if (isAxiosError(err) && err.response?.status === 401) {
+          setError("メールアドレスまたはパスワードが違います");
+        } else if (isAxiosError(err) && err.response?.status === 403) {
+          setError("このアカウントはアクセスが制限されています");
+        } else if (isAxiosError(err) && !err.response) {
+          setError("ネットワークエラーが発生しました。接続を確認してください");
+        } else {
+          setError("ログインに失敗しました。しばらくしてから再度お試しください");
+        }
       } finally {
         setIsSubmitting(false);
       }

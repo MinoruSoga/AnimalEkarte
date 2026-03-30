@@ -3,6 +3,7 @@ import { memo, useState, useCallback, useRef, useEffect } from "react";
 
 // External
 import { ChevronUp, ChevronDown, Shield } from "lucide-react";
+import { toast } from "sonner";
 
 // Internal
 import { Button } from "@/components/ui/button";
@@ -108,6 +109,13 @@ export const TreatmentRow = memo(function TreatmentRow({
 
   const commitUnitPrice = useCallback(() => {
     const val = parseFloat(localUnitPrice) || 0;
+    // BUG-072: 金額は0以上
+    if (val < 0) {
+      toast.error("金額は0以上を入力してください");
+      setLocalUnitPrice(String(treatment.unit_price));
+      setEditField(null);
+      return;
+    }
     if (val !== treatment.unit_price) {
       onUpdate(treatment.id, { unit_price: val });
     }
@@ -124,6 +132,13 @@ export const TreatmentRow = memo(function TreatmentRow({
 
   const commitDiscountAmount = useCallback(() => {
     const val = parseFloat(localDiscountAmount) || 0;
+    // BUG-072: 値引き金額は0以上
+    if (val < 0) {
+      toast.error("金額は0以上を入力してください");
+      setLocalDiscountAmount(String(treatment.discount_amount));
+      setEditField(null);
+      return;
+    }
     if (val !== treatment.discount_amount) {
       onUpdate(treatment.id, { discount_amount: val });
     }
@@ -229,6 +244,7 @@ export const TreatmentRow = memo(function TreatmentRow({
           <Input
             ref={inputRef}
             type="number"
+            min={0}
             value={localUnitPrice}
             onChange={(e) => setLocalUnitPrice(e.target.value)}
             onBlur={commitUnitPrice}
@@ -275,6 +291,7 @@ export const TreatmentRow = memo(function TreatmentRow({
           <Input
             ref={inputRef}
             type="number"
+            min={0}
             value={localDiscountAmount}
             onChange={(e) => setLocalDiscountAmount(e.target.value)}
             onBlur={commitDiscountAmount}

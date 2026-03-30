@@ -88,6 +88,8 @@ const GroupSidePanel = memo(function GroupSidePanel({
   const [rules, setRules] = useState<RuleInput[]>(() =>
     groupRulesToRuleInputs(group?.rules),
   );
+  // BUG-083: inline validation error for the name field
+  const [nameError, setNameError] = useState("");
 
   const createMutation = useCreatePermissionGroup();
   const updateMutation = useUpdatePermissionGroup(clinicId);
@@ -109,9 +111,12 @@ const GroupSidePanel = memo(function GroupSidePanel({
 
   const handleSave = useCallback(() => {
     if (!name.trim()) {
+      // BUG-083: インラインエラー表示（toast に加えてフィールド下にも表示）
+      setNameError("名称を入力してください");
       toast.error("グループ名を入力してください");
       return;
     }
+    setNameError("");
     startSaveTransition(async () => {
       try {
         let groupId: number;
