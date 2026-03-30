@@ -12,6 +12,7 @@ import { ClinicalPlanSection } from "./ClinicalPlanSection/ClinicalPlanSection";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
 import type { TreatmentItemType, UpdateTreatmentInput } from "../types";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 
 export interface DiagnosisPlanProps {
   isNewRecord?: boolean;
@@ -162,54 +163,64 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
   }, [treatmentItems, ownerDiscountRate, globalDiscountAmount]);
 
   return (
-    <div className="flex flex-col gap-3 h-[calc(100vh-220px)] min-h-[500px]">
-      <DiagnosisHeader
-        policy={policy}
-        setPolicy={setPolicy}
-        diagnosisDetails={diagnosisDetails}
-        setDiagnosisDetails={setDiagnosisDetails}
-        diagnosis1CategoryId={diagnosis1CategoryId}
-        setDiagnosis1CategoryId={setDiagnosis1CategoryId}
-        diagnosis1NameId={diagnosis1NameId}
-        setDiagnosis1NameId={setDiagnosis1NameId}
-        diagnosis2CategoryId={diagnosis2CategoryId}
-        setDiagnosis2CategoryId={setDiagnosis2CategoryId}
-        diagnosis2NameId={diagnosis2NameId}
-        setDiagnosis2NameId={setDiagnosis2NameId}
-      />
+    <div className={`gap-3 ${LAYOUT.fullHeight}`}>
+      <div className="shrink-0">
+        <DiagnosisHeader
+          policy={policy}
+          setPolicy={setPolicy}
+          diagnosisDetails={diagnosisDetails}
+          setDiagnosisDetails={setDiagnosisDetails}
+          diagnosis1CategoryId={diagnosis1CategoryId}
+          setDiagnosis1CategoryId={setDiagnosis1CategoryId}
+          diagnosis1NameId={diagnosis1NameId}
+          setDiagnosis1NameId={setDiagnosis1NameId}
+          diagnosis2CategoryId={diagnosis2CategoryId}
+          setDiagnosis2CategoryId={setDiagnosis2CategoryId}
+          diagnosis2NameId={diagnosis2NameId}
+          setDiagnosis2NameId={setDiagnosis2NameId}
+        />
+      </div>
 
       {!isNewRecord && medicalRecordId ? (
-        <ClinicalPlanSection medicalRecordId={medicalRecordId} onRegisterSave={onRegisterClinicalPlanSave} />
+        <div className="shrink-0">
+          <ClinicalPlanSection medicalRecordId={medicalRecordId} onRegisterSave={onRegisterClinicalPlanSave} />
+        </div>
       ) : null}
 
       {/* Bottom Section: Treatment Plan */}
-      <div className="flex-1 flex flex-col min-h-0">
-        <h2 className="text-sm font-bold text-[#37352F] mb-1.5">治療プラン</h2>
+      <div className="flex-1 min-h-0 flex flex-col">
+        <h2 className={`text-sm font-bold ${C.text} mb-1.5`}>治療プラン</h2>
 
-        {isNewRecord ? (
-          <div className="flex-1 flex items-center justify-center border border-dashed rounded-lg text-sm text-[#37352F]/40">
-            カルテを保存してから治療プランを作成できます
-          </div>
-        ) : (
-          <TreatmentTable 
-            items={treatmentItems}
-            onUpdate={handleUpdateItem}
-            onRemove={handleRemoveItem}
-            onOpenSearch={() => setIsSearchOpen(true)}
-            onAddRow={handleAddRow}
-            showStatus={true}
+        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-lg border border-[rgba(55,53,47,0.09)] overflow-hidden">
+          {isNewRecord ? (
+            <div className={`flex-1 flex items-center justify-center border border-dashed rounded-lg text-sm ${C.text40}`}>
+              カルテを保存してから治療プランを作成できます
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0">
+              <TreatmentTable 
+                items={treatmentItems}
+                onUpdate={handleUpdateItem}
+                onRemove={handleRemoveItem}
+                onOpenSearch={() => setIsSearchOpen(true)}
+                onAddRow={handleAddRow}
+                showStatus={true}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="shrink-0 mt-2">
+          <TreatmentDetailedSummary
+              subtotal={subtotal}
+              tax={tax}
+              total={total}
+              discountRate={ownerDiscountRate}
+              discountAmount={globalDiscountAmount}
+              onUpdateDiscountAmount={setGlobalDiscountAmount}
+              isDiscountRateReadonly
           />
-        )}
-
-        <TreatmentDetailedSummary
-            subtotal={subtotal}
-            tax={tax}
-            total={total}
-            discountRate={ownerDiscountRate}
-            discountAmount={globalDiscountAmount}
-            onUpdateDiscountAmount={setGlobalDiscountAmount}
-            isDiscountRateReadonly
-        />
+        </div>
       </div>
 
       <Suspense fallback={null}>
