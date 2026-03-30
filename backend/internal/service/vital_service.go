@@ -12,12 +12,14 @@ import (
 
 // CreateVitalInput はバイタル作成の入力DTO（HTTP非依存）
 type CreateVitalInput struct {
+	PetID           uint64
 	RecordedAt      time.Time
 	StaffID         *uint64
 	Temperature     *float64
 	HeartRate       *int
 	RespirationRate *int
 	Weight          *float64
+	WeightUnit      string
 	Notes           string
 }
 
@@ -54,7 +56,17 @@ func (s *vitalService) List(ctx context.Context, medicalRecordID uint64) ([]mode
 }
 
 func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input *CreateVitalInput) (*model.VitalRecord, error) {
+	if input.PetID == 0 {
+		return nil, apperrors.WrapInvalidInput("pet_id is required")
+	}
+
+	weightUnit := model.BodyWeightUnitKg
+	if input.WeightUnit != "" {
+		weightUnit = model.BodyWeightUnit(input.WeightUnit)
+	}
+
 	vital := &model.VitalRecord{
+		PetID:           input.PetID,
 		MedicalRecordID: &medicalRecordID,
 		RecordedAt:      input.RecordedAt,
 		StaffID:         input.StaffID,
@@ -62,6 +74,7 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 		HeartRate:       input.HeartRate,
 		RespirationRate: input.RespirationRate,
 		Weight:          input.Weight,
+		WeightUnit:      weightUnit,
 		Notes:           input.Notes,
 	}
 	if err := s.repo.Create(ctx, vital); err != nil {

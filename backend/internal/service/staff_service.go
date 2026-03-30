@@ -3,8 +3,8 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -69,6 +69,11 @@ func (s *staffService) GetByID(ctx context.Context, id uint64) (*model.Staff, er
 }
 
 func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaffInput) (*model.Staff, error) {
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
+	input.Name = strings.TrimSpace(input.Name)
+
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "hash password")
@@ -105,6 +110,13 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 }
 
 func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *UpdateStaffInput) (*model.Staff, error) {
+	if input.Name != nil {
+		if err := validateRequiredName(*input.Name); err != nil {
+			return nil, err
+		}
+		trimmed := strings.TrimSpace(*input.Name)
+		input.Name = &trimmed
+	}
 	if input.StaffRole != nil {
 		if err := validateStaffRole(*input.StaffRole); err != nil {
 			return nil, err
@@ -147,14 +159,14 @@ func buildStaffUpdateFields(input *UpdateStaffInput) map[string]any {
 func (s *staffService) Delete(ctx context.Context, clinicID, id uint64) error {
 	reservationExists, err := s.reservationRepo.ExistsByStaffID(ctx, id)
 	if err != nil {
-		return fmt.Errorf("failed to check reservation dependency: %w", err)
+		return apperrors.Wrap(err, "failed to check reservation dependency")
 	}
 	if reservationExists {
 		return apperrors.WrapAlreadyExists("staff", "このスタッフはシフト・予約データで使用中のため削除できません")
 	}
 	shiftExists, err := s.shiftEntryRepo.ExistsByStaffID(ctx, id)
 	if err != nil {
-		return fmt.Errorf("failed to check shift dependency: %w", err)
+		return apperrors.Wrap(err, "failed to check shift dependency")
 	}
 	if shiftExists {
 		return apperrors.WrapAlreadyExists("staff", "このスタッフはシフト・予約データで使用中のため削除できません")

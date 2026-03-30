@@ -4,12 +4,14 @@ import "time"
 
 // createVitalRequest はバイタル作成のバインド struct
 type createVitalRequest struct {
+	PetID           uint64    `json:"pet_id"            binding:"required"`
 	RecordedAt      time.Time `json:"recorded_at"       binding:"required"`
 	StaffID         *uint64   `json:"staff_id"`
 	Temperature     *float64  `json:"temperature"`
 	HeartRate       *int      `json:"heart_rate"`
 	RespirationRate *int      `json:"respiration_rate"`
 	Weight          *float64  `json:"weight"`
+	WeightUnit      string    `json:"weight_unit"`
 	Notes           string    `json:"notes"`
 }
 

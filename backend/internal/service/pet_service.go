@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -118,6 +119,12 @@ func (s *petService) GetByID(ctx context.Context, clinicID, id uint64) (*model.P
 }
 
 func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreatePetInput) (*model.Pet, error) {
+	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
+	input.Name = strings.TrimSpace(input.Name)
+
 	// ビジネスルールバリデーション
 	if input.Weight != nil && *input.Weight < 0 {
 		return nil, apperrors.WrapInvalidInput("体重は0以上の値を入力してください")
@@ -201,6 +208,15 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 }
 
 func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *UpdatePetInput) (*model.Pet, error) {
+	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
+	if input.Name != nil {
+		if err := validateRequiredName(*input.Name); err != nil {
+			return nil, err
+		}
+		trimmed := strings.TrimSpace(*input.Name)
+		input.Name = &trimmed
+	}
+
 	// ビジネスルールバリデーション
 	if input.Weight != nil && *input.Weight < 0 {
 		return nil, apperrors.WrapInvalidInput("体重は0以上の値を入力してください")

@@ -62,12 +62,14 @@ func (h *Handler) CreateVital(c *gin.Context) {
 	}
 
 	input := &service.CreateVitalInput{
+		PetID:           req.PetID,
 		RecordedAt:      req.RecordedAt,
 		StaffID:         req.StaffID,
 		Temperature:     req.Temperature,
 		HeartRate:       req.HeartRate,
 		RespirationRate: req.RespirationRate,
 		Weight:          req.Weight,
+		WeightUnit:      req.WeightUnit,
 		Notes:           req.Notes,
 	}
 

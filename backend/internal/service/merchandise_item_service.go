@@ -107,6 +107,9 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 	if input.Name == "" {
 		return nil, apperrors.WrapInvalidInput("name is required")
 	}
+	if input.UnitPrice < 0 {
+		return nil, apperrors.WrapInvalidInput("金額は0以上を入力してください")
+	}
 
 	taxType := model.TaxTypeExcluded
 	if input.TaxType != "" {
@@ -140,6 +143,9 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 }
 
 func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64, input *UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+	if input.UnitPrice != nil && *input.UnitPrice < 0 {
+		return nil, apperrors.WrapInvalidInput("金額は0以上を入力してください")
+	}
 	fields := buildMerchandiseItemUpdateFields(input)
 	if len(fields) == 0 {
 		return s.repo.FindByID(ctx, clinicID, id)

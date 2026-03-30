@@ -95,6 +95,9 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	if input.BillingID == 0 {
 		return nil, apperrors.WrapInvalidInput("billing_id is required")
 	}
+	if input.UnitPrice < 0 {
+		return nil, apperrors.WrapInvalidInput("金額は0以上を入力してください")
+	}
 
 	item := &model.BillingItem{
 		BillingID:             input.BillingID,
@@ -131,6 +134,9 @@ func (s *billingItemService) UpdateItem(ctx context.Context, id uint64, input *U
 	item, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get billing item")
+	}
+	if input.UnitPrice != nil && *input.UnitPrice < 0 {
+		return nil, apperrors.WrapInvalidInput("金額は0以上を入力してください")
 	}
 
 	fields := buildBillingItemUpdateFields(input)

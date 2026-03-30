@@ -102,7 +102,7 @@ func (h *Handler) CreateExamination(c *gin.Context) {
 
 	exam := &model.Examination{
 		ClinicID:        clinicID,
-		MedicalRecordID: input.MedicalRecordID,
+		MedicalRecordID: input.MedicalRecordID, // nil if not provided (standalone examination)
 		PetID:           input.PetID,
 		ExamTypeID:      input.ExamTypeID,
 		DoctorID:        input.DoctorID,

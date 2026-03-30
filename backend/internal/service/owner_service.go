@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -129,6 +130,12 @@ func (s *ownerService) GetByID(ctx context.Context, clinicID, id uint64) (*model
 }
 
 func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, input *CreateOwnerInput) (*model.Owner, error) {
+	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
+	if err := validateOwnerName(input.OwnerName); err != nil {
+		return nil, err
+	}
+	input.OwnerName = strings.TrimSpace(input.OwnerName)
+
 	// ビジネスルールバリデーション
 	if err := validateDiscountRate(input.DiscountRate); err != nil {
 		return nil, err
@@ -235,6 +242,15 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 }
 
 func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *UpdateOwnerInput) (*model.Owner, error) {
+	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
+	if input.OwnerName != nil {
+		if err := validateOwnerName(*input.OwnerName); err != nil {
+			return nil, err
+		}
+		trimmed := strings.TrimSpace(*input.OwnerName)
+		input.OwnerName = &trimmed
+	}
+
 	// ビジネスルールバリデーション
 	if input.DiscountRate != nil {
 		if err := validateDiscountRate(*input.DiscountRate); err != nil {
