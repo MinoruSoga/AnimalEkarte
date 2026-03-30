@@ -17,8 +17,11 @@ export const axios = Axios.create({
   withCredentials: true,
   headers: { "Content-Type": "application/json" },
 });
-
 axios.interceptors.request.use(requestInterceptor);
+
+/** リトライ設定 */
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 1000;
 
 /** 401 時の自動トークンリフレッシュ用キュー */
 let isRefreshing = false;
@@ -38,16 +41,39 @@ function processQueue(error: AxiosError | null): void {
   pendingRequests = [];
 }
 
-type RetryableConfig = InternalAxiosRequestConfig & { _retry?: boolean };
+type RetryableConfig = InternalAxiosRequestConfig & { 
+  _retryCount?: number;
+  _retry?: boolean;
+};
 
 axios.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as RetryableConfig | undefined;
+    const config = error.config as RetryableConfig | undefined;
+    if (!config) return Promise.reject(error);
 
-    // 401 以外のエラー、リトライ済み、リフレッシュエンドポイント自体のエラーはスルー
+    // --- 1. 自動リトライロジック (GETリクエストのみ) ---
+    const isGetRequest = config.method?.toLowerCase() === "get";
+    const isNetworkError = !error.response && error.code !== "ERR_CANCELED";
+    const isServerError = error.response && error.response.status >= 502 && error.response.status <= 504;
+
+    if (isGetRequest && (isNetworkError || isServerError)) {
+      config._retryCount = config._retryCount ?? 0;
+
+      if (config._retryCount < MAX_RETRIES) {
+        config._retryCount += 1;
+        // 指数バックオフ的な待機
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * config._retryCount!));
+        return axios(config);
+      }
+    }
+
+    // --- 2. 401 認証リフレッシュロジック (既存) ---
+    const originalRequest = config;
     if (
       error.response?.status !== 401 ||
+...
+
       originalRequest === undefined ||
       originalRequest._retry === true ||
       originalRequest.url?.includes("/auth/refresh") === true
