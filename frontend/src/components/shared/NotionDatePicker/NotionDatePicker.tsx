@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useState, useCallback, useMemo } from "react";
 import { CalendarIcon, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { ja } from "date-fns/locale";
@@ -130,8 +130,8 @@ const MONTH_LABELS = [
 /** Hide built-in nav + caption; our custom header replaces them */
 const SINGLE_CALENDAR_CLASSES = {
   selected:
-    "bg-[#37352F] text-white hover:bg-[#37352F] hover:text-white focus:bg-[#37352F] focus:text-white",
-  today: "bg-[#F7F6F3] text-[#37352F]",
+    `${C.bgPrimary} text-white hover:${C.bgPrimary} hover:text-white focus:${C.bgPrimary} focus:text-white`,
+  today: `${C.bgPage} ${C.text}`,
   nav: "hidden",
   month_caption: "hidden",
 };
@@ -139,16 +139,16 @@ const SINGLE_CALENDAR_CLASSES = {
 /** Hide built-in nav but keep per-month caption for 2-month range view */
 const RANGE_CALENDAR_CLASSES = {
   selected:
-    "bg-[#37352F] text-white hover:bg-[#37352F] hover:text-white focus:bg-[#37352F] focus:text-white",
-  today: "bg-[#F7F6F3] text-[#37352F]",
+    `${C.bgPrimary} text-white hover:${C.bgPrimary} hover:text-white focus:${C.bgPrimary} focus:text-white`,
+  today: `${C.bgPage} ${C.text}`,
   nav: "hidden",
 };
 
 const TRIGGER_BASE =
-  "flex h-11 w-full items-center justify-between rounded-md border border-[rgba(55,53,47,0.16)] bg-white px-3 text-sm text-[#37352F] transition-colors hover:bg-[#F7F6F3] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+  `flex h-11 w-full items-center justify-between rounded-md border ${C.borderMedium} bg-white px-3 text-sm ${C.text} transition-colors ${C.hoverBgPage} focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring`;
 
 const NAV_BTN =
-  "inline-flex items-center justify-center rounded p-1 text-[#37352F]/50 hover:bg-[#37352F]/8 hover:text-[#37352F] transition-colors";
+  `inline-flex items-center justify-center rounded p-1 ${C.text50} ${C.hoverBgPrimary10} ${C.hoverText} transition-colors`;
 
 // ─── NotionDatePicker (entry) ─────────────────────────────────
 
@@ -286,14 +286,14 @@ function SinglePicker({
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverAnchor asChild>
-        <div className={cn(TRIGGER_BASE, !value && !focused && "text-[#37352F]/40", className)}>
+        <div className={cn(TRIGGER_BASE, !value && !focused && C.text40, className)}>
           <PopoverTrigger asChild>
             <button
               type="button"
               className="shrink-0 cursor-pointer bg-transparent border-none p-0"
               aria-label="カレンダーを開く"
             >
-              <CalendarIcon className={`${ICON.action} text-[#37352F]/40`} />
+              <CalendarIcon className={`${ICON.action} ${C.text40}`} />
             </button>
           </PopoverTrigger>
           <input
@@ -305,7 +305,7 @@ function SinglePicker({
             onBlur={handleBlur}
             onKeyDown={handleInputKeyDown}
             placeholder={placeholder}
-            className="flex-1 min-w-0 bg-transparent outline-none text-sm text-[#37352F] placeholder:text-[#37352F]/40"
+            className={`flex-1 min-w-0 bg-transparent outline-none text-sm ${C.text} placeholder:${C.text40}`}
           />
           {value ? <ClearButton onClick={handleClear} /> : null}
         </div>
@@ -348,11 +348,11 @@ function SinglePicker({
         )}
 
         {/* ── Today button ── */}
-        <div className="border-t border-[rgba(55,53,47,0.09)] px-3 py-1.5">
+        <div className={`border-t ${C.borderLight} px-3 py-1.5`}>
           <button
             type="button"
             onClick={handleToday}
-            className="rounded px-2 py-1 text-sm text-[#37352F]/60 hover:bg-[#F7F6F3] hover:text-[#37352F] transition-colors"
+            className={`rounded px-2 py-1 text-sm ${C.text60} ${C.hoverBgPage} ${C.hoverText} transition-colors`}
           >
             Today
           </button>
@@ -445,10 +445,10 @@ function RangePicker({
         <button
           id={id}
           type="button"
-          className={cn(TRIGGER_BASE, !value && "text-[#37352F]/40", className)}
+          className={cn(TRIGGER_BASE, !value && C.text40, className)}
         >
           <span className="flex items-center gap-2 truncate">
-            <CalendarIcon className={`${ICON.action} shrink-0 text-[#37352F]/40`} />
+            <CalendarIcon className={`${ICON.action} shrink-0 ${C.text40}`} />
             {displayLabel}
           </span>
           {value ? <ClearButton onClick={handleClear} /> : null}
@@ -525,7 +525,7 @@ function CalendarNav({
       <button
         type="button"
         onClick={onTitleClick}
-        className="rounded px-2 py-1 text-sm font-medium text-[#37352F] hover:bg-[#F7F6F3] transition-colors"
+        className={`rounded px-2 py-1 text-sm font-medium ${C.text} ${C.hoverBgPage} transition-colors`}
       >
         {year}年 {month}月
       </button>
@@ -551,7 +551,7 @@ function YearNav({
       <button type="button" onClick={onPrevYear} className={NAV_BTN} aria-label="前の年">
         <ChevronLeft className={ICON.action} />
       </button>
-      <span className="text-sm font-medium text-[#37352F]">{year}年</span>
+      <span className={`text-sm font-medium ${C.text}`}>{year}年</span>
       <button type="button" onClick={onNextYear} className={NAV_BTN} aria-label="次の年">
         <ChevronRight className={ICON.action} />
       </button>
@@ -577,8 +577,8 @@ function MonthGrid({
           className={cn(
             "rounded px-2 py-2 text-sm transition-colors",
             i === currentMonth
-              ? "bg-[#37352F] text-white font-medium"
-              : "text-[#37352F] hover:bg-[#F7F6F3]",
+              ? `${C.bgPrimary} text-white font-medium`
+              : `${C.text} ${C.hoverBgPage}`,
           )}
         >
           {label}
@@ -599,7 +599,7 @@ function ClearButton({ onClick }: { onClick: (e: React.MouseEvent<HTMLSpanElemen
         if (e.key === "Enter" || e.key === " ")
           onClick(e as unknown as React.MouseEvent<HTMLSpanElement>);
       }}
-      className="ml-1 shrink-0 rounded p-0.5 text-[#37352F]/40 hover:bg-[#37352F]/10 hover:text-[#37352F]/70 cursor-pointer"
+      className={`ml-1 shrink-0 rounded p-0.5 ${C.text40} ${C.hoverBgPrimary10} hover:text-[#37352F]/70 cursor-pointer`}
       aria-label="日付をクリア"
     >
       <X className={ICON.action} />

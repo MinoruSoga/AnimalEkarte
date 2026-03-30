@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { ICON, C } from "@/lib/design-tokens";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -28,7 +28,7 @@ export function DeleteIconButton({
       disabled={disabled}
       title={title}
       className={cn(
-        "size-8 text-[#37352F]/40 hover:text-red-600 hover:bg-red-50",
+        `size-8 ${C.text40} hover:text-red-600 hover:bg-red-50`,
         className
       )}
     >

@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { ICON, C } from "@/lib/design-tokens";
 import { ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 
@@ -31,20 +31,20 @@ export function MasterSelectTrigger({
       return (
         <div
           onClick={onClick}
-          className="p-3 border border-[#37352F] bg-[#F7F6F3] rounded-md cursor-pointer hover:bg-[#F7F6F3]/80 transition-colors"
+          className={`p-3 border ${C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer hover:bg-[#F7F6F3]/80 transition-colors`}
         >
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-[#37352F]">
+              <div className={`text-sm ${C.text}`}>
                 {selectedItem.name}
               </div>
               {selectedItem.price != null ? (
-                <div className="text-xs text-[#37352F]/60 mt-0.5">
+                <div className={`text-xs ${C.text60} mt-0.5`}>
                   ¥{selectedItem.price.toLocaleString()}
                 </div>
               ) : null}
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-[#37352F]/50">
+            <div className={`flex items-center gap-1.5 text-xs ${C.text50}`}>
               <span>変更</span>
               <ChevronRight className={`${ICON.xs}`} />
             </div>
@@ -57,19 +57,19 @@ export function MasterSelectTrigger({
     return (
       <div
         onClick={onClick}
-        className="h-11 px-3 border border-[#37352F] bg-[#F7F6F3] rounded-md cursor-pointer hover:bg-[#F7F6F3]/80 transition-colors flex items-center justify-between"
+        className={`h-11 px-3 border ${C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer hover:bg-[#F7F6F3]/80 transition-colors flex items-center justify-between`}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm text-[#37352F] truncate">
+          <span className={`text-sm ${C.text} truncate`}>
             {selectedItem.name}
           </span>
           {selectedItem.price != null ? (
-            <span className="text-xs text-[#37352F]/50 shrink-0">
+            <span className={`text-xs ${C.text50} shrink-0`}>
               ¥{selectedItem.price.toLocaleString()}
             </span>
           ) : null}
         </div>
-        <div className="flex items-center gap-1 text-xs text-[#37352F]/50 shrink-0 ml-2">
+        <div className={`flex items-center gap-1 text-xs ${C.text50} shrink-0 ml-2`}>
           <span>変更</span>
           <ChevronRight className={`${ICON.xs}`} />
         </div>
@@ -83,11 +83,11 @@ export function MasterSelectTrigger({
       <button
         type="button"
         onClick={onClick}
-        className="w-full p-3 border-2 border-dashed border-[rgba(55,53,47,0.16)] rounded-md bg-[#F7F6F3] hover:bg-[rgba(55,53,47,0.08)] transition-colors text-center cursor-pointer"
+        className={`w-full p-3 border-2 border-dashed ${C.borderMedium} rounded-md ${C.bgPage} hover:bg-[rgba(55,53,47,0.08)] transition-colors text-center cursor-pointer`}
       >
         <div className="flex flex-col items-center">
-          <span className="text-[#37352F]/30 mb-1">{icon}</span>
-          <span className="text-sm text-[#37352F]/50">{placeholder}</span>
+          <span className={`${C.text30} mb-1`}>{icon}</span>
+          <span className={`text-sm ${C.text50}`}>{placeholder}</span>
         </div>
       </button>
     );
@@ -98,10 +98,10 @@ export function MasterSelectTrigger({
     <button
       type="button"
       onClick={onClick}
-      className="w-full h-11 px-3 border border-[rgba(55,53,47,0.16)] rounded-md bg-white hover:bg-[#F7F6F3]/50 transition-colors text-left cursor-pointer flex items-center gap-2"
+      className={`w-full h-11 px-3 border ${C.borderMedium} rounded-md bg-white ${C.hoverBgPageHalf} transition-colors text-left cursor-pointer flex items-center gap-2`}
     >
-      <span className="text-[#37352F]/30">{icon}</span>
-      <span className="text-sm text-[#37352F]/40">{placeholder}</span>
+      <span className={C.text30}>{icon}</span>
+      <span className={`text-sm ${C.text40}`}>{placeholder}</span>
     </button>
   );
 }

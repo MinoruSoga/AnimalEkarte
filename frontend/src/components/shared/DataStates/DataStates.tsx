@@ -1,3 +1,4 @@
+import { C } from "@/lib/design-tokens";
 import type { ReactNode } from "react";
 
 /**
@@ -9,7 +10,7 @@ import type { ReactNode } from "react";
 export function LoadingFallback({ className }: { className?: string }) {
   return (
     <div className={`flex justify-center items-center p-8 ${className ?? ""}`}>
-      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
+      <div className={`inline-block animate-spin rounded-full h-8 w-8 border-b-2 ${C.borderPrimary}`} />
     </div>
   );
 }
@@ -23,7 +24,7 @@ export function ErrorFallback({
   className?: string;
 }) {
   return (
-    <div className={`p-4 text-red-600 ${className ?? ""}`}>
+    <div className={`p-4 ${C.danger} ${className ?? ""}`}>
       {message}
     </div>
   );

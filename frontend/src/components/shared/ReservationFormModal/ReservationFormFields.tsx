@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormFieldError } from "@/components/shared/FormFieldError";
@@ -22,7 +22,7 @@ import { isOneOf } from "@/lib/type-utils";
 import type { ReservationAppointment } from "@/types";
 
 const TRIGGER_CLASS =
-  "h-9 text-sm bg-white border-[rgba(55,53,47,0.12)] text-[#37352F] hover:bg-[#FAFAF8] transition-colors";
+  `h-9 text-sm bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`;
 
 const VISIT_TYPE_VALUES = ["first", "revisit"] as const;
 
@@ -45,7 +45,7 @@ interface FieldLabelProps {
 function FieldLabel({ children, trailing }: FieldLabelProps) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <Label className="text-[12px] text-[#37352F]/40 tracking-wide font-medium">
+      <Label className={`text-[12px] ${C.text40} tracking-wide font-medium`}>
         {children}
       </Label>
       {trailing ? <div>{trailing}</div> : null}
@@ -73,7 +73,7 @@ export function ReservationFormFields({
   return (
     <div className="space-y-4">
       {/* Date + Time Group */}
-      <div className="rounded-lg border bg-[#FAFAF8] p-3 space-y-3 border-[rgba(55,53,47,0.12)]">
+      <div className={`rounded-lg border ${C.bgSubtle} p-3 space-y-3 ${C.borderMediumLight}`}>
         <div className="space-y-1.5">
           <FieldLabel>日付</FieldLabel>
           <Popover>
@@ -81,7 +81,7 @@ export function ReservationFormFields({
               <button
                 type="button"
                 className={cn(
-                  "flex h-9 w-full items-center justify-between rounded border px-3 py-1 text-sm transition-colors border-[rgba(55,53,47,0.12)] text-[#37352F] bg-white hover:bg-[#FAFAF8]",
+                  `flex h-9 w-full items-center justify-between rounded border px-3 py-1 text-sm transition-colors ${C.borderMediumLight} ${C.text} bg-white ${C.hoverBgSubtle}`,
                   !formData.start && "text-muted-foreground"
                 )}
               >
@@ -123,7 +123,7 @@ export function ReservationFormFields({
         </div>
 
         <div className="space-y-1.5">
-          <div className="flex items-center gap-2 text-[12px] text-[#37352F]/40 tracking-wide font-medium">
+          <div className={`flex items-center gap-2 text-[12px] ${C.text40} tracking-wide font-medium`}>
             <Clock className={ICON.action} />
             時間
           </div>
@@ -149,7 +149,7 @@ export function ReservationFormFields({
                 ))}
               </SelectContent>
             </Select>
-            <ArrowRight className={`${ICON.action} text-[#37352F]/40 flex-shrink-0`} />
+            <ArrowRight className={`${ICON.action} ${C.text40} flex-shrink-0`} />
             <Select
               value={formData.end ? format(formData.end, "H:mm") : "11:00"}
               onValueChange={(v) => {
@@ -226,10 +226,10 @@ export function ReservationFormFields({
               <Label
                 htmlFor="first"
                 className={cn(
-                  "block h-9 rounded-full border-2 px-3 py-1.5 text-center text-sm font-medium cursor-pointer transition-colors text-[#37352F]",
+                  `block h-9 rounded-full border-2 px-3 py-1.5 text-center text-sm font-medium cursor-pointer transition-colors ${C.text}`,
                   formData.visitType === "first"
                     ? "border-red-600 bg-red-50"
-                    : "border-[rgba(55,53,47,0.12)] bg-white hover:bg-[#FAFAF8]"
+                    : `${C.borderMediumLight} bg-white ${C.hoverBgSubtle}`
                 )}
               >
                 初診
@@ -240,10 +240,10 @@ export function ReservationFormFields({
               <Label
                 htmlFor="revisit"
                 className={cn(
-                  "block h-9 rounded-full border-2 px-3 py-1.5 text-center text-sm font-medium cursor-pointer transition-colors text-[#37352F]",
+                  `block h-9 rounded-full border-2 px-3 py-1.5 text-center text-sm font-medium cursor-pointer transition-colors ${C.text}`,
                   formData.visitType === "revisit"
                     ? "border-blue-600 bg-blue-50"
-                    : "border-[rgba(55,53,47,0.12)] bg-white hover:bg-[#FAFAF8]"
+                    : `${C.borderMediumLight} bg-white ${C.hoverBgSubtle}`
                 )}
               >
                 再診
@@ -296,7 +296,7 @@ export function ReservationFormFields({
           value={formData.notes || ""}
           onChange={(e) => onChange({ ...formData, notes: e.target.value })}
           placeholder="詳細や備考を入力..."
-          className="min-h-[80px] text-sm resize-none bg-white border-[rgba(55,53,47,0.16)] text-[#37352F] placeholder:text-[#37352F]/25 focus-visible:ring-[rgba(55,53,47,0.16)]"
+          className={`min-h-[80px] text-sm resize-none bg-white ${C.borderMedium} ${C.text} ${C.textPlaceholder} ${C.focusRingMedium}`}
         />
       </div>
     </div>

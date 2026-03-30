@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import {
@@ -72,23 +72,23 @@ export function MasterSelectModal({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-[#37352F]">{title}</DialogTitle>
+          <DialogTitle className={C.text}>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         {/* Search */}
         <div className="relative">
-          <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${ICON.action} text-[#37352F]/40`} />
+          <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${ICON.action} ${C.text40}`} />
           <Input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={searchPlaceholder}
-            className="pl-9 h-11 text-sm bg-white border-[rgba(55,53,47,0.16)]"
+            className={`pl-9 h-11 text-sm bg-white ${C.borderMedium}`}
           />
           {searchTerm ? (
             <button
               onClick={() => setSearchTerm("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#37352F]/40 hover:text-[#37352F]/70"
+              className={`absolute right-2.5 top-1/2 -translate-y-1/2 ${C.text40} ${C.hoverText70}`}
             >
               <X className={`${ICON.xs}`} />
             </button>
@@ -111,22 +111,22 @@ export function MasterSelectModal({
                   p-3 border rounded-lg cursor-pointer transition-all flex items-center justify-between group
                   ${
                     isSelected
-                      ? "bg-[#F7F6F3] border-[#37352F] shadow-sm"
-                      : "bg-white border-[rgba(55,53,47,0.16)] hover:border-[#37352F]/30 hover:bg-[#F7F6F3]/50"
+                      ? `${C.bgPage} ${C.borderPrimary} shadow-sm`
+                      : `bg-white ${C.borderMedium} ${C.hoverBorderPrimary30} ${C.hoverBgPageHalf}`
                   }
                 `}
               >
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm text-[#37352F]">{item.name}</div>
+                  <div className={`text-sm ${C.text}`}>{item.name}</div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-3">
                   {item.price != null ? (
-                    <div className="text-sm text-[#37352F]/70">
+                    <div className={`text-sm ${C.text70}`}>
                       ¥{item.price.toLocaleString()}
                     </div>
                   ) : null}
                   {isSelected ? (
-                    <div className="size-5 rounded-full bg-[#37352F] flex items-center justify-center">
+                    <div className={`size-5 rounded-full ${C.bgPrimary} flex items-center justify-center`}>
                       <Check className={`${ICON.xs} text-white`} />
                     </div>
                   ) : null}
@@ -135,7 +135,7 @@ export function MasterSelectModal({
             );
           })}
           {filtered.length === 0 ? (
-            <div className="text-center py-8 text-sm text-[#37352F]/40">
+            <div className={`text-center py-8 text-sm ${C.text40}`}>
               {searchTerm ? emptySearchMessage : emptyMessage}
             </div>
           ) : null}
@@ -143,7 +143,7 @@ export function MasterSelectModal({
 
         {/* Master Settings Link */}
         {masterCategory ? (
-          <div className="pt-2 border-t border-[rgba(55,53,47,0.09)] flex justify-end">
+          <div className={`pt-2 border-t ${C.borderLight} flex justify-end`}>
             <MasterLink category={masterCategory} label="マスタ設定を編集" />
           </div>
         ) : null}
