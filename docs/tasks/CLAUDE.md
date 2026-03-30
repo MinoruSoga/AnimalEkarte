@@ -20,14 +20,21 @@ frontend/issues/open/FE-XXX-*.md  ← フロントエンドイシュー
 ```
 docs/tasks/
 ├── CLAUDE.md    ← このファイル
-├── open/        ← 未完了タスク
-└── closed/      ← 完了タスク
+├── open/        ← 未完了タスク（カテゴリ別サブディレクトリ）
+│   ├── crash/          クラッシュ・500エラー系バグ
+│   ├── medical-record/ カルテ・診療系バグ
+│   ├── reservation/    予約・シフト系バグ
+│   ├── validation/     入力バリデーション系バグ
+│   ├── security/       セキュリティ系バグ
+│   └── ux/             UX・ナビゲーション系バグ
+└── closed/      ← 完了タスク（フラット）
 ```
 
 ## 採番ルール
 
-- 形式: `TASK-XXX-kebab-case-title.md`（XXX は3桁ゼロ埋め）
-- 番号: `open/` と `closed/` の両方から最大番号 + 1 で採番
+- 形式: `BUG-XXX-kebab-case-title.md`（XXX は3桁ゼロ埋め）
+- 番号: `open/` 全サブディレクトリ と `closed/` の両方から最大番号 + 1 で採番
+- 新規チケットは適切なカテゴリのサブディレクトリに配置する
 
 ## タスクのライフサイクル
 

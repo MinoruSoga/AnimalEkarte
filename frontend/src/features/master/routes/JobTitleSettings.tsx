@@ -57,7 +57,7 @@ const JobTitleSidePanel = memo(function JobTitleSidePanel({
       title={f.name}
       onTitleChange={(v) => setF((p) => ({ ...p, name: v }))}
       onClose={onClose}
-      onSave={() => onSave(f)}
+      action={() => onSave(f)}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<Briefcase className={LAYOUT.pageIcon.innerIcon} />}
     >

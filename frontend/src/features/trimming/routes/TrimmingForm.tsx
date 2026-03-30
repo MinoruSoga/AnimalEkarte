@@ -1,6 +1,6 @@
 // React/Framework
 import { ICON } from "@/lib/design-tokens";
-import { useDeferredValue, lazy, memo, Suspense, useCallback, useMemo, useState } from "react";
+import { useDeferredValue, lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
@@ -416,6 +416,8 @@ export function TrimmingForm() {
     fieldErrors,
   } = useTrimmingForm(id);
 
+  const { isDirty, markDirty, markClean } = useUnsavedChanges();
+
   // React 19 Action の成功を検知して遷移
   useEffect(() => {
     if (formState.success) {
@@ -428,8 +430,6 @@ export function TrimmingForm() {
 
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
-
-  const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
   const [courseModalOpen, setCourseModalOpen] = useState(false);
   const [staffModalOpen, setStaffModalOpen] = useState(false);

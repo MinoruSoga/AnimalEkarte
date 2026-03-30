@@ -129,19 +129,19 @@ const StaffSidePanel = memo(function StaffSidePanel({
 
   // サーバーデータ優先、ユーザー編集があればそちらを使用
   const groupIds = useMemo(
-    () => userEditedGroupIds ?? userDetail?.permission_group_ids ?? [],
-    [userEditedGroupIds, userDetail?.permission_group_ids],
+    () => userEditedGroupIds ?? userDetail?.permissionGroupIds ?? [],
+    [userEditedGroupIds, userDetail?.permissionGroupIds],
   );
 
   // ── Handlers ─────────────────────────────────────
   const handleGroupToggle = useCallback(
     (groupId: number, checked: boolean) => {
       setUserEditedGroupIds((prev) => {
-        const current = prev ?? userDetail?.permission_group_ids ?? [];
+        const current = prev ?? userDetail?.permissionGroupIds ?? [];
         return checked ? [...current, groupId] : current.filter((id) => id !== groupId);
       });
     },
-    [userDetail?.permission_group_ids],
+    [userDetail?.permissionGroupIds],
   );
 
   const handleSave = useCallback(() => {
@@ -157,7 +157,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
       title={f.name}
       onTitleChange={(v) => setF((p) => ({ ...p, name: v }))}
       onClose={onClose}
-      onSave={handleSave}
+      action={handleSave}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<UserRound className={LAYOUT.pageIcon.innerIcon} />}
     >
@@ -290,7 +290,7 @@ export function StaffSettings() {
           .filter((u) => u.staff_id != null)
           .map((u) => [
             u.staff_id as string,
-            allGroups.filter((g) => u.permission_group_ids?.includes(g.id)),
+            allGroups.filter((g) => u.permissionGroupIds?.includes(g.id)),
           ]),
       ),
     [users, allGroups],

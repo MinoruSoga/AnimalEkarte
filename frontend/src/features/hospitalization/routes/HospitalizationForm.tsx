@@ -60,6 +60,8 @@ export function HospitalizationForm() {
       handleFormDataChange: handleFormDataChangeRaw
   } = useHospitalizationForm(hospitalizationId);
 
+  const { isDirty, markDirty, markClean } = useUnsavedChanges();
+
   // React 19 Action の成功を検知して遷移
   useEffect(() => {
     if (formState.success) {
@@ -75,8 +77,6 @@ export function HospitalizationForm() {
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
   const totals = calculateTotals();
-
-  const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
   const handleBack = useCallback(() => {
     if (location.state?.from) {

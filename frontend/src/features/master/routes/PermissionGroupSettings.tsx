@@ -161,7 +161,7 @@ const GroupSidePanel = memo(function GroupSidePanel({
       title={name}
       onTitleChange={setName}
       onClose={onClose}
-      onSave={handleSave}
+      action={handleSave}
       onDelete={isNew ? undefined : handleDelete}
       icon={<Shield className={LAYOUT.pageIcon.innerIcon} />}
       isPending={isSavePending}

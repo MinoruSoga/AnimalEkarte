@@ -1,10 +1,10 @@
 package service
 
 import (
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
 // generateSecureToken は暗号学的に安全な32バイトのランダムトークンを生成する

@@ -5,7 +5,6 @@ export type {
   AuthContextValue,
   ResourcePermission,
   ResourcePermissions,
-  ClinicEffectivePermissions,
   ResourceAction,
   UserType,
   JobTitle,

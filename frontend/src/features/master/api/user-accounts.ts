@@ -14,13 +14,14 @@ export interface UserAccountItem {
   staff_id?: string;
   avatar_url: string;
   status: string;
+  permissionGroupIds?: number[];
   created_at: string;
   updated_at: string;
 }
 
 export interface UserAccountDetail extends UserAccountItem {
   memberships: { clinic_id: string; is_main: boolean }[];
-  permission_group_ids: number[];
+  permissionGroupIds: number[];
 }
 
 // ─────────────────────────────────────────────────

@@ -139,7 +139,7 @@ const DiagnosisCategorySidePanel = memo(function DiagnosisCategorySidePanel({
       title={formData.name}
       onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
       onClose={onClose}
-      onSave={() => onSave(formData)}
+      action={() => onSave(formData)}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<FolderTree className={LAYOUT.pageIcon.innerIcon} />}
     >
@@ -202,7 +202,7 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
       title={formData.name}
       onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
       onClose={onClose}
-      onSave={() => onSave(formData)}
+      action={() => onSave(formData)}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<ClipboardList className={LAYOUT.pageIcon.innerIcon} />}
     >

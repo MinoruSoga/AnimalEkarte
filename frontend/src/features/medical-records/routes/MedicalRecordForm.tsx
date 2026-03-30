@@ -74,6 +74,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     handleChangeOwner,
   } = useMedicalRecordForm(recordId);
 
+  const { isDirty, markDirty, markClean } = useUnsavedChanges();
+
   // React 19 Action の成功を検知して遷移
   useEffect(() => {
     if (formState.success) {
@@ -83,8 +85,6 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   }, [formState.success, formState.timestamp, navigate, markClean, location.state]);
 
   const { user } = useAuth();
-
-  const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
   // ローカル状態: 担当者・診療種別（hookに追加するまでの暫定）
   const [staffName, setStaffName] = useState(() => user?.displayName ?? "");

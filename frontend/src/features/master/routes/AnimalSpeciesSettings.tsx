@@ -35,7 +35,7 @@ const SidePanel = memo(function SidePanel({
   const [f, setF] = useState<FormData>(() => ({ name: item?.name ?? "", isActive: item?.isActive ?? true }));
   return (
     <MasterSidePanel isNew={item === null} title={f.name} onTitleChange={(v) => setF((p) => ({ ...p, name: v }))}
-      onClose={onClose} onSave={() => onSave(f)} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onClose={onClose} action={() => onSave(f)} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<PawPrint className={LAYOUT.pageIcon.innerIcon} />}>
       <StatusToggleButton isActive={f.isActive} onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))} />
     </MasterSidePanel>

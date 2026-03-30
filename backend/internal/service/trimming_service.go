@@ -2,8 +2,8 @@
 package service
 
 import (
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"context"
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"

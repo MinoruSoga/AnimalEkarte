@@ -41,7 +41,7 @@ const SidePanel = memo(function SidePanel({
   }));
   return (
     <MasterSidePanel isNew={item === null} title={f.name}
-      onTitleChange={(v) => setF((p) => ({ ...p, name: v }))} onClose={onClose} onSave={() => onSave(f)}
+      onTitleChange={(v) => setF((p) => ({ ...p, name: v }))} onClose={onClose} action={() => onSave(f)}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<MessageSquareText className={LAYOUT.pageIcon.innerIcon} />}>
       <StatusToggleButton isActive={f.isActive} onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))} />

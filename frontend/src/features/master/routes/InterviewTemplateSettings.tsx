@@ -81,7 +81,7 @@ const SidePanel = memo(function SidePanel({
 
   return (
     <MasterSidePanel isNew={item === null} title={f.title}
-      onTitleChange={handleTitleChange} onClose={handleClose} onSave={handleSave}
+      onTitleChange={handleTitleChange} onClose={handleClose} action={handleSave}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       isDirty={isDirty}
       icon={<FileText className={LAYOUT.pageIcon.innerIcon} />}>

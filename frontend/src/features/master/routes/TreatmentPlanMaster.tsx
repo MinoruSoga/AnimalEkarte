@@ -190,7 +190,7 @@ const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
       title={formData.name}
       onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
       onClose={onClose}
-      onSave={() => onSave(formData)}
+      action={() => onSave(formData)}
       onDelete={item !== null ? onDeleteRequest : undefined}
       icon={<Stethoscope className={LAYOUT.pageIcon.innerIcon} />}
     >

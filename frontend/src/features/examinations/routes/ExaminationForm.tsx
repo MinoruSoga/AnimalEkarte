@@ -205,6 +205,8 @@ export function ExaminationForm() {
     isDeleting,
   } = useExaminationForm(id, medicalRecordId ?? undefined);
 
+  const { isDirty, markDirty, markClean } = useUnsavedChanges();
+
   // React 19 Action の成功を検知して遷移
   useEffect(() => {
     if (formState.success) {
@@ -217,8 +219,6 @@ export function ExaminationForm() {
 
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
-
-  const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
   const handleBack = useCallback(() => {
     if (location.state?.from) {

@@ -86,7 +86,7 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
       title={f.name}
       onTitleChange={(v) => setF((p) => ({ ...p, name: v }))}
       onClose={onClose}
-      onSave={() => onSave(f)}
+      action={() => onSave(f)}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<ShoppingBag className={LAYOUT.pageIcon.innerIcon} />}
       titlePlaceholder="品目名"

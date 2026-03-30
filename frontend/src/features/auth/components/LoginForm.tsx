@@ -228,6 +228,7 @@ export function LoginForm() {
               email={cred.email}
               displayName={cred.displayName}
               roleLabel={cred.roleLabel}
+              permissionLabel={cred.permissionLabel}
               onSelect={handleSelectDemo}
             />
           ))}

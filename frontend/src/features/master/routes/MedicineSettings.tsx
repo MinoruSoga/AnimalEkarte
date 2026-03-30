@@ -279,7 +279,7 @@ const MedicineSidePanel = memo(function MedicineSidePanel({
             title={formData.name}
             onTitleChange={(v) => updateForm({ name: v })}
             onClose={handleCloseEdit}
-            onSave={handleSave}
+            action={handleSave}
             onDelete={selectedMedicine ? handleDeleteRequest : undefined}
             icon={<Pill className={LAYOUT.pageIcon.innerIcon} />}
             titlePlaceholder="薬品名"

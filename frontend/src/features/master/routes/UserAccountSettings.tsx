@@ -43,13 +43,13 @@ const UserPermissionPanel = memo(function UserPermissionPanel({
   const setGroupsMutation = useSetUserPermissionGroups(clinicId);
 
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>(() =>
-    detail?.permission_group_ids ?? [],
+    detail?.permissionGroupIds ?? [],
   );
 
   // detail がロードされたら初期値を同期
   const [initialized, setInitialized] = useState(false);
   if (detail && !initialized) {
-    setSelectedGroupIds(detail.permission_group_ids);
+    setSelectedGroupIds(detail.permissionGroupIds);
     setInitialized(true);
   }
 
