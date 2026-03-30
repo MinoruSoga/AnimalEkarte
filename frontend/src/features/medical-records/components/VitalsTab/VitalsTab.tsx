@@ -2,7 +2,7 @@
 import { useState, useCallback, memo } from "react";
 
 // External
-import { Pencil, Plus, Check, X } from "lucide-react";
+import { Pencil, Plus, Check, X, BarChart2, Table2 } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
@@ -15,6 +15,7 @@ const EDIT_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-
 const ADD_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2]`;
 
 // Relative
+import { VitalsGraph } from "./VitalsGraph";
 import { useGetVitals } from "@/features/medical-records/api/vitals";
 import { useCreateVital } from "@/features/medical-records/api/vitals";
 import { useUpdateVital } from "@/features/medical-records/api/vitals";
@@ -286,6 +287,7 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addForm, setAddForm] = useState<AddFormState>(EMPTY_ADD_FORM);
+  const [showGraph, setShowGraph] = useState(false);
 
   // recorded_at 昇順ソート済みリスト
   const sortedVitals: Vital[] = vitals
@@ -389,6 +391,45 @@ export function VitalsTab({ medicalRecordId }: VitalsTabProps) {
 
   return (
     <div className="flex flex-col gap-3 pb-24">
+      {/* ツールバー: 表示切り替え */}
+      {sortedVitals.length > 0 ? (
+        <div className="flex items-center justify-end">
+          <div className={`flex items-center border ${C.borderLight} rounded-[4px] overflow-hidden`}>
+            <button
+              type="button"
+              onClick={() => setShowGraph(false)}
+              className={[
+                "flex items-center gap-1.5 px-3 h-8 text-xs font-medium transition-colors",
+                !showGraph
+                  ? `bg-white ${C.text} border-r ${C.borderLight}`
+                  : `${C.text60} ${C.hoverBgLight} border-r ${C.borderLight}`,
+              ].join(" ")}
+              title="テーブル表示"
+            >
+              <Table2 className={ICON.xs} />
+              テーブル
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowGraph(true)}
+              className={[
+                "flex items-center gap-1.5 px-3 h-8 text-xs font-medium transition-colors",
+                showGraph ? `bg-white ${C.text}` : `${C.text60} ${C.hoverBgLight}`,
+              ].join(" ")}
+              title="グラフ表示"
+            >
+              <BarChart2 className={ICON.xs} />
+              グラフ
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* グラフ表示 */}
+      {showGraph && sortedVitals.length > 0 ? (
+        <VitalsGraph vitals={sortedVitals} />
+      ) : null}
+
       <div className={`${STYLE.tableContainer} overflow-x-auto`}>
         <table className="w-full">
           {TABLE_HEADER}
