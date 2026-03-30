@@ -93,7 +93,7 @@ func TestTreatmentService_List(t *testing.T) {
 					return tt.repoTreatments, tt.repoErr
 				},
 			}
-			svc := NewTreatmentService(repo)
+			svc := NewTreatmentService(repo, &mockInventoryRepository{})
 
 			treatments, err := svc.List(context.Background(), tt.medicalRecordID)
 
@@ -189,7 +189,7 @@ func TestTreatmentService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewTreatmentService(repo)
+			svc := NewTreatmentService(repo, &mockInventoryRepository{})
 
 			treatment, err := svc.Create(context.Background(), tt.medicalRecordID, tt.input)
 
@@ -340,7 +340,7 @@ func TestTreatmentService_Update(t *testing.T) {
 					return tt.updateErr
 				},
 			}
-			svc := NewTreatmentService(repo)
+			svc := NewTreatmentService(repo, &mockInventoryRepository{})
 
 			treatment, err := svc.Update(context.Background(), tt.medicalRecordID, tt.treatmentID, tt.input)
 
@@ -421,7 +421,7 @@ func TestTreatmentService_Delete(t *testing.T) {
 					return tt.deleteErr
 				},
 			}
-			svc := NewTreatmentService(repo)
+			svc := NewTreatmentService(repo, &mockInventoryRepository{})
 
 			err := svc.Delete(context.Background(), tt.medicalRecordID, tt.treatmentID)
 
@@ -484,7 +484,7 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewTreatmentService(repo)
+			svc := NewTreatmentService(repo, &mockInventoryRepository{})
 
 			err := svc.BulkUpdateSortOrder(context.Background(), tt.medicalRecordID, tt.input)
 

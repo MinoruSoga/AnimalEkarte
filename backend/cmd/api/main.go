@@ -64,6 +64,8 @@ func main() {
 	r.Use(middleware.RequestID())
 	r.Use(middleware.CORS())
 	r.Use(middleware.RequestLoggingMiddleware())
+	// BUG-067: POST/PATCH/PUT ボディから NULL バイトを除去（PostgreSQL エラー防止）
+	r.Use(middleware.SanitizeNullBytes())
 	h.RegisterRoutes(r)
 
 	// HTTPサーバー設定

@@ -16,6 +16,7 @@ type OwnerRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, page, limit int, search string) ([]model.Owner, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
 	FindByEmail(ctx context.Context, clinicID uint64, email string) (*model.Owner, error)
+	FindByPhone(ctx context.Context, clinicID uint64, phone string) (*model.Owner, error)
 	CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -74,6 +75,19 @@ func (r *ownerRepository) FindByEmail(ctx context.Context, clinicID uint64, emai
 			return nil, nil
 		}
 		return nil, apperrors.Wrap(err, "find owner by email")
+	}
+	return &owner, nil
+}
+
+// FindByPhone は clinic_id + phone に一致するオーナーを返す。見つからない場合は nil を返す。
+func (r *ownerRepository) FindByPhone(ctx context.Context, clinicID uint64, phone string) (*model.Owner, error) {
+	var owner model.Owner
+	err := r.db.WithContext(ctx).First(&owner, "clinic_id = ? AND phone = ?", clinicID, phone).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, apperrors.Wrap(err, "find owner by phone")
 	}
 	return &owner, nil
 }

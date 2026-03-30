@@ -40,6 +40,10 @@ func (m *mockInventoryRepository) Delete(ctx context.Context, clinicID, id uint6
 	return m.deleteFn(ctx, clinicID, id)
 }
 
+func (m *mockInventoryRepository) DecreaseStock(_ context.Context, _ uint64, _ float64) error {
+	return nil
+}
+
 func TestInventoryService_List(t *testing.T) {
 	category := string(model.InventoryCategoryMedicine)
 	status := string(model.InventoryStatusLow)

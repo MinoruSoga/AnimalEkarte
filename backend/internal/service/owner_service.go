@@ -169,6 +169,17 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 		}
 	}
 
+	// BUG-064: 電話番号重複チェック（空でない場合のみ）
+	if input.Phone != "" {
+		existing, err := s.repo.FindByPhone(ctx, clinicID, input.Phone)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to check phone uniqueness")
+		}
+		if existing != nil {
+			return nil, apperrors.WrapAlreadyExists("owner", "この電話番号はすでに登録されています")
+		}
+	}
+
 	// DTO → Model 変換
 	membershipType := input.MembershipType
 	if membershipType == "" {
@@ -271,6 +282,17 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 		}
 		if existing != nil && existing.ID != id {
 			return nil, apperrors.WrapAlreadyExists("owner", "このメールアドレスはすでに登録されています")
+		}
+	}
+
+	// BUG-064: 電話番号変更時の重複チェック（空でない場合のみ）
+	if input.Phone != nil && *input.Phone != "" {
+		existing, err := s.repo.FindByPhone(ctx, clinicID, *input.Phone)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to check phone uniqueness")
+		}
+		if existing != nil && existing.ID != id {
+			return nil, apperrors.WrapAlreadyExists("owner", "この電話番号はすでに登録されています")
 		}
 	}
 
