@@ -2,11 +2,38 @@ import Axios, { type InternalAxiosRequestConfig, type AxiosError } from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
+/**
+ * BUG-067: NULL バイト（\u0000）を再帰的に除去する。
+ * PostgreSQL は NULL バイトを含む文字列を受け付けないため 500 エラーになる。
+ */
+function sanitizeNullBytes(value: unknown): unknown {
+  if (typeof value === "string") {
+    // eslint-disable-next-line no-control-regex -- NULL バイト除去のため意図的に制御文字を使用
+    return value.replace(/\u0000/g, "");
+  }
+  if (Array.isArray(value)) {
+    return value.map(sanitizeNullBytes);
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, sanitizeNullBytes(v)])
+    );
+  }
+  return value;
+}
+
 function requestInterceptor(config: InternalAxiosRequestConfig) {
   config.headers ??= new Axios.AxiosHeaders() as typeof config.headers;
   config.headers.Accept = "application/json";
   config.headers["X-Request-ID"] = crypto.randomUUID();
   // Authorization ヘッダは不要 — httpOnly Cookie が自動送信される（withCredentials: true）
+
+  // BUG-067: POST/PATCH/PUT のリクエストボディから NULL バイトを除去
+  const method = config.method?.toLowerCase();
+  if ((method === "post" || method === "patch" || method === "put") && config.data) {
+    config.data = sanitizeNullBytes(config.data);
+  }
+
   return config;
 }
 
