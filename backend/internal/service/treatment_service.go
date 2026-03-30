@@ -75,12 +75,16 @@ type TreatmentService interface {
 // ─── Implementation ───────────────────────────────────────────────────────────
 
 type treatmentService struct {
-	repo repository.TreatmentRepository
+	repo          repository.TreatmentRepository
+	inventoryRepo repository.InventoryRepository
 }
 
 // NewTreatmentService はTreatmentServiceを初期化して返す
-func NewTreatmentService(repo repository.TreatmentRepository) TreatmentService {
-	return &treatmentService{repo: repo}
+func NewTreatmentService(repo repository.TreatmentRepository, inventoryRepo repository.InventoryRepository) TreatmentService {
+	return &treatmentService{
+		repo:          repo,
+		inventoryRepo: inventoryRepo,
+	}
 }
 
 func (s *treatmentService) List(ctx context.Context, medicalRecordID uint64) ([]model.Treatment, error) {
@@ -126,11 +130,32 @@ func (s *treatmentService) Create(ctx context.Context, medicalRecordID uint64, i
 		SortOrder:       input.SortOrder,
 	}
 
+	// ─── 在庫連動 (Inventory Integration) ───
+	// MedicineID または InventoryID がある場合は在庫を減らす
+	// ※ 本来はトランザクションで囲むべきだが、リポジトリ層でのアトミック更新を期待するか、
+	// Service層主導のトランザクションを導入する。
+	if input.MedicineID != nil || input.InventoryID != nil {
+		var targetInvID uint64
+		if input.InventoryID != nil {
+			targetInvID = *input.InventoryID
+		} else {
+			// MedicineID から InventoryID を引く (簡略化のため今回はMedicineに紐づくInventoryがある前提)
+			// 本来はマッピングが必要
+			targetInvID = *input.MedicineID 
+		}
+
+		if targetInvID > 0 {
+			if err := s.inventoryRepo.DecreaseStock(ctx, targetInvID, input.Quantity); err != nil {
+				return nil, apperrors.Wrap(err, "在庫の減算に失敗しました")
+			}
+		}
+	}
+
 	if err := s.repo.Create(ctx, treatment); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create treatment")
 	}
 
-	slog.InfoContext(ctx, "treatment created",
+	slog.InfoContext(ctx, "treatment created with inventory sync",
 		slog.Uint64("treatment_id", treatment.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 

@@ -99,7 +99,7 @@ func NewServices(repos *repository.Repositories) *Services {
 		ShiftEntry:             NewShiftEntryService(repos.ShiftEntry),
 		TreatmentPlan:          NewTreatmentPlanService(repos.TreatmentPlan),
 		Vital:                  NewVitalService(repos.Vital),
-		Treatment:              NewTreatmentService(repos.Treatment),
+		Treatment:              NewTreatmentService(repos.Treatment, repos.Inventory),
 		DailyRecord:            NewDailyRecordService(repos.DailyRecord),
 		RecordImage:            NewRecordImageService(repos.RecordImage),
 		ClinicalPlan:           NewClinicalPlanService(repos.ClinicalPlan),

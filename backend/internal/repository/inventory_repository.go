@@ -16,6 +16,7 @@ type InventoryRepository interface {
 	Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
 	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	DecreaseStock(ctx context.Context, id uint64, quantity float64) error
 }
 
 type inventoryRepository struct {
