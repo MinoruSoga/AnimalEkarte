@@ -29,7 +29,9 @@ const EXAM_STATUS_ITEMS = (
   <>
     <SelectItem value="依頼中">依頼中</SelectItem>
     <SelectItem value="検査中">検査中</SelectItem>
+    <SelectItem value="結果入力済み">結果入力済み</SelectItem>
     <SelectItem value="完了">完了</SelectItem>
+    <SelectItem value="確定">確定</SelectItem>
   </>
 );
 
@@ -42,6 +44,7 @@ interface FormFieldsSectionProps {
   isEdit: boolean;
   isSaving: boolean;
   isDeleting: boolean;
+  isConfirmed: boolean;
   canEdit: boolean;
   canDelete: boolean;
   onSetFormData: (next: Partial<ExaminationRecord>) => void;
@@ -55,6 +58,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
   staffList,
   isEdit,
   isDeleting,
+  isConfirmed,
   canEdit,
   canDelete,
   onSetFormData,
@@ -63,11 +67,15 @@ const FormFieldsSection = memo(function FormFieldsSection({
 }: FormFieldsSectionProps) {
   return (
     <div className={`bg-white p-4 rounded-lg border ${C.borderMedium} space-y-4 shadow-sm`}>
+      {isConfirmed ? (
+        <p className={`text-sm font-medium ${C.text60}`}>確定済みのため編集できません。</p>
+      ) : null}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label className={`text-sm ${C.text60}`}>検査種別</Label>
           <Select
             value={formData.testTypeId ?? ""}
+            disabled={isConfirmed}
             onValueChange={(v) => {
               const item = examTypes.find((e) => e.id === v);
               onSetFormData({ testTypeId: v, testType: item?.name ?? v });
@@ -89,6 +97,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
           <Label className={`text-sm ${C.text60}`}>担当医</Label>
           <Select
             value={formData.doctorId ?? ""}
+            disabled={isConfirmed}
             onValueChange={(v) => {
               const staff = staffList.find((s) => s.id === v);
               onSetFormData({ doctorId: v, doctor: staff?.name ?? v });
@@ -112,7 +121,8 @@ const FormFieldsSection = memo(function FormFieldsSection({
         <Label className={`text-sm ${C.text60}`}>ステータス</Label>
         <Select
           value={formData.status}
-          onValueChange={(v: "依頼中" | "検査中" | "完了") => onSetFormData({ status: v })}
+          disabled={isConfirmed}
+          onValueChange={(v: "依頼中" | "検査中" | "結果入力済み" | "完了" | "確定") => onSetFormData({ status: v })}
         >
           <SelectTrigger className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
             <SelectValue placeholder="選択してください" />
@@ -129,32 +139,35 @@ const FormFieldsSection = memo(function FormFieldsSection({
           className={`h-24 text-sm ${C.text} bg-white ${C.borderMedium} resize-none`}
           placeholder="検査結果や備考を入力"
           value={formData.resultSummary || ""}
+          disabled={isConfirmed}
           onChange={(e) => onSetFormData({ resultSummary: e.target.value })}
         />
       </div>
 
-      <div className="flex justify-end gap-2 pt-2">
-        {canDelete && isEdit ? (
-          <Button
-            variant="ghost"
-            type="button"
-            className={`h-10 text-sm ${STYLE.btnDangerGhost} mr-auto`}
-            onClick={onDeleteClick}
-            disabled={isDeleting}
-          >
-            <Trash2 className={`mr-1.5 ${ICON.action}`} />
-            {isDeleting ? "削除中..." : "削除"}
-          </Button>
-        ) : null}
-        <Button variant="outline" type="button" onClick={onBack} className="h-10 text-sm">キャンセル</Button>
-        {canEdit ? (
-          <SubmitButton
-            className={`${C.bgAccent} ${C.bgAccentHover} text-white h-10 text-sm`}
-          >
-            保存
-          </SubmitButton>
-        ) : null}
-      </div>
+      {isConfirmed ? null : (
+        <div className="flex justify-end gap-2 pt-2">
+          {canDelete && isEdit ? (
+            <Button
+              variant="ghost"
+              type="button"
+              className={`h-10 text-sm ${STYLE.btnDangerGhost} mr-auto`}
+              onClick={onDeleteClick}
+              disabled={isDeleting}
+            >
+              <Trash2 className={`mr-1.5 ${ICON.action}`} />
+              {isDeleting ? "削除中..." : "削除"}
+            </Button>
+          ) : null}
+          <Button variant="outline" type="button" onClick={onBack} className="h-10 text-sm">キャンセル</Button>
+          {canEdit ? (
+            <SubmitButton
+              className={`${C.bgAccent} ${C.bgAccentHover} text-white h-10 text-sm`}
+            >
+              保存
+            </SubmitButton>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 });
@@ -226,6 +239,7 @@ export function ExaminationForm() {
 
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
+  const isConfirmed = formData.status === "確定";
 
   const handleBack = useCallback(() => {
     if (location.state?.from) {
@@ -299,6 +313,7 @@ export function ExaminationForm() {
           isEdit={isEdit}
           isSaving={isSaving}
           isDeleting={isDeleting}
+          isConfirmed={isConfirmed}
           canEdit={canEdit}
           canDelete={canDelete}
           onSetFormData={handleSetFormData}

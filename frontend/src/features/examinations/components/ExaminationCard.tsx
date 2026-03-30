@@ -12,12 +12,16 @@ interface ExaminationCardProps {
 
 function getStatusBadge(status: ExaminationRecord["status"]): string {
   switch (status) {
-    case "完了":
+    case "確定":
       return BADGE.green;
-    case "検査中":
+    case "完了":
       return BADGE.blue;
-    case "依頼中":
+    case "結果入力済み":
+      return BADGE.blue;
+    case "検査中":
       return BADGE.yellow;
+    case "依頼中":
+      return BADGE.gray;
     default:
       return BADGE.gray;
   }

@@ -9,9 +9,11 @@ import (
 type ExaminationStatus string
 
 const (
-	ExaminationStatusPending    ExaminationStatus = "pending"
-	ExaminationStatusInProgress ExaminationStatus = "in_progress"
-	ExaminationStatusCompleted  ExaminationStatus = "completed"
+	ExaminationStatusPending       ExaminationStatus = "pending"
+	ExaminationStatusInProgress    ExaminationStatus = "in_progress"
+	ExaminationStatusResultEntered ExaminationStatus = "result_entered"
+	ExaminationStatusCompleted     ExaminationStatus = "completed"
+	ExaminationStatusConfirmed     ExaminationStatus = "confirmed"
 )
 
 type ExaminationResultStatus string

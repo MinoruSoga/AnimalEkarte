@@ -39,6 +39,14 @@ func (s *examinationService) Create(ctx context.Context, exam *model.Examination
 }
 
 func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, input UpdateExaminationInput) (*model.Examination, error) {
+	existing, err := s.repo.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get examination")
+	}
+	if existing.Status == model.ExaminationStatusConfirmed {
+		return nil, apperrors.WrapInvalidInput("確定済みの検査は編集できません")
+	}
+
 	fields := buildExaminationUpdateFields(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")

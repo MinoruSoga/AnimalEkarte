@@ -10,11 +10,15 @@ import { useCreateExamination } from "../api/create-examination";
 import { useUpdateExamination } from "../api/update-examination";
 import { useDeleteExamination } from "../api/delete-examination";
 import type { CreateExaminationRequest, UpdateExaminationRequest } from "../api/types";
+import type { ActionState } from "@/types/form";
+import { INITIAL_ACTION_STATE } from "@/types/form";
 
-const EXAM_STATUS_JA_TO_EN: Record<string, "pending" | "in_progress" | "completed"> = {
+const EXAM_STATUS_JA_TO_EN: Record<string, "pending" | "in_progress" | "result_entered" | "completed" | "confirmed"> = {
   "依頼中": "pending",
   "検査中": "in_progress",
+  "結果入力済み": "result_entered",
   "完了": "completed",
+  "確定": "confirmed",
 };
 
 // v2: added handleDelete, isDeleting

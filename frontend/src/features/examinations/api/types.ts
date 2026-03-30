@@ -18,7 +18,7 @@ export interface CreateExaminationRequest {
 }
 
 export interface UpdateExaminationRequest {
-  status?: "pending" | "in_progress" | "completed";
+  status?: "pending" | "in_progress" | "result_entered" | "completed" | "confirmed";
   result_summary?: string;
   machine?: string;
   date?: string;

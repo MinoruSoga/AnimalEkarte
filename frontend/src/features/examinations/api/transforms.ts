@@ -1,10 +1,12 @@
 import type { ExaminationRecord, ExaminationItem } from "@/types";
 import type { BackendExamination, BackendExaminationItem } from "./types";
 
-const EXAM_STATUS_EN_TO_JA: Record<string, "依頼中" | "検査中" | "完了"> = {
+const EXAM_STATUS_EN_TO_JA: Record<string, "依頼中" | "検査中" | "結果入力済み" | "完了" | "確定"> = {
   pending: "依頼中",
   in_progress: "検査中",
+  result_entered: "結果入力済み",
   completed: "完了",
+  confirmed: "確定",
 };
 
 function transformExaminationItem(
