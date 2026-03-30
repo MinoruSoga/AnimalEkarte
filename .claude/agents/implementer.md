@@ -27,17 +27,18 @@ model: sonnet
 
 ## コーディング原則
 
-- TypeScript strict mode
-- SOLID原則
-- DRY（Don't Repeat Yourself）
-- 関数は単一責任
+- **React 19 Actions**: Use `useActionState` and `<form action>` for all data mutations.
+- **Feature Indexing**: Always export/import via feature `index.ts`. No deep imports.
+- **Design Tokens**: Mandatory use of `C` and `STYLE` constants for all styling.
+- **Backend Errors**: Use `apperrors.FromGORM` in repositories and `apperrors.Wrap` in services.
+- **Flat Thinking**: Be direct, rational, and unfiltered.
 
 ## 技術スタック
 
 - Frontend: React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui / React Router 7
-- Backend: Go 1.25 / Gin / GORM / PostgreSQL 18
-- Architecture: Layered (handler → service → repository)
-- Testing: Vitest (FE) / go test (BE)
+- Backend: Go 1.25 / Gin / GORM / PostgreSQL 17
+- Architecture: Layered (handler → service → repository) + Feature-Based (FE)
+- Testing: Vitest + MSW (FE) / go test (BE)
 - Infrastructure: Docker Compose
 
 ## ワークフロー
