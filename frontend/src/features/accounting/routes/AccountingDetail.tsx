@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { ICON, C } from "@/lib/design-tokens";
 import { useState, useMemo, useCallback, memo, useTransition, lazy, Suspense, useDeferredValue, useActionState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 
@@ -59,6 +59,7 @@ import type { FrontendMerchandiseItem } from "../api/get-merchandise-items";
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import { queryKeys } from "@/lib/query-keys";
+import { handleApiError } from "@/lib/handle-api-error";
 // bundle-dynamic-imports: 191行のコンポーネントを遅延ロード
 const AccountingDocument = lazy(() =>
   import("../components/AccountingDocument").then((m) => ({ default: m.AccountingDocument }))
@@ -399,7 +400,7 @@ const PaymentCard = memo(function PaymentCard({
       <CardContent className="p-6 space-y-6">
         <div className="text-center space-y-1">
           <p className="text-sm text-gray-500">今回の請求金額</p>
-          <p className="text-4xl font-bold text-[#37352F]">
+          <p className={`text-4xl font-bold ${C.text}`}>
             ¥{billingAmount.toLocaleString()}
           </p>
         </div>
@@ -804,8 +805,8 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
           toast.success("会計を完了しました");
         }
         return { success: true, timestamp: Date.now() };
-      } catch {
-        toast.error("会計の処理に失敗しました");
+      } catch (error) {
+        handleApiError(error, "会計の処理");
         return { success: false, timestamp: Date.now() };
       }
     },
@@ -904,10 +905,10 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
           // サーバーの最新データで同期（楽観的追加済みのためローカル状態をリセット）
           setLocalItems(null);
           queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(id) });
-        } catch {
+        } catch (error) {
           // 失敗時はローカル追加をロールバック
           setLocalItems((prev) => (prev ?? []).filter((i) => i.id !== tempId));
-          toast.error("明細の追加に失敗しました");
+          handleApiError(error, "明細の追加");
         }
       });
     }
@@ -937,9 +938,9 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
           queryClient.invalidateQueries({ queryKey: ["accounting-refunds", id] });
           queryClient.invalidateQueries({ queryKey: ["accountings"] });
           toast.success(`¥${amount.toLocaleString()} の返金を登録しました`);
-        } catch {
-          toast.error("返金の登録に失敗しました");
-        }
+      } catch (error) {
+        handleApiError(error, "返金の登録");
+      }
       });
     },
     [id, queryClient],

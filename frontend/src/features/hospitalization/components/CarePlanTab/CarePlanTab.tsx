@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { ICON, C } from "@/lib/design-tokens";
 import { useState, useCallback, useMemo } from "react";
 
 // External
@@ -199,7 +199,7 @@ function ItemRow({ item, onEdit, onDelete, isDeleting }: ItemRowProps) {
     return (
         <div className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors">
             <TypeIcon type={item.type} />
-            <span className="flex-1 text-sm font-medium text-[#37352F] truncate">{item.name}</span>
+            <span className={`flex-1 text-sm font-medium ${C.text} truncate`}>{item.name}</span>
             <TimingBadges timing={item.timing} />
             <StatusBadge status={item.status} />
             <div className="flex gap-1 shrink-0">
@@ -249,8 +249,8 @@ function AddForm({ onSubmit, isSubmitting }: AddFormProps) {
     }, [name, type, timing, onSubmit]);
 
     return (
-        <div className="border-t border-[rgba(55,53,47,0.1)] pt-3 mt-2">
-            <p className="text-xs font-medium text-[#37352F]/60 mb-2">新しいケアプラン項目を追加</p>
+        <div className={`border-t ${C.borderLight} pt-3 mt-2`}>
+            <p className={`text-xs font-medium ${C.text60} mb-2`}>新しいケアプラン項目を追加</p>
             <div className="flex flex-col gap-2">
                 <div className="flex gap-2 items-center">
                     <Select value={type} onValueChange={(v) => setType(v as CarePlanItemType)}>
@@ -386,7 +386,7 @@ export function CarePlanTab({ hospitalizationId }: CarePlanTabProps) {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center py-10 text-[#37352F]/40">
+            <div className={`flex items-center justify-center py-10 ${C.text40}`}>
                 <Loader2 className={`${ICON.page} animate-spin mr-2`} />
                 <span className="text-sm">読み込み中...</span>
             </div>
@@ -396,7 +396,7 @@ export function CarePlanTab({ hospitalizationId }: CarePlanTabProps) {
     return (
         <div className="flex flex-col">
             {items && items.length === 0 ? (
-                <p className="text-sm text-[#37352F]/40 py-4 text-center">
+                <p className={`text-sm ${C.text40} py-4 text-center`}>
                     ケアプラン項目がありません
                 </p>
             ) : (

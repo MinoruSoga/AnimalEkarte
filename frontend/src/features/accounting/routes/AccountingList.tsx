@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { ICON, C } from "@/lib/design-tokens";
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -271,13 +271,13 @@ export function AccountingList() {
           key={r.id}
           onClick={() => handleEdit(r.id)}
         >
-          <TableCell className="font-mono text-base text-[#37352F] py-2">{r.scheduledDate}</TableCell>
-          <TableCell className="text-base text-[#37352F] py-2">{r.ownerName}</TableCell>
-          <TableCell className="text-base text-[#37352F] py-2">{r.petName}</TableCell>
-          <TableCell className="text-right font-mono font-medium text-base text-[#37352F] py-2">
+          <TableCell className={`font-mono text-base ${C.text} py-2`}>{r.scheduledDate}</TableCell>
+          <TableCell className={`text-base ${C.text} py-2`}>{r.ownerName}</TableCell>
+          <TableCell className={`text-base ${C.text} py-2`}>{r.petName}</TableCell>
+          <TableCell className={`text-right font-mono font-medium text-base ${C.text} py-2`}>
             {formatCurrency(calculateTotal(r))}
           </TableCell>
-          <TableCell className="text-center text-base text-[#37352F] py-2">
+          <TableCell className={`text-center text-base ${C.text} py-2`}>
             {r.payment ? PAYMENT_METHOD_LABELS[r.payment.method] : "-"}
           </TableCell>
           <TableCell className="py-2">
@@ -325,7 +325,7 @@ export function AccountingList() {
   return (
     <PageLayout
       title="会計管理"
-      icon={<CreditCard className={`${ICON.page} text-[#37352F]`} />}
+      icon={<CreditCard className={`${ICON.page} ${C.text}`} />}
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={handleCreate}>

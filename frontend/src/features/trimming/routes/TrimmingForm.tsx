@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { ICON, C } from "@/lib/design-tokens";
 import { useDeferredValue, lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
@@ -90,10 +90,10 @@ const LeftColumn = memo(function LeftColumn({
   const selectedCourse = courses.find((c) => c.id === formData.courseId);
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-[rgba(55,53,47,0.16)] p-3 space-y-4">
+    <div className={`bg-white rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <Label className="text-sm text-[#37352F]/60">コース</Label>
+          <Label className={`text-sm ${C.text60}`}>コース</Label>
           <MasterLink category="trimming_course" label="マスタ管理" />
         </div>
         <MasterSelectTrigger
@@ -108,7 +108,7 @@ const LeftColumn = memo(function LeftColumn({
       </div>
 
       <div>
-        <Label className="text-sm text-[#37352F]/60 mb-2 block">スタイルの希望</Label>
+        <Label className={`text-sm ${C.text60} mb-2 block`}>スタイルの希望</Label>
         <Textarea
           value={formData.styleRequest}
           onChange={(e) => onFormChange({ styleRequest: e.target.value })}
@@ -118,7 +118,7 @@ const LeftColumn = memo(function LeftColumn({
       </div>
 
       <div>
-        <Label className="text-sm text-[#37352F]/60 mb-2 block">メモ</Label>
+        <Label className={`text-sm ${C.text60} mb-2 block`}>メモ</Label>
         <Textarea
           value={formData.memo}
           onChange={(e) => onFormChange({ memo: e.target.value })}
@@ -129,7 +129,7 @@ const LeftColumn = memo(function LeftColumn({
 
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <Label className="text-sm text-[#37352F]/60">オプション</Label>
+          <Label className={`text-sm ${C.text60}`}>オプション</Label>
           <MasterLink category="trimming_option" label="マスタ管理" />
         </div>
         {options.length > 0 ? (
@@ -147,11 +147,11 @@ const LeftColumn = memo(function LeftColumn({
                     }
                   }}
                 />
-                <label htmlFor={`option-${option.id}`} className="text-sm text-[#37352F] cursor-pointer">
+                <label htmlFor={`option-${option.id}`} className={`text-sm ${C.text} cursor-pointer`}>
                   {option.name}
                 </label>
                 {option.price != null ? (
-                  <span className="text-xs text-[#37352F]/60 ml-auto">
+                  <span className={`text-xs ${C.text60} ml-auto`}>
                     ¥{option.price.toLocaleString()}
                   </span>
                 ) : null}
@@ -163,26 +163,26 @@ const LeftColumn = memo(function LeftColumn({
 
       {/* Style Image */}
       <div>
-        <Label className="text-sm text-[#37352F]/60 mb-2 block">希望スタイル画像</Label>
+        <Label className={`text-sm ${C.text60} mb-2 block`}>希望スタイル画像</Label>
         {styleImagePreview ? (
           <div className="relative">
             <img
               src={styleImagePreview}
               alt="Style preview"
-              className="w-full h-32 object-cover rounded-md border border-[#37352F]/20"
+              className={`w-full h-32 object-cover rounded-md border ${C.borderPrimary20}`}
             />
             <button
               onClick={onRemoveStyleImage}
               className="absolute top-1 right-1 p-1 bg-white rounded-full shadow-sm hover:bg-gray-100"
             >
-              <X className={`${ICON.action} text-[#37352F]`} />
+              <X className={`${ICON.action} ${C.text}`} />
             </button>
           </div>
         ) : (
-          <label className="flex items-center justify-center w-full h-32 border-2 border-dashed border-[rgba(55,53,47,0.16)] rounded-md cursor-pointer hover:bg-[#F7F6F3]">
+          <label className={`flex items-center justify-center w-full h-32 border-2 border-dashed ${C.borderMedium} rounded-md cursor-pointer hover:bg-[#F7F6F3]`}>
             <div className="flex flex-col items-center">
-              <Upload className={`${ICON.lg} text-[#37352F]/40 mb-1`} />
-              <span className="text-sm text-[#37352F]/60">画像をアップロード</span>
+              <Upload className={`${ICON.lg} ${C.text40} mb-1`} />
+              <span className={`text-sm ${C.text60}`}>画像をアップロード</span>
             </div>
             <input type="file" accept="image/*" onChange={onStyleImageChange} className="hidden" />
           </label>
@@ -208,9 +208,9 @@ const MiddleColumn = memo(function MiddleColumn({
   onRemoveCompletedImage,
 }: MiddleColumnProps) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-[rgba(55,53,47,0.16)] p-3 space-y-4">
+    <div className={`bg-white rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
       <div>
-        <Label className="text-sm text-[#37352F]/60 mb-2 block">体重 (BW)</Label>
+        <Label className={`text-sm ${C.text60} mb-2 block`}>体重 (BW)</Label>
         <div className="flex gap-2">
           <NumberInput
             value={formData.bw}
@@ -233,7 +233,7 @@ const MiddleColumn = memo(function MiddleColumn({
       </div>
 
       <div>
-        <Label className="text-sm text-[#37352F]/60 mb-2 block">体温 (BT)</Label>
+        <Label className={`text-sm ${C.text60} mb-2 block`}>体温 (BT)</Label>
         <NumberInput
           step={0.1}
           value={formData.bt}
@@ -245,7 +245,7 @@ const MiddleColumn = memo(function MiddleColumn({
       </div>
 
       <div>
-        <Label className="text-sm text-[#37352F]/60 mb-2 block">使用シャンプー</Label>
+        <Label className={`text-sm ${C.text60} mb-2 block`}>使用シャンプー</Label>
         <Input
           value={formData.usedShampoo}
           onChange={(e) => onFormChange({ usedShampoo: e.target.value })}
@@ -255,7 +255,7 @@ const MiddleColumn = memo(function MiddleColumn({
       </div>
 
       <div>
-        <Label className="text-sm text-[#37352F]/60 mb-2 block">使用リボン</Label>
+        <Label className={`text-sm ${C.text60} mb-2 block`}>使用リボン</Label>
         <Input
           value={formData.usedRibbon}
           onChange={(e) => onFormChange({ usedRibbon: e.target.value })}
@@ -265,7 +265,7 @@ const MiddleColumn = memo(function MiddleColumn({
       </div>
 
       <div>
-        <Label className="text-sm text-[#37352F]/60 mb-2 block">備考</Label>
+        <Label className={`text-sm ${C.text60} mb-2 block`}>備考</Label>
         <Textarea
           value={formData.remarks}
           onChange={(e) => onFormChange({ remarks: e.target.value })}
@@ -276,26 +276,26 @@ const MiddleColumn = memo(function MiddleColumn({
 
       {/* Completed Image */}
       <div>
-        <Label className="text-sm text-[#37352F]/60 mb-2 block">完成画像</Label>
+        <Label className={`text-sm ${C.text60} mb-2 block`}>完成画像</Label>
         {completedImagePreview ? (
           <div className="relative">
             <img
               src={completedImagePreview}
               alt="Completed preview"
-              className="w-full h-32 object-cover rounded-md border border-[#37352F]/20"
+              className={`w-full h-32 object-cover rounded-md border ${C.borderPrimary20}`}
             />
             <button
               onClick={onRemoveCompletedImage}
               className="absolute top-1 right-1 p-1 bg-white rounded-full shadow-sm hover:bg-gray-100"
             >
-              <X className={`${ICON.action} text-[#37352F]`} />
+              <X className={`${ICON.action} ${C.text}`} />
             </button>
           </div>
         ) : (
-          <label className="flex items-center justify-center w-full h-32 border-2 border-dashed border-[rgba(55,53,47,0.16)] rounded-md cursor-pointer hover:bg-[#F7F6F3]">
+          <label className={`flex items-center justify-center w-full h-32 border-2 border-dashed ${C.borderMedium} rounded-md cursor-pointer hover:bg-[#F7F6F3]`}>
             <div className="flex flex-col items-center">
-              <Upload className={`${ICON.lg} text-[#37352F]/40 mb-1`} />
-              <span className="text-sm text-[#37352F]/60">画像をアップロード</span>
+              <Upload className={`${ICON.lg} ${C.text40} mb-1`} />
+              <span className={`text-sm ${C.text60}`}>画像をアップロード</span>
             </div>
             <input type="file" accept="image/*" onChange={onCompletedImageChange} className="hidden" />
           </label>
@@ -338,9 +338,9 @@ const RightColumn = memo(function RightColumn({
   onHistoryClick,
 }: RightColumnProps) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-[rgba(55,53,47,0.16)] p-3 space-y-4">
+    <div className={`bg-white rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
       <div>
-        <Label className="text-sm text-[#37352F]/60 mb-2 block">施術履歴</Label>
+        <Label className={`text-sm ${C.text60} mb-2 block`}>施術履歴</Label>
         <HistoryFilterPanel
           searchTerm={historySearchTerm}
           onSearchTermChange={onSearchTermChange}
@@ -359,21 +359,21 @@ const RightColumn = memo(function RightColumn({
       {/* History Cards */}
       <div className="space-y-2 max-h-[600px] overflow-y-auto">
         {sortedHistory.length === 0 ? (
-          <div className="text-center py-8 text-sm text-[#37352F]/40">
+          <div className={`text-center py-8 text-sm ${C.text40}`}>
             施術履歴がありません
           </div>
         ) : (
           sortedHistory.map((hist) => (
             <div
               key={hist.id}
-              className="p-3 border border-[rgba(55,53,47,0.16)] rounded-lg bg-white hover:bg-[#F7F6F3] transition-colors cursor-pointer"
+              className={`p-3 border ${C.borderMedium} rounded-lg bg-white hover:bg-[#F7F6F3] transition-colors cursor-pointer`}
               onClick={() => onHistoryClick({ styleRequest: hist.styleRequest, staffName: hist.staff })}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs text-[#37352F]/60 mb-1">{hist.date}</div>
-                  <div className="text-sm text-[#37352F] font-medium truncate">{hist.styleRequest}</div>
-                  <div className="text-xs text-[#37352F]/60 mt-1">{hist.staff}</div>
+                  <div className={`text-xs ${C.text60} mb-1`}>{hist.date}</div>
+                  <div className={`text-sm ${C.text} font-medium truncate`}>{hist.styleRequest}</div>
+                  <div className={`text-xs ${C.text60} mt-1`}>{hist.staff}</div>
                 </div>
               </div>
             </div>
@@ -521,7 +521,7 @@ export function TrimmingForm() {
     <PageLayout
       title={mode === "new" ? "トリミング登録" : "トリミング編集"}
       onBack={handleBack}
-      icon={<Scissors className={`${ICON.page} text-[#37352F]`} />}
+      icon={<Scissors className={`${ICON.page} ${C.text}`} />}
       maxWidth="max-w-[1400px]"
       headerAction={
         <div className="flex gap-2">

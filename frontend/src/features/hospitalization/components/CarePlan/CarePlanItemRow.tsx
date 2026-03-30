@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { ICON, C } from "@/lib/design-tokens";
 import { memo } from "react";
 // External
 import { Edit2, Utensils, Pill, ClipboardList, Stethoscope, CheckCircle2 } from "lucide-react";
@@ -51,19 +51,19 @@ export const CarePlanItemRow = memo(function CarePlanItemRow({ plan, onEdit, onD
     };
 
     return (
-        <div className={`bg-white border border-[rgba(55,53,47,0.16)] rounded-md ${H_STYLES.padding.card} flex items-center justify-between shadow-sm`}>
+        <div className={`bg-white border ${C.borderMedium} rounded-md ${H_STYLES.padding.card} flex items-center justify-between shadow-sm`}>
             <div className="flex items-center gap-2 flex-1 min-w-0">
                 <div className={`p-2 shrink-0 rounded ${getTypeColor(plan.type)}`}>
                     {getTypeIcon(plan.type)}
                 </div>
                 
-                <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${H_STYLES.text.base} text-[#37352F] leading-snug`}>
+                <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${H_STYLES.text.base} ${C.text} leading-snug`}>
                     <span className="font-bold whitespace-nowrap">{plan.name}</span>
-                    <span className={`${H_STYLES.text.sm} text-[#37352F]/60 px-2 border-l border-r border-gray-200`}>{getTypeLabel(plan.type)}</span>
+                    <span className={`${H_STYLES.text.sm} ${C.text60} px-2 border-l border-r border-gray-200`}>{getTypeLabel(plan.type)}</span>
                     <span className={`${H_STYLES.text.sm} bg-gray-50 px-2 py-0.5 rounded`}>{plan.description}</span>
                     
                     {plan.unitPrice ? (
-                        <span className={`${H_STYLES.text.sm} text-[#37352F]/60 font-mono`}>¥{plan.unitPrice.toLocaleString()}</span>
+                        <span className={`${H_STYLES.text.sm} ${C.text60} font-mono`}>¥{plan.unitPrice.toLocaleString()}</span>
                     ) : null}
                     
                     <div className="flex gap-1 ml-1">
@@ -80,7 +80,7 @@ export const CarePlanItemRow = memo(function CarePlanItemRow({ plan, onEdit, onD
                 <div className={`w-2 h-2 rounded-full ${plan.status === 'active' ? 'bg-green-500' : 'bg-gray-300'}`} />
                 <div className="flex gap-1">
                     <Button variant="ghost" size="sm" onClick={() => onEdit(plan)} className="h-9 w-9 p-0 bg-gray-50 hover:bg-gray-100">
-                        <Edit2 className={`${ICON.action} text-[#37352F]/60 hover:text-[#37352F]`} />
+                        <Edit2 className={`${ICON.action} ${C.text60} ${C.hoverText}`} />
                     </Button>
                     <DeleteIconButton onClick={() => onDelete(plan.id)} />
                 </div>

@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { ICON, C } from "@/lib/design-tokens";
 import { memo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { FileText } from 'lucide-react';
@@ -57,7 +57,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
     <>
       {/* タイトル */}
       <div className="space-y-1.5">
-        <Label htmlFor="title" className="text-sm font-medium text-[#37352F]">
+        <Label htmlFor="title" className={`text-sm font-medium ${C.text}`}>
           タイトル <span className="text-red-500">*</span>
         </Label>
         <Input
@@ -71,7 +71,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
 
       {/* ステータス */}
       <div className="space-y-1.5">
-        <Label htmlFor="status" className="text-sm font-medium text-[#37352F]">
+        <Label htmlFor="status" className={`text-sm font-medium ${C.text}`}>
           ステータス
         </Label>
         <Select
@@ -89,7 +89,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
 
       {/* 有効期限 */}
       <div className="space-y-1.5">
-        <Label htmlFor="validUntil" className="text-sm font-medium text-[#37352F]">
+        <Label htmlFor="validUntil" className={`text-sm font-medium ${C.text}`}>
           有効期限
         </Label>
         <NotionDatePicker
@@ -126,7 +126,7 @@ const AmountSection = memo(function AmountSection({
   return (
     <div className="grid grid-cols-2 gap-4">
       <div className="space-y-1.5">
-        <Label htmlFor="subtotal" className="text-sm font-medium text-[#37352F]">
+        <Label htmlFor="subtotal" className={`text-sm font-medium ${C.text}`}>
           小計（税抜）
         </Label>
         <NumberInput
@@ -139,7 +139,7 @@ const AmountSection = memo(function AmountSection({
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="taxTotal" className="text-sm font-medium text-[#37352F]">
+        <Label htmlFor="taxTotal" className={`text-sm font-medium ${C.text}`}>
           消費税
         </Label>
         <NumberInput
@@ -152,7 +152,7 @@ const AmountSection = memo(function AmountSection({
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="insuranceAmount" className="text-sm font-medium text-[#37352F]">
+        <Label htmlFor="insuranceAmount" className={`text-sm font-medium ${C.text}`}>
           保険適用額
         </Label>
         <NumberInput
@@ -165,7 +165,7 @@ const AmountSection = memo(function AmountSection({
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="discountAmount" className="text-sm font-medium text-[#37352F]">
+        <Label htmlFor="discountAmount" className={`text-sm font-medium ${C.text}`}>
           割引額
         </Label>
         <NumberInput
@@ -178,7 +178,7 @@ const AmountSection = memo(function AmountSection({
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="totalAmount" className="text-sm font-medium text-[#37352F]">
+        <Label htmlFor="totalAmount" className={`text-sm font-medium ${C.text}`}>
           合計金額
         </Label>
         <NumberInput
@@ -211,7 +211,7 @@ const TextSection = memo(function TextSection({
     <>
       {/* コメント */}
       <div className="space-y-1.5">
-        <Label htmlFor="comment" className="text-sm font-medium text-[#37352F]">
+        <Label htmlFor="comment" className={`text-sm font-medium ${C.text}`}>
           コメント
         </Label>
         <Textarea
@@ -225,7 +225,7 @@ const TextSection = memo(function TextSection({
 
       {/* 備考 */}
       <div className="space-y-1.5">
-        <Label htmlFor="notes" className="text-sm font-medium text-[#37352F]">
+        <Label htmlFor="notes" className={`text-sm font-medium ${C.text}`}>
           備考（社内メモ）
         </Label>
         <Textarea
@@ -277,7 +277,7 @@ function EstimateFormContent({ id }: { id?: string }) {
   if (isEdit && isLoading) {
     return (
       <div className="flex justify-center items-center p-8">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
+        <div className={`inline-block animate-spin rounded-full h-8 w-8 border-b-2 ${C.borderPrimary}`} />
       </div>
     );
   }
@@ -286,7 +286,7 @@ function EstimateFormContent({ id }: { id?: string }) {
     <form action={formAction}>
     <PageLayout
       title={isEdit ? '見積書編集' : '新規見積書作成'}
-      icon={<FileText className={`${ICON.page} text-[#37352F]`} />}
+      icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex gap-2">
           <Button variant="outline" type="button" size="sm" onClick={handleCancel} className="h-9 text-sm">
@@ -295,7 +295,7 @@ function EstimateFormContent({ id }: { id?: string }) {
           <SubmitButton
             size="sm"
             disabled={!form.title.trim()}
-            className="h-9 bg-[#37352F] hover:bg-[#37352F]/90 text-white text-sm"
+            className={`h-9 ${C.bgPrimary} ${C.hoverBgPrimaryDark} text-white text-sm`}
           >
             {isEdit ? '更新' : '作成'}
           </SubmitButton>
@@ -304,7 +304,7 @@ function EstimateFormContent({ id }: { id?: string }) {
       maxWidth="max-w-2xl"
     >
       <NavigationBlocker when={isDirty && !isPending} />
-      <div className="bg-white border border-[rgba(55,53,47,0.09)] rounded-[6px] p-5 space-y-5">
+      <div className={`bg-white border ${C.borderLight} rounded-[6px] p-5 space-y-5`}>
         {/* rerender-memo: BasicInfoSection — 金額/テキスト変更では再レンダーしない */}
         <BasicInfoSection
           title={form.title}

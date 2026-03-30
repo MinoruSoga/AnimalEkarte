@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 // Relative
 import { CarePlanItemRow } from "@/features/hospitalization/components/CarePlan/CarePlanItemRow";
 import { H_STYLES } from "@/features/hospitalization/styles";
+import { C } from "@/lib/design-tokens";
 
 const CarePlanDialog = lazy(() =>
   import("@/features/hospitalization/components/CarePlan/CarePlanDialog").then((m) => ({ default: m.CarePlanDialog }))
@@ -54,7 +55,7 @@ export const CarePlanSection = memo(function CarePlanSection({ plans, onAdd, onU
     return (
         <div className={H_STYLES.layout.section_mb}>
             <div className="flex items-center justify-between mb-2">
-                <h3 className={`${H_STYLES.text.lg} text-[#37352F]`}>入院治療プラン</h3>
+                <h3 className={`${H_STYLES.text.lg} ${C.text}`}>入院治療プラン</h3>
                 <Button variant="primary" onClick={handleOpenCreate} className={`gap-2 ${H_STYLES.button.action}`}>
                     <Plus className={H_STYLES.button.icon} />
                     プラン追加

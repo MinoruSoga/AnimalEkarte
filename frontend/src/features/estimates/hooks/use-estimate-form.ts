@@ -1,6 +1,7 @@
 import { useState, useTransition, useCallback, useActionState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 import type { Estimate, EstimateStatus } from '../types';
 import { useCreateEstimate } from '../api/create-estimate';
 import { useUpdateEstimate } from '../api/update-estimate';
@@ -103,7 +104,7 @@ export function useEstimateForm(estimate?: Estimate) {
         }
         return { success: true, timestamp: Date.now() };
       } catch (error) {
-        toast.error("保存に失敗しました");
+        handleApiError(error, isEdit ? "更新" : "作成");
         return { success: false, timestamp: Date.now() };
       }
     },

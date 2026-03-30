@@ -1,4 +1,4 @@
-import { ICON } from "@/lib/design-tokens";
+import { ICON, C } from "@/lib/design-tokens";
 import { useNavigate, useParams } from 'react-router';
 import { FileText, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
@@ -28,7 +28,7 @@ export function EstimateDetail() {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center p-8">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#37352F]" />
+        <div className={`inline-block animate-spin rounded-full h-8 w-8 border-b-2 ${C.borderPrimary}`} />
       </div>
     );
   }
@@ -39,7 +39,7 @@ export function EstimateDetail() {
   return (
     <PageLayout
       title={`見積書 ${estimate.estimateNo}`}
-      icon={<FileText className={`${ICON.page} text-[#37352F]`} />}
+      icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <div className="flex gap-2">
           <Button
@@ -76,50 +76,50 @@ export function EstimateDetail() {
     >
       <div className="space-y-6">
         {/* 基本情報 */}
-        <div className="bg-white border border-[rgba(55,53,47,0.09)] rounded-[6px] p-5 space-y-4">
+        <div className={`bg-white border ${C.borderLight} rounded-[6px] p-5 space-y-4`}>
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-[#37352F]">{estimate.title}</h2>
+            <h2 className={`text-base font-semibold ${C.text}`}>{estimate.title}</h2>
             <EstimateStatusBadge status={estimate.status} />
           </div>
 
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <dt className="text-[#37352F]/50 mb-0.5">見積番号</dt>
-              <dd className="font-mono text-[#37352F]">{estimate.estimateNo}</dd>
+              <dt className={`${C.text50} mb-0.5`}>見積番号</dt>
+              <dd className={`font-mono ${C.text}`}>{estimate.estimateNo}</dd>
             </div>
             {estimate.ownerName ? (
               <div>
-                <dt className="text-[#37352F]/50 mb-0.5">飼主名</dt>
-                <dd className="text-[#37352F]">{estimate.ownerName}</dd>
+                <dt className={`${C.text50} mb-0.5`}>飼主名</dt>
+                <dd className={C.text}>{estimate.ownerName}</dd>
               </div>
             ) : null}
             {estimate.validUntil ? (
               <div>
-                <dt className="text-[#37352F]/50 mb-0.5">有効期限</dt>
-                <dd className="text-[#37352F]">{estimate.validUntil.slice(0, 10)}</dd>
+                <dt className={`${C.text50} mb-0.5`}>有効期限</dt>
+                <dd className={C.text}>{estimate.validUntil.slice(0, 10)}</dd>
               </div>
             ) : null}
             <div>
-              <dt className="text-[#37352F]/50 mb-0.5">作成日</dt>
-              <dd className="text-[#37352F]">{estimate.createdAt.slice(0, 10)}</dd>
+              <dt className={`${C.text50} mb-0.5`}>作成日</dt>
+              <dd className={C.text}>{estimate.createdAt.slice(0, 10)}</dd>
             </div>
             <div>
-              <dt className="text-[#37352F]/50 mb-0.5">更新日</dt>
-              <dd className="text-[#37352F]">{estimate.updatedAt.slice(0, 10)}</dd>
+              <dt className={`${C.text50} mb-0.5`}>更新日</dt>
+              <dd className={C.text}>{estimate.updatedAt.slice(0, 10)}</dd>
             </div>
           </div>
 
           {estimate.comment ? (
             <div>
-              <dt className="text-sm text-[#37352F]/50 mb-0.5">コメント</dt>
-              <dd className="text-sm text-[#37352F] whitespace-pre-wrap">{estimate.comment}</dd>
+              <dt className={`text-sm ${C.text50} mb-0.5`}>コメント</dt>
+              <dd className={`text-sm ${C.text} whitespace-pre-wrap`}>{estimate.comment}</dd>
             </div>
           ) : null}
         </div>
 
         {/* 見積明細 */}
-        <div className="bg-white border border-[rgba(55,53,47,0.09)] rounded-[6px] p-5">
-          <h3 className="text-sm font-medium text-[#37352F] mb-4">見積明細</h3>
+        <div className={`bg-white border ${C.borderLight} rounded-[6px] p-5`}>
+          <h3 className={`text-sm font-medium ${C.text} mb-4`}>見積明細</h3>
           <EstimateLineItems
             items={estimate.items}
             subtotal={estimate.subtotal}
@@ -132,9 +132,9 @@ export function EstimateDetail() {
 
         {/* 備考 */}
         {estimate.notes ? (
-          <div className="bg-white border border-[rgba(55,53,47,0.09)] rounded-[6px] p-5">
-            <h3 className="text-sm font-medium text-[#37352F] mb-2">備考</h3>
-            <p className="text-sm text-[#37352F]/70 whitespace-pre-wrap">{estimate.notes}</p>
+          <div className={`bg-white border ${C.borderLight} rounded-[6px] p-5`}>
+            <h3 className={`text-sm font-medium ${C.text} mb-2`}>備考</h3>
+            <p className={`text-sm ${C.text70} whitespace-pre-wrap`}>{estimate.notes}</p>
           </div>
         ) : null}
       </div>

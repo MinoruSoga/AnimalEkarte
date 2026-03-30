@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { ICON, C } from "@/lib/design-tokens";
 import { useState, useCallback, useDeferredValue, useMemo, memo } from "react";
 import { useNavigate } from "react-router";
 
@@ -64,22 +64,22 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
 }: TrimmingTableRowProps) {
   return (
     <DataTableRow onClick={() => onEdit(record.id)}>
-      <TableCell className="font-mono text-base text-[#37352F] py-2">
+      <TableCell className={`font-mono text-base ${C.text} py-2`}>
         {record.date}
       </TableCell>
-      <TableCell className="text-base text-[#37352F] py-2">{record.ownerName}</TableCell>
+      <TableCell className={`text-base ${C.text} py-2`}>{record.ownerName}</TableCell>
       <TableCell className="py-2">
         <div className="flex flex-col">
-          <span className="text-base text-[#37352F]">{record.petName}</span>
-          <span className="text-base text-[#37352F]/60">{record.petNumber}</span>
+          <span className={`text-base ${C.text}`}>{record.petName}</span>
+          <span className={`text-base ${C.text60}`}>{record.petNumber}</span>
         </div>
       </TableCell>
-      <TableCell className="text-base text-[#37352F] py-2 hidden lg:table-cell">{record.species}</TableCell>
-      <TableCell className="text-base text-[#37352F] py-2 hidden lg:table-cell">{record.weight}</TableCell>
-      <TableCell className="text-base text-[#37352F] truncate max-w-[200px] py-2 hidden lg:table-cell">
+      <TableCell className={`text-base ${C.text} py-2 hidden lg:table-cell`}>{record.species}</TableCell>
+      <TableCell className={`text-base ${C.text} py-2 hidden lg:table-cell`}>{record.weight}</TableCell>
+      <TableCell className={`text-base ${C.text} truncate max-w-[200px] py-2 hidden lg:table-cell`}>
         {record.styleRequest}
       </TableCell>
-      <TableCell className="text-base text-[#37352F] py-2">
+      <TableCell className={`text-base ${C.text} py-2`}>
         <div className="flex items-center gap-1.5">
           {!isValidStaff(record.staff) ? (
             <AlertTriangle className={`${ICON.action} text-amber-500`} />
@@ -309,7 +309,7 @@ export function TrimmingList() {
   return (
     <PageLayout
       title="トリミング管理"
-      icon={<Scissors className={`${ICON.page} text-[#37352F]`} />}
+      icon={<Scissors className={`${ICON.page} ${C.text}`} />}
       headerAction={
         canCreate ? (
           <PrimaryButton onClick={handleNew}>
