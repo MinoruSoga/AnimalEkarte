@@ -142,7 +142,7 @@ func (h *Handler) Login(c *gin.Context) {
 	// パスワード検証
 	if err := bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(input.Password)); err != nil {
 		h.writeAuditLog(c, model.AuditActionAuthLoginFailure, "auth", nil,
-			nil, repository.MarshalAuditJSON(map[string]string{"email": input.Email}))
+			repository.MarshalAuditJSON(map[string]string{"email": input.Email}))
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "メールアドレスまたはパスワードが正しくありません"})
 		return
 	}
@@ -241,7 +241,7 @@ func (h *Handler) Login(c *gin.Context) {
 		SameSite: sameSite,
 	})
 
-	h.writeAuditLog(c, model.AuditActionAuthLoginSuccess, "auth", nil, nil, nil)
+	h.writeAuditLog(c, model.AuditActionAuthLoginSuccess, "auth", nil, nil)
 	c.JSON(http.StatusOK, LoginResponse{
 		Token:     accessTokenStr, // 後方互換のため残す（Cookie 移行完了後に削除可）
 		ExpiresAt: expiresAt.Unix(),
@@ -295,7 +295,7 @@ func (h *Handler) Logout(c *gin.Context) {
 		Secure:   isProduction,
 		SameSite: sameSite,
 	})
-	h.writeAuditLog(c, model.AuditActionAuthLogout, "auth", nil, nil, nil)
+	h.writeAuditLog(c, model.AuditActionAuthLogout, "auth", nil, nil)
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }
 

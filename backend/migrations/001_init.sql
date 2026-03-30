@@ -1580,3 +1580,27 @@ COMMENT ON TABLE payments IS '支払い情報';
 COMMENT ON TABLE billing_refunds IS '返金レコード（Stripe モデル）';
 COMMENT ON TABLE shift_entries IS 'スタッフシフト';
 COMMENT ON TABLE merchandise_items IS '物販・フード・その他マスタ';
+
+-- ------------------------------------
+-- 50. audit_logs（権限変更・認証操作の監査ログ）
+-- ------------------------------------
+CREATE TABLE audit_logs (
+    id           BIGSERIAL    PRIMARY KEY,
+    clinic_id    bigint       NULL,
+    actor_id     bigint       NULL,
+    actor_type   varchar(30)  NOT NULL,
+    action       varchar(50)  NOT NULL,
+    resource     varchar(50)  NOT NULL,
+    resource_id  bigint       NULL,
+    old_value    jsonb        NULL,
+    new_value    jsonb        NULL,
+    ip_address   inet         NULL,
+    user_agent   text         NULL,
+    created_at   timestamptz  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_audit_logs_clinic   ON audit_logs(clinic_id, created_at DESC);
+CREATE INDEX idx_audit_logs_actor    ON audit_logs(actor_id, created_at DESC);
+CREATE INDEX idx_audit_logs_resource ON audit_logs(resource, resource_id, created_at DESC);
+
+COMMENT ON TABLE audit_logs IS '権限変更・認証操作の監査ログ（削除禁止）';

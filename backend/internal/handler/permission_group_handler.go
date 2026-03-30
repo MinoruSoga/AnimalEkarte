@@ -62,7 +62,7 @@ func (h *Handler) CreatePermissionGroup(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	h.writeAuditLog(c, model.AuditActionPermissionGroupCreate, "permission_group", &group.ID, nil,
+	h.writeAuditLog(c, model.AuditActionPermissionGroupCreate, "permission_group", &group.ID,
 		repository.MarshalAuditJSON(map[string]any{"name": req.Name, "description": req.Description}))
 	c.JSON(http.StatusCreated, group)
 }
@@ -105,7 +105,7 @@ func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
 		return
 	}
 	h.writeAuditLog(c, model.AuditActionPermissionGroupUpdate, "permission_group", &id,
-		nil, repository.MarshalAuditJSON(map[string]any{"name": req.Name, "description": req.Description}))
+		repository.MarshalAuditJSON(map[string]any{"name": req.Name, "description": req.Description}))
 	c.Status(http.StatusNoContent)
 }
 
@@ -121,7 +121,7 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	h.writeAuditLog(c, model.AuditActionPermissionGroupDelete, "permission_group", &id, nil, nil)
+	h.writeAuditLog(c, model.AuditActionPermissionGroupDelete, "permission_group", &id, nil)
 	c.Status(http.StatusNoContent)
 }
 
@@ -157,7 +157,7 @@ func (h *Handler) SetPermissionGroupRules(c *gin.Context) {
 		return
 	}
 	h.writeAuditLog(c, model.AuditActionPermissionRulesUpdate, "permission_group", &id,
-		nil, repository.MarshalAuditJSON(req.Rules))
+		repository.MarshalAuditJSON(req.Rules))
 	c.Status(http.StatusNoContent)
 }
 

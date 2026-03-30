@@ -11,7 +11,7 @@ import (
 
 // writeAuditLog は監査ログを best-effort で書き込む共通ヘルパー。
 // 書き込み失敗はメイン処理に影響しない（ログ出力のみ）。
-func (h *Handler) writeAuditLog(c *gin.Context, action, resource string, resourceID *uint64, oldValue, newValue []byte) {
+func (h *Handler) writeAuditLog(c *gin.Context, action, resource string, resourceID *uint64, newValue []byte) {
 	ctx := c.Request.Context()
 
 	var clinicID *uint64
@@ -42,7 +42,6 @@ func (h *Handler) writeAuditLog(c *gin.Context, action, resource string, resourc
 		Action:     action,
 		Resource:   resource,
 		ResourceID: resourceID,
-		OldValue:   oldValue,
 		NewValue:   newValue,
 		IPAddress:  c.ClientIP(),
 		UserAgent:  c.Request.UserAgent(),

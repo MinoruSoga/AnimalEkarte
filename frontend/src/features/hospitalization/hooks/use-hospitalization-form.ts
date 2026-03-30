@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
+import type { ActionState } from "@/types/form";
+import { INITIAL_ACTION_STATE } from "@/types/form";
 import type { TreatmentPlan } from "@/types";
 import type { Pet } from "@/types";
 import type { HospitalizationFormData } from "../types";
@@ -79,16 +81,11 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
   const [globalDiscount, setGlobalDiscount] = useState(0);
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
 
-  interface FormState {
-    success: boolean;
-    timestamp: number;
-  }
-
   /**
    * React 19 useActionState を使用したフォームアクション
    */
   const [formState, formAction, isPending] = useActionState(
-    async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
+    async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
       if (!selectedPets.length) {
         toast.error("ペットを選択してください");
         return { success: false, timestamp: Date.now() };
@@ -130,7 +127,7 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
         return { success: false, timestamp: Date.now() };
       }
     },
-    { success: false, timestamp: 0 }
+    INITIAL_ACTION_STATE
   );
 
   const {
