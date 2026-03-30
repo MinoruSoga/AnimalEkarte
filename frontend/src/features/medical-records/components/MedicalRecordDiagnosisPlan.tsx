@@ -16,6 +16,7 @@ import { C, LAYOUT } from "@/lib/design-tokens";
 
 export interface DiagnosisPlanProps {
   isNewRecord?: boolean;
+  chiefComplaint?: string;
   // 制御型props（親フックから状態を受け取る）
   plan: string;
   setPlan: (value: string) => void;
@@ -36,6 +37,7 @@ export interface DiagnosisPlanProps {
 
 export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPlan({
   isNewRecord = false,
+  chiefComplaint,
   plan,
   setPlan,
   assessment,
@@ -156,6 +158,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
     <div className={`gap-3 ${LAYOUT.fullHeight}`}>
       <div className="shrink-0">
         <DiagnosisHeader
+          chiefComplaint={chiefComplaint}
           policy={plan}
           setPolicy={setPlan}
           diagnosisDetails={assessment}

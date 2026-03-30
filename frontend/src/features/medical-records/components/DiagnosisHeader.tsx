@@ -7,6 +7,7 @@ import { DiagnosisHeaderPhysicalExam } from "./DiagnosisHeaderPhysicalExam";
 import { DiagnosisHeaderDiagnosis } from "./DiagnosisHeaderDiagnosis";
 
 interface DiagnosisHeaderProps {
+  chiefComplaint?: string;
   policy: string;
   setPolicy: (v: string) => void;
   diagnosisDetails: string;
@@ -22,6 +23,7 @@ interface DiagnosisHeaderProps {
 }
 
 export const DiagnosisHeader = React.memo(function DiagnosisHeader({
+  chiefComplaint,
   policy,
   setPolicy,
   diagnosisDetails,
@@ -37,7 +39,7 @@ export const DiagnosisHeader = React.memo(function DiagnosisHeader({
 }: DiagnosisHeaderProps) {
   return (
     <div className="grid grid-cols-12 gap-3 shrink-0 h-[240px]">
-      <DiagnosisHeaderChiefComplaint />
+      <DiagnosisHeaderChiefComplaint content={chiefComplaint} />
       <DiagnosisHeaderPhysicalExam policy={policy} setPolicy={setPolicy} />
       <DiagnosisHeaderDiagnosis
         diagnosisDetails={diagnosisDetails}

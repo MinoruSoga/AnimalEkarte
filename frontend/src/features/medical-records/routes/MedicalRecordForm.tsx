@@ -305,8 +305,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           <div className={`${LAYOUT.fullHeight} ${activeTab === "診察/治療プラン" ? "" : "hidden"}`}>
             <MedicalRecordDiagnosisPlan
               isNewRecord={isNewRecord}
-              items={treatmentPlanItems}
-              setItems={handleSetTreatmentPlanItems}
+              chiefComplaint={chiefComplaint}
               plan={plan}
               setPlan={handleSetPlan}
               assessment={assessment}
