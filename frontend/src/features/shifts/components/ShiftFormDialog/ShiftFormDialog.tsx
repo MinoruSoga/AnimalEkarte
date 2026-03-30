@@ -1,3 +1,187 @@
+import { useState, useEffect, useCallback, useTransition, useActionState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { FormFieldError } from "@/components/shared/FormFieldError";
+import type { Shift, ShiftType, CreateShiftInput, UpdateShiftInput } from "@/features/shifts/types";
+import { SHIFT_TYPE_LABELS } from "@/features/shifts/types";
+import { useCreateShift } from "@/features/shifts/api/create-shift";
+import { useUpdateShift } from "@/features/shifts/api/update-shift";
+import { useDeleteShift } from "@/features/shifts/api/delete-shift";
+
+/**
+ * バックエンドから "HH:MM:SS" 形式で来る時刻を "HH:mm" に正規化する。
+ */
+function normalizeTimeToHHmm(time: string): string {
+  if (!time) return "";
+  const parts = time.split(":");
+  if (parts.length >= 2) {
+    return `${parts[0].padStart(2, "0")}:${parts[1].padStart(2, "0")}`;
+  }
+  return time;
+}
+
+const SHIFT_TYPE_OPTIONS = (Object.entries(SHIFT_TYPE_LABELS) as [ShiftType, string][]).map(
+  ([value, label]) => (
+    <SelectItem key={value} value={value}>
+      {label}
+    </SelectItem>
+  ),
+);
+
+interface ShiftFormDialogProps {
+  open: boolean;
+  onClose: () => void;
+  staffId: string;
+  staffName: string;
+  date: string; // YYYY-MM-DD
+  editShift?: Shift;
+}
+
+interface FormValues {
+  shiftType: ShiftType;
+  startTime: string;
+  endTime: string;
+  note: string;
+}
+
+interface ActionFormState {
+  success: boolean;
+  timestamp: number;
+}
+
+export function ShiftFormDialog({
+  open,
+  onClose,
+  staffId,
+  staffName,
+  date,
+  editShift,
+}: ShiftFormDialogProps) {
+  const isEdit = editShift !== undefined;
+
+  const [form, setForm] = useState<FormValues>(() => ({
+    shiftType: editShift?.shift_type ?? "full",
+    startTime: normalizeTimeToHHmm(editShift?.start_time ?? ""),
+    endTime: normalizeTimeToHHmm(editShift?.end_time ?? ""),
+    note: editShift?.note ?? "",
+  }));
+  const [timeError, setTimeError] = useState<string>("");
+
+  useEffect(() => {
+    if (open) {
+      setForm({
+        shiftType: editShift?.shift_type ?? "full",
+        startTime: normalizeTimeToHHmm(editShift?.start_time ?? ""),
+        endTime: normalizeTimeToHHmm(editShift?.end_time ?? ""),
+        note: editShift?.note ?? "",
+      });
+      setTimeError("");
+    }
+  }, [open, editShift]);
+
+  const { mutateAsync: createShift } = useCreateShift();
+  const { mutateAsync: updateShift } = useUpdateShift();
+  const { mutateAsync: deleteShift } = useDeleteShift();
+  const [isDeletePending, startDeleteTransition] = useTransition();
+
+  const [formState, formAction, isPending] = useActionState(
+    async (_prevState: ActionFormState, _formData: FormData): Promise<ActionFormState> => {
+      if (form.startTime && form.endTime) {
+        if (form.endTime <= form.startTime) {
+          setTimeError("終了時刻は開始時刻より後に設定してください");
+          return { success: false, timestamp: Date.now() };
+        }
+      }
+      setTimeError("");
+
+      try {
+        if (isEdit && editShift) {
+          const input: UpdateShiftInput = {
+            shift_type: form.shiftType,
+            start_time: form.startTime || undefined,
+            end_time: form.endTime || undefined,
+            note: form.note || undefined,
+          };
+          await updateShift({ id: editShift.id, input });
+        } else {
+          const input: CreateShiftInput = {
+            staff_id: staffId,
+            date,
+            shift_type: form.shiftType,
+            start_time: form.startTime || undefined,
+            end_time: form.endTime || undefined,
+            note: form.note || undefined,
+          };
+          await createShift(input);
+        }
+        onClose();
+        return { success: true, timestamp: Date.now() };
+      } catch {
+        return { success: false, timestamp: Date.now() };
+      }
+    },
+    { success: false, timestamp: 0 }
+  );
+
+  const handleShiftTypeChange = useCallback((value: string) => {
+    setForm((prev) => ({ ...prev, shiftType: value as ShiftType }));
+  }, []);
+
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const { name, value } = e.target;
+      setForm((prev) => ({ ...prev, [name]: value }));
+      if (name === "startTime" || name === "endTime") {
+        setTimeError("");
+      }
+    },
+    [],
+  );
+
+  const handleDelete = useCallback(() => {
+    if (!editShift) return;
+    startDeleteTransition(async () => {
+      await deleteShift(editShift.id);
+      onClose();
+    });
+  }, [editShift, deleteShift, onClose]);
+
+  const formattedDate = date
+    ? new Date(date + "T00:00:00").toLocaleDateString("ja-JP", {
+        month: "long",
+        day: "numeric",
+        weekday: "short",
+      })
+    : "";
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {isEdit ? "シフト編集" : "シフト追加"}
+          </DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            {staffName} — {formattedDate}
+          </p>
+        </DialogHeader>
+
         <form action={formAction} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="shift-type">シフト種別</Label>
@@ -68,3 +252,7 @@
             </SubmitButton>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

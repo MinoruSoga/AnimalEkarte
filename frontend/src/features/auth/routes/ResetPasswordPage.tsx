@@ -5,6 +5,7 @@ import Eye from "lucide-react/dist/esm/icons/eye";
 import EyeOff from "lucide-react/dist/esm/icons/eye-off";
 import { C, ICON } from "@/lib/design-tokens";
 import { FormFieldError } from "@/components/shared/FormFieldError";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { resetPassword } from "../api/reset-password";
 
 const INPUT_BASE = `w-full h-[48px] text-base rounded-[3px] ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 focus:ring-[#038B94] focus:border-transparent disabled:opacity-60`;
@@ -146,13 +147,12 @@ export function ResetPasswordPage() {
 
           <FormFieldError id="reset-error" message={error} />
 
-          <button
-            type="submit"
-            className="w-full h-[52px] text-base font-medium rounded-[3px] bg-[#038B94] hover:bg-[#027A82] transition-colors text-white disabled:opacity-60"
-            disabled={isPending}
+          <SubmitButton
+            className="w-full h-[52px] text-base font-medium rounded-[3px] bg-[#038B94] hover:bg-[#027A82] transition-colors text-white"
+            loadingText="設定中..."
           >
-            {isPending ? "設定中..." : "パスワードを設定する"}
-          </button>
+            パスワードを設定する
+          </SubmitButton>
 
           <Link
             to="/login"

@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import { C } from "@/lib/design-tokens";
 import { FormFieldError } from "@/components/shared/FormFieldError";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { forgotPassword } from "../api/forgot-password";
 
 const INPUT_BASE = `w-full h-[48px] text-base rounded-[3px] ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 focus:ring-[#038B94] focus:border-transparent disabled:opacity-60`;
@@ -95,13 +96,12 @@ export function ForgotPasswordPage() {
 
             <FormFieldError id="forgot-error" message={error} />
 
-            <button
-              type="submit"
-              className="w-full h-[52px] text-base font-medium rounded-[3px] bg-[#038B94] hover:bg-[#027A82] transition-colors text-white disabled:opacity-60"
-              disabled={isPending}
+            <SubmitButton
+              className="w-full h-[52px] text-base font-medium rounded-[3px] bg-[#038B94] hover:bg-[#027A82] transition-colors text-white"
+              loadingText="送信中..."
             >
-              {isPending ? "送信中..." : "リセットリンクを送信"}
-            </button>
+              リセットリンクを送信
+            </SubmitButton>
 
             <Link
               to="/login"

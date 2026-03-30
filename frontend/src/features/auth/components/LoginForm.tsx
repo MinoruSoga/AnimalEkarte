@@ -5,6 +5,7 @@ import Eye from "lucide-react/dist/esm/icons/eye";
 import EyeOff from "lucide-react/dist/esm/icons/eye-off";
 import { isAxiosError } from "axios";
 import { FormFieldError } from "@/components/shared/FormFieldError";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON } from "@/lib/design-tokens";
 // AuthProvider はこのページを囲まないため useAuth() は使用不可。
 // login API を直接呼び出し、成功後に navigate("/") で保護ルート側に遷移する。
@@ -204,13 +205,12 @@ export function LoginForm() {
         <FormFieldError id="login-error" message={error} />
 
         {/* Submit */}
-        <button
-          type="submit"
-          className="w-full h-[52px] text-base font-medium rounded-[3px] bg-[#038B94] hover:bg-[#027A82] transition-colors text-white disabled:opacity-60"
-          disabled={isSubmitting}
+        <SubmitButton
+          className="w-full h-[52px] text-base font-medium rounded-[3px] bg-[#038B94] hover:bg-[#027A82] transition-colors text-white"
+          loadingText="ログイン中..."
         >
-          {isSubmitting ? "ログイン中..." : "ログイン"}
-        </button>
+          ログイン
+        </SubmitButton>
 
         <div className="text-center">
           <Link
