@@ -49,6 +49,8 @@ interface ShiftCalendarProps {
   shifts: Shift[];
   staffs: StaffItem[];
   selectedStaffId: string;
+  canCreate: boolean;
+  canEdit: boolean;
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onStaffChange: (staffId: string) => void;
@@ -59,6 +61,8 @@ export const ShiftCalendar = memo(function ShiftCalendar({
   shifts,
   staffs,
   selectedStaffId,
+  canCreate,
+  canEdit,
   onPrevMonth,
   onNextMonth,
   onStaffChange,
@@ -223,6 +227,8 @@ export const ShiftCalendar = memo(function ShiftCalendar({
                       staffId={staff.id}
                       staffName={staff.name}
                       dateStr={dateStr}
+                      canCreate={canCreate}
+                      canEdit={canEdit}
                       onAddShift={handleAddShift}
                       onEditShift={handleEditShift}
                     />

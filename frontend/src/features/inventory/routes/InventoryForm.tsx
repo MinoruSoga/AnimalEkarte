@@ -27,6 +27,7 @@ import { useEffect } from "react";
 
 // Relative
 import { useInventoryForm } from "../hooks/use-inventory-form";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Types
 import type { InventoryItem } from "@/types";
@@ -271,6 +272,7 @@ const SupplierInfoSection = memo(function SupplierInfoSection({
 export function InventoryForm() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { canEdit } = usePermission("inventory");
 
   const {
     isEdit,
@@ -382,10 +384,12 @@ export function InventoryForm() {
           >
             キャンセル
           </Button>
-          <SubmitButton className="h-10">
-            <Save className={`mr-1.5 ${ICON.action}`} />
-            {isEdit ? "更新" : "登録"}
-          </SubmitButton>
+          {canEdit ? (
+            <SubmitButton className="h-10">
+              <Save className={`mr-1.5 ${ICON.action}`} />
+              {isEdit ? "更新" : "登録"}
+            </SubmitButton>
+          ) : null}
         </div>
       </form>
     </PageLayout>

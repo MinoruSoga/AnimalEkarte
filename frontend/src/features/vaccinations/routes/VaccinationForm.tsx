@@ -29,10 +29,12 @@ import {
 
 // Relative
 import { useVaccinationForm } from "../hooks/use-vaccination-form";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 export const VaccinationForm = memo(function VaccinationForm() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { canEdit, canDelete } = usePermission("vaccinations");
   
   const {
       isEdit,
@@ -83,7 +85,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
       maxWidth="max-w-[800px]"
       headerAction={
         <div className="flex gap-2">
-            {isEdit ? (
+            {canDelete && isEdit ? (
                 <Button
                     variant="ghost"
                     type="button"
@@ -95,11 +97,13 @@ export const VaccinationForm = memo(function VaccinationForm() {
                     {isDeleting ? "削除中..." : "削除"}
                 </Button>
             ) : null}
-            <SubmitButton
-                className={`${C.bgAccent} ${C.bgAccentHover} text-white shadow-sm px-6 h-10 text-sm`}
-            >
-                保存
-            </SubmitButton>
+            {canEdit ? (
+              <SubmitButton
+                  className={`${C.bgAccent} ${C.bgAccentHover} text-white shadow-sm px-6 h-10 text-sm`}
+              >
+                  保存
+              </SubmitButton>
+            ) : null}
         </div>
       }
     >

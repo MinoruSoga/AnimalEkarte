@@ -3,6 +3,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { useGetShifts } from "../api/get-shifts";
 import { useStaffsForShift } from "../api/get-staffs";
 import { ShiftCalendar as ShiftCalendarGrid } from "../components/ShiftCalendar/ShiftCalendar";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 function getInitialYearMonth(): string {
   const now = new Date();
@@ -13,6 +14,7 @@ function getInitialYearMonth(): string {
 
 export function ShiftCalendarPage() {
   const [yearMonth, setYearMonth] = useState<string>(getInitialYearMonth);
+  const { canCreate, canEdit } = usePermission("shifts");
   const [selectedStaffId, setSelectedStaffId] = useState<string>("all");
 
   const shiftsQuery = useGetShifts({
@@ -57,6 +59,8 @@ export function ShiftCalendarPage() {
           shifts={shifts}
           staffs={staffs}
           selectedStaffId={selectedStaffId}
+          canCreate={canCreate}
+          canEdit={canEdit}
           onPrevMonth={handlePrevMonth}
           onNextMonth={handleNextMonth}
           onStaffChange={handleStaffChange}

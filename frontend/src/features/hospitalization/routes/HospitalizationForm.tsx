@@ -18,6 +18,7 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useHospitalizationForm } from "../hooks/use-hospitalization-form";
 import { useDeleteHospitalization } from "../api/delete-hospitalization";
 import { paths } from "@/config/paths";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { HospitalizationBasicInfo } from "../components/HospitalizationBasicInfo";
 import { HospitalizationNoteCard } from "../components/HospitalizationNoteCard";
@@ -37,6 +38,7 @@ export function HospitalizationForm() {
   const { data: cageItems } = useMasterItems("cage");
 
   const { user } = useAuth();
+  const { canEdit, canDelete } = usePermission("hospitalization");
   const deleteMutation = useDeleteHospitalization();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
@@ -139,22 +141,26 @@ export function HospitalizationForm() {
                     <FileText className={ICON.action} />
                     デイリーカルテ
                   </Button>
-                  <Button
-                    variant="ghost"
-                    type="button"
-                    className={`${STYLE.btnDangerGhost} h-10 text-sm px-4`}
-                    onClick={() => setIsDeleteConfirmOpen(true)}
-                  >
-                    <Trash2 className={`mr-1.5 ${ICON.action}`} />
-                    削除
-                  </Button>
+                  {canDelete ? (
+                    <Button
+                      variant="ghost"
+                      type="button"
+                      className={`${STYLE.btnDangerGhost} h-10 text-sm px-4`}
+                      onClick={() => setIsDeleteConfirmOpen(true)}
+                    >
+                      <Trash2 className={`mr-1.5 ${ICON.action}`} />
+                      削除
+                    </Button>
+                  ) : null}
                 </>
             ) : null}
-            <SubmitButton
-            className={`${C.bgAccent} ${C.bgAccentHover} text-white rounded-[6px] h-10 text-sm px-4`}
-            >
-            {hospitalizationId ? "更新" : "登録"}
-            </SubmitButton>
+            {canEdit ? (
+              <SubmitButton
+              className={`${C.bgAccent} ${C.bgAccentHover} text-white rounded-[6px] h-10 text-sm px-4`}
+              >
+              {hospitalizationId ? "更新" : "登録"}
+              </SubmitButton>
+            ) : null}
         </div>
       }
     >

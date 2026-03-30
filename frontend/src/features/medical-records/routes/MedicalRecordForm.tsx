@@ -32,6 +32,7 @@ const OwnerSearchModal = lazy(() =>
 );
 import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 
@@ -120,6 +121,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   }, [formState.success, formState.timestamp]);
 
   const { user } = useAuth();
+  const { canEdit, canDelete } = usePermission("medical-records");
 
   // ローカル状態: 担当者（hookに追加するまでの暫定）
   const [staffName, setStaffName] = useState(() => user?.displayName ?? "");
@@ -375,7 +377,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       {/* Floating Save / Delete Buttons */}
       {activeTab !== "会計(医師確認)" ? (
         <div className="fixed bottom-6 right-6 z-50 flex gap-2">
-          {!isNewRecord && activeTab === "問診" ? (
+          {canDelete && !isNewRecord && activeTab === "問診" ? (
             <Button
               variant="ghost-danger"
               onClick={() => setIsDeleteConfirmOpen(true)}
@@ -397,12 +399,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
               バイタル記録
             </Button>
           ) : null}
-          <SubmitButton
-            className={`${STYLE.btnPrimary} px-5`}
-            disabled={isCreating}
-          >
-            {isCreating ? "カルテ作成中..." : "保存"}
-          </SubmitButton>
+          {canEdit ? (
+            <SubmitButton
+              className={`${STYLE.btnPrimary} px-5`}
+              disabled={isCreating}
+            >
+              {isCreating ? "カルテ作成中..." : "保存"}
+            </SubmitButton>
+          ) : null}
         </div>
       ) : null}
 

@@ -51,6 +51,7 @@ import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 // Relative
 import { useOwnerForm } from "../hooks/use-owner-form";
@@ -101,6 +102,8 @@ const MembershipTypeButtons = memo(function MembershipTypeButtons({
 interface PetTableRowProps {
   pet: PetFormData;
   ownerId: string | undefined;
+  canEdit: boolean;
+  canDelete: boolean;
   onEdit: (pet: PetFormData) => void;
   onDeleteRequest: (id: string, name: string) => void;
 }
@@ -108,6 +111,8 @@ interface PetTableRowProps {
 const PetTableRow = memo(function PetTableRow({
   pet,
   ownerId,
+  canEdit,
+  canDelete,
   onEdit,
   onDeleteRequest,
 }: PetTableRowProps) {
@@ -146,10 +151,12 @@ const PetTableRow = memo(function PetTableRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>操作</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => onEdit(pet)}>
-                <Edit className={`mr-2 ${ICON.action}`} />
-                詳細・編集
-              </DropdownMenuItem>
+              {canEdit ? (
+                <DropdownMenuItem onClick={() => onEdit(pet)}>
+                  <Edit className={`mr-2 ${ICON.action}`} />
+                  詳細・編集
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem onClick={() => navigate(`/reservations?petId=${pet.id}`)}>
                 <Calendar className={`mr-2 ${ICON.action}`} />
                 予約作成
@@ -178,14 +185,18 @@ const PetTableRow = memo(function PetTableRow({
                 <CreditCard className={`mr-2 ${ICON.action}`} />
                 会計登録
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => onDeleteRequest(pet.id, pet.petName)}
-                className={`${C.danger} focus:${C.danger} ${C.focusBgLight}`}
-              >
-                <Trash2 className={`mr-2 ${ICON.action}`} />
-                削除
-              </DropdownMenuItem>
+              {canDelete ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => onDeleteRequest(pet.id, pet.petName)}
+                    className={`${C.danger} focus:${C.danger} ${C.focusBgLight}`}
+                  >
+                    <Trash2 className={`mr-2 ${ICON.action}`} />
+                    削除
+                  </DropdownMenuItem>
+                </>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -440,6 +451,7 @@ const OwnerInfoSection = memo(function OwnerInfoSection({
 export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}) {
   const navigate = useNavigate();
   const { id: ownerId } = useParams();
+  const { canEdit, canDelete } = usePermission("owners");
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
   const [deletePetTarget, setDeletePetTarget] = useState<{
     id: string;
@@ -570,9 +582,11 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
         onBack={handleBack}
         maxWidth="max-w-[1400px]"
         headerAction={
-          <SubmitButton size="sm">
-            {isEdit ? "更新" : "登録"}
-          </SubmitButton>
+          canEdit ? (
+            <SubmitButton size="sm">
+              {isEdit ? "更新" : "登録"}
+            </SubmitButton>
+          ) : null
         }
       >
         <NavigationBlocker when={isDirty && !isLoading} />
@@ -602,14 +616,16 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
             <PawPrint className={`${ICON.action} ${C.text60}`} />
             ペット情報
           </h2>
-          <Button
-            size="sm"
-            onClick={handleAddPet}
-            className={`${STYLE.confirmPrimary} gap-1.5 text-sm px-4`}
-          >
-            <Plus className={ICON.action} />
-            ペット追加
-          </Button>
+          {canEdit ? (
+            <Button
+              size="sm"
+              onClick={handleAddPet}
+              className={`${STYLE.confirmPrimary} gap-1.5 text-sm px-4`}
+            >
+              <Plus className={ICON.action} />
+              ペット追加
+            </Button>
+          ) : null}
         </div>
 
         <div className={`rounded-lg bg-white overflow-hidden border ${C.borderMedium}`}>
@@ -632,6 +648,8 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
                     key={pet.id}
                     pet={pet}
                     ownerId={ownerId}
+                    canEdit={canEdit}
+                    canDelete={canDelete}
                     onEdit={handleEditPet}
                     onDeleteRequest={handleDeletePetRequest}
                   />

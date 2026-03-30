@@ -21,6 +21,7 @@ import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { useExaminationForm } from "../hooks/use-examination-form";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { paths } from "@/config/paths";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 import type { ExaminationRecord } from "@/types";
 
 // rendering-hoist-jsx: ステータス選択肢は静的なのでモジュール定数に巻き上げ
@@ -41,6 +42,8 @@ interface FormFieldsSectionProps {
   isEdit: boolean;
   isSaving: boolean;
   isDeleting: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
   onSetFormData: (next: Partial<ExaminationRecord>) => void;
   onBack: () => void;
   onDeleteClick: () => void;
@@ -53,6 +56,8 @@ const FormFieldsSection = memo(function FormFieldsSection({
   isEdit,
   isSaving,
   isDeleting,
+  canEdit,
+  canDelete,
   onSetFormData,
   onBack,
   onDeleteClick,
@@ -130,7 +135,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
-        {isEdit ? (
+        {canDelete && isEdit ? (
           <Button
             variant="ghost"
             type="button"
@@ -143,11 +148,13 @@ const FormFieldsSection = memo(function FormFieldsSection({
           </Button>
         ) : null}
         <Button variant="outline" type="button" onClick={onBack} className="h-10 text-sm">キャンセル</Button>
-        <SubmitButton
-          className={`${C.bgAccent} ${C.bgAccentHover} text-white h-10 text-sm`}
-        >
-          保存
-        </SubmitButton>
+        {canEdit ? (
+          <SubmitButton
+            className={`${C.bgAccent} ${C.bgAccentHover} text-white h-10 text-sm`}
+          >
+            保存
+          </SubmitButton>
+        ) : null}
       </div>
     </div>
   );
@@ -189,6 +196,7 @@ export function ExaminationForm() {
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
   const medicalRecordId = searchParams.get("medicalRecordId");
+  const { canEdit, canDelete } = usePermission("examinations");
 
   const { data: examTypes } = useMasterItems("examination");
   const { data: staffList } = useMasterItems("staff");
@@ -292,6 +300,8 @@ export function ExaminationForm() {
           isEdit={isEdit}
           isSaving={isSaving}
           isDeleting={isDeleting}
+          canEdit={canEdit}
+          canDelete={canDelete}
           onSetFormData={handleSetFormData}
           onBack={handleBack}
           onDeleteClick={handleDeleteClick}

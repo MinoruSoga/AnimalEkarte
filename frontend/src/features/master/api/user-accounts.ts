@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { ME_QUERY_KEY } from "@/features/auth";
 
 // ─────────────────────────────────────────────────
 // Types（handler の userResponse に対応。string id）
@@ -91,6 +92,7 @@ export function useSetUserPermissionGroups(clinicId: string) {
     onSuccess: (_data, { userId }) => {
       void queryClient.invalidateQueries({ queryKey: listQueryKey(clinicId) });
       void queryClient.invalidateQueries({ queryKey: detailQueryKey(userId) });
+      void queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY });
     },
   });
 }
