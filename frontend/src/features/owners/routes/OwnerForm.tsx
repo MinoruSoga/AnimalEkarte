@@ -484,6 +484,29 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
     }
   }, [formState.success, formState.timestamp, navigate, markClean, isEdit, createdOwnerId]);
 
+  // BUG-084: バリデーションエラー後に最初のエラーフィールドへフォーカスを移動する
+  // フォームのアクセシビリティ改善（WCAG 2.4.3 Focus Order / 3.3.1 Error Identification）
+  useEffect(() => {
+    const errorFields = Object.keys(fieldErrors);
+    if (errorFields.length === 0) return;
+    // フィールド名とDOM IDのマッピング（OwnerInfoSection内の htmlFor と対応）
+    const FIELD_ID_MAP: Record<string, string> = {
+      ownerName: "ownerName",
+      ownerNameKana: "ownerNameKana",
+      phone: "phone",
+      email: "email",
+      discountRate: "discountRate",
+    };
+    // 優先度順にフォーカスする最初のフィールドを探す
+    const PRIORITY_FIELDS = ["ownerName", "ownerNameKana", "phone", "email", "discountRate"];
+    const firstErrorField = PRIORITY_FIELDS.find((f) => errorFields.includes(f)) ?? errorFields[0];
+    const domId = FIELD_ID_MAP[firstErrorField] ?? firstErrorField;
+    const el = document.getElementById(domId) as HTMLElement | null;
+    el?.focus();
+  // fieldErrors オブジェクトのキー変化で発火させるため JSON.stringify を使用
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(Object.keys(fieldErrors).sort())]);
+
   const handleBack = () => {
     navigate(paths.owners.getHref());
   };

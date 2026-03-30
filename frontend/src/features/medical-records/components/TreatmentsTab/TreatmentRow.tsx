@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { C, BADGE, ICON } from "@/lib/design-tokens";
 
 // Relative
-import type { Treatment, TreatmentItemType, UpdateTreatmentInput } from "../../types";
+import type { Treatment, TreatmentItemType, UpdateTreatmentInput } from "@/features/medical-records/types";
 
 // ── 静的JSX (モジュール定数に巻き上げ) ────────────────────────────────
 

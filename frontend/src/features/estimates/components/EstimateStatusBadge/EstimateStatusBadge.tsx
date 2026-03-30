@@ -1,6 +1,6 @@
 import { StatusBadge } from '@/components/shared/StatusBadge/StatusBadge';
 import { getEstimateStatusColor } from '@/utils/status-helpers';
-import type { EstimateStatus } from '../../types';
+import type { EstimateStatus } from '@/features/estimates/types';
 
 const STATUS_LABELS: Record<EstimateStatus, string> = {
   draft: '下書き',

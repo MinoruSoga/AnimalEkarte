@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 
 // Types
-import type { ApiStaffNoteRecord, CreateStaffNoteRecordRequest } from "../../api/daily-records-types";
+import type { ApiStaffNoteRecord, CreateStaffNoteRecordRequest } from "@/features/hospitalization/api/daily-records-types";
 
 interface DailyStaffNotesSectionProps {
     staffNotes: ApiStaffNoteRecord[];

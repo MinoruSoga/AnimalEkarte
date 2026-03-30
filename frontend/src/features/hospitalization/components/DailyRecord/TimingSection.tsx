@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 // Relative
-import { H_STYLES } from "../../styles";
+import { H_STYLES } from "@/features/hospitalization/styles";
 
 // Types
 import type { LucideIcon } from "lucide-react";
-import type { Task } from "../../types";
+import type { Task } from "@/features/hospitalization/types";
 
 interface TimingSectionProps {
     title: string;

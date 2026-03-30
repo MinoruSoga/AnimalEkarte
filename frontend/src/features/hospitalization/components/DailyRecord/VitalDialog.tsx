@@ -12,10 +12,10 @@ import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 
 // Relative
-import { H_STYLES } from "../../styles";
+import { H_STYLES } from "@/features/hospitalization/styles";
 
 // Types
-import type { CreateVitalDTO } from "../../types";
+import type { CreateVitalDTO } from "@/features/hospitalization/types";
 
 interface VitalDialogProps {
     open: boolean;

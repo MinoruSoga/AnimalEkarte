@@ -27,7 +27,7 @@ import {
 import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 
 // Types
-import type { ApiCareLogRecord, CreateCareLogRecordRequest } from "../../api/daily-records-types";
+import type { ApiCareLogRecord, CreateCareLogRecordRequest } from "@/features/hospitalization/api/daily-records-types";
 
 type CareLogType = "food" | "excretion" | "medicine" | "treatment" | "other";
 

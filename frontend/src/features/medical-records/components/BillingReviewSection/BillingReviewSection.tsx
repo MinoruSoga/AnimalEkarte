@@ -14,8 +14,8 @@ import {
   useGetBillingReview,
   useConfirmBillingReview,
   useReturnBillingReview,
-} from "../../api/billing-review";
-import type { BillingReviewStatus } from "../../types";
+} from "@/features/medical-records/api/billing-review";
+import type { BillingReviewStatus } from "@/features/medical-records/types";
 
 const ReturnReasonDialog = lazy(() =>
   import("./ReturnReasonDialog").then((m) => ({ default: m.ReturnReasonDialog }))

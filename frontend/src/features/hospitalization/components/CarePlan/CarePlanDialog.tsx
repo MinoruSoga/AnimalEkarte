@@ -18,10 +18,10 @@ import { TreatmentSearchDialog } from "@/components/shared/TreatmentSearchDialog
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 
 // Relative
-import { H_STYLES } from "../../styles";
+import { H_STYLES } from "@/features/hospitalization/styles";
 
 // Types
-import type { CarePlanItem, CreateCarePlanDTO, UpdateCarePlanDTO } from "../../types";
+import type { CarePlanItem, CreateCarePlanDTO, UpdateCarePlanDTO } from "@/features/hospitalization/types";
 
 interface CarePlanDialogProps {
     open: boolean;

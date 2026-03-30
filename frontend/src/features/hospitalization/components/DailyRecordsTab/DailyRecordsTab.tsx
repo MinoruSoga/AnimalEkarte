@@ -10,20 +10,20 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 // Relative
-import { DailyDateNav } from "./DailyDateNav";
-import { DailyVitalsSection } from "./DailyVitalsSection";
-import { DailyCareLogsSection } from "./DailyCareLogsSection";
-import { DailyStaffNotesSection } from "./DailyStaffNotesSection";
+import { DailyDateNav } from "@/features/hospitalization/components/DailyRecordsTab/DailyDateNav";
+import { DailyVitalsSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyVitalsSection";
+import { DailyCareLogsSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyCareLogsSection";
+import { DailyStaffNotesSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyStaffNotesSection";
 import {
     useDailyRecord,
     useCreateDailyRecord,
     useCreateDailyVital,
     useCreateCareLog,
     useCreateStaffNote,
-} from "../../api/daily-records";
+} from "@/features/hospitalization/api/daily-records";
 
 // Types
-import type { CreateVitalRecordRequest, CreateCareLogRecordRequest, CreateStaffNoteRecordRequest } from "../../api/daily-records-types";
+import type { CreateVitalRecordRequest, CreateCareLogRecordRequest, CreateStaffNoteRecordRequest } from "@/features/hospitalization/api/daily-records-types";
 
 interface DailyRecordsTabProps {
     hospitalizationId: string;

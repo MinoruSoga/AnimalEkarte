@@ -4,9 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
-import { CreateCareLogDTO, Task } from "../../types";
+import { CreateCareLogDTO, Task } from "@/features/hospitalization/types";
 import { DailyRecord } from "@/types";
-import { H_STYLES } from "../../styles";
+import { H_STYLES } from "@/features/hospitalization/styles";
 
 type CareLogType = DailyRecord["careLogs"][0]["type"];
 const VALID_LOG_TYPES: CareLogType[] = ["food", "medicine", "treatment", "other", "excretion"];

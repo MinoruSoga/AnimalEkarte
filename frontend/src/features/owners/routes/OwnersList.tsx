@@ -205,10 +205,37 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
     useSortableData(filteredPets, { numericKeys: ["ownerNumber"] });
 
+  // BUG-049: URLクエリパラメータからページ番号を読み取る
+  const urlPage = Number(searchParams.get("page") ?? 1);
+
   const pagination = usePagination(sortedData, {
     pageSize: 20,
     resetKey: deferredSearchTerm,
   });
+
+  // BUG-049: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
+  useEffect(() => {
+    const clampedPage = Math.max(1, Math.min(urlPage, pagination.totalPages));
+    if (clampedPage !== pagination.currentPage) {
+      pagination.goToPage(clampedPage);
+    }
+  // pagination.goToPage は安定した参照、totalPages は依存として必要
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlPage, pagination.totalPages]);
+
+  // BUG-049: ページ変更時にURLクエリパラメータを更新
+  const handlePageChange = useCallback((page: number) => {
+    pagination.goToPage(page);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (page === 1) {
+        next.delete("page");
+      } else {
+        next.set("page", String(page));
+      }
+      return next;
+    }, { replace: true });
+  }, [pagination, setSearchParams]);
 
   // フィルタ計算が遅延中（入力値 ≠ deferred 値）の視覚フィードバック
   const isFiltering = searchTerm !== deferredSearchTerm;
@@ -468,6 +495,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
         </FilteringIndicator>
 
         {/* Pagination */}
+        {/* BUG-049: onPageChange・onPrev・onNext を handlePageChange 経由にしてURLと同期 */}
         {pagination.totalPages > 1 ? (
           <Pagination
             currentPage={pagination.currentPage}
@@ -475,9 +503,9 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
             totalCount={pagination.totalCount}
             startIndex={pagination.startIndex}
             endIndex={pagination.endIndex}
-            onPageChange={pagination.goToPage}
-            onPrev={pagination.prevPage}
-            onNext={pagination.nextPage}
+            onPageChange={handlePageChange}
+            onPrev={() => handlePageChange(pagination.currentPage - 1)}
+            onNext={() => handlePageChange(pagination.currentPage + 1)}
           />
         ) : null}
       </div>

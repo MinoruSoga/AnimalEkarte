@@ -3,16 +3,16 @@ import { lazy, memo, Suspense, useCallback, useState } from "react";
 import { format, addDays, subDays } from "date-fns";
 import { Activity, Sun, Moon, Coffee, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DailyRecordDateNav } from "./DailyRecordDateNav";
-import { TimingSection } from "./TimingSection";
-import { DailyRecordTimeline } from "./DailyRecordTimeline";
-import { DailyCareNoteForm } from "./DailyCareNoteForm";
-const VitalDialog = lazy(() => import("./VitalDialog").then((m) => ({ default: m.VitalDialog })));
-const DailyCareLogDialog = lazy(() => import("./DailyCareLogDialog").then((m) => ({ default: m.DailyCareLogDialog })));
-const TaskCompleteDialog = lazy(() => import("./TaskCompleteDialog").then((m) => ({ default: m.TaskCompleteDialog })));
-import { useDailyRecordLogic } from "../../hooks/use-daily-record-logic";
-import { H_STYLES } from "../../styles";
-import type { DailyRecord, CarePlanItem, CreateVitalDTO, CreateCareLogDTO, Task } from "../../types";
+import { DailyRecordDateNav } from "@/features/hospitalization/components/DailyRecord/DailyRecordDateNav";
+import { TimingSection } from "@/features/hospitalization/components/DailyRecord/TimingSection";
+import { DailyRecordTimeline } from "@/features/hospitalization/components/DailyRecord/DailyRecordTimeline";
+import { DailyCareNoteForm } from "@/features/hospitalization/components/DailyRecord/DailyCareNoteForm";
+const VitalDialog = lazy(() => import("@/features/hospitalization/components/DailyRecord/VitalDialog").then((m) => ({ default: m.VitalDialog })));
+const DailyCareLogDialog = lazy(() => import("@/features/hospitalization/components/DailyRecord/DailyCareLogDialog").then((m) => ({ default: m.DailyCareLogDialog })));
+const TaskCompleteDialog = lazy(() => import("@/features/hospitalization/components/DailyRecord/TaskCompleteDialog").then((m) => ({ default: m.TaskCompleteDialog })));
+import { useDailyRecordLogic } from "@/features/hospitalization/hooks/use-daily-record-logic";
+import { H_STYLES } from "@/features/hospitalization/styles";
+import type { DailyRecord, CarePlanItem, CreateVitalDTO, CreateCareLogDTO, Task } from "@/features/hospitalization/types";
 
 interface DailyRecordSectionProps {
     records: DailyRecord[];

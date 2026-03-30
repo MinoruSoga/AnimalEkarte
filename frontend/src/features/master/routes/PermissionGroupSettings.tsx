@@ -160,17 +160,23 @@ const GroupSidePanel = memo(function GroupSidePanel({
     if (group !== null) onDeleteRequest(group);
   }, [group, onDeleteRequest]);
 
+  const handleNameChange = useCallback((v: string) => {
+    setName(v);
+    if (v.trim()) setNameError("");
+  }, []);
+
   return (
     <MasterSidePanel
       isNew={isNew}
       title={name}
-      onTitleChange={setName}
+      onTitleChange={handleNameChange}
       onClose={onClose}
       action={handleSave}
       onDelete={isNew ? undefined : handleDelete}
       icon={<Shield className={LAYOUT.pageIcon.innerIcon} />}
       isPending={isSavePending}
       titlePlaceholder="グループ名を入力"
+      titleError={nameError}
     >
       <PropertyRow label="カラー">
         <div className="flex items-center gap-2">

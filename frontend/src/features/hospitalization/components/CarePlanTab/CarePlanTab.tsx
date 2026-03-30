@@ -23,10 +23,10 @@ import {
     useCreateCarePlanItem,
     useUpdateCarePlanItem,
     useDeleteCarePlanItem,
-} from "../../api/care-plan-items";
+} from "@/features/hospitalization/api/care-plan-items";
 
 // Types
-import type { CarePlanItem, CarePlanItemType, CarePlanTiming, UpdateCarePlanItemInput } from "../../api/care-plan-items";
+import type { CarePlanItem, CarePlanItemType, CarePlanTiming, UpdateCarePlanItemInput } from "@/features/hospitalization/api/care-plan-items";
 
 // ---- Static constants ----
 

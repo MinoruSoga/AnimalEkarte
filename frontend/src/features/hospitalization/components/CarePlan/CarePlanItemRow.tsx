@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 
 // Relative
-import { H_STYLES } from "../../styles";
+import { H_STYLES } from "@/features/hospitalization/styles";
 
 // Types
-import type { CarePlanItem } from "../../types";
+import type { CarePlanItem } from "@/features/hospitalization/types";
 
 interface CarePlanItemProps {
     plan: CarePlanItem;

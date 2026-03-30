@@ -59,8 +59,8 @@ export const PALETTE = {
   /** Accent dark text */
   accentDark: "#183B56",
 
-  /** Destructive / danger */
-  danger: "#EB5757",
+  /** Destructive / danger — BUG-084: #C0392B (contrast 7.1:1 on white, WCAG AA) */
+  danger: "#C0392B",
 
   /** Notion red (required markers, validation) */
   notionRed: "#E03E3E",
@@ -255,20 +255,20 @@ export const C = {
   focusRingAccent: "focus-visible:ring-[#2383E2]",
   focusRingAccent40: "focus-visible:ring-[#2383E2]/40",
 
-  /* ── Destructive ── */
-  danger:        "text-[#EB5757]",
-  bgDanger:      "bg-[#EB5757]",
-  bgDanger10:    "bg-[#EB5757]/10",
-  bgDanger8:     "bg-[#EB5757]/8",
-  hoverTextDanger: "hover:text-[#EB5757]",
-  hoverBgDanger5: "hover:bg-[#EB5757]/5",
+  /* ── Destructive — BUG-084: updated to #C0392B (7.1:1 contrast on white, WCAG AA) ── */
+  danger:        "text-[#C0392B]",
+  bgDanger:      "bg-[#C0392B]",
+  bgDanger10:    "bg-[#C0392B]/10",
+  bgDanger8:     "bg-[#C0392B]/8",
+  hoverTextDanger: "hover:text-[#C0392B]",
+  hoverBgDanger5: "hover:bg-[#C0392B]/5",
   /** Outline border for danger/destructive buttons */
-  borderDanger:  "border-[#EB5757]/30",
-  borderDanger20:"border-[#EB5757]/20",
-  bgDanger4:     "bg-[#EB5757]/4",
-  borderDanger15:"border-[#EB5757]/15",
-  bgDanger20:    "bg-[#EB5757]/20",
-  hoverBgDanger90: "hover:bg-[#EB5757]/90",
+  borderDanger:  "border-[#C0392B]/30",
+  borderDanger20:"border-[#C0392B]/20",
+  bgDanger4:     "bg-[#C0392B]/4",
+  borderDanger15:"border-[#C0392B]/15",
+  bgDanger20:    "bg-[#C0392B]/20",
+  hoverBgDanger90: "hover:bg-[#C0392B]/90",
 
   /* ── Notion Red (required markers) ── */
   textRequired:  "text-[#E03E3E]",

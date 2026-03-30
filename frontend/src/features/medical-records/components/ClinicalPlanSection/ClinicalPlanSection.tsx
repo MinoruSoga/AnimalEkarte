@@ -7,8 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { C, STYLE } from "@/lib/design-tokens";
 
 // Relative
-import { useGetClinicalPlan, useUpdateClinicalPlan } from "../../api/clinical-plan";
-import type { UpdateClinicalPlanInput } from "../../api/clinical-plan";
+import { useGetClinicalPlan, useUpdateClinicalPlan } from "@/features/medical-records/api/clinical-plan";
+import type { UpdateClinicalPlanInput } from "@/features/medical-records/api/clinical-plan";
 
 // ── Types ─────────────────────────────────────────────────────────────
 

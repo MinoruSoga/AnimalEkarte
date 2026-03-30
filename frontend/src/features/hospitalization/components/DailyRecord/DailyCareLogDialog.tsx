@@ -11,10 +11,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
 
 // Relative
-import { H_STYLES } from "../../styles";
+import { H_STYLES } from "@/features/hospitalization/styles";
 
 // Types
-import type { CreateCareLogDTO } from "../../types";
+import type { CreateCareLogDTO } from "@/features/hospitalization/types";
 
 type LogType = "food" | "excretion" | "medicine" | "other";
 

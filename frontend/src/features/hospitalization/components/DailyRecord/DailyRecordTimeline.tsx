@@ -2,10 +2,10 @@
 import { Badge } from "@/components/ui/badge";
 
 // Relative
-import { H_STYLES } from "../../styles";
+import { H_STYLES } from "@/features/hospitalization/styles";
 
 // Types
-import type { TimelineItem } from "../../types";
+import type { TimelineItem } from "@/features/hospitalization/types";
 
 interface DailyRecordTimelineProps {
     items: TimelineItem[];

@@ -20,8 +20,10 @@ import { createOwner } from "../api/create-owner";
 import { updateOwner } from "../api/update-owner";
 
 // BUG-067: NULL バイト・制御文字を除去して安全なテキストを返す（多層防衛）
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHAR_RE = /[\x00-\x1F\x7F]/g;
 const sanitizeText = (value: string): string =>
-  value.replace(/[\u0000-\u001F\u007F]/g, "").trim();
+  value.replace(CONTROL_CHAR_RE, "").trim();
 
 const MEMBERSHIP_TYPE_TO_API: Record<string, string> = {
   "非会員": "non_member",
@@ -174,7 +176,7 @@ export function useOwnerForm(
           phone: sanitizeText(ownerData.phone),
           company_phone: sanitizeText(ownerData.companyPhone),
           email: sanitizeText(ownerData.email),
-          remarks: ownerData.remarks.replace(/[\u0000-\u001F\u007F]/g, ""),
+          remarks: ownerData.remarks.replace(CONTROL_CHAR_RE, ""),
           is_dangerous: ownerData.isDangerous,
           discount_rate: ownerData.discountRate,
           membership_type: MEMBERSHIP_TYPE_TO_API[ownerData.membershipType] ?? ownerData.membershipType,

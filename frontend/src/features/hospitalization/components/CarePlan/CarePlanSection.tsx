@@ -8,15 +8,15 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // Relative
-import { CarePlanItemRow } from "./CarePlanItemRow";
-import { H_STYLES } from "../../styles";
+import { CarePlanItemRow } from "@/features/hospitalization/components/CarePlan/CarePlanItemRow";
+import { H_STYLES } from "@/features/hospitalization/styles";
 
 const CarePlanDialog = lazy(() =>
-  import("./CarePlanDialog").then((m) => ({ default: m.CarePlanDialog }))
+  import("@/features/hospitalization/components/CarePlan/CarePlanDialog").then((m) => ({ default: m.CarePlanDialog }))
 );
 
 // Types
-import type { CarePlanItem, CreateCarePlanDTO, UpdateCarePlanDTO } from "../../types";
+import type { CarePlanItem, CreateCarePlanDTO, UpdateCarePlanDTO } from "@/features/hospitalization/types";
 
 interface CarePlanSectionProps {
     plans: CarePlanItem[];

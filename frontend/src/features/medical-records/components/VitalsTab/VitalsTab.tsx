@@ -15,11 +15,11 @@ const EDIT_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-
 const ADD_INPUT_CLASS = `h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 bg-white ${C.text} outline-none focus:border-[#2383E2]`;
 
 // Relative
-import { useGetVitals } from "../../api/vitals";
-import { useCreateVital } from "../../api/vitals";
-import { useUpdateVital } from "../../api/vitals";
-import { useDeleteVital } from "../../api/vitals";
-import type { Vital, CreateVitalInput, UpdateVitalInput } from "../../types";
+import { useGetVitals } from "@/features/medical-records/api/vitals";
+import { useCreateVital } from "@/features/medical-records/api/vitals";
+import { useUpdateVital } from "@/features/medical-records/api/vitals";
+import { useDeleteVital } from "@/features/medical-records/api/vitals";
+import type { Vital, CreateVitalInput, UpdateVitalInput } from "@/features/medical-records/types";
 
 // ── 静的定数 ─────────────────────────────────────────────────────────
 

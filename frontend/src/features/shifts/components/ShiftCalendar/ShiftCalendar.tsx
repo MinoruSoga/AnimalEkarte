@@ -9,10 +9,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Shift } from "../../types";
-import { ShiftCell } from "../ShiftCell/ShiftCell";
+import type { Shift } from "@/features/shifts/types";
+import { ShiftCell } from "@/features/shifts/components/ShiftCell/ShiftCell";
+
 const ShiftFormDialog = lazy(() =>
-  import("../ShiftFormDialog/ShiftFormDialog").then((m) => ({ default: m.ShiftFormDialog }))
+  import("@/features/shifts/components/ShiftFormDialog/ShiftFormDialog").then((m) => ({ default: m.ShiftFormDialog }))
 );
 
 export interface StaffItem {
