@@ -473,13 +473,13 @@ export function OwnerForm({ petMutations }: { petMutations?: PetMutations } = {}
   useEffect(() => {
     if (formState.success) {
       markClean();
-      if (!isEdit && formState.ownerId) {
-        navigate(paths.owners.detail.getHref(formState.ownerId));
-      } else {
+      if (!isEdit && formState.data) {
+        navigate(paths.owners.detail.getHref(formState.data));
+      } else if (isEdit) {
         navigate(paths.owners.getHref());
       }
     }
-  }, [formState.success, formState.ownerId, formState.timestamp, navigate, markClean, isEdit]);
+  }, [formState.success, formState.data, formState.timestamp, navigate, markClean, isEdit]);
 
   // BUG-084: バリデーションエラー後に最初のエラーフィールドへフォーカスを移動する
   // フォームのアクセシビリティ改善（WCAG 2.4.3 Focus Order / 3.3.1 Error Identification）

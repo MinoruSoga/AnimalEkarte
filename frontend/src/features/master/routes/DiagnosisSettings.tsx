@@ -132,35 +132,60 @@ const DiagnosisCategorySidePanel = memo(function DiagnosisCategorySidePanel({
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,
   }));
+  const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
-  const handleAction = () => {
+
+  const handleTitleChange = useCallback((v: string) => {
+    setFormData((prev) => ({ ...prev, name: v }));
+    setIsDirty(true);
+    if (v.trim()) setNameError("");
+  }, []);
+
+  const handleDescriptionChange = useCallback((v: string) => {
+    setFormData((prev) => ({ ...prev, description: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleToggleActive = useCallback(() => {
+    setFormData((prev) => ({ ...prev, isActive: !prev.isActive }));
+    setIsDirty(true);
+  }, []);
+
+  const handleAction = useCallback(() => {
     if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
     onSave(formData);
-  };
+    setIsDirty(false);
+  }, [formData, onSave]);
+
+  const handleClose = useCallback(() => {
+    setIsDirty(false);
+    onClose();
+  }, [onClose]);
 
   return (
     <MasterSidePanel
       isNew={item === null}
       title={formData.name}
-      onTitleChange={(v) => { setFormData((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
-      onClose={onClose}
+      onTitleChange={handleTitleChange}
+      onClose={handleClose}
       action={handleAction}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<FolderTree className={LAYOUT.pageIcon.innerIcon} />}
+      isDirty={isDirty}
       titleError={nameError}
     >
       <StatusToggleButton
         isActive={formData.isActive}
-        onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
+        onToggle={handleToggleActive}
       />
       <PropertyRow label="備考">
         <PropertyInput
           value={formData.description}
-          onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
+          onChange={handleDescriptionChange}
           placeholder="補足情報など"
         />
       </PropertyRow>
@@ -197,15 +222,44 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
     description: item?.description ?? "",
     isActive: item?.isActive ?? true,
   }));
+  const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
-  const handleAction = () => {
+
+  const handleTitleChange = useCallback((v: string) => {
+    setFormData((prev) => ({ ...prev, name: v }));
+    setIsDirty(true);
+    if (v.trim()) setNameError("");
+  }, []);
+
+  const handleCategoryChange = useCallback((v: string) => {
+    setFormData((prev) => ({ ...prev, diagnosisCategoryId: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleDescriptionChange = useCallback((v: string) => {
+    setFormData((prev) => ({ ...prev, description: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleToggleActive = useCallback(() => {
+    setFormData((prev) => ({ ...prev, isActive: !prev.isActive }));
+    setIsDirty(true);
+  }, []);
+
+  const handleAction = useCallback(() => {
     if (!formData.name.trim()) {
       setNameError("診断病名を入力してください");
       return;
     }
     setNameError("");
     onSave(formData);
-  };
+    setIsDirty(false);
+  }, [formData, onSave]);
+
+  const handleClose = useCallback(() => {
+    setIsDirty(false);
+    onClose();
+  }, [onClose]);
 
   // js-cache-function-results: API由来のJSXリストをuseMemoでキャッシュ
   const categorySelectItems = useMemo(
@@ -219,21 +273,22 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
     <MasterSidePanel
       isNew={item === null}
       title={formData.name}
-      onTitleChange={(v) => { setFormData((prev) => ({ ...prev, name: v })); if (v.trim()) setNameError(""); }}
-      onClose={onClose}
+      onTitleChange={handleTitleChange}
+      onClose={handleClose}
       action={handleAction}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<ClipboardList className={LAYOUT.pageIcon.innerIcon} />}
+      isDirty={isDirty}
       titleError={nameError}
     >
       <StatusToggleButton
         isActive={formData.isActive}
-        onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
+        onToggle={handleToggleActive}
       />
       <PropertyRow label="カテゴリ">
         <Select
           value={formData.diagnosisCategoryId}
-          onValueChange={(v) => setFormData((prev) => ({ ...prev, diagnosisCategoryId: v }))}
+          onValueChange={handleCategoryChange}
         >
           <SelectTrigger className={STYLE.selectCompact}>
             <SelectValue placeholder="カテゴリを選択" />
@@ -246,7 +301,7 @@ const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
       <PropertyRow label="備考">
         <PropertyInput
           value={formData.description}
-          onChange={(v) => setFormData((prev) => ({ ...prev, description: v }))}
+          onChange={handleDescriptionChange}
           placeholder="補足情報など"
         />
       </PropertyRow>

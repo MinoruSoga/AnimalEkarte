@@ -1,4 +1,4 @@
-import { useState, memo } from "react";
+import { useState, memo, useCallback } from "react";
 import { DndContext, DragOverlay, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortableList } from "@/hooks/use-sortable-list";
@@ -79,48 +79,88 @@ const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
     taxRate: item?.taxRate ?? 0.1,
     isActive: item?.isActive ?? true,
   }));
+  const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
-  const handleAction = () => {
+
+  const handleTitleChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, name: v }));
+    setIsDirty(true);
+    if (v.trim()) setNameError("");
+  }, []);
+
+  const handleCategoryChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, category: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleUnitPriceChange = useCallback((v: number) => {
+    setF((p) => ({ ...p, unitPrice: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleTaxTypeChange = useCallback((v: TaxType) => {
+    setF((p) => ({ ...p, taxType: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleTaxRateChange = useCallback((v: number) => {
+    setF((p) => ({ ...p, taxRate: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleToggleActive = useCallback(() => {
+    setF((p) => ({ ...p, isActive: !p.isActive }));
+    setIsDirty(true);
+  }, []);
+
+  const handleAction = useCallback(() => {
     if (!f.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
     onSave(f);
-  };
+    setIsDirty(false);
+  }, [f, onSave]);
+
+  const handleClose = useCallback(() => {
+    setIsDirty(false);
+    onClose();
+  }, [onClose]);
 
   return (
     <MasterSidePanel
       isNew={item === null}
       title={f.name}
-      onTitleChange={(v) => { setF((p) => ({ ...p, name: v })); if (v.trim()) setNameError(""); }}
-      onClose={onClose}
+      onTitleChange={handleTitleChange}
+      onClose={handleClose}
       action={handleAction}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<ShoppingBag className={LAYOUT.pageIcon.innerIcon} />}
       titlePlaceholder="品目名"
+      isDirty={isDirty}
       titleError={nameError}
     >
-      <StatusToggleButton isActive={f.isActive} onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))} />
+      <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="カテゴリ">
-        <Select value={f.category} onValueChange={(v) => setF((p) => ({ ...p, category: v }))}>
+        <Select value={f.category} onValueChange={handleCategoryChange}>
           <SelectTrigger className={STYLE.selectCompact}>
             <SelectValue placeholder="選択" />
           </SelectTrigger>
           <SelectContent>{CATEGORY_SELECT_ITEMS}</SelectContent>
         </Select>
       </PropertyRow>
-      <MoneyInput value={f.unitPrice} onChange={(v) => setF((p) => ({ ...p, unitPrice: v }))} />
+      <MoneyInput value={f.unitPrice} onChange={handleUnitPriceChange} />
       <PropertyRow label="課税区分">
         <TaxTypeSelector
           value={f.taxType}
-          onChange={(v) => setF((p) => ({ ...p, taxType: v }))}
+          onChange={handleTaxTypeChange}
         />
       </PropertyRow>
       <PropertyRow label="税率">
         <TaxRateSelector
           value={f.taxRate}
-          onChange={(v) => setF((p) => ({ ...p, taxRate: v }))}
+          onChange={handleTaxRateChange}
         />
       </PropertyRow>
     </MasterSidePanel>

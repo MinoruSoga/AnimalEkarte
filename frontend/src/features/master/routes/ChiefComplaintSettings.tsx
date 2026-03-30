@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useState, useCallback } from "react";
 import { MessageSquareText } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -39,26 +39,52 @@ const SidePanel = memo(function SidePanel({
   const [f, setF] = useState<FormData>(() => ({
     name: item?.name ?? "", description: item?.description ?? "", isActive: item?.isActive ?? true,
   }));
+  const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
-  const handleAction = () => {
+
+  const handleTitleChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, name: v }));
+    setIsDirty(true);
+    if (v.trim()) setNameError("");
+  }, []);
+
+  const handleDescriptionChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setF((p) => ({ ...p, description: e.target.value }));
+    setIsDirty(true);
+  }, []);
+
+  const handleToggleActive = useCallback(() => {
+    setF((p) => ({ ...p, isActive: !p.isActive }));
+    setIsDirty(true);
+  }, []);
+
+  const handleAction = useCallback(() => {
     if (!f.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
     onSave(f);
-  };
+    setIsDirty(false);
+  }, [f, onSave]);
+
+  const handleClose = useCallback(() => {
+    setIsDirty(false);
+    onClose();
+  }, [onClose]);
+
   return (
     <MasterSidePanel isNew={item === null} title={f.name}
-      onTitleChange={(v) => { setF((p) => ({ ...p, name: v })); if (v.trim()) setNameError(""); }}
-      onClose={onClose} action={handleAction}
+      onTitleChange={handleTitleChange}
+      onClose={handleClose} action={handleAction}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<MessageSquareText className={LAYOUT.pageIcon.innerIcon} />}
+      isDirty={isDirty}
       titleError={nameError}>
-      <StatusToggleButton isActive={f.isActive} onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))} />
+      <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="説明">
         <textarea className={`${MASTER_INPUT_CLASS} min-h-[80px] resize-none`}
-          value={f.description} onChange={(e) => setF((p) => ({ ...p, description: e.target.value }))} placeholder="説明を入力" />
+          value={f.description} onChange={handleDescriptionChange} placeholder="説明を入力" />
       </PropertyRow>
     </MasterSidePanel>
   );

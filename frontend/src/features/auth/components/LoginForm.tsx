@@ -7,6 +7,8 @@ import { isAxiosError } from "axios";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON } from "@/lib/design-tokens";
+import type { ActionState } from "@/types/form";
+import { INITIAL_ACTION_STATE } from "@/types/form";
 // AuthProvider はこのページを囲まないため useAuth() は使用不可。
 // login API を直接呼び出し、成功後に navigate("/") で保護ルート側に遷移する。
 import { login as loginApi } from "../api/login";
@@ -76,37 +78,34 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+const [formState, formAction, isPending] = useActionState(
+  async (_prevState: ActionState, formData: FormData): Promise<ActionState> => {
+    const emailValue = (formData.get("login-email") as string).trim();
+    const passwordValue = formData.get("login-password") as string;
 
-  interface ActionFormState {
-    error: string | null;
-  }
+    if (!emailValue) return { success: false, error: "メールアドレスを入力してください", timestamp: Date.now() };
+    if (!passwordValue) return { success: false, error: "パスワードを入力してください", timestamp: Date.now() };
 
-  const [formState, formAction, isPending] = useActionState(
-    async (_prevState: ActionFormState, formData: FormData): Promise<ActionFormState> => {
-      const emailValue = (formData.get("login-email") as string).trim();
-      const passwordValue = formData.get("login-password") as string;
-
-      if (!emailValue) return { error: "メールアドレスを入力してください" };
-      if (!passwordValue) return { error: "パスワードを入力してください" };
-
-      try {
-        await loginApi(emailValue, passwordValue);
-        const from = (location.state as any)?.from || "/";
-        navigate(from, { replace: true });
-        return { error: null };
-      } catch (err) {
-        let msg = "ログインに失敗しました。しばらくしてから再度お試しください";
-        if (isAxiosError(err)) {
-          if (!err.response) msg = "接続できません。ネットワークをご確認ください";
-          else if (err.response.status === 401) msg = "メールアドレスまたはパスワードが違います";
-          else if (err.response.status === 403) msg = "このアカウントはアクセスが制限されています";
-          else if (err.response.status >= 500) msg = "サーバーエラーが発生しました。しばらくしてからお試しください";
-        }
-        return { error: msg };
+    try {
+      await loginApi(emailValue, passwordValue);
+      const from = (location.state as { from?: string })?.from || "/";
+      navigate(from, { replace: true });
+      return { success: true, error: null, timestamp: Date.now() };
+    } catch (err) {
+      // BUG-047: axios エラーを日本語メッセージに変換
+      let msg = "ログインに失敗しました。しばらくしてから再度お試しください";
+      if (isAxiosError(err)) {
+        if (!err.response) msg = "接続できません。ネットワークをご確認ください";
+        else if (err.response.status === 401) msg = "メールアドレスまたはパスワードが違います";
+        else if (err.response.status === 403) msg = "このアカウントはアクセスが制限されています";
+        else if (err.response.status >= 500) msg = "サーバーエラーが発生しました。しばらくしてからお試しください";
       }
-    },
-    { error: null }
-  );
+      return { success: false, error: msg, timestamp: Date.now() };
+    }
+  },
+  INITIAL_ACTION_STATE
+);
+
 
   const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);

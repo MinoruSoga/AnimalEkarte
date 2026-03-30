@@ -5,6 +5,8 @@ import { useQueryClient } from "@tanstack/react-query";
 // External
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
+import type { ActionState } from "@/types/form";
+import { INITIAL_ACTION_STATE } from "@/types/form";
 
 // Internal - shared (feature 間 import 禁止のため @/features/pets は使用不可)
 import { transformCreatePetRequest, transformUpdatePetRequest, PET_STATUS_REVERSE_MAP } from "@/lib/transforms/pet";
@@ -94,13 +96,6 @@ function mapOwnerPetsToFormData(owner: Owner): PetFormData[] {
   }));
 }
 
-interface FormState {
-  fieldErrors: Record<string, string>;
-  success: boolean;
-  ownerId?: string;
-  timestamp: number;
-}
-
 export function useOwnerForm(
   id?: string,
   initialOwner?: Owner,
@@ -133,7 +128,7 @@ export function useOwnerForm(
 
       if (Object.keys(errors).length > 0) {
         toast.error("必須項目が未入力です");
-        return { fieldErrors: errors, success: false, timestamp: Date.now() };
+        return { success: false, fieldErrors: errors, timestamp: Date.now() };
       }
 
       try {
@@ -161,7 +156,7 @@ export function useOwnerForm(
           await updateOwner(id, updateData);
           await queryClient.invalidateQueries({ queryKey: ["owners"] });
           toast.success("飼主情報を更新しました");
-          return { fieldErrors: {}, success: true, timestamp: Date.now() };
+          return { success: true, timestamp: Date.now() };
         } else {
           const createData: CreateOwnerRequest = {
             ...ownerRequestPayload,
@@ -205,19 +200,19 @@ export function useOwnerForm(
           }
 
           toast.success("飼主情報を登録しました");
-          return { fieldErrors: {}, success: true, ownerId: newOwner.id, timestamp: Date.now() };
+          return { success: true, data: newOwner.id, timestamp: Date.now() };
         }
       } catch (error) {
         handleApiError(error, "保存");
         return { ...prevState, success: false, timestamp: Date.now() };
       }
     },
-    { fieldErrors: {}, success: false, timestamp: 0 }
+    INITIAL_ACTION_STATE
   );
 
   // Sync manual errors when formState changes (new submission)
   useEffect(() => {
-    setManualErrors(formState.fieldErrors);
+    setManualErrors(formState.fieldErrors || {});
   }, [formState.fieldErrors, formState.timestamp]);
 
   const handleAddPet = () => {

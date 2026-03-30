@@ -88,6 +88,7 @@ const GroupSidePanel = memo(function GroupSidePanel({
   const [rules, setRules] = useState<RuleInput[]>(() =>
     groupRulesToRuleInputs(group?.rules),
   );
+  const [isDirty, setIsDirty] = useState(false);
   // BUG-083: inline validation error for the name field
   const [nameError, setNameError] = useState("");
 
@@ -99,14 +100,17 @@ const GroupSidePanel = memo(function GroupSidePanel({
 
   const handleColorChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     setColor(e.target.value);
+    setIsDirty(true);
   }, []);
 
   const handleDescriptionChange = useCallback((e: ChangeEvent<HTMLTextAreaElement>) => {
     setDescription(e.target.value);
+    setIsDirty(true);
   }, []);
 
   const handleRulesChange = useCallback((updated: RuleInput[]) => {
     setRules(updated);
+    setIsDirty(true);
   }, []);
 
   const handleSave = useCallback(() => {
@@ -137,6 +141,7 @@ const GroupSidePanel = memo(function GroupSidePanel({
         }
         await setRulesMutation.mutateAsync({ groupId, rules });
         toast.success(isNew ? "権限グループを作成しました" : "権限グループを更新しました");
+        setIsDirty(false);
         onClose();
       } catch {
         toast.error(isNew ? "グループの作成に失敗しました" : "グループの更新に失敗しました");
@@ -162,19 +167,26 @@ const GroupSidePanel = memo(function GroupSidePanel({
 
   const handleNameChange = useCallback((v: string) => {
     setName(v);
+    setIsDirty(true);
     if (v.trim()) setNameError("");
   }, []);
+
+  const handleClose = useCallback(() => {
+    setIsDirty(false);
+    onClose();
+  }, [onClose]);
 
   return (
     <MasterSidePanel
       isNew={isNew}
       title={name}
       onTitleChange={handleNameChange}
-      onClose={onClose}
+      onClose={handleClose}
       action={handleSave}
       onDelete={isNew ? undefined : handleDelete}
       icon={<Shield className={LAYOUT.pageIcon.innerIcon} />}
       isPending={isSavePending}
+      isDirty={isDirty}
       titlePlaceholder="グループ名を入力"
       titleError={nameError}
     >

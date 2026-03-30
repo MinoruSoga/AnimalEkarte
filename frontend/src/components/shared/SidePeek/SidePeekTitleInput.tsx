@@ -22,8 +22,13 @@ export function SidePeekTitleInput({
 }: SidePeekTitleInputProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
-      e.preventDefault();
-      onSave?.();
+      if (onSave) {
+        // onSave が渡されている場合は手動で保存を呼び出し、
+        // form のデフォルト送信（改行等）を防ぐ
+        e.preventDefault();
+        onSave();
+      }
+      // onSave が未定義の場合は <form action={fn}> のネイティブ送信に委ねる
     }
   };
 

@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useState, useCallback } from "react";
 import { Shield } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -36,33 +36,69 @@ const InsuranceSidePanel = memo(function InsuranceSidePanel({
     coverageRate: item?.coverageRate != null ? String(item.coverageRate) : "0",
     contactPhone: item?.contactPhone ?? "", isActive: item?.isActive ?? true,
   }));
+  const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
-  const handleAction = () => {
+
+  const handleTitleChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, name: v }));
+    setIsDirty(true);
+    if (v.trim()) setNameError("");
+  }, []);
+
+  const handleCoverageRateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setF((p) => ({ ...p, coverageRate: e.target.value }));
+    setIsDirty(true);
+  }, []);
+
+  const handleContactPhoneChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setF((p) => ({ ...p, contactPhone: e.target.value }));
+    setIsDirty(true);
+  }, []);
+
+  const handleDescriptionChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, description: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleToggleActive = useCallback(() => {
+    setF((p) => ({ ...p, isActive: !p.isActive }));
+    setIsDirty(true);
+  }, []);
+
+  const handleAction = useCallback(() => {
     if (!f.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
     onSave(f);
-  };
+    setIsDirty(false);
+  }, [f, onSave]);
+
+  const handleClose = useCallback(() => {
+    setIsDirty(false);
+    onClose();
+  }, [onClose]);
+
   return (
     <MasterSidePanel isNew={item === null} title={f.name}
-      onTitleChange={(v) => { setF((p) => ({ ...p, name: v })); if (v.trim()) setNameError(""); }}
-      onClose={onClose} action={handleAction}
+      onTitleChange={handleTitleChange}
+      onClose={handleClose} action={handleAction}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<Shield className={LAYOUT.pageIcon.innerIcon} />}
+      isDirty={isDirty}
       titleError={nameError}>
-      <StatusToggleButton isActive={f.isActive} onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))} />
+      <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="補償率(%)">
         <input type="number" min={0} max={100} className={MASTER_INPUT_CLASS}
-          value={f.coverageRate} onChange={(e) => setF((p) => ({ ...p, coverageRate: e.target.value }))} placeholder="0" />
+          value={f.coverageRate} onChange={handleCoverageRateChange} placeholder="0" />
       </PropertyRow>
       <PropertyRow label="連絡先">
         <input type="tel" className={MASTER_INPUT_CLASS}
-          value={f.contactPhone} onChange={(e) => setF((p) => ({ ...p, contactPhone: e.target.value }))} placeholder="電話番号" />
+          value={f.contactPhone} onChange={handleContactPhoneChange} placeholder="電話番号" />
       </PropertyRow>
       <PropertyRow label="備考">
-        <PropertyInput value={f.description} onChange={(v) => setF((p) => ({ ...p, description: v }))} placeholder="補足情報など" />
+        <PropertyInput value={f.description} onChange={handleDescriptionChange} placeholder="補足情報など" />
       </PropertyRow>
     </MasterSidePanel>
   );

@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useState, useCallback } from "react";
 import { Bed } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableCell } from "@/components/ui/table";
@@ -43,49 +43,100 @@ const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
     isActive: item?.isActive ?? true, bodySize: item?.bodySize ?? "", billingUnit: item?.billingUnit ?? "",
     taxType: item?.taxType ?? "excluded", taxRate: item?.taxRate ?? 0.1,
   }));
+  const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
-  const handleAction = () => {
+
+  const handleTitleChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, name: v }));
+    setIsDirty(true);
+    if (v.trim()) setNameError("");
+  }, []);
+
+  const handleBodySizeChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, bodySize: v as BodySize }));
+    setIsDirty(true);
+  }, []);
+
+  const handleBillingUnitChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, billingUnit: v as BillingUnit }));
+    setIsDirty(true);
+  }, []);
+
+  const handlePriceChange = useCallback((v: number) => {
+    setF((p) => ({ ...p, price: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleTaxTypeChange = useCallback((v: TaxType) => {
+    setF((p) => ({ ...p, taxType: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleTaxRateChange = useCallback((v: number) => {
+    setF((p) => ({ ...p, taxRate: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleDescriptionChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, description: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleToggleActive = useCallback(() => {
+    setF((p) => ({ ...p, isActive: !p.isActive }));
+    setIsDirty(true);
+  }, []);
+
+  const handleAction = useCallback(() => {
     if (!f.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
     onSave(f);
-  };
+    setIsDirty(false);
+  }, [f, onSave]);
+
+  const handleClose = useCallback(() => {
+    setIsDirty(false);
+    onClose();
+  }, [onClose]);
+
   return (
     <MasterSidePanel isNew={item === null} title={f.name}
-      onTitleChange={(v) => { setF((p) => ({ ...p, name: v })); if (v.trim()) setNameError(""); }}
-      onClose={onClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onTitleChange={handleTitleChange}
+      onClose={handleClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<Bed className={LAYOUT.pageIcon.innerIcon} />}
+      isDirty={isDirty}
       titleError={nameError}>
-      <StatusToggleButton isActive={f.isActive} onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))} />
+      <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="対象体格">
-        <Select value={f.bodySize} onValueChange={(v) => setF((p) => ({ ...p, bodySize: v as BodySize }))}>
+        <Select value={f.bodySize} onValueChange={handleBodySizeChange}>
           <SelectTrigger className={STYLE.selectCompact}><SelectValue placeholder="選択" /></SelectTrigger>
           <SelectContent>{BODY_SIZE_SELECT_ITEMS}</SelectContent>
         </Select>
       </PropertyRow>
       <PropertyRow label="料金単位">
-        <Select value={f.billingUnit} onValueChange={(v) => setF((p) => ({ ...p, billingUnit: v as BillingUnit }))}>
+        <Select value={f.billingUnit} onValueChange={handleBillingUnitChange}>
           <SelectTrigger className={STYLE.selectCompact}><SelectValue placeholder="選択" /></SelectTrigger>
           <SelectContent>{BILLING_UNIT_SELECT_ITEMS}</SelectContent>
         </Select>
       </PropertyRow>
-      <MoneyInput value={f.price} onChange={(v) => setF((p) => ({ ...p, price: v }))} />
+      <MoneyInput value={f.price} onChange={handlePriceChange} />
       <PropertyRow label="課税区分">
         <TaxTypeSelector
           value={f.taxType}
-          onChange={(v) => setF((p) => ({ ...p, taxType: v }))}
+          onChange={handleTaxTypeChange}
         />
       </PropertyRow>
       <PropertyRow label="税率">
         <TaxRateSelector
           value={f.taxRate}
-          onChange={(v) => setF((p) => ({ ...p, taxRate: v }))}
+          onChange={handleTaxRateChange}
         />
       </PropertyRow>
       <PropertyRow label="備考">
-        <PropertyInput value={f.description} onChange={(v) => setF((p) => ({ ...p, description: v }))} placeholder="補足情報など" />
+        <PropertyInput value={f.description} onChange={handleDescriptionChange} placeholder="補足情報など" />
       </PropertyRow>
     </MasterSidePanel>
   );

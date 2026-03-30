@@ -120,6 +120,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
     email: "",
     password: "",
   }));
+  const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
   // ── Permission groups state ──────────────────────
@@ -141,6 +142,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
         const current = prev ?? userDetail?.permissionGroupIds ?? [];
         return checked ? [...current, groupId] : current.filter((id) => id !== groupId);
       });
+      setIsDirty(true);
     },
     [userDetail?.permissionGroupIds],
   );
@@ -155,28 +157,66 @@ const StaffSidePanel = memo(function StaffSidePanel({
     if (!isNew && linkedUserId) {
       onSaveGroups(linkedUserId, groupIds);
     }
+    setIsDirty(false);
   }, [f, isNew, linkedUserId, groupIds, onSave, onSaveGroups]);
+
+  const handleTitleChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, name: v }));
+    setIsDirty(true);
+    if (v.trim()) setNameError("");
+  }, []);
+
+  const handleToggleActive = useCallback(() => {
+    setF((p) => ({ ...p, isActive: !p.isActive }));
+    setIsDirty(true);
+  }, []);
+
+  const handleStaffRoleChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, staffRole: v as StaffRoleValue }));
+    setIsDirty(true);
+  }, []);
+
+  const handleLicenseNumberChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setF((p) => ({ ...p, licenseNumber: e.target.value }));
+    setIsDirty(true);
+  }, []);
+
+  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setF((p) => ({ ...p, email: e.target.value }));
+    setIsDirty(true);
+  }, []);
+
+  const handlePasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setF((p) => ({ ...p, password: e.target.value }));
+    setIsDirty(true);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setIsDirty(false);
+    onClose();
+  }, [onClose]);
 
   return (
     <MasterSidePanel
       isNew={isNew}
       title={f.name}
-      onTitleChange={(v) => { setF((p) => ({ ...p, name: v })); if (v.trim()) setNameError(""); }}
-      onClose={onClose}
+      onTitleChange={handleTitleChange}
+      onClose={handleClose}
       action={handleSave}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<UserRound className={LAYOUT.pageIcon.innerIcon} />}
+      isDirty={isDirty}
       titleError={nameError}
     >
       <StatusToggleButton
         isActive={f.isActive}
-        onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))}
+        onToggle={handleToggleActive}
       />
 
       <PropertyRow label="職種">
         <Select
           value={f.staffRole}
-          onValueChange={(v) => setF((p) => ({ ...p, staffRole: v as StaffRoleValue }))}
+          onValueChange={handleStaffRoleChange}
         >
           <SelectTrigger className={STYLE.selectCompact}>
             <SelectValue placeholder="選択" />
@@ -190,7 +230,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
           type="text"
           className={MASTER_INPUT_CLASS}
           value={f.licenseNumber}
-          onChange={(e) => setF((p) => ({ ...p, licenseNumber: e.target.value }))}
+          onChange={handleLicenseNumberChange}
           placeholder="空"
         />
       </PropertyRow>
@@ -202,7 +242,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
               type="email"
               className={MASTER_INPUT_CLASS}
               value={f.email}
-              onChange={(e) => setF((p) => ({ ...p, email: e.target.value }))}
+              onChange={handleEmailChange}
               placeholder="例: staff@clinic.com"
             />
           </PropertyRow>
@@ -211,7 +251,7 @@ const StaffSidePanel = memo(function StaffSidePanel({
               type="password"
               className={MASTER_INPUT_CLASS}
               value={f.password}
-              onChange={(e) => setF((p) => ({ ...p, password: e.target.value }))}
+              onChange={handlePasswordChange}
               placeholder="8文字以上"
             />
           </PropertyRow>

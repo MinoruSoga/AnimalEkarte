@@ -39,31 +39,67 @@ const ServiceTypeSidePanel = memo(function ServiceTypeSidePanel({
   const [f, setF] = useState<ServiceTypeFormData>(() => ({
     name: item?.name ?? "", description: item?.description ?? "", color: item?.color ?? "#3B82F6", isActive: item?.isActive ?? true,
   }));
+  const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
-  const handleAction = () => {
+
+  const handleTitleChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, name: v }));
+    setIsDirty(true);
+    if (v.trim()) setNameError("");
+  }, []);
+
+  const handleColorPickerChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setF((p) => ({ ...p, color: e.target.value }));
+    setIsDirty(true);
+  }, []);
+
+  const handleColorInputChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, color: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleDescriptionChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, description: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleToggleActive = useCallback(() => {
+    setF((p) => ({ ...p, isActive: !p.isActive }));
+    setIsDirty(true);
+  }, []);
+
+  const handleAction = useCallback(() => {
     if (!f.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
     onSave(f);
-  };
+    setIsDirty(false);
+  }, [f, onSave]);
+
+  const handleClose = useCallback(() => {
+    setIsDirty(false);
+    onClose();
+  }, [onClose]);
+
   return (
     <MasterSidePanel isNew={item === null} title={f.name}
-      onTitleChange={(v) => { setF((p) => ({ ...p, name: v })); if (v.trim()) setNameError(""); }}
-      onClose={onClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onTitleChange={handleTitleChange}
+      onClose={handleClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<Activity className={LAYOUT.pageIcon.innerIcon} />}
+      isDirty={isDirty}
       titleError={nameError}>
-      <StatusToggleButton isActive={f.isActive} onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))} />
+      <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="カラー">
         <div className="flex items-center gap-2">
-          <input type="color" value={f.color} onChange={(e) => setF((p) => ({ ...p, color: e.target.value }))}
+          <input type="color" value={f.color} onChange={handleColorPickerChange}
             className="w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0" />
-          <PropertyInput value={f.color} onChange={(v) => setF((p) => ({ ...p, color: v }))} placeholder="#3B82F6" />
+          <PropertyInput value={f.color} onChange={handleColorInputChange} placeholder="#3B82F6" />
         </div>
       </PropertyRow>
       <PropertyRow label="備考">
-        <PropertyInput value={f.description} onChange={(v) => setF((p) => ({ ...p, description: v }))} placeholder="補足情報など" />
+        <PropertyInput value={f.description} onChange={handleDescriptionChange} placeholder="補足情報など" />
       </PropertyRow>
     </MasterSidePanel>
   );

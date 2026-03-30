@@ -1,4 +1,4 @@
-import { useState, memo } from "react";
+import { useState, memo, useCallback } from "react";
 import { DndContext, DragOverlay, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortableList } from "@/hooks/use-sortable-list";
@@ -48,37 +48,78 @@ const CageSidePanel = memo(function CageSidePanel({
     name: item?.name ?? "", cageType: item?.cageType ?? "general", cageSize: item?.cageSize ?? "medium",
     price: item?.price ?? 0, description: item?.description ?? "", isActive: item?.isActive ?? true,
   }));
+  const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
-  const handleAction = () => {
+
+  const handleTitleChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, name: v }));
+    setIsDirty(true);
+    if (v.trim()) setNameError("");
+  }, []);
+
+  const handleCageTypeChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, cageType: v as CageType }));
+    setIsDirty(true);
+  }, []);
+
+  const handleCageSizeChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, cageSize: v as CageSize }));
+    setIsDirty(true);
+  }, []);
+
+  const handlePriceChange = useCallback((v: number) => {
+    setF((p) => ({ ...p, price: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleDescriptionChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, description: v }));
+    setIsDirty(true);
+  }, []);
+
+  const handleToggleActive = useCallback(() => {
+    setF((p) => ({ ...p, isActive: !p.isActive }));
+    setIsDirty(true);
+  }, []);
+
+  const handleAction = useCallback(() => {
     if (!f.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
     onSave(f);
-  };
+    setIsDirty(false);
+  }, [f, onSave]);
+
+  const handleClose = useCallback(() => {
+    setIsDirty(false);
+    onClose();
+  }, [onClose]);
+
   return (
     <MasterSidePanel isNew={item === null} title={f.name}
-      onTitleChange={(v) => { setF((p) => ({ ...p, name: v })); if (v.trim()) setNameError(""); }}
-      onClose={onClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
+      onTitleChange={handleTitleChange}
+      onClose={handleClose} action={handleAction} onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<Building2 className={LAYOUT.pageIcon.innerIcon} />}
+      isDirty={isDirty}
       titleError={nameError}>
-      <StatusToggleButton isActive={f.isActive} onToggle={() => setF((p) => ({ ...p, isActive: !p.isActive }))} />
+      <StatusToggleButton isActive={f.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="エリア">
-        <Select value={f.cageType} onValueChange={(v) => setF((p) => ({ ...p, cageType: v as CageType }))}>
+        <Select value={f.cageType} onValueChange={handleCageTypeChange}>
           <SelectTrigger className={STYLE.selectCompact}><SelectValue placeholder="選択" /></SelectTrigger>
           <SelectContent>{CAGE_TYPE_SELECT_ITEMS}</SelectContent>
         </Select>
       </PropertyRow>
       <PropertyRow label="サイズ">
-        <Select value={f.cageSize} onValueChange={(v) => setF((p) => ({ ...p, cageSize: v as CageSize }))}>
+        <Select value={f.cageSize} onValueChange={handleCageSizeChange}>
           <SelectTrigger className={STYLE.selectCompact}><SelectValue placeholder="選択" /></SelectTrigger>
           <SelectContent>{CAGE_SIZE_SELECT_ITEMS}</SelectContent>
         </Select>
       </PropertyRow>
-      <MoneyInput value={f.price} onChange={(v) => setF((p) => ({ ...p, price: v }))} />
+      <MoneyInput value={f.price} onChange={handlePriceChange} />
       <PropertyRow label="備考">
-        <PropertyInput value={f.description} onChange={(v) => setF((p) => ({ ...p, description: v }))} placeholder="補足情報など" />
+        <PropertyInput value={f.description} onChange={handleDescriptionChange} placeholder="補足情報など" />
       </PropertyRow>
     </MasterSidePanel>
   );
