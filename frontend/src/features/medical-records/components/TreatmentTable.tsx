@@ -139,8 +139,11 @@ export const TreatmentTable = memo(function TreatmentTable({
                 )}
               </Cell>
               <Cell>
+                {/* BUG-072: 単価は0以上・上限9億円 */}
                 <TableInput
                   type="number"
+                  min="0"
+                  max="999999999"
                   value={item.unitPrice}
                   onChange={(val) => onUpdate(item.id, "unitPrice", Number(val))}
                   align="right"
@@ -162,8 +165,11 @@ export const TreatmentTable = memo(function TreatmentTable({
                 />
               </Cell>
               <Cell>
+                {/* BUG-072: 割引率は0〜100 */}
                 <TableInput
                   type="number"
+                  min="0"
+                  max="100"
                   value={item.discountRate}
                   onChange={(val) => onUpdate(item.id, "discountRate", Number(val))}
                   align="right"
@@ -172,8 +178,10 @@ export const TreatmentTable = memo(function TreatmentTable({
                 />
               </Cell>
               <Cell>
+                {/* BUG-072: 値引額は0以上 */}
                 <TableInput
                   type="number"
+                  min="0"
                   value={item.discountAmount}
                   onChange={(val) => onUpdate(item.id, "discountAmount", Number(val))}
                   align="right"

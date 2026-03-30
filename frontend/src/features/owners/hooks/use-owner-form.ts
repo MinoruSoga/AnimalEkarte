@@ -124,7 +124,20 @@ export function useOwnerForm(
       const errors: Record<string, string> = {};
       if (!ownerData.ownerName.trim()) errors.ownerName = "飼主名を入力してください";
       if (!ownerData.ownerNameKana.trim()) errors.ownerNameKana = "飼主名（カナ）を入力してください";
-      if (!ownerData.phone.trim()) errors.phone = "電話番号を入力してください";
+      if (!ownerData.phone.trim()) {
+        errors.phone = "電話番号を入力してください";
+      } else if (!/^[\d\-+() ]+$/.test(ownerData.phone.trim())) {
+        // BUG-066: 電話番号は数字・ハイフン・括弧・スペースのみ許容
+        errors.phone = "電話番号の形式が正しくありません（数字・ハイフンのみ）";
+      }
+      // BUG-066: メールアドレス形式チェック
+      if (ownerData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerData.email)) {
+        errors.email = "メールアドレスの形式が正しくありません";
+      }
+      // BUG-066: 値引率は 0〜100 の範囲
+      if (ownerData.discountRate < 0 || ownerData.discountRate > 100) {
+        errors.discountRate = "値引率は0〜100の範囲で入力してください";
+      }
 
 
       if (Object.keys(errors).length > 0) {
