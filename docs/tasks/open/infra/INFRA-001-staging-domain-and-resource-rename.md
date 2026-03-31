@@ -496,8 +496,9 @@ vercel deploy --target=staging
 ## 実施順序チェックリスト
 
 ### Phase 1（即時）
-- [ ] `stg.noah-karte.com` CNAME → `cname.vercel-dns.com`
-- [ ] `api.stg.noah-karte.com` CNAME → `dcqico6azu5w2.cloudfront.net`
+- [x] `stg.noah-karte.com` → ワイルドカード ALIAS `*` が既に `cname.vercel-dns-016.com` を向いており対応不要 ✅
+- [x] `api.stg.noah-karte.com` CNAME → `dcqico6azu5w2.cloudfront.net` ✅
+- [x] CAA レコード `amazon.com` 追加（ACM 証明書発行に必要）✅
 
 ### Phase 2（ACM 証明書発行後）
 - [ ] ACM 証明書リクエスト (`us-east-1`)
