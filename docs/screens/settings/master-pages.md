@@ -22,10 +22,28 @@
 
 ## 1. 医院マスタ (`/settings/clinic`)
 
-**コンポーネント:** `ClinicMasterSettings.tsx`
+**コンポーネント:** `CompanySettings.tsx`
 **API:** `/api/v1/clinics`
 
 テーブルなし。Notionプロパティ形式のフォーム入力。
+
+---
+
+## 1b. 権限グループマスタ (`/settings/permissions`)
+
+**コンポーネント:** `PermissionGroupSettings.tsx`
+**API:** `/api/v1/admin/permissions`
+
+権限グループの名称、色、および各リソースへのCRUD権限ルールを管理する。
+
+---
+
+## 1c. ユーザーアカウントマスタ (`/settings/users`)
+
+**コンポーネント:** `UserAccountSettings.tsx`
+**API:** `/api/v1/admin/users`
+
+ユーザーのメールアドレス、表示名、所属クリニック、職種、および権限グループの割当を管理する。
 
 ---
 

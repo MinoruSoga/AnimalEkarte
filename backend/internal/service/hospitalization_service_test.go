@@ -10,6 +10,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // mockHospitalizationRepository は HospitalizationRepository のテスト用モック実装
@@ -153,7 +154,7 @@ func TestHospitalizationService_List(t *testing.T) {
 					return tt.repoItems, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewHospitalizationService(repo)
+			svc := NewHospitalizationService(&repository.Repositories{Hospitalization: repo})
 
 			items, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, nil, nil, tt.page, tt.limit)
 
@@ -221,7 +222,7 @@ func TestHospitalizationService_GetByID(t *testing.T) {
 					return tt.repoItem, tt.repoErr
 				},
 			}
-			svc := NewHospitalizationService(repo)
+			svc := NewHospitalizationService(&repository.Repositories{Hospitalization: repo})
 
 			item, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -291,7 +292,7 @@ func TestHospitalizationService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewHospitalizationService(repo)
+			svc := NewHospitalizationService(&repository.Repositories{Hospitalization: repo})
 
 			err := svc.Create(context.Background(), tt.hospitalization)
 
@@ -346,7 +347,7 @@ func TestHospitalizationService_Update(t *testing.T) {
 					return &model.Hospitalization{ID: 1, ClinicID: 1}, nil
 				},
 			}
-			svc := NewHospitalizationService(repo)
+			svc := NewHospitalizationService(&repository.Repositories{Hospitalization: repo})
 
 			hosp, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
@@ -401,7 +402,7 @@ func TestHospitalizationService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewHospitalizationService(repo)
+			svc := NewHospitalizationService(&repository.Repositories{Hospitalization: repo})
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 

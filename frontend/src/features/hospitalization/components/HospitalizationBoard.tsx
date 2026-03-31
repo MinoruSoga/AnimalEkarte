@@ -33,6 +33,8 @@ interface CageCardProps {
 }
 
 const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm }: CageCardProps) {
+    const isDeceased = occupant?.petIsDeceased ?? false;
+
     const {
         attributes,
         listeners,
@@ -41,7 +43,7 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm }: Ca
     } = useDraggable({
         id: occupant?.id ?? `empty-${cage.id}`,
         data: { hospitalizationId: occupant?.id },
-        disabled: !occupant,
+        disabled: !occupant || isDeceased,
     });
 
     const { setNodeRef: setDropRef, isOver } = useDroppable({
@@ -54,17 +56,19 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm }: Ca
             <Card
                 ref={setDragRef}
                 {...attributes}
-                {...(occupant ? listeners : {})}
+                {...(occupant && !isDeceased ? listeners : {})}
                 className={`relative flex flex-col h-40 transition-all border touch-none
                   ${occupant
-                      ? "bg-white border-l-4 border-l-[#2EAADC]"
+                      ? isDeceased
+                        ? "bg-[#F7F6F3] border-l-4 border-l-[#37352F]/20 opacity-40"
+                        : "bg-white border-l-4 border-l-[#2EAADC]"
                       : "bg-[#F7F6F3] border-dashed border-[#37352F]/20"
                   }
                   ${isDragging ? 'opacity-50 scale-95' : 'hover:shadow-md'}
                   ${isOver ? 'ring-2 ring-[#2EAADC] ring-offset-2 bg-[#2EAADC]/5' : ''}
-                  cursor-pointer
+                  ${isDeceased ? 'cursor-default' : 'cursor-pointer'}
                 `}
-                onClick={() => onNavigateToForm(occupant?.id)}
+                onClick={isDeceased ? undefined : () => onNavigateToForm(occupant?.id)}
             >
                 <CardHeader className={`${H_STYLES.padding.card} pb-0 flex flex-row items-center justify-between space-y-0`}>
                   <div className="flex items-center gap-1">

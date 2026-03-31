@@ -32,6 +32,8 @@ Radix UI の Tabs を用いて、5つのカテゴリに分けて管理します�
 |-----------|--------|---------|------|------|
 | 名称 | `name` | `Input` | ✅ | タイトルエリア |
 | ステータス | `isActive` | `StatusToggleButton` | - | |
+| 税区分 | `taxType` | `TaxTypeSelector` | - | 課税/非課税/軽減税率 |
+| 税率 | `taxRate` | `TaxRateSelector` | - | 税区分に応じて自動選択 |
 | 単価(税込) | `price` | `MoneyInput` | - | |
 | 備考 | `description`| `PropInput` | - | |
 

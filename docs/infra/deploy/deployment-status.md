@@ -10,7 +10,7 @@
 |--------------|------|
 | ECS Service | ✅ ACTIVE (running: 1 / desired: 1) |
 | RDS PostgreSQL | ✅ available |
-| CloudFront (HTTPS終端) | ✅ `dcqico6azu5w2.cloudfront.net` |
+| CloudFront (HTTPS終端) | ✅ `api.stg.noah-karte.com` |
 | Frontend (Vercel) | ✅ Production デプロイ済み |
 | 自動デプロイ (Backend) | ✅ GitHub Actions + AWS OIDC |
 | 自動デプロイ (Frontend) | ✅ Vercel GitHub Integration |
@@ -32,30 +32,30 @@
 
 | リソース | 値 |
 |---------|-----|
-| ECS Cluster | animalekarte-test-cluster |
-| ECS Service | animalekarte-test-service |
-| Task Definition | animalekarte-test-api (0.25 vCPU / 0.5 GB) |
-| ALB URL（直接） | http://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com |
-| CloudFront URL | https://dcqico6azu5w2.cloudfront.net (Distribution: ERCVR5P0IAJKS) |
+| ECS Cluster | animalekarte-stg-cluster |
+| ECS Service | animalekarte-stg-service |
+| Task Definition | animalekarte-stg-api (0.25 vCPU / 0.5 GB) |
+| ALB URL（直接） | http://animalekarte-stg-alb-1915768826.us-east-1.elb.amazonaws.com |
+| CloudFront URL | https://api.stg.noah-karte.com (Distribution: ERCVR5P0IAJKS) |
 | ECR Repository | 698109622668.dkr.ecr.us-east-1.amazonaws.com/animalekarte-api |
 
 ### データベース
 
 | リソース | 値 |
 |---------|-----|
-| RDS Instance | animalekarte-test-db (db.t4g.micro, PostgreSQL 16) |
-| Endpoint | animalekarte-test-db.cqbe28s44fta.us-east-1.rds.amazonaws.com:5432 |
-| Storage | 20GB gp3, 暗号化有効, Backup 1日（テスト環境） |
-| DB 認証情報 | SSM Parameter Store (`/animalekarte/test/db/user`, `/password`, `/name`) |
+| RDS Instance | animalekarte-stg-db (db.t4g.micro, PostgreSQL 16) |
+| Endpoint | animalekarte-stg-db.cqbe28s44fta.us-east-1.rds.amazonaws.com:5432 |
+| Storage | 20GB gp3, 暗号化有効, Backup 1日（ステージング環境） |
+| DB 認証情報 | SSM Parameter Store (`/animalekarte/stg/db/user`, `/password`, `/name`) |
 
 ### IAM Roles
 
 | Role | 用途 |
 |------|------|
-| animalekarte-test-github-ecs-deploy-role | GitHub Actions → ECS デプロイ (OIDC) |
-| animalekarte-test-github-terraform-role | Terraform 実行 |
-| animalekarte-test-ecs-task-role | CloudWatch Logs 書き込み |
-| animalekarte-test-ecs-execution-role | ECR Pull, SSM Parameter Store 読み取り |
+| animalekarte-stg-github-ecs-deploy-role | GitHub Actions → ECS デプロイ (OIDC) |
+| animalekarte-stg-github-terraform-role | Terraform 実行 |
+| animalekarte-stg-ecs-task-role | CloudWatch Logs 書き込み |
+| animalekarte-stg-ecs-execution-role | ECR Pull, SSM Parameter Store 読み取り |
 
 ### セキュリティグループ
 
@@ -69,7 +69,7 @@
 
 | リソース | 値 |
 |---------|-----|
-| CloudWatch Logs | /ecs/animalekarte-test (30日保持) |
+| CloudWatch Logs | /ecs/animalekarte-stg (30日保持) |
 
 ---
 
@@ -82,14 +82,14 @@
 | `PORT` | 8080 |
 | `GIN_MODE` | release |
 | `DB_SSL_MODE` | require |
-| `CORS_ALLOWED_ORIGIN` | https://frontend-eta-six-20.vercel.app,https://dcqico6azu5w2.cloudfront.net |
+| `CORS_ALLOWED_ORIGIN` | https://stg.noah-karte.com,https://api.stg.noah-karte.com |
 | `DB_HOST/PORT/USER/PASSWORD/NAME` | SSM Parameter Store から注入 |
 
 ### Frontend (Vercel)
 
 | 変数 | 値 |
 |------|-----|
-| `VITE_API_URL` | https://dcqico6azu5w2.cloudfront.net/api |
+| `VITE_API_URL` | https://api.stg.noah-karte.com/api |
 
 ---
 
@@ -150,13 +150,13 @@ cd infra/terraform && terraform state list | wc -l
 
 # ECS サービス確認
 aws ecs describe-services \
-  --cluster animalekarte-test-cluster \
-  --services animalekarte-test-service \
+  --cluster animalekarte-stg-cluster \
+  --services animalekarte-stg-service \
   --region us-east-1 | jq '.services[0] | {status, runningCount, desiredCount}'
 
 # RDS 確認
 aws rds describe-db-instances \
-  --db-instance-identifier animalekarte-test-db \
+  --db-instance-identifier animalekarte-stg-db \
   --region us-east-1 | jq '.DBInstances[0] | {DBInstanceStatus, Endpoint}'
 
 # ECR 最新イメージ

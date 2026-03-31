@@ -9,6 +9,7 @@ import type {
 } from "../types";
 import { useGetHospitalization } from "../api/get-hospitalization";
 import { useUpdateHospitalization } from "../api/update-hospitalization";
+import { dischargeWithBilling } from "../api/discharge-with-billing";
 
 export const useHospitalizationDetail = (hospitalizationId?: string) => {
   const {
@@ -46,11 +47,21 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
     toast.info("記録追加機能は準備中です");
   };
 
-  const dischargeHospitalization = async (): Promise<boolean> => {
+  const dischargeHospitalization = async (createAccounting = false): Promise<{ success: boolean; accountingId?: number }> => {
     if (!hospitalizationId || !hospitalization) {
-      return false;
+      return { success: false };
     }
     try {
+      if (createAccounting) {
+        // 退院+会計自動生成エンドポイント
+        const result = await dischargeWithBilling(hospitalizationId, {
+          discharge_date: new Date().toISOString(),
+          create_accounting: true,
+        });
+        toast.success("退院処理が完了しました");
+        return { success: true, accountingId: result.accounting_id };
+      }
+      // 通常退院（会計なし）
       await updateHosp({
         id: hospitalizationId,
         req: {
@@ -59,10 +70,10 @@ export const useHospitalizationDetail = (hospitalizationId?: string) => {
         },
       });
       toast.success("退院処理が完了しました");
-      return true;
+      return { success: true };
     } catch (error) {
       handleApiError(error, "退院処理");
-      return false;
+      return { success: false };
     }
   };
 

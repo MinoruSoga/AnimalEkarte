@@ -21,7 +21,7 @@
 | 種 | string | 動物種 | ○ | `r.species` |
 | 主訴 | string | 主訴（省略表示） | - | `r.chiefComplaint` |
 | 関連 | link | 会計詳細へのリンク | - | `r.accountingId` がある場合に表示 |
-| 担当医 | string | 担当獣医師名 | ○ | `r.doctor` |
+| 担当医 | string | 担当獣医師名 | ○ | `r.doctor`。無効・非アクティブスタッフの場合は警告アイコン（`AlertTriangle`）を表示 |
 | ステータス | enum | 作成中 / 確定済 | ○ | `r.status` |
 | 操作 | - | 編集・削除 | - | `RowActionDropdown` |
 

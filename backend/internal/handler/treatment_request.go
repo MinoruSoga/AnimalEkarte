@@ -12,6 +12,7 @@ type createTreatmentRequest struct {
 	Status         string  `json:"status"`
 	Content        string  `json:"content"`
 	Memo           string  `json:"memo"`
+	AdminRoute     string  `json:"admin_route"`
 	Insurance      bool    `json:"insurance"`
 	DiscountRate   float64 `json:"discount_rate"`
 	DiscountAmount int64   `json:"discount_amount"`
@@ -30,6 +31,7 @@ type updateTreatmentRequest struct {
 	Status         *string  `json:"status"`
 	Content        *string  `json:"content"`
 	Memo           *string  `json:"memo"`
+	AdminRoute     *string  `json:"admin_route"`
 	Insurance      *bool    `json:"insurance"`
 	DiscountRate   *float64 `json:"discount_rate"`
 	DiscountAmount *int64   `json:"discount_amount"`

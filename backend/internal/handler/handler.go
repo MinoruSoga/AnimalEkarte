@@ -147,6 +147,9 @@ func (h *Handler) registerHospitalizationRoutesWithAuth(rg *gin.RouterGroup) {
 	hospitalizations.DELETE("/:id",
 		middleware.RequirePermission(model.ResourceHospitalization, "delete", h.repos.PermissionGroup),
 		h.DeleteHospitalization)
+	hospitalizations.POST("/:id/discharge-with-billing",
+		middleware.RequirePermission(model.ResourceHospitalization, "edit", h.repos.PermissionGroup),
+		h.DischargeWithBilling)
 	h.RegisterDailyRecordRoutes(hospitalizations)
 	h.RegisterCarePlanItemRoutes(hospitalizations)
 	h.RegisterTreatmentPlanHospitalizationRoutes(hospitalizations)

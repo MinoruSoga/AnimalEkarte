@@ -1,4 +1,4 @@
-# セキュリティ監査チェックリスト（AnimalEkarte Test環境）
+# セキュリティ監査チェックリスト（AnimalEkarte Stg環境）
 
 **最終更新:** 2026-03-31
 
@@ -12,7 +12,7 @@
 | Security Group | ✅ | 最小権限（CloudFront→ALB→ECS→RDS） |
 | NAT Gateway | ✅ | Private SubnetからInternet経由 |
 | CloudWatch Logs | ✅ | 30日保持設定 |
-| HTTPS終端 | ✅ | CloudFront (`dcqico6azu5w2.cloudfront.net`) で TLS 終端 |
+| HTTPS終端 | ✅ | CloudFront (`api.stg.noah-karte.com`) で TLS 終端 |
 
 ## IAM
 
@@ -21,7 +21,7 @@
 | ECS Task Execution Role | ✅ | ECR pull, SSM読み取り |
 | ECS Task Role | ✅ | CloudWatch Logs書き込み |
 | GitHub OIDC | ✅ | Terraform/ECS Deploy Role分離 |
-| IAM Role最小権限 | ⚠️ | Terraform RoleはAdministratorAccess（Test環境のみ許容） |
+| IAM Role最小権限 | ⚠️ | Terraform RoleはAdministratorAccess（Stg環境のみ許容） |
 
 ## アプリケーション
 
@@ -37,8 +37,8 @@
 
 | 項目 | 状態 | 確認内容 |
 |------|------|---------|
-| CloudWatch Logs | ✅ | /ecs/animalekarte-test、30日保持 |
-| RDSバックアップ | ✅ | 1日保持（Test環境で妥当） |
+| CloudWatch Logs | ✅ | /ecs/animalekarte-stg、30日保持 |
+| RDSバックアップ | ✅ | 1日保持（Stg環境で妥当） |
 | CloudTrail | ❌ | 未設定（追加推奨） |
 | VPC Flow Logs | ❌ | 未設定（追加推奨） |
 
@@ -50,7 +50,7 @@
 | ALB | $21 |
 | RDS db.t4g.micro | $14.5 |
 | ECS Fargate | $6.65 |
-| CloudFront | ~$1（テスト環境トラフィック量） |
+| CloudFront | ~$1（ステージング環境トラフィック量） |
 | その他 (ECR, CloudWatch, SSM) | $4.25 |
 | **合計** | **約 $79/月** |
 

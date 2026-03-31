@@ -41,7 +41,7 @@
 
 ## マスタ設定詳細
 
-個別マスタの定義は [settings/README.md](./settings/master-pages.md) を参照してください。
+個別マスタの定義は [settings/README.md](./settings/README.md) を参照してください。
 
 ---
 
