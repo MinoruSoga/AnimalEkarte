@@ -1,6 +1,6 @@
 # Security Group for ALB
 resource "aws_security_group" "alb" {
-  name        = "${var.name_prefix}-alb-sg"
+  name_prefix = "${var.name_prefix}-alb-sg-"
   description = "Security group for Application Load Balancer"
   vpc_id      = var.vpc_id
 
@@ -31,11 +31,15 @@ resource "aws_security_group" "alb" {
   tags = {
     Name = "${var.name_prefix}-alb-sg"
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Security Group for ECS
 resource "aws_security_group" "ecs" {
-  name        = "${var.name_prefix}-ecs-sg"
+  name_prefix = "${var.name_prefix}-ecs-sg-"
   description = "Security group for ECS tasks"
   vpc_id      = var.vpc_id
 
@@ -58,11 +62,15 @@ resource "aws_security_group" "ecs" {
   tags = {
     Name = "${var.name_prefix}-ecs-sg"
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Security Group for RDS
 resource "aws_security_group" "rds" {
-  name        = "${var.name_prefix}-rds-sg"
+  name_prefix = "${var.name_prefix}-rds-sg-"
   description = "Security group for RDS PostgreSQL"
   vpc_id      = var.vpc_id
 
@@ -84,6 +92,10 @@ resource "aws_security_group" "rds" {
 
   tags = {
     Name = "${var.name_prefix}-rds-sg"
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
