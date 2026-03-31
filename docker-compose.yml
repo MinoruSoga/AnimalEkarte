@@ -4,7 +4,7 @@ services:
     networks:
       - ekarte-network
     env_file:
-      - .env
+      - .env.local
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -29,7 +29,7 @@ services:
     networks:
       - ekarte-network
     env_file:
-      - .env
+      - .env.local
     environment:
       # Local Docker network overrides
       DB_HOST: db
