@@ -305,6 +305,7 @@ export function useMedicalRecordForm(recordId?: string) {
     };
 
     autoCreate();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: run only when isNewRecord or petId changes; createMutation/navigate/visitType are stable references
   }, [isNewRecord, selectedPet?.id]);
 
   const shouldRedirectToSelectPet = isNewRecord && !petId;
