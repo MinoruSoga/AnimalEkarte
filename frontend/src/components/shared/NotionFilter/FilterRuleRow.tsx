@@ -474,9 +474,3 @@ export const FilterRuleRow = memo(function FilterRuleRow({
     </div>
   );
 });
-v>
-  );
-});
-
-  );
-});
