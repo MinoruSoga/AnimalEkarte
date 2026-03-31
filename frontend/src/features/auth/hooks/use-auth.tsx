@@ -44,16 +44,19 @@ function removeClinicFromStorage(): void {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/**
+ * Initial session restoration promise.
+ * Module-level で一度だけ作成する。ログイン後は window.location.replace() で
+ * フルリロードするため、ログイン後のマウント時には最新の Cookie でセッション復元される。
+ */
+const initialAuthPromise = refreshToken().catch(() => null);
+
 interface AuthProviderProps {
   children: ReactNode;
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  // useState lazy init でコンポーネントマウント時にpromiseを生成する。
-  // モジュールレベルに置くとログイン前に解決されてstaleになるため、
-  // AuthProvider が初めてマウントされる（ログイン後のナビゲーション含む）タイミングで
-  // 新しいpromiseを作成し、最新のCookieでセッション復元を行う。
-  const [initialAuthPromise] = useState(() => refreshToken().catch(() => null));
+  // React 19 use() でセッション復元が完了するまでサスペンドする
   const initialResult = use(initialAuthPromise);
 
   const [user, setUser] = useState<AuthUser | null>(initialResult?.user ?? null);

@@ -1,5 +1,5 @@
 import { useState, useCallback, memo, useActionState } from "react";
-import { Link, useNavigate, useLocation } from "react-router";
+import { Link, useLocation } from "react-router";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import Eye from "lucide-react/dist/esm/icons/eye";
 import EyeOff from "lucide-react/dist/esm/icons/eye-off";
@@ -72,7 +72,6 @@ const INPUT_BASE = `w-full h-[48px] text-base rounded-[3px] ${C.bgInputLogin} bo
 /* ---- Login Form ---- */
 
 export function LoginForm() {
-  const navigate = useNavigate();
   const location = useLocation();
 
   const [email, setEmail] = useState("");
@@ -95,7 +94,9 @@ const [formState, formAction, isPending] = useActionState(
       const queryFrom = searchParams.get("from");
       const from = (location.state as { from?: string })?.from || queryFrom || "/";
 
-      navigate(from, { replace: true });
+      // フルリロードすることで module-level の initialAuthPromise を再評価させる。
+      // SPA navigate() では Cookie は送られるが use(promise) の値は stale のまま。
+      window.location.replace(from || "/");
       return { success: true, error: null, timestamp: Date.now() };
     } catch (err) {
 
