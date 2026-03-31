@@ -10,9 +10,9 @@
 
 | タブ | 保存対象 | 備考 |
 |------|---------|------|
-| 問診 | inquiries テーブル（主訴・治療方針） | |
-| 診察/治療プラン | clinical_plans テーブル | |
-| 治療 | treatments テーブル | 行単位でインライン保存（フローティングボタン不使用） |
+| 問診 | inquiries テーブル | 主訴・全体方針 |
+| 診察/治療プラン | clinical_plans + treatments テーブル | 診断詳細 + 算定項目 (selected=true) |
+| 治療 | treatments テーブル | 実施済みの処置記録 |
 | 予防接種 | vaccinations テーブル | 行単位でインライン保存 |
 | 定期健診 | checkups テーブル | 行単位でインライン保存 |
 | 検査 | examinations テーブル | 行単位でインライン保存 |

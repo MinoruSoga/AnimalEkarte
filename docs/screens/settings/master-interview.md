@@ -36,7 +36,7 @@
 ## API連携
 | メソッド | エンドポイント | 用途 |
 |---------|--------------|------|
-| GET | `/api/v1/masters/chief-complaints` | 主訴カテゴリ一覧 |
+| GET | `/api/v1/masters/chief-complaint-categories` | 主訴カテゴリ一覧 |
 | GET | `/api/v1/masters/inquiry-templates` | テンプレート一覧 |
-| POST | `/api/v1/masters/chief-complaints` | 主訴カテゴリ作成 |
+| POST | `/api/v1/masters/chief-complaint-categories` | 主訴カテゴリ作成 |
 | POST | `/api/v1/masters/inquiry-templates` | テンプレート作成 |
