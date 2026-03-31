@@ -503,9 +503,9 @@ vercel deploy --target=staging
 - [ ] ACM 証明書リクエスト (`us-east-1`)
 - [ ] DNS バリデーション CNAME 追加 → `ISSUED` 確認
 - [ ] CloudFront に `api.stg.noah-karte.com` CNAME + ACM 証明書設定
-- [ ] Vercel Custom Environment `staging` を作成（Pro プラン必須）
-- [ ] Branch Tracking: `main` ブランチ → staging に設定
-- [ ] `stg.noah-karte.com` を staging Custom Environment に Attach
+- [x] Vercel プロジェクト名を `noah-karte` にリネーム ✅
+- [x] Vercel Custom Environment `staging` を作成（Branch Tracking: `main`）✅
+- [x] `stg.noah-karte.com` を staging Custom Environment に Attach ✅
 
 ### Phase 3
 - [ ] Terraform state のバックアップ (S3 コピー)
@@ -524,10 +524,9 @@ vercel deploy --target=staging
 - [ ] `backend/.env.production` → `backend/.env.staging` にリネーム (`git mv`)
 - [ ] `.env.staging` 更新: `DB_HOST`（RDS 新エンドポイント）・`CORS_ALLOWED_ORIGIN`（新ドメイン）
 - [ ] `backend-deploy.yml` 更新 (ECS リソース名・IAM Role ARN・SG ID・ログ名・**.env.staging** パス)
-- [ ] Vercel 旧 `VITE_API_URL` (Production) を削除
-- [ ] Vercel `VITE_API_URL` (staging) を `https://api.stg.noah-karte.com/api` に設定
-- [ ] Vercel `VITE_API_URL` (Preview) を `https://api.stg.noah-karte.com/api` に設定
-- [ ] `vercel deploy --target=staging` で反映確認
+- [x] Vercel 旧 `VITE_API_URL` (Production/Preview/Development) を削除 ✅
+- [x] Vercel `VITE_API_URL` (staging) = `https://api.stg.noah-karte.com/api` に設定 ✅
+- [ ] `vercel deploy --target=staging` で反映確認（DNS + API 準備完了後）
 - [ ] `git push origin main` → GitHub Actions デプロイ確認
 
 ### Phase 5
