@@ -18,7 +18,8 @@
                     ┌───────────┐         │
                     │    ALB    │         │
                     │ HTTP:80   │         │
-                    │ HTTPS:443 │         │
+                    │(HTTPS終端は│         │
+                    │CloudFront)│         │
                     └─────┬─────┘         │
                           │ 8080/tcp      │
                           ▼               ▼
@@ -106,9 +107,8 @@ AWS 提供の有効な SSL 証明書が付属するため、これを API Gatewa
 | `DB_HOST` | RDS エンドポイント | DB 接続先 |
 | `DB_PORT` | `5432` | DB ポート |
 | `DB_SSL_MODE` | `require` | SSL 必須 |
-| `CORS_ALLOWED_ORIGIN` | Vercel, CloudFront ドメイン | CORS 許可オリジン |
-| `COOKIE_CROSS_DOMAIN` | `true` | SameSite=None + Secure 有効化 |
-| `GIN_MODE` | `release` | 本番モード |
+| `CORS_ALLOWED_ORIGIN` | `https://frontend-eta-six-20.vercel.app,https://dcqico6azu5w2.cloudfront.net` | CORS 許可オリジン（カンマ区切り） |
+| `GIN_MODE` | `release` | 本番モード（`release` のとき Cookie が `Secure=true`, `SameSite=None` になる） |
 | `JWT_SECRET` | (SSM で管理すべき) | JWT 署名鍵 |
 
 ### シークレット（SSM Parameter Store）
@@ -192,4 +192,4 @@ VPC ─┬─→ Security ──→ RDS
 | GitHub Terraform Role | AdministratorAccess | 最小権限ポリシー |
 | CloudFront | 手動作成 | Terraform 管理 |
 | 独自ドメイン | なし | 取得 + ACM 証明書 |
-| ALB HTTP リスナー | forward | redirect (独自ドメイン取得後) |
+| ALB HTTP リスナー | forward (CloudFront が HTTPS 終端済み) | 独自ドメイン取得後に redirect 強制 |

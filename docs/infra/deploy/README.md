@@ -10,8 +10,9 @@ Animal Ekarte のデプロイ手順・CI/CD・運用ガイド。
 
 | サービス | URL |
 |---------|-----|
-| Frontend | https://frontend-r0m0pyiaf-minorusogas-projects.vercel.app |
-| Backend API | http://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com |
+| Frontend | https://frontend-eta-six-20.vercel.app |
+| Backend API | https://dcqico6azu5w2.cloudfront.net/api |
+| ALB（直接・ヘルスチェック用） | http://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com |
 | API仕様 | `backend/docs/api.yaml`（OpenAPI） |
 
 ---
@@ -40,8 +41,11 @@ Animal Ekarte のデプロイ手順・CI/CD・運用ガイド。
 ```bash
 export AWS_PROFILE=AnimalEkarte
 
-# API ヘルスチェック
+# API ヘルスチェック（ALB 直接）
 curl http://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com/health | jq .
+
+# API ヘルスチェック（CloudFront 経由・本番同等）
+curl https://dcqico6azu5w2.cloudfront.net/health | jq .
 
 # ECS デプロイ状態確認
 aws ecs describe-services \

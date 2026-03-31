@@ -77,11 +77,11 @@ HTTP Request
 ```
 Client
   │  GET /api/v1/owners?page=1&limit=20&search=山田
-  │  Cookie: auth_token=<JWT>
+  │  Cookie: access_token=<JWT>  (旧: auth_token — 後方互換で読み取り継続)
   ▼
 
 [Middleware: Auth]
-  1. Cookie "auth_token" を読む（なければ Authorization Bearer にフォールバック）
+  1. Cookie "access_token" を読む → なければ "auth_token"(legacy) → なければ Authorization Bearer
   2. JWT を検証（HMAC署名確認・有効期限確認）
   3. claims を gin.Context に格納
        c.Set("user_id",   "42")

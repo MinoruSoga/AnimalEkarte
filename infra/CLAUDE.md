@@ -191,9 +191,12 @@ make build-prod   # animal-ekarte-api:latest + animal-ekarte-front:latest
 
 ## 認証方式
 
-- **Authorization Bearer**: JWT トークンを `sessionStorage` に保存
-- axios インターセプターで全 API リクエストに `Authorization: Bearer <token>` を自動注入
-- `withCredentials` は不要（Cookie 不使用）
+- **httpOnly Cookie** で JWT を管理（`sessionStorage` / `localStorage` 不使用）
+- Cookie 名: `access_token`（15分）、`refresh_token`（7日、Path: `/api/v1/auth/refresh`）
+- 本番環境（`GIN_MODE=release`）: `Secure=true`, `SameSite=None`（Vercel ↔ CloudFront クロスドメイン対応）
+- 開発環境: `SameSite=Lax`（localhost 同一オリジン）
+- フロントエンドの axios は `withCredentials: true` を設定して Cookie を自動送信
+- `Authorization: Bearer` ヘッダは **不使用**（Cookie で完結）
 
 ---
 
@@ -208,7 +211,7 @@ make build-prod   # animal-ekarte-api:latest + animal-ekarte-front:latest
 | GitHub Terraform Role | AdministratorAccess | 最小権限ポリシー |
 | CloudFront | 手動作成 | Terraform 管理化 |
 | 独自ドメイン | なし | 取得 + ACM 証明書 |
-| ALB HTTP | forward | redirect（HTTPS 強制） |
+| ALB HTTP | forward (CloudFront が HTTPS 終端済み) | 独自ドメイン取得後に redirect 強制 |
 
 ---
 

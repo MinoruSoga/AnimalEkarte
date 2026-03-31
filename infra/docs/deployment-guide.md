@@ -224,8 +224,9 @@ aws ecs describe-task-definition \
 
 ### Cookie が保存されない
 
-- `COOKIE_CROSS_DOMAIN=true` が設定されているか確認
+- `GIN_MODE=release` が設定されているか確認（`release` のとき `Secure=true`, `SameSite=None` が有効になる）
 - ブラウザの開発者ツールで `Set-Cookie` ヘッダーに `SameSite=None; Secure` が含まれるか確認
+- `CORS_ALLOWED_ORIGIN` にフロントエンドオリジンが含まれ、かつ `Access-Control-Allow-Credentials: true` がレスポンスヘッダに含まれるか確認
 
 ### GitHub Actions OIDC 認証エラー
 

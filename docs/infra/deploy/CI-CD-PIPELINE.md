@@ -125,7 +125,7 @@ git push to main (frontend/** 変更)
 **環境変数（Production）:**
 
 ```
-VITE_API_URL=http://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com/api
+VITE_API_URL=https://dcqico6azu5w2.cloudfront.net/api
 ```
 
 ---
@@ -286,7 +286,13 @@ docker compose exec frontend npm run lint
 
 ### CORS エラー
 
-`ALLOWED_ORIGINS` 環境変数に Vercel ドメインが含まれているか確認。
+`CORS_ALLOWED_ORIGIN` 環境変数（カンマ区切り）に Vercel ドメインと CloudFront ドメインが含まれているか確認。
+
+```
+CORS_ALLOWED_ORIGIN=https://frontend-eta-six-20.vercel.app,https://dcqico6azu5w2.cloudfront.net
+```
+
+> ⚠️ env var 名は `ALLOWED_ORIGINS` **ではなく** `CORS_ALLOWED_ORIGIN` であることに注意（`backend/internal/middleware/cors.go` 参照）。
 
 ---
 
