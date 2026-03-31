@@ -20,8 +20,8 @@ const HEX = {
   purple: 'EEE0F7',
   orange: 'FAEBDD',
   yellow: 'FDECC8',
-  red:    'FFDEDE',
-  gray:   'EAE9E5',
+  red:    'FFE2DD',
+  gray:   'EBECED',
 } as const;
 
 describe('getMedicalRecordStatusColor', () => {
