@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check
+.PHONY: up down build logs logs-api logs-front ps db clean reset restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -119,6 +119,11 @@ mod-download:
 mod-tidy:
 	docker compose exec backend go mod tidy
 
+# git hooks セットアップ（初回・新メンバーオンボーディング時に実行）
+setup-hooks:
+	git config core.hooksPath .githooks
+	@echo "Git hooks を .githooks に設定しました"
+
 # ヘルプ
 help:
 	@echo "Animal Ekarte - 開発コマンド"
@@ -155,5 +160,6 @@ help:
 	@echo "  mod-download  Goモジュールダウンロード"
 	@echo "  mod-tidy      Goモジュールtidy"
 	@echo "  sync-modules  node_modulesをホストにコピー（IDE補完用）"
+	@echo "  setup-hooks   git hooksをセットアップ（初回・新メンバー用）"
 	@echo ""
 	@echo "  help          このヘルプを表示"
