@@ -8592,13 +8592,13 @@
 | 2 | BUG-020 | 権限グループ作成API のバックエンドアクセス制御未実装（staff ユーザーが POST 201 で作成可能） | **クリティカル** | **修正済み ✅** | handler.go: `adminPG.Use(middleware.RequireClinicAdmin())` が POST /permission-groups に適用済み（BE-080 対応、2026-04-01 コード確認） |
 | 3 | BUG-021 | 会計確定API `POST /api/v1/accountings` が400エラー（scheduled_date フォーマット不一致） | **高** | ~~修正済み~~ | PATCH /api/v1/accountings/:id HTTP 200 確認済み（2026-03-28 §6.2 テスト）。会計確定・精算完了表示・カンバン遷移すべて正常動作 |
 | 4 | BUG-044 (旧BUG-022) | バイタル記録追加API `POST /api/v1/medical-records/:id/vitals` が500エラー（pet_id 未セット + weight_unit ENUM 制約違反） | **高** | **修正済み ✅** | BE-083（weight_unit フィールド追加）で修正済み。POST /api/v1/medical-records/1/vitals HTTP 201 確認（2026-04-01）。体温38.5℃・体重5.2Kg保存成功・リスト更新確認。 |
-| 5 | BUG-023 | 検査登録フォームからカルテ紐付けなし検査を登録すると `POST /api/v1/examinations` が400エラー | **高** | **未修正** | フロントエンドが `"medical_record_id": null` を送信するが、バックエンドが `medical_record_id` を必須と判定して `{"error":"medical_record_i_d is required"}` を返す（エラー文字列にもタイポあり `_i_d`）。検査管理メニューからの独立した検査登録フローが完全に機能しない。 |
+| 5 | BUG-023 | 検査登録フォームからカルテ紐付けなし検査を登録すると `POST /api/v1/examinations` が400エラー | **高** | **修正済み ✅** | POST /api/v1/examinations `medical_record_id: null` → HTTP 201 確認（2026-04-01）。BUG-023-examination-null-medical-record-id.md closed済み。 |
 
 ### 2026-03-28 カルテ・マスタ設定テスト — 新規検出バグ
 
 | # | チケットID | タイトル | 重要度 | 状態 | 備考 |
 |---|-----------|---------|--------|------|------|
-| 1 | BUG-038 | カルテ Tab2 診断ドロップダウンの z-index 不足（他UI要素の下に隠れる） | 中 | **未修正** | 診断カテゴリ・病名のドロップダウンが開いた時に他要素の背面に描画される |
+| 1 | BUG-038 | カルテ Tab2 診断ドロップダウンの z-index 不足（他UI要素の下に隠れる） | 中 | **修正済み ✅** | DiagnosisHeaderDiagnosis.tsx: `SelectContent className="z-[9999]"` で修正済み（2026-04-01 コード確認） |
 | 2 | BUG-039 | カルテ Tab2 プレースホルダーに「診断カテゴリID」「診断病名ID」が表示される | 中 | **修正済み ✅** | ClinicalPlanSection.tsx: placeholder="カテゴリを選択" / "病名を選択" で修正済み。UI確認済み（2026-04-01） |
 | 3 | BUG-040 | カルテ Tab2 診断カテゴリ選択後に病名リストが絞り込まれない | 高 | **修正済み** ✅ | カテゴリ選択後に病名コンボボックスが活性化し絞り込み表示を確認（2026-03-30） |
 | 4 | BUG-041 | カルテ Tab4 予防接種名ドロップダウンに診断カテゴリが表示される | 高 | **修正済み** ✅ | ワクチン名ドロップダウンに正しいワクチン一覧 GET /v1/masters/vaccines が表示されることを確認（2026-03-30） |
