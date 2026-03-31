@@ -15,6 +15,8 @@ export interface CreateVaccinationRequest {
   next_date?: string | null;
   lot1?: string;
   lot2?: string;
+  lot3?: string;
+  lot4?: string;
   remarks?: string;
 }
 
@@ -23,5 +25,7 @@ export interface UpdateVaccinationRequest {
   next_date?: string | null;
   lot1?: string;
   lot2?: string;
+  lot3?: string;
+  lot4?: string;
   remarks?: string;
 }
