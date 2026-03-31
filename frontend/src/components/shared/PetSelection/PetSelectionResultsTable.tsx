@@ -53,7 +53,7 @@ export function PetSelectionResultsTable({ pets, onSelect }: PetSelectionResults
               return (
                 <TableRow
                   key={pet.id}
-                  className={`transition-colors hover:bg-[rgba(55,53,47,0.06)] cursor-pointer h-12 ${
+                  className={`transition-colors ${C.hoverBgMedium} cursor-pointer h-12 ${
                     index < pets.length - 1 ? `border-b ${C.borderLight}` : "border-none"
                   } ${isDeceased ? "opacity-60 grayscale-[0.5]" : ""}`}
                   onClick={() => !isDeceased && onSelect(pet)}
@@ -68,8 +68,8 @@ export function PetSelectionResultsTable({ pets, onSelect }: PetSelectionResults
                         variant="secondary"
                         className={
                           pet.status === "生存"
-                            ? `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreen} hover:bg-[#DDEDEA] text-xs px-2 py-0 h-7`
-                            : `${C.bgStatusGray} ${C.textStatusGray} ${C.borderStatusGray} hover:bg-[#EBECED] text-xs px-2 py-0 h-7`
+                            ? `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreen} ${C.hoverBgStatusGreen} text-xs px-2 py-0 h-7`
+                            : `${C.bgStatusGray} ${C.textStatusGray} ${C.borderStatusGray} ${C.hoverBgStatusGray} text-xs px-2 py-0 h-7`
                         }
                       >
                         {pet.status}

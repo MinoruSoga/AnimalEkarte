@@ -219,7 +219,7 @@ const DateValueEditor = memo(function DateValueEditor({
               const { from, to } = resolvePreset(preset);
               handlePresetClick(from, to, preset.label);
             }}
-            className={cn("w-full text-left px-3 py-1.5 text-sm hover:bg-[#F1F1EF] transition-colors", C.text)}
+            className={cn(`w-full text-left px-3 py-1.5 text-sm ${C.bgMutedBadge} hover:bg-[#E8E7E4] transition-colors`, C.text)}
           >
             {preset.label}
           </button>
@@ -229,12 +229,12 @@ const DateValueEditor = memo(function DateValueEditor({
       {/* Calendar column */}
       <div className="p-3">
         {/* FROM → TO header */}
-        <div className="flex items-center justify-center gap-3 mb-3 px-3 py-2 bg-[#F7F6F3] rounded-[4px]">
-          <span className={`text-sm font-mono tabular-nums ${hasFrom ? "text-[#37352F] font-medium" : "text-[#37352F]/30"}`}>
+        <div className={`flex items-center justify-center gap-3 mb-3 px-3 py-2 ${C.bgPage} rounded-[4px]`}>
+          <span className={`text-sm font-mono tabular-nums ${hasFrom ? `${C.text} font-medium` : C.text30}`}>
             {fromDisplay}
           </span>
-          <span className="text-[#37352F]/30 text-xs">→</span>
-          <span className={`text-sm font-mono tabular-nums ${hasTo ? "text-[#37352F] font-medium" : "text-[#37352F]/30"}`}>
+          <span className={`${C.text30} text-xs`}>→</span>
+          <span className={`text-sm font-mono tabular-nums ${hasTo ? `${C.text} font-medium` : C.text30}`}>
             {toDisplay}
           </span>
         </div>
@@ -253,10 +253,10 @@ const DateValueEditor = memo(function DateValueEditor({
             month_caption: "flex justify-center items-center h-9 w-full",
             caption_label: "sr-only",
             nav: "absolute top-1 left-0 right-0 flex justify-between items-center px-1 pointer-events-none",
-            button_previous: "size-8 p-0 rounded-sm hover:bg-[#F1F1EF] opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto",
-            button_next: "size-8 p-0 rounded-sm hover:bg-[#F1F1EF] opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto",
+            button_previous: `size-8 p-0 rounded-sm ${C.bgMutedBadge} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
+            button_next: `size-8 p-0 rounded-sm ${C.bgMutedBadge} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
             dropdowns: "flex items-center gap-1",
-            dropdown: "text-sm font-medium bg-transparent border-none cursor-pointer focus:outline-none hover:opacity-70 py-0.5 px-1 rounded hover:bg-[#F1F1EF]",
+            dropdown: `text-sm font-medium bg-transparent border-none cursor-pointer focus:outline-none hover:opacity-70 py-0.5 px-1 rounded ${C.bgMutedBadge}`,
           }}
           formatters={{
             formatMonthDropdown: (month) => {
@@ -377,8 +377,8 @@ export const FilterRuleRow = memo(function FilterRuleRow({
                 onClick={() => onLogicChange("and")}
                 className={`w-full text-left px-2 py-1 text-base rounded-[3px] transition-colors ${
                   logic === "and"
-                    ? "bg-[#2383E2]/10 text-[#2383E2]"
-                    : "text-[#37352F] hover:bg-[#F1F1EF]"
+                    ? `${C.bgAccent5} ${C.accent}`
+                    : `${C.text} ${C.hoverBgMedium}`
                 }`}
               >
                 AND
@@ -388,23 +388,23 @@ export const FilterRuleRow = memo(function FilterRuleRow({
                 onClick={() => onLogicChange("or")}
                 className={`w-full text-left px-2 py-1 text-base rounded-[3px] transition-colors ${
                   logic === "or"
-                    ? "bg-[#2383E2]/10 text-[#2383E2]"
-                    : "text-[#37352F] hover:bg-[#F1F1EF]"
+                    ? `${C.bgAccent5} ${C.accent}`
+                    : `${C.text} ${C.hoverBgMedium}`
                 }`}
               >
                 OR
               </button>
             </InlineSelector>
           ) : (
-            <span className="text-base text-[#37352F]/40 px-1.5">絞込</span>
+            <span className={`text-base ${C.text40} px-1.5`}>絞込</span>
           )
         ) : (
-          <span className="text-base text-[#37352F]/40 px-1.5">{logicLabel}</span>
+          <span className={`text-base ${C.text40} px-1.5`}>{logicLabel}</span>
         )}
       </div>
 
       {/* Property column */}
-      <span className="text-base text-[#37352F]/60 px-1 shrink-0 max-w-[140px] truncate">
+      <span className={`text-base ${C.text60} px-1 shrink-0 max-w-[140px] truncate`}>
         {property?.label ?? filter.key}
       </span>
 
@@ -418,8 +418,8 @@ export const FilterRuleRow = memo(function FilterRuleRow({
               onClick={() => handleConditionChange(opt.value)}
               className={`w-full text-left px-2 py-1 text-base rounded-[3px] transition-colors ${
                 filter.condition === opt.value
-                  ? "bg-[#2383E2]/10 text-[#2383E2]"
-                  : "text-[#37352F] hover:bg-[#F1F1EF]"
+                  ? `${C.bgAccent5} ${C.accent}`
+                  : `${C.text} ${C.hoverBgMedium}`
               }`}
             >
               {opt.label}
@@ -452,8 +452,8 @@ export const FilterRuleRow = memo(function FilterRuleRow({
               onClick={() => handleValueChange(opt)}
               className={`w-full text-left px-2 py-1 text-base rounded-[3px] transition-colors ${
                 filter.value === opt.value
-                  ? "bg-[#2383E2]/10 text-[#2383E2]"
-                  : "text-[#37352F] hover:bg-[#F1F1EF]"
+                  ? `${C.bgAccent5} ${C.accent}`
+                  : `${C.text} ${C.hoverBgMedium}`
               }`}
             >
               {opt.label}
@@ -466,11 +466,17 @@ export const FilterRuleRow = memo(function FilterRuleRow({
       <button
         type="button"
         onClick={onRemove}
-        className="ml-auto p-0.5 rounded-[3px] text-[#37352F]/30 hover:text-[#37352F]/60 hover:bg-[#F1F1EF] opacity-0 group-hover:opacity-100 transition-opacity"
+        className={`ml-auto p-0.5 rounded-[3px] ${C.text30} hover:${C.text60} ${C.hoverBgMedium} opacity-0 group-hover:opacity-100 transition-opacity`}
         aria-label={`${property?.label ?? filter.key} フィルタを削除`}
       >
         <X className={ICON.page} />
       </button>
     </div>
+  );
+});
+v>
+  );
+});
+
   );
 });

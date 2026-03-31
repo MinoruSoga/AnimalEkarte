@@ -74,6 +74,18 @@ export function HospitalizationForm() {
     }
   }, [formState.success, formState.timestamp, navigate, markClean, location.state]);
 
+  // エラー発生時に最初のエラーフィールドにフォーカス
+  useEffect(() => {
+    if (formState.fieldErrors && Object.keys(formState.fieldErrors).length > 0) {
+      const firstErrorKey = Object.keys(formState.fieldErrors)[0];
+      const element = document.getElementById(firstErrorKey);
+      if (element) {
+        element.focus();
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }, [formState.fieldErrors, formState.timestamp]);
+
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
   const totals = calculateTotals();
@@ -193,6 +205,7 @@ export function HospitalizationForm() {
 
           {/* Middle Column - 飼主からのリクエスト */}
           <HospitalizationNoteCard 
+            id="owner_request"
             title="飼主からのリクエスト"
             icon={MessageSquare}
             value={formData.ownerRequest}
@@ -202,6 +215,7 @@ export function HospitalizationForm() {
 
           {/* Right Column - スタッフへの連絡事項 */}
           <HospitalizationNoteCard 
+            id="staff_notes"
             title="スタッフへの連絡事項"
             icon={AlertCircle}
             value={formData.staffNotes}

@@ -172,7 +172,7 @@ export const SortPopover = memo(function SortPopover({
         <Button
           variant="ghost"
           size="sm"
-          className={`h-9 w-9 p-0 ${C.text50} hover:text-[#37352F]/80 ${C.hoverBgLight}`}
+          className={`h-9 w-9 p-0 ${C.text50} hover:${C.text80} ${C.hoverBgLight}`}
           aria-label="並べ替え"
         >
           <ArrowUpDown className={ICON.lg} />
@@ -240,4 +240,6 @@ export const SortPopover = memo(function SortPopover({
       </PopoverContent>
     </Popover>
   );
+});
+;
 });

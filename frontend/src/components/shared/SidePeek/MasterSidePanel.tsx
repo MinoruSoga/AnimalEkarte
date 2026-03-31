@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { STYLE } from "@/lib/design-tokens";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker/NavigationBlocker";
@@ -40,6 +41,16 @@ export function MasterSidePanel({
   isDirty = false,
   children,
 }: MasterSidePanelProps) {
+  // --- Focus Management (Accessibility) ---
+  useEffect(() => {
+    if (titleError) {
+      const element = document.getElementById("master-title");
+      if (element) {
+        element.focus();
+      }
+    }
+  }, [titleError]);
+
   // BUG-048: Save on Enter in any text input (not in textarea or button)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const tag = (e.target as HTMLElement).tagName;
@@ -60,6 +71,7 @@ export function MasterSidePanel({
           <div className={STYLE.pageIcon}>{icon}</div>
         </div>
         <SidePeekTitleInput
+          id="master-title"
           value={title}
           onChange={onTitleChange}
           placeholder={titlePlaceholder}

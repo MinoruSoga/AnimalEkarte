@@ -2,6 +2,7 @@ import { C, LAYOUT } from "@/lib/design-tokens";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 
 interface SidePeekTitleInputProps {
+  id?: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
@@ -13,6 +14,7 @@ interface SidePeekTitleInputProps {
 }
 
 export function SidePeekTitleInput({
+  id,
   value,
   onChange,
   placeholder = "無題",
@@ -35,6 +37,7 @@ export function SidePeekTitleInput({
   return (
     <div className="pb-1 mb-4">
       <input
+        id={id}
         type="text"
         className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
         style={{

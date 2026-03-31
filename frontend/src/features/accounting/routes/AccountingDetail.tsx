@@ -457,6 +457,7 @@ interface PaymentCardProps {
   receivedAmount: string;
   onReceivedAmountChange: (v: string) => void;
   isCompleted: boolean;
+  id?: string;
 }
 
 const PaymentCard = memo(function PaymentCard({
@@ -467,6 +468,7 @@ const PaymentCard = memo(function PaymentCard({
   receivedAmount,
   onReceivedAmountChange,
   isCompleted,
+  id,
 }: PaymentCardProps) {
   return (
     <Card className="flex-1">
@@ -517,6 +519,7 @@ const PaymentCard = memo(function PaymentCard({
           <div className="space-y-2">
             <Label>お預かり金額</Label>
             <NumberInput
+              id={id}
               className="h-14 text-xl font-bold"
               value={receivedAmount}
               onChange={onReceivedAmountChange}
@@ -839,6 +842,18 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewType, setPreviewType] = useState<"receipt" | "statement">("receipt");
 
+  // --- Focus Management (Accessibility) ---
+  useEffect(() => {
+    // If validation fails or amount is insufficient
+    if (formState.success === false) {
+      const element = document.getElementById("receivedAmount");
+      if (element) {
+        element.focus();
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }, [formState.success, formState.timestamp]);
+
   interface FormState {
     success: boolean;
     timestamp: number;
@@ -1078,6 +1093,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
             />
 
             <PaymentCard
+              id="receivedAmount"
               billingAmount={calculation.billingAmount}
               changeAmount={calculation.changeAmount}
               paymentMethod={paymentMethod}

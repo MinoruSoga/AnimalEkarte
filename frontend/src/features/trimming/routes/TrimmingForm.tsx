@@ -97,6 +97,7 @@ const LeftColumn = memo(function LeftColumn({
           <MasterLink category="trimming_course" label="マスタ管理" />
         </div>
         <MasterSelectTrigger
+          id="courseId"
           selectedItem={selectedCourse ? { name: selectedCourse.name, price: selectedCourse.price } : undefined}
           placeholder="コースを選択"
           icon={<Scissors className={ICON.action} />}
@@ -418,6 +419,22 @@ export function TrimmingForm() {
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
+  // --- Focus Management (Accessibility) ---
+  useEffect(() => {
+    const errorFields = Object.keys(formState.fieldErrors || {});
+    if (errorFields.length === 0) return;
+
+    // 優先順位に基づいたエラーフィールドの特定
+    const PRIORITY_FIELDS = ["staffId", "courseId"];
+    const firstError = PRIORITY_FIELDS.find((f) => errorFields.includes(f)) || errorFields[0];
+
+    const element = document.getElementById(firstError);
+    if (element) {
+      element.focus();
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [formState.fieldErrors, formState.timestamp]);
+
   // React 19 Action の成功を検知して遷移
   useEffect(() => {
     if (formState.success) {
@@ -557,6 +574,7 @@ export function TrimmingForm() {
             petNumber={selectedPet.petNumber || ""}
             weight={selectedPet.weight || ""}
             staffName={formData.staffName}
+            staffButtonId="staffId"
             serviceType="トリミング"
             nextVisitDate="-"
             nextVisitContent="-"

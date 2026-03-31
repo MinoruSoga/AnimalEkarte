@@ -27,6 +27,7 @@ interface PatientInfoCardProps {
   onVitalClick?: () => void;
   onOwnerClick?: () => void;
   onServiceTypeClick?: () => void;
+  staffButtonId?: string;
 }
 
 export function PatientInfoCard({
@@ -50,6 +51,7 @@ export function PatientInfoCard({
   onVitalClick,
   onOwnerClick,
   onServiceTypeClick,
+  staffButtonId,
 }: PatientInfoCardProps) {
   const isDeceased = status === "deceased";
 
@@ -154,6 +156,7 @@ export function PatientInfoCard({
           {!hideStaff ? (
             onStaffClick ? (
               <Button
+                id={staffButtonId}
                 variant="ghost"
                 size="sm"
                 className={`h-9 text-sm gap-1 px-3 ${C.bgPage} ${C.hoverBgMedium} ${C.text} border ${C.borderMedium}`}

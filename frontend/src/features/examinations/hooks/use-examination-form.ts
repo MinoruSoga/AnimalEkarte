@@ -67,16 +67,21 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
         }
       : formData;
 
-  interface FormState {
-    success: boolean;
-    timestamp: number;
-  }
-
   /**
    * React 19 useActionState を使用したフォームアクション
    */
   const [formState, formAction, isPending] = useActionState(
-    async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
+    async (_prevState: ActionState, _formData: FormData): Promise<ActionState> => {
+      // フロントエンド・バリデーション
+      const errors: Record<string, string> = {};
+      if (!formDataWithPet.testTypeId) errors.testTypeId = "検査種別を選択してください";
+      if (!formDataWithPet.doctorId) errors.doctorId = "担当医を選択してください";
+
+      if (Object.keys(errors).length > 0) {
+        toast.error("未入力の項目があります");
+        return { success: false, fieldErrors: errors, timestamp: Date.now() };
+      }
+
       try {
         if (isEdit && id) {
           const req: UpdateExaminationRequest = {
@@ -106,7 +111,7 @@ export function useExaminationForm(id?: string, medicalRecordIdParam?: string) {
         return { success: false, timestamp: Date.now() };
       }
     },
-    { success: false, timestamp: 0 }
+    INITIAL_ACTION_STATE
   );
 
   // New mode: populate pet selection from petId query param

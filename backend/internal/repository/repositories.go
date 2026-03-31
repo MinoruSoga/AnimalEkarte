@@ -6,6 +6,7 @@ import (
 
 // Repositories はすべてのリポジトリを保持するDIコンテナ
 type Repositories struct {
+	db                     *gorm.DB
 	Auth                   AuthRepository
 	AnimalSpecies          AnimalSpeciesRepository
 	Owner                  OwnerRepository
@@ -61,6 +62,7 @@ type Repositories struct {
 // NewRepositories はすべてのリポジトリを初期化して返す
 func NewRepositories(db *gorm.DB) *Repositories {
 	return &Repositories{
+		db:                     db,
 		Auth:                   NewAuthRepository(db),
 		AnimalSpecies:          NewAnimalSpeciesRepository(db),
 		Owner:                  NewOwnerRepository(db),
@@ -112,4 +114,12 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		PermissionGroup:        NewPermissionGroupRepository(db),
 		Audit:                  NewAuditRepository(db),
 	}
+}
+
+// Transaction はリポジトリ層のトランザクションを実行する
+func (r *Repositories) Transaction(fn func(repos *Repositories) error) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		txRepos := NewRepositories(tx)
+		return fn(txRepos)
+	})
 }

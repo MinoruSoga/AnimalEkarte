@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 
 interface MasterSelectTriggerProps {
+  id?: string;
   /** Currently selected item info (null/undefined if nothing selected) */
   selectedItem?: { name: string; price?: number } | null;
   /** Placeholder text when nothing is selected */
@@ -19,6 +20,7 @@ interface MasterSelectTriggerProps {
 }
 
 export function MasterSelectTrigger({
+  id,
   selectedItem,
   placeholder,
   icon,
@@ -30,6 +32,7 @@ export function MasterSelectTrigger({
     if (variant === "block") {
       return (
         <div
+          id={id}
           onClick={onClick}
           className={`p-3 border ${C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer hover:bg-[#F7F6F3]/80 transition-colors`}
         >
@@ -56,6 +59,7 @@ export function MasterSelectTrigger({
     // inline variant
     return (
       <div
+        id={id}
         onClick={onClick}
         className={`h-11 px-3 border ${C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer hover:bg-[#F7F6F3]/80 transition-colors flex items-center justify-between`}
       >
@@ -81,6 +85,7 @@ export function MasterSelectTrigger({
   if (variant === "block") {
     return (
       <button
+        id={id}
         type="button"
         onClick={onClick}
         className={`w-full p-3 border-2 border-dashed ${C.borderMedium} rounded-md ${C.bgPage} hover:bg-[rgba(55,53,47,0.08)] transition-colors text-center cursor-pointer`}
@@ -96,6 +101,7 @@ export function MasterSelectTrigger({
   // inline variant
   return (
     <button
+      id={id}
       type="button"
       onClick={onClick}
       className={`w-full h-11 px-3 border ${C.borderMedium} rounded-md bg-white ${C.hoverBgPageHalf} transition-colors text-left cursor-pointer flex items-center gap-2`}

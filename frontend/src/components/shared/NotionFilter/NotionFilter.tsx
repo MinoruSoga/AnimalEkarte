@@ -142,7 +142,7 @@ export function NotionFilter({
         <div className="flex items-center gap-1">
           {/* Filter icon (visual indicator - same as add popover trigger) */}
           {activeFilters.length > 0 ? (
-            <span className="h-9 w-9 flex items-center justify-center text-[#2383E2]">
+            <span className={`h-9 w-9 flex items-center justify-center ${C.accent}`}>
               <ListFilter className={ICON.lg} />
             </span>
           ) : null}
@@ -161,10 +161,10 @@ export function NotionFilter({
             <Button
               variant="ghost"
               size="sm"
-              className={`h-9 w-9 p-0 hover:bg-[#F1F1EF] ${
+              className={`h-9 w-9 p-0 ${C.hoverBgMedium} ${
                 searchOpen
-                  ? "text-[#2383E2]"
-                  : "text-[#37352F]/50 hover:text-[#37352F]/80"
+                  ? C.accent
+                  : `${C.text50} hover:${C.text80}`
               }`}
               onClick={handleSearchToggle}
               aria-label="検索"
@@ -192,7 +192,7 @@ export function NotionFilter({
             <button
               type="button"
               onClick={() => onSearchChange("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-sm text-[#37352F]/40 hover:text-[#37352F]/80 hover:bg-[#F1F1EF] transition-colors"
+              className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-sm ${C.text40} hover:${C.text80} ${C.hoverBgMedium} transition-colors`}
               aria-label="検索をクリア"
             >
               <X className="size-3.5" />

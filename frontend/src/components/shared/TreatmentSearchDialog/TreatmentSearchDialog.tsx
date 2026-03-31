@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import * as React from "react";
 
 // External
@@ -70,12 +70,12 @@ const CategoryFilter = React.memo(function CategoryFilter({
   onSelectCategory,
 }: CategoryFilterProps) {
   return (
-    <div className="flex gap-2 p-2 border-b overflow-x-auto items-center bg-gray-50/50 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+    <div className={`flex gap-2 p-2 border-b overflow-x-auto items-center ${C.bgPage30} ${C.borderLight} [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}>
       <div className="flex gap-1.5 min-w-max px-1">
         {activeCategory ? (
           <Badge
             variant="outline"
-            className="h-10 px-3 text-sm cursor-pointer hover:bg-gray-200 gap-1 text-muted-foreground border-transparent bg-transparent"
+            className={`h-10 px-3 text-sm cursor-pointer ${C.hoverBgMedium} gap-1 ${C.text60} border-transparent bg-transparent`}
             onClick={() => onSelectCategory(null)}
             tabIndex={0}
             role="button"
@@ -99,8 +99,8 @@ const CategoryFilter = React.memo(function CategoryFilter({
               className={cn(
                 "h-10 px-2.5 text-sm cursor-pointer hover:opacity-80 transition-all",
                 isSelected
-                  ? "bg-[#37352F] text-white hover:bg-[#37352F]/90 border-transparent"
-                  : "bg-white text-[#37352F] hover:bg-gray-100 border-gray-200"
+                  ? `${C.bgPrimary} text-white ${C.hoverBgPrimaryDark} border-transparent`
+                  : `bg-white ${C.text} ${C.hoverBgLight} ${C.borderMedium}`
               )}
               onClick={() => onSelectCategory(isSelected ? null : category)}
               tabIndex={0}
@@ -175,7 +175,7 @@ export function TreatmentSearchDialog({
       />
 
       <CommandList className="max-h-[500px]">
-        <CommandEmpty>該当する治療プランが見つかりません。</CommandEmpty>
+        <CommandEmpty className={`py-12 text-center text-sm ${C.text60}`}>該当する治療プランが見つかりません。</CommandEmpty>
 
         {allCategories.map((category) => {
           // Optimization: Skip rendering logic early if category doesn't match active filter
@@ -192,20 +192,20 @@ export function TreatmentSearchDialog({
                     key={item.code}
                     value={`${item.name} ${item.code} ${item.category}`}
                     onSelect={() => handleSelect(item)}
-                    className="data-[selected=true]:bg-[#F7F6F3] cursor-pointer !py-1.5"
+                    className={`data-[selected=true]:${C.bgPage} cursor-pointer !py-1.5`}
                   >
                     <div className="flex flex-1 items-center justify-between">
                       <div className="flex flex-col gap-0.5">
-                        <span className="font-medium text-[#37352F] text-sm">
+                        <span className={`font-medium ${C.text} text-sm`}>
                           {item.name}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-[#37352F]/60 font-mono bg-gray-100 px-1 rounded">
+                          <span className={`text-sm ${C.text40} font-mono ${C.bgPage30} px-1 rounded`}>
                             {item.code}
                           </span>
                         </div>
                       </div>
-                      <span className="font-mono font-bold text-[#37352F] text-sm">
+                      <span className={`font-mono font-bold ${C.text} text-sm`}>
                         ¥{item.unitPrice.toLocaleString()}
                       </span>
                     </div>
@@ -213,7 +213,7 @@ export function TreatmentSearchDialog({
                 ))}
               </CommandGroup>
               {/* Show separator only when not filtering by category (cleaner look) */}
-              {!activeCategory ? <CommandSeparator /> : null}
+              {!activeCategory ? <CommandSeparator className={C.bgLight} /> : null}
             </React.Fragment>
           );
         })}

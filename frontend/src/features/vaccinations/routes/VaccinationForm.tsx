@@ -51,6 +51,30 @@ export const VaccinationForm = memo(function VaccinationForm() {
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
+  // --- Focus Management (Accessibility) ---
+  useEffect(() => {
+    const errorFields = Object.keys(formState.fieldErrors || {});
+    if (errorFields.length === 0) return;
+
+    // 優先順位に基づいたエラーフィールドの特定
+    // Note: NotionDatePicker handles id internally
+    const PRIORITY_FIELDS = ["date", "vaccineId"];
+    const firstError = PRIORITY_FIELDS.find((f) => errorFields.includes(f)) || errorFields[0];
+
+    // date -> vaccination-date, vaccineId -> vaccine-select
+    const idMap: Record<string, string> = {
+      date: "vaccination-date",
+      vaccineId: "vaccine-select",
+    };
+    const targetId = idMap[firstError] || firstError;
+
+    const element = document.getElementById(targetId);
+    if (element) {
+      element.focus();
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [formState.fieldErrors, formState.timestamp]);
+
   // React 19 Action の成功を検知して遷移
   useEffect(() => {
     if (formState.success) {
@@ -125,6 +149,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
                     <div className="space-y-2">
                         <Label htmlFor="vaccination-date">接種日<span className="text-red-500 ml-1">*</span></Label>
                         <NotionDatePicker
+                            id="vaccination-date"
                             value={date}
                             onChange={(v) => { markDirty(); setDate(v); }}
                         />

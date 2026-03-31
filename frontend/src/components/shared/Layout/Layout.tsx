@@ -18,7 +18,7 @@ export function Layout() {
   const isNavigating = navigation.state === "loading";
 
   return (
-    <div className="flex h-full bg-[#fafafa] overflow-hidden relative">
+    <div className={`flex h-full ${C.bgSubtle} overflow-hidden relative`}>
       {/* Global Navigation Progress Bar */}
       {isNavigating ? (
         <div className="fixed top-0 left-0 right-0 z-[9999] h-[2px] bg-transparent overflow-hidden">

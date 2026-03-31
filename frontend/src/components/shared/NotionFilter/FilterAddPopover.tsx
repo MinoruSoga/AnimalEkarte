@@ -293,7 +293,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
         <Button
           variant="ghost"
           size="sm"
-          className={`h-9 gap-2 text-base ${C.text50} hover:text-[#37352F]/80 ${C.hoverBgLight} px-3`}
+          className={`h-9 gap-2 text-base ${C.text50} hover:${C.text80} ${C.hoverBgLight} px-3`}
         >
           <Plus className={ICON.page} />
           フィルタを追加
@@ -309,7 +309,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
             <button
               type="button"
               onClick={handleBack}
-              className={`flex items-center gap-1 text-base ${C.text50} hover:text-[#37352F]/80 px-1`}
+              className={`flex items-center gap-1 text-base ${C.text50} hover:${C.text80} px-1`}
             >
               <ChevronLeft className={ICON.action} />
               戻る

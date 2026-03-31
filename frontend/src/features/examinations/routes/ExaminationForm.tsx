@@ -81,7 +81,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
               onSetFormData({ testTypeId: v, testType: item?.name ?? v });
             }}
           >
-            <SelectTrigger className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
+            <SelectTrigger id="testTypeId" className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
               <SelectValue placeholder="選択してください" />
             </SelectTrigger>
             <SelectContent>
@@ -103,7 +103,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
               onSetFormData({ doctorId: v, doctor: staff?.name ?? v });
             }}
           >
-            <SelectTrigger className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
+            <SelectTrigger id="doctorId" className={`h-10 text-sm ${C.text} bg-white ${C.borderMedium}`}>
               <SelectValue placeholder="選択してください" />
             </SelectTrigger>
             <SelectContent>
@@ -226,6 +226,22 @@ export function ExaminationForm() {
   } = useExaminationForm(id, medicalRecordId ?? undefined);
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
+
+  // --- Focus Management (Accessibility) ---
+  useEffect(() => {
+    const errorFields = Object.keys(formState.fieldErrors || {});
+    if (errorFields.length === 0) return;
+
+    // 優先順位に基づいたエラーフィールドの特定
+    const PRIORITY_FIELDS = ["testTypeId", "doctorId"];
+    const firstError = PRIORITY_FIELDS.find((f) => errorFields.includes(f)) || errorFields[0];
+
+    const element = document.getElementById(firstError);
+    if (element) {
+      element.focus();
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [formState.fieldErrors, formState.timestamp]);
 
   // React 19 Action の成功を検知して遷移
   useEffect(() => {

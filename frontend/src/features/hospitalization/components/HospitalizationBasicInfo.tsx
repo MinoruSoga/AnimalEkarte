@@ -39,6 +39,7 @@ export function HospitalizationBasicInfo({ formData, onChange, cageItems }: Hosp
             onChange({ hospitalizationType: val })
           }
           className="flex gap-4"
+          id="hospitalization_type"
         >
           <div className="flex items-center gap-2 cursor-pointer">
             <RadioGroupItem
@@ -67,6 +68,7 @@ export function HospitalizationBasicInfo({ formData, onChange, cageItems }: Hosp
         </Label>
         <div className={`flex items-center ${H_STYLES.gap.default}`}>
           <NotionDatePicker
+            id="start_date"
             value={formData.displayDate}
             onChange={(v) => onChange({ displayDate: v })}
             placeholder="開始日"
@@ -74,6 +76,7 @@ export function HospitalizationBasicInfo({ formData, onChange, cageItems }: Hosp
           />
           <span className="text-[#37352F]/40 text-sm">〜</span>
           <NotionDatePicker
+            id="end_date"
             value={formData.endDate ?? ""}
             onChange={(v) => onChange({ endDate: v })}
             placeholder="終了日"
@@ -89,7 +92,7 @@ export function HospitalizationBasicInfo({ formData, onChange, cageItems }: Hosp
               value={formData.cageId} 
               onValueChange={(val) => onChange({ cageId: val })}
           >
-              <SelectTrigger className={`h-10 ${H_STYLES.text.base} bg-white border-[rgba(55,53,47,0.16)]`}>
+              <SelectTrigger id="cage_id" className={`h-10 ${H_STYLES.text.base} bg-white border-[rgba(55,53,47,0.16)]`}>
                   <SelectValue placeholder="選択してください" />
               </SelectTrigger>
               <SelectContent>
@@ -106,6 +109,7 @@ export function HospitalizationBasicInfo({ formData, onChange, cageItems }: Hosp
       <div>
         <Label className={`${H_STYLES.text.sm} text-[#37352F]/60 mb-1.5 block`}>メモ</Label>
         <Textarea
+          id="memo"
           value={formData.memo}
           onChange={(e) => onChange({ memo: e.target.value })}
           placeholder="メモを入力..."
