@@ -44,6 +44,6 @@
 ## API連携
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| GET | `/api/v1/inventories/:id` | 個別在庫取得 | 実装済 |
-| POST | `/api/v1/inventories` | 在庫登録 | 実装済 |
-| PATCH | `/api/v1/inventories/:id` | 在庫更新 | 実装済 |
+| GET | `/api/v1/inventory/:id` | 個別在庫取得 | 実装済 |
+| POST | `/api/v1/inventory` | 在庫登録 | 実装済 |
+| PATCH | `/api/v1/inventory/:id` | 在庫更新 | 実装済 |
