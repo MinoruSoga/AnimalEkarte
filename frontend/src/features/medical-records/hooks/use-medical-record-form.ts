@@ -321,7 +321,7 @@ export function useMedicalRecordForm(recordId?: string) {
     handleBack,
     formAction,
     formState,
-    isSaving: isPending || isSavingTransition,
+    isSaving: isSaving || isSavingTransition,
     isCreating,
     treatmentPlanItems,
     setTreatmentPlanItems,

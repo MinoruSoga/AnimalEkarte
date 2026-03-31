@@ -61,6 +61,7 @@
 - **Step 1: ペット検索・選択**（StepIndicator 1=ペット選択 / 2=予約情報）
   - `PatientSearch`（飼主名・ペット名テキスト検索）
   - `PatientSelectionTable`（検索結果テーブル、行クリックでペット選択）
+  - **臨床安全ガード**: すでに死亡しているペット（status="deceased"）は、検索結果においてグレーアウトされ、選択が無効化されます。これにより、死亡済みのペットに対して誤って新規予約を入れることを物理的に防止します。
   - 選択済みペットは `SelectedPetChip`（PawPrint アイコン付き、種バッジ、×ボタン）で表示
   - 編集モード時はStep 1をスキップ
 - **Step 2: 予約情報入力**（`ReservationFormFields`）

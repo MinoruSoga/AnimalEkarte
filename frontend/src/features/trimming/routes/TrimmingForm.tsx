@@ -394,9 +394,11 @@ export function TrimmingForm() {
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
 
-  const { data: courses = [] } = useMasterItems("trimmingCourse");
-  const { data: options = [] } = useMasterItems("trimmingOption");
+  const { data: coursesRaw = [] } = useMasterItems("trimmingCourse");
+  const { data: optionsRaw = [] } = useMasterItems("trimmingOption");
   const { data: staffItems = [] } = useMasterItems("staff");
+  const courses = coursesRaw.map((c) => ({ ...c, id: String(c.id) }));
+  const options = optionsRaw.map((o) => ({ ...o, id: String(o.id) }));
 
   const {
     mode,

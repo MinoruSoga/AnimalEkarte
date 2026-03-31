@@ -1,4 +1,4 @@
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import {
   LayoutDashboard,
   Users,
@@ -129,7 +129,7 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
                 }
               }}
               aria-label={isExpanded ? `${item.label}を折りたむ` : `${item.label}を展開`}
-              className={`p-0.5 rounded ${C.hoverBgMd} transition-colors`}
+              className={`p-0.5 rounded ${C.hoverBgMedium} transition-colors`}
             >
               <ChevronDown className={`${ICON.xs} transition-transform${isExpanded ? " rotate-180" : ""}`} />
             </span>

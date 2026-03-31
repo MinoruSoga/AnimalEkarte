@@ -48,4 +48,3 @@
 ## 共通要素
 
 - [共通ダイアログ・共有コンポーネント](./common-dialogs.md)
-- [フォーム・バリデーション共通仕様](../FORMS_SPECIFICATION.md)

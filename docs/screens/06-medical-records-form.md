@@ -29,7 +29,7 @@
 ### 2. 診察/治療プラン (`MedicalRecordDiagnosisPlan`)
 - **上: 診断ヘッダー**:
   - 身体検査、主訴カテゴリ、診断1/2（カテゴリ・病名マスタ連動）、治療方針、診断詳細。
-- **中: 過去プラン**: 過去の診療プラン履歴。
+- **中: 過去プラン**: 過去の `clinical_plans` 履歴。
 - **下: 治療プランテーブル (`TreatmentTable`)**:
   - 診療項目の検索追加（`TreatmentSearchDialog`）。
   - カラム: ステータス、治療内容、メモ、保険(●/×)、単価、数量、割引(%)、値引(￥)、小計。
@@ -75,6 +75,6 @@
 | POST | `/api/v1/medical-records` | カルテ作成 |
 | PATCH | `/api/v1/medical-records/:id` | カルテ更新 |
 | DELETE | `/api/v1/medical-records/:id` | カルテ削除 |
-| GET | `/api/v1/masters/chief-complaints` | 主訴カテゴリ取得 |
+| GET | `/api/v1/masters/chief-complaint-categories` | 主訴カテゴリ取得 |
 | GET | `/api/v1/masters/diagnosis-categories` | 診断カテゴリ取得 |
 | GET | `/api/v1/masters/diagnosis-names` | 診断名取得 |

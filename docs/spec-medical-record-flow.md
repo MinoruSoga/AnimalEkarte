@@ -10,13 +10,13 @@
 
 | タブ | 保存対象 | 備考 |
 |------|---------|------|
-| 問診 | inquiries テーブル（主訴・治療方針） | |
-| 診察/治療プラン | treatment_plans + clinical_plans テーブル | clinical_plans は ClinicalPlanSection 経由 |
-| 治療 | treatment_items テーブル | 行単位でインライン保存（フローティングボタン不使用） |
+| 問診 | inquiries テーブル | 主訴・全体方針 |
+| 診察/治療プラン | clinical_plans + treatments テーブル | 診断詳細 + 算定項目 (selected=true) |
+| 治療 | treatments テーブル | 実施済みの処置記録 |
 | 予防接種 | vaccinations テーブル | 行単位でインライン保存 |
 | 定期健診 | checkups テーブル | 行単位でインライン保存 |
 | 検査 | examinations テーブル | 行単位でインライン保存 |
-| 画像 | medical_images テーブル | アップロード単位で保存 |
+| 画像 | medical_record_images テーブル | アップロード単位で保存 |
 | 見積書 | estimates テーブル | |
 | 会計(医師確認) | 保存ボタン非表示 | |
 

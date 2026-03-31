@@ -6,6 +6,7 @@ import { useNavigate, useParams } from "react-router";
 import { Package, ArrowLeft, Save } from "lucide-react";
 
 // Internal
+import { ICON } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

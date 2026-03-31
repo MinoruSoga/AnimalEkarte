@@ -20,19 +20,19 @@
 | 飼主No | `ownerId` | `Input` | - | 編集時無効 |
 | 郵便番号 | `postalCode` | `Input` + 検索 | - | 会社 |
 | 会社名 | `company` | `Input` | - | |
-| 会員区分 | `membershipType` | `ButtonGroup` | - | 非会員/会員/退亡者/他診/準 |
+| 会員区分 | `membershipType` | `ButtonGroup` | - | `non_member`(非会員), `member`(会員), `deceased`(退亡者), `transferred`(他診), `associate`(準) |
 | 飼主名 | `ownerName` | `Input` | ✅ | |
 | 住所1 | `address1` | `Input` | - | 会社 |
 | 郵便番号(自宅)| `homePostalCode`| `Input` + 検索 | - | |
 | 危険人物 | `isDangerous` | `Switch` | - | |
 | 備考・特記事項| `remarks` | `Textarea` | - | |
-| 飼主名(カナ) | `ownerNameKana` | `Input` | ✅ | |
+| 飼主名(カナ) | `ownerNameKana` | `Input` | ✅ | 必須（カタカナバリデーションあり） |
 | 住所2 | `address2` | `Input` | - | 会社 |
 | 住所1(自宅) | `homeAddress1` | `Input` | - | |
 | 飼主生年月日 | `birthDate` | `NotionDatePicker` | - | |
 | メールアドレス| `email` | `Input` | - | |
 | 住所2(自宅) | `homeAddress2` | `Input` | - | |
-| 電話番号 | `phone` | `Input` | ✅ | |
+| 電話番号 | `phone` | `Input` | ✅ | 必須 |
 | 会社 電話番号 | `companyPhone` | `Input` | - | |
 | 値引率 (%) | `discountRate` | `Input` | - | |
 

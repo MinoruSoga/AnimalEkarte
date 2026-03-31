@@ -112,6 +112,7 @@ export function useVaccinationForm(id?: string) {
   interface FormState {
     success: boolean;
     timestamp: number;
+    fieldErrors?: Record<string, string>;
   }
 
   /**

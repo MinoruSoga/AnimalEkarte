@@ -275,7 +275,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           petName={`${selectedPet.name}${selectedPet.species ? `(${selectedPet.species})` : ""}`}
           petNumber={selectedPet.petNumber || selectedPet.id}
           weight={selectedPet.weight || "-"}
-          status={selectedPet.status === "deceased" ? "deceased" : "alive"}
+          status={selectedPet.status === "死亡" ? "deceased" : "alive"}
           staffName={staffName}
           staffLabel="担当医: "
           serviceType={visitType}

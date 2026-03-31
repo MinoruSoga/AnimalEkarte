@@ -158,7 +158,7 @@ export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, 
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {areaCages.map(cage => {
-                const occupant = getOccupant(cage.id);
+                const occupant = getOccupant(String(cage.id));
                 return (
                   <CageCard
                       key={cage.id}

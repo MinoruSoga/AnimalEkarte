@@ -27,14 +27,13 @@
 - **[個別画面詳細 (docs/screens/)](./screens/README.md)**: 画面ごとの項目・ロジック・API詳細。
 
 ### 🏗️ アーキテクチャ・開発
-- **[フロントエンド設計 (docs/FRONTEND_ARCHITECTURE.md)](./FRONTEND_ARCHITECTURE.md)**: React/TypeScript の実装指針。
-- **[バックエンド設計 (docs/architecture.md)](./architecture.md)**: Go レイヤードアーキテクチャ。
+- **[全体アーキテクチャ (docs/architecture.md)](./architecture.md)**: React/TypeScript フロントエンドおよび Go バックエンドの実装指針。
 - **[データフロー (docs/data-flow.md)](./data-flow.md)**: リクエスト〜レスポンスの詳細。
 - **[DB設計 (docs/ERD.md)](./ERD.md)**: エンティティ定義とリレーション。
 
 ### ⚙️ 運用・品質
 - **[開発・運用ガイド (docs/OPERATIONS.md)](./OPERATIONS.md)**: Codegen、デプロイ、管理コマンド。
-- **[テスト戦略 (docs/TESTING_STRATEGY.md)](./TESTING_STRATEGY.md)**: テスト方針とモック戦略。
+
 
 ---
 
@@ -72,8 +71,8 @@
 - **デイリーログ**: 当日のバイタルや実施記録の時系列データ。
 
 ### 4.3 会計・事務
-- **未収 (Waiting)**: 請求が発生しているが、まだ支払いが完了していない状態。
-- **収済 (Completed)**: 支払いが完了し、領収書が発行された状態。
+- **会計待ち (Waiting)**: 請求が発生しているが、まだ支払いが完了していない状態。
+- **精算済 (Completed)**: 支払いが完了し、領収書が発行された状態。
 - **保留 (Pending)**: 特殊な事情により、一時的に精算を止めている状態。
 - **窓口精算**: ペット保険の負担分を差し引いて、飼い主が直接支払う方式。
 

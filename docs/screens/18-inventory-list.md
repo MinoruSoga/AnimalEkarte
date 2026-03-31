@@ -22,7 +22,7 @@
 | 最低在庫 | number | 発注点（単位付） | - | `item.minStockLevel` |
 | 保管場所 | string | 収納場所 | - | |
 | 有効期限 | date | 使用期限（等幅フォント） | - | |
-| ステータス | enum | 十分 / 残少 / 在庫切れ | ○ | `StatusBadge` |
+| ステータス | enum | 十分 (sufficient) / 残少 (low) / 在庫切れ (out_of_stock) | ○ | `StatusBadge` |
 | 操作 | - | 編集ボタン | - | `RowActionButton` |
 
 ## ユーザーアクション
@@ -33,5 +33,5 @@
 ## API連携
 | メソッド | エンドポイント | 用途 |
 |---------|--------------|------|
-| GET | `/api/v1/inventories` | 在庫一覧取得 |
-| DELETE | `/api/v1/inventories/:id` | 在庫削除 |
+| GET | `/api/v1/inventory` | 在庫一覧取得 |
+| DELETE | `/api/v1/inventory/:id` | 在庫削除 |
