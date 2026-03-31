@@ -161,8 +161,7 @@ aws ec2 revoke-security-group-ingress \
 ### TablePlus から実行
 
 1. TablePlus で RDS に接続
-2. `backend/migrations/001_init.sql` を実行（テーブル作成）
-3. `backend/migrations/002_seed_master.sql` を実行（マスタデータ投入）
+2. `backend/migrations/001_init.sql` を実行（スキーマ作成 + マスタデータ + デモデータ投入）
 
 ### DB リセット
 
@@ -171,7 +170,6 @@ aws ec2 revoke-security-group-ingress \
 DROP SCHEMA public CASCADE;
 CREATE SCHEMA public;
 -- 001_init.sql を再実行
--- 002_seed_master.sql を再実行
 ```
 
 ## ログ確認
