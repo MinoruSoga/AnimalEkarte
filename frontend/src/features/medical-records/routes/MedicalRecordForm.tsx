@@ -299,6 +299,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
           {tabs.map((tab) => (
             <button
               key={tab}
+              type="button"
               onClick={() => handleTabChange(tab)}
               className={`flex items-center px-4 h-11 text-base font-medium transition-colors relative whitespace-nowrap ${
                 activeTab === tab
