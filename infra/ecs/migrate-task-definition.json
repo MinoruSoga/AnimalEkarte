@@ -12,17 +12,8 @@
       "image": "698109622668.dkr.ecr.us-east-1.amazonaws.com/animalekarte-api:latest",
       "essential": true,
       "command": ["./migrate"],
-      "environment": [
-        { "name": "DB_HOST", "value": "animalekarte-test-db.cqbe28s44fta.us-east-1.rds.amazonaws.com" },
-        { "name": "DB_PORT", "value": "5432" },
-        { "name": "DB_SSL_MODE", "value": "require" },
-        { "name": "DB_RESET", "value": "true" }
-      ],
-      "secrets": [
-        { "name": "DB_NAME", "valueFrom": "arn:aws:ssm:us-east-1:698109622668:parameter/animalekarte/test/db/name" },
-        { "name": "DB_USER", "valueFrom": "arn:aws:ssm:us-east-1:698109622668:parameter/animalekarte/test/db/user" },
-        { "name": "DB_PASSWORD", "valueFrom": "arn:aws:ssm:us-east-1:698109622668:parameter/animalekarte/test/db/password" }
-      ],
+      "environment": [],
+      "secrets": [],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {

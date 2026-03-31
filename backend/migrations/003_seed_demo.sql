@@ -1,7 +1,7 @@
 -- =============================================================================
 -- 003_seed_demo.sql
 -- デモデータ投入（飼主・ペット一覧ページ対応）
--- 内容: 飼主・ペット・取引記録（カルテ・予約・会計等）
+-- 内容: 飼主・ペット・取引記録（カルテ・予約・会計・入院等）
 -- 依存: 001_init.sql, 002_seed_master.sql
 -- =============================================================================
 
@@ -32,9 +32,7 @@ INSERT INTO owners (id, clinic_id, owner_name, owner_name_kana, birth_date, comp
     (21, 3, '石川 大輔', 'イシカワ ダイスケ', '1989-04-02', '', '167-0041', '東京都杉並区善福寺3-2-6', '', '080-4444-4444', '', 'daisuke.ishikawa@example.com', '', false, 0, 'non_member'),
     (22, 3, '村田 奈々', 'ムラタ ナナ', '1996-09-19', '', '182-0021', '東京都調布市調布ヶ丘1-4-7', '', '090-5555-5555', '', 'nana.murata@example.com', '', false, 0, 'non_member')
 ON CONFLICT (id) DO UPDATE SET
-    owner_name      = EXCLUDED.owner_name,
-    owner_name_kana = EXCLUDED.owner_name_kana,
-    updated_at      = now();
+    updated_at = now();
 
 SELECT setval(pg_get_serial_sequence('owners', 'id'), (SELECT MAX(id) FROM owners));
 
@@ -77,7 +75,6 @@ SELECT setval(pg_get_serial_sequence('pets', 'id'), (SELECT MAX(id) FROM pets));
 
 -- -----------------------------------------------------------------------------
 -- 3. reservation_appointments（予約: 10件）
--- service_type: 1=一般診察, 2=予防接種, 3=健康診断
 -- -----------------------------------------------------------------------------
 INSERT INTO reservation_appointments (id, clinic_id, start_time, end_time, owner_id, pet_id, visit_type, service_type_id, doctor_id, is_designated, status, notes) VALUES
     (1,  3, '2026-03-12 09:00:00+09', '2026-03-12 09:30:00+09', 1,  1,  'revisit', 1, 1, true,  'completed',       '皮膚の経過観察'),
@@ -128,31 +125,60 @@ SELECT setval(pg_get_serial_sequence('medical_records', 'id'), (SELECT MAX(id) F
 -- 5. inquiries（問診: 20件）
 -- -----------------------------------------------------------------------------
 INSERT INTO inquiries (id, medical_record_id, chief_complaint_category_id, chief_complaint, notes, staff_id) VALUES
-    (1,  3,  NULL, '狂犬病ワクチン接種',         '狂犬病ワクチン接種。体調良好。', 1),
-    (2,  2,  NULL, '定期健診',                   '特に異常なし。次回は6ヶ月後を推奨。', 2),
-    (3,  3,  6,    '右足の跛行',                 '右後肢の跛行。レントゲン撮影で膝蓋骨脱臼を確認。手術を検討。', 1),
-    (4,  4,  NULL, 'フィラリア予防',             'フィラリア予防薬の処方。', 2),
-    (5,  5,  NULL, '5種混合ワクチン接種',        '体調良好。ワクチン接種実施。', 1),
-    (6,  6,  NULL, '5種混合ワクチン接種',        '体調良好。年次ワクチン接種。', 2),
-    (7,  7,  NULL, 'ノミダニ予防薬',             'ノミダニ予防薬の処方。', 1),
-    (8,  8,  3,    '皮膚の痒み',                 '全身の痒みと発赤。アトピー性皮膚炎の疑い。抗ヒスタミン処方。', 2),
-    (9,  9,  3,    'トリミング後の皮膚チェック', 'トリミング後に赤みあり。経過観察。', 1),
-    (10, 10, 1,    '食欲不振',                   '2日前から食欲が落ちている。腹部エコーで検査予定。', 2),
-    (11, 11, NULL, '耳を痒がる',                 '外耳炎の疑い。耳道洗浄と点耳薬処方。', 1),
-    (12, 12, NULL, '定期健診・予防接種',         '年次健康診断。血液検査・予防接種実施。', 2),
-    (13, 13, 2,    '嘔吐・下痢',                 '昨日から嘔吐3回。下痢あり。食欲なし。', 1),
-    (14, 14, NULL, '生化学検査',                 'シニア健診。血液化学検査実施。', 2),
-    (15, 15, NULL, 'ジステンパーワクチン接種',   '初回ワクチン接種。体調良好。', 1),
-    (16, 16, NULL, '血液検査',                   '年次血液検査。特に異常なし。', 2),
-    (17, 17, NULL, '歯石除去',                   '重度の歯石。全麻下での歯石除去処置予定。', 1),
-    (18, 18, NULL, '定期検診',                   '特に異常なし。体重管理継続を指導。', 2),
-    (19, 19, 6,    '再診（右足跛行）',           '前回の経過観察。改善傾向あり。', 1),
-    (20, 20, NULL, '5種混合ワクチン接種',        '体調良好。ワクチン接種実施。', 2)
+    (1,  1,  NULL, '狂犬病ワクチン接種',         '体調良好。', 1),
+    (2,  2,  NULL, '定期健診',                   '特に異常なし。', 2),
+    (3,  3,  6,    '右足の跛行',                 '膝蓋骨脱臼を確認。', 1),
+    (4,  4,  NULL, 'フィラリア予防',             '予防薬処方。', 2),
+    (5,  5,  NULL, '5種混合ワクチン接種',        '体調良好。', 1),
+    (6,  6,  NULL, '5種混合ワクチン接種',        '体調良好。', 2),
+    (7,  7,  NULL, 'ノミダニ予防薬',             '予防薬処方。', 1),
+    (8,  8,  3,    '皮膚の痒み',                 'アトピー性皮膚炎疑い。', 2),
+    (9,  9,  3,    'トリミング後の皮膚チェック', '軽度の赤みあり。', 1),
+    (10, 10, 1,    '食欲不振',                   '2日前から食欲減退。', 2),
+    (11, 11, NULL, '耳を痒がる',                 '外耳炎疑い。', 1),
+    (12, 12, NULL, '定期健診・予防接種',         '年次健診。', 2),
+    (13, 13, 2,    '嘔吐・下痢',                 '昨日から嘔吐3回。', 1),
+    (14, 14, NULL, '生化学検査',                 'シニア健診。', 2),
+    (15, 15, NULL, 'ジステンパーワクチン接種',   '初回ワクチン。', 1),
+    (16, 16, NULL, '血液検査',                   '異常なし。', 2),
+    (17, 17, NULL, '歯石除去',                   '重度の歯石付着。', 1),
+    (18, 18, NULL, '定期検診',                   '体重管理継続。', 2),
+    (19, 19, 6,    '再診（右足跛行）',           '改善傾向。', 1),
+    (20, 20, NULL, '5種混合ワクチン接種',        '体調良好。', 2)
 ON CONFLICT (id) DO UPDATE SET
     medical_record_id = EXCLUDED.medical_record_id,
     updated_at        = now();
 
 SELECT setval(pg_get_serial_sequence('inquiries', 'id'), (SELECT MAX(id) FROM inquiries));
+
+-- -----------------------------------------------------------------------------
+-- 5b. clinical_plans（診察/治療プラン: 20件）
+-- -----------------------------------------------------------------------------
+INSERT INTO clinical_plans (id, medical_record_id, physical_exam, diagnosis_category_id, diagnosis_name_id, diagnosis_details, treatment_policy) VALUES
+    (1,  1, '体温38.5℃。心肺音正常。', NULL, NULL, '健康状態良好。ワクチン接種可。', '5種混合ワクチン接種実施。'),
+    (2,  2, '体重増加あり。他異常なし。', NULL, NULL, '維持状態良好。', '定期検診継続。'),
+    (3,  3, '右後肢跛行。パテラG2。', 8, 19, '膝蓋骨脱臼。', '消炎剤処方。体重管理指導。'),
+    (4,  4, '異常なし。', NULL, NULL, '予防シーズン開始。', 'フィラリア予防薬処方。'),
+    (5,  5, '良好。', NULL, NULL, '年次予防。', 'ワクチン接種。'),
+    (6,  6, '良好。', NULL, NULL, '年次予防。', 'ワクチン接種。'),
+    (7,  7, '良好。', NULL, NULL, '外部寄生虫予防。', 'スポットオン投与。'),
+    (8,  8, '全身に発赤。搔痒感強。', 3, 6, 'アトピー性皮膚炎。', '抗ヒスタミン薬処方。薬用シャンプー推奨。'),
+    (9,  9, '皮膚の一部に発赤。', 3, 7, '膿皮症初期。', '洗浄と消毒。'),
+    (10, 10, '腹部軽度緊張。', 1, 1, '急性胃腸炎疑い。', '絶食・皮下補液実施。'),
+    (11, 11, '耳道内に分泌物。', 3, 7, '外耳炎。', '耳道洗浄・点耳薬処方。'),
+    (12, 12, 'シニア期に入る。', NULL, NULL, '健康診断実施。', '結果待ち。'),
+    (13, 13, '脱水傾向あり。', 1, 1, '急性胃腸炎。', '対症療法と食事療法。'),
+    (14, 14, '良好。', NULL, NULL, '経過観察。', '維持。'),
+    (15, 15, '良好。', NULL, NULL, '幼若期検診。', '成長記録。'),
+    (16, 16, '良好。', NULL, NULL, 'スクリーニング。', '異常なし。'),
+    (17, 17, '重度の歯石。', NULL, NULL, '歯周病。', '抜歯を含めた歯科処置を計画。'),
+    (18, 18, '良好。', NULL, NULL, '肥満気味。', 'ダイエットフード提案。'),
+    (19, 19, '跛行消失。', 8, 19, '回復期。', '運動制限解除。'),
+    (20, 20, '良好。', NULL, NULL, '年次予防。', 'ワクチン接種。')
+ON CONFLICT (id) DO UPDATE SET
+    updated_at = now();
+
+SELECT setval(pg_get_serial_sequence('clinical_plans', 'id'), (SELECT MAX(id) FROM clinical_plans));
 
 -- -----------------------------------------------------------------------------
 -- 6. vital_records（バイタル: 5件）
@@ -186,7 +212,37 @@ ON CONFLICT (id) DO UPDATE SET
 SELECT setval(pg_get_serial_sequence('treatments', 'id'), (SELECT MAX(id) FROM treatments));
 
 -- -----------------------------------------------------------------------------
--- 8. billings / billing_items / payments
+-- 8. hospitalizations（入院: 7件）
+-- -----------------------------------------------------------------------------
+INSERT INTO hospitalizations (id, clinic_id, owner_id, pet_id, hospitalization_type, start_date, end_date, status, cage_id, doctor_id, memo, owner_request, staff_notes) VALUES
+    (1, 3, 3, 5,  'hospitalization', '2026-03-10', '2026-03-14', 'admitted',   5,    1, '急性胃腸炎による脱水治療。点滴管理中。',  '食事のアレルギーに注意してほしい（鶏肉不可）', '3/10入院開始。静脈点滴開始。3/11嘔吐1回。3/12状態改善傾向。'),
+    (2, 3, 6, 8,  'hospitalization', '2026-02-25', '2026-02-28', 'discharged', 4,    1, '外耳炎重症化に伴う入院治療。',             '怖がりなので優しく接してほしい',               '耳道洗浄を毎日実施。2/28退院時、症状改善。点耳薬処方。'),
+    (3, 3, 17, 19, 'hospitalization', '2026-02-10', '2026-02-20', 'discharged', NULL, 1, '骨折治療による入院。手術後経過観察。', '', '2/10手術実施。2/15抜糸。2/20退院。'),
+    (4, 3, 4,  6,  'hotel',           '2026-03-15', '2026-03-18', 'reserved',   NULL, 1, '旅行中のホテル預かり。', 'フードはロイヤルカナンのみ', ''),
+    (5, 3, 1,  1,  'hospitalization', '2026-03-20', '2026-03-25', 'reserved',   NULL, 1, '膝蓋骨脱臼手術予定。術前検査済み。', '怖がりなので静かな環境を希望', ''),
+    (6, 3, 9,  11, 'hospitalization', '2026-03-05', '2026-03-12', 'admitted',   6,    2, '慢性腎臓病の集中治療。点滴管理中。', 'ペルシャ猫のため温度管理に注意', '3/5入院。毎日皮下補液実施。3/12現在状態安定。'),
+    (7, 3, 3,  4,  'hospitalization', '2026-01-03', '2026-01-06', 'discharged', NULL, 1, '急性胃腸炎による脱水治療。', 'チキンアレルギーあり', '1/3入院。点滴開始。1/6状態改善し退院。')
+ON CONFLICT (id) DO UPDATE SET
+    updated_at            = now();
+
+SELECT setval(pg_get_serial_sequence('hospitalizations', 'id'), (SELECT MAX(id) FROM hospitalizations));
+
+-- -----------------------------------------------------------------------------
+-- 8b. care_plan_items（ケアプラン: 5件）
+-- -----------------------------------------------------------------------------
+INSERT INTO care_plan_items (id, hospitalization_id, type, name, description, timing, status, notes, medicine_id, procedure_id, hospitalization_plan_id, unit_price, category, sort_order) VALUES
+    (1, 1, 'food',        '療法食（消化器ケア）', '1日3回、少量ずつ与える', ARRAY['morning','noon','night']::plan_timing[], 'active', '鶏肉不可。', NULL, NULL, NULL, 0, '食事', 1),
+    (2, 1, 'medicine',    'アモキシシリン',       '1回1錠、朝夕食後',       ARRAY['morning','night']::plan_timing[],       'active', '抗生剤。', 1,    NULL, NULL, 500, '投薬', 2),
+    (3, 1, 'instruction', 'バイタルチェック',     '1日3回測定',             ARRAY['morning','noon','night']::plan_timing[], 'active', '異常値報告。', NULL, NULL, NULL, 0, '観察', 3),
+    (4, 2, 'treatment',   '耳道洗浄',             '1日1回、朝に実施',       ARRAY['morning']::plan_timing[],               'completed', '左耳。', NULL, 4,    NULL, 2500, '処置', 1),
+    (5, 2, 'item',        '入院管理料',           '小型犬1日分',            ARRAY['morning']::plan_timing[],               'completed', '', NULL, NULL, 1,    3000, '入院', 2)
+ON CONFLICT (id) DO UPDATE SET
+    updated_at = now();
+
+SELECT setval(pg_get_serial_sequence('care_plan_items', 'id'), (SELECT MAX(id) FROM care_plan_items));
+
+-- -----------------------------------------------------------------------------
+-- 9. billings / billing_items / payments
 -- -----------------------------------------------------------------------------
 INSERT INTO billings (id, clinic_id, medical_record_id, hospitalization_id, owner_id, pet_id, subtotal, tax_total, total_amount, has_insurance, status, scheduled_date, completed_at, memo) VALUES
     (1, 3, 1,    NULL, 1,  1,  4300, 430, 4730, true, 'completed', '2026-02-15', '2026-02-15 10:30:00+09', 'アニコム保険適用'),
@@ -215,23 +271,6 @@ ON CONFLICT (id) DO UPDATE SET
     updated_at = now();
 
 SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM payments));
-
--- -----------------------------------------------------------------------------
--- 9. trimming_records（トリミング: 8件）
--- -----------------------------------------------------------------------------
-INSERT INTO trimming_records (id, clinic_id, date, pet_id, bw, bw_unit, style_request, staff_id, status, course_id) VALUES
-    (1, 3, '2025-10-10', 1,  26.5,  'Kg', 'サマーカット希望',        6,  'completed',   3),
-    (2, 3, '2025-10-15', 2,  15.2,  'Kg', 'ふんわりカット',          12, 'reserved',    4),
-    (3, 3, '2025-10-12', 3,  4.2,   'Kg', '毛玉カット',              6,  'in_progress', 1),
-    (4, 3, '2026-01-06', 6,  3800,  'g',  'シャンプーコース',        6,  'completed',   1),
-    (5, 3, '2026-01-06', 17, 12.0,  'Kg', '全体カット',              12, 'completed',   4),
-    (6, 3, '2026-01-06', 10, 8.0,   'Kg', '爪切り・ブラッシング',   12, 'reserved',    2),
-    (7, 3, '2026-01-06', 15, 5.0,   'Kg', 'シャンプー',              6,  'completed',   1),
-    (8, 3, '2026-01-06', 6,  3800,  'g',  'トリミング',              6,  'reserved',    3)
-ON CONFLICT (id) DO UPDATE SET
-    updated_at = now();
-
-SELECT setval(pg_get_serial_sequence('trimming_records', 'id'), (SELECT MAX(id) FROM trimming_records));
 
 -- -----------------------------------------------------------------------------
 -- 10. audit_logs（監査ログ: 8件）
