@@ -1,5 +1,5 @@
 import { useState, useCallback, memo, useActionState } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import Eye from "lucide-react/dist/esm/icons/eye";
 import EyeOff from "lucide-react/dist/esm/icons/eye-off";
@@ -9,9 +9,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON } from "@/lib/design-tokens";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
-// AuthProvider はこのページを囲まないため useAuth() は使用不可。
-// login API を直接呼び出し、成功後に navigate("/") で保護ルート側に遷移する。
-import { login as loginApi } from "../api/login";
+import { useAuth } from "../hooks/use-auth";
 
 /* ---- Demo accounts (dev only) ---- */
 
@@ -72,48 +70,48 @@ const INPUT_BASE = `w-full h-[48px] text-base rounded-[3px] ${C.bgInputLogin} bo
 /* ---- Login Form ---- */
 
 export function LoginForm() {
+  const { login, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-const [formState, formAction, isPending] = useActionState(
-  async (_prevState: ActionState, formData: FormData): Promise<ActionState> => {
-    const emailValue = (formData.get("login-email") as string).trim();
-    const passwordValue = formData.get("login-password") as string;
+  const [formState, formAction, isPending] = useActionState(
+    async (_prevState: ActionState, formData: FormData): Promise<ActionState> => {
+      const emailValue = (formData.get("login-email") as string).trim();
+      const passwordValue = formData.get("login-password") as string;
 
-    if (!emailValue) return { success: false, error: "メールアドレスを入力してください", timestamp: Date.now() };
-    if (!passwordValue) return { success: false, error: "パスワードを入力してください", timestamp: Date.now() };
+      if (!emailValue) return { success: false, error: "メールアドレスを入力してください", timestamp: Date.now() };
+      if (!passwordValue) return { success: false, error: "パスワードを入力してください", timestamp: Date.now() };
 
-    try {
-      await loginApi(emailValue, passwordValue);
+      try {
+        // AuthContext の login() が setUser() を直接呼ぶため、
+        // navigate() でそのまま遷移できる（フルリロード不要）。
+        await login(emailValue, passwordValue);
 
-      // 1. location.state から取得 (内部遷移)
-      // 2. URL クエリパラメータから取得 (Axios インターセプター等からの強制遷移)
-      const searchParams = new URLSearchParams(window.location.search);
-      const queryFrom = searchParams.get("from");
-      const from = (location.state as { from?: string })?.from || queryFrom || "/";
+        // 1. location.state から取得 (内部遷移)
+        // 2. URL クエリパラメータから取得 (Axios インターセプター等からの強制遷移)
+        const searchParams = new URLSearchParams(window.location.search);
+        const queryFrom = searchParams.get("from");
+        const from = (location.state as { from?: string })?.from || queryFrom || "/";
 
-      // フルリロードすることで module-level の initialAuthPromise を再評価させる。
-      // SPA navigate() では Cookie は送られるが use(promise) の値は stale のまま。
-      window.location.replace(from || "/");
-      return { success: true, error: null, timestamp: Date.now() };
-    } catch (err) {
-
-      // BUG-047: axios エラーを日本語メッセージに変換
-      let msg = "ログインに失敗しました。しばらくしてから再度お試しください";
-      if (isAxiosError(err)) {
-        if (!err.response) msg = "接続できません。ネットワークをご確認ください";
-        else if (err.response.status === 401) msg = "メールアドレスまたはパスワードが違います";
-        else if (err.response.status === 403) msg = "このアカウントはアクセスが制限されています";
-        else if (err.response.status >= 500) msg = "サーバーエラーが発生しました。しばらくしてからお試しください";
+        navigate(from, { replace: true });
+        return { success: true, error: null, timestamp: Date.now() };
+      } catch (err) {
+        // BUG-047: axios エラーを日本語メッセージに変換
+        let msg = "ログインに失敗しました。しばらくしてから再度お試しください";
+        if (isAxiosError(err)) {
+          if (!err.response) msg = "接続できません。ネットワークをご確認ください";
+          else if (err.response.status === 401) msg = "メールアドレスまたはパスワードが違います";
+          else if (err.response.status === 403) msg = "このアカウントはアクセスが制限されています";
+          else if (err.response.status >= 500) msg = "サーバーエラーが発生しました。しばらくしてからお試しください";
+        }
+        return { success: false, error: msg, timestamp: Date.now() };
       }
-      return { success: false, error: msg, timestamp: Date.now() };
-    }
-  },
-  INITIAL_ACTION_STATE
-);
-
+    },
+    INITIAL_ACTION_STATE
+  );
 
   const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
@@ -127,6 +125,11 @@ const [formState, formAction, isPending] = useActionState(
     setEmail(demoEmail);
     setPassword("password");
   }, []);
+
+  // ログイン済みなら即リダイレクト（直接 /login にアクセスした場合）
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className="w-full max-w-[380px] mx-auto">

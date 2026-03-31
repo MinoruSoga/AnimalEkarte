@@ -30,39 +30,43 @@ const Login = lazy(() =>
 
 export const router = createBrowserRouter([
   {
-    path: "/login",
-    element: (
-      <Suspense fallback={null}>
-        <Login />
-      </Suspense>
-    ),
-  },
-  {
-    path: "/forgot-password",
-    lazy: async () => {
-      const { ForgotPasswordPage } = await import("@/features/auth/routes/ForgotPasswordPage");
-      return { Component: ForgotPasswordPage };
-    },
-  },
-  {
-    path: "/reset-password",
-    lazy: async () => {
-      const { ResetPasswordPage } = await import("@/features/auth/routes/ResetPasswordPage");
-      return { Component: ResetPasswordPage };
-    },
-  },
-  {
-    // AuthProvider を保護ルート側にのみ配置。
-    // /login は上のルートで AuthProvider 外に定義されているため GET /v1/me は実行されない。
+    // AuthProvider をアプリ全体に配置。
+    // これにより /login でも useAuth() が使用可能になり、
+    // LoginForm で login() を直接呼び出してから navigate() できる。
     element: (
       <Suspense fallback={null}>
         <AuthProvider>
-          <Layout />
+          <Outlet />
         </AuthProvider>
       </Suspense>
     ),
     errorElement: <RootErrorBoundary />,
     children: [
+      {
+        path: "/login",
+        element: (
+          <Suspense fallback={null}>
+            <Login />
+          </Suspense>
+        ),
+      },
+      {
+        path: "/forgot-password",
+        lazy: async () => {
+          const { ForgotPasswordPage } = await import("@/features/auth/routes/ForgotPasswordPage");
+          return { Component: ForgotPasswordPage };
+        },
+      },
+      {
+        path: "/reset-password",
+        lazy: async () => {
+          const { ResetPasswordPage } = await import("@/features/auth/routes/ResetPasswordPage");
+          return { Component: ResetPasswordPage };
+        },
+      },
+      {
+        element: <Layout />,
+        children: [
       // ── Dashboard ────────────────────────────────────────────────
       {
         path: "/",
@@ -802,6 +806,8 @@ export const router = createBrowserRouter([
             <p className="text-muted-foreground">ページが見つかりません</p>
           </div>
         ),
+      },
+        ],
       },
     ],
   },

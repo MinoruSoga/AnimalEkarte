@@ -46,8 +46,9 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 /**
  * Initial session restoration promise.
- * Module-level で一度だけ作成する。ログイン後は window.location.replace() で
- * フルリロードするため、ログイン後のマウント時には最新の Cookie でセッション復元される。
+ * Module-level で一度だけ作成する（アプリ起動時に 1 回だけ /v1/me を呼ぶ）。
+ * ログイン後は AuthContext の login() が setUser() を直接呼ぶため
+ * フルリロードは不要。
  */
 const initialAuthPromise = refreshToken().catch(() => null);
 
