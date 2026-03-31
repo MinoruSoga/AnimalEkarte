@@ -191,7 +191,7 @@
 ## 12. 主訴カテゴリマスタ (`/settings/interview/chief-complaint`)
 
 **コンポーネント:** `ChiefComplaintSettings.tsx`
-**API:** `/api/v1/masters/chief-complaints`
+**API:** `/api/v1/masters/chief-complaint-categories`
 
 ---
 
