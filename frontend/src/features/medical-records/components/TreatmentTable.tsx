@@ -284,6 +284,7 @@ function TableInput({
   type = "text",
   step,
   min,
+  max,
   align = "left",
   className,
   disabled,
@@ -294,6 +295,7 @@ function TableInput({
   type?: string;
   step?: string;
   min?: string;
+  max?: string;
   align?: "left" | "right";
   className?: string;
   disabled?: boolean;
@@ -303,6 +305,7 @@ function TableInput({
       type={type}
       step={step}
       min={min}
+      max={max}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}

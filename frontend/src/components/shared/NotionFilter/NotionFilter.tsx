@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { Search, ListFilter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { STYLE, ICON } from "@/lib/design-tokens";
+import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { FilterRuleRow } from "./FilterRuleRow";
 import { FilterAddPopover } from "./FilterAddPopover";
 import { SortPopover } from "./SortPopover";

@@ -1,6 +1,6 @@
 // React/Framework
 import { ICON, C } from "@/lib/design-tokens";
-import { useState, useMemo, useCallback, memo, useTransition, lazy, Suspense, useDeferredValue, useActionState } from "react";
+import { useState, useMemo, useCallback, memo, useTransition, lazy, Suspense, useDeferredValue, useActionState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 
 // External
@@ -842,18 +842,6 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewType, setPreviewType] = useState<"receipt" | "statement">("receipt");
 
-  // --- Focus Management (Accessibility) ---
-  useEffect(() => {
-    // If validation fails or amount is insufficient
-    if (formState.success === false) {
-      const element = document.getElementById("receivedAmount");
-      if (element) {
-        element.focus();
-        element.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }
-  }, [formState.success, formState.timestamp]);
-
   interface FormState {
     success: boolean;
     timestamp: number;
@@ -862,7 +850,7 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
   /**
    * React 19 useActionState を使用した会計確定アクション
    */
-  const [_formState, formAction, _isPending] = useActionState(
+  const [formState, formAction, _isPending] = useActionState(
     async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
       if (!accounting || !calculation) return { success: false, timestamp: Date.now() };
 
@@ -939,6 +927,18 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
     },
     { success: false, timestamp: 0 }
   );
+
+  // --- Focus Management (Accessibility) ---
+  useEffect(() => {
+    // If validation fails or amount is insufficient
+    if (formState.success === false) {
+      const element = document.getElementById("receivedAmount");
+      if (element) {
+        element.focus();
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }, [formState.success, formState.timestamp]);
 
   // clinic 情報（AccountingDocument に props 注入）
   const { user } = useAuth();
