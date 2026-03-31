@@ -106,20 +106,30 @@ aws cloudfront get-distribution-config \
 - `ViewerCertificate.SSLSupportMethod`: `sni-only`
 - `ViewerCertificate.MinimumProtocolVersion`: `TLSv1.2_2021`
 
-### 2-3. Vercel カスタムドメイン追加
+### 2-3. Vercel Custom Environment（Staging）作成 + ドメイン追加
 
-Vercel ダッシュボード → Project (animalekarte-frontend) → Settings → Domains:
-- `stg.noah-karte.com` を追加
-- DNS が正しく伝播されるまで待機（1-1 の CNAME が有効化されること）
+Vercel には **Custom Environment（Pre-production Environment）** 機能があり、
+Production / Preview / Development に加えて `staging` などの独立した環境を作成できる。
+**Pro プラン以上が必要（1プロジェクトあたり 1 環境）。**
 
-または CLI で追加:
-```bash
-vercel domains add stg.noah-karte.com
-```
+#### Custom Environment の作成手順
 
-> **Vercel の Production ドメイン設定:**
-> 追加後、Vercel ダッシュボードで `stg.noah-karte.com` を **Primary Domain（Production）** に設定すること。
-> `frontend-eta-six-20.vercel.app` はそのまま残しても問題ないが、Production ドメインは `stg.noah-karte.com` に切り替える。
+1. Vercel ダッシュボード → Project (animalekarte-frontend) → **Settings → Environments**
+2. **Create Environment** をクリック
+3. 名前: `staging`
+4. **Branch Tracking**: `main` ブランチを割り当て（main push → staging に自動デプロイ）
+5. **Attach Domain**: `stg.noah-karte.com` を設定
+
+> これにより Vercel の環境構成は以下になる:
+>
+> | 環境 | ドメイン | トリガー |
+> |------|---------|---------|
+> | Development | localhost | `vercel dev` |
+> | Preview | 自動生成 URL | PR / feature ブランチ push |
+> | **Staging (Custom)** | `stg.noah-karte.com` | `main` push |
+> | Production | `noah-karte.com` (将来) | 手動 or release ブランチ |
+
+DNS が正しく伝播されるまで待機（1-1 の CNAME が有効化されること）。
 
 ---
 
@@ -404,40 +414,34 @@ role-to-assume: arn:aws:iam::698109622668:role/animalekarte-stg-github-ecs-deplo
 
 ### 4-7. Vercel 環境変数 `VITE_API_URL` 更新
 
-#### Vercel 環境モデルについて
-
-Vercel のビルトイン環境は **Production / Preview / Development** の3種類のみ。
-"staging" 環境を独立して作ることはできない。
-
-**このプロジェクトの方針:**
-- 現在の Vercel プロジェクトをそのままステージングプロジェクトとして使用する
-- `stg.noah-karte.com` = このプロジェクトの Production ドメイン
-- 将来、本番が必要になったら **別の Vercel プロジェクト** を作成して `noah-karte.com` を割り当てる
-
-#### `VITE_API_URL` の設定（Production + Preview の両方）
-
-旧 `VITE_API_URL`（CloudFront のデフォルト URL）を削除して新しい値を設定する。
+Custom Environment `staging` に対して `VITE_API_URL` を設定する。
+旧 `VITE_API_URL`（CloudFront のデフォルト URL）は削除してから追加する。
 
 ```bash
-# 旧値を削除
+# 旧 Production の値を削除（旧来のデフォルト CloudFront URL）
 vercel env rm VITE_API_URL production -y
-vercel env rm VITE_API_URL preview -y
 
-# Production 環境: カスタムドメイン向け
-echo "https://api.stg.noah-karte.com/api" | vercel env add VITE_API_URL production
+# staging Custom Environment に設定
+echo "https://api.stg.noah-karte.com/api" | vercel env add VITE_API_URL staging
 
-# Preview 環境: PR デプロイも stg API を向ける
+# Preview 環境も stg API を向ける（PR デプロイ用）
 echo "https://api.stg.noah-karte.com/api" | vercel env add VITE_API_URL preview
 
-# 反映のため再デプロイ
-vercel deploy --prod
+# staging 環境に手動デプロイして反映確認
+vercel deploy --target=staging
 ```
+
+> **staging Custom Environment へのデプロイコマンド:**
+> ```bash
+> vercel deploy --target=staging
+> ```
+> Branch Tracking (`main`) を設定していれば `git push origin main` で自動デプロイされる。
 
 > **Preview デプロイと CORS について:**
 > PR ごとの Preview URL（`animalekarte-frontend-xxx.vercel.app`）から API を呼ぶ場合、
 > その URL も `CORS_ALLOWED_ORIGIN` に含める必要がある。
-> ワイルドカードは使えないため、開発時は `stg.noah-karte.com` でのみ動作確認する運用とする（Preview からの API 呼び出しはブロック）か、
-> ALB の CORS を緩める対応が必要。**このチケットでは Preview CORS は対応しない**（別途検討）。
+> ワイルドカードは使えないため、開発時は `stg.noah-karte.com` でのみ動作確認する運用とする。
+> **このチケットでは Preview CORS は対応しない**（別途検討）。
 
 ---
 
@@ -499,7 +503,9 @@ vercel deploy --prod
 - [ ] ACM 証明書リクエスト (`us-east-1`)
 - [ ] DNS バリデーション CNAME 追加 → `ISSUED` 確認
 - [ ] CloudFront に `api.stg.noah-karte.com` CNAME + ACM 証明書設定
-- [ ] Vercel に `stg.noah-karte.com` カスタムドメイン追加・確認
+- [ ] Vercel Custom Environment `staging` を作成（Pro プラン必須）
+- [ ] Branch Tracking: `main` ブランチ → staging に設定
+- [ ] `stg.noah-karte.com` を staging Custom Environment に Attach
 
 ### Phase 3
 - [ ] Terraform state のバックアップ (S3 コピー)
@@ -518,9 +524,10 @@ vercel deploy --prod
 - [ ] `backend/.env.production` → `backend/.env.staging` にリネーム (`git mv`)
 - [ ] `.env.staging` 更新: `DB_HOST`（RDS 新エンドポイント）・`CORS_ALLOWED_ORIGIN`（新ドメイン）
 - [ ] `backend-deploy.yml` 更新 (ECS リソース名・IAM Role ARN・SG ID・ログ名・**.env.staging** パス)
-- [ ] Vercel `VITE_API_URL` (Production) を `https://api.stg.noah-karte.com/api` に更新（旧値削除 → 新値追加）
-- [ ] Vercel `VITE_API_URL` (Preview) も同様に更新
-- [ ] Vercel Production ドメインを `stg.noah-karte.com` に設定（Primary Domain）
+- [ ] Vercel 旧 `VITE_API_URL` (Production) を削除
+- [ ] Vercel `VITE_API_URL` (staging) を `https://api.stg.noah-karte.com/api` に設定
+- [ ] Vercel `VITE_API_URL` (Preview) を `https://api.stg.noah-karte.com/api` に設定
+- [ ] `vercel deploy --target=staging` で反映確認
 - [ ] `git push origin main` → GitHub Actions デプロイ確認
 
 ### Phase 5
