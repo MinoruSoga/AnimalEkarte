@@ -531,16 +531,16 @@ vercel deploy --target=staging
 - [x] `backend-deploy.yml` 更新 (branch: staging, ECS stg リソース名, IAM Role, SG, ログ名) ✅
 - [x] Vercel 旧 `VITE_API_URL` (Production/Preview/Development) を削除 ✅
 - [x] Vercel `VITE_API_URL` (staging) = `https://api.stg.noah-karte.com/api` に設定 ✅
-- [ ] `vercel deploy --target=staging` で反映確認
-- [ ] `git push origin staging` → GitHub Actions バックエンドデプロイ確認
+- [x] `vercel deploy --target=staging` で反映確認 ✅
+- [x] `git push origin staging` → GitHub Actions バックエンドデプロイ確認 ✅
 
 ### Phase 5
-- [ ] `https://stg.noah-karte.com` フロントエンド表示確認
-- [ ] `https://api.stg.noah-karte.com/health` が 200 確認
-- [ ] CloudWatch Logs `/ecs/animalekarte-stg` にログ確認
-- [ ] ログイン動作確認
-- [ ] 旧リソース削除: `/animalekarte/test/db/*` SSM params, `/ecs/animalekarte-test` log group
-- [ ] ドキュメント更新: `infra/docs/architecture.md`, `docs/infra/` 配下 (7ファイル)
+- [x] `https://stg.noah-karte.com` フロントエンド表示確認 ✅ (200)
+- [x] `https://api.stg.noah-karte.com/health` が 200 確認 ✅ (`{"status":"ok"}`)
+- [x] CloudWatch Logs `/ecs/animalekarte-stg` にログ確認 ✅
+- [x] ログイン動作確認 ✅
+- [x] 旧リソース削除: `/animalekarte/test/db/*` SSM params 削除済み, `/ecs/animalekarte-test-api` log group 削除済み ✅
+- [x] ドキュメント更新: `infra/CLAUDE.md`, `infra/docs/deployment-guide.md`, `docs/infra/` 配下 ✅
 
 ---
 
