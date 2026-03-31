@@ -629,6 +629,9 @@ export interface ExaminationItem {
   result: string;
   unit: string;
   ref: string;
+  ref_min?: number /* float64 */;
+  ref_max?: number /* float64 */;
+  is_abnormal: boolean;
   status: ExaminationResultStatus;
   sort_order: number /* int */;
   created_at: string;
@@ -1382,6 +1385,7 @@ export interface Treatment {
   status: TreatmentStatus;
   content: string;
   memo: string;
+  admin_route: string;
   insurance: boolean;
   discount_rate: number /* float64 */;
   discount_amount: number /* int64 */;

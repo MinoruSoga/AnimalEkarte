@@ -16,6 +16,7 @@
 |-----------|------|------|
 | 氏名 | スタッフのフルネーム | |
 | 職種 | 役割ラベル（日本語） | job_title マスタから解決 |
+| 権限グループ | 割り当て済み権限グループ名 | `useGetUsers`, `useSetUserPermissionGroups` で管理 |
 | ステータス | `NotionStatusPill` | 有効/無効 |
 | 操作 | `RowActionButton` | 編集 |
 

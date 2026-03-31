@@ -77,7 +77,7 @@
 | `ReservationFormModal` | `[S][M]` | 予約編集モーダル（共有コンポーネント） |
 | `FormHeader` | `[S]` | ページヘッダー |
 | `ConfirmDialog` | `[S][M]` | 予約取消確認ダイアログ |
-| `useDashboardKanban` | `[H]` | カンバン状態管理（dnd-kit 統合、フィルタリング） |
+| `use-dashboard-kanban` | `[H]` | カンバン状態管理（dnd-kit 統合、フィルタリング） |
 
 ## ユーザーアクション
 

@@ -159,6 +159,10 @@ export interface Hospitalization {
   endDate: string;
   status: "入院中" | "退院済" | "予約" | "一時帰宅";
   cageId?: string;
+  /** 退院後の会計連携で使用 */
+  petId?: string;
+  /** 臨床安全ガード: ペットが死亡済みの場合 true */
+  petIsDeceased?: boolean;
 }
 
 /**
@@ -278,6 +282,7 @@ export interface ExaminationRecord {
   date: string;
   ownerName: string;
   petName: string;
+  petId?: string;
   testType: string;
   testTypeId: string;
   doctor: string;

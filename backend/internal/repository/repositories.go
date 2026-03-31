@@ -6,7 +6,10 @@ import (
 
 // Repositories はすべてのリポジトリを保持するDIコンテナ
 type Repositories struct {
-	db                     *gorm.DB
+	db *gorm.DB
+	// TransactionFn はテスト時に差し替え可能なトランザクション関数。
+	// nil の場合は db.Transaction() を使用する（本番動作）。
+	TransactionFn          func(fn func(*Repositories) error) error
 	Auth                   AuthRepository
 	AnimalSpecies          AnimalSpeciesRepository
 	Owner                  OwnerRepository
@@ -116,8 +119,12 @@ func NewRepositories(db *gorm.DB) *Repositories {
 	}
 }
 
-// Transaction はリポジトリ層のトランザクションを実行する
+// Transaction はリポジトリ層のトランザクションを実行する。
+// テスト時は TransactionFn に mock を設定することで DB 依存を排除できる。
 func (r *Repositories) Transaction(fn func(repos *Repositories) error) error {
+	if r.TransactionFn != nil {
+		return r.TransactionFn(fn)
+	}
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		txRepos := NewRepositories(tx)
 		return fn(txRepos)

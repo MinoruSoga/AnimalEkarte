@@ -2,6 +2,12 @@ package handler
 
 import "time"
 
+// dischargeWithBillingRequest は退院+会計作成のバインド struct
+type dischargeWithBillingRequest struct {
+	DischargeDate    time.Time `json:"discharge_date" binding:"required"`
+	CreateAccounting bool      `json:"create_accounting"`
+}
+
 // createHospitalizationRequest は入院作成のバインド struct
 type createHospitalizationRequest struct {
 	OwnerID             uint64    `json:"owner_id"              binding:"required"`

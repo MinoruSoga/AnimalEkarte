@@ -21,6 +21,7 @@ type treatmentResponse struct {
 	Status          string    `json:"status"`
 	Content         string    `json:"content"`
 	Memo            string    `json:"memo"`
+	AdminRoute      string    `json:"admin_route"`
 	Insurance       bool      `json:"insurance"`
 	DiscountRate    float64   `json:"discount_rate"`
 	DiscountAmount  int64     `json:"discount_amount"`
@@ -44,6 +45,7 @@ func toTreatmentResponse(t *model.Treatment) treatmentResponse {
 		Status:          string(t.Status),
 		Content:         t.Content,
 		Memo:            t.Memo,
+		AdminRoute:      t.AdminRoute,
 		Insurance:       t.Insurance,
 		DiscountRate:    t.DiscountRate,
 		DiscountAmount:  t.DiscountAmount,

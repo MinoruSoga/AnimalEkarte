@@ -59,6 +59,9 @@ type ExaminationItem struct {
 	Result          string                  `gorm:"default:''"                                     json:"result"`
 	Unit            string                  `gorm:"default:''"                                     json:"unit"`
 	Ref             string                  `gorm:"default:''"                                     json:"ref"`
+	RefMin          *float64                `gorm:"column:ref_min;type:decimal(10,4)"              json:"ref_min,omitempty"`
+	RefMax          *float64                `gorm:"column:ref_max;type:decimal(10,4)"              json:"ref_max,omitempty"`
+	IsAbnormal      bool                    `gorm:"column:is_abnormal;default:false"               json:"is_abnormal"`
 	Status          ExaminationResultStatus `gorm:"type:examination_result_status;default:'normal'" json:"status"`
 	SortOrder       int                     `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt       time.Time               `gorm:"autoCreateTime"                                 json:"created_at"`

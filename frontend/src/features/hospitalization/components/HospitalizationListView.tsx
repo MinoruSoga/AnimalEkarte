@@ -35,7 +35,11 @@ export function HospitalizationListView({ hospitalizations, onNavigate }: Hospit
       data={hospitalizations}
       emptyMessage="入院データがありません"
       renderRow={(h) => (
-        <DataTableRow key={h.id} onClick={() => onNavigate(h.id)}>
+        <DataTableRow
+          key={h.id}
+          onClick={h.petIsDeceased ? undefined : () => onNavigate(h.id)}
+          className={h.petIsDeceased ? "opacity-40 cursor-default" : ""}
+        >
           <TableCell className={`${STYLE.tableCellMono}`}>
             {h.hospitalizationNo}
           </TableCell>
@@ -55,7 +59,11 @@ export function HospitalizationListView({ hospitalizations, onNavigate }: Hospit
             </StatusBadge>
           </TableCell>
           <TableCell className="text-right py-2">
-            <RowActionButton onClick={() => onNavigate(h.id)} />
+            {h.petIsDeceased ? (
+              <span className="text-xs text-[#37352F]/40 font-medium">死亡</span>
+            ) : (
+              <RowActionButton onClick={() => onNavigate(h.id)} />
+            )}
           </TableCell>
         </DataTableRow>
       )}

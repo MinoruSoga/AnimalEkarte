@@ -26,5 +26,7 @@ export const transformHospitalization = (
     endDate: formatDate(hosp.end_date),
     status: statusMap[hosp.status] ?? "予約",
     cageId: hosp.cage_id ? String(hosp.cage_id) : undefined,
+    petId: hosp.pet?.id ? String(hosp.pet.id) : undefined,
+    petIsDeceased: hosp.pet?.status === "deceased",
   };
 };

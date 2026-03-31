@@ -1,5 +1,5 @@
 // React/Framework
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 // External
@@ -14,11 +14,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
+import type { SortOrder } from "@/types";
 
 // Relative
 import { useExaminationForm } from "../hooks/use-examination-form";
+import { useGetExaminations } from "../api/get-examinations";
+import { ExaminationCard } from "../components/ExaminationCard";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/features/auth/hooks/use-permission";
@@ -36,7 +41,6 @@ const EXAM_STATUS_ITEMS = (
 );
 
 // rerender-memo: フォームフィールドセクションを独立 memo 化
-// PatientInfoCard の再レンダーや isDeleteConfirmOpen の変化では再レンダーしない
 interface FormFieldsSectionProps {
   formData: Partial<ExaminationRecord>;
   examTypes: { id: string; name: string }[];
@@ -172,35 +176,6 @@ const FormFieldsSection = memo(function FormFieldsSection({
   );
 });
 
-// rerender-memo: 削除確認モーダルを独立 memo 化
-// フォームフィールドの変更では再レンダーしない
-interface DeleteConfirmModalProps {
-  onCancel: () => void;
-  onConfirm: () => void;
-}
-
-const DeleteConfirmModal = memo(function DeleteConfirmModal({
-  onCancel,
-  onConfirm,
-}: DeleteConfirmModalProps) {
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl">
-        <h3 className="text-base font-semibold mb-2">検査記録を削除しますか？</h3>
-        <p className="text-sm text-gray-500 mb-4">この操作は取り消せません。</p>
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onCancel} className="h-9 text-sm">キャンセル</Button>
-          <Button
-            variant="destructive"
-            className="h-9 text-sm"
-            onClick={onConfirm}
-          >削除する</Button>
-        </div>
-      </div>
-    </div>
-  );
-});
-
 export function ExaminationForm() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -229,12 +204,24 @@ export function ExaminationForm() {
 
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
 
+  // --- 履歴フィルタ状態 ---
+  const [historySearchTerm, setHistorySearchTerm] = useState("");
+  const [historySortOrder, setHistorySortOrder] = useState<SortOrder>("desc");
+  const [historyStartDate, setHistoryStartDate] = useState("");
+  const [historyEndDate, setHistoryEndDate] = useState("");
+
+  const handleHistoryClear = useCallback(() => {
+    setHistorySearchTerm("");
+    setHistorySortOrder("desc");
+    setHistoryStartDate("");
+    setHistoryEndDate("");
+  }, []);
+
   // --- Focus Management (Accessibility) ---
   useEffect(() => {
     const errorFields = Object.keys(formState.fieldErrors || {});
     if (errorFields.length === 0) return;
 
-    // 優先順位に基づいたエラーフィールドの特定
     const PRIORITY_FIELDS = ["testTypeId", "doctorId"];
     const firstError = PRIORITY_FIELDS.find((f) => errorFields.includes(f)) || errorFields[0];
 
@@ -258,6 +245,39 @@ export function ExaminationForm() {
   const { selectedPets } = petSelection;
   const selectedPet = selectedPets[0];
   const isConfirmed = formData.status === "確定";
+
+  // 現在のペットID（履歴フィルタ用）
+  const currentPetId = formData.petId ?? selectedPet?.id ?? petId ?? undefined;
+
+  // 検査履歴取得
+  const { data: allExaminations = [] } = useGetExaminations({
+    startDate: historyStartDate || undefined,
+    endDate: historyEndDate || undefined,
+  });
+
+  const deferredHistorySearch = useDeferredValue(historySearchTerm);
+
+  // js-cache-function-results: 履歴フィルタ結果をメモ化
+  const filteredHistory = useMemo(() => {
+    if (!currentPetId) return [];
+    let result = allExaminations.filter((e) => e.petId === currentPetId);
+    // 編集中の記録自体は除外
+    if (isEdit && id) {
+      result = result.filter((e) => e.id !== id);
+    }
+    if (deferredHistorySearch) {
+      const lower = deferredHistorySearch.toLowerCase();
+      result = result.filter(
+        (e) =>
+          e.testType.toLowerCase().includes(lower) ||
+          (e.resultSummary ?? "").toLowerCase().includes(lower),
+      );
+    }
+    return [...result].sort((a, b) => {
+      const cmp = a.date.localeCompare(b.date);
+      return historySortOrder === "asc" ? cmp : -cmp;
+    });
+  }, [allExaminations, currentPetId, deferredHistorySearch, isEdit, id, historySortOrder]);
 
   const handleBack = useCallback(() => {
     if (location.state?.from) {
@@ -300,54 +320,91 @@ export function ExaminationForm() {
     <PageLayout
       title={isEdit ? "検査詳細・編集" : "新規検査登録"}
       onBack={handleBack}
-      maxWidth="max-w-3xl"
+      maxWidth="max-w-[1200px]"
       align="left"
     >
       <NavigationBlocker when={isDirty && !isSaving} />
       <form action={formAction}>
-      <div className="flex flex-col gap-4">
-        {/* rerender-memo: PatientInfoCard — フォームフィールド変更では再レンダーしない */}
-        {selectedPet ? (
-          <PatientInfoCard
-            ownerName={selectedPet.ownerName}
-            petName={`${selectedPet.name}${selectedPet.species ? `(${selectedPet.species})` : ""}`}
-            petNumber={selectedPet.petNumber || selectedPet.id}
-            weight={selectedPet.weight || "-"}
-            staffName="医師A"
-            serviceType="検査"
-            petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
-            insuranceName={selectedPet.insuranceName || "保険情報未登録"}
-            insuranceDetails={selectedPet.insuranceDetails || "-"}
-            nextVisitDate="-"
-            nextVisitContent="-"
-          />
-        ) : null}
+        <div className="flex flex-col gap-4">
+          {/* rerender-memo: PatientInfoCard — フォームフィールド変更では再レンダーしない */}
+          {selectedPet ? (
+            <PatientInfoCard
+              ownerName={selectedPet.ownerName}
+              petName={`${selectedPet.name}${selectedPet.species ? `(${selectedPet.species})` : ""}`}
+              petNumber={selectedPet.petNumber || selectedPet.id}
+              weight={selectedPet.weight || "-"}
+              staffName="医師A"
+              serviceType="検査"
+              petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
+              insuranceName={selectedPet.insuranceName || "保険情報未登録"}
+              insuranceDetails={selectedPet.insuranceDetails || "-"}
+              nextVisitDate="-"
+              nextVisitContent="-"
+            />
+          ) : null}
 
-        {/* rerender-memo: FormFieldsSection — isDeleteConfirmOpen の変化では再レンダーしない */}
-        <FormFieldsSection
-          formData={formData}
-          examTypes={examTypes}
-          staffList={staffList}
-          isEdit={isEdit}
-          isSaving={isSaving}
-          isDeleting={isDeleting}
-          isConfirmed={isConfirmed}
-          canEdit={canEdit}
-          canDelete={canDelete}
-          onSetFormData={handleSetFormData}
-          onBack={handleBack}
-          onDeleteClick={handleDeleteClick}
-        />
+          {/* 2カラムレイアウト: 左 3/5（フォーム）・右 2/5（履歴） */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
+            {/* 左カラム: フォームフィールド */}
+            <div className="lg:col-span-3">
+              <FormFieldsSection
+                formData={formData}
+                examTypes={examTypes}
+                staffList={staffList}
+                isEdit={isEdit}
+                isSaving={isSaving}
+                isDeleting={isDeleting}
+                isConfirmed={isConfirmed}
+                canEdit={canEdit}
+                canDelete={canDelete}
+                onSetFormData={handleSetFormData}
+                onBack={handleBack}
+                onDeleteClick={handleDeleteClick}
+              />
+            </div>
 
-        {/* rerender-memo: DeleteConfirmModal — フォームフィールド変更では再レンダーしない */}
-        {isDeleteConfirmOpen ? (
-          <DeleteConfirmModal
-            onCancel={handleDeleteCancel}
-            onConfirm={handleDeleteConfirm}
-          />
-        ) : null}
-      </div>
+            {/* 右カラム: 過去の検査履歴 */}
+            <div className="lg:col-span-2 space-y-3">
+              <h3 className={`text-sm font-medium ${C.text60} px-1`}>過去の検査履歴</h3>
+              <HistoryFilterPanel
+                showDateRange={true}
+                filterStartDate={historyStartDate}
+                onFilterStartDateChange={setHistoryStartDate}
+                filterEndDate={historyEndDate}
+                onFilterEndDateChange={setHistoryEndDate}
+                searchTerm={historySearchTerm}
+                onSearchTermChange={setHistorySearchTerm}
+                searchPlaceholder="検査種別・所見で検索..."
+                sortOrder={historySortOrder}
+                onSortOrderChange={setHistorySortOrder}
+                onClear={handleHistoryClear}
+              />
+              <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                {filteredHistory.length > 0 ? (
+                  filteredHistory.map((exam) => (
+                    <ExaminationCard key={exam.id} examination={exam} />
+                  ))
+                ) : (
+                  <p className={`text-sm ${C.text45} text-center py-6`}>
+                    {currentPetId ? "検査記録がありません" : "ペットを選択してください"}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </form>
+
+      <ConfirmDialog
+        open={isDeleteConfirmOpen}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="検査記録を削除しますか？"
+        description="この操作は取り消せません。"
+        confirmLabel="削除する"
+        cancelLabel="キャンセル"
+        variant="destructive"
+      />
     </PageLayout>
   );
 }
