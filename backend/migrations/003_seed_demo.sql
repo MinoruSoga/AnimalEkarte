@@ -147,7 +147,9 @@ INSERT INTO inquiries (id, medical_record_id, chief_complaint_category_id, chief
     (18, 18, NULL, '定期検診',                   '特に異常なし。体重管理継続を指導。'),
     (19, 19, 6,    '再診（右足跛行）',           '前回の経過観察。改善傾向あり。'),
     (20, 20, NULL, '5種混合ワクチン接種',        '体調良好。ワクチン接種実施。')
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+    medical_record_id = EXCLUDED.medical_record_id,
+    updated_at        = now();
 
 SELECT setval(pg_get_serial_sequence('inquiries', 'id'), (SELECT MAX(id) FROM inquiries));
 
@@ -183,7 +185,38 @@ ON CONFLICT (id) DO UPDATE SET
 SELECT setval(pg_get_serial_sequence('treatments', 'id'), (SELECT MAX(id) FROM treatments));
 
 -- -----------------------------------------------------------------------------
--- 8. trimming_records（トリミング: 8件）
+-- 8. billings / billing_items / payments
+-- -----------------------------------------------------------------------------
+INSERT INTO billings (id, clinic_id, medical_record_id, hospitalization_id, owner_id, pet_id, subtotal, tax_total, total_amount, has_insurance, status, scheduled_date, completed_at, memo) VALUES
+    (1, 3, 1,    NULL, 1,  1,  4300, 430, 4730, true, 'completed', '2026-02-15', '2026-02-15 10:30:00+09', 'アニコム保険適用'),
+    (2, 3, 3,    NULL, 1,  1,  3300, 330, 3630, true, 'completed', '2026-02-28', '2026-02-28 11:00:00+09', 'アニコム保険適用（Iris 耳炎治療）'),
+    (3, 3, 6,    NULL, 2,  3,  800,  80,  880,  true, 'waiting',   '2026-03-12', NULL,                     'アニコム保険適用。会計待ち。')
+ON CONFLICT (id) DO UPDATE SET
+    updated_at = now();
+
+SELECT setval(pg_get_serial_sequence('billings', 'id'), (SELECT MAX(id) FROM billings));
+
+INSERT INTO billing_items (id, billing_id, category, name, unit_price, quantity, tax_rate, is_insurance_applicable, source, sort_order) VALUES
+    (1, 1, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1),
+    (2, 1, 'medicine', 'アモキシシリン 50mg x 7日分', 500,  7, 0.10, true, 'medical_record', 2),
+    (3, 2, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1),
+    (4, 2, 'procedure','耳道洗浄',                  2500, 1, 0.10, true, 'medical_record', 2),
+    (5, 3, 'other',    '再診料',                    800,  1, 0.10, true, 'medical_record', 1)
+ON CONFLICT (id) DO UPDATE SET
+    updated_at = now();
+
+SELECT setval(pg_get_serial_sequence('billing_items', 'id'), (SELECT MAX(id) FROM billing_items));
+
+INSERT INTO payments (id, billing_id, subtotal, tax_total, total_amount, insurance_name, insurance_ratio, insurance_amount, discount_amount, billing_amount, received_amount, change_amount, method) VALUES
+    (1, 1, 4300, 430, 4730, 'アニコム損保', 0.70, 3311, 0, 1419, 1500, 81, 'cash'),
+    (2, 2, 3300, 330, 3630, 'アニコム損保', 0.70, 2541, 0, 1089, 1100, 11, 'credit_card')
+ON CONFLICT (id) DO UPDATE SET
+    updated_at = now();
+
+SELECT setval(pg_get_serial_sequence('payments', 'id'), (SELECT MAX(id) FROM payments));
+
+-- -----------------------------------------------------------------------------
+-- 9. trimming_records（トリミング: 8件）
 -- -----------------------------------------------------------------------------
 INSERT INTO trimming_records (id, clinic_id, date, pet_id, bw, bw_unit, style_request, staff_id, status, course_id) VALUES
     (1, 3, '2025-10-10', 1,  26.5,  'Kg', 'サマーカット希望',        6,  'completed',   3),
@@ -194,12 +227,13 @@ INSERT INTO trimming_records (id, clinic_id, date, pet_id, bw, bw_unit, style_re
     (6, 3, '2026-01-06', 10, 8.0,   'Kg', '爪切り・ブラッシング',   12, 'reserved',    2),
     (7, 3, '2026-01-06', 15, 5.0,   'Kg', 'シャンプー',              6,  'completed',   1),
     (8, 3, '2026-01-06', 6,  3800,  'g',  'トリミング',              6,  'reserved',    3)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+    updated_at = now();
 
 SELECT setval(pg_get_serial_sequence('trimming_records', 'id'), (SELECT MAX(id) FROM trimming_records));
 
 -- -----------------------------------------------------------------------------
--- 9. audit_logs（監査ログ: 8件）
+-- 10. audit_logs（監査ログ: 8件）
 -- -----------------------------------------------------------------------------
 INSERT INTO audit_logs (clinic_id, actor_id, actor_type, action, resource, resource_id, old_value, new_value, ip_address, user_agent) VALUES
     (3, 10, 'staff', 'permission_rules.update', 'permission_groups', 1, '{"can_delete": false}', '{"can_delete": true}', '192.168.1.1', 'Mozilla/5.0...'),
