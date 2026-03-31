@@ -641,34 +641,43 @@ ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('clinical_plans', 'id'), (SELECT MAX(id) FROM clinical_plans));
 
--- =============================================================================
--- G. vital_records（バイタル: 5件）
--- =============================================================================
-INSERT INTO vital_records (id, pet_id, medical_record_id, recorded_at, staff_id, temperature, heart_rate, respiration_rate, weight, notes) VALUES
-    (1, 1,  1, '2026-02-15 09:15:00+09', 1, 38.5, 100, 22, 9.5,  '皮膚の搔痒感あり'),
-    (2, 3,  2, '2026-02-20 10:00:00+09', 2, 38.8, 140, 28, 3.7,  '体重前回比-100g'),
-    (3, 10, 3, '2026-02-28 09:30:00+09', 1, 38.3, 90,  20, 5.5,  '左耳を気にしている'),
-    (4, 5,  4, '2026-03-05 11:00:00+09', 1, 39.1, 110, 26, 27.8, '軽度脱水。CRT 2秒'),
-    (5, 14, 5, '2026-03-10 14:30:00+09', 2, 38.2, 160, 30, 3.8,  '粘膜色やや蒼白')
+-- -----------------------------------------------------------------------------
+-- 21. vital_records（バイタル: 5件）
+-- -----------------------------------------------------------------------------
+INSERT INTO vital_records (id, pet_id, medical_record_id, recorded_at, staff_id, temperature, heart_rate, respiration_rate, weight, weight_unit, notes) VALUES
+    (1, 1,  1, '2026-02-15 09:15:00+09', 1, 38.5, 100, 22, 9.5,   'Kg', '皮膚の搔痒感あり'),
+    (2, 3,  2, '2026-02-20 10:00:00+09', 2, 38.8, 140, 28, 3700,  'g',  '体重前回比-100g'),
+    (3, 10, 3, '2026-02-28 09:30:00+09', 1, 38.3, 90,  20, 5.5,   'Kg', '左耳を気にしている'),
+    (4, 5,  4, '2026-03-05 11:00:00+09', 1, 39.1, 110, 26, 27.8,  'Kg', '軽度脱水。CRT 2秒'),
+    (5, 14, 5, '2026-03-10 14:30:00+09', 2, 38.2, 160, 30, 4000,  'g',  '粘膜色やや蒼白')
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('vital_records', 'id'), (SELECT MAX(id) FROM vital_records));
 
--- =============================================================================
--- H. treatments（治療明細: 8件）
--- =============================================================================
-INSERT INTO treatments (id, medical_record_id, item_type, consultation_id, procedure_id, medicine_id, selected, status, content, unit_price, quantity, sort_order) VALUES
-    (1, 3, 'consultation', 2,    NULL, NULL, true, 'completed', '再診料',                    800,  1, 1),
-    (2, 1, 'medicine',     NULL, NULL, 1,    true, 'completed', 'アモキシシリン 50mg x 7日分', 500,  7, 2),
-    (3, 2, 'consultation', 2,    NULL, NULL, true, 'completed', '再診料',                    800,  1, 1),
-    (4, 3, 'consultation', 2,    NULL, NULL, true, 'completed', '再診料',                    800,  1, 1),
-    (5, 3, 'procedure',    NULL, 4,    NULL, true, 'completed', '耳道洗浄（左耳）',          2500, 1, 2),
-    (6, 4, 'consultation', 1,    NULL, NULL, true, 'completed', '初診料',                    2000, 1, 1),
-    (7, 4, 'medicine',     NULL, NULL, 1,    true, 'completed', 'アモキシシリン 50mg x 5日分', 500,  5, 2),
-    (8, 5, 'consultation', 2,    NULL, NULL, true, 'completed', '再診料',                    800,  1, 1)
+-- -----------------------------------------------------------------------------
+-- 22. treatments（治療明細: 8件）
+-- -----------------------------------------------------------------------------
+INSERT INTO treatments (id, medical_record_id, item_type, consultation_id, procedure_id, medicine_id, inventory_id, selected, status, content, unit_price, quantity, sort_order) VALUES
+    (1, 3, 'consultation', 2,    NULL, NULL, NULL, true, 'completed', '再診料',                    800,  1, 1),
+    (2, 1, 'medicine',     NULL, NULL, 1,    1,    true, 'completed', 'アモキシシリン 50mg x 7日分', 500,  7, 2),
+    (3, 2, 'consultation', 2,    NULL, NULL, NULL, true, 'completed', '再診料',                    800,  1, 1),
+    (4, 3, 'consultation', 2,    NULL, NULL, NULL, true, 'completed', '再診料',                    800,  1, 1),
+    (5, 3, 'procedure',    NULL, 4,    NULL, NULL, true, 'completed', '耳道洗浄（左耳）',          2500, 1, 2),
+    (6, 4, 'consultation', 1,    NULL, NULL, NULL, true, 'completed', '初診料',                    2000, 1, 1),
+    (7, 4, 'medicine',     NULL, NULL, 1,    1,    true, 'completed', 'アモキシシリン 50mg x 5日分', 500,  5, 2),
+    (8, 5, 'consultation', 2,    NULL, NULL, NULL, true, 'completed', '再診料',                    800,  1, 1)
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('treatments', 'id'), (SELECT MAX(id) FROM treatments));
+...
+-- -----------------------------------------------------------------------------
+-- 26. audit_logs（監査ログ: 3件）
+-- -----------------------------------------------------------------------------
+INSERT INTO audit_logs (clinic_id, actor_id, actor_type, action, resource, resource_id, old_value, new_value, ip_address, user_agent) VALUES
+    (3, 10, 'staff', 'permission_rules.update', 'permission_groups', 1, '{"can_delete": false}', '{"can_delete": true}', '192.168.1.1', 'Mozilla/5.0...'),
+    (3, 10, 'staff', 'auth.login.success', 'user_accounts', 10, NULL, NULL, '192.168.1.1', 'Mozilla/5.0...'),
+    (3, 11, 'staff', 'owner.update', 'owners', 1, '{"phone": "old"}', '{"phone": "090-1234-5678"}', '192.168.1.2', 'Mozilla/5.0...')
+ON CONFLICT DO NOTHING;
 
 -- =============================================================================
 -- I. vaccinations（ワクチン接種記録: 3件）
