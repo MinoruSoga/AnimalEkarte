@@ -210,8 +210,10 @@ export function ExaminationForm() {
   const medicalRecordId = searchParams.get("medicalRecordId");
   const { canEdit, canDelete } = usePermission("examinations");
 
-  const { data: examTypes } = useMasterItems("examination");
-  const { data: staffList } = useMasterItems("staff");
+  const { data: examTypesRaw } = useMasterItems("examination");
+  const { data: staffListRaw } = useMasterItems("staff");
+  const examTypes = examTypesRaw.map((t) => ({ id: String(t.id), name: t.name }));
+  const staffList = staffListRaw.map((s) => ({ id: String(s.id), name: s.name }));
 
   const {
     formData,

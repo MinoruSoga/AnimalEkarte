@@ -162,8 +162,8 @@ export interface Hospitalization {
 }
 
 /**
- * フロントエンドケアプラン項目型（UI 表示用）
- * hospitalization/api/care-plan-items.ts と互換
+ * フロントエンドケアプラン項目型（UI 表示用 - camelCase フィールド）
+ * CarePlanDialog, CarePlanItemRow 等で使用
  */
 export type CarePlanItemType = "food" | "medicine" | "treatment" | "instruction" | "item";
 export type CarePlanItemStatus = "active" | "completed" | "discontinued";
@@ -171,21 +171,22 @@ export type CarePlanTiming = "morning" | "noon" | "night";
 
 export interface CarePlanItem {
   id: string;
-  hospitalization_id: string;
+  hospitalizationId: string;
   type: CarePlanItemType;
   name: string;
   description: string;
   timing: CarePlanTiming[];
   status: CarePlanItemStatus;
   notes: string;
-  medicine_id?: string | null;
-  procedure_id?: string | null;
-  hospitalization_plan_id?: string | null;
-  unit_price: number;
-  category: string;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
+  medicineId?: string | null;
+  procedureId?: string | null;
+  hospitalizationPlanId?: string | null;
+  unitPrice?: number;
+  masterId?: string | null;
+  category?: string;
+  sortOrder?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /** ケアログの種別 */
@@ -207,11 +208,13 @@ export interface DailyRecord {
     respirationRate?: number;
     weight?: number;
     notes?: string;
+    staff?: string;
   }>;
   careLogs: Array<{
     id: string;
     time: string;
     type: CareLogType;
+    status?: string;
     value?: string;
     notes?: string;
     staff?: string;

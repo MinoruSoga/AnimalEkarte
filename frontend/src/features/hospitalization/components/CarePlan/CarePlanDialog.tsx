@@ -22,6 +22,7 @@ import { H_STYLES } from "@/features/hospitalization/styles";
 
 // Types
 import type { CarePlanItem, CreateCarePlanDTO, UpdateCarePlanDTO } from "@/features/hospitalization/types";
+import type { CarePlanTiming } from "@/types";
 
 interface CarePlanDialogProps {
     open: boolean;
@@ -88,10 +89,11 @@ export const CarePlanDialog = memo(function CarePlanDialog({
 
     const toggleTiming = (time: string) => {
         const current = formData.timing || [];
-        if (current.includes(time)) {
-            setFormData({ ...formData, timing: current.filter(t => t !== time) });
+        const timingVal = time as CarePlanTiming;
+        if (current.includes(timingVal)) {
+            setFormData({ ...formData, timing: current.filter(t => t !== timingVal) });
         } else {
-            setFormData({ ...formData, timing: [...current, time] });
+            setFormData({ ...formData, timing: [...current, timingVal] });
         }
     };
 
@@ -181,7 +183,7 @@ export const CarePlanDialog = memo(function CarePlanDialog({
                     <div className="space-y-2">
                         <Label>タイミング</Label>
                         <div className="flex gap-2">
-                            {["morning", "noon", "night"].map((time) => (
+                            {(["morning", "noon", "night"] as CarePlanTiming[]).map((time) => (
                                 <div
                                     key={time}
                                     onClick={() => toggleTiming(time)}
