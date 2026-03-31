@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -61,15 +60,13 @@ func (r *petRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *u
 
 func (r *petRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
 	var pet model.Pet
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Preload("Owner").
 		Preload("AnimalSpecies").
 		Preload("Insurance").
-		First(&pet, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("pet", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find pet by id")
+		First(&pet, "id = ? AND clinic_id = ?", id, clinicID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
 	}
 	return &pet, nil
 }
@@ -93,7 +90,7 @@ func (r *petRepository) Create(ctx context.Context, pet *model.Pet) error {
 	}
 	loaded, err := r.FindByID(ctx, pet.ClinicID, pet.ID)
 	if err != nil {
-		return err
+		return apperrors.Wrap(err, "reload pet after create")
 	}
 	*pet = *loaded
 	return nil

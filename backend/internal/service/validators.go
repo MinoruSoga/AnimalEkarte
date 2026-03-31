@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"strings"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -58,6 +59,28 @@ func validatePetDangerLevel(level string) error {
 	default:
 		return apperrors.WrapInvalidInput(fmt.Sprintf("invalid danger_level: %s", level))
 	}
+}
+
+// validateRequiredName は必須名前フィールドのバリデーションを行う。
+// スペースのみ・NULL バイト・制御文字が含まれていないかを検証する。
+func validateRequiredName(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return apperrors.WrapInvalidInput("名前を入力してください")
+	}
+	for _, r := range name {
+		if r == '\u0000' {
+			return apperrors.WrapInvalidInput("名前に無効な文字が含まれています")
+		}
+		if r < 0x20 && r != '\t' && r != '\n' {
+			return apperrors.WrapInvalidInput("名前に無効な文字が含まれています")
+		}
+	}
+	return nil
+}
+
+// validateOwnerName はオーナー名のバリデーションを行う（validateRequiredName のエイリアス）
+func validateOwnerName(name string) error {
+	return validateRequiredName(name)
 }
 
 // validateDiscountRate は割引率が 0〜100 の範囲内かを検証する

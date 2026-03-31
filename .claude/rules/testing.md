@@ -1,5 +1,7 @@
 ---
-paths: ["backend/**/*_test.go", "frontend/**/*.{test,spec}.{ts,tsx}"]
+description: テスト規約（ユニット・統合テスト）
+alwaysApply: false
+globs: ["backend/**/*_test.go", "frontend/**/*.{test,spec}.{ts,tsx}"]
 ---
 
 # Testing Rules

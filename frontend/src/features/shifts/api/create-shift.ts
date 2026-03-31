@@ -5,7 +5,10 @@ import { transformShift } from "./transforms";
 import type { BackendShift } from "./types";
 
 export async function createShift(input: CreateShiftInput): Promise<Shift> {
-  const { data } = await axios.post<BackendShift>("/v1/shifts", input);
+  const { data } = await axios.post<BackendShift>("/v1/shifts", {
+    ...input,
+    staff_id: Number(input.staff_id),
+  });
   return transformShift(data);
 }
 

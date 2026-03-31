@@ -27,7 +27,6 @@
 | CORS設定 | ⚠️ | Access-Control-Allow-Origin: * （本番では制限推奨） |
 | DB接続SSL | ✅ | sslmode=require |
 | 環境変数 | ✅ | SSM Parameter Store使用 |
-| PostgreSQL拡張 | ✅ | uuid-ossp有効化 |
 
 ## 監査・ログ
 

@@ -1,14 +1,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
-import type { TrimmingRecord } from "@/types";
+import type { TrimmingUI } from "@/types";
 import { transformTrimming } from "./transforms";
 import type { BackendTrimming, UpdateTrimmingRequest } from "@/types/trimming";
 
 export const updateTrimming = async (
   id: string,
   req: UpdateTrimmingRequest
-): Promise<TrimmingRecord> => {
+): Promise<TrimmingUI> => {
   const { data } = await axios.patch<BackendTrimming>(
     `/v1/trimmings/${id}`,
     req

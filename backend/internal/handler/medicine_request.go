@@ -4,14 +4,16 @@ package handler
 type createMedicineRequest struct {
 	Name            string   `json:"name"             binding:"required"`
 	ParentID        *uint64  `json:"parent_id"`
-	Price           *float64 `json:"price"`
+	Price           *int64   `json:"price"`
 	IsActive        bool     `json:"is_active"`
 	Description     string   `json:"description"`
 	DosageForm      *string  `json:"dosage_form"`
 	MedicineUnit    *string  `json:"medicine_unit"`
 	InventoryID     *uint64  `json:"inventory_id"`
-	DefaultQuantity int      `json:"default_quantity"`
+	DefaultQuantity float64  `json:"default_quantity"`
 	SortOrder       int      `json:"sort_order"`
+	TaxType         *string  `json:"tax_type"`
+	TaxRate         *float64 `json:"tax_rate"`
 }
 
 // reorderMedicineRequest は薬剤並び替えのバインド struct
@@ -27,12 +29,14 @@ type updateMedicineRequest struct {
 	Name            *string  `json:"name"`
 	ParentID        *uint64  `json:"parent_id"`
 	ClearParentID   bool     `json:"clear_parent_id"`
-	Price           *float64 `json:"price"`
+	Price           *int64   `json:"price"`
 	IsActive        *bool    `json:"is_active"`
 	Description     *string  `json:"description"`
 	DosageForm      *string  `json:"dosage_form"`
 	MedicineUnit    *string  `json:"medicine_unit"`
 	InventoryID     **uint64 `json:"inventory_id"`
-	DefaultQuantity *int     `json:"default_quantity"`
+	DefaultQuantity *float64 `json:"default_quantity"`
 	SortOrder       *int     `json:"sort_order"`
+	TaxType         *string  `json:"tax_type"`
+	TaxRate         *float64 `json:"tax_rate"`
 }

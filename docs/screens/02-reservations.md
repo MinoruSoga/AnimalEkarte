@@ -94,15 +94,12 @@
 
 | コンポーネント | 種別 | 説明 |
 |---|---|---|
-| `ReservationManagement` | `[R]` | メインページ（UI層のみ） |
-| `useReservationManagement` | `[H]` | 予約CRUD・モーダル・バリデーションロジック |
+| `ReservationManagement` | `[R]` | メインページ |
 | `MonthView` | `[C]` | 月表示カレンダー |
-| `WeekView` | `[C]` | 週表示カレンダー（`motion/react` アニメーション、D&D） |
-| `ReservationFormModal` | `[C][M]` | 予約作成/編集モーダル（2ステップウィザード） |
-| `ReservationFormFields` | `[C]` | フォームフィールド群 |
+| `WeekView` | `[C]` | 週表示カレンダー |
+| `ReservationFormModal` | `[C][M]` | 予約作成/編集モーダル（共有コンポーネント） |
 | `ReservationDetailModal` | `[C][M]` | 予約詳細モーダル |
-| `PatientSearch` | `[C]` | 患者検索コンポーネント |
-| `PatientSelectionTable` | `[C]` | 患者選択テーブル |
+| `useReservationManagement` | `[H]` | 予約管理ロジック |
 | `ConfirmDialog` | `[S][M]` | キャンセル確認 |
 
 ## ユーザーアクション
@@ -112,56 +109,46 @@
 | 新規予約作成 | 「新規予約」ボタン | `ReservationFormModal` を開く | モーダル表示 |
 | タイムスロットクリック | 週表示の空き時間クリック | 選択時間で `ReservationFormModal` を開く | モーダル表示 |
 | 予約詳細表示 | 予約カードクリック | `ReservationDetailModal` を開く | モーダル表示 |
-| 予約編集 | 詳細モーダル「編集」ボタン | `ReservationFormModal` を開く（編集モード） | モーダル表示 |
-| 予約削除 | 詳細モーダル「削除」ボタン | 確認ダイアログ後、削除 | 同画面 |
+| 予約編集 | 詳細モーダル「編集」ボタン | `ReservationFormModal` を開く | モーダル表示 |
+| 予約削除 | 詳細モーダル「削除」ボタン | 確認ダイアログ後、削除（API連携） | 同画面 |
 | ステータス変更 | 詳細モーダルのステータスドロップダウン | ステータス更新 | 同画面 |
-| カルテ作成 | 詳細モーダル「カルテ作成」ボタン | カルテ作成画面へ遷移 | `/medical-records/new?petId=xxx` |
-| 予約移動 | 週表示でカードD&D | 時間変更（15分単位スナップ、`motion/react` 使用） | 同画面 |
-| 月/週表示切替 | ドロップダウン選択 | ビュー切替 | 同画面 |
-| 前後移動 | ← → ボタン | 前/次の週または月へ | 同画面 |
 
 ## 画面遷移
 
 | 遷移元 | 遷移先 | 条件 |
 |--------|--------|------|
 | ダッシュボード「新規予約」 | `/reservations` | ボタンクリック |
-| 詳細モーダル「カルテ作成」 | `/medical-records/new?petId=xxx` | サービス種別:診療系 |
-| 詳細モーダル「トリミング記録作成」 | `/trimming/new?petId=xxx` | サービス種別:トリミング |
-| 詳細モーダル「入院・ホテル登録」 | `/hospitalization/new?petId=xxx` | サービス種別:入院/ホテル |
+| 詳細モーダル「カルテ作成」 | `/medical-records/new?petId=xxx` | 診療系サービス |
 
-## バリデーション
-- 重複チェックエラー時: 構造化トースト（`toast.warning` + description）
-- 新規時: 日付セルクリック日を初期値、デフォルト時間 10:00-11:00
-- `ReservationFormFields` の日付・予約種別・担当医の各 `SelectTrigger` に `aria-describedby` で `FormFieldError` 接続
+## 機能詳細
 
-## 状態管理
+### 1. タイムスロット吸着（スナップ）
+- **時刻制御**: 週表示ビューでのドラッグまたは新規作成時、時刻は自動的に15分単位（00, 15, 30, 45）に丸められる。
+- **ドラッグ&ドロップ**: `motion/react` を使用し、Y軸方向のドラッグで予約時間を直感的に変更可能。
 
-| 状態 | 型 | 説明 |
-|------|-----|------|
-| `currentView` | `CalendarView` | 月/週表示切替 |
-| `currentDate` | `Date` | 表示中の日付 |
-| `selectedDoctorFilter` | `string` | 担当医フィルタ |
-| `isFormModalOpen` | `boolean` | 予約フォームモーダル表示フラグ |
-| `isDetailModalOpen` | `boolean` | 詳細モーダル表示フラグ |
+### 2. 重複検知とバリデーション
+- **ダブルブッキング警告**: 同一時間帯に同一の担当医に対して予約が重複した場合、保存前に警告トーストを表示する。
+- **ステータス連動**: 受付済みに更新された予約は、自動的にダッシュボードの「受付済」カラムに出現する。
+
+### 3. ビュー間の同期
+- **日付連動**: 月表示で特定の日付を選択して週表示に切り替えると、その日付を含む週が初期表示される。逆も同様。
 
 ## データ型
-`ReservationAppointment`, `ReservationFormData`, `CalendarView`, `ReservationStatus`, `VisitType`
+`ReservationAppointment`, `CalendarView`, `ReservationStatus`, `VisitType`
 
 ## API連携
 
 | メソッド | エンドポイント | 用途 | 状態 |
 |---------|--------------|------|------|
-| GET | `/api/v1/reservations` | 予約一覧取得 | 未実装 |
-| GET | `/api/v1/reservations/:id` | 予約詳細取得 | 未実装 |
-| POST | `/api/v1/reservations` | 予約作成 | 未実装 |
-| PUT | `/api/v1/reservations/:id` | 予約更新 | 未実装 |
-| DELETE | `/api/v1/reservations/:id` | 予約削除 | 未実装 |
-| POST | `/api/v1/reservations/:id/check-in` | 受付処理 | 未実装 |
-| POST | `/api/v1/reservations/:id/cancel` | 予約キャンセル | 未実装 |
+| GET | `/api/v1/reservations` | 予約一覧取得 | 実装済 |
+| GET | `/api/v1/reservations/:id` | 予約詳細取得 | 実装済 |
+| POST | `/api/v1/reservations` | 予約作成 | 実装済 |
+| PATCH | `/api/v1/reservations/:id` | 予約更新 | 実装済 |
+| DELETE | `/api/v1/reservations/:id` | 予約削除 | 実装済 |
 
 ## 実装状況
-- フロントエンド(ui-sample): 実装済（モックデータ使用）
-- バックエンドAPI: 未実装
+- フロントエンド: 実装済（`features/reservations`）
+- バックエンドAPI: 実装済（`handler/reservation_handler.go`）
 
 ## 備考
 - 予約種別カラーはマスタ（`service_types.color`）と連動し、動的に凡例を生成する

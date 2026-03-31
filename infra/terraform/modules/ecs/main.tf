@@ -109,26 +109,6 @@ resource "aws_iam_role_policy_attachment" "task_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# IAM Policy for SSM Parameter Store Read
-resource "aws_iam_role_policy" "task_execution_ssm" {
-  name = "${var.name_prefix}-ecs-task-execution-ssm"
-  role = aws_iam_role.task_execution.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "ssm:GetParameters",
-          "ssm:GetParameter"
-        ]
-        Resource = var.ssm_parameter_arns
-      }
-    ]
-  })
-}
-
 # IAM Role for ECS Task
 resource "aws_iam_role" "task" {
   name = "${var.name_prefix}-ecs-task-role"
@@ -196,51 +176,8 @@ resource "aws_ecs_task_definition" "main" {
         }
       ]
 
-      environment = [
-        {
-          name  = "PORT"
-          value = "8080"
-        },
-        {
-          name  = "DB_HOST"
-          value = var.db_address
-        },
-        {
-          name  = "DB_PORT"
-          value = tostring(var.db_port)
-        },
-        {
-          name  = "DB_SSL_MODE"
-          value = "require"
-        },
-        {
-          name  = "GIN_MODE"
-          value = "release"
-        },
-        {
-          name  = "CORS_ALLOWED_ORIGIN"
-          value = var.cors_allowed_origin
-        },
-        {
-          name  = "COOKIE_CROSS_DOMAIN"
-          value = var.cookie_cross_domain ? "true" : "false"
-        }
-      ]
-
-      secrets = [
-        {
-          name      = "DB_NAME"
-          valueFrom = var.db_name_parameter_arn
-        },
-        {
-          name      = "DB_USER"
-          valueFrom = var.db_user_parameter_arn
-        },
-        {
-          name      = "DB_PASSWORD"
-          valueFrom = var.db_password_parameter_arn
-        }
-      ]
+      environment = []
+      secrets     = []
 
       logConfiguration = {
         logDriver = "awslogs"

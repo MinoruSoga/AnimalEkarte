@@ -10,11 +10,13 @@ type hospitalizationPlanResponse struct {
 	ID          uint64    `json:"id"`
 	ClinicID    uint64    `json:"clinic_id"`
 	Name        string    `json:"name"`
-	Price       *float64  `json:"price,omitempty"`
+	Price       *int64    `json:"price,omitempty"`
 	IsActive    bool      `json:"is_active"`
 	Description string    `json:"description"`
 	BodySize    *string   `json:"body_size,omitempty"`
 	BillingUnit *string   `json:"billing_unit,omitempty"`
+	TaxType     string    `json:"tax_type"`
+	TaxRate     float64   `json:"tax_rate"`
 	SortOrder   int       `json:"sort_order"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -40,6 +42,8 @@ func toHospitalizationPlanResponse(p *model.HospitalizationPlan) hospitalization
 		Description: p.Description,
 		BodySize:    bodySize,
 		BillingUnit: billingUnit,
+		TaxType:     string(p.TaxType),
+		TaxRate:     p.TaxRate,
 		SortOrder:   p.SortOrder,
 		CreatedAt:   p.CreatedAt,
 		UpdatedAt:   p.UpdatedAt,

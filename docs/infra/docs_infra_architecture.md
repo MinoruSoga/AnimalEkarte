@@ -97,7 +97,7 @@ Terraform により構築・管理され、ECS(Fargate) 上の Go API を ALB �
   - `ekarte_db`
 
 > SSL 接続（`sslmode=require`）を使用。  
-> DB エンジンが確定前のため、UUID 等の DB 拡張機能依存は排除し、アプリ側で UUID を生成する設計に変更済みです。
+> DB エンジンが確定前のため、DB 拡張機能への依存を抑え、アプリ側（Go uint64）と DB 側（BIGSERIAL）で整合させた bigint 型の ID 体系を採用しています。
 
 ### 2.5 ECR
 
@@ -362,4 +362,4 @@ aws elbv2 describe-target-health   --target-group-arn ${TG_ARN}   --region us-ea
 ## 変更履歴
 
 - 2026-02: 初版（テスト環境。VPC/RDS/ECS/ALB/ECR/SSM/Logs を Terraform で構築）
-- 2026-02: DB拡張（uuid-ossp）依存を排除し、アプリ側 UUID 生成へ変更
+- 2026-02: DB拡張（uuid-ossp）依存を排除し、Go モデル（uint64）と整合させた bigint 採番へ変更

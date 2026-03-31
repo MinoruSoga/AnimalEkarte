@@ -13,11 +13,11 @@ import (
 
 // mockCheckupTypeRepository は CheckupTypeRepository のテスト用モック実装
 type mockCheckupTypeRepository struct {
-	findAllFn  func(ctx context.Context) ([]model.CheckupType, error)
-	findByIDFn func(ctx context.Context, id uint64) (*model.CheckupType, error)
-	createFn   func(ctx context.Context, checkupType *model.CheckupType) error
-	updateFn   func(ctx context.Context, checkupType *model.CheckupType) error
-	deleteFn   func(ctx context.Context, id uint64) error
+	findAllFn      func(ctx context.Context) ([]model.CheckupType, error)
+	findByIDFn     func(ctx context.Context, id uint64) (*model.CheckupType, error)
+	createFn       func(ctx context.Context, checkupType *model.CheckupType) error
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error)
+	deleteFn       func(ctx context.Context, id uint64) error
 }
 
 func (m *mockCheckupTypeRepository) FindAll(ctx context.Context) ([]model.CheckupType, error) {
@@ -32,8 +32,8 @@ func (m *mockCheckupTypeRepository) Create(ctx context.Context, checkupType *mod
 	return m.createFn(ctx, checkupType)
 }
 
-func (m *mockCheckupTypeRepository) Update(ctx context.Context, checkupType *model.CheckupType) error {
-	return m.updateFn(ctx, checkupType)
+func (m *mockCheckupTypeRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockCheckupTypeRepository) Delete(ctx context.Context, id uint64) error {
@@ -216,56 +216,71 @@ func TestCheckupTypeService_Create(t *testing.T) {
 }
 
 func TestCheckupTypeService_Update(t *testing.T) {
+	name := "更新後健診種別"
+	isActive := true
 	tests := []struct {
-		name        string
-		checkupType *model.CheckupType
-		repoErr     error
-		wantErr     bool
+		name     string
+		clinicID uint64
+		id       uint64
+		input    UpdateCheckupTypeInput
+		repoData *model.CheckupType
+		repoErr  error
+		wantErr  bool
 	}{
 		{
-			name: "updates checkup type successfully",
-			checkupType: &model.CheckupType{
-				ID:   1,
-				Name: "更新後健診種別",
-			},
-			repoErr: nil,
-			wantErr: false,
+			name:     "updates checkup type successfully",
+			clinicID: 1,
+			id:       1,
+			input:    UpdateCheckupTypeInput{Name: &name, IsActive: &isActive},
+			repoData: &model.CheckupType{ID: 1, Name: name, IsActive: isActive},
+			repoErr:  nil,
+			wantErr:  false,
 		},
 		{
-			name: "returns not found error when checkup type does not exist",
-			checkupType: &model.CheckupType{
-				ID:   999,
-				Name: "存在しない健診種別",
-			},
-			repoErr: apperrors.WrapNotFound("checkup_type", "999"),
-			wantErr: true,
+			name:     "returns error when no fields provided",
+			clinicID: 1,
+			id:       1,
+			input:    UpdateCheckupTypeInput{},
+			repoErr:  nil,
+			wantErr:  true,
 		},
 		{
-			name: "returns error on repository failure",
-			checkupType: &model.CheckupType{
-				ID:   1,
-				Name: "エラーケース",
-			},
-			repoErr: errors.New("db error"),
-			wantErr: true,
+			name:     "returns not found error when checkup type does not exist",
+			clinicID: 1,
+			id:       999,
+			input:    UpdateCheckupTypeInput{Name: &name},
+			repoData: nil,
+			repoErr:  apperrors.WrapNotFound("checkup_type", "999"),
+			wantErr:  true,
+		},
+		{
+			name:     "returns error on repository failure",
+			clinicID: 1,
+			id:       1,
+			input:    UpdateCheckupTypeInput{Name: &name},
+			repoData: nil,
+			repoErr:  errors.New("db error"),
+			wantErr:  true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCheckupTypeRepository{
-				updateFn: func(_ context.Context, _ *model.CheckupType) error {
-					return tt.repoErr
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.CheckupType, error) {
+					return tt.repoData, tt.repoErr
 				},
 			}
 			svc := NewCheckupTypeService(repo)
 
-			err := svc.Update(context.Background(), tt.checkupType)
+			result, err := svc.Update(context.Background(), tt.clinicID, tt.id, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, result)
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, result)
 			}
 		})
 	}

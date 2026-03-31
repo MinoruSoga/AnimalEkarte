@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -95,20 +96,17 @@ type petService struct {
 	repo          repository.PetRepository
 	ownerRepo     repository.OwnerRepository
 	insuranceRepo repository.InsuranceRepository
-	logger        *slog.Logger
 }
 
 func NewPetService(
 	repo repository.PetRepository,
 	ownerRepo repository.OwnerRepository,
 	insuranceRepo repository.InsuranceRepository,
-	logger *slog.Logger,
 ) PetService {
 	return &petService{
 		repo:          repo,
 		ownerRepo:     ownerRepo,
 		insuranceRepo: insuranceRepo,
-		logger:        logger,
 	}
 }
 
@@ -121,7 +119,16 @@ func (s *petService) GetByID(ctx context.Context, clinicID, id uint64) (*model.P
 }
 
 func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreatePetInput) (*model.Pet, error) {
+	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
+	if err := validateRequiredName(input.Name); err != nil {
+		return nil, err
+	}
+	input.Name = strings.TrimSpace(input.Name)
+
 	// ビジネスルールバリデーション
+	if input.Weight != nil && *input.Weight < 0 {
+		return nil, apperrors.WrapInvalidInput("体重は0以上の値を入力してください")
+	}
 	if err := validatePetGender(input.Gender); err != nil {
 		return nil, err
 	}
@@ -151,7 +158,7 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 	// ペット番号を自動採番: 「飼主ID-連番」形式
 	count, err := s.repo.CountByOwner(ctx, clinicID, input.OwnerID)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to count pets by owner")
 	}
 	petNumber := fmt.Sprintf("%d-%d", input.OwnerID, count+1)
 
@@ -189,7 +196,7 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 	}
 
 	if err := s.repo.Create(ctx, pet); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to create pet")
 	}
 
 	slog.InfoContext(ctx, "pet created",
@@ -201,7 +208,19 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 }
 
 func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *UpdatePetInput) (*model.Pet, error) {
+	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
+	if input.Name != nil {
+		if err := validateRequiredName(*input.Name); err != nil {
+			return nil, err
+		}
+		trimmed := strings.TrimSpace(*input.Name)
+		input.Name = &trimmed
+	}
+
 	// ビジネスルールバリデーション
+	if input.Weight != nil && *input.Weight < 0 {
+		return nil, apperrors.WrapInvalidInput("体重は0以上の値を入力してください")
+	}
 	if input.Gender != nil {
 		if err := validatePetGender(*input.Gender); err != nil {
 			return nil, err
@@ -244,7 +263,7 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 	}
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update pet")
 	}
 
 	slog.InfoContext(ctx, "pet updated",

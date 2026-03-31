@@ -1,5 +1,5 @@
 // React/Framework
-import { useCallback } from "react";
+import { memo, useCallback } from "react";
 import { useNavigate } from "react-router";
 
 // External
@@ -20,7 +20,8 @@ import BedDouble from "lucide-react/dist/esm/icons/bed-double";
 // Internal
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { C } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
+import { getVisitTypeColor } from "@/utils/constants/status-colors";
 
 // Types
 import type { Appointment } from "@/types";
@@ -30,11 +31,11 @@ interface ServiceIconProps {
 }
 
 function ServiceIcon({ service }: ServiceIconProps) {
-  if (service.includes("トリミング")) return <Scissors className="size-3" />;
-  if (service.includes("ワクチン")) return <Syringe className="size-3" />;
-  if (service.includes("手術")) return <Activity className="size-3" />;
-  if (service.includes("診療")) return <Stethoscope className="size-3" />;
-  return <Stethoscope className="size-3" />;
+  if (service.includes("トリミング")) return <Scissors className={ICON.xs} />;
+  if (service.includes("ワクチン")) return <Syringe className={ICON.xs} />;
+  if (service.includes("手術")) return <Activity className={ICON.xs} />;
+  if (service.includes("診療")) return <Stethoscope className={ICON.xs} />;
+  return <Stethoscope className={ICON.xs} />;
 }
 
 interface AppointmentCardProps {
@@ -44,7 +45,7 @@ interface AppointmentCardProps {
   isDragOverlay?: boolean;
 }
 
-export function AppointmentCard({
+export const AppointmentCard = memo(function AppointmentCard({
   appointment,
   columnTitle,
   onCardClick,
@@ -73,6 +74,7 @@ export function AppointmentCard({
 
   const isTrimming = appointment.serviceType.includes("トリミング");
   const isHospitalization = appointment.serviceType.includes("入院");
+  const visitColor = getVisitTypeColor(appointment.visitType);
 
   const handleKarteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -114,7 +116,7 @@ export function AppointmentCard({
         <CardContent className="p-[13px] space-y-[9px]">
           <div className="flex items-start justify-between gap-2">
             <div className={`flex items-center gap-1.5 ${C.text60} min-w-0`}>
-              <Clock className="size-3.5 flex-shrink-0" />
+              <Clock className={`${ICON.xs} flex-shrink-0`} />
               <span className="text-base font-medium font-mono tracking-[var(--tracking-notion)]">{appointment.time}</span>
             </div>
             {appointment.nextAppointment ? (
@@ -122,8 +124,8 @@ export function AppointmentCard({
                 variant={appointment.nextAppointment === "精算未確認" ? "destructive" : "secondary"}
                 className="text-sm px-[7.5px] h-[22px] flex items-center gap-0.5 flex-shrink-0 tracking-[var(--tracking-notion-sm)]"
               >
-                {appointment.nextAppointment === "精算未確認" ? <AlertCircle className="size-3" /> : null}
-                {appointment.nextAppointment === "次回予約済" ? <Calendar className="size-3" /> : null}
+                {appointment.nextAppointment === "精算未確認" ? <AlertCircle className={ICON.xs} /> : null}
+                {appointment.nextAppointment === "次回予約済" ? <Calendar className={ICON.xs} /> : null}
                 {appointment.nextAppointment}
               </Badge>
             ) : null}
@@ -132,7 +134,7 @@ export function AppointmentCard({
           <div className="space-y-0.5">
             <p className="text-base font-semibold truncate leading-tight tracking-[var(--tracking-notion)]">{appointment.ownerName}</p>
             <div className={`flex items-center gap-1 ${C.text60}`}>
-              <Dog className="size-3.5 flex-shrink-0" />
+              <Dog className={`${ICON.xs} flex-shrink-0`} />
               <p className="text-base truncate tracking-[var(--tracking-notion)]">{appointment.petType} - {appointment.petName}</p>
             </div>
           </div>
@@ -140,7 +142,7 @@ export function AppointmentCard({
           <div className="flex items-center flex-wrap gap-1 pt-0.5">
             <Badge
               variant="secondary"
-              className={`text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-notion-sm)] ${appointment.visitType === "初診" ? `bg-[#D3E5EF]/60 text-[#183B56]/90 border-[#B8D4E3]/50` : `bg-[#F7F6F3]/60 text-[#37352F]/90 border-[rgba(55,53,47,0.09)]/50`}`}
+              className={`text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-notion-sm)] ${visitColor.badgeBg} ${visitColor.badgeText} ${visitColor.badgeBorder}`}
             >
               {appointment.visitType}
             </Badge>
@@ -149,12 +151,12 @@ export function AppointmentCard({
               <span className="truncate max-w-[80px]">{appointment.serviceType}</span>
             </Badge>
 
-            {(appointment.doctor || appointment.isDesignated) ? (
-                 <Badge variant="outline" className={`flex items-center gap-1 text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-notion-sm)] ${appointment.isDesignated ? `bg-[#FAEBDD] text-[#D9730D] border-[#D9730D]/20` : `bg-white text-[#37352F]/60`}`}>
-                    <span className="truncate max-w-[80px]">{appointment.doctor || "指名あり"}</span>
-                    {appointment.isDesignated ? <span className="text-[10px] ml-0.5 font-bold tracking-[0.12em]">指</span> : null}
-                 </Badge>
-            ) : null}
+            {/* BUG-037: 担当医バッジ — doctor が未設定でも「担当医未設定」として表示 */}
+            <Badge variant="outline" className={`flex items-center gap-1 text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-notion-sm)] ${appointment.isDesignated ? `bg-[#FAEBDD] text-[#D9730D] border-[#D9730D]/20` : `bg-white text-[#37352F]/60`}`}>
+              <Stethoscope className={`${ICON.xs} shrink-0`} />
+              <span className="truncate max-w-[80px]">{appointment.doctor ?? "担当医未設定"}</span>
+              {appointment.isDesignated ? <span className="text-[10px] ml-0.5 font-bold tracking-[0.12em]">指</span> : null}
+            </Badge>
           </div>
 
           {/* ミニアクションボタン */}
@@ -165,7 +167,7 @@ export function AppointmentCard({
               className="flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] text-[#2383E2] bg-[#D3E5EF]/30 border border-[#B8D4E3]/40 rounded px-1.5 py-0.5 hover:bg-[#D3E5EF]/60 transition-colors"
               onClick={handleKarteClick}
             >
-              {isTrimming ? <Scissors className="size-3 shrink-0" /> : <FileText className="size-3 shrink-0" />}
+              {isTrimming ? <Scissors className={`${ICON.xs} shrink-0`} /> : <FileText className={`${ICON.xs} shrink-0`} />}
               <span>{isTrimming ? "施術" : "カルテ"}</span>
             </button>
             {columnTitle !== "診療中" ? (
@@ -175,7 +177,7 @@ export function AppointmentCard({
                 className="flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] text-[#0F7B6C] bg-[#DDEDEA]/30 border border-[#DDEDEA]/40 rounded px-1.5 py-0.5 hover:bg-[#DDEDEA]/60 transition-colors"
                 onClick={handleAccountingClick}
               >
-                <CreditCard className="size-3 shrink-0" />
+                <CreditCard className={`${ICON.xs} shrink-0`} />
                 <span>会計</span>
               </button>
             ) : null}
@@ -186,7 +188,7 @@ export function AppointmentCard({
                 className="flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] text-[#6940A5] bg-[#EEE0F7]/30 border border-[#6940A5]/20 rounded px-1.5 py-0.5 hover:bg-[#EEE0F7]/60 transition-colors"
                 onClick={handleHospitalizationClick}
               >
-                <BedDouble className="size-3 shrink-0" />
+                <BedDouble className={`${ICON.xs} shrink-0`} />
                 <span>入院</span>
               </button>
             ) : null}
@@ -195,4 +197,4 @@ export function AppointmentCard({
       </Card>
     </div>
   );
-}
+});

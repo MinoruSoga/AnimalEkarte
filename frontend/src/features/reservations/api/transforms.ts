@@ -9,11 +9,13 @@ export const transformReservation = (
     id: String(reservation.id ?? 0),
     start: new Date(reservation.start_time),
     end: new Date(reservation.end_time),
-    ownerName: reservation.owner?.owner_name ?? "",
+    ownerName: reservation.owner?.owner_name ?? reservation.pet?.owner?.owner_name ?? "",
     petName: reservation.pet?.name ?? "",
     visitType: (reservation.visit_type as "first" | "revisit") ?? "first",
     type: reservation.service_type?.name ?? "",
+    serviceTypeId: reservation.service_type_id ? String(reservation.service_type_id) : undefined,
     doctor: reservation.doctor?.name ?? "",
+    doctorId: reservation.doctor_id ? String(reservation.doctor_id) : undefined,
     isDesignated: reservation.is_designated ?? false,
     status: (reservation.status as ReservationAppointment["status"]) ?? "pending",
     notes: reservation.notes || undefined,
@@ -27,13 +29,13 @@ export const transformToCreateRequest = (
   ownerId: string
 ): CreateReservationRequest => {
   return {
-    pet_id: petId,
-    owner_id: ownerId,
+    pet_id: Number(petId),
+    owner_id: Number(ownerId),
     start_time: data.start ? data.start.toISOString() : "",
     end_time: data.end ? data.end.toISOString() : "",
     visit_type: data.visitType ?? "first",
-    service_type: data.type ?? "",
-    doctor_id: data.doctor || undefined,
+    service_type_id: Number(data.type ?? 0),
+    doctor_id: data.doctor ? Number(data.doctor) : undefined,
     is_designated: data.isDesignated ?? false,
     notes: data.notes,
   };

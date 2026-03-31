@@ -14,15 +14,15 @@ import (
 
 // mockVaccinationRepository は VaccinationRepository のテスト用モック実装
 type mockVaccinationRepository struct {
-	findAllFn  func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error)
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
-	createFn   func(ctx context.Context, vaccination *model.Vaccination) error
-	updateFn   func(ctx context.Context, clinicID uint64, vaccination *model.Vaccination) error
-	deleteFn   func(ctx context.Context, clinicID, id uint64) error
+	findAllFn      func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error)
+	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
+	createFn       func(ctx context.Context, vaccination *model.Vaccination) error
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error)
+	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockVaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, page, limit int) ([]model.Vaccination, int64, error) {
-	return m.findAllFn(ctx, clinicID, petID, ownerID, page, limit)
+func (m *mockVaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error) {
+	return m.findAllFn(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
 }
 
 func (m *mockVaccinationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error) {
@@ -33,8 +33,8 @@ func (m *mockVaccinationRepository) Create(ctx context.Context, vaccination *mod
 	return m.createFn(ctx, vaccination)
 }
 
-func (m *mockVaccinationRepository) Update(ctx context.Context, clinicID uint64, vaccination *model.Vaccination) error {
-	return m.updateFn(ctx, clinicID, vaccination)
+func (m *mockVaccinationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
 }
 
 func (m *mockVaccinationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -141,7 +141,7 @@ func TestVaccinationService_List(t *testing.T) {
 			capturedPetID := (*uint64)(nil)
 			capturedOwnerID := (*uint64)(nil)
 			repo := &mockVaccinationRepository{
-				findAllFn: func(_ context.Context, _ uint64, petID *uint64, ownerID *uint64, _, _ int) ([]model.Vaccination, int64, error) {
+				findAllFn: func(_ context.Context, _ uint64, petID *uint64, ownerID *uint64, _, _ *string, _, _ int) ([]model.Vaccination, int64, error) {
 					capturedPetID = petID
 					capturedOwnerID = ownerID
 					return tt.repoVaccinations, tt.repoTotal, tt.repoErr
@@ -149,7 +149,7 @@ func TestVaccinationService_List(t *testing.T) {
 			}
 			svc := NewVaccinationService(repo)
 
-			vaccinations, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.page, tt.limit)
+			vaccinations, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, nil, tt.page, tt.limit)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -295,49 +295,44 @@ func TestVaccinationService_Create(t *testing.T) {
 
 func TestVaccinationService_Update(t *testing.T) {
 	now := time.Now()
+	supplemental := "追記情報"
 	tests := []struct {
-		name        string
-		clinicID    uint64
-		vaccination *model.Vaccination
-		repoErr     error
-		wantErr     bool
-		wantNF      bool
+		name    string
+		input   UpdateVaccinationInput
+		repoErr error
+		wantErr bool
+		wantNF  bool
 	}{
 		{
-			name:     "updates vaccination successfully",
-			clinicID: 1,
-			vaccination: &model.Vaccination{
-				ID:              1,
-				MedicalRecordID: ptrUint64(1),
-				VaccineID:       1,
-				Date:            now,
-				Supplemental:    "追記情報",
+			name: "updates vaccination successfully",
+			input: UpdateVaccinationInput{
+				Date:         &now,
+				Supplemental: &supplemental,
 			},
 			repoErr: nil,
 			wantErr: false,
 			wantNF:  false,
 		},
 		{
-			name:     "returns not found error when vaccination does not exist",
-			clinicID: 1,
-			vaccination: &model.Vaccination{
-				ID:              999,
-				MedicalRecordID: ptrUint64(1),
-				VaccineID:       1,
-				Date:            now,
+			name:    "returns error when no fields provided",
+			input:   UpdateVaccinationInput{},
+			repoErr: nil,
+			wantErr: true,
+			wantNF:  false,
+		},
+		{
+			name: "returns not found error when vaccination does not exist",
+			input: UpdateVaccinationInput{
+				Supplemental: &supplemental,
 			},
 			repoErr: apperrors.WrapNotFound("vaccination", "999"),
 			wantErr: true,
 			wantNF:  true,
 		},
 		{
-			name:     "returns error on repository failure",
-			clinicID: 1,
-			vaccination: &model.Vaccination{
-				ID:              1,
-				MedicalRecordID: ptrUint64(1),
-				VaccineID:       1,
-				Date:            now,
+			name: "returns error on repository failure",
+			input: UpdateVaccinationInput{
+				Supplemental: &supplemental,
 			},
 			repoErr: errors.New("db error"),
 			wantErr: true,
@@ -348,21 +343,26 @@ func TestVaccinationService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVaccinationRepository{
-				updateFn: func(_ context.Context, _ uint64, _ *model.Vaccination) error {
-					return tt.repoErr
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Vaccination, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.Vaccination{ID: 1}, nil
 				},
 			}
 			svc := NewVaccinationService(repo)
 
-			err := svc.Update(context.Background(), tt.clinicID, tt.vaccination)
+			vaccination, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				assert.Nil(t, vaccination)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
 				}
 			} else {
 				assert.NoError(t, err)
+				assert.NotNil(t, vaccination)
 			}
 		})
 	}

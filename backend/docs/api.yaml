@@ -5,7 +5,9 @@ info:
     動物病院電子カルテシステム API
 
     ## 認証
-    全エンドポイント（`/login`、`/logout` を除く）は `Authorization: Bearer <JWT>` ヘッダーが必要。
+    全エンドポイント（`/login`、`/logout` を除く）は httpOnly Cookie (`auth_token`) が必要。
+    後方互換のため `Authorization: Bearer <JWT>` ヘッダーも受け付ける（移行完了後に廃止予定）。
+    ⚠️ BUG-055: 現在は単一 JWT (24時間)。BE-078 完了後に dual-token (access 15分 + refresh 7日) に移行。
 
     ## ページネーション
     一覧エンドポイントは `page` / `limit` クエリパラメータでページネーション。
@@ -123,10 +125,12 @@ components:
         name:
           type: string
         unit_price:
-          type: number
-          format: double
-        quantity:
           type: integer
+          format: int64
+        quantity:
+          type: number
+          format: float
+          description: 数量（小数点1桁まで許容）
         tax_rate:
           type: number
           format: double
@@ -156,34 +160,34 @@ components:
           type: integer
           format: int64
         subtotal:
-          type: number
-          format: double
+          type: integer
+          format: int64
         tax_total:
-          type: number
-          format: double
+          type: integer
+          format: int64
         total_amount:
-          type: number
-          format: double
+          type: integer
+          format: int64
         insurance_name:
           type: string
         insurance_ratio:
           type: number
           format: double
         insurance_amount:
-          type: number
-          format: double
+          type: integer
+          format: int64
         discount_amount:
-          type: number
-          format: double
+          type: integer
+          format: int64
         billing_amount:
-          type: number
-          format: double
+          type: integer
+          format: int64
         received_amount:
-          type: number
-          format: double
+          type: integer
+          format: int64
         change_amount:
-          type: number
-          format: double
+          type: integer
+          format: int64
         method:
           type: string
           enum: [cash, credit_card, electronic_money]
@@ -884,6 +888,44 @@ components:
           readOnly: true
           items:
             $ref: '#/components/schemas/Payment'
+        refunds:
+          type: array
+          description: 返金情報（Preload時のみ含まれる）
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/BillingRefund'
+    BillingRefund:
+      type: object
+      required: [amount]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        clinic_id:
+          type: integer
+          format: int64
+          readOnly: true
+        billing_id:
+          type: integer
+          format: int64
+          readOnly: true
+        amount:
+          type: integer
+          format: int64
+          description: 返金額（円）
+          minimum: 1
+        reason:
+          type: string
+          description: 返金理由
+        refunded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
     TrimmingRecord:
       type: object
       required: [date, staff_id, course_id]
@@ -1382,9 +1424,19 @@ components:
           nullable: true
           description: 親診察項目ID（自己参照）。NULL = カテゴリなし or カテゴリ自身
         price:
+          type: integer
+          format: int64
+          nullable: true
+        tax_type:
+          type: string
+          enum: [included, excluded, exempt]
+          default: excluded
+          description: 税種別（included=内税, excluded=外税, exempt=非課税）
+        tax_rate:
           type: number
           format: double
-          nullable: true
+          default: 0.10
+          description: 税率
         is_active:
           type: boolean
           default: true
@@ -1830,7 +1882,9 @@ components:
           readOnly: true
     Examination:
       type: object
-      required: [medical_record_id, exam_type_id, date]
+      # ⚠️ BUG-023: medical_record_id は本来 nullable（スタンドアロン検査をサポートすべき）
+      # 現状バックエンドが required 扱いのため POST /examinations が null 送信で 400 を返す
+      required: [exam_type_id, date]
       properties:
         id:
           type: integer
@@ -1839,6 +1893,8 @@ components:
         medical_record_id:
           type: integer
           format: int64
+          nullable: true
+          description: カルテ紐付けID（null = スタンドアロン検査）⚠️BUG-023: 現状バックエンドが必須扱い
         pet_id:
           type: integer
           format: int64
@@ -2067,8 +2123,12 @@ components:
     LoginResponse:
       type: object
       description: |
-        ログイン成功レスポンス。JWTトークンは httpOnly Cookie (`auth_token`) でセットされるためボディには含まれない。
+        ログイン成功レスポンス。JWTトークンは httpOnly Cookie (`auth_token`) でセットされる。
+        ⚠️ `token` フィールドはボディにも含まれる（後方互換のため残存）。BUG-055 完了後に削除予定。
       properties:
+        token:
+          type: string
+          description: "JWT トークン（後方互換フィールド。Cookie を優先すること）⚠️ BUG-055: 削除予定"
         expires_at:
           type: integer
           format: int64
@@ -2077,44 +2137,91 @@ components:
         user_type:
           type: string
           description: ユーザー種別
-          enum: [clinic_admin, staff, system_admin]
+          enum: [system_admin, clinic_admin, staff]
           example: clinic_admin
         user:
           $ref: '#/components/schemas/MeResponse'
-    MeResponse:
+    PermissionGroup:
       type: object
       properties:
         id:
           type: integer
           format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+        color:
+          type: string
+          example: '#6B7280'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        rules:
+          type: array
+          description: グループに紐づく権限ルール（GET 単体取得時のみ含まれる）
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                format: int64
+              group_id:
+                type: integer
+                format: int64
+              resource:
+                type: string
+                description: リソース識別子
+              can_view:
+                type: boolean
+              can_create:
+                type: boolean
+              can_edit:
+                type: boolean
+              can_delete:
+                type: boolean
+    MeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "BIGSERIAL を string に変換して返す（フロントエンドの number 精度問題を回避）"
         email:
           type: string
         display_name:
           type: string
         user_type:
           type: string
+          enum: [system_admin, clinic_admin, staff]
         staff_role:
           type: string
           nullable: true
           enum: [veterinarian, nurse, trimmer, reception, manager]
+          description: "staffs.staff_role ENUM。スタッフマスタ紐付けがない場合は null"
         job_title:
           type: string
           nullable: true
+          description: "後方互換フィールド。現在は staff_role を優先使用"
         avatar_url:
           type: string
           format: uri
           nullable: true
         main_clinic_id:
-          type: integer
-          format: int64
+          type: string
+          description: "メインクリニックID（string）"
         clinics:
           type: array
           items:
             type: object
             properties:
               clinic_id:
-                type: integer
-                format: int64
+                type: string
               clinic_name:
                 type: string
               is_main:
@@ -2125,24 +2232,47 @@ components:
           description: メイン医院の詳細情報
           properties:
             id:
-              type: integer
-              format: int64
+              type: string
             name:
+              type: string
+            postal_code:
+              type: string
+            address:
+              type: string
+            phone_number:
+              type: string
+            fax_number:
+              type: string
+            registration_number:
+              type: string
+            director_name:
+              type: string
+            email:
+              type: string
+            website:
               type: string
             logo_url:
               type: string
               format: uri
               nullable: true
-            phone_number:
-              type: string
-            address:
-              type: string
         permissions:
           type: object
+          description: |
+            現在: { clinicId → { resource → CRUD } } のネスト構造
+            TASK-049 完了後: { resource → CRUD } のフラット構造に変更予定
           additionalProperties:
-            type: array
-            items:
-              type: string
+            type: object
+            additionalProperties:
+              type: object
+              properties:
+                view:
+                  type: boolean
+                create:
+                  type: boolean
+                edit:
+                  type: boolean
+                delete:
+                  type: boolean
 
     # ─── ShiftEntry ───────────────────────────────────────────────────────────
     ShiftEntry:
@@ -2249,20 +2379,20 @@ components:
           type: string
           enum: [draft, sent, approved, rejected]
         subtotal:
-          type: number
-          format: double
+          type: integer
+          format: int64
         tax_total:
-          type: number
-          format: double
+          type: integer
+          format: int64
         total_amount:
-          type: number
-          format: double
+          type: integer
+          format: int64
         insurance_amount:
-          type: number
-          format: double
+          type: integer
+          format: int64
         discount_amount:
-          type: number
-          format: double
+          type: integer
+          format: int64
         valid_until:
           type: string
           format: date
@@ -2462,9 +2592,19 @@ components:
         id:
           type: integer
           format: int64
+        pet_id:
+          type: integer
+          format: int64
+          description: 対象ペットID
         medical_record_id:
           type: integer
           format: int64
+          nullable: true
+        daily_record_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 入院日次記録ID（入院時バイタルの場合）
         recorded_at:
           type: string
           format: date-time
@@ -2486,9 +2626,17 @@ components:
           type: number
           format: double
           nullable: true
+        weight_unit:
+          type: string
+          enum: [Kg, g]
+          default: Kg
+          description: 体重単位
         notes:
           type: string
         created_at:
+          type: string
+          format: date-time
+        updated_at:
           type: string
           format: date-time
         staff:
@@ -2519,6 +2667,11 @@ components:
           type: number
           format: double
           nullable: true
+        weight_unit:
+          type: string
+          enum: [Kg, g]
+          default: Kg
+          description: 体重単位（未指定時は Kg）
         notes:
           type: string
 
@@ -2547,6 +2700,11 @@ components:
           type: number
           format: double
           nullable: true
+        weight_unit:
+          type: string
+          enum: [Kg, g]
+          nullable: true
+          description: 体重単位
         notes:
           type: string
           nullable: true
@@ -3003,6 +3161,9 @@ components:
         id:
           type: integer
           format: int64
+        clinic_id:
+          type: integer
+          format: int64
         medical_record_id:
           type: integer
           format: int64
@@ -3032,6 +3193,11 @@ components:
         updated_at:
           type: string
           format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 削除日時（ソフトデリート）
 
     CreateCheckupRequest:
       type: object
@@ -3551,6 +3717,75 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
+  # ─── 未実装エンドポイント（BUG-055 / BE-078 実装予定）───────────────────────
+  # /auth/refresh:
+  #   post:
+  #     summary: アクセストークンのリフレッシュ（BE-078）
+  #     description: |
+  #       httpOnly Cookie の refresh_token を使って新しい access_token を発行する。
+  #       トークンローテーション（旧 refresh_token の無効化）も実施する。
+  #   delete:
+  #     summary: ログアウト（全セッション削除）
+  #     description: refresh_tokens テーブルの全レコードを削除して強制ログアウト。
+  # ─── 未実装エンドポイント（BUG-060 / BE-081 実装予定）──────────────────────────
+  # /auth/forgot-password:
+  #   post:
+  #     summary: パスワードリセット申請（BE-081）
+  #     description: |
+  #       メールアドレスを受け取り、パスワードリセットリンクをメール送信する。
+  #       ユーザーが存在しない場合も同じ成功レスポンスを返す（ユーザー列挙攻撃対策）。
+  #       dev 環境はバックエンドログにトークンを出力（メール不要）。
+  #     requestBody:
+  #       required: true
+  #       content:
+  #         application/json:
+  #           schema:
+  #             type: object
+  #             properties:
+  #               email: { type: string, format: email }
+  #     responses:
+  #       '200':
+  #         description: |
+  #           "If this email is registered, a reset link has been sent."
+  #           （ユーザー存否に関わらず 200 を返す）
+  # /auth/reset-password:
+  #   post:
+  #     summary: パスワードリセット実行（BE-081）
+  #     description: |
+  #       メールのリンクに含まれるトークンと新パスワードを受け取り、パスワードを更新する。
+  #       トークンは SHA-256 ハッシュで DB 照合。有効期限 30分・ワンタイム。
+  #       成功後は全 refresh_tokens を revoke する。
+  #     requestBody:
+  #       required: true
+  #       content:
+  #         application/json:
+  #           schema:
+  #             type: object
+  #             properties:
+  #               token:    { type: string }
+  #               password: { type: string, minLength: 8 }
+  #     responses:
+  #       '200':
+  #         description: パスワードリセット成功
+  #       '400':
+  #         description: トークン無効・期限切れ・使用済み
+  # ─── 未実装エンドポイント（BUG-062 実装予定）──────────────────────────────────
+  # /users/me/password:
+  #   put:
+  #     summary: パスワード変更（BUG-062）
+  #     description: |
+  #       認証済みユーザーが自分のパスワードを変更する。
+  #       current_password の確認が必須。他ユーザーのパスワードは変更不可。
+  #     requestBody:
+  #       required: true
+  #       content:
+  #         application/json:
+  #           schema:
+  #             type: object
+  #             properties:
+  #               current_password: { type: string }
+  #               new_password:     { type: string, minLength: 8 }
+  # ─────────────────────────────────────────────────────────────────────────────
   /owners:
     get:
       operationId: listOwners
@@ -4545,6 +4780,81 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /accountings/{id}/refunds:
+    get:
+      operationId: listRefunds
+      summary: 返金一覧取得
+      tags: [Accountings]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 会計ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 返金一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BillingRefund'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createRefund
+      summary: 返金登録
+      tags: [Accountings]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 会計ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount:
+                  type: integer
+                  format: int64
+                  description: 返金額（円）
+                  minimum: 1
+                reason:
+                  type: string
+                  description: 返金理由
+      responses:
+        '201':
+          description: 返金登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingRefund'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -8122,11 +8432,64 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-  /users/{id}/permissions:
+  # ─── Permission Groups ───────────────────────────────────────────────────
+  /permission-groups:
     get:
-      operationId: getUserPermissions
-      summary: ユーザー権限取得
-      tags: [Users]
+      operationId: listPermissionGroups
+      summary: 権限グループ一覧取得
+      description: JWT クレームの clinic_id に紐づくグループ一覧を返す。
+      tags: [PermissionGroups]
+      responses:
+        '200':
+          description: 権限グループ一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PermissionGroup'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createPermissionGroup
+      summary: 権限グループ作成
+      tags: [PermissionGroups]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 100
+                description:
+                  type: string
+                color:
+                  type: string
+                  example: '#6B7280'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionGroup'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /permission-groups/{id}:
+    get:
+      operationId: getPermissionGroup
+      summary: 権限グループ取得
+      tags: [PermissionGroups]
       parameters:
         - name: id
           in: path
@@ -8136,26 +8499,21 @@ paths:
             format: int64
       responses:
         '200':
-          description: 権限一覧
+          description: 権限グループ
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    permission:
-                      type: string
+                $ref: '#/components/schemas/PermissionGroup'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-    put:
-      operationId: setUserPermissions
-      summary: ユーザー権限設定（一括置換）
-      tags: [Users]
+    patch:
+      operationId: updatePermissionGroup
+      summary: 権限グループ更新（部分更新）
+      tags: [PermissionGroups]
       parameters:
         - name: id
           in: path
@@ -8170,17 +8528,138 @@ paths:
             schema:
               type: object
               properties:
-                permissions:
-                  type: array
-                  items:
-                    type: string
+                name:
+                  type: string
+                  maxLength: 100
+                description:
+                  type: string
+                color:
+                  type: string
       responses:
         '204':
-          description: 設定成功
+          description: 更新成功
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deletePermissionGroup
+      summary: 権限グループ削除（論理削除）
+      tags: [PermissionGroups]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /permission-groups/{id}/rules:
+    put:
+      operationId: setPermissionGroupRules
+      summary: 権限グループのルール一括更新（全置換）
+      description: 既存ルールを全削除して新しいルールセットで置換する。
+      tags: [PermissionGroups]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rules]
+              properties:
+                rules:
+                  type: array
+                  items:
+                    type: object
+                    required: [resource]
+                    properties:
+                      resource:
+                        type: string
+                        description: リソース識別子（例: medical-records, owners）
+                      can_view:
+                        type: boolean
+                        default: false
+                      can_create:
+                        type: boolean
+                        default: false
+                      can_edit:
+                        type: boolean
+                        default: false
+                      can_delete:
+                        type: boolean
+                        default: false
+      responses:
+        '204':
+          description: ルール更新成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /users/{id}/permission-groups:
+    put:
+      operationId: setUserPermissionGroups
+      summary: ユーザーへの権限グループ割当（全置換）
+      description: |
+        ユーザーに割り当てる権限グループを一括置換する。
+        clinic_admin 以上のみ実行可能。
+        system_admin 以外は同一クリニック内のユーザーのみ変更可。
+      tags: [Users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [group_ids]
+              properties:
+                group_ids:
+                  type: array
+                  items:
+                    type: integer
+                    format: int64
+                  description: 割り当てるグループ ID のリスト（空配列 = 全グループ解除）
+      responses:
+        '204':
+          description: 割当成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -8201,6 +8680,133 @@ paths:
                   $ref: '#/components/schemas/AnimalSpeciesSummary'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createAnimalSpecies
+      summary: 動物種作成
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                is_active:
+                  type: boolean
+                  default: true
+                sort_order:
+                  type: integer
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnimalSpecies'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/animal-species/reorder:
+    patch:
+      operationId: reorderAnimalSpecies
+      summary: 動物種並び替え
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                    format: int64
+                  minItems: 1
+      responses:
+        '200':
+          description: 並び替え成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/animal-species/{id}:
+    patch:
+      operationId: updateAnimalSpecies
+      summary: 動物種更新
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                is_active:
+                  type: boolean
+                sort_order:
+                  type: integer
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnimalSpecies'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteAnimalSpecies
+      summary: 動物種削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -8437,6 +9043,54 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Medical Records nested: inquiries ───────────────────────
+  /medical-records/{id}/inquiries:
+    patch:
+      operationId: updateInquiry
+      summary: 問診更新（upsert）
+      description: 指定カルテIDの問診情報を更新する（存在しない場合は作成）
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: カルテID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                chief_complaint:
+                  type: string
+                  nullable: true
+                chief_complaint_category_id:
+                  type: integer
+                  format: int64
+                  nullable: true
+                notes:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Inquiry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':

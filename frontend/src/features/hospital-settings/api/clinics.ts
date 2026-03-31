@@ -1,27 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { transformClinic } from "./transforms";
 
-// ─────────────────────────────────────────────────
-// Backend types (snake_case)
-// ─────────────────────────────────────────────────
+// Types
+import type { Clinic as BackendClinic } from "@/types/generated/models";
+import type { TransformedClinic } from "./transforms";
 
-export interface BackendClinic {
-  id: number;
-  company_id: number;
-  name: string;
-  postal_code: string;
-  address: string;
-  phone_number: string;
-  fax_number: string;
-  registration_number: string;
-  director_name: string;
-  email: string;
-  website: string;
-  logo_url: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
+// Re-export for consumers
+export type { TransformedClinic as Clinic };
 
 // ─────────────────────────────────────────────────
 // Request types
@@ -50,50 +36,8 @@ export interface UpdateClinicRequest {
   email?: string;
   website?: string;
   is_active?: boolean;
-}
-
-// ─────────────────────────────────────────────────
-// Frontend display type (camelCase)
-// ─────────────────────────────────────────────────
-
-export interface Clinic {
-  id: number;
-  name: string;
-  postalCode: string;
-  address: string;
-  phoneNumber: string;
-  faxNumber: string;
-  registrationNumber: string;
-  directorName: string;
-  email: string;
-  website: string;
-  logoUrl: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// ─────────────────────────────────────────────────
-// Transform
-// ─────────────────────────────────────────────────
-
-function transformClinic(data: BackendClinic): Clinic {
-  return {
-    id: data.id,
-    name: data.name,
-    postalCode: data.postal_code,
-    address: data.address,
-    phoneNumber: data.phone_number,
-    faxNumber: data.fax_number,
-    registrationNumber: data.registration_number,
-    directorName: data.director_name,
-    email: data.email,
-    website: data.website,
-    logoUrl: data.logo_url,
-    isActive: data.is_active,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
-  };
+  standard_tax_rate?: number;
+  reduced_tax_rate?: number;
 }
 
 // ─────────────────────────────────────────────────
@@ -106,12 +50,14 @@ const CLINICS_QUERY_KEY = ["clinics"] as const;
 // API functions
 // ─────────────────────────────────────────────────
 
-export async function listClinics(): Promise<Clinic[]> {
+export async function listClinics(): Promise<TransformedClinic[]> {
   const { data } = await axios.get<BackendClinic[]>("/v1/clinics");
   return data.map(transformClinic);
 }
 
-export async function createClinic(req: CreateClinicRequest): Promise<Clinic> {
+export async function createClinic(
+  req: CreateClinicRequest,
+): Promise<TransformedClinic> {
   const { data } = await axios.post<BackendClinic>("/v1/clinics", req);
   return transformClinic(data);
 }
@@ -119,7 +65,7 @@ export async function createClinic(req: CreateClinicRequest): Promise<Clinic> {
 export async function updateClinic(
   id: number,
   req: UpdateClinicRequest,
-): Promise<Clinic> {
+): Promise<TransformedClinic> {
   const { data } = await axios.patch<BackendClinic>(`/v1/clinics/${id}`, req);
   return transformClinic(data);
 }
@@ -132,7 +78,7 @@ export async function deleteClinic(id: number): Promise<void> {
 // TanStack Query hooks
 // ─────────────────────────────────────────────────
 
-export function useListClinics() {
+export function useGetClinics() {
   return useQuery({
     queryKey: CLINICS_QUERY_KEY,
     queryFn: listClinics,

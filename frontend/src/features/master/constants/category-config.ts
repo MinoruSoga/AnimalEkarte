@@ -13,6 +13,7 @@ import Sparkles from "lucide-react/dist/esm/icons/sparkles";
 import FolderTree from "lucide-react/dist/esm/icons/folder-tree";
 import FileText from "lucide-react/dist/esm/icons/file-text";
 import ClipboardCheck from "lucide-react/dist/esm/icons/clipboard-check";
+import PawPrint from "lucide-react/dist/esm/icons/paw-print";
 
 // All master categories for the settings UI
 // Note: some of these have their own backend tables, but all appear in settings UI
@@ -32,7 +33,9 @@ export type MasterSettingsCategory =
   | "diagnosis_category"
   | "diagnosis_name"
   | "checkup"
-  | "job_title";
+  | "job_title"
+  | "animal_species"
+  | "inquiry_template";
 
 export interface CategoryConfig {
   label: string;
@@ -193,6 +196,24 @@ export const CATEGORY_CONFIG: Record<MasterSettingsCategory, CategoryConfig> = {
     showPrice: false, showCode: true, showCategory: false, showParentItem: false,
     namePlaceholder: "獣医師", codePlaceholder: "veterinarian",
   },
+  animal_species: {
+    label: "動物種類マスタ",
+    description: "犬、猫、鳥などの動物種類を管理します",
+    settingsPath: "/settings/animal-species",
+    IconComponent: PawPrint,
+    labels: { code: "", name: "動物種類名", category: "" },
+    showPrice: false, showCode: false, showCategory: false, showParentItem: false,
+    namePlaceholder: "犬", codePlaceholder: "",
+  },
+  inquiry_template: {
+    label: "問診テンプレートマスタ",
+    description: "問診の質問項目テンプレートを管理します",
+    settingsPath: "/settings/inquiry-template",
+    IconComponent: FileText,
+    labels: { code: "コード", name: "テンプレート名", category: "分類" },
+    showPrice: false, showCode: false, showCategory: false, showParentItem: false,
+    namePlaceholder: "初診問診", codePlaceholder: "",
+  },
 };
 
 // Mapping from camelCase route category names to CATEGORY_CONFIG keys
@@ -201,4 +222,5 @@ export const CATEGORY_ALIAS_MAP: Record<string, MasterSettingsCategory> = {
   trimmingOption: "trimming_option",
   diagnosisCategory: "diagnosis_category",
   diagnosisName: "diagnosis_name",
+  inquiryTemplate: "inquiry_template",
 };

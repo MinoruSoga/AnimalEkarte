@@ -89,7 +89,7 @@ export const dailyRecordKeys = {
 
 // ---- Hooks ----
 
-export function useDailyRecords(hospitalizationId: string) {
+export function useGetDailyRecords(hospitalizationId: string) {
     return useQuery({
         queryKey: dailyRecordKeys.all(hospitalizationId),
         queryFn: () => listDailyRecords(hospitalizationId),

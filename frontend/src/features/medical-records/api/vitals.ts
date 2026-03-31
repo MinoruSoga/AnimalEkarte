@@ -18,7 +18,7 @@ const getVitals = async (medicalRecordId: string): Promise<Vital[]> => {
   return data;
 };
 
-export const useVitals = (medicalRecordId: string) => {
+export const useGetVitals = (medicalRecordId: string) => {
   return useQuery({
     queryKey: ["vitals", medicalRecordId],
     queryFn: () => getVitals(medicalRecordId),

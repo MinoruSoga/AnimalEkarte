@@ -25,102 +25,47 @@
 
 ## TypeScript (Frontend) Rules
 - **Tech Stack**: React 19, TypeScript 5.7, Tailwind CSS 4, shadcn/ui.
-- **Naming**:
-  - Components: PascalCase (e.g., `PatientCard.tsx`).
-  - Hooks: camelCase, must start with `use` (e.g., `usePatient`).
-  - Functions/Variables: camelCase (e.g., `getPatient`).
-  - Constants: UPPER_SNAKE_CASE (e.g., `MAX_RETRY`).
-  - Types: PascalCase (e.g., `Patient`), suffix with `Props` for component props (e.g., `PatientCardProps`).
-- **Architecture (Bulletproof React)**:
+- **Architecture (Feature-Based + Dependency Inversion)**:
   - **Structure**:
     ```
     src/
-    ├── main.tsx
-    ├── vite-env.d.ts
-    ├── app/             # App entry, providers, router, ErrorBoundary
-    │   ├── index.tsx
-    │   ├── provider.tsx
-    │   ├── router.tsx
-    │   └── ErrorBoundary.tsx
+    ├── app/             # Application layer
+    │   ├── pages/       # ★ Cross-feature synthesis (DI)
+    │   ├── router.tsx   # createBrowserRouter
+    │   └── provider.tsx # Providers
     ├── features/        # Feature-based modules
-    │   ├── auth/
-    │   ├── dashboard/
-    │   ├── reservations/
-    │   ├── medical-records/ (SOAPS)
-    │   ├── hospitalization/
-    │   ├── accounting/
-    │   ├── examinations/
-    │   ├── owners/
-    │   ├── pets/
-    │   ├── trimming/
-    │   ├── vaccinations/
-    │   ├── master/
-    │   └── clinic/
-    │       ├── api/         # API hooks (e.g., getPatients.ts -> usePatients)
-    │       ├── components/  # Nested components (Folder/Name.tsx, Name.test.tsx, index.ts)
-    │       ├── hooks/       # Business logic / UI state
-    │       ├── routes/      # Page components (List, Detail, Create)
-    │       ├── types/       # Feature-specific types
-    │       ├── utils/       # Feature-specific helpers
-    │       ├── mockData.ts  # Feature-specific mock data
-    │       └── index.ts     # Public API (Routes, API, Components, Types)
-    ├── components/      # Shared components
-    │   ├── ui/          # shadcn/ui (Radix UI Primitives)
-    │   └── shared/      # App-specific shared components (Folder/Name.tsx, Name.test.tsx, index.ts)
-    │       ├── Layout/ (MainLayout, Header, Sidebar, Navigation, AuthLayout, PrintLayout)
-    │       ├── DataTable/
-    │       ├── Form/ (FormField, FormError, FormLabel, SubmitButton, FormSection)
-    │       ├── Feedback/ (Spinner, ErrorFallback, LoadingOverlay, EmptyState)
-    │       ├── Navigation/ (Breadcrumb, NavLink)
-    │       ├── StatusBadge/
-    │       ├── DateRangePicker/
-    │       ├── SearchBox/
-    │       ├── ConfirmDialog/
-    │       ├── PetSelectionSearchForm.tsx
-    │       └── PetSelectionResultsTable.tsx
-    ├── hooks/           # Global shared hooks (useDebounce, useDisclosure, etc.)
-    ├── lib/             # Library configurations (axios, react-query, date-fns, zod, utils)
-    ├── stores/          # Global state stores (auth, theme, notification, sidebar)
-    ├── types/           # Shared types (api.ts, common.ts)
-    ├── utils/           # Shared utilities (format, validation, constants, helpers)
-    ├── config/          # Global config (constants, env)
-    ├── styles/          # Global styles (globals.css, themes/)
-    └── testing/         # Test configuration & utilities
-        ├── setup.ts
-        ├── server/      # MSW (Mock Service Worker)
-        │   ├── handlers/ (auth.ts, patients.ts, medicalRecords.ts...)
-        │   └── server.ts
-        └── utils.tsx    # Test utilities (render provider wrapper)
+    │   └── [feature]/
+    │       ├── api/     # API hooks (TanStack Query)
+    │       ├── components/
+    │       ├── hooks/   # Feature-specific logic (e.g., useXxxForm)
+    │       ├── routes/  # Single-feature page components
+    │       └── index.ts # Public API (Explicit exports only)
+    ├── components/
+    │   ├── ui/          # shadcn/ui
+    │   └── shared/      # Common UI components
+    ├── lib/             # axios.ts, react-query.ts, design-tokens.ts
+    └── types/           # Shared types + generated/models.ts
     ```
-  - **Encapsulation**: Features should only import from `src/components`, `src/hooks`, etc., or other features' public `index.ts`. Avoid deep imports into other features.
-- **Naming Conventions**:
-  - **Files**: camelCase for hooks/api (`usePatients.ts`), PascalCase for components (`PatientCard.tsx`).
-  - **Tests**: `[Target].test.tsx` located alongside the target file.
-  - **Public API**: `index.ts` must explicitly export only what is necessary.
+  - **Dependency Inversion**: Features must NOT import from each other. If a page needs logic from multiple features, compose them in `src/app/pages/` and pass dependencies via props.
 - **React 19 Patterns**:
-  - **Actions**: Use `useActionState` for form logic and `useFormStatus` for pending states.
-  - **Optimistic UI**: Use `useOptimistic` for Kanban/DND and immediate feedback.
-  - **Refs**: Use `ref` as a prop directly (no `forwardRef`).
-  - **Data**: Use `use()` hook for promises and context.
-  - **Routing**: React Router Data Mode (createBrowserRouter).
+  - **Refs**: Use `ref` as a prop directly. **DO NOT use `forwardRef`**.
+  - **Transitions**: Use `useTransition` (`isPending`, `startTransition`) as the standard for managing async/form pending states.
+  - **Conditional Rendering**: Always use ternary `condition ? <Component /> : null`. **DO NOT use `&&`**.
+  - **Memoization**: Use `memo()` for large components (like form sections) to prevent unnecessary re-renders. Ensure props (handlers) are stabilized with `useCallback`.
 - **State Management**:
-  - **Priority**: Server State (TanStack Query) > URL State > Local State > Global State (Zustand).
-- **Testing Strategy**:
-  - **Tooling**: Vitest + React Testing Library + MSW.
-  - **Placement**: Test files in the same directory as the target component/hook.
-  - **Focus**: Integration tests for features, unit tests for utils/shared hooks.
-- **State Management**:
-  - **Priority**: Server State (TanStack Query) > URL State > Local State (useState/useReducer) > Global State (Zustand/Context).
-  - Avoid Redux.
+  - **Server State**: TanStack Query is the primary source of truth for server data.
+  - **Global State**: Use Zustand only for minimal UI state (e.g., sidebar collapse).
 - **Styling**:
-  - Use Tailwind CSS 4.
-  - Use `shadcn/ui` components for consistency.
-  - Avoid inline styles.
+  - Use **Tailwind CSS 4**.
+  - **MANDATORY**: Use `src/lib/design-tokens.ts` (`C` and `STYLE` constants) for all colors and common styles. **DO NOT** hardcode hex colors like `#37352F` in JSX.
+- **Error Handling**:
+  - **MANDATORY**: Use `handleApiError(error, "context")` in all `catch` blocks to ensure unified error reporting.
+- **Imports**:
+  - **MANDATORY**: Use the `@/` alias for all cross-feature or cross-layer imports. Relative paths (e.g., `../../`) are strictly forbidden across different modules.
 - **Testing**:
-  - Use Vitest + React Testing Library.
-  - Focus on integration tests for features.
-  - Mock API calls using MSW (Mock Service Worker) or similar at the network layer.
+  - **Tooling**: Vitest + React Testing Library.
+  - **Placement**: Test files (`[Target].test.tsx`) must be in the same directory as the target.
 
-## Testing
-- **Backend**: Use standard `testing` package. Run with `docker compose exec backend go test ./...`.
-- **Frontend**: Use Vitest. Run with `docker compose exec frontend npm run test:run`.
+## Testing Commands
+- **Backend**: `docker compose exec backend go test ./...`
+- **Frontend**: `docker compose exec frontend npm run test:run`

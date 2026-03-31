@@ -17,7 +17,7 @@ import type { MasterSettingsCategory } from "@/features/master/constants/categor
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -88,7 +88,7 @@ const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
 // Section definitions
 // ─────────────────────────────────────────────────
 const MASTER_SECTIONS: SectionDef[] = [
-  { title: "基本設定", keys: ["clinic"] },
+  { title: "基本設定", keys: ["clinic", "animal_species"] },
   {
     title: "カルテ",
     keys: ["treatmentItems", "diagnosisGroup", "inquiry_template", "medicine"],
@@ -115,15 +115,15 @@ function CardRow({ label, description, icon, count, onClick }: CardRowProps) {
     <button type="button" className={STYLE.settingsRow} onClick={onClick}>
       <span className={STYLE.settingsRowIcon}>{icon}</span>
       <div className="flex-1 min-w-0 text-left">
-        <div className={`text-sm font-medium ${C.text} leading-tight`}>{label}</div>
-        <div className={`text-xs ${C.text45} mt-0.5 truncate`}>{description}</div>
+        <div className={`text-base font-medium ${C.text} leading-tight`}>{label}</div>
+        <div className={`text-base ${C.text45} mt-0.5 truncate`}>{description}</div>
       </div>
       {count !== undefined ? (
-        <span className={`text-xs ${C.text40} tabular-nums shrink-0`}>
+        <span className={`text-base ${C.text40} tabular-nums shrink-0`}>
           {count}件
         </span>
       ) : null}
-      <ChevronRight className={`size-4 ${C.text35} shrink-0`} />
+      <ChevronRight className={`${ICON.action} ${C.text35} shrink-0`} />
     </button>
   );
 }
@@ -145,7 +145,7 @@ export function MasterSettingsIndex() {
           key={groupKey}
           label={cfg.label}
           description={cfg.description}
-          icon={<Icon className="size-[16px]" />}
+          icon={<Icon className={ICON.action} />}
           count={undefined}
           onClick={() => navigate(cfg.path)}
         />
@@ -161,7 +161,7 @@ export function MasterSettingsIndex() {
         key={cat}
         label={cfg.label}
         description={cfg.description}
-        icon={<Icon className="size-[16px]" />}
+        icon={<Icon className={ICON.action} />}
         count={undefined}
         onClick={() => navigate(cfg.settingsPath)}
       />
@@ -171,7 +171,7 @@ export function MasterSettingsIndex() {
   return (
     <PageLayout
       title="マスタ設定"
-      icon={<Settings className="size-5 text-[#37352F]" />}
+      icon={<Settings className={`${ICON.page} text-[#37352F]`} />}
       maxWidth="max-w-3xl"
       align="left"
     >
@@ -196,7 +196,7 @@ export function MasterSettingsIndex() {
             マスタ設定
           </h2>
         </div>
-        <p className={`text-sm ${C.text50} mb-6`}>
+        <p className={`text-base ${C.text50} mb-6`}>
           動物病院の各種マスタデータを管理します
         </p>
 
@@ -206,7 +206,7 @@ export function MasterSettingsIndex() {
         {/* Sections */}
         {MASTER_SECTIONS.map((section) => (
           <div key={section.title} className="mb-5">
-            <div className={`px-1 pb-1.5 text-xs ${C.text40} uppercase tracking-wide select-none`}>
+            <div className={`px-1 pb-1.5 text-base ${C.text40} uppercase tracking-wide select-none`}>
               {section.title}
             </div>
             <div className={`bg-white rounded-lg border ${C.borderLight} overflow-hidden divide-y ${C.divideDivider}`}>

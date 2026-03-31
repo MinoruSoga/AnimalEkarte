@@ -1,19 +1,38 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Hospitalization } from "@/types";
 import { transformHospitalization } from "./transforms";
 import type { BackendHospitalization } from "./types";
 
-export const getHospitalizations = async (): Promise<Hospitalization[]> => {
-  const { data } = await axios.get<BackendHospitalization[]>(
-    "/v1/hospitalizations"
+interface HospitalizationPaginatedResponse {
+  data: BackendHospitalization[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface HospitalizationFilters {
+  startDate?: string; // YYYY-MM-DD（入院開始日の範囲）
+  endDate?: string;   // YYYY-MM-DD
+}
+
+export const getHospitalizations = async (filters?: HospitalizationFilters): Promise<Hospitalization[]> => {
+  const params: Record<string, string> = {};
+  if (filters?.startDate) params.start_date = filters.startDate;
+  if (filters?.endDate) params.end_date = filters.endDate;
+  const { data } = await axios.get<HospitalizationPaginatedResponse>(
+    "/v1/hospitalizations",
+    { params },
   );
-  return data.map(transformHospitalization);
+  return data.data.map(transformHospitalization);
 };
 
-export const useGetHospitalizations = () => {
+export const useGetHospitalizations = (filters?: HospitalizationFilters) => {
   return useQuery({
-    queryKey: ["hospitalizations"],
-    queryFn: getHospitalizations,
+    queryKey: ["hospitalizations", filters],
+    queryFn: () => getHospitalizations(filters),
+    staleTime: QUERY_STALE_TIMES.MEDIUM,
+    gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };

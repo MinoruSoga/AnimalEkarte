@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 import type { AuthUser, AuthClinic, StaffRole } from "../types";
-import { USER_TYPE_VALUES, STAFF_ROLE_VALUES, PERMISSION_VALUES } from "../types";
+import { USER_TYPE_VALUES, STAFF_ROLE_VALUES } from "../types";
 
 const clinicMembershipSchema = z.object({
   clinic_id: z.string(),
@@ -31,6 +31,13 @@ const meClinicInfoSchema = z.object({
 const toEnumTuple = <T extends string>(v: readonly T[]): [T, ...T[]] =>
   v as unknown as [T, ...T[]];
 
+const resourcePermissionSchema = z.object({
+  view: z.boolean(),
+  create: z.boolean(),
+  edit: z.boolean(),
+  delete: z.boolean(),
+});
+
 export const backendMeResponseSchema = z.object({
   id: z.string(),
   email: z.string(),
@@ -45,7 +52,8 @@ export const backendMeResponseSchema = z.object({
   // clinic は /me レスポンスのメイン医院詳細。未所属の場合は null
   clinic: meClinicInfoSchema.nullable().optional(),
   clinics: z.array(clinicMembershipSchema),
-  permissions: z.record(z.string(), z.array(z.enum(toEnumTuple(PERMISSION_VALUES)))),
+  // permissions: resource → CRUD（BEがUNION計算済みのフラット構造）
+  permissions: z.record(z.string(), resourcePermissionSchema),
 });
 
 export type BackendMeResponse = z.infer<typeof backendMeResponseSchema>;

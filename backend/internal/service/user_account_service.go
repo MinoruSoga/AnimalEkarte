@@ -21,6 +21,8 @@ type CreateUserAccountInput struct {
 	UserType    model.UserType
 	StaffID     *uint64
 	IsMain      bool
+	// BUG-095: 作成時にグループIDを指定するとアカウント作成後に権限グループを即時割当する
+	GroupIDs []uint64
 }
 
 // UpdateUserAccountInput はユーザー更新の入力DTO（nil = 未変更）
@@ -32,9 +34,9 @@ type UpdateUserAccountInput struct {
 	StaffID     *uint64
 }
 
-// SetPermissionsInput は権限一括設定の入力DTO
-type SetPermissionsInput struct {
-	Permissions []string
+// SetPermissionGroupsInput はグループ割当の入力DTO
+type SetPermissionGroupsInput struct {
+	GroupIDs []uint64
 }
 
 // UserAccountService はユーザーアカウントのビジネスロジック
@@ -46,8 +48,8 @@ type UserAccountService interface {
 	CreateUser(ctx context.Context, clinicID uint64, input *CreateUserAccountInput) (*model.UserAccount, error)
 	UpdateUser(ctx context.Context, id uint64, input *UpdateUserAccountInput) error
 	DeleteUser(ctx context.Context, id uint64) error
-	GetPermissions(ctx context.Context, userID, clinicID uint64) ([]model.UserPermission, error)
-	SetPermissions(ctx context.Context, userID, clinicID uint64, input *SetPermissionsInput) error
+	SetPermissionGroups(ctx context.Context, userID uint64, input SetPermissionGroupsInput) error
+	GetPermissionGroupIDs(ctx context.Context, userID uint64) ([]uint64, error)
 }
 
 // UserAccountResult は FindByEmail の結果
@@ -67,19 +69,20 @@ type MembershipResult struct {
 }
 
 type userAccountService struct {
-	repo repository.UserAccountRepository
+	repo     repository.UserAccountRepository
+	permRepo repository.PermissionGroupRepository
 }
 
 // NewUserAccountService は UserAccountService を初期化して返す
-func NewUserAccountService(repo repository.UserAccountRepository) UserAccountService {
-	return &userAccountService{repo: repo}
+func NewUserAccountService(repo repository.UserAccountRepository, permRepo repository.PermissionGroupRepository) UserAccountService {
+	return &userAccountService{repo: repo, permRepo: permRepo}
 }
 
 // FindByEmail はメールアドレスでユーザーアカウントを取得する
 func (s *userAccountService) FindByEmail(ctx context.Context, email string) (*UserAccountResult, error) {
 	account, err := s.repo.FindByEmail(ctx, email)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to find user account by email")
 	}
 	return &UserAccountResult{
 		ID:           account.ID,
@@ -95,7 +98,7 @@ func (s *userAccountService) FindByEmail(ctx context.Context, email string) (*Us
 func (s *userAccountService) GetMemberships(ctx context.Context, userID uint64) ([]MembershipResult, error) {
 	data, err := s.repo.FindByIDWithMemberships(ctx, userID)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to get user memberships")
 	}
 	results := make([]MembershipResult, 0, len(data.Memberships))
 	for _, m := range data.Memberships {
@@ -111,7 +114,7 @@ func (s *userAccountService) GetMemberships(ctx context.Context, userID uint64) 
 func (s *userAccountService) GetWithMemberships(ctx context.Context, userIDStr string) (*repository.UserAccountWithMemberships, error) {
 	id, err := strconv.ParseUint(userIDStr, 10, 64)
 	if err != nil {
-		return nil, apperrors.Wrap(fmt.Errorf("invalid user id: %s", userIDStr), "parse user id")
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("invalid user id: %s", userIDStr))
 	}
 	return s.repo.FindByIDWithMemberships(ctx, id)
 }
@@ -125,7 +128,7 @@ func (s *userAccountService) ListUsers(ctx context.Context, clinicID uint64) ([]
 func (s *userAccountService) CreateUser(ctx context.Context, clinicID uint64, input *CreateUserAccountInput) (*model.UserAccount, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
+		return nil, apperrors.Wrap(err, "hash password")
 	}
 
 	account := &model.UserAccount{
@@ -137,7 +140,23 @@ func (s *userAccountService) CreateUser(ctx context.Context, clinicID uint64, in
 	}
 
 	if err := s.repo.Create(ctx, account, clinicID, input.StaffID, input.IsMain); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to create user account")
+	}
+
+	// BUG-095: GroupIDs が指定されている場合は作成直後にグループを割当する
+	if len(input.GroupIDs) > 0 && s.permRepo != nil {
+		for _, groupID := range input.GroupIDs {
+			if err := s.permRepo.VerifyGroupExists(ctx, groupID); err != nil {
+				slog.WarnContext(ctx, "permission group not found, skipping assignment",
+					slog.Uint64("group_id", groupID), slog.String("error", err.Error()))
+				continue
+			}
+		}
+		if err := s.repo.SetPermissionGroups(ctx, account.ID, input.GroupIDs); err != nil {
+			slog.WarnContext(ctx, "failed to assign initial permission groups",
+				slog.Uint64("user_id", account.ID), slog.String("error", err.Error()))
+			// グループ割当失敗はアカウント作成成功後の best-effort（アカウント自体は作成済み）
+		}
 	}
 
 	slog.InfoContext(ctx, "user account created",
@@ -168,7 +187,7 @@ func (s *userAccountService) UpdateUser(ctx context.Context, id uint64, input *U
 		return apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, id, fields); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to update user account")
 	}
 	slog.InfoContext(ctx, "user account updated", slog.Uint64("user_id", id))
 	return nil
@@ -177,24 +196,27 @@ func (s *userAccountService) UpdateUser(ctx context.Context, id uint64, input *U
 // DeleteUser はユーザーアカウントを論理削除する
 func (s *userAccountService) DeleteUser(ctx context.Context, id uint64) error {
 	if err := s.repo.Delete(ctx, id); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to delete user account")
 	}
 	slog.InfoContext(ctx, "user account deleted", slog.Uint64("user_id", id))
 	return nil
 }
 
-// GetPermissions はユーザーの権限一覧を返す
-func (s *userAccountService) GetPermissions(ctx context.Context, userID, clinicID uint64) ([]model.UserPermission, error) {
-	return s.repo.FindPermissions(ctx, userID, clinicID)
+// SetPermissionGroups はユーザーのグループ割当を全置換する
+func (s *userAccountService) SetPermissionGroups(ctx context.Context, userID uint64, input SetPermissionGroupsInput) error {
+	// 各group_idの存在確認（BUG-031: 存在しないgroup_id → 404を返す）
+	if s.permRepo != nil {
+		for _, groupID := range input.GroupIDs {
+			if err := s.permRepo.VerifyGroupExists(ctx, groupID); err != nil {
+				return apperrors.Wrap(apperrors.ErrNotFound, fmt.Sprintf("permission group %d not found", groupID))
+			}
+		}
+	}
+	slog.InfoContext(ctx, "setting user permission groups", slog.Uint64("user_id", userID), slog.Any("group_ids", input.GroupIDs))
+	return s.repo.SetPermissionGroups(ctx, userID, input.GroupIDs)
 }
 
-// SetPermissions はユーザーの権限を全置換する
-func (s *userAccountService) SetPermissions(ctx context.Context, userID, clinicID uint64, input *SetPermissionsInput) error {
-	if err := s.repo.SetPermissions(ctx, userID, clinicID, input.Permissions); err != nil {
-		return err
-	}
-	slog.InfoContext(ctx, "user permissions updated",
-		slog.Uint64("user_id", userID),
-		slog.Uint64("clinic_id", clinicID))
-	return nil
+// GetPermissionGroupIDs はユーザーの割当グループIDリストを返す
+func (s *userAccountService) GetPermissionGroupIDs(ctx context.Context, userID uint64) ([]uint64, error) {
+	return s.repo.FindPermissionGroupIDs(ctx, userID)
 }

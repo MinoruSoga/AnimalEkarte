@@ -1,5 +1,6 @@
 // React/Framework
-import { useState, useCallback, useMemo } from "react";
+import { ICON } from "@/lib/design-tokens";
+import { useState, useCallback, useMemo, useTransition } from "react";
 
 // External
 import { Loader2, PlusCircle } from "lucide-react";
@@ -9,20 +10,20 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 // Relative
-import { DailyDateNav } from "./DailyDateNav";
-import { DailyVitalsSection } from "./DailyVitalsSection";
-import { DailyCareLogsSection } from "./DailyCareLogsSection";
-import { DailyStaffNotesSection } from "./DailyStaffNotesSection";
+import { DailyDateNav } from "@/features/hospitalization/components/DailyRecordsTab/DailyDateNav";
+import { DailyVitalsSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyVitalsSection";
+import { DailyCareLogsSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyCareLogsSection";
+import { DailyStaffNotesSection } from "@/features/hospitalization/components/DailyRecordsTab/DailyStaffNotesSection";
 import {
     useDailyRecord,
     useCreateDailyRecord,
     useCreateDailyVital,
     useCreateCareLog,
     useCreateStaffNote,
-} from "../../api/daily-records";
+} from "@/features/hospitalization/api/daily-records";
 
 // Types
-import type { CreateVitalRecordRequest, CreateCareLogRecordRequest, CreateStaffNoteRecordRequest } from "../../api/daily-records-types";
+import type { CreateVitalRecordRequest, CreateCareLogRecordRequest, CreateStaffNoteRecordRequest } from "@/features/hospitalization/api/daily-records-types";
 
 interface DailyRecordsTabProps {
     hospitalizationId: string;
@@ -71,27 +72,40 @@ export function DailyRecordsTab({
     const createCareLog = useCreateCareLog(hospitalizationId, selectedDate);
     const createStaffNote = useCreateStaffNote(hospitalizationId, selectedDate);
 
+    const [isCreateRecordPending, startCreateRecordTransition] = useTransition();
+    const [isVitalPending, startVitalTransition] = useTransition();
+    const [isCareLogPending, startCareLogTransition] = useTransition();
+    const [isStaffNotePending, startStaffNoteTransition] = useTransition();
+
     const handleCreateDailyRecord = useCallback(() => {
-        createDailyRecord.mutate(selectedDate);
+        startCreateRecordTransition(async () => {
+            await createDailyRecord.mutateAsync(selectedDate);
+        });
     }, [createDailyRecord, selectedDate]);
 
     const handleAddVital = useCallback(
         (payload: CreateVitalRecordRequest) => {
-            createVital.mutate(payload);
+            startVitalTransition(async () => {
+                await createVital.mutateAsync(payload);
+            });
         },
         [createVital]
     );
 
     const handleAddCareLog = useCallback(
         (payload: CreateCareLogRecordRequest) => {
-            createCareLog.mutate(payload);
+            startCareLogTransition(async () => {
+                await createCareLog.mutateAsync(payload);
+            });
         },
         [createCareLog]
     );
 
     const handleAddStaffNote = useCallback(
         (payload: CreateStaffNoteRecordRequest) => {
-            createStaffNote.mutate(payload);
+            startStaffNoteTransition(async () => {
+                await createStaffNote.mutateAsync(payload);
+            });
         },
         [createStaffNote]
     );
@@ -111,7 +125,7 @@ export function DailyRecordsTab({
 
             {isLoading ? (
                 <div className="flex items-center justify-center py-10 text-[#37352F]/40">
-                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    <Loader2 className={`${ICON.page} animate-spin mr-2`} />
                     <span className="text-sm">読み込み中...</span>
                 </div>
             ) : isError ? (
@@ -121,13 +135,13 @@ export function DailyRecordsTab({
                         variant="outline"
                         size="sm"
                         onClick={handleCreateDailyRecord}
-                        disabled={createDailyRecord.isPending}
+                        disabled={isCreateRecordPending}
                         className="gap-1.5"
                     >
-                        {createDailyRecord.isPending ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        {isCreateRecordPending ? (
+                            <Loader2 className={`${ICON.action} animate-spin`} />
                         ) : (
-                            <PlusCircle className="h-3.5 w-3.5" />
+                            <PlusCircle className={ICON.action} />
                         )}
                         この日の記録を作成
                     </Button>
@@ -137,7 +151,7 @@ export function DailyRecordsTab({
                     <DailyVitalsSection
                         vitals={vitals}
                         onAddVital={handleAddVital}
-                        isPending={createVital.isPending}
+                        isPending={isVitalPending}
                     />
 
                     <Separator className="opacity-50" />
@@ -145,7 +159,7 @@ export function DailyRecordsTab({
                     <DailyCareLogsSection
                         careLogs={careLogs}
                         onAddCareLog={handleAddCareLog}
-                        isPending={createCareLog.isPending}
+                        isPending={isCareLogPending}
                     />
 
                     <Separator className="opacity-50" />
@@ -153,7 +167,7 @@ export function DailyRecordsTab({
                     <DailyStaffNotesSection
                         staffNotes={staffNotes}
                         onAddStaffNote={handleAddStaffNote}
-                        isPending={createStaffNote.isPending}
+                        isPending={isStaffNotePending}
                     />
                 </div>
             )}

@@ -4,12 +4,12 @@ import { PetSelectionResultsTable } from "@/components/shared/PetSelection/PetSe
 import { usePetSelectionPage } from "@/hooks/use-pet-selection-page";
 
 export function TrimmingPetSelection() {
-  const { searchParams, setSearchParams, filteredPets, handleSearch, handleSelect, handleBack } =
+  const { searchParams, setSearchParams, filteredPets, handleSearch, handleClear, handleSelect, handleBack } =
     usePetSelectionPage({ selectPath: "/trimming/new", backPath: "/trimming" });
 
   return (
     <PageLayout title="トリミング登録 - ペット選択" onBack={handleBack} maxWidth="max-w-full">
-      <PetSelectionSearchForm searchParams={searchParams} setSearchParams={setSearchParams} onSearch={handleSearch} />
+      <PetSelectionSearchForm searchParams={searchParams} setSearchParams={setSearchParams} onSearch={handleSearch} onClear={handleClear} />
       <PetSelectionResultsTable pets={filteredPets} onSelect={handleSelect} />
     </PageLayout>
   );

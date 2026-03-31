@@ -1,0 +1,157 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.25"
+  NODE_VERSION: "20"
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Backend: build + lint + test + schema check
+  # ──────────────────────────────────────────────
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: ekarte_user
+          POSTGRES_PASSWORD: ekarte_password
+          POSTGRES_DB: ekarte_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U ekarte_user -d ekarte_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply migrations
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: ekarte_user
+          PGPASSWORD: ekarte_password
+          PGDATABASE: ekarte_db
+        run: |
+          for f in backend/migrations/*.sql; do
+            echo "Applying $f ..."
+            psql -f "$f"
+          done
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: backend/go.sum
+
+      - name: Download modules
+        working-directory: backend
+        run: go mod download
+
+      - name: Build
+        working-directory: backend
+        run: go build ./...
+
+      - name: Lint
+        working-directory: backend
+        run: go vet ./...
+
+      - name: Test
+        working-directory: backend
+        env:
+          DB_HOST: localhost
+          DB_PORT: "5432"
+          DB_USER: ekarte_user
+          DB_PASSWORD: ekarte_password
+          DB_NAME: ekarte_db
+          DB_SSL_MODE: disable
+        run: go test -v -race ./...
+
+      - name: Schema drift check
+        working-directory: backend
+        env:
+          DB_HOST: localhost
+          DB_PORT: "5432"
+          DB_USER: ekarte_user
+          DB_PASSWORD: ekarte_password
+          DB_NAME: ekarte_db
+          DB_SSL_MODE: disable
+        run: go test ./internal/model/ -run TestSchemaDrift -v
+
+  # ──────────────────────────────────────────────
+  # Frontend: build + lint
+  # ──────────────────────────────────────────────
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+  # ──────────────────────────────────────────────
+  # Codegen: Go model → TypeScript 型の同期チェック
+  # ──────────────────────────────────────────────
+  codegen-check:
+    name: Codegen Sync
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: backend/go.sum
+
+      - name: Run tygo
+        working-directory: backend
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/tygo-output"
+          sed 's|/output/models.ts|'"$GITHUB_WORKSPACE"'/tygo-output/models.ts|' tygo.yaml > tygo-ci.yaml
+          go run github.com/gzuidhof/tygo@latest generate --config tygo-ci.yaml
+          cp "$GITHUB_WORKSPACE/tygo-output/models.ts" ../frontend/src/types/generated/models.ts
+
+      - name: Check for drift
+        run: |
+          if ! git diff --exit-code frontend/src/types/generated/; then
+            echo "::error::models.ts is out of sync with Go models. Run 'make codegen' and commit the result."
+            exit 1
+          fi

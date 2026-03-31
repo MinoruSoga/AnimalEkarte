@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -37,25 +36,23 @@ func (r *medicineRepository) FindAll(ctx context.Context, clinicID uint64, page,
 	}
 
 	if err := buildBase().Count(&total).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "count medicines")
+		return nil, 0, apperrors.FromGORM(err, "medicine", "")
 	}
 	if err := buildBase().
 		Offset((page - 1) * limit).Limit(limit).
 		Order("sort_order ASC, name ASC").
 		Find(&medicines).Error; err != nil {
-		return nil, 0, apperrors.Wrap(err, "find medicines")
+		return nil, 0, apperrors.FromGORM(err, "medicine", "")
 	}
 	return medicines, total, nil
 }
 
 func (r *medicineRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error) {
 	var medicine model.Medicine
-	if err := r.db.WithContext(ctx).
-		First(&medicine, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("medicine", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find medicine by id")
+	err := r.db.WithContext(ctx).
+		First(&medicine, "id = ? AND clinic_id = ?", id, clinicID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "medicine", fmt.Sprintf("%d", id))
 	}
 	return &medicine, nil
 }
@@ -66,17 +63,18 @@ func (r *medicineRepository) CountChildren(ctx context.Context, clinicID, parent
 		Model(&model.Medicine{}).
 		Where("clinic_id = ? AND parent_id = ?", clinicID, parentID).
 		Count(&count).Error; err != nil {
-		return 0, apperrors.Wrap(err, "count children medicines")
+		return 0, apperrors.FromGORM(err, "medicine", "")
 	}
 	return count, nil
 }
 
 func (r *medicineRepository) Create(ctx context.Context, medicine *model.Medicine) error {
-	if err := r.db.WithContext(ctx).Create(medicine).Error; err != nil {
+	err := r.db.WithContext(ctx).Create(medicine).Error
+	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("medicine", medicine.Name)
 		}
-		return apperrors.Wrap(err, "create medicine")
+		return apperrors.FromGORM(err, "medicine", "")
 	}
 	return nil
 }
@@ -87,7 +85,7 @@ func (r *medicineRepository) Update(ctx context.Context, clinicID, id uint64, fi
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update medicine")
+		return apperrors.FromGORM(result.Error, "medicine", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		var count int64
@@ -102,13 +100,13 @@ func (r *medicineRepository) Update(ctx context.Context, clinicID, id uint64, fi
 }
 
 func (r *medicineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.Medicine{}).
 				Where("id = ? AND clinic_id = ?", id, clinicID).
 				Update("sort_order", i+1)
 			if result.Error != nil {
-				return apperrors.Wrap(result.Error, "reorder medicine")
+				return apperrors.FromGORM(result.Error, "medicine", fmt.Sprintf("%d", id))
 			}
 			if result.RowsAffected == 0 {
 				return apperrors.WrapInvalidInput(fmt.Sprintf("medicine id %d not found in this clinic", id))
@@ -116,12 +114,16 @@ func (r *medicineRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 		}
 		return nil
 	})
+	if err != nil {
+		return apperrors.Wrap(err, "reorder medicine")
+	}
+	return nil
 }
 
 func (r *medicineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.Medicine{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete medicine")
+		return apperrors.FromGORM(result.Error, "medicine", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("medicine", fmt.Sprintf("%d", id))

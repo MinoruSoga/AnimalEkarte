@@ -1,13 +1,12 @@
 package service
 
 import (
-	"log/slog"
-
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // Services はすべてのサービスを保持するDIコンテナ
 type Services struct {
+	Auth                   AuthService
 	AnimalSpecies          AnimalSpeciesService
 	Owner                  OwnerService
 	Pet                    PetService
@@ -38,6 +37,7 @@ type Services struct {
 	Vaccination            VaccinationService
 	JobTitle               JobTitleService
 	ChiefComplaintCategory ChiefComplaintCategoryService
+	Inquiry                InquiryService
 	InquiryTemplate        InquiryTemplateService
 	Company                CompanyService
 	BillingReview          BillingReviewService
@@ -51,41 +51,47 @@ type Services struct {
 	ClinicalPlan           ClinicalPlanService
 	Checkup                CheckupService
 	Estimate               EstimateService
+	MerchandiseItem        MerchandiseItemService
+	BillingItem            BillingItemService
+	Refund                 RefundService
+	PermissionGroup        PermissionGroupService
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す
 func NewServices(repos *repository.Repositories) *Services {
 	return &Services{
+		Auth:                   NewAuthService(repos.Auth, repos.UserAccount),
 		AnimalSpecies:          NewAnimalSpeciesService(repos.AnimalSpecies),
 		Owner:                  NewOwnerService(repos.Owner),
-		Pet:                    NewPetService(repos.Pet, repos.Owner, repos.Insurance, slog.Default()),
+		Pet:                    NewPetService(repos.Pet, repos.Owner, repos.Insurance),
 		Reservation:            NewReservationService(repos.Reservation),
-		MedicalRecord:          NewMedicalRecordService(repos.MedicalRecord),
+		MedicalRecord:          NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet),
 		Hospitalization:        NewHospitalizationService(repos.Hospitalization),
 		Accounting:             NewAccountingService(repos.Accounting),
 		Trimming:               NewTrimmingService(repos.Trimming),
 		Inventory:              NewInventoryService(repos.Inventory),
-		Staff:                  NewStaffService(repos.Staff),
-		Cage:                   NewCageService(repos.Cage),
-		Medicine:               NewMedicineService(repos.Medicine, slog.Default()),
+		Staff:                  NewStaffService(repos.Staff, repos.Reservation, repos.ShiftEntry),
+		Cage:                   NewCageService(repos.Cage, repos.Hospitalization),
+		Medicine:               NewMedicineService(repos.Medicine),
 		Vaccine:                NewVaccineService(repos.Vaccine),
 		Insurance:              NewInsuranceService(repos.Insurance),
-		ServiceType:            NewServiceTypeService(repos.ServiceType),
+		ServiceType:            NewServiceTypeService(repos.ServiceType, repos.Reservation),
 		Consultation:           NewConsultationService(repos.Consultation),
 		Procedure:              NewProcedureService(repos.Procedure),
 		HospitalizationPlan:    NewHospitalizationPlanService(repos.HospitalizationPlan),
 		TrimmingCourse:         NewTrimmingCourseService(repos.TrimmingCourse),
 		TrimmingOption:         NewTrimmingOptionService(repos.TrimmingOption),
 		ExaminationType:        NewExamTypeService(repos.ExaminationType),
-		DiagnosisCategory:      NewDiagnosisCategoryService(repos.DiagnosisCategory, slog.Default()),
-		DiagnosisName:          NewDiagnosisNameService(repos.DiagnosisName, repos.DiagnosisCategory, slog.Default()),
+		DiagnosisCategory:      NewDiagnosisCategoryService(repos.DiagnosisCategory),
+		DiagnosisName:          NewDiagnosisNameService(repos.DiagnosisName, repos.DiagnosisCategory),
 		CheckupType:            NewCheckupTypeService(repos.CheckupType),
 		Clinic:                 NewClinicService(repos.Clinic),
-		UserAccount:            NewUserAccountService(repos.UserAccount),
+		UserAccount:            NewUserAccountService(repos.UserAccount, repos.PermissionGroup),
 		Examination:            NewExaminationService(repos.Examination),
 		Vaccination:            NewVaccinationService(repos.Vaccination),
 		JobTitle:               NewJobTitleService(repos.JobTitle),
 		ChiefComplaintCategory: NewChiefComplaintCategoryService(repos.ChiefComplaintCategory),
+		Inquiry:                NewInquiryService(repos.Inquiry),
 		InquiryTemplate:        NewInquiryTemplateService(repos.InquiryTemplate),
 		Company:                NewCompanyService(repos.Company),
 		BillingReview:          NewBillingReviewService(repos.BillingReview),
@@ -93,11 +99,15 @@ func NewServices(repos *repository.Repositories) *Services {
 		ShiftEntry:             NewShiftEntryService(repos.ShiftEntry),
 		TreatmentPlan:          NewTreatmentPlanService(repos.TreatmentPlan),
 		Vital:                  NewVitalService(repos.Vital),
-		Treatment:              NewTreatmentService(repos.Treatment),
+		Treatment:              NewTreatmentService(repos),
 		DailyRecord:            NewDailyRecordService(repos.DailyRecord),
 		RecordImage:            NewRecordImageService(repos.RecordImage),
 		ClinicalPlan:           NewClinicalPlanService(repos.ClinicalPlan),
 		Checkup:                NewCheckupService(repos.Checkup),
 		Estimate:               NewEstimateService(repos.Estimate),
+		MerchandiseItem:        NewMerchandiseItemService(repos.MerchandiseItem),
+		BillingItem:            NewBillingItemService(repos.BillingItem),
+		Refund:                 NewRefundService(repos.Refund, repos.Accounting),
+		PermissionGroup:        NewPermissionGroupService(repos.PermissionGroup),
 	}
 }

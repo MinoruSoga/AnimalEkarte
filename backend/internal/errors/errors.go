@@ -3,6 +3,8 @@ package errors
 import (
 	"errors"
 	"fmt"
+
+	"gorm.io/gorm"
 )
 
 // センチネルエラー
@@ -79,12 +81,37 @@ func IsAlreadyExists(err error) bool {
 	return errors.Is(err, ErrAlreadyExists)
 }
 
-// Is は errors.Is の薄いラッパー。テストおよびパッケージ外から利用可能にするために公開する。
-func Is(err, target error) bool {
-	return errors.Is(err, target)
+// WrapConflict は依存データによる操作不可エラーを生成する（409 Conflict）
+// 削除時に FK 参照先が存在する場合など。
+func WrapConflict(message string) error {
+	return &AppError{
+		Code:    "CONFLICT",
+		Message: message,
+		Err:     ErrAlreadyExists, // ErrAlreadyExists → 409 Conflict にマッピング済み
+	}
 }
 
-// As は errors.As の薄いラッパー。テストおよびパッケージ外から利用可能にするために公開する。
-func As(err error, target any) bool {
-	return errors.As(err, target)
+// IsConflict は 409 Conflict 系エラーかどうかを判定する
+func IsConflict(err error) bool {
+	return errors.Is(err, ErrAlreadyExists)
+}
+
+// WrapForbidden はアクセス拒否エラーを生成する
+func WrapForbidden(message string) error {
+	return &AppError{
+		Code:    "FORBIDDEN",
+		Message: message,
+		Err:     ErrForbidden,
+	}
+}
+
+// FromGORM は GORM のエラーを AppError に変換する
+func FromGORM(err error, resource string, id string) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return WrapNotFound(resource, id)
+	}
+	return Wrap(err, fmt.Sprintf("database error on %s", resource))
 }

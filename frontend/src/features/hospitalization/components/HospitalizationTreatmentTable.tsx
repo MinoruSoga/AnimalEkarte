@@ -1,6 +1,9 @@
-import { Plus, Trash2, FileText } from "lucide-react";
+import { ICON } from "@/lib/design-tokens";
+import { memo } from "react";
+import { Plus, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { TreatmentPlan } from "@/types";
 import { H_STYLES } from "../styles";
 
@@ -11,7 +14,7 @@ interface HospitalizationTreatmentTableProps {
   onUpdate: (id: string, field: keyof TreatmentPlan, value: string | number | boolean) => void;
 }
 
-export function HospitalizationTreatmentTable({
+export const HospitalizationTreatmentTable = memo(function HospitalizationTreatmentTable({
     treatmentPlans,
     onAdd,
     onRemove,
@@ -21,7 +24,7 @@ export function HospitalizationTreatmentTable({
     <div className={`bg-white rounded-lg shadow-sm border border-[rgba(55,53,47,0.16)] ${H_STYLES.padding.box} mb-3`}>
       <div className="flex items-center justify-between mb-3">
         <h2 className={`${H_STYLES.text.base} font-bold flex items-center gap-2 text-[#37352F]`}>
-          <FileText className="h-4 w-4 text-[#37352F]/60" />
+          <FileText className={`${ICON.action} text-[#37352F]/60`} />
           治療プラン
         </h2>
         <Button
@@ -93,12 +96,7 @@ export function HospitalizationTreatmentTable({
                   {plan.subtotal.toLocaleString()}
                 </td>
                 <td className="px-3 py-1 text-center">
-                  <button
-                    onClick={() => onRemove(plan.id)}
-                    className="text-[#37352F]/40 hover:text-[#E03E3E] transition-colors"
-                  >
-                    <Trash2 className={H_STYLES.button.icon} />
-                  </button>
+                  <DeleteIconButton onClick={() => onRemove(plan.id)} />
                 </td>
               </tr>
             ))}
@@ -107,4 +105,4 @@ export function HospitalizationTreatmentTable({
       </div>
     </div>
   );
-}
+});

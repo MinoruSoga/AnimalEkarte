@@ -13,12 +13,12 @@ import (
 // ---- TreatmentPlan モック ----
 
 type mockTreatmentPlanRepository struct {
-	listByMedicalRecordIDFn func(ctx context.Context, medicalRecordID uint64) ([]model.TreatmentPlan, error)
+	listByMedicalRecordIDFn   func(ctx context.Context, medicalRecordID uint64) ([]model.TreatmentPlan, error)
 	listByHospitalizationIDFn func(ctx context.Context, hospitalizationID uint64) ([]model.TreatmentPlan, error)
-	findByIDFn              func(ctx context.Context, id uint64) (*model.TreatmentPlan, error)
-	createFn                func(ctx context.Context, plan *model.TreatmentPlan) error
-	updateFn                func(ctx context.Context, id uint64, fields map[string]any) error
-	deleteFn                func(ctx context.Context, id uint64) error
+	findByIDFn                func(ctx context.Context, id uint64) (*model.TreatmentPlan, error)
+	createFn                  func(ctx context.Context, plan *model.TreatmentPlan) error
+	updateFn                  func(ctx context.Context, id uint64, fields map[string]any) error
+	deleteFn                  func(ctx context.Context, id uint64) error
 }
 
 func (m *mockTreatmentPlanRepository) ListByMedicalRecordID(ctx context.Context, medicalRecordID uint64) ([]model.TreatmentPlan, error) {
@@ -49,12 +49,12 @@ func (m *mockTreatmentPlanRepository) Delete(ctx context.Context, id uint64) err
 
 func TestTreatmentPlanService_ListByMedicalRecord(t *testing.T) {
 	tests := []struct {
-		name                 string
-		medicalRecordID      uint64
-		repoPlans            []model.TreatmentPlan
-		repoErr              error
-		wantLen              int
-		wantErr              bool
+		name            string
+		medicalRecordID uint64
+		repoPlans       []model.TreatmentPlan
+		repoErr         error
+		wantLen         int
+		wantErr         bool
 	}{
 		{
 			name:            "returns plans for medical record",
@@ -107,12 +107,12 @@ func TestTreatmentPlanService_ListByMedicalRecord(t *testing.T) {
 
 func TestTreatmentPlanService_ListByHospitalization(t *testing.T) {
 	tests := []struct {
-		name                 string
-		hospitalizationID    uint64
-		repoPlans            []model.TreatmentPlan
-		repoErr              error
-		wantLen              int
-		wantErr              bool
+		name              string
+		hospitalizationID uint64
+		repoPlans         []model.TreatmentPlan
+		repoErr           error
+		wantLen           int
+		wantErr           bool
 	}{
 		{
 			name:              "returns plans for hospitalization",
@@ -167,12 +167,12 @@ func TestTreatmentPlanService_Create(t *testing.T) {
 	hospitalizationID := uint64(2)
 
 	tests := []struct {
-		name                  string
-		medicalRecordID       *uint64
-		hospitalizationID     *uint64
-		input                 *CreateTreatmentPlanInput
-		repoErr               error
-		wantErr               bool
+		name              string
+		medicalRecordID   *uint64
+		hospitalizationID *uint64
+		input             *CreateTreatmentPlanInput
+		repoErr           error
+		wantErr           bool
 	}{
 		{
 			name:              "creates plan for medical record",
@@ -256,15 +256,15 @@ func TestTreatmentPlanService_Create(t *testing.T) {
 
 func TestTreatmentPlanService_Update(t *testing.T) {
 	newContent := "Updated content"
-	newPrice := 200.0
+	newPrice := int64(200)
 
 	tests := []struct {
-		name              string
-		id                uint64
-		input             *UpdateTreatmentPlanInput
-		repoUpdateErr     error
-		repoReturnPlan    *model.TreatmentPlan
-		wantErr           bool
+		name           string
+		id             uint64
+		input          *UpdateTreatmentPlanInput
+		repoUpdateErr  error
+		repoReturnPlan *model.TreatmentPlan
+		wantErr        bool
 	}{
 		{
 			name: "updates plan successfully",
@@ -282,12 +282,12 @@ func TestTreatmentPlanService_Update(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:              "returns error when no fields provided",
-			id:                1,
-			input:             &UpdateTreatmentPlanInput{},
-			repoUpdateErr:     nil,
-			repoReturnPlan:    nil,
-			wantErr:           true,
+			name:           "returns error when no fields provided",
+			id:             1,
+			input:          &UpdateTreatmentPlanInput{},
+			repoUpdateErr:  nil,
+			repoReturnPlan: nil,
+			wantErr:        true,
 		},
 		{
 			name: "returns error when update fails",

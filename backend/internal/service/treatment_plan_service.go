@@ -13,11 +13,11 @@ type CreateTreatmentPlanInput struct {
 	TreatmentContent string
 	Memo             string
 	Insurance        bool
-	UnitPrice        float64
-	Quantity         int
+	UnitPrice        int64
+	Quantity         float64
 	DiscountRate     float64
-	DiscountAmount   float64
-	Subtotal         float64
+	DiscountAmount   int64
+	Subtotal         int64
 	SortOrder        int
 }
 
@@ -25,11 +25,11 @@ type UpdateTreatmentPlanInput struct {
 	TreatmentContent *string
 	Memo             *string
 	Insurance        *bool
-	UnitPrice        *float64
-	Quantity         *int
+	UnitPrice        *int64
+	Quantity         *float64
 	DiscountRate     *float64
-	DiscountAmount   *float64
-	Subtotal         *float64
+	DiscountAmount   *int64
+	Subtotal         *int64
 	SortOrder        *int
 }
 
@@ -64,7 +64,7 @@ func (s *treatmentPlanService) Create(ctx context.Context, medicalRecordID, hosp
 		if qty == 0 {
 			qty = 1
 		}
-		subtotal = input.UnitPrice * float64(qty) * (1 - input.DiscountRate/100) - input.DiscountAmount
+		subtotal = int64(float64(input.UnitPrice)*qty*(1-input.DiscountRate/100)) - input.DiscountAmount
 	}
 
 	plan := &model.TreatmentPlan{
@@ -81,7 +81,7 @@ func (s *treatmentPlanService) Create(ctx context.Context, medicalRecordID, hosp
 		SortOrder:         input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, plan); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to create treatment plan")
 	}
 	slog.InfoContext(ctx, "treatment plan created", slog.Uint64("treatment_plan_id", plan.ID))
 	return s.repo.FindByID(ctx, plan.ID)
@@ -93,7 +93,7 @@ func (s *treatmentPlanService) Update(ctx context.Context, id uint64, input *Upd
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, id, fields); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update treatment plan")
 	}
 	slog.InfoContext(ctx, "treatment plan updated", slog.Uint64("treatment_plan_id", id))
 	return s.repo.FindByID(ctx, id)
@@ -101,7 +101,7 @@ func (s *treatmentPlanService) Update(ctx context.Context, id uint64, input *Upd
 
 func (s *treatmentPlanService) Delete(ctx context.Context, id uint64) error {
 	if err := s.repo.Delete(ctx, id); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to delete treatment plan")
 	}
 	slog.InfoContext(ctx, "treatment plan deleted", slog.Uint64("treatment_plan_id", id))
 	return nil

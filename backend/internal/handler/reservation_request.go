@@ -22,10 +22,10 @@ type updateReservationRequest struct {
 	EndTime       *time.Time `json:"end_time"`
 	OwnerID       *uint64    `json:"owner_id"`
 	PetID         *uint64    `json:"pet_id"`
-	VisitType     string     `json:"visit_type"`
-	ServiceTypeID uint64     `json:"service_type_id"`
-	DoctorID      *string    `json:"doctor_id"` // 医師IDまたは医師名で受け取る
+	VisitType     *string    `json:"visit_type"`
+	ServiceTypeID *uint64    `json:"service_type_id"`
+	DoctorID      *uint64    `json:"doctor_id"`
 	IsDesignated  *bool      `json:"is_designated"`
-	Status        string     `json:"status"`
-	Notes         string     `json:"notes"`
+	Status        *string    `json:"status"`
+	Notes         *string    `json:"notes"`
 }

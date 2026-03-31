@@ -1,4 +1,4 @@
-import type { Medicine as BackendMedicine } from "@/types/generated/models";
+import type { Medicine as BackendMedicine, TaxType } from "@/types/generated/models";
 
 /**
  * バックエンド Medicine レスポンスをフロントエンド Medicine 型に変換
@@ -16,6 +16,8 @@ export const transformBackendMedicineToFrontend = (data: BackendMedicine) => ({
   description: data.description ?? "",
   isActive: data.is_active,
   sortOrder: data.sort_order ?? 0,
+  taxType: (data.tax_type ?? "excluded") as TaxType,
+  taxRate: data.tax_rate ?? 0.1,
   createdAt: data.created_at ?? "",
   updatedAt: data.updated_at ?? "",
 });

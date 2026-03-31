@@ -14,18 +14,26 @@ import (
 // ---- UserAccount モック ----
 
 type mockUserAccountRepository struct {
-	findByEmailFn                 func(ctx context.Context, email string) (*model.UserAccount, error)
-	findByIDWithMembershipsFn     func(ctx context.Context, userID uint64) (*repository.UserAccountWithMemberships, error)
-	findByClinicIDFn              func(ctx context.Context, clinicID uint64) ([]model.UserAccount, error)
-	createFn                      func(ctx context.Context, account *model.UserAccount, clinicID uint64, staffID *uint64, isMain bool) error
-	updateFn                      func(ctx context.Context, id uint64, fields map[string]any) error
-	deleteFn                      func(ctx context.Context, id uint64) error
-	findPermissionsFn             func(ctx context.Context, userID, clinicID uint64) ([]model.UserPermission, error)
-	setPermissionsFn              func(ctx context.Context, userID, clinicID uint64, permissions []string) error
+	findByEmailFn             func(ctx context.Context, email string) (*model.UserAccount, error)
+	findActiveByIDFn          func(ctx context.Context, id uint64) (*model.UserAccount, error)
+	findByIDWithMembershipsFn func(ctx context.Context, userID uint64) (*repository.UserAccountWithMemberships, error)
+	findByClinicIDFn          func(ctx context.Context, clinicID uint64) ([]model.UserAccount, error)
+	createFn                  func(ctx context.Context, account *model.UserAccount, clinicID uint64, staffID *uint64, isMain bool) error
+	updateFn                  func(ctx context.Context, id uint64, fields map[string]any) error
+	deleteFn                  func(ctx context.Context, id uint64) error
+	setPermissionGroupsFn     func(ctx context.Context, userID uint64, groupIDs []uint64) error
+	findPermissionGroupIDsFn  func(ctx context.Context, userID uint64) ([]uint64, error)
 }
 
 func (m *mockUserAccountRepository) FindByEmail(ctx context.Context, email string) (*model.UserAccount, error) {
 	return m.findByEmailFn(ctx, email)
+}
+
+func (m *mockUserAccountRepository) FindActiveByID(ctx context.Context, id uint64) (*model.UserAccount, error) {
+	if m.findActiveByIDFn != nil {
+		return m.findActiveByIDFn(ctx, id)
+	}
+	return &model.UserAccount{ID: id}, nil
 }
 
 func (m *mockUserAccountRepository) FindByIDWithMemberships(ctx context.Context, userID uint64) (*repository.UserAccountWithMemberships, error) {
@@ -48,12 +56,18 @@ func (m *mockUserAccountRepository) Delete(ctx context.Context, id uint64) error
 	return m.deleteFn(ctx, id)
 }
 
-func (m *mockUserAccountRepository) FindPermissions(ctx context.Context, userID, clinicID uint64) ([]model.UserPermission, error) {
-	return m.findPermissionsFn(ctx, userID, clinicID)
+func (m *mockUserAccountRepository) SetPermissionGroups(ctx context.Context, userID uint64, groupIDs []uint64) error {
+	if m.setPermissionGroupsFn != nil {
+		return m.setPermissionGroupsFn(ctx, userID, groupIDs)
+	}
+	return nil
 }
 
-func (m *mockUserAccountRepository) SetPermissions(ctx context.Context, userID, clinicID uint64, permissions []string) error {
-	return m.setPermissionsFn(ctx, userID, clinicID, permissions)
+func (m *mockUserAccountRepository) FindPermissionGroupIDs(ctx context.Context, userID uint64) ([]uint64, error) {
+	if m.findPermissionGroupIDsFn != nil {
+		return m.findPermissionGroupIDsFn(ctx, userID)
+	}
+	return []uint64{}, nil
 }
 
 // ---- Tests ----
@@ -96,7 +110,7 @@ func TestUserAccountService_FindByEmail(t *testing.T) {
 					return tt.repoAccount, tt.repoErr
 				},
 			}
-			svc := NewUserAccountService(repo)
+			svc := NewUserAccountService(repo, nil)
 
 			result, err := svc.FindByEmail(context.Background(), tt.email)
 
@@ -114,12 +128,12 @@ func TestUserAccountService_FindByEmail(t *testing.T) {
 
 func TestUserAccountService_GetMemberships(t *testing.T) {
 	tests := []struct {
-		name            string
-		userID          uint64
-		repoData        *repository.UserAccountWithMemberships
-		repoErr         error
-		wantLen         int
-		wantErr         bool
+		name     string
+		userID   uint64
+		repoData *repository.UserAccountWithMemberships
+		repoErr  error
+		wantLen  int
+		wantErr  bool
 	}{
 		{
 			name:   "returns user memberships",
@@ -162,7 +176,7 @@ func TestUserAccountService_GetMemberships(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewUserAccountService(repo)
+			svc := NewUserAccountService(repo, nil)
 
 			memberships, err := svc.GetMemberships(context.Background(), tt.userID)
 
@@ -217,7 +231,7 @@ func TestUserAccountService_GetWithMemberships(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewUserAccountService(repo)
+			svc := NewUserAccountService(repo, nil)
 
 			result, err := svc.GetWithMemberships(context.Background(), tt.userIDStr)
 
@@ -234,12 +248,12 @@ func TestUserAccountService_GetWithMemberships(t *testing.T) {
 
 func TestUserAccountService_ListUsers(t *testing.T) {
 	tests := []struct {
-		name        string
-		clinicID    uint64
-		repoUsers   []model.UserAccount
-		repoErr     error
-		wantLen     int
-		wantErr     bool
+		name      string
+		clinicID  uint64
+		repoUsers []model.UserAccount
+		repoErr   error
+		wantLen   int
+		wantErr   bool
 	}{
 		{
 			name:     "returns users for clinic",
@@ -276,7 +290,7 @@ func TestUserAccountService_ListUsers(t *testing.T) {
 					return tt.repoUsers, tt.repoErr
 				},
 			}
-			svc := NewUserAccountService(repo)
+			svc := NewUserAccountService(repo, nil)
 
 			users, err := svc.ListUsers(context.Background(), tt.clinicID)
 
@@ -294,14 +308,14 @@ func TestUserAccountService_CreateUser(t *testing.T) {
 	staffID := uint64(5)
 
 	tests := []struct {
-		name    string
+		name     string
 		clinicID uint64
-		input   *CreateUserAccountInput
-		repoErr error
-		wantErr bool
+		input    *CreateUserAccountInput
+		repoErr  error
+		wantErr  bool
 	}{
 		{
-			name:    "creates user account successfully",
+			name:     "creates user account successfully",
 			clinicID: 1,
 			input: &CreateUserAccountInput{
 				Email:       "doctor@example.com",
@@ -315,7 +329,7 @@ func TestUserAccountService_CreateUser(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "creates nurse account",
+			name:     "creates nurse account",
 			clinicID: 1,
 			input: &CreateUserAccountInput{
 				Email:       "nurse@example.com",
@@ -328,7 +342,7 @@ func TestUserAccountService_CreateUser(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "returns error when repository fails",
+			name:     "returns error when repository fails",
 			clinicID: 1,
 			input: &CreateUserAccountInput{
 				Email:       "user@example.com",
@@ -348,7 +362,7 @@ func TestUserAccountService_CreateUser(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewUserAccountService(repo)
+			svc := NewUserAccountService(repo, nil)
 
 			account, err := svc.CreateUser(context.Background(), tt.clinicID, tt.input)
 
@@ -410,7 +424,7 @@ func TestUserAccountService_UpdateUser(t *testing.T) {
 					return tt.repoUpdateErr
 				},
 			}
-			svc := NewUserAccountService(repo)
+			svc := NewUserAccountService(repo, nil)
 
 			err := svc.UpdateUser(context.Background(), tt.id, tt.input)
 
@@ -457,132 +471,9 @@ func TestUserAccountService_DeleteUser(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewUserAccountService(repo)
+			svc := NewUserAccountService(repo, nil)
 
 			err := svc.DeleteUser(context.Background(), tt.id)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestUserAccountService_GetPermissions(t *testing.T) {
-	tests := []struct {
-		name          string
-		userID        uint64
-		clinicID      uint64
-		repoPermissions []model.UserPermission
-		repoErr       error
-		wantLen       int
-		wantErr       bool
-	}{
-		{
-			name:     "returns permissions for user clinic",
-			userID:   1,
-			clinicID: 1,
-			repoPermissions: []model.UserPermission{
-				{ID: 1, UserID: 1, ClinicID: 1, Permission: "view_records"},
-				{ID: 2, UserID: 1, ClinicID: 1, Permission: "edit_records"},
-			},
-			repoErr: nil,
-			wantLen: 2,
-			wantErr: false,
-		},
-		{
-			name:            "returns empty permissions when user has none",
-			userID:          1,
-			clinicID:        1,
-			repoPermissions: []model.UserPermission{},
-			repoErr:         nil,
-			wantLen:         0,
-			wantErr:         false,
-		},
-		{
-			name:            "returns error when repository fails",
-			userID:          1,
-			clinicID:        1,
-			repoPermissions: nil,
-			repoErr:         errors.New("db error"),
-			wantErr:         true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockUserAccountRepository{
-				findPermissionsFn: func(_ context.Context, _, _ uint64) ([]model.UserPermission, error) {
-					return tt.repoPermissions, tt.repoErr
-				},
-			}
-			svc := NewUserAccountService(repo)
-
-			permissions, err := svc.GetPermissions(context.Background(), tt.userID, tt.clinicID)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Len(t, permissions, tt.wantLen)
-			}
-		})
-	}
-}
-
-func TestUserAccountService_SetPermissions(t *testing.T) {
-	tests := []struct {
-		name        string
-		userID      uint64
-		clinicID    uint64
-		input       *SetPermissionsInput
-		repoErr     error
-		wantErr     bool
-	}{
-		{
-			name:     "sets permissions successfully",
-			userID:   1,
-			clinicID: 1,
-			input: &SetPermissionsInput{
-				Permissions: []string{"view_records", "edit_records"},
-			},
-			repoErr: nil,
-			wantErr: false,
-		},
-		{
-			name:     "sets empty permissions",
-			userID:   1,
-			clinicID: 1,
-			input: &SetPermissionsInput{
-				Permissions: []string{},
-			},
-			repoErr: nil,
-			wantErr: false,
-		},
-		{
-			name:     "returns error when repository fails",
-			userID:   1,
-			clinicID: 1,
-			input: &SetPermissionsInput{
-				Permissions: []string{"view_records"},
-			},
-			repoErr: errors.New("db error"),
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockUserAccountRepository{
-				setPermissionsFn: func(_ context.Context, _, _ uint64, _ []string) error {
-					return tt.repoErr
-				},
-			}
-			svc := NewUserAccountService(repo)
-
-			err := svc.SetPermissions(context.Background(), tt.userID, tt.clinicID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)

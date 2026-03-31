@@ -11,16 +11,17 @@ import (
 
 // UpdateCompanyInput は法人情報部分更新の入力DTO
 type UpdateCompanyInput struct {
-	Name               *string
-	PostalCode         *string
-	Address            *string
-	PhoneNumber        *string
-	FaxNumber          *string
-	Email              *string
-	Website            *string
-	DirectorName       *string
-	RegistrationNumber *string
-	LogoURL            *string
+	Name                      *string
+	PostalCode                *string
+	Address                   *string
+	PhoneNumber               *string
+	FaxNumber                 *string
+	Email                     *string
+	Website                   *string
+	DirectorName              *string
+	RegistrationNumber        *string
+	InvoiceRegistrationNumber *string
+	LogoURL                   *string
 }
 
 // CompanyService は法人情報のビジネスロジックインターフェース
@@ -50,7 +51,7 @@ func (s *companyService) Update(ctx context.Context, input *UpdateCompanyInput) 
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, fields); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update company")
 	}
 	slog.InfoContext(ctx, "company updated")
 	return s.repo.Get(ctx)
@@ -84,6 +85,9 @@ func buildCompanyUpdateFields(input *UpdateCompanyInput) map[string]any {
 	}
 	if input.RegistrationNumber != nil {
 		fields["registration_number"] = *input.RegistrationNumber
+	}
+	if input.InvoiceRegistrationNumber != nil {
+		fields["invoice_registration_number"] = *input.InvoiceRegistrationNumber
 	}
 	if input.LogoURL != nil {
 		fields["logo_url"] = *input.LogoURL

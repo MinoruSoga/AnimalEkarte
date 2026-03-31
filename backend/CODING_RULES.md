@@ -113,11 +113,11 @@ backend/
 ```go
 // repository/owner_repository.go
 type OwnerRepository interface {
-    FindByID(ctx context.Context, id uuid.UUID) (*model.Owner, error)
+    FindByID(ctx context.Context, id uint64) (*model.Owner, error)
     FindAll(ctx context.Context, filter OwnerFilter) ([]model.Owner, error)
     Create(ctx context.Context, owner *model.Owner) error
     Update(ctx context.Context, owner *model.Owner) error
-    Delete(ctx context.Context, id uuid.UUID) error
+    Delete(ctx context.Context, id uint64) error
 }
 
 // service/owner_service.go
@@ -147,10 +147,14 @@ func (h *OwnerHandler) GetOwner(c *gin.Context) {
 }
 
 func (s *ownerService) GetOwner(ctx context.Context, id string) (*model.Owner, error) {
-    return s.repo.FindByID(ctx, uuid.MustParse(id))
+    ownerID, err := strconv.ParseUint(id, 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("invalid id: %w", err)
+    }
+    return s.repo.FindByID(ctx, ownerID)
 }
 
-func (r *ownerRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Owner, error) {
+func (r *ownerRepository) FindByID(ctx context.Context, id uint64) (*model.Owner, error) {
     var owner model.Owner
     if err := r.db.WithContext(ctx).First(&owner, "id = ?", id).Error; err != nil {
         return nil, err
@@ -677,7 +681,7 @@ import (
 )
 
 type Owner struct {
-    ID        uuid.UUID      `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+    ID        uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
     Name      string         `gorm:"type:varchar(100);not null" json:"name"`
     NameKana  string         `gorm:"type:varchar(100)" json:"nameKana"`
     Email     string         `gorm:"type:varchar(255);uniqueIndex" json:"email"`
@@ -693,14 +697,6 @@ type Owner struct {
 func (Owner) TableName() string {
     return "owners"
 }
-
-// BeforeCreate UUID自動生成
-func (o *Owner) BeforeCreate(tx *gorm.DB) error {
-    if o.ID == uuid.Nil {
-        o.ID = uuid.New()
-    }
-    return nil
-}
 ```
 
 ### 7.2 リレーション
@@ -708,21 +704,21 @@ func (o *Owner) BeforeCreate(tx *gorm.DB) error {
 ```go
 // 1対多: Owner has many Pets
 type Owner struct {
-    ID   uuid.UUID `gorm:"type:uuid;primary_key"`
+    ID   uint64 `gorm:"primaryKey"`
     Name string
     Pets []Pet `gorm:"foreignKey:OwnerID"`
 }
 
 type Pet struct {
-    ID      uuid.UUID `gorm:"type:uuid;primary_key"`
+    ID      uint64 `gorm:"primaryKey"`
     Name    string
-    OwnerID uuid.UUID `gorm:"type:uuid;not null"`
-    Owner   Owner     `gorm:"foreignKey:OwnerID"`
+    OwnerID uint64 `gorm:"not null"`
+    Owner   Owner  `gorm:"foreignKey:OwnerID"`
 }
 
 // 多対多: Pet has many MedicalRecords, MedicalRecord has many Pets
 type Pet struct {
-    ID             uuid.UUID        `gorm:"type:uuid;primary_key"`
+    ID             uint64           `gorm:"primaryKey"`
     MedicalRecords []MedicalRecord  `gorm:"many2many:pet_medical_records;"`
 }
 ```
@@ -731,7 +727,7 @@ type Pet struct {
 
 ```go
 type Owner struct {
-    ID        uuid.UUID `json:"id"`                    // キャメルケース
+    ID        uint64    `json:"id"`                    // キャメルケース
     Name      string    `json:"name"`
     Email     string    `json:"email"`
     Password  string    `json:"-"`                     // レスポンスに含めない
@@ -845,13 +841,13 @@ func TestOwnerService_GetOwner(t *testing.T) {
     }{
         {
             name:    "returns owner when found",
-            id:      "valid-uuid",
+            id:      "1",
             want:    &model.Owner{Name: "Test"},
             wantErr: nil,
         },
         {
             name:    "returns error when not found",
-            id:      "invalid-uuid",
+            id:      "0",
             want:    nil,
             wantErr: apperrors.ErrNotFound,
         },
@@ -872,23 +868,23 @@ func TestOwnerService_GetOwner(t *testing.T) {
 ```go
 // モックの定義
 type mockOwnerRepository struct {
-    findByIDFunc func(ctx context.Context, id uuid.UUID) (*model.Owner, error)
+    findByIDFunc func(ctx context.Context, id uint64) (*model.Owner, error)
 }
 
-func (m *mockOwnerRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Owner, error) {
+func (m *mockOwnerRepository) FindByID(ctx context.Context, id uint64) (*model.Owner, error) {
     return m.findByIDFunc(ctx, id)
 }
 
 // テストでの使用
 func TestOwnerService_GetOwner(t *testing.T) {
     mockRepo := &mockOwnerRepository{
-        findByIDFunc: func(ctx context.Context, id uuid.UUID) (*model.Owner, error) {
+        findByIDFunc: func(ctx context.Context, id uint64) (*model.Owner, error) {
             return &model.Owner{ID: id, Name: "Test"}, nil
         },
     }
 
     service := NewOwnerService(mockRepo)
-    owner, err := service.GetOwner(context.Background(), "valid-uuid")
+    owner, err := service.GetOwner(context.Background(), "1")
 
     assert.NoError(t, err)
     assert.Equal(t, "Test", owner.Name)

@@ -1,24 +1,34 @@
 // React/Framework
 import type { ReactNode } from "react";
-import { useCallback, useDeferredValue, useMemo, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useMemo,
+  useState,
+  useActionState,
+  useEffect,
+} from "react";
 import { useNavigate } from "react-router";
 import { paths } from "@/config/paths";
 
 // External
-import { Plus, Building2, X, Trash2 } from "lucide-react";
+import { Plus, Building2, X, Percent } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
+import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
+import { NavigationBlocker } from "@/components/shared/NavigationBlocker/NavigationBlocker";
 import {
-  useListClinics,
+  useGetClinics,
   useCreateClinic,
   useUpdateClinic,
   useDeleteClinic,
@@ -109,6 +119,8 @@ interface ClinicFormData {
   email: string;
   website: string;
   is_active: boolean;
+  standard_tax_rate: number;
+  reduced_tax_rate: number;
 }
 
 const DEFAULT_FORM_DATA: ClinicFormData = {
@@ -122,6 +134,8 @@ const DEFAULT_FORM_DATA: ClinicFormData = {
   email: "",
   website: "",
   is_active: true,
+  standard_tax_rate: 0.1,
+  reduced_tax_rate: 0.08,
 };
 
 // ─────────────────────────────────────────────────
@@ -143,10 +157,78 @@ export function ClinicMasterSettings() {
   const [pendingDelete, setPendingDelete] = useState<Clinic | null>(null);
   const deferredSearch = useDeferredValue(searchTerm);
 
-  const { data: rawClinics } = useListClinics();
+  const { data: rawClinics } = useGetClinics();
   const createMutation = useCreateClinic();
   const updateMutation = useUpdateClinic();
   const deleteMutation = useDeleteClinic();
+
+  interface FormState {
+    success: boolean;
+    timestamp: number;
+  }
+
+  /**
+   * React 19 useActionState を使用したフォームアクション
+   */
+  const [formState, formAction, _isPending] = useActionState(
+    async (_prevState: FormState, _formData: FormData): Promise<FormState> => {
+      const fd = formData;
+      if (!fd.name) {
+        toast.error("院名は必須です");
+        return { success: false, timestamp: Date.now() };
+      }
+
+      try {
+        if (selectedItem?.id) {
+          const req: UpdateClinicRequest = {
+            name: fd.name,
+            postal_code: fd.postal_code || undefined,
+            address: fd.address || undefined,
+            phone_number: fd.phone_number || undefined,
+            fax_number: fd.fax_number || undefined,
+            registration_number: fd.registration_number || undefined,
+            director_name: fd.director_name || undefined,
+            email: fd.email || undefined,
+            website: fd.website || undefined,
+            is_active: fd.is_active,
+            standard_tax_rate: fd.standard_tax_rate,
+            reduced_tax_rate: fd.reduced_tax_rate,
+          };
+          await updateMutation.mutateAsync({ id: selectedItem.id, req });
+          toast.success("更新しました");
+        } else {
+          const req: CreateClinicRequest = {
+            name: fd.name,
+            postal_code: fd.postal_code || undefined,
+            address: fd.address || undefined,
+            phone_number: fd.phone_number || undefined,
+            fax_number: fd.fax_number || undefined,
+            registration_number: fd.registration_number || undefined,
+            director_name: fd.director_name || undefined,
+            email: fd.email || undefined,
+            website: fd.website || undefined,
+          };
+          await createMutation.mutateAsync(req);
+          toast.success("登録しました");
+        }
+        return { success: true, timestamp: Date.now() };
+      } catch {
+        toast.error("保存に失敗しました");
+        return { success: false, timestamp: Date.now() };
+      }
+    },
+    { success: false, timestamp: 0 }
+  );
+
+  // React 19 Action の成功を検知してパネルを閉じる
+  useEffect(() => {
+    if (formState.success) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- ActionState の成功を検知してUIをリセットするパターン
+      setIsEditing(false);
+      setSelectedItem(null);
+      setFormData(DEFAULT_FORM_DATA);
+    }
+  }, [formState.success, formState.timestamp]);
 
   const filteredItems = useMemo(() => {
     const clinics = rawClinics ?? [];
@@ -173,6 +255,8 @@ export function ClinicMasterSettings() {
       email: item.email,
       website: item.website,
       is_active: item.isActive,
+      standard_tax_rate: item.standardTaxRate ?? 0.1,
+      reduced_tax_rate: item.reducedTaxRate ?? 0.08,
     });
     setIsEditing(true);
   }, []);
@@ -189,64 +273,11 @@ export function ClinicMasterSettings() {
     setFormData(DEFAULT_FORM_DATA);
   }, []);
 
-  const handleSave = useCallback(() => {
-    if (!formData.name) {
-      toast.error("院名は必須です");
-      return;
-    }
-
-    if (selectedItem) {
-      const req: UpdateClinicRequest = {
-        name: formData.name,
-        postal_code: formData.postal_code || undefined,
-        address: formData.address || undefined,
-        phone_number: formData.phone_number || undefined,
-        fax_number: formData.fax_number || undefined,
-        registration_number: formData.registration_number || undefined,
-        director_name: formData.director_name || undefined,
-        email: formData.email || undefined,
-        website: formData.website || undefined,
-        is_active: formData.is_active,
-      };
-      updateMutation.mutate(
-        { id: selectedItem.id, req },
-        {
-          onSuccess: () => {
-            toast.success("更新しました");
-            setIsEditing(false);
-          },
-          onError: () => {
-            toast.error("更新に失敗しました");
-          },
-        },
-      );
-    } else {
-      const req: CreateClinicRequest = {
-        name: formData.name,
-        postal_code: formData.postal_code || undefined,
-        address: formData.address || undefined,
-        phone_number: formData.phone_number || undefined,
-        fax_number: formData.fax_number || undefined,
-        registration_number: formData.registration_number || undefined,
-        director_name: formData.director_name || undefined,
-        email: formData.email || undefined,
-        website: formData.website || undefined,
-      };
-      createMutation.mutate(req, {
-        onSuccess: () => {
-          toast.success("登録しました");
-          setIsEditing(false);
-        },
-        onError: () => {
-          toast.error("登録に失敗しました");
-        },
-      });
-    }
-  }, [formData, selectedItem, updateMutation, createMutation]);
+  const pendingDeleteId = pendingDelete?.id ?? null;
 
   const handleDeleteConfirm = useCallback(() => {
-    if (!pendingDelete) return;
-    deleteMutation.mutate(pendingDelete.id, {
+    if (pendingDeleteId === null) return;
+    deleteMutation.mutate(pendingDeleteId, {
       onSuccess: () => {
         setPendingDelete(null);
         setIsEditing(false);
@@ -256,30 +287,35 @@ export function ClinicMasterSettings() {
         toast.error("削除に失敗しました");
       },
     });
-  }, [pendingDelete, deleteMutation]);
+  }, [pendingDeleteId, deleteMutation]);
 
   return (
     <>
+      {/* BUG-053: 編集パネルが開いている間はナビゲーションをブロック */}
+      <NavigationBlocker when={isEditing} />
       <div className="flex h-full">
         {/* Left: List */}
         <div className="flex-1 min-w-0">
           <PageLayout
             title="医院マスタ"
-            icon={<Building2 className="size-5 text-[#37352F]" />}
+            icon={<Building2 className={`${ICON.page} text-[#37352F]`} />}
             onBack={() => navigate(paths.settings.getHref())}
             headerAction={
               <PrimaryButton onClick={handleCreate}>
-                <Plus className="mr-1.5 size-4" />
+                <Plus className={`mr-1.5 ${ICON.action}`} />
                 新規登録
               </PrimaryButton>
             }
             maxWidth="max-w-full"
           >
             <div className="flex flex-col gap-4">
-              <SearchFilterBar
+              <NotionFilter
+          properties={[]}
+          activeFilters={[]}
+          onFilterChange={() => {}}
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
-                placeholder="院名、電話番号、メールで検索..."
+                searchPlaceholder="院名、電話番号、メールで検索..."
                 count={filteredItems.length}
               />
 
@@ -314,7 +350,7 @@ export function ClinicMasterSettings() {
                 onClick={handleCreate}
                 className="flex items-center gap-1.5 w-full px-3 py-2 text-sm text-[#37352F]/40 hover:text-[#37352F]/65 hover:bg-[rgba(55,53,47,0.04)] transition-colors rounded"
               >
-                <Plus className="size-3.5" />
+                <Plus className={`${ICON.xs}`} />
                 新しい医院を追加...
               </button>
             </div>
@@ -333,25 +369,20 @@ export function ClinicMasterSettings() {
               </span>
               <div className="flex items-center gap-1">
                 {selectedItem ? (
-                  <button
-                    type="button"
-                    onClick={() => setPendingDelete(selectedItem)}
-                    className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
+                  <DeleteIconButton onClick={() => setPendingDelete(selectedItem)} />
                 ) : null}
                 <button
                   type="button"
                   onClick={handleCloseEdit}
                   className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
                 >
-                  <X className="size-4" />
+                  <X className={ICON.action} />
                 </button>
               </div>
             </div>
 
             {/* Body */}
+            <form action={formAction} className="flex-1 flex flex-col min-h-0">
             <div className={STYLE.sidePeekBody}>
               <div className="px-16 pb-8">
                 {/* Page icon */}
@@ -520,6 +551,55 @@ export function ClinicMasterSettings() {
                       placeholder="例: https://example.com"
                     />
                   </PropertyRow>
+
+                  {/* 税率セクション */}
+                  <div className={`${STYLE.sectionDivider} my-2`} />
+                  <div className="flex items-center gap-1.5 py-1.5 text-xs text-[#37352F]/45 select-none">
+                    <Percent className={ICON.xs} />
+                    消費税率
+                  </div>
+
+                  {/* 通常課税 */}
+                  <PropertyRow label="通常課税">
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={1}
+                        className={`${PROP_INPUT_CLASS} w-20`}
+                        value={Math.round(formData.standard_tax_rate * 100)}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            standard_tax_rate: Number(e.target.value) / 100,
+                          }))
+                        }
+                      />
+                      <span className="text-sm text-[#37352F]/50">%</span>
+                    </div>
+                  </PropertyRow>
+
+                  {/* 軽減税率 */}
+                  <PropertyRow label="軽減税率">
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={1}
+                        className={`${PROP_INPUT_CLASS} w-20`}
+                        value={Math.round(formData.reduced_tax_rate * 100)}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            reduced_tax_rate: Number(e.target.value) / 100,
+                          }))
+                        }
+                      />
+                      <span className="text-sm text-[#37352F]/50">%</span>
+                    </div>
+                  </PropertyRow>
                 </div>
               </div>
             </div>
@@ -533,14 +613,13 @@ export function ClinicMasterSettings() {
               >
                 キャンセル
               </button>
-              <button
-                type="button"
-                onClick={handleSave}
+              <SubmitButton
                 className={STYLE.sidePeekSaveBtn}
               >
                 保存
-              </button>
+              </SubmitButton>
             </div>
+            </form>
           </div>
         ) : null}
       </div>

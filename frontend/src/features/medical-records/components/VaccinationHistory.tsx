@@ -2,6 +2,7 @@ import React, { useDeferredValue, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import {
   Select,
   SelectContent,
@@ -19,10 +20,12 @@ interface HistoryItem {
 
 interface VaccinationHistoryProps {
   historyItems: HistoryItem[];
+  isLoading?: boolean;
 }
 
 export const VaccinationHistory = React.memo(function VaccinationHistory({
   historyItems,
+  isLoading = false,
 }: VaccinationHistoryProps) {
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
@@ -50,18 +53,18 @@ export const VaccinationHistory = React.memo(function VaccinationHistory({
         <div className="flex flex-col gap-1.5">
           <Label className="text-sm text-[#37352F]/60">実施日</Label>
           <div className="flex items-center gap-2">
-            <Input
-              type="date"
+            <NotionDatePicker
               value={filterStartDate}
-              onChange={(e) => setFilterStartDate(e.target.value)}
-              className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm flex-1"
+              onChange={setFilterStartDate}
+              placeholder="開始日"
+              className="flex-1"
             />
             <span className="text-[#37352F] text-sm">〜</span>
-            <Input
-              type="date"
+            <NotionDatePicker
               value={filterEndDate}
-              onChange={(e) => setFilterEndDate(e.target.value)}
-              className="bg-white border-[rgba(55,53,47,0.16)] h-10 text-sm flex-1"
+              onChange={setFilterEndDate}
+              placeholder="終了日"
+              className="flex-1"
             />
           </div>
         </div>
@@ -112,7 +115,16 @@ export const VaccinationHistory = React.memo(function VaccinationHistory({
 
         {/* Scrollable Rows */}
         <div className="flex-1 overflow-y-auto">
-          {filteredItems.map((item) => (
+          {isLoading ? (
+            <div className="flex items-center justify-center h-24 text-sm text-[#37352F]/40">
+              読み込み中...
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="flex items-center justify-center h-24 text-sm text-[#37352F]/40">
+              接種記録がありません
+            </div>
+          ) : null}
+          {!isLoading && filteredItems.map((item) => (
             <div
               key={item.id}
               className="flex items-center border-b border-[rgba(55,53,47,0.16)] bg-white text-sm text-[#37352F] h-12 hover:bg-[#F7F6F3]/50 transition-colors"

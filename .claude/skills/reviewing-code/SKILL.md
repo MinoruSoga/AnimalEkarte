@@ -1,7 +1,6 @@
 ---
 name: reviewing-code
 description: コードレビュー支援。PRレビュー、コード品質チェック、コードを確認時に使用。
-allowed-tools: Read, Grep, Glob
 ---
 
 # Reviewing Code

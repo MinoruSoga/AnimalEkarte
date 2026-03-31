@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -16,8 +15,11 @@ type ReservationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, page, limit int, date *time.Time, status *string, petID, ownerID *uint64) ([]model.ReservationAppointment, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error)
 	Create(ctx context.Context, reservation *model.ReservationAppointment) error
-	Update(ctx context.Context, reservation *model.ReservationAppointment) error
+	UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
+	ExistsByServiceTypeID(ctx context.Context, serviceTypeID uint64) (bool, error)
+	ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error)
+	FindByStaffAndTimeSlot(ctx context.Context, clinicID, staffID uint64, startTime, endTime time.Time, excludeID *uint64) (bool, error)
 }
 
 type reservationRepository struct {
@@ -51,7 +53,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 		return nil, 0, apperrors.Wrap(err, "count reservations")
 	}
 	if err := q.Preload("Pet").Preload("Pet.Owner").Preload("Pet.AnimalSpecies").Preload("ServiceType").Preload("Doctor").
-		Offset((page-1)*limit).Limit(limit).Order("start_time ASC").Find(&reservations).Error; err != nil {
+		Offset((page - 1) * limit).Limit(limit).Order("start_time ASC").Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.Wrap(err, "find reservations")
 	}
 	return reservations, total, nil
@@ -59,17 +61,15 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicID uint64, pa
 
 func (r *reservationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationAppointment, error) {
 	var reservation model.ReservationAppointment
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Preload("Pet").
 		Preload("Pet.Owner").
 		Preload("Pet.AnimalSpecies").
 		Preload("ServiceType").
 		Preload("Doctor").
-		First(&reservation, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find reservation by id")
+		First(&reservation, "id = ? AND clinic_id = ?", id, clinicID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
 	}
 	return &reservation, nil
 }
@@ -84,18 +84,18 @@ func (r *reservationRepository) Create(ctx context.Context, reservation *model.R
 	return nil
 }
 
-func (r *reservationRepository) Update(ctx context.Context, reservation *model.ReservationAppointment) error {
+func (r *reservationRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationAppointment, error) {
 	result := r.db.WithContext(ctx).
 		Model(&model.ReservationAppointment{}).
-		Where("id = ? AND clinic_id = ?", reservation.ID, reservation.ClinicID).
-		Updates(reservation)
+		Where("id = ? AND clinic_id = ?", id, clinicID).
+		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update reservation")
+		return nil, apperrors.Wrap(result.Error, "update reservation")
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.Wrap(apperrors.ErrNotFound, "update reservation")
+		return nil, apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
 	}
-	return nil
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *reservationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -107,4 +107,42 @@ func (r *reservationRepository) Delete(ctx context.Context, clinicID, id uint64)
 		return apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *reservationRepository) ExistsByServiceTypeID(ctx context.Context, serviceTypeID uint64) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.ReservationAppointment{}).
+		Where("service_type_id = ?", serviceTypeID).
+		Count(&count).Error
+	if err != nil {
+		return false, apperrors.Wrap(err, "check reservation by service_type_id")
+	}
+	return count > 0, nil
+}
+
+func (r *reservationRepository) ExistsByStaffID(ctx context.Context, staffID uint64) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.ReservationAppointment{}).
+		Where("doctor_id = ?", staffID).
+		Count(&count).Error
+	if err != nil {
+		return false, apperrors.Wrap(err, "check reservation by staff_id")
+	}
+	return count > 0, nil
+}
+
+// FindByStaffAndTimeSlot は同一 staff_id + clinic_id で時間帯が重複する予約が存在するか確認する。
+// excludeID が指定された場合は、その ID のレコードを除外する（更新時の自己重複回避）。
+func (r *reservationRepository) FindByStaffAndTimeSlot(ctx context.Context, clinicID, staffID uint64, startTime, endTime time.Time, excludeID *uint64) (bool, error) {
+	var count int64
+	q := r.db.WithContext(ctx).Model(&model.ReservationAppointment{}).
+		Where("clinic_id = ? AND doctor_id = ?", clinicID, staffID).
+		Where("start_time < ? AND end_time > ?", endTime, startTime)
+	if excludeID != nil {
+		q = q.Where("id != ?", *excludeID)
+	}
+	if err := q.Count(&count).Error; err != nil {
+		return false, apperrors.Wrap(err, "check reservation conflict by staff and time slot")
+	}
+	return count > 0, nil
 }

@@ -53,9 +53,15 @@ backend/
 infra/
 Makefile
 
-# Documentation (optional - uncomment if you want to exclude)
-# docs/
-# README.md
+# Documentation
+docs/
+README.md
+CODING_RULES.md
+GEMINI.md
+GEMINI_SETUP.md
+gemini-config.js
+gemini-config.py
+recommend-folder.md
 
 # Local development
 .claude/

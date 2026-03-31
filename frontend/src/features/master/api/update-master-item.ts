@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import type { MasterItem } from "@/types";
 import { MASTER_CATEGORY_ENDPOINT, transformGenericMasterItem, type GenericMasterBackendItem } from "./get-master-items";
 import type { UpdateMasterItemRequest } from "./types";
@@ -35,7 +36,7 @@ export const useUpdateMasterItem = ({ category }: UseUpdateMasterItemParams) => 
     mutationFn: ({ id, req }: { id: string; req: UpdateMasterItemRequest }) =>
       updateMasterItem(category, id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["masterItems", category] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category(category) });
     },
   });
 };

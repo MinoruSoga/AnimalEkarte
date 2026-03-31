@@ -10,7 +10,7 @@ type JobTitle struct {
 	ClinicID    uint64    `gorm:"not null"                                       json:"clinic_id"`
 	Name        string    `gorm:"not null"                                       json:"name"`
 	Description string    `gorm:"default:''"                                     json:"description"`
-	SortOrder   int       `gorm:"default:0"                                      json:"sort_order"`
+	SortOrder   int       `gorm:"type:integer;default:0"                         json:"sort_order"`
 	IsActive    bool      `gorm:"default:true"                                   json:"is_active"`
 	CreatedAt   time.Time `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt   time.Time `gorm:"autoUpdateTime"                                 json:"updated_at"`

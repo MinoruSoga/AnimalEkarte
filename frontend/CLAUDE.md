@@ -82,7 +82,7 @@ src/
 │       ├── RowActionButton/    # 行アクションボタン
 │       ├── RowActionDropdown/  # 行アクションドロップダウン
 │       ├── SearchBox/          # 検索ボックス
-│       ├── SearchFilterBar/    # 検索+フィルタバー
+│       ├── NotionFilter/       # Notion風フィルタ・検索・ソートUI
 │       ├── SortableHeader/     # ソート可能カラムヘッダ
 │       ├── StatusBadge/        # ステータスバッジ
 │       ├── StatusPill/         # ステータスピル
@@ -305,7 +305,8 @@ import type { Owner } from "@/types";
 | コンポーネント | PascalCase | `PatientCard` |
 | 関数・変数 | camelCase | `getPatientById` |
 | 定数 | UPPER_SNAKE_CASE | `API_BASE_URL` |
-| ファイル | kebab-case | `patient-card.tsx` |
+| コンポーネントファイル（.tsx） | PascalCase | `PatientCard.tsx` |
+| 非コンポーネントファイル（.ts） | kebab-case | `use-patient-form.ts`, `get-owners.ts` |
 | 型・Interface | PascalCase | `Patient` |
 | hooks | use + camelCase | `usePatientForm` |
 

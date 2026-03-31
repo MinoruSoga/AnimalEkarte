@@ -6,13 +6,11 @@ import { useParams, useNavigate } from "react-router";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 
 // Relative
-import {
-    DischargeAlertDialog,
-    HospitalizationDetailActions,
-    HospitalizationDesktopLayout,
-    HospitalizationMobileLayout
-} from "../components";
-import { useHospitalizationDetail } from "../hooks/useHospitalizationDetail";
+import { DischargeAlertDialog } from "../components/DischargeAlertDialog";
+import { HospitalizationDetailActions } from "../components/HospitalizationDetailActions";
+import { HospitalizationExpandedView } from "../components/HospitalizationExpandedView";
+import { HospitalizationTabbedView } from "../components/HospitalizationTabbedView";
+import { useHospitalizationDetail } from "../hooks/use-hospitalization-detail";
 import { paths } from "@/config/paths";
 
 export function HospitalizationDetail() {
@@ -70,8 +68,8 @@ export function HospitalizationDetail() {
             maxWidth="max-w-[1600px]"
         >
             <div>
-                <HospitalizationDesktopLayout {...commonProps} />
-                <HospitalizationMobileLayout {...commonProps} />
+                <HospitalizationExpandedView {...commonProps} />
+                <HospitalizationTabbedView {...commonProps} />
             </div>
 
             <DischargeAlertDialog 

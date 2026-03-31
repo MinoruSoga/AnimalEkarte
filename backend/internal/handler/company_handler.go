@@ -26,16 +26,17 @@ func (h *Handler) UpdateCompany(c *gin.Context) {
 		return
 	}
 	company, err := h.svc.Company.Update(c.Request.Context(), &service.UpdateCompanyInput{
-		Name:               req.Name,
-		PostalCode:         req.PostalCode,
-		Address:            req.Address,
-		PhoneNumber:        req.PhoneNumber,
-		FaxNumber:          req.FaxNumber,
-		Email:              req.Email,
-		Website:            req.Website,
-		DirectorName:       req.DirectorName,
-		RegistrationNumber: req.RegistrationNumber,
-		LogoURL:            req.LogoURL,
+		Name:                      req.Name,
+		PostalCode:                req.PostalCode,
+		Address:                   req.Address,
+		PhoneNumber:               req.PhoneNumber,
+		FaxNumber:                 req.FaxNumber,
+		Email:                     req.Email,
+		Website:                   req.Website,
+		DirectorName:              req.DirectorName,
+		RegistrationNumber:        req.RegistrationNumber,
+		InvoiceRegistrationNumber: req.InvoiceRegistrationNumber,
+		LogoURL:                   req.LogoURL,
 	})
 	if err != nil {
 		RespondError(c, err)

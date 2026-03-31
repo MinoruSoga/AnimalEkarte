@@ -1,9 +1,10 @@
 package handler
 
 import (
-	"fmt"
 	"strings"
 	"time"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
 // jsonDate は YYYY-MM-DD または RFC3339 両形式を受け付ける time.Time ラッパー。
@@ -23,12 +24,12 @@ func (d *jsonDate) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	// フォールバック: RFC3339
-	t, err := time.Parse(time.RFC3339, s)
-	if err != nil {
-		return fmt.Errorf("invalid date format (expected YYYY-MM-DD): %w", err)
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		d.Time = t
+		return nil
 	}
-	d.Time = t
-	return nil
+	// Go内部のエラー文字列を漏洩させないため、汎用メッセージを返す
+	return apperrors.WrapInvalidInput("日付の形式が正しくありません（YYYY-MM-DD または RFC3339 形式を使用してください）")
 }
 
 // jsonDatePtr は *jsonDate を *time.Time に変換する。nil の場合は nil を返す。

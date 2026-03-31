@@ -152,27 +152,32 @@ var (
 )
 ```
 
-### エラーラッピング
+### エラーラッピング規約
+
+- **Repository**: GORM エラーは原則 `apperrors.FromGORM(err, "resource", id)` を使用。
+- **Service**: 内部エラーは `apperrors.Wrap(err, "message")` でラッピング。
+- **Handler**: `RespondError(c, err)` で統一レスポンス。
 
 ```go
-func Wrap(err error, message string) error {
-    if err == nil {
-        return nil
+// Repositoryでの使用例
+func (r *repo) FindByID(ctx context.Context, id uint64) (*model.X, error) {
+    var x model.X
+    err := r.db.WithContext(ctx).First(&x, id).Error
+    if err != nil {
+        return nil, apperrors.FromGORM(err, "resource_name", fmt.Sprintf("%d", id))
     }
-    return fmt.Errorf("%s: %w", message, err)
-}
-
-// 使用例
-if err := r.db.Create(&owner).Error; err != nil {
-    return apperrors.Wrap(err, "failed to create owner")
+    return &x, nil
 }
 ```
 
-### エラー判定
+### エラー判定とレスポンス
+
+ハンドラ層では手動の `c.JSON` 判定を避け、`RespondError` に委譲する。
 
 ```go
-if errors.Is(err, apperrors.ErrNotFound) {
-    c.JSON(http.StatusNotFound, gin.H{"error": "飼主が見つかりません"})
+// ✅ 推奨: RespondError を使用
+if err != nil {
+    RespondError(c, err)
     return
 }
 ```

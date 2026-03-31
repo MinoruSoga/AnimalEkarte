@@ -13,11 +13,51 @@ import (
 // ---- AnimalSpecies モック ----
 
 type mockAnimalSpeciesRepository struct {
-	findAllFn func(ctx context.Context) ([]model.AnimalSpecies, error)
+	findAllFn  func(ctx context.Context) ([]model.AnimalSpecies, error)
+	findByIDFn func(ctx context.Context, id uint64) (*model.AnimalSpecies, error)
+	createFn   func(ctx context.Context, species *model.AnimalSpecies) error
+	updateFn   func(ctx context.Context, id uint64, fields map[string]any) error
+	deleteFn   func(ctx context.Context, id uint64) error
+	reorderFn  func(ctx context.Context, ids []uint64) error
 }
 
 func (m *mockAnimalSpeciesRepository) FindAll(ctx context.Context) ([]model.AnimalSpecies, error) {
 	return m.findAllFn(ctx)
+}
+
+func (m *mockAnimalSpeciesRepository) FindByID(ctx context.Context, id uint64) (*model.AnimalSpecies, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, id)
+	}
+	return nil, nil
+}
+
+func (m *mockAnimalSpeciesRepository) Create(ctx context.Context, species *model.AnimalSpecies) error {
+	if m.createFn != nil {
+		return m.createFn(ctx, species)
+	}
+	return nil
+}
+
+func (m *mockAnimalSpeciesRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, id, fields)
+	}
+	return nil
+}
+
+func (m *mockAnimalSpeciesRepository) Delete(ctx context.Context, id uint64) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, id)
+	}
+	return nil
+}
+
+func (m *mockAnimalSpeciesRepository) Reorder(ctx context.Context, ids []uint64) error {
+	if m.reorderFn != nil {
+		return m.reorderFn(ctx, ids)
+	}
+	return nil
 }
 
 // ---- Tests ----
@@ -77,4 +117,40 @@ func TestAnimalSpeciesService_List(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAnimalSpeciesService_Create(t *testing.T) {
+	repo := &mockAnimalSpeciesRepository{
+		createFn: func(_ context.Context, s *model.AnimalSpecies) error {
+			s.ID = 99
+			return nil
+		},
+	}
+	svc := NewAnimalSpeciesService(repo)
+
+	species, err := svc.Create(context.Background(), &CreateAnimalSpeciesInput{
+		Name:      "フェレット",
+		IsActive:  true,
+		SortOrder: 7,
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(99), species.ID)
+	assert.Equal(t, "フェレット", species.Name)
+}
+
+func TestAnimalSpeciesService_Update_EmptyFields(t *testing.T) {
+	repo := &mockAnimalSpeciesRepository{}
+	svc := NewAnimalSpeciesService(repo)
+
+	_, err := svc.Update(context.Background(), 1, &UpdateAnimalSpeciesInput{})
+	assert.Error(t, err)
+}
+
+func TestAnimalSpeciesService_Reorder_EmptyIDs(t *testing.T) {
+	repo := &mockAnimalSpeciesRepository{}
+	svc := NewAnimalSpeciesService(repo)
+
+	err := svc.Reorder(context.Background(), []uint64{})
+	assert.Error(t, err)
 }

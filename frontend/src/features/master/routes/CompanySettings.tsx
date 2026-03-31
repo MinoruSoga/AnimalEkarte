@@ -10,7 +10,7 @@ import { toast } from "sonner";
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
-import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
 import { useGetCompany, useUpdateCompany } from "@/features/master/api/company";
 import type { UpdateCompanyRequest } from "@/features/master/api/company";
 
@@ -18,7 +18,7 @@ import type { UpdateCompanyRequest } from "@/features/master/api/company";
 // Constants
 // ─────────────────────────────────────────────────
 
-const PROP_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`;
+const PROP_INPUT_CLASS = `w-full bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] hover:bg-[rgba(55,53,47,0.04)] focus:bg-[rgba(55,53,47,0.04)] transition-colors placeholder:text-[rgba(55,53,47,0.3)]`;
 
 // ─────────────────────────────────────────────────
 // Form state
@@ -34,6 +34,7 @@ interface CompanyFormData {
   website: string;
   director_name: string;
   registration_number: string;
+  invoice_registration_number: string;
 }
 
 const DEFAULT_FORM_DATA: CompanyFormData = {
@@ -46,6 +47,7 @@ const DEFAULT_FORM_DATA: CompanyFormData = {
   website: "",
   director_name: "",
   registration_number: "",
+  invoice_registration_number: "",
 };
 
 // ─────────────────────────────────────────────────
@@ -73,6 +75,7 @@ export function CompanySettings() {
         website: company.website,
         director_name: company.directorName,
         registration_number: company.registrationNumber,
+        invoice_registration_number: company.invoiceRegistrationNumber,
       });
     }
   }, [company]);
@@ -94,6 +97,7 @@ export function CompanySettings() {
         website: company.website,
         director_name: company.directorName,
         registration_number: company.registrationNumber,
+        invoice_registration_number: company.invoiceRegistrationNumber,
       });
     }
   }, [company]);
@@ -114,6 +118,7 @@ export function CompanySettings() {
       website: formData.website || undefined,
       director_name: formData.director_name || undefined,
       registration_number: formData.registration_number || undefined,
+      invoice_registration_number: formData.invoice_registration_number || undefined,
     };
 
     updateMutation.mutate(req, {
@@ -133,14 +138,14 @@ export function CompanySettings() {
       <div className="flex-1 min-w-0">
         <PageLayout
           title="法人情報"
-          icon={<Building2 className="size-5 text-[#37352F]" />}
+          icon={<Building2 className={`${ICON.page} text-[#37352F]`} />}
           onBack={() => navigate(paths.settings.getHref())}
           headerAction={
             isLoading ? null : (
               <button
                 type="button"
                 onClick={handleEdit}
-                className={`px-4 py-[7px] text-sm ${C.text65} hover:bg-[rgba(55,53,47,0.04)] border ${C.borderMedium} rounded-[3px] transition-colors cursor-pointer`}
+                className={`px-4 py-[7px] text-base ${C.text65} hover:bg-[rgba(55,53,47,0.04)] border ${C.borderMedium} rounded-[3px] transition-colors cursor-pointer`}
               >
                 編集
               </button>
@@ -149,7 +154,7 @@ export function CompanySettings() {
           maxWidth="max-w-3xl"
         >
           {isLoading ? (
-            <div className={`px-6 py-12 text-center text-sm ${C.text50}`}>読み込み中...</div>
+            <div className={`px-6 py-12 text-center text-base ${C.text50}`}>読み込み中...</div>
           ) : company ? (
             <div className="px-6 pb-8">
               {/* Page icon */}
@@ -179,49 +184,54 @@ export function CompanySettings() {
               {/* Properties (read-only) */}
               <div className="py-1">
                 <PropertyRow label="郵便番号">
-                  <span className={`text-sm ${company.postalCode ? C.text : C.text30}`}>
+                  <span className={`text-base ${company.postalCode ? C.text : C.text30}`}>
                     {company.postalCode || "空"}
                   </span>
                 </PropertyRow>
                 <PropertyRow label="住所">
-                  <span className={`text-sm ${company.address ? C.text : C.text30}`}>
+                  <span className={`text-base ${company.address ? C.text : C.text30}`}>
                     {company.address || "空"}
                   </span>
                 </PropertyRow>
                 <PropertyRow label="電話番号">
-                  <span className={`text-sm font-mono ${company.phoneNumber ? C.text : C.text30}`}>
+                  <span className={`text-base font-mono ${company.phoneNumber ? C.text : C.text30}`}>
                     {company.phoneNumber || "空"}
                   </span>
                 </PropertyRow>
                 <PropertyRow label="FAX番号">
-                  <span className={`text-sm font-mono ${company.faxNumber ? C.text : C.text30}`}>
+                  <span className={`text-base font-mono ${company.faxNumber ? C.text : C.text30}`}>
                     {company.faxNumber || "空"}
                   </span>
                 </PropertyRow>
                 <PropertyRow label="メールアドレス">
-                  <span className={`text-sm ${company.email ? C.text : C.text30}`}>
+                  <span className={`text-base ${company.email ? C.text : C.text30}`}>
                     {company.email || "空"}
                   </span>
                 </PropertyRow>
                 <PropertyRow label="Webサイト">
-                  <span className={`text-sm ${company.website ? C.text : C.text30}`}>
+                  <span className={`text-base ${company.website ? C.text : C.text30}`}>
                     {company.website || "空"}
                   </span>
                 </PropertyRow>
                 <PropertyRow label="代表者名">
-                  <span className={`text-sm ${company.directorName ? C.text : C.text30}`}>
+                  <span className={`text-base ${company.directorName ? C.text : C.text30}`}>
                     {company.directorName || "空"}
                   </span>
                 </PropertyRow>
                 <PropertyRow label="法人番号">
-                  <span className={`text-sm ${company.registrationNumber ? C.text : C.text30}`}>
+                  <span className={`text-base ${company.registrationNumber ? C.text : C.text30}`}>
                     {company.registrationNumber || "空"}
+                  </span>
+                </PropertyRow>
+                <PropertyRow label="インボイス番号">
+                  <span className={`text-base font-mono ${company.invoiceRegistrationNumber ? C.text : C.text30}`}>
+                    {company.invoiceRegistrationNumber || "空"}
                   </span>
                 </PropertyRow>
               </div>
             </div>
           ) : (
-            <div className={`px-6 py-12 text-center text-sm ${C.text50}`}>
+            <div className={`px-6 py-12 text-center text-base ${C.text50}`}>
               法人情報を取得できませんでした
             </div>
           )}
@@ -235,14 +245,14 @@ export function CompanySettings() {
         >
           {/* Toolbar */}
           <div className={STYLE.sidePeekToolbar}>
-            <span className="text-xs text-[#37352F]/35 pl-1 select-none">編集</span>
+            <span className="text-base text-[#37352F]/35 pl-1 select-none">編集</span>
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={handleCloseEdit}
                 className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
               >
-                <X className="size-4" />
+                <X className={ICON.action} />
               </button>
             </div>
           </div>
@@ -357,6 +367,18 @@ export function CompanySettings() {
                       setFormData((prev) => ({ ...prev, registration_number: e.target.value }))
                     }
                     placeholder="例: 1234567890123"
+                  />
+                </PropertyRow>
+
+                <PropertyRow label="インボイス番号">
+                  <input
+                    type="text"
+                    className={PROP_INPUT_CLASS}
+                    value={formData.invoice_registration_number}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, invoice_registration_number: e.target.value }))
+                    }
+                    placeholder="例: T1234567890123"
                   />
                 </PropertyRow>
               </div>

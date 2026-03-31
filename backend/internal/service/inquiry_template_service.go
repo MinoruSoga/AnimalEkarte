@@ -48,7 +48,7 @@ func (s *inquiryTemplateService) GetByID(ctx context.Context, id uint64) (*model
 
 func (s *inquiryTemplateService) Create(ctx context.Context, template *model.InquiryTemplate) error {
 	if err := s.repo.Create(ctx, template); err != nil {
-		return err
+		return apperrors.Wrap(err, "failed to create inquiry template")
 	}
 	slog.InfoContext(ctx, "inquiry template created",
 		slog.Uint64("template_id", template.ID),
@@ -62,7 +62,7 @@ func (s *inquiryTemplateService) Update(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update inquiry template")
 	}
 	slog.InfoContext(ctx, "inquiry template updated",
 		slog.Uint64("template_id", id),

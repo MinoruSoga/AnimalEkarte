@@ -31,7 +31,7 @@ export function DataTable<T>({
   return (
     <div className={`${STYLE.tableContainer} ${className}`}>
       <div className="flex-1 overflow-auto relative">
-        <Table className="min-w-[800px]">
+        <Table className="min-w-[640px]">
           <TableHeader className="sticky top-0 z-10">
             <TableRow className={STYLE.tableHeaderRow}>
               {columns.map((col, index) => (

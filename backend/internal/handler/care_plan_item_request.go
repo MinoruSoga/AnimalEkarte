@@ -11,7 +11,7 @@ type createCarePlanItemRequest struct {
 	MedicineID            *uint64  `json:"medicine_id"`
 	ProcedureID           *uint64  `json:"procedure_id"`
 	HospitalizationPlanID *uint64  `json:"hospitalization_plan_id"`
-	UnitPrice             float64  `json:"unit_price"`
+	UnitPrice             int64    `json:"unit_price"`
 	Category              string   `json:"category"`
 	SortOrder             int      `json:"sort_order"`
 }
@@ -27,7 +27,7 @@ type updateCarePlanItemRequest struct {
 	MedicineID            *uint64  `json:"medicine_id"`
 	ProcedureID           *uint64  `json:"procedure_id"`
 	HospitalizationPlanID *uint64  `json:"hospitalization_plan_id"`
-	UnitPrice             *float64 `json:"unit_price"`
+	UnitPrice             *int64   `json:"unit_price"`
 	Category              *string  `json:"category"`
 	SortOrder             *int     `json:"sort_order"`
 }

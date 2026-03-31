@@ -153,6 +153,11 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters := rg.Group("/masters")
 
 	masters.GET("/animal-species", h.ListAnimalSpecies)
+	masters.POST("/animal-species", h.CreateAnimalSpecies)
+	masters.PATCH("/animal-species/reorder", h.ReorderAnimalSpecies) // 静的パスを /:id より前に登録
+	masters.GET("/animal-species/:id", h.GetAnimalSpecies)
+	masters.PATCH("/animal-species/:id", h.UpdateAnimalSpecies)
+	masters.DELETE("/animal-species/:id", h.DeleteAnimalSpecies)
 
 	masters.GET("/staffs", h.ListStaffs)
 	masters.POST("/staffs", h.CreateStaff)
@@ -266,15 +271,22 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PATCH("/job-titles/:id", h.UpdateJobTitle)
 	masters.DELETE("/job-titles/:id", h.DeleteJobTitle)
 
-	masters.GET("/chief-complaints", h.ListChiefComplaints)
-	masters.POST("/chief-complaints", h.CreateChiefComplaint)
-	masters.GET("/chief-complaints/:id", h.GetChiefComplaint)
-	masters.PATCH("/chief-complaints/:id", h.UpdateChiefComplaint)
-	masters.DELETE("/chief-complaints/:id", h.DeleteChiefComplaint)
+	masters.GET("/chief-complaint-categories", h.ListChiefComplaints)
+	masters.POST("/chief-complaint-categories", h.CreateChiefComplaint)
+	masters.GET("/chief-complaint-categories/:id", h.GetChiefComplaint)
+	masters.PATCH("/chief-complaint-categories/:id", h.UpdateChiefComplaint)
+	masters.DELETE("/chief-complaint-categories/:id", h.DeleteChiefComplaint)
 
 	masters.GET("/inquiry-templates", h.ListInquiryTemplates)
 	masters.POST("/inquiry-templates", h.CreateInquiryTemplate)
 	masters.GET("/inquiry-templates/:id", h.GetInquiryTemplate)
 	masters.PATCH("/inquiry-templates/:id", h.UpdateInquiryTemplate)
 	masters.DELETE("/inquiry-templates/:id", h.DeleteInquiryTemplate)
+
+	masters.GET("/merchandise-items", h.ListMerchandiseItems)
+	masters.POST("/merchandise-items", h.CreateMerchandiseItem)
+	masters.POST("/merchandise-items/reorder", h.ReorderMerchandiseItems) // 静的パスを /:id より前に登録
+	masters.GET("/merchandise-items/:id", h.GetMerchandiseItem)
+	masters.PATCH("/merchandise-items/:id", h.UpdateMerchandiseItem)
+	masters.DELETE("/merchandise-items/:id", h.DeleteMerchandiseItem)
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -27,7 +28,7 @@ func (h *Handler) ListTrimmings(c *gin.Context) {
 	if petIDStr := c.Query("pet_id"); petIDStr != "" {
 		id, err := strconv.ParseUint(petIDStr, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pet_id"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid pet_id"))
 			return
 		}
 		petID = &id
@@ -37,13 +38,24 @@ func (h *Handler) ListTrimmings(c *gin.Context) {
 	if s := c.Query("owner_id"); s != "" {
 		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid owner_id"})
+			RespondError(c, apperrors.WrapInvalidInput("invalid owner_id"))
 			return
 		}
 		ownerID = &id
 	}
 
-	trimmings, total, err := h.svc.Trimming.List(c.Request.Context(), clinicID, petID, ownerID, page, limit)
+	startDate, err := parseDateQuery(c, "start_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	endDate, err := parseDateQuery(c, "end_date")
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	trimmings, total, err := h.svc.Trimming.List(c.Request.Context(), clinicID, petID, ownerID, startDate, endDate, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -60,7 +72,7 @@ func (h *Handler) GetTrimming(c *gin.Context) {
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	trimming, err := h.svc.Trimming.GetByID(c.Request.Context(), clinicID, id)
@@ -80,7 +92,7 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 
 	var req createTrimmingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
 		return
 	}
 
@@ -88,7 +100,6 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 		PetID:          req.PetID,
 		StaffID:        req.StaffID,
 		CourseID:       req.CourseID,
-		Weight:         req.Weight,
 		StyleRequest:   req.StyleRequest,
 		BW:             req.BW,
 		BT:             req.BT,
@@ -126,12 +137,12 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	var req updateTrimmingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
 		return
 	}
 
@@ -140,7 +151,6 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 		PetID:          req.PetID,
 		StaffID:        req.StaffID,
 		CourseID:       req.CourseID,
-		Weight:         req.Weight,
 		StyleRequest:   req.StyleRequest,
 		BW:             req.BW,
 		BT:             req.BT,
@@ -175,7 +185,7 @@ func (h *Handler) DeleteTrimming(c *gin.Context) {
 	}
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		RespondError(c, apperrors.WrapInvalidInput("invalid id"))
 		return
 	}
 	if err := h.svc.Trimming.Delete(c.Request.Context(), clinicID, id); err != nil {

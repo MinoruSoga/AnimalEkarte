@@ -1,37 +1,33 @@
-// React/Framework
-import { useState, useMemo, useCallback, memo, useDeferredValue, useTransition } from "react";
-import { useNavigate } from "react-router";
-import { paths } from "@/config/paths";
-
-// External
-import { Plus, UserRound } from "lucide-react";
-import { toast } from "sonner";
-
-// Internal
+import { memo, useState, useMemo, useCallback } from "react";
+import { UserRound, Shield } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { SearchFilterBar } from "@/components/shared/SearchFilterBar/SearchFilterBar";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { StatusToggleButton } from "@/components/shared/SidePeek/StatusToggleButton";
 import { MasterSidePanel } from "@/components/shared/SidePeek/MasterSidePanel";
-import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { C, STYLE, LAYOUT } from "@/lib/design-tokens";
+import { C, STYLE, LAYOUT, ICON } from "@/lib/design-tokens";
+import { MASTER_INPUT_CLASS, MASTER_STATUS_FILTER } from "@/features/master/constants/styles";
+import type { FilterProperty } from "@/components/shared/NotionFilter/types";
+import { useMasterCRUD } from "@/features/master/hooks/use-master-crud";
+import { useMasterSave } from "@/features/master/hooks/use-master-save";
+import { MasterCRUDPage } from "@/features/master/components/MasterCRUDPage";
 import {
-  useGetStaffs,
-  useCreateStaff,
-  useUpdateStaff,
-  useDeleteStaff,
-  STAFF_ROLE_LABELS,
+  useGetStaffs, useCreateStaff, useUpdateStaff, useDeleteStaff, STAFF_ROLE_LABELS,
 } from "@/features/master/api/staffs";
-
-// Types
 import type { Staff, StaffRoleValue, CreateStaffRequest, UpdateStaffRequest } from "@/features/master/api/staffs";
+import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
+import {
+  useGetUsers,
+  useGetUser,
+  useSetUserPermissionGroups,
+} from "@/features/master/api/user-accounts";
+import { useGetPermissionGroups } from "@/features/master/api/permission-groups/permission-groups";
+import type { PermissionGroup } from "@/types/generated/models";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 
 // ─────────────────────────────────────────────────
 // Constants
@@ -40,14 +36,11 @@ import type { Staff, StaffRoleValue, CreateStaffRequest, UpdateStaffRequest } fr
 const COLUMNS = [
   { header: "氏名", className: "flex-1" },
   { header: "職種", className: "w-[130px]" },
+  { header: "権限グループ", className: "w-[200px]" },
   { header: "ステータス", className: "w-[90px]", align: "center" as const },
   { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
-// Hoisted CSS class string (rendering-hoist-jsx)
-const INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`;
-
-// Hoisted static JSX (rendering-hoist-jsx)
 const STAFF_ROLE_SELECT_ITEMS = (
   [
     { value: "veterinarian" as StaffRoleValue, label: "獣医師" },
@@ -57,13 +50,29 @@ const STAFF_ROLE_SELECT_ITEMS = (
     { value: "manager" as StaffRoleValue, label: "運営管理者" },
   ] satisfies { value: StaffRoleValue; label: string }[]
 ).map((r) => (
-  <SelectItem key={r.value} value={r.value}>
-    {r.label}
-  </SelectItem>
+  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
 ));
 
+const STAFF_FILTER_PROPERTIES: FilterProperty[] = [
+  MASTER_STATUS_FILTER,
+  {
+    key: "staffRole",
+    label: "職種",
+    type: "select",
+    icon: UserRound,
+    conditions: CONDITIONS_NO_EMPTY,
+    options: [
+      { value: "veterinarian", label: "獣医師" },
+      { value: "nurse", label: "看護師" },
+      { value: "trimmer", label: "トリマー" },
+      { value: "reception", label: "受付" },
+      { value: "manager", label: "運営管理者" },
+    ],
+  },
+];
+
 // ─────────────────────────────────────────────────
-// Form state types
+// Types
 // ─────────────────────────────────────────────────
 
 interface StaffFormData {
@@ -82,8 +91,14 @@ interface StaffFormData {
 interface StaffSidePanelProps {
   item: Staff | null;
   onClose: () => void;
-  onSave: (data: StaffFormData) => void;
-  onDeleteRequest: (item: Staff) => void;
+  onSave: (d: StaffFormData) => void;
+  onDeleteRequest: (i: Staff) => void;
+  /** All permission groups available in this clinic */
+  allGroups: PermissionGroup[];
+  /** user_accounts.id linked to this staff (null if new or not yet linked) */
+  linkedUserId: string | null;
+  /** Called when groups should be saved for this user */
+  onSaveGroups: (userId: string, groupIds: number[]) => void;
 }
 
 const StaffSidePanel = memo(function StaffSidePanel({
@@ -91,9 +106,13 @@ const StaffSidePanel = memo(function StaffSidePanel({
   onClose,
   onSave,
   onDeleteRequest,
+  allGroups,
+  linkedUserId,
+  onSaveGroups,
 }: StaffSidePanelProps) {
-  // rerender-lazy-state-init: 初回マウント時のみ item から初期化
-  const [formData, setFormData] = useState<StaffFormData>(() => ({
+  const isNew = item === null;
+
+  const [f, setF] = useState<StaffFormData>(() => ({
     name: item?.name ?? "",
     staffRole: item?.staffRole ?? "veterinarian",
     licenseNumber: item?.licenseNumber ?? "",
@@ -101,26 +120,103 @@ const StaffSidePanel = memo(function StaffSidePanel({
     email: "",
     password: "",
   }));
+  const [isDirty, setIsDirty] = useState(false);
+  const [nameError, setNameError] = useState("");
+
+  // ── Permission groups state ──────────────────────
+  // null = ユーザーがまだ編集していない（サーバーデータを使用）
+  const [userEditedGroupIds, setUserEditedGroupIds] = useState<number[] | null>(null);
+
+  const { data: userDetail } = useGetUser(linkedUserId);
+
+  // サーバーデータ優先、ユーザー編集があればそちらを使用
+  const groupIds = useMemo(
+    () => userEditedGroupIds ?? userDetail?.permissionGroupIds ?? [],
+    [userEditedGroupIds, userDetail?.permissionGroupIds],
+  );
+
+  // ── Handlers ─────────────────────────────────────
+  const handleGroupToggle = useCallback(
+    (groupId: number, checked: boolean) => {
+      setUserEditedGroupIds((prev) => {
+        const current = prev ?? userDetail?.permissionGroupIds ?? [];
+        return checked ? [...current, groupId] : current.filter((id) => id !== groupId);
+      });
+      setIsDirty(true);
+    },
+    [userDetail?.permissionGroupIds],
+  );
+
+  const handleSave = useCallback(() => {
+    if (!f.name.trim()) {
+      setNameError("氏名を入力してください");
+      return;
+    }
+    setNameError("");
+    onSave(f);
+    if (!isNew && linkedUserId) {
+      onSaveGroups(linkedUserId, groupIds);
+    }
+    setIsDirty(false);
+  }, [f, isNew, linkedUserId, groupIds, onSave, onSaveGroups]);
+
+  const handleTitleChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, name: v }));
+    setIsDirty(true);
+    if (v.trim()) setNameError("");
+  }, []);
+
+  const handleToggleActive = useCallback(() => {
+    setF((p) => ({ ...p, isActive: !p.isActive }));
+    setIsDirty(true);
+  }, []);
+
+  const handleStaffRoleChange = useCallback((v: string) => {
+    setF((p) => ({ ...p, staffRole: v as StaffRoleValue }));
+    setIsDirty(true);
+  }, []);
+
+  const handleLicenseNumberChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setF((p) => ({ ...p, licenseNumber: e.target.value }));
+    setIsDirty(true);
+  }, []);
+
+  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setF((p) => ({ ...p, email: e.target.value }));
+    setIsDirty(true);
+  }, []);
+
+  const handlePasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setF((p) => ({ ...p, password: e.target.value }));
+    setIsDirty(true);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setIsDirty(false);
+    onClose();
+  }, [onClose]);
 
   return (
     <MasterSidePanel
-      isNew={item === null}
-      title={formData.name}
-      onTitleChange={(v) => setFormData((prev) => ({ ...prev, name: v }))}
-      onClose={onClose}
-      onSave={() => onSave(formData)}
+      isNew={isNew}
+      title={f.name}
+      onTitleChange={handleTitleChange}
+      onClose={handleClose}
+      action={handleSave}
       onDelete={item !== null ? () => onDeleteRequest(item) : undefined}
       icon={<UserRound className={LAYOUT.pageIcon.innerIcon} />}
+      isDirty={isDirty}
+      titleError={nameError}
     >
       <StatusToggleButton
-        isActive={formData.isActive}
-        onToggle={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
+        isActive={f.isActive}
+        onToggle={handleToggleActive}
       />
 
       <PropertyRow label="職種">
         <Select
-          value={formData.staffRole}
-          onValueChange={(v) => setFormData((prev) => ({ ...prev, staffRole: v as StaffRoleValue }))}
+          value={f.staffRole}
+          onValueChange={handleStaffRoleChange}
         >
           <SelectTrigger className={STYLE.selectCompact}>
             <SelectValue placeholder="選択" />
@@ -132,217 +228,250 @@ const StaffSidePanel = memo(function StaffSidePanel({
       <PropertyRow label="資格番号">
         <input
           type="text"
-          className={INPUT_CLASS}
-          value={formData.licenseNumber}
-          onChange={(e) => setFormData((prev) => ({ ...prev, licenseNumber: e.target.value }))}
+          className={MASTER_INPUT_CLASS}
+          value={f.licenseNumber}
+          onChange={handleLicenseNumberChange}
           placeholder="空"
         />
       </PropertyRow>
 
-      {/* 新規作成時のみ: email / password */}
-      {item === null ? (
+      {isNew ? (
         <>
           <PropertyRow label="メールアドレス">
             <input
               type="email"
-              className={INPUT_CLASS}
-              value={formData.email}
-              onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+              className={MASTER_INPUT_CLASS}
+              value={f.email}
+              onChange={handleEmailChange}
               placeholder="例: staff@clinic.com"
             />
           </PropertyRow>
-
           <PropertyRow label="パスワード">
             <input
               type="password"
-              className={INPUT_CLASS}
-              value={formData.password}
-              onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+              className={MASTER_INPUT_CLASS}
+              value={f.password}
+              onChange={handlePasswordChange}
               placeholder="8文字以上"
             />
           </PropertyRow>
         </>
       ) : null}
+
+      {/* ── Permission groups ─────────────────────── */}
+      <div className="mt-4 border-t pt-4">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Shield className={`${ICON.xs} text-muted-foreground`} />
+          <p className="text-xs font-medium text-muted-foreground">権限グループ</p>
+        </div>
+
+        {isNew ? (
+          <p className="text-xs text-muted-foreground pl-0.5">
+            スタッフ登録後に権限グループを設定できます
+          </p>
+        ) : allGroups.length === 0 ? (
+          <p className="text-xs text-muted-foreground pl-0.5">
+            権限グループが登録されていません
+          </p>
+        ) : (
+          <div className="space-y-0.5">
+            {allGroups.map((group) => (
+              <label
+                key={group.id}
+                className="flex items-center gap-2.5 py-1.5 px-0.5 rounded cursor-pointer hover:bg-muted/40 transition-colors"
+              >
+                <Checkbox
+                  checked={groupIds.includes(group.id)}
+                  onCheckedChange={(checked) =>
+                    handleGroupToggle(group.id, checked === true)
+                  }
+                />
+                <div
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: group.color ?? "#6B7280" }}
+                />
+                <span className="text-sm">{group.name}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
     </MasterSidePanel>
   );
 });
 
 // ─────────────────────────────────────────────────
-// StaffSettings (main page)
+// StaffSettings (page)
 // ─────────────────────────────────────────────────
 
 export function StaffSettings() {
-  const navigate = useNavigate();
+  const { currentClinicId } = useAuth();
+  const clinicId = currentClinicId ?? "";
 
-  // null=closed, "new"=create mode, Staff=edit mode
-  const [editTarget, setEditTarget] = useState<Staff | "new" | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [pendingDelete, setPendingDelete] = useState<Staff | null>(null);
-  const [, startSaveTransition] = useTransition();
-
-  const { data: rawStaffs } = useGetStaffs();
+  const { data } = useGetStaffs();
   const createMutation = useCreateStaff();
   const updateMutation = useUpdateStaff();
   const deleteMutation = useDeleteStaff();
 
-  // rerender-transitions: 検索フィルタを低優先度に遅延
-  const deferredSearch = useDeferredValue(searchTerm);
+  // User accounts — needed to find linked userId per staff
+  const { data: users = [] } = useGetUsers(clinicId);
 
-  // rerender-dependencies: rawStaffs ?? [] は毎回新参照を生成するため useMemo 内に移動
-  const filteredItems = useMemo(() => {
-    const staffs = rawStaffs ?? [];
-    if (!deferredSearch) return staffs;
-    const lower = deferredSearch.toLowerCase();
-    return staffs.filter(
-      (s) =>
-        s.name.toLowerCase().includes(lower) ||
-        STAFF_ROLE_LABELS[s.staffRole].toLowerCase().includes(lower),
-    );
-  }, [rawStaffs, deferredSearch]);
+  // Permission groups — shown as checkboxes in the panel
+  const { data: allGroups = [] } = useGetPermissionGroups(clinicId);
 
-  const handleClose = useCallback(() => setEditTarget(null), []);
+  // Group assignment mutation
+  const setGroupsMutation = useSetUserPermissionGroups(clinicId);
 
-  const handleSave = useCallback(
-    (data: StaffFormData) => {
-      // バリデーションは startSaveTransition の外で実施
-      if (!data.name.trim()) {
-        toast.error("氏名は必須です");
-        return;
-      }
-      if (editTarget === null || editTarget === "new") {
-        if (!data.email) {
-          toast.error("メールアドレスは必須です");
-          return;
-        }
-        if (!data.password || data.password.length < 8) {
-          toast.error("パスワードは8文字以上で入力してください");
-          return;
-        }
-      }
-
-      // rerender-transitions: API書き込みを非緊急マーク
-      startSaveTransition(() => {
-        if (editTarget !== null && editTarget !== "new") {
-          const req: UpdateStaffRequest = {
-            name: data.name,
-            staff_role: data.staffRole,
-            license_number: data.licenseNumber || undefined,
-            is_active: data.isActive,
-          };
-          updateMutation.mutate(
-            { id: editTarget.id, req },
-            {
-              onSuccess: () => {
-                toast.success("更新しました");
-                handleClose();
-              },
-              onError: () => toast.error("更新に失敗しました"),
-            },
-          );
-        } else {
-          const req: CreateStaffRequest = {
-            name: data.name,
-            staff_role: data.staffRole,
-            email: data.email,
-            password: data.password,
-            license_number: data.licenseNumber || undefined,
-          };
-          createMutation.mutate(req, {
-            onSuccess: () => {
-              toast.success("登録しました");
-              handleClose();
-            },
-            onError: () => toast.error("登録に失敗しました"),
-          });
-        }
-      });
-    },
-    [editTarget, updateMutation, createMutation, handleClose],
+  // staff.id → user.id lookup map
+  const usersByStaffId = new Map<string, string>(
+    users
+      .filter((u) => u.staff_id != null)
+      .map((u) => [u.staff_id as string, u.id]),
   );
 
-  const handleDeleteConfirm = useCallback(() => {
-    if (!pendingDelete) return;
-    deleteMutation.mutate(pendingDelete.id, {
-      onSuccess: () => {
-        setPendingDelete(null);
-        handleClose();
-        toast.success("削除しました");
-      },
-      onError: () => toast.error("削除に失敗しました"),
-    });
-  }, [pendingDelete, deleteMutation, handleClose]);
+  // staff.id → PermissionGroup[] lookup map（テーブル表示用）
+  const groupsByStaffId = useMemo(
+    () =>
+      new Map<string, PermissionGroup[]>(
+        users
+          .filter((u) => u.staff_id != null)
+          .map((u) => [
+            u.staff_id as string,
+            allGroups.filter((g) => u.permissionGroupIds?.includes(g.id)),
+          ]),
+      ),
+    [users, allGroups],
+  );
 
-  const panelItem = editTarget !== null && editTarget !== "new" ? editTarget : null;
+  const crud = useMasterCRUD<Staff>({
+    data,
+    deleteMutation,
+    entityLabel: "スタッフ",
+    searchFilter: (s, lower) =>
+      s.name.toLowerCase().includes(lower) ||
+      STAFF_ROLE_LABELS[s.staffRole].toLowerCase().includes(lower),
+    activeFilterApply: (item, filters) => {
+      for (const f of filters) {
+        if (f.key === "status" && typeof f.value === "string") {
+          const want = f.value === "active";
+          if (f.condition === "is" && item.isActive !== want) return false;
+          if (f.condition === "is_not" && item.isActive === want) return false;
+        }
+        if (f.key === "staffRole" && typeof f.value === "string") {
+          if (f.condition === "is" && item.staffRole !== f.value) return false;
+          if (f.condition === "is_not" && item.staffRole === f.value) return false;
+        }
+      }
+      return true;
+    },
+  });
+
+  const { handleSave } = useMasterSave<Staff, StaffFormData, CreateStaffRequest, UpdateStaffRequest>({
+    crud,
+    createMutation,
+    updateMutation,
+    validate: (d) => {
+      if (!d.name.trim()) return "氏名は必須です";
+      if (crud.editTarget === null || crud.editTarget === "new") {
+        if (!d.email) return "メールアドレスは必須です";
+        if (!d.password || d.password.length < 8) return "パスワードは8文字以上で入力してください";
+      }
+      return null;
+    },
+    toCreateRequest: (d) => ({
+      name: d.name,
+      staff_role: d.staffRole,
+      email: d.email,
+      password: d.password,
+      license_number: d.licenseNumber || undefined,
+    }),
+    toUpdateRequest: (d) => ({
+      name: d.name,
+      staff_role: d.staffRole,
+      license_number: d.licenseNumber || undefined,
+      is_active: d.isActive,
+    }),
+  });
+
+  const handleSaveGroups = useCallback(
+    (userId: string, groupIds: number[]) => {
+      setGroupsMutation.mutate({ userId, groupIds });
+    },
+    [setGroupsMutation],
+  );
 
   return (
-    <>
-      <div className="flex h-full">
-        <div className="flex-1 min-w-0">
-          <PageLayout
-            title="スタッフマスタ"
-            icon={<UserRound className="size-5 text-[#37352F]" />}
-            onBack={() => navigate(paths.settings.getHref())}
-            maxWidth="max-w-full"
-            headerAction={
-              <PrimaryButton onClick={() => setEditTarget("new")}>
-                <Plus className="mr-1.5 size-4" />
-                新規登録
-              </PrimaryButton>
-            }
-          >
-            <div className="flex flex-col gap-4">
-              <SearchFilterBar
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                placeholder="氏名、職種で検索..."
-                count={filteredItems.length}
-              />
-
-              <DataTable
-                columns={COLUMNS}
-                data={filteredItems}
-                emptyMessage="スタッフが登録されていません"
-                renderRow={(item) => (
-                  <DataTableRow key={item.id} onClick={() => setEditTarget(item)}>
-                    <TableCell className={`font-medium text-sm ${C.text}`}>
-                      {item.name}
-                    </TableCell>
-                    <TableCell className={`text-sm ${C.text}`}>
-                      {STAFF_ROLE_LABELS[item.staffRole]}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <NotionStatusPill isActive={item.isActive} />
-                    </TableCell>
-                    <TableCell className="p-0 text-right">
-                      <RowActionButton onClick={() => setEditTarget(item)} />
-                    </TableCell>
-                  </DataTableRow>
+    <MasterCRUDPage
+      title="スタッフマスタ"
+      icon={<UserRound className={`${ICON.page} text-[#37352F]`} />}
+      entityLabel="スタッフ"
+      searchPlaceholder="氏名、職種で検索..."
+      emptyMessage="スタッフが登録されていません"
+      crud={crud}
+      handleSave={handleSave}
+      columns={COLUMNS}
+      filterProperties={STAFF_FILTER_PROPERTIES}
+      renderRow={(item, onEdit) => {
+        const groups = groupsByStaffId.get(item.id) ?? [];
+        const visibleGroups = groups.slice(0, 2);
+        const extraCount = groups.length - visibleGroups.length;
+        return (
+          <DataTableRow key={item.id} onClick={() => onEdit(item)}>
+            <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
+            <TableCell className={`text-base ${C.text}`}>{STAFF_ROLE_LABELS[item.staffRole]}</TableCell>
+            <TableCell>
+              <div className="flex flex-wrap items-center gap-1">
+                {visibleGroups.length === 0 ? (
+                  <span className={`text-sm ${C.text40}`}>—</span>
+                ) : (
+                  <>
+                    {visibleGroups.map((g) => (
+                      <span
+                        key={g.id}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[3px] text-xs"
+                        style={{
+                          backgroundColor: g.color ? `${g.color}18` : "rgba(55,53,47,0.06)",
+                          color: g.color ?? "#37352F",
+                        }}
+                      >
+                        <span
+                          className="size-1.5 rounded-full shrink-0"
+                          style={{ backgroundColor: g.color ?? "#6B7280" }}
+                        />
+                        {g.name}
+                      </span>
+                    ))}
+                    {extraCount > 0 ? (
+                      <span className={`text-xs ${C.text40}`}>+{extraCount}</span>
+                    ) : null}
+                  </>
                 )}
-              />
-            </div>
-          </PageLayout>
-        </div>
-
-        {editTarget !== null ? (
+              </div>
+            </TableCell>
+            <TableCell className="text-center">
+              <NotionStatusPill isActive={item.isActive} />
+            </TableCell>
+            <TableCell className="p-0 text-right">
+              <RowActionButton onClick={() => onEdit(item)} />
+            </TableCell>
+          </DataTableRow>
+        );
+      }}
+      renderSidePanel={({ item, onClose, onSave, onDeleteRequest }) => {
+        const linkedUserId = item ? (usersByStaffId.get(item.id) ?? null) : null;
+        return (
           <StaffSidePanel
-            key={panelItem ? String(panelItem.id) : "new-staff"}
-            item={panelItem}
-            onClose={handleClose}
-            onSave={handleSave}
-            onDeleteRequest={setPendingDelete}
+            key={item?.id ?? "new"}
+            item={item}
+            onClose={onClose}
+            onSave={onSave}
+            onDeleteRequest={onDeleteRequest}
+            allGroups={allGroups}
+            linkedUserId={linkedUserId}
+            onSaveGroups={handleSaveGroups}
           />
-        ) : null}
-      </div>
-
-      <ConfirmDialog
-        open={pendingDelete !== null}
-        onClose={() => setPendingDelete(null)}
-        title="スタッフを削除しますか？"
-        description={`「${pendingDelete?.name}」を削除します。この操作は取り消せません。`}
-        confirmLabel="削除"
-        variant="destructive"
-        onConfirm={handleDeleteConfirm}
-      />
-    </>
+        );
+      }}
+    />
   );
 }

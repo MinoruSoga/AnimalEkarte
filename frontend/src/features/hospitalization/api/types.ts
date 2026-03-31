@@ -18,7 +18,7 @@ export interface CreateHospitalizationRequest {
   pet_id: string;
   owner_id: string;
   cage_id?: string;
-  type: string;
+  hospitalization_type: string;
   start_date: string;
   end_date: string;
   owner_request?: string;
@@ -27,7 +27,7 @@ export interface CreateHospitalizationRequest {
 }
 
 export interface UpdateHospitalizationRequest {
-  type?: string;
+  hospitalization_type?: string;
   cage_id?: string;
   end_date?: string;
   status?: string;

@@ -29,7 +29,7 @@ const ReservationFormModal = lazy(() =>
   import("@/components/shared/ReservationFormModal/ReservationFormModal").then(m => ({ default: m.ReservationFormModal }))
 );
 import { KanbanColumn } from "../components/KanbanColumn";
-import { useDashboardKanban } from "../hooks/useDashboardKanban";
+import { useDashboardKanban } from "../hooks/use-dashboard-kanban";
 
 // Types
 import type { Appointment, ReservationAppointment, Pet } from "@/types";
@@ -42,6 +42,7 @@ export function Dashboard() {
     const {
         columns,
         filteredColumns,
+        isUpdatingStatus,
         staffs,
         moveCard,
         advanceStatus,
@@ -74,10 +75,6 @@ export function Dashboard() {
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
     );
 
-    const findColumnByCardId = useCallback((cardId: string) => {
-        return filteredColumns.find(col => col.appointments.some(a => a.id === cardId));
-    }, [filteredColumns]);
-
     const handleDragOver = useCallback((event: DragOverEvent) => {
         const { active, over } = event;
         if (!over) return;
@@ -85,7 +82,7 @@ export function Dashboard() {
         const activeId = active.id as string;
 
         // Use over.data.columnTitle for reliable column detection
-        const targetTitle = (over.data?.columnTitle as string) || (over.id as string).replace("column-", "");
+        const targetTitle = ((over.data?.current as Record<string, unknown>)?.columnTitle as string) || (over.id as string).replace("column-", "");
 
         const sourceColumn = columns.find(col => col.appointments.some(a => a.id === activeId));
         if (!sourceColumn) return;
@@ -124,7 +121,7 @@ export function Dashboard() {
 
         // Use over.data.columnTitle (set in KanbanColumn's useDroppable) for reliable column detection
         // This avoids collision detection ambiguity with closestCorners
-        const targetTitle = (over.data?.columnTitle as string) || (over.id as string).replace("column-", "");
+        const targetTitle = ((over.data?.current as Record<string, unknown>)?.columnTitle as string) || (over.id as string).replace("column-", "");
 
         const sourceColumn = columns.find(col => col.appointments.some(a => a.id === activeId));
         if (!sourceColumn) return;
@@ -258,6 +255,18 @@ export function Dashboard() {
         setCancelTarget(null);
     }, [cancelTarget, cancelAppointment]);
 
+    const columnElements = useMemo(() =>
+        filteredColumns.map((column) => (
+            <KanbanColumn
+                key={column.title}
+                data={column}
+                onAddClick={addClickHandlers.get(column.title)}
+                onCardClick={handleCardClick}
+            />
+        )),
+        [filteredColumns, addClickHandlers, handleCardClick]
+    );
+
     return (
         <div className={`flex-1 flex flex-col h-full ${C.bgPage}`}>
             <FormHeader
@@ -288,7 +297,7 @@ export function Dashboard() {
                     <div className="flex flex-wrap gap-8">
                         {/* Visit Type */}
                         <div className="space-y-2">
-                            <h4 className={`font-bold text-sm ${C.text}`}>診察区分</h4>
+                            <h4 className={`font-bold text-base ${C.text}`}>診察区分</h4>
                             <div className="flex gap-4">
                                 {["初診", "再診"].map(type => (
                                     <div key={type} className="flex items-center space-x-2">
@@ -298,7 +307,7 @@ export function Dashboard() {
                                             onCheckedChange={() => filters.toggleVisitType(type)}
                                             className="size-4"
                                         />
-                                        <Label htmlFor={`visit-${type}`} className={`text-sm font-normal cursor-pointer ${C.text}`}>{type}</Label>
+                                        <Label htmlFor={`visit-${type}`} className={`text-base font-normal cursor-pointer ${C.text}`}>{type}</Label>
                                     </div>
                                 ))}
                             </div>
@@ -306,9 +315,9 @@ export function Dashboard() {
 
                         {/* Doctor/Designation Selection */}
                         <div className="space-y-2">
-                            <h4 className={`font-bold text-sm ${C.text}`}>指名</h4>
+                            <h4 className={`font-bold text-base ${C.text}`}>指名</h4>
                             <Select value={filters.selectedDoctor} onValueChange={filters.setSelectedDoctor}>
-                                <SelectTrigger className="w-[200px] h-10 text-sm bg-white border-input">
+                                <SelectTrigger className="w-[200px] h-10 text-base bg-white border-input">
                                     <SelectValue placeholder="指名を選択" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -323,7 +332,7 @@ export function Dashboard() {
 
                         {/* Trimming */}
                         <div className="space-y-2">
-                            <h4 className={`font-bold text-sm ${C.text}`}>種類</h4>
+                            <h4 className={`font-bold text-base ${C.text}`}>種類</h4>
                             <div className="flex items-center space-x-2 pt-0.5">
                                 <Checkbox
                                     id="trimming-only"
@@ -331,7 +340,7 @@ export function Dashboard() {
                                     onCheckedChange={(c) => filters.setIsTrimmingOnly(!!c)}
                                     className="size-4"
                                 />
-                                <Label htmlFor="trimming-only" className={`text-sm font-normal cursor-pointer ${C.text}`}>トリミングのみ表示</Label>
+                                <Label htmlFor="trimming-only" className={`text-base font-normal cursor-pointer ${C.text}`}>トリミングのみ表示</Label>
                             </div>
                         </div>
                     </div>
@@ -341,15 +350,8 @@ export function Dashboard() {
             <div className="flex-1 overflow-hidden p-5 pt-4">
                 <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
                     {/* タブレット: 2-3列グリッド、デスクトップ: 5列flex */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:flex gap-4 h-full w-full overflow-y-auto lg:overflow-x-auto lg:overflow-y-hidden pb-2 bg-transparent">
-                        {filteredColumns.map((column) => (
-                            <KanbanColumn
-                                key={column.title}
-                                data={column}
-                                onAddClick={addClickHandlers.get(column.title)}
-                                onCardClick={handleCardClick}
-                            />
-                        ))}
+                    <div className={`grid grid-cols-2 md:grid-cols-3 lg:flex gap-4 h-full w-full overflow-y-auto lg:overflow-x-auto lg:overflow-y-hidden pb-2 bg-transparent transition-opacity${isUpdatingStatus ? " opacity-70 pointer-events-none" : ""}`}>
+                        {columnElements}
                     </div>
                 </DndContext>
             </div>

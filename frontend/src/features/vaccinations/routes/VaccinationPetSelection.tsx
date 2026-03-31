@@ -4,12 +4,12 @@ import { PetSelectionResultsTable } from "@/components/shared/PetSelection/PetSe
 import { usePetSelectionPage } from "@/hooks/use-pet-selection-page";
 
 export function VaccinationPetSelection() {
-  const { searchParams, setSearchParams, filteredPets, handleSearch, handleSelect, handleBack } =
+  const { searchParams, setSearchParams, filteredPets, handleSearch, handleClear, handleSelect, handleBack } =
     usePetSelectionPage({ selectPath: "/vaccinations/new", backPath: "/vaccinations" });
 
   return (
     <PageLayout title="ワクチン接種 - ペット選択" onBack={handleBack} maxWidth="max-w-full">
-      <PetSelectionSearchForm searchParams={searchParams} setSearchParams={setSearchParams} onSearch={handleSearch} />
+      <PetSelectionSearchForm searchParams={searchParams} setSearchParams={setSearchParams} onSearch={handleSearch} onClear={handleClear} />
       <PetSelectionResultsTable pets={filteredPets} onSelect={handleSelect} />
     </PageLayout>
   );

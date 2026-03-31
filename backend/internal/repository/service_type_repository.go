@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -42,11 +41,9 @@ func (r *serviceTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([
 
 func (r *serviceTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ServiceType, error) {
 	var st model.ServiceType
-	if err := r.db.WithContext(ctx).First(&st, "id = ? AND clinic_id = ?", id, clinicID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("service_type", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find service type by id")
+	err := r.db.WithContext(ctx).First(&st, "id = ? AND clinic_id = ?", id, clinicID).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "service_type", fmt.Sprintf("%d", id))
 	}
 	return &st, nil
 }
@@ -82,6 +79,10 @@ func (r *serviceTypeRepository) Update(ctx context.Context, clinicID, id uint64,
 func (r *serviceTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Delete(&model.ServiceType{}, "id = ? AND clinic_id = ?", id, clinicID)
 	if result.Error != nil {
+		// BUG-030: ON DELETE RESTRICT の FK 制約違反は 409 Conflict に変換する
+		if isFKConstraintErr(result.Error) {
+			return apperrors.WrapConflict("このサービス種別は予約に使用されているため削除できません")
+		}
 		return apperrors.Wrap(result.Error, "delete service type")
 	}
 	if result.RowsAffected == 0 {
@@ -92,7 +93,7 @@ func (r *serviceTypeRepository) Delete(ctx context.Context, clinicID, id uint64)
 
 // Reorder はトランザクション内で予約区分の sort_order を ids の順序で更新する
 func (r *serviceTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.ServiceType{}).
 				Where("id = ? AND clinic_id = ?", id, clinicID).
@@ -105,5 +106,8 @@ func (r *serviceTypeRepository) Reorder(ctx context.Context, clinicID uint64, id
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return apperrors.Wrap(err, "reorder service type")
+	}
+	return nil
 }

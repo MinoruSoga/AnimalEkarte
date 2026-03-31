@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Edit } from "lucide-react";
 import { cn } from "@/components/ui/utils";
-import { TABLE_STYLES } from "@/lib/design-tokens";
+import { TABLE_STYLES, ICON } from "@/lib/design-tokens";
 
 interface RowActionButtonProps {
   icon?: React.ElementType;
@@ -21,7 +21,7 @@ export function RowActionButton({ icon: Icon = Edit, onClick, className }: RowAc
             onClick(e);
         }}
         >
-        <Icon className="size-5" />
+        <Icon className={ICON.page} />
         </Button>
     </div>
   );

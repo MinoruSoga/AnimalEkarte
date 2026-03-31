@@ -14,10 +14,10 @@ const COLUMNS = [
   { header: "入院No", className: "w-[120px]" },
   { header: "飼主名" },
   { header: "ペット名" },
-  { header: "種", className: "w-[80px]" },
+  { header: "種", className: "w-[80px] hidden lg:table-cell" },
   { header: "タイプ", className: "w-[100px]" },
   { header: "入院開始日", className: "w-[120px]" },
-  { header: "退院予定日", className: "w-[120px]" },
+  { header: "退院予定日", className: "w-[120px] hidden lg:table-cell" },
   { header: "ステータス", className: "w-[100px]" },
   { header: "操作", className: "w-[100px]", align: "right" as const },
 ];
@@ -41,14 +41,14 @@ export function HospitalizationListView({ hospitalizations, onNavigate }: Hospit
           </TableCell>
           <TableCell className={STYLE.tableCell}>{h.ownerName}</TableCell>
           <TableCell className={STYLE.tableCell}>{h.petName}</TableCell>
-          <TableCell className={STYLE.tableCell}>{h.species}</TableCell>
+          <TableCell className={`${STYLE.tableCell} hidden lg:table-cell`}>{h.species}</TableCell>
           <TableCell className="py-2">
             <StatusBadge colorClass={getHospitalizationTypeColor(h.hospitalizationType)}>
               {h.hospitalizationType}
             </StatusBadge>
           </TableCell>
           <TableCell className={`${STYLE.tableCellMono}`}>{h.startDate}</TableCell>
-          <TableCell className={`${STYLE.tableCellMono}`}>{h.endDate}</TableCell>
+          <TableCell className={`${STYLE.tableCellMono} hidden lg:table-cell`}>{h.endDate}</TableCell>
           <TableCell className="py-2">
             <StatusBadge colorClass={getHospitalizationStatusColor(h.status)}>
               {h.status}

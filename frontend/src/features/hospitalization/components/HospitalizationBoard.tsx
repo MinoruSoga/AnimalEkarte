@@ -1,5 +1,6 @@
 // React/Framework
-import { useCallback } from "react";
+import { ICON } from "@/lib/design-tokens";
+import { memo, useCallback } from "react";
 
 // External
 import { DndContext, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
@@ -31,7 +32,7 @@ interface CageCardProps {
     onNavigateToForm: (id?: string) => void;
 }
 
-const CageCard = ({ cage, occupant, onNavigateToForm }: CageCardProps) => {
+const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm }: CageCardProps) {
     const {
         attributes,
         listeners,
@@ -69,7 +70,7 @@ const CageCard = ({ cage, occupant, onNavigateToForm }: CageCardProps) => {
                   <div className="flex items-center gap-1">
                       {occupant ? (
                           <div className="cursor-grab active:cursor-grabbing text-[#37352F]/20 hover:text-[#37352F]/60">
-                              <GripVertical className="h-3 w-3" />
+                              <GripVertical className={ICON.action} />
                           </div>
                       ) : null}
                       <span className={`${H_STYLES.text.sm} font-mono text-[#37352F]/60 font-bold`}>{cage.name}</span>
@@ -113,9 +114,9 @@ const CageCard = ({ cage, occupant, onNavigateToForm }: CageCardProps) => {
             </Card>
         </div>
     );
-};
+});
 
-export function HospitalizationBoard({ cages, hospitalizations, onNavigateToForm, onMovePet }: HospitalizationBoardProps) {
+export const HospitalizationBoard = memo(function HospitalizationBoard({ cages, hospitalizations, onNavigateToForm, onMovePet }: HospitalizationBoardProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
@@ -173,4 +174,4 @@ export function HospitalizationBoard({ cages, hospitalizations, onNavigateToForm
       </div>
     </DndContext>
   );
-}
+});

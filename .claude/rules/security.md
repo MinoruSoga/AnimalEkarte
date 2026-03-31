@@ -1,3 +1,8 @@
+---
+description: セキュリティ基本規約（secrets、認証、入力検証、依存管理）
+alwaysApply: true
+---
+
 # Security Rules
 
 ## Secrets Management

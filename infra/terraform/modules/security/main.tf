@@ -97,38 +97,3 @@ resource "aws_cloudwatch_log_group" "ecs" {
   }
 }
 
-# SSM Parameter Store - DB User
-resource "aws_ssm_parameter" "db_user" {
-  name        = "/${var.project_name}/${var.environment}/db/user"
-  description = "Database username"
-  type        = "String"
-  value       = var.db_username
-
-  tags = {
-    Name = "${var.name_prefix}-db-user"
-  }
-}
-
-# SSM Parameter Store - DB Password
-resource "aws_ssm_parameter" "db_password" {
-  name        = "/${var.project_name}/${var.environment}/db/password"
-  description = "Database password"
-  type        = "SecureString"
-  value       = var.db_password
-
-  tags = {
-    Name = "${var.name_prefix}-db-password"
-  }
-}
-
-# SSM Parameter Store - DB Name
-resource "aws_ssm_parameter" "db_name" {
-  name        = "/${var.project_name}/${var.environment}/db/name"
-  description = "Database name"
-  type        = "String"
-  value       = var.db_name
-
-  tags = {
-    Name = "${var.name_prefix}-db-name"
-  }
-}

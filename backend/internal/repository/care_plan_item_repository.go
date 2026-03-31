@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -31,34 +30,34 @@ func NewCarePlanItemRepository(db *gorm.DB) CarePlanItemRepository {
 
 func (r *carePlanItemRepository) ListByHospitalizationID(ctx context.Context, hospitalizationID uint64) ([]model.CarePlanItem, error) {
 	items := make([]model.CarePlanItem, 0)
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Where("hospitalization_id = ?", hospitalizationID).
 		Order("sort_order ASC").
 		Preload("Medicine").
 		Preload("Procedure").
-		Find(&items).Error; err != nil {
-		return nil, apperrors.Wrap(err, "list care plan items")
+		Find(&items).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "care_plan_item", "")
 	}
 	return items, nil
 }
 
 func (r *carePlanItemRepository) FindByID(ctx context.Context, id uint64) (*model.CarePlanItem, error) {
 	var item model.CarePlanItem
-	if err := r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Preload("Medicine").
 		Preload("Procedure").
-		First(&item, "id = ?", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.WrapNotFound("care_plan_item", fmt.Sprintf("%d", id))
-		}
-		return nil, apperrors.Wrap(err, "find care plan item by id")
+		First(&item, "id = ?", id).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "care_plan_item", fmt.Sprintf("%d", id))
 	}
 	return &item, nil
 }
 
 func (r *carePlanItemRepository) Create(ctx context.Context, item *model.CarePlanItem) error {
-	if err := r.db.WithContext(ctx).Create(item).Error; err != nil {
-		return apperrors.Wrap(err, "create care plan item")
+	err := r.db.WithContext(ctx).Create(item).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "care_plan_item", "")
 	}
 	return nil
 }
@@ -69,7 +68,7 @@ func (r *carePlanItemRepository) Update(ctx context.Context, id uint64, fields m
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "update care plan item")
+		return apperrors.FromGORM(result.Error, "care_plan_item", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("care_plan_item", fmt.Sprintf("%d", id))
@@ -80,7 +79,7 @@ func (r *carePlanItemRepository) Update(ctx context.Context, id uint64, fields m
 func (r *carePlanItemRepository) Delete(ctx context.Context, id uint64) error {
 	result := r.db.WithContext(ctx).Unscoped().Delete(&model.CarePlanItem{}, "id = ?", id)
 	if result.Error != nil {
-		return apperrors.Wrap(result.Error, "delete care plan item")
+		return apperrors.FromGORM(result.Error, "care_plan_item", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
 		return apperrors.WrapNotFound("care_plan_item", fmt.Sprintf("%d", id))

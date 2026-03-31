@@ -1,17 +1,19 @@
 // React/Framework
-import { memo, useState, useCallback, useRef, useEffect } from "react";
+import { memo, useState, useCallback, useRef, useEffect, useLayoutEffect } from "react";
 
 // External
-import { ChevronUp, ChevronDown, Trash2, Shield } from "lucide-react";
+import { ChevronUp, ChevronDown, Shield } from "lucide-react";
+import { toast } from "sonner";
 
 // Internal
 import { Button } from "@/components/ui/button";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { C, BADGE } from "@/lib/design-tokens";
+import { C, BADGE, ICON } from "@/lib/design-tokens";
 
 // Relative
-import type { Treatment, TreatmentItemType, UpdateTreatmentInput } from "../../types";
+import type { Treatment, TreatmentItemType, UpdateTreatmentInput } from "@/features/medical-records/types";
 
 // ── 静的JSX (モジュール定数に巻き上げ) ────────────────────────────────
 
@@ -40,6 +42,10 @@ interface TreatmentRowProps {
   onMoveUp: (treatmentId: string) => void;
   onMoveDown: (treatmentId: string) => void;
   isUpdating: boolean;
+  /** 新規追加直後に数量フィールドへ自動フォーカスする */
+  autoFocusQuantity?: boolean;
+  /** autoFocusQuantity 完了後に親へ通知するコールバック */
+  onAutoFocusDone?: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────
@@ -53,6 +59,8 @@ export const TreatmentRow = memo(function TreatmentRow({
   onMoveUp,
   onMoveDown,
   isUpdating,
+  autoFocusQuantity = false,
+  onAutoFocusDone,
 }: TreatmentRowProps) {
   // インライン編集用ローカル状態
   const [editField, setEditField] = useState<string | null>(null);
@@ -81,6 +89,16 @@ export const TreatmentRow = memo(function TreatmentRow({
     }
   }, [editField]);
 
+  // 新規追加直後: 数量フィールドへ自動フォーカス
+  useLayoutEffect(() => {
+    if (autoFocusQuantity) {
+      setEditField("quantity");
+      onAutoFocusDone?.();
+    }
+    // autoFocusQuantity は初回マウント時のみ使用するので deps に入れない
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── handlers ──
 
   const handleSelectedChange = useCallback(
@@ -107,6 +125,13 @@ export const TreatmentRow = memo(function TreatmentRow({
 
   const commitUnitPrice = useCallback(() => {
     const val = parseFloat(localUnitPrice) || 0;
+    // BUG-072: 金額は0以上
+    if (val < 0) {
+      toast.error("金額は0以上を入力してください");
+      setLocalUnitPrice(String(treatment.unit_price));
+      setEditField(null);
+      return;
+    }
     if (val !== treatment.unit_price) {
       onUpdate(treatment.id, { unit_price: val });
     }
@@ -114,7 +139,7 @@ export const TreatmentRow = memo(function TreatmentRow({
   }, [localUnitPrice, treatment.unit_price, treatment.id, onUpdate]);
 
   const commitQuantity = useCallback(() => {
-    const val = parseInt(localQuantity, 10) || 1;
+    const val = parseFloat(localQuantity) || 1;
     if (val !== treatment.quantity) {
       onUpdate(treatment.id, { quantity: val });
     }
@@ -123,6 +148,13 @@ export const TreatmentRow = memo(function TreatmentRow({
 
   const commitDiscountAmount = useCallback(() => {
     const val = parseFloat(localDiscountAmount) || 0;
+    // BUG-072: 値引き金額は0以上
+    if (val < 0) {
+      toast.error("金額は0以上を入力してください");
+      setLocalDiscountAmount(String(treatment.discount_amount));
+      setEditField(null);
+      return;
+    }
     if (val !== treatment.discount_amount) {
       onUpdate(treatment.id, { discount_amount: val });
     }
@@ -218,7 +250,7 @@ export const TreatmentRow = memo(function TreatmentRow({
           className="data-[state=checked]:bg-[#038B94] data-[state=checked]:border-[#038B94]"
         />
         {treatment.insurance ? (
-          <Shield className={`size-3.5 mt-0.5 mx-auto ${C.textStatusGreen}`} />
+          <Shield className={`${ICON.xs} mt-0.5 mx-auto ${C.textStatusGreen}`} />
         ) : null}
       </td>
 
@@ -228,6 +260,7 @@ export const TreatmentRow = memo(function TreatmentRow({
           <Input
             ref={inputRef}
             type="number"
+            min={0}
             value={localUnitPrice}
             onChange={(e) => setLocalUnitPrice(e.target.value)}
             onBlur={commitUnitPrice}
@@ -250,6 +283,8 @@ export const TreatmentRow = memo(function TreatmentRow({
           <Input
             ref={inputRef}
             type="number"
+            step="0.1"
+            min="0.1"
             value={localQuantity}
             onChange={(e) => setLocalQuantity(e.target.value)}
             onBlur={commitQuantity}
@@ -272,6 +307,7 @@ export const TreatmentRow = memo(function TreatmentRow({
           <Input
             ref={inputRef}
             type="number"
+            min={0}
             value={localDiscountAmount}
             onChange={(e) => setLocalDiscountAmount(e.target.value)}
             onBlur={commitDiscountAmount}
@@ -331,7 +367,7 @@ export const TreatmentRow = memo(function TreatmentRow({
             disabled={isFirst}
             title="上に移動"
           >
-            <ChevronUp className="size-3.5" />
+            <ChevronUp className={`${ICON.xs}`} />
           </Button>
           <Button
             variant="ghost"
@@ -341,17 +377,12 @@ export const TreatmentRow = memo(function TreatmentRow({
             disabled={isLast}
             title="下に移動"
           >
-            <ChevronDown className="size-3.5" />
+            <ChevronDown className={`${ICON.xs}`} />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={`size-7 ${C.danger} ${C.hoverBgDanger5} hover:text-[#EB5757]`}
+          <DeleteIconButton
             onClick={handleDelete}
-            title="削除"
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
+            className="size-7"
+          />
         </div>
       </td>
     </tr>

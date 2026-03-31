@@ -1,5 +1,5 @@
 // React/Framework
-import React from "react";
+import React, { useRef } from "react";
 
 // External
 import { Upload } from "lucide-react";
@@ -8,6 +8,7 @@ import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import {
   Select,
   SelectContent,
@@ -15,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ICON } from "@/lib/design-tokens";
 
 interface ImageGalleryFilterProps {
   searchTerm: string;
@@ -25,6 +27,8 @@ interface ImageGalleryFilterProps {
   onDateEndChange: (value: string) => void;
   sortOrder: string;
   onSortOrderChange: (value: string) => void;
+  isUploading?: boolean;
+  onFilesSelected: (files: File[]) => void;
 }
 
 export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
@@ -36,16 +40,43 @@ export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
   onDateEndChange,
   sortOrder,
   onSortOrderChange,
+  isUploading = false,
+  onFilesSelected,
 }: ImageGalleryFilterProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) {
+      onFilesSelected(files);
+    }
+    // Reset input so the same file can be re-selected
+    e.target.value = "";
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex justify-end">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,application/pdf"
+          multiple
+          className="hidden"
+          onChange={handleFileChange}
+        />
         <Button
           size="sm"
           className="bg-[#2383E2] hover:bg-[#1B6EC2] text-white gap-2 h-10 text-sm shadow-sm border-transparent px-4"
+          onClick={handleUploadClick}
+          disabled={isUploading}
         >
-          <Upload className="size-4" />
-          画像アップロード
+          <Upload className={ICON.action} />
+          {isUploading ? "アップロード中..." : "画像アップロード"}
         </Button>
       </div>
 
@@ -67,18 +98,18 @@ export const ImageGalleryFilter = React.memo(function ImageGalleryFilter({
             期間
           </Label>
           <div className="flex items-center gap-2">
-            <Input
-              type="date"
+            <NotionDatePicker
               value={dateStart}
-              onChange={(e) => onDateStartChange(e.target.value)}
-              className="bg-white border-[rgba(55,53,47,0.16)] h-10 flex-1 text-sm"
+              onChange={onDateStartChange}
+              placeholder="開始日"
+              className="flex-1"
             />
             <span className="text-[#37352F] font-medium text-sm">〜</span>
-            <Input
-              type="date"
+            <NotionDatePicker
               value={dateEnd}
-              onChange={(e) => onDateEndChange(e.target.value)}
-              className="bg-white border-[rgba(55,53,47,0.16)] h-10 flex-1 text-sm"
+              onChange={onDateEndChange}
+              placeholder="終了日"
+              className="flex-1"
             />
           </div>
         </div>

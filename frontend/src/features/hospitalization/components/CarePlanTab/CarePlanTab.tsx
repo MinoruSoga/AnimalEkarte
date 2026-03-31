@@ -1,11 +1,13 @@
 // React/Framework
+import { ICON, C } from "@/lib/design-tokens";
 import { useState, useCallback, useMemo } from "react";
 
 // External
-import { Pill, Stethoscope, Utensils, ClipboardList, MoreHorizontal, Pencil, Trash2, Plus, Loader2 } from "lucide-react";
+import { Pill, Stethoscope, Utensils, ClipboardList, MoreHorizontal, Pencil, Plus, Loader2 } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { Input } from "@/components/ui/input";
 import {
     Select,
@@ -17,14 +19,14 @@ import {
 
 // Relative
 import {
-    useCarePlanItems,
+    useGetCarePlanItems,
     useCreateCarePlanItem,
     useUpdateCarePlanItem,
     useDeleteCarePlanItem,
-} from "../../api/care-plan-items";
+} from "@/features/hospitalization/api/care-plan-items";
 
 // Types
-import type { CarePlanItem, CarePlanItemType, CarePlanTiming, UpdateCarePlanItemInput } from "../../api/care-plan-items";
+import type { CarePlanItem, CarePlanItemType, CarePlanTiming, UpdateCarePlanItemInput } from "@/features/hospitalization/api/care-plan-items";
 
 // ---- Static constants ----
 
@@ -55,11 +57,11 @@ const TYPE_SELECT_ITEMS = (
 // ---- Helper functions ----
 
 function TypeIcon({ type }: { type: CarePlanItemType }) {
-    if (type === "food") return <Utensils className="h-4 w-4 text-orange-500 shrink-0" />;
-    if (type === "medicine") return <Pill className="h-4 w-4 text-blue-500 shrink-0" />;
-    if (type === "treatment") return <Stethoscope className="h-4 w-4 text-purple-500 shrink-0" />;
-    if (type === "instruction") return <ClipboardList className="h-4 w-4 text-green-500 shrink-0" />;
-    return <MoreHorizontal className="h-4 w-4 text-gray-400 shrink-0" />;
+    if (type === "food") return <Utensils className={`${ICON.action} text-orange-500 shrink-0`} />;
+    if (type === "medicine") return <Pill className={`${ICON.action} text-blue-500 shrink-0`} />;
+    if (type === "treatment") return <Stethoscope className={`${ICON.action} text-purple-500 shrink-0`} />;
+    if (type === "instruction") return <ClipboardList className={`${ICON.action} text-green-500 shrink-0`} />;
+    return <MoreHorizontal className={`${ICON.action} text-gray-400 shrink-0`} />;
 }
 
 function StatusBadge({ status }: { status: CarePlanItem["status"] }) {
@@ -176,7 +178,7 @@ function EditRow({ item, onSave, onCancel, isSaving }: EditRowProps) {
                     disabled={isSaving || !name.trim()}
                     className="h-7 text-xs"
                 >
-                    {isSaving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                    {isSaving ? <Loader2 className={`${ICON.action} animate-spin mr-1`} /> : null}
                     保存
                 </Button>
             </div>
@@ -197,7 +199,7 @@ function ItemRow({ item, onEdit, onDelete, isDeleting }: ItemRowProps) {
     return (
         <div className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors">
             <TypeIcon type={item.type} />
-            <span className="flex-1 text-sm font-medium text-[#37352F] truncate">{item.name}</span>
+            <span className={`flex-1 text-sm font-medium ${C.text} truncate`}>{item.name}</span>
             <TimingBadges timing={item.timing} />
             <StatusBadge status={item.status} />
             <div className="flex gap-1 shrink-0">
@@ -208,22 +210,13 @@ function ItemRow({ item, onEdit, onDelete, isDeleting }: ItemRowProps) {
                     onClick={() => onEdit(item.id)}
                     aria-label="編集"
                 >
-                    <Pencil className="h-3.5 w-3.5" />
+                    <Pencil className={ICON.action} />
                 </Button>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50"
+                <DeleteIconButton
                     onClick={() => onDelete(item.id)}
                     disabled={isDeleting}
-                    aria-label="削除"
-                >
-                    {isDeleting ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                        <Trash2 className="h-3.5 w-3.5" />
-                    )}
-                </Button>
+                    className="size-7"
+                />
             </div>
         </div>
     );
@@ -256,8 +249,8 @@ function AddForm({ onSubmit, isSubmitting }: AddFormProps) {
     }, [name, type, timing, onSubmit]);
 
     return (
-        <div className="border-t border-[rgba(55,53,47,0.1)] pt-3 mt-2">
-            <p className="text-xs font-medium text-[#37352F]/60 mb-2">新しいケアプラン項目を追加</p>
+        <div className={`border-t ${C.borderLight} pt-3 mt-2`}>
+            <p className={`text-xs font-medium ${C.text60} mb-2`}>新しいケアプラン項目を追加</p>
             <div className="flex flex-col gap-2">
                 <div className="flex gap-2 items-center">
                     <Select value={type} onValueChange={(v) => setType(v as CarePlanItemType)}>
@@ -300,9 +293,9 @@ function AddForm({ onSubmit, isSubmitting }: AddFormProps) {
                         className="h-8 text-xs gap-1"
                     >
                         {isSubmitting ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <Loader2 className={`${ICON.action} animate-spin`} />
                         ) : (
-                            <Plus className="h-3.5 w-3.5" />
+                            <Plus className={ICON.action} />
                         )}
                         追加
                     </Button>
@@ -319,7 +312,7 @@ interface CarePlanTabProps {
 }
 
 export function CarePlanTab({ hospitalizationId }: CarePlanTabProps) {
-    const { data: items, isLoading } = useCarePlanItems(hospitalizationId);
+    const { data: items, isLoading } = useGetCarePlanItems(hospitalizationId);
     const createItem = useCreateCarePlanItem(hospitalizationId);
     const updateItem = useUpdateCarePlanItem(hospitalizationId);
     const deleteItem = useDeleteCarePlanItem(hospitalizationId);
@@ -393,8 +386,8 @@ export function CarePlanTab({ hospitalizationId }: CarePlanTabProps) {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center py-10 text-[#37352F]/40">
-                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+            <div className={`flex items-center justify-center py-10 ${C.text40}`}>
+                <Loader2 className={`${ICON.page} animate-spin mr-2`} />
                 <span className="text-sm">読み込み中...</span>
             </div>
         );
@@ -403,7 +396,7 @@ export function CarePlanTab({ hospitalizationId }: CarePlanTabProps) {
     return (
         <div className="flex flex-col">
             {items && items.length === 0 ? (
-                <p className="text-sm text-[#37352F]/40 py-4 text-center">
+                <p className={`text-sm ${C.text40} py-4 text-center`}>
                     ケアプラン項目がありません
                 </p>
             ) : (

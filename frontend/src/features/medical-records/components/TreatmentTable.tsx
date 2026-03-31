@@ -1,11 +1,16 @@
 // React/Framework
-import React from "react";
+import { ICON } from "@/lib/design-tokens";
+import React, { memo } from "react";
+
+// Shared
+import { calcLineItemAmount } from "@/utils/line-item-helpers";
 
 // External
-import { Circle, X, Trash2, PlusCircle } from "lucide-react";
+import { Circle, X, PlusCircle } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -38,15 +43,18 @@ interface TreatmentTableProps {
   onOpenSearch?: () => void;
   onAddRow?: () => void;
   showStatus?: boolean;
+  /** BUG-051: 確認済み等で全入力を無効化する */
+  disabled?: boolean;
 }
 
-export function TreatmentTable({
+export const TreatmentTable = memo(function TreatmentTable({
   items,
   onUpdate,
   onRemove,
   onOpenSearch,
   onAddRow,
   showStatus = false,
+  disabled = false,
 }: TreatmentTableProps) {
   const gridColsClass = showStatus
     ? "grid-cols-[80px_3fr_2fr_0.8fr_1fr_0.8fr_1fr_1fr_1fr_0.8fr]"
@@ -90,6 +98,7 @@ export function TreatmentTable({
                   <Select
                     value={item.status || "未完了"}
                     onValueChange={(val) => onUpdate(item.id, "status", val)}
+                    disabled={disabled}
                   >
                     <SelectTrigger className="h-full w-full border-none bg-transparent p-0 text-sm justify-center text-center font-medium focus:ring-0">
                       <SelectValue />
@@ -107,6 +116,7 @@ export function TreatmentTable({
                   value={item.content}
                   onChange={(val) => onUpdate(item.id, "content", val)}
                   placeholder="治療内容を入力"
+                  disabled={disabled}
                 />
               </Cell>
               <Cell>
@@ -114,90 +124,104 @@ export function TreatmentTable({
                   value={item.memo}
                   onChange={(val) => onUpdate(item.id, "memo", val)}
                   placeholder="メモ"
+                  disabled={disabled}
                 />
               </Cell>
               <Cell
                 align="center"
-                onClick={() => onUpdate(item.id, "insurance", !item.insurance)}
-                className="cursor-pointer hover:bg-gray-50"
+                onClick={disabled ? undefined : () => onUpdate(item.id, "insurance", !item.insurance)}
+                className={disabled ? undefined : "cursor-pointer hover:bg-gray-50"}
               >
                 {item.insurance ? (
-                  <Circle className="size-4 text-[#EA3323]" />
+                  <Circle className={`${ICON.action} text-[#EA3323]`} />
                 ) : (
-                  <X className="size-4 text-gray-300" />
+                  <X className={`${ICON.action} text-gray-300`} />
                 )}
               </Cell>
               <Cell>
+                {/* BUG-072: 単価は0以上・上限9億円 */}
                 <TableInput
                   type="number"
+                  min="0"
+                  max="999999999"
                   value={item.unitPrice}
                   onChange={(val) => onUpdate(item.id, "unitPrice", Number(val))}
                   align="right"
                   className="font-mono"
+                  disabled={disabled}
                 />
               </Cell>
               <Cell>
+                {/* BUG-TRT-001: min="0.1" → min="1" に変更（float32精度 0.10000000149011612 問題の回避） */}
                 <TableInput
                   type="number"
+                  step="1"
+                  min="1"
                   value={item.quantity}
                   onChange={(val) => onUpdate(item.id, "quantity", Number(val))}
                   align="right"
                   className="font-mono"
+                  disabled={disabled}
                 />
               </Cell>
               <Cell>
+                {/* BUG-072: 割引率は0〜100 */}
                 <TableInput
                   type="number"
+                  min="0"
+                  max="100"
                   value={item.discountRate}
                   onChange={(val) => onUpdate(item.id, "discountRate", Number(val))}
                   align="right"
                   className="font-mono"
+                  disabled={disabled}
                 />
               </Cell>
               <Cell>
+                {/* BUG-072: 値引額は0以上 */}
                 <TableInput
                   type="number"
+                  min="0"
                   value={item.discountAmount}
                   onChange={(val) => onUpdate(item.id, "discountAmount", Number(val))}
                   align="right"
                   className="font-mono"
+                  disabled={disabled}
                 />
               </Cell>
               <Cell align="right" className="font-mono font-medium px-2">
-                {(
-                  item.unitPrice * item.quantity -
-                  item.discountAmount
-                ).toLocaleString()}
+                {calcLineItemAmount(item).total.toLocaleString()}
               </Cell>
               <Cell align="center" last>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => onRemove(item.id)}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
+                {disabled ? null : (
+                  <DeleteIconButton
+                    onClick={() => onRemove(item.id)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  />
+                )}
               </Cell>
             </div>
           ))}
         </div>
       </ScrollArea>
 
-      <div className="p-2 bg-[#F7F6F3] border-t border-[rgba(55,53,47,0.16)] flex justify-center">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-10 text-sm gap-2 text-muted-foreground hover:text-primary"
-          onClick={onOpenSearch || onAddRow}
-        >
-          <PlusCircle className="size-4" />
-          {onOpenSearch ? "行を追加（検索）" : "行を追加"}
-        </Button>
-      </div>
+      {/* BUG-051: disabled 時は行追加ボタンを非表示 */}
+      {disabled ? null : (
+        <div className="p-2 bg-[#F7F6F3] border-t border-[rgba(55,53,47,0.16)] flex justify-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-10 text-sm gap-2 text-muted-foreground hover:text-primary"
+            onClick={onOpenSearch || onAddRow}
+          >
+            <PlusCircle className={ICON.action} />
+            {onOpenSearch ? "行を追加（検索）" : "行を追加"}
+          </Button>
+        </div>
+      )}
     </div>
   );
-}
+});
 
 // --- Helper Components ---
 
@@ -258,24 +282,34 @@ function TableInput({
   onChange,
   placeholder,
   type = "text",
+  step,
+  min,
   align = "left",
   className,
+  disabled,
 }: {
   value: string | number;
   onChange: (val: string) => void;
   placeholder?: string;
   type?: string;
+  step?: string;
+  min?: string;
   align?: "left" | "right";
   className?: string;
+  disabled?: boolean;
 }) {
   return (
     <Input
       type={type}
+      step={step}
+      min={min}
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
       className={cn(
         "h-full w-full border-none bg-transparent rounded-none focus-visible:ring-0 px-3 text-sm shadow-none",
         align === "right" && "text-right",
+        disabled && "opacity-60 cursor-not-allowed",
         className
       )}
       placeholder={placeholder}

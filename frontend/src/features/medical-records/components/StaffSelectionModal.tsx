@@ -11,7 +11,7 @@ import { useGetStaffs } from "@/features/master/api/staffs";
 interface StaffSelectionModalProps {
   open: boolean;
   selectedStaffName: string;
-  onSelect: (staffName: string) => void;
+  onSelect: (staffId: string, staffName: string) => void;
   onOpenChange: (open: boolean) => void;
 }
 
@@ -57,7 +57,7 @@ export const StaffSelectionModal = React.memo(function StaffSelectionModal({
                     : "text-[#37352F] hover:bg-[#F7F6F3]"
                 }`}
                 onClick={() => {
-                  onSelect(staff.name);
+                  onSelect(staff.id, staff.name);
                   onOpenChange(false);
                 }}
               >

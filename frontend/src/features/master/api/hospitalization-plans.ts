@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { BodySize, BillingUnit, HospitalizationPlan as ModelHospitalizationPlan } from "@/types/generated/models";
+import type { BodySize, BillingUnit, HospitalizationPlan as ModelHospitalizationPlan, TaxType } from "@/types/generated/models";
 import {
   BodySizeSmall,
   BodySizeMedium,
@@ -30,6 +30,8 @@ export interface CreateHospitalizationPlanRequest {
   is_active?: boolean;
   body_size?: BodySize;
   billing_unit?: BillingUnit;
+  tax_type?: TaxType;
+  tax_rate?: number;
 }
 
 export interface UpdateHospitalizationPlanRequest {
@@ -39,6 +41,8 @@ export interface UpdateHospitalizationPlanRequest {
   is_active?: boolean;
   body_size?: BodySize | null;
   billing_unit?: BillingUnit | null;
+  tax_type?: TaxType;
+  tax_rate?: number;
 }
 
 export const BODY_SIZE_OPTIONS: { value: BodySize; label: string }[] = [
@@ -78,6 +82,8 @@ function transformHospitalizationPlan(
     description: data.description ?? "",
     bodySize: data.body_size ?? null,
     billingUnit: data.billing_unit ?? null,
+    taxType: (data.tax_type ?? "excluded") as TaxType,
+    taxRate: data.tax_rate ?? 0.1,
     sortOrder: data.sort_order,
   };
 }

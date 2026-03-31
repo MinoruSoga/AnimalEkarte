@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -129,6 +130,12 @@ func (s *ownerService) GetByID(ctx context.Context, clinicID, id uint64) (*model
 }
 
 func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, input *CreateOwnerInput) (*model.Owner, error) {
+	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
+	if err := validateOwnerName(input.OwnerName); err != nil {
+		return nil, err
+	}
+	input.OwnerName = strings.TrimSpace(input.OwnerName)
+
 	// ビジネスルールバリデーション
 	if err := validateDiscountRate(input.DiscountRate); err != nil {
 		return nil, err
@@ -136,18 +143,40 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 	if err := validateMembershipType(input.MembershipType); err != nil {
 		return nil, err
 	}
-	for i, p := range input.Pets {
-		if err := validatePetGender(p.Gender); err != nil {
-			return nil, fmt.Errorf("pets[%d]: %w", i, err)
+	for i := range input.Pets {
+		if err := validatePetGender(input.Pets[i].Gender); err != nil {
+			return nil, apperrors.Wrap(err, fmt.Sprintf("pets[%d]", i))
 		}
-		if err := validatePetStatus(p.Status); err != nil {
-			return nil, fmt.Errorf("pets[%d]: %w", i, err)
+		if err := validatePetStatus(input.Pets[i].Status); err != nil {
+			return nil, apperrors.Wrap(err, fmt.Sprintf("pets[%d]", i))
 		}
-		if err := validatePetAcquisitionType(p.AcquisitionType); err != nil {
-			return nil, fmt.Errorf("pets[%d]: %w", i, err)
+		if err := validatePetAcquisitionType(input.Pets[i].AcquisitionType); err != nil {
+			return nil, apperrors.Wrap(err, fmt.Sprintf("pets[%d]", i))
 		}
-		if err := validatePetDangerLevel(p.DangerLevel); err != nil {
-			return nil, fmt.Errorf("pets[%d]: %w", i, err)
+		if err := validatePetDangerLevel(input.Pets[i].DangerLevel); err != nil {
+			return nil, apperrors.Wrap(err, fmt.Sprintf("pets[%d]", i))
+		}
+	}
+
+	// メールアドレス重複チェック（空でない場合のみ）
+	if input.Email != "" {
+		existing, err := s.repo.FindByEmail(ctx, clinicID, input.Email)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to check email uniqueness")
+		}
+		if existing != nil {
+			return nil, apperrors.WrapAlreadyExists("owner", "このメールアドレスはすでに登録されています")
+		}
+	}
+
+	// BUG-064: 電話番号重複チェック（空でない場合のみ）
+	if input.Phone != "" {
+		existing, err := s.repo.FindByPhone(ctx, clinicID, input.Phone)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to check phone uniqueness")
+		}
+		if existing != nil {
+			return nil, apperrors.WrapAlreadyExists("owner", "この電話番号はすでに登録されています")
 		}
 	}
 
@@ -179,7 +208,8 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 	}
 
 	pets := make([]model.Pet, 0, len(input.Pets))
-	for _, p := range input.Pets {
+	for i := range input.Pets {
+		p := &input.Pets[i]
 		pet := model.Pet{
 			Name:            p.Name,
 			AnimalSpeciesID: p.AnimalSpeciesID,
@@ -211,7 +241,7 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 	}
 
 	if err := s.repo.CreateWithPets(ctx, owner, pets); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to create owner with pets")
 	}
 
 	slog.InfoContext(ctx, "owner created with pets",
@@ -223,6 +253,15 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 }
 
 func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *UpdateOwnerInput) (*model.Owner, error) {
+	// 名前バリデーション（スペースのみ・NULL バイト・制御文字チェック）
+	if input.OwnerName != nil {
+		if err := validateOwnerName(*input.OwnerName); err != nil {
+			return nil, err
+		}
+		trimmed := strings.TrimSpace(*input.OwnerName)
+		input.OwnerName = &trimmed
+	}
+
 	// ビジネスルールバリデーション
 	if input.DiscountRate != nil {
 		if err := validateDiscountRate(*input.DiscountRate); err != nil {
@@ -235,6 +274,28 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 		}
 	}
 
+	// メールアドレス変更時の重複チェック（空でない場合のみ）
+	if input.Email != nil && *input.Email != "" {
+		existing, err := s.repo.FindByEmail(ctx, clinicID, *input.Email)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to check email uniqueness")
+		}
+		if existing != nil && existing.ID != id {
+			return nil, apperrors.WrapAlreadyExists("owner", "このメールアドレスはすでに登録されています")
+		}
+	}
+
+	// BUG-064: 電話番号変更時の重複チェック（空でない場合のみ）
+	if input.Phone != nil && *input.Phone != "" {
+		existing, err := s.repo.FindByPhone(ctx, clinicID, *input.Phone)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to check phone uniqueness")
+		}
+		if existing != nil && existing.ID != id {
+			return nil, apperrors.WrapAlreadyExists("owner", "この電話番号はすでに登録されています")
+		}
+	}
+
 	// 更新フィールドマップ構築（nil フィールドはスキップ）
 	fields := buildOwnerUpdateFields(input)
 	if len(fields) == 0 {
@@ -242,7 +303,7 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 	}
 
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to update owner")
 	}
 
 	slog.InfoContext(ctx, "owner updated",

@@ -8,6 +8,7 @@ import (
 
 type Checkup struct {
 	ID              uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID        uint64         `gorm:"not null"                                       json:"clinic_id"`
 	MedicalRecordID uint64         `gorm:"not null"                                       json:"medical_record_id"`
 	PetID           *uint64        `                                                      json:"pet_id,omitempty"`
 	CheckupTypeID   uint64         `gorm:"not null"                                       json:"checkup_type_id"`

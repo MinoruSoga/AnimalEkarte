@@ -1,3 +1,8 @@
+/**
+ * 汎用マスタアイテム作成リクエスト
+ * 個別マスタ（Consultation, Procedure, Medicine 等）は専用 Request 型（src/types/treatment.ts 等）を使用。
+ * この型は旧 master_items 汎用CRUD 用の legacy 型。
+ */
 export interface CreateMasterItemRequest {
   name: string;
   category: string;

@@ -1,16 +1,17 @@
 // React/Framework
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 
 // External
-import { HeartPulse, Trash2 } from "lucide-react";
+import { HeartPulse, Printer, Trash2 } from "lucide-react";
 
 // Internal
 import { paths } from "@/config/paths";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 
 // Relative
 import { MedicalRecordInterview } from "../components/MedicalRecordInterview";
@@ -21,17 +22,26 @@ import { MedicalRecordImage } from "../components/MedicalRecordImage";
 import { MedicalRecordEstimate } from "../components/MedicalRecordEstimate";
 import { MedicalRecordBillCheck } from "../components/MedicalRecordBillCheck";
 import { MedicalRecordExamination } from "../components/MedicalRecordExamination";
-import { CheckupsTab } from "../components/CheckupsTab";
+import { CheckupsTab } from "../components/CheckupsTab/CheckupsTab";
 import { StaffSelectionModal } from "../components/StaffSelectionModal";
 const VitalsModal = lazy(() =>
   import("../components/VitalsModal").then((m) => ({ default: m.VitalsModal }))
 );
-import { useMedicalRecordForm } from "../hooks/useMedicalRecordForm";
-import { useAuth } from "@/features/auth";
+const OwnerSearchModal = lazy(() =>
+  import("@/components/shared/OwnerSearchModal/OwnerSearchModal").then((m) => ({ default: m.OwnerSearchModal }))
+);
+import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
+import { useGetPetMedicalHistory } from "../api/get-medical-records";
+import { useGetClinicalPlan } from "../api/clinical-plan";
+import { useGetTreatments } from "../api/treatments";
+import { MedicalRecordPrintView } from "../components/MedicalRecordPrintView";
+import { useAuth } from "@/features/auth/hooks/use-auth";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
-import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import { useTitle } from "@/hooks/use-title";
 
-export function MedicalRecordForm() {
+export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { id: recordId } = useParams();
   const navigate = useNavigate();
   const {
@@ -42,11 +52,11 @@ export function MedicalRecordForm() {
     isPetLoading,
     shouldRedirectToSelectPet,
     handleBack,
-    handleSave,
-    isSaving,
+    formAction,
+    formState,
+    isCreating,
     treatmentPlanItems,
     setTreatmentPlanItems,
-    treatmentCompletedItems,
     chiefComplaint,
     setChiefComplaint,
     chiefComplaintCategoryId,
@@ -65,18 +75,83 @@ export function MedicalRecordForm() {
     setDiagnosis2CategoryId,
     diagnosis2NameId,
     setDiagnosis2NameId,
-  } = useMedicalRecordForm(recordId);
+    ownerDiscountRate,
+    visitType,
+    setVisitType,
+    handleChangeDoctor,
+    handleChangeOwner,
+    } = useMedicalRecordForm();
+
+    useTitle(recordId ? `カルテ編集 (#${recordId})` : "カルテ入力");
+
+    // FEAT-003: ペットの過去カルテ履歴を実APIから取得（現在のレコードは除外）
+    const { historyItems } = useGetPetMedicalHistory(
+      selectedPet?.id,
+      recordId,
+    );
+
+    const { isDirty, markDirty, markClean } = useUnsavedChanges();
+
+
+  // BUG-MEDI-005: タブ切替時にスクロール位置をトップにリセットするための ref
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // activeTab を保存時に正確に参照するための ref
+  const activeTabRef = useRef(activeTab);
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  const clinicalPlanSaveRef = useRef<(() => Promise<void>) | null>(null);
+  const estimateSaveRef = useRef<(() => Promise<void>) | null>(null);
+
+  const handleRegisterClinicalPlanSave = useCallback((fn: () => Promise<void>) => {
+    clinicalPlanSaveRef.current = fn;
+  }, []);
+
+  const handleRegisterEstimateSave = useCallback((fn: () => Promise<void>) => {
+    estimateSaveRef.current = fn;
+  }, []);
+
+  // React 19 Action の成功を検知してタブ別サブ保存を実行
+  useEffect(() => {
+    if (!formState.success) return;
+
+    const currentTab = activeTabRef.current;
+
+    const doPostSave = async () => {
+      try {
+        if (currentTab === "診察/治療プラン") {
+          await (clinicalPlanSaveRef.current?.() ?? Promise.resolve());
+        } else if (currentTab === "見積書") {
+          await (estimateSaveRef.current?.() ?? Promise.resolve());
+        }
+      } catch {
+        // サブ保存失敗はページ表示に影響しない
+      }
+      markClean();
+      // ナビゲーションなし: タブに留まる
+    };
+
+    doPostSave();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formState.success, formState.timestamp]);
 
   const { user } = useAuth();
+  const { canEdit, canDelete } = usePermission("medical-records");
 
-  const { isDirty, markDirty, markClean } = useUnsavedChanges();
+  // 印刷用データ（React Query キャッシュ共有 — 子コンポーネントが既にフェッチ済み）
+  const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "");
+  const { data: treatments = [] } = useGetTreatments(recordId ?? "");
 
-  // ローカル状態: 担当者・診療種別（hookに追加するまでの暫定）
+  // ローカル状態: 担当者（hookに追加するまでの暫定）
   const [staffName, setStaffName] = useState(() => user?.displayName ?? "");
-  const [serviceType, setServiceType] = useState("診療");
+  const VISIT_TYPE_OPTIONS = ["初診", "再診", "緊急", "往診"] as const;
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isVitalsOpen, setIsVitalsOpen] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
+  const [isOwnerSearchOpen, setIsOwnerSearchOpen] = useState(false);
   // 一度マウントしたタブを記録してhide/show方式で管理
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(["問診"]));
 
@@ -100,6 +175,7 @@ export function MedicalRecordForm() {
   ];
 
   // タブ切り替え: 一度開いたタブはhide/showで状態を維持する
+  // BUG-MEDI-005: タブ切替時にスクロール位置をトップにリセット
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
     setMountedTabs((prev) => {
@@ -108,6 +184,9 @@ export function MedicalRecordForm() {
       next.add(tab);
       return next;
     });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
   }, [setActiveTab]);
 
   const handleSetChiefComplaint = useCallback((val: string) => {
@@ -160,14 +239,12 @@ export function MedicalRecordForm() {
     setTreatmentPlanItems(items);
   }, [markDirty, setTreatmentPlanItems]);
 
-  const handleSaveClick = useCallback(() => {
-    markClean();
-    handleSave();
-  }, [markClean, handleSave]);
-
-  const handleSelectStaff = useCallback((newStaffName: string) => {
+  const handleSelectStaff = useCallback((newStaffId: string, newStaffName: string) => {
     setStaffName(newStaffName);
-  }, []);
+    if (recordId) {
+      handleChangeDoctor(newStaffId, newStaffName);
+    }
+  }, [recordId, handleChangeDoctor, setStaffName]);
 
   const handleStaffModalOpenChange = useCallback((open: boolean) => {
     setIsStaffModalOpen(open);
@@ -182,10 +259,12 @@ export function MedicalRecordForm() {
   }
 
   return (
+    <form action={formAction} className={LAYOUT.fullHeight}>
     <PageLayout
       title={recordId ? "カルテ編集" : "カルテ入力"}
       onBack={handleBack}
       maxWidth="max-w-[1440px]"
+      scrollContainerRef={scrollContainerRef}
     >
       <NavigationBlocker when={isDirty} />
       {/* Sticky Header: Patient Info + Tabs */}
@@ -196,11 +275,17 @@ export function MedicalRecordForm() {
           petName={`${selectedPet.name}${selectedPet.species ? `(${selectedPet.species})` : ""}`}
           petNumber={selectedPet.petNumber || selectedPet.id}
           weight={selectedPet.weight || "-"}
+          status={selectedPet.status === "deceased" ? "deceased" : "alive"}
           staffName={staffName}
-          serviceType={serviceType}
-          serviceTypeLabel="診療種別"
-          onServiceTypeClick={() => setServiceType(serviceType)}
+          staffLabel="担当医: "
+          serviceType={visitType}
+          serviceTypeLabel="来院種別"
+          onServiceTypeClick={() => {
+            const idx = VISIT_TYPE_OPTIONS.indexOf(visitType as typeof VISIT_TYPE_OPTIONS[number]);
+            setVisitType(VISIT_TYPE_OPTIONS[(idx + 1) % VISIT_TYPE_OPTIONS.length]);
+          }}
           onStaffClick={() => setIsStaffModalOpen(true)}
+          onOwnerClick={!isNewRecord ? () => setIsOwnerSearchOpen(true) : undefined}
           petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
           insuranceName={selectedPet.insuranceName || "保険情報未登録"}
           insuranceDetails={selectedPet.insuranceDetails || "-"}
@@ -231,9 +316,9 @@ export function MedicalRecordForm() {
       </div>
 
       {/* Content Area */}
-      <div className="mt-4 flex-1 min-h-0">
+      <div className={`mt-4 ${LAYOUT.fullHeight}`}>
         {mountedTabs.has("問診") ? (
-          <div className="h-full" style={{ display: activeTab === "問診" ? "block" : "none" }}>
+          <div className={`${LAYOUT.fullHeight} ${activeTab === "問診" ? "" : "hidden"}`}>
             <MedicalRecordInterview
               chiefComplaint={chiefComplaint}
               setChiefComplaint={handleSetChiefComplaint}
@@ -241,15 +326,15 @@ export function MedicalRecordForm() {
               setChiefComplaintCategoryId={handleSetChiefComplaintCategoryId}
               treatmentPolicy={treatmentPolicy}
               setTreatmentPolicy={handleSetTreatmentPolicy}
+              historyItems={historyItems}
             />
           </div>
         ) : null}
         {mountedTabs.has("診察/治療プラン") ? (
-          <div style={{ display: activeTab === "診察/治療プラン" ? "block" : "none" }}>
+          <div className={`${LAYOUT.fullHeight} ${activeTab === "診察/治療プラン" ? "" : "hidden"}`}>
             <MedicalRecordDiagnosisPlan
               isNewRecord={isNewRecord}
-              items={treatmentPlanItems}
-              setItems={handleSetTreatmentPlanItems}
+              chiefComplaint={chiefComplaint}
               plan={plan}
               setPlan={handleSetPlan}
               assessment={assessment}
@@ -263,11 +348,13 @@ export function MedicalRecordForm() {
               diagnosis2NameId={diagnosis2NameId}
               setDiagnosis2NameId={handleSetDiagnosis2NameId}
               medicalRecordId={recordId}
+              ownerDiscountRate={ownerDiscountRate}
+              onRegisterClinicalPlanSave={handleRegisterClinicalPlanSave}
             />
           </div>
         ) : null}
         {mountedTabs.has("治療") ? (
-          <div style={{ display: activeTab === "治療" ? "block" : "none" }}>
+          <div className={`${LAYOUT.fullHeight} ${activeTab === "治療" ? "" : "hidden"}`}>
             <MedicalRecordTreatment
               medicalRecordId={recordId ?? ""}
               isNewRecord={isNewRecord}
@@ -275,12 +362,12 @@ export function MedicalRecordForm() {
           </div>
         ) : null}
         {mountedTabs.has("予防接種") ? (
-          <div style={{ display: activeTab === "予防接種" ? "block" : "none" }}>
-            <MedicalRecordVaccination />
+          <div className={`${LAYOUT.fullHeight} ${activeTab === "予防接種" ? "" : "hidden"}`}>
+            <MedicalRecordVaccination petId={selectedPet?.id} />
           </div>
         ) : null}
         {mountedTabs.has("定期健診") ? (
-          <div style={{ display: activeTab === "定期健診" ? "block" : "none" }}>
+          <div className={`${LAYOUT.fullHeight} ${activeTab === "定期健診" ? "" : "hidden"}`}>
             {isNewRecord || !recordId ? (
               <div className={`flex items-center justify-center h-48 text-sm ${C.text40}`}>
                 カルテを保存してから使用できます
@@ -291,26 +378,26 @@ export function MedicalRecordForm() {
           </div>
         ) : null}
         {mountedTabs.has("検査") ? (
-          <div style={{ display: activeTab === "検査" ? "block" : "none" }}>
-            <MedicalRecordExamination isNewRecord={isNewRecord} />
+          <div className={`${LAYOUT.fullHeight} ${activeTab === "検査" ? "" : "hidden"}`}>
+            <MedicalRecordExamination isNewRecord={isNewRecord} petId={selectedPet?.id} />
           </div>
         ) : null}
         {mountedTabs.has("画像") ? (
-          <div style={{ display: activeTab === "画像" ? "block" : "none" }}>
-            <MedicalRecordImage isNewRecord={isNewRecord} />
+          <div className={`${LAYOUT.fullHeight} ${activeTab === "画像" ? "" : "hidden"}`}>
+            <MedicalRecordImage isNewRecord={isNewRecord} medicalRecordId={recordId} />
           </div>
         ) : null}
         {mountedTabs.has("見積書") ? (
-          <div style={{ display: activeTab === "見積書" ? "block" : "none" }}>
-            <MedicalRecordEstimate isNewRecord={isNewRecord} />
+          <div className={`${LAYOUT.fullHeight} ${activeTab === "見積書" ? "" : "hidden"}`}>
+            <MedicalRecordEstimate isNewRecord={isNewRecord} ownerDiscountRate={ownerDiscountRate} medicalRecordId={recordId} onRegisterSave={handleRegisterEstimateSave} />
           </div>
         ) : null}
         {mountedTabs.has("会計(医師確認)") ? (
-          <div style={{ display: activeTab === "会計(医師確認)" ? "block" : "none" }}>
+          <div className={`${LAYOUT.fullHeight} ${activeTab === "会計(医師確認)" ? "" : "hidden"}`}>
             <MedicalRecordBillCheck
               isNewRecord={isNewRecord}
-              petId={selectedPet.id}
-              completedItems={treatmentCompletedItems}
+              medicalRecordId={recordId}
+              ownerDiscountRate={ownerDiscountRate}
             />
           </div>
         ) : null}
@@ -319,33 +406,53 @@ export function MedicalRecordForm() {
       {/* Floating Save / Delete Buttons */}
       {activeTab !== "会計(医師確認)" ? (
         <div className="fixed bottom-6 right-6 z-50 flex gap-2">
-          {!isNewRecord && activeTab === "問診" ? (
+          {canDelete && !isNewRecord && activeTab === "問診" ? (
             <Button
-              variant="outline"
+              variant="ghost-danger"
               onClick={() => setIsDeleteConfirmOpen(true)}
-              className={`${C.borderDanger} ${C.danger} ${C.hoverBgDanger5} h-10 text-sm px-4`}
+              className={`border ${C.borderDanger} h-10 text-sm px-4`}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className={ICON.action} />
               削除
             </Button>
           ) : null}
-          <Button
-            variant="outline"
-            onClick={() => setIsVitalsOpen(true)}
-            disabled={isNewRecord}
-            title={isNewRecord ? "カルテを保存してから利用できます" : undefined}
-            className="h-10 text-sm px-4"
-          >
-            <HeartPulse className="h-4 w-4" />
-            バイタル記録
-          </Button>
-          <Button
-            onClick={handleSaveClick}
-            disabled={isSaving}
-            className={`${STYLE.btnPrimary} px-5`}
-          >
-            {isSaving ? "保存中..." : "保存"}
-          </Button>
+          {activeTab !== "見積書" ? (
+            <Button
+              variant="outline"
+              onClick={() => setIsVitalsOpen(true)}
+              disabled={isNewRecord}
+              title={isNewRecord ? "カルテを保存してから利用できます" : undefined}
+              className="h-10 text-sm px-4"
+            >
+              <HeartPulse className={ICON.action} />
+              バイタル記録
+            </Button>
+          ) : null}
+          {!isNewRecord ? (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsPrinting(true);
+                // ブラウザ印刷ダイアログを非同期で開く（DOM更新を待つ）
+                setTimeout(() => {
+                  window.print();
+                  setIsPrinting(false);
+                }, 100);
+              }}
+              className="h-10 text-sm px-4"
+            >
+              <Printer className={ICON.action} />
+              印刷
+            </Button>
+          ) : null}
+          {canEdit ? (
+            <SubmitButton
+              className={`${STYLE.btnPrimary} px-5`}
+              disabled={isCreating}
+            >
+              {isCreating ? "カルテ作成中..." : "保存"}
+            </SubmitButton>
+          ) : null}
         </div>
       ) : null}
 
@@ -395,6 +502,48 @@ export function MedicalRecordForm() {
         onSelect={handleSelectStaff}
         onOpenChange={handleStaffModalOpenChange}
       />
+
+      {/* Owner Search Modal (edit mode only) */}
+      {!isNewRecord && recordId ? (
+        <Suspense fallback={null}>
+          <OwnerSearchModal
+            open={isOwnerSearchOpen}
+            onOpenChange={setIsOwnerSearchOpen}
+            currentOwnerName={selectedPet?.ownerName}
+            onSelect={handleChangeOwner}
+          />
+        </Suspense>
+      ) : null}
     </PageLayout>
+
+    {/* Print area — hidden on screen, visible on print */}
+    {isPrinting && !isNewRecord && selectedPet ? (
+      <div className="hidden print:block fixed inset-0 bg-white z-[9999]">
+        <style type="text/css" media="print">
+          {`@page { size: A4 portrait; margin: 15mm; } body { margin: 0; -webkit-print-color-adjust: exact; }`}
+        </style>
+        <MedicalRecordPrintView
+          recordNo={recordId}
+          date={new Date().toLocaleDateString("ja-JP")}
+          doctorName={staffName}
+          pet={{
+            name: selectedPet.name,
+            species: selectedPet.species,
+            ownerName: selectedPet.ownerName,
+          }}
+          clinic={{
+            name: user?.clinic?.name,
+            address: user?.clinic?.address,
+            phone: user?.clinic?.phoneNumber,
+          }}
+          chiefComplaint={chiefComplaint}
+          treatmentPolicy={treatmentPolicy}
+          physicalExam={clinicalPlan?.physical_exam}
+          diagnosisDetails={clinicalPlan?.diagnosis_details}
+          treatments={treatments}
+        />
+      </div>
+    ) : null}
+    </form>
   );
-}
+});

@@ -12,7 +12,12 @@ export const createHospitalization = async (
 ): Promise<Hospitalization> => {
   const { data } = await axios.post<BackendHospitalization>(
     "/v1/hospitalizations",
-    req
+    {
+      ...req,
+      pet_id: Number(req.pet_id),
+      owner_id: Number(req.owner_id),
+      cage_id: req.cage_id ? Number(req.cage_id) : undefined,
+    }
   );
   return transformHospitalization(data);
 };

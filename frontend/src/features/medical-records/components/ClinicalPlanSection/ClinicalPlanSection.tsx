@@ -2,24 +2,24 @@
 import { useState, useEffect, useCallback } from "react";
 
 // Internal
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { CharCountTextarea } from "@/components/shared/CharCountTextarea";
 import { C, STYLE } from "@/lib/design-tokens";
 
 // Relative
-import { useClinicalPlan, useUpdateClinicalPlan } from "../../api/clinical-plan";
-import type { UpdateClinicalPlanInput } from "../../api/clinical-plan";
+import { useGetClinicalPlan, useUpdateClinicalPlan } from "@/features/medical-records/api/clinical-plan";
+import type { UpdateClinicalPlanInput } from "@/features/medical-records/api/clinical-plan";
 
 // ── Types ─────────────────────────────────────────────────────────────
 
 interface ClinicalPlanSectionProps {
   medicalRecordId: string;
+  onRegisterSave?: (fn: () => Promise<void>) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────
 
-export function ClinicalPlanSection({ medicalRecordId }: ClinicalPlanSectionProps) {
-  const { data, isLoading } = useClinicalPlan(medicalRecordId);
+export function ClinicalPlanSection({ medicalRecordId, onRegisterSave }: ClinicalPlanSectionProps) {
+  const { data, isLoading } = useGetClinicalPlan(medicalRecordId);
   const updateMutation = useUpdateClinicalPlan(medicalRecordId);
 
   const [physicalExam, setPhysicalExam] = useState("");
@@ -40,7 +40,7 @@ export function ClinicalPlanSection({ medicalRecordId }: ClinicalPlanSectionProp
     }
   }, [data]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async (): Promise<void> => {
     const input: UpdateClinicalPlanInput = {
       physical_exam: physicalExam,
       diagnosis_category_id: diagnosisCategoryId ? Number(diagnosisCategoryId) : null,
@@ -48,8 +48,14 @@ export function ClinicalPlanSection({ medicalRecordId }: ClinicalPlanSectionProp
       diagnosis_details: diagnosisDetails,
       treatment_policy: treatmentPolicy,
     };
-    updateMutation.mutate(input);
+    await updateMutation.mutateAsync(input);
   }, [physicalExam, diagnosisCategoryId, diagnosisNameId, diagnosisDetails, treatmentPolicy, updateMutation]);
+
+  // Register save function with parent
+  useEffect(() => {
+    if (!onRegisterSave) return;
+    onRegisterSave(handleSave);
+  }, [onRegisterSave, handleSave]);
 
   if (isLoading) {
     return (
@@ -67,11 +73,11 @@ export function ClinicalPlanSection({ medicalRecordId }: ClinicalPlanSectionProp
         {/* 身体検査所見 */}
         <div className="flex flex-col gap-1.5">
           <label className={STYLE.formLabel}>身体検査所見</label>
-          <Textarea
+          <CharCountTextarea
             value={physicalExam}
-            onChange={(e) => setPhysicalExam(e.target.value)}
+            onChange={setPhysicalExam}
             placeholder="身体検査所見を入力してください"
-            className={`min-h-[100px] ${C.text} text-sm`}
+            textareaClassName={`min-h-[100px] ${C.text} text-sm`}
           />
         </div>
 
@@ -86,7 +92,7 @@ export function ClinicalPlanSection({ medicalRecordId }: ClinicalPlanSectionProp
                 : diagnosisCategoryId
             }
             onChange={(e) => setDiagnosisCategoryId(e.target.value)}
-            placeholder="診断カテゴリID"
+            placeholder="カテゴリを選択"
             className={`${STYLE.formInput} border rounded-[4px] px-3 outline-none focus:ring-0`}
           />
         </div>
@@ -102,7 +108,7 @@ export function ClinicalPlanSection({ medicalRecordId }: ClinicalPlanSectionProp
                 : diagnosisNameId
             }
             onChange={(e) => setDiagnosisNameId(e.target.value)}
-            placeholder="診断病名ID"
+            placeholder="病名を選択"
             className={`${STYLE.formInput} border rounded-[4px] px-3 outline-none focus:ring-0`}
           />
         </div>
@@ -110,35 +116,25 @@ export function ClinicalPlanSection({ medicalRecordId }: ClinicalPlanSectionProp
         {/* 診断詳細 */}
         <div className="flex flex-col gap-1.5">
           <label className={STYLE.formLabel}>診断詳細</label>
-          <Textarea
+          <CharCountTextarea
             value={diagnosisDetails}
-            onChange={(e) => setDiagnosisDetails(e.target.value)}
+            onChange={setDiagnosisDetails}
             placeholder="診断詳細を入力してください"
-            className={`min-h-[100px] ${C.text} text-sm`}
+            textareaClassName={`min-h-[100px] ${C.text} text-sm`}
           />
         </div>
 
         {/* 治療方針 */}
         <div className="flex flex-col gap-1.5">
           <label className={STYLE.formLabel}>治療方針</label>
-          <Textarea
+          <CharCountTextarea
             value={treatmentPolicy}
-            onChange={(e) => setTreatmentPolicy(e.target.value)}
+            onChange={setTreatmentPolicy}
             placeholder="治療方針を入力してください"
-            className={`min-h-[100px] ${C.text} text-sm`}
+            textareaClassName={`min-h-[100px] ${C.text} text-sm`}
           />
         </div>
 
-        {/* Save Button */}
-        <div className="flex justify-end pt-1">
-          <Button
-            onClick={handleSave}
-            disabled={updateMutation.isPending}
-            className={`${STYLE.btnPrimary} px-5`}
-          >
-            {updateMutation.isPending ? "保存中..." : "保存"}
-          </Button>
-        </div>
       </div>
     </div>
   );

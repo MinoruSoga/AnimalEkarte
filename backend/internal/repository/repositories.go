@@ -6,6 +6,8 @@ import (
 
 // Repositories はすべてのリポジトリを保持するDIコンテナ
 type Repositories struct {
+	db                     *gorm.DB
+	Auth                   AuthRepository
 	AnimalSpecies          AnimalSpeciesRepository
 	Owner                  OwnerRepository
 	Pet                    PetRepository
@@ -36,6 +38,7 @@ type Repositories struct {
 	Vaccination            VaccinationRepository
 	JobTitle               JobTitleRepository
 	ChiefComplaintCategory ChiefComplaintCategoryRepository
+	Inquiry                InquiryRepository
 	InquiryTemplate        InquiryTemplateRepository
 	Company                CompanyRepository
 	BillingReview          BillingReviewRepository
@@ -49,11 +52,18 @@ type Repositories struct {
 	ClinicalPlan           ClinicalPlanRepository
 	Checkup                CheckupRepository
 	Estimate               EstimateRepository
+	MerchandiseItem        MerchandiseItemRepository
+	BillingItem            BillingItemRepository
+	Refund                 RefundRepository
+	PermissionGroup        PermissionGroupRepository
+	Audit                  AuditRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
 func NewRepositories(db *gorm.DB) *Repositories {
 	return &Repositories{
+		db:                     db,
+		Auth:                   NewAuthRepository(db),
 		AnimalSpecies:          NewAnimalSpeciesRepository(db),
 		Owner:                  NewOwnerRepository(db),
 		Pet:                    NewPetRepository(db),
@@ -84,6 +94,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		Vaccination:            NewVaccinationRepository(db),
 		JobTitle:               NewJobTitleRepository(db),
 		ChiefComplaintCategory: NewChiefComplaintCategoryRepository(db),
+		Inquiry:                NewInquiryRepository(db),
 		InquiryTemplate:        NewInquiryTemplateRepository(db),
 		Company:                NewCompanyRepository(db),
 		BillingReview:          NewBillingReviewRepository(db),
@@ -97,5 +108,18 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		ClinicalPlan:           NewClinicalPlanRepository(db),
 		Checkup:                NewCheckupRepository(db),
 		Estimate:               NewEstimateRepository(db),
+		MerchandiseItem:        NewMerchandiseItemRepository(db),
+		BillingItem:            NewBillingItemRepository(db),
+		Refund:                 NewRefundRepository(db),
+		PermissionGroup:        NewPermissionGroupRepository(db),
+		Audit:                  NewAuditRepository(db),
 	}
+}
+
+// Transaction はリポジトリ層のトランザクションを実行する
+func (r *Repositories) Transaction(fn func(repos *Repositories) error) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		txRepos := NewRepositories(tx)
+		return fn(txRepos)
+	})
 }
