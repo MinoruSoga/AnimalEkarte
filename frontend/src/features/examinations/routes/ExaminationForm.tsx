@@ -90,7 +90,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
             </SelectTrigger>
             <SelectContent>
               {examTypes.map((item) => (
-                <SelectItem key={item.id} value={item.id}>
+                <SelectItem key={item.id} value={String(item.id)}>
                   {item.name}
                 </SelectItem>
               ))}
@@ -103,7 +103,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
             value={formData.doctorId ?? ""}
             disabled={isConfirmed}
             onValueChange={(v) => {
-              const staff = staffList.find((s) => s.id === v);
+              const staff = staffList.find((s) => String(s.id) === v);
               onSetFormData({ doctorId: v, doctor: staff?.name ?? v });
             }}
           >
@@ -112,7 +112,7 @@ const FormFieldsSection = memo(function FormFieldsSection({
             </SelectTrigger>
             <SelectContent>
               {staffList.map((staff) => (
-                <SelectItem key={staff.id} value={staff.id}>
+                <SelectItem key={staff.id} value={String(staff.id)}>
                   {staff.name}
                 </SelectItem>
               ))}

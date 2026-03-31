@@ -13108,14 +13108,16 @@
 | 根本原因 | shadcn/ui `<Button>` は `<button>` を描画するが `type` を指定しなければデフォルト `type="submit"`。`<form action={formAction}>` 内にマウントされるため全ボタンがフォーム送信をトリガー |
 | 修正内容 | 3つのボタンすべてに `type="button"` を追加 |
 
-### 46.3 検査フォーム編集時バリデーション誤検知（未修正・調査継続）
+### 46.3 検査フォーム編集時バリデーション誤検知（修正済み ✅）
 
 | 項目 | 内容 |
 |------|------|
 | 発見日 | 2026-04-01 |
+| 修正日 | 2026-04-01 |
 | 重大度 | Medium |
-| 状態 | 未修正（調査継続） |
-| ファイル | `frontend/src/features/examinations/hooks/use-examination-form.ts` |
+| 状態 | **修正済み ✅** |
+| ファイル | `frontend/src/features/examinations/routes/ExaminationForm.tsx`, `frontend/src/features/examinations/hooks/use-examination-form.ts` |
 | 症状 | 編集モードで既存検査（exam_type_id=1, doctor_id=8 設定済み）を開き「保存」すると「未入力の項目があります」トーストが表示される。`testTypeId` / `doctorId` バリデーションが誤って失敗 |
-| 根本原因候補 | React 19 `useActionState` のクロージャが `formDataWithPet` の最新値を捉えていない可能性。`existingExam` から `localOverrides` へのマージタイミング問題 |
-| 回避策 | API 直接 PATCH で status 更新（HTTP 200 確認済み）。UI 経由での編集には影響 |
+| 根本原因 | `ExaminationForm.tsx` の `SelectItem value={item.id}` が number 型（例: `1`）だったのに対し、Radix UI Select の `value` prop は string 型（`"1"`）。型不一致により Radix UI が既存選択値を認識できず `onValueChange("")` を発火 → `setFormData({ testTypeId: "" })` で `localOverrides` を汚染 → `existingExam.testTypeId` を上書き → バリデーション失敗 |
+| 修正内容 | `SelectItem value={String(item.id)}` に変換。`useRef` パターンで stale closure 対策（`formDataWithPetRef`）も併施 |
+| 検証結果 | `/examinations/4` 開き即「保存」→ PATCH `/api/v1/examinations/4` HTTP 200 確認。バリデーションエラートースト消滅 |
