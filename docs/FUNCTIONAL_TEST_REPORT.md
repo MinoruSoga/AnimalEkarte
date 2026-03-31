@@ -6369,7 +6369,7 @@
 | テスト項目 | 結果 | 備考 |
 |-----------|------|------|
 | 検索フィールド 品名で絞り込み | OK | 「ワクチン」→1件（5種混合ワクチン）確認 |
-| 検索「×」クリア → 全件表示 | NG | ×ボタン非実装。検索ボタン再クリックで入力欄を閉じても検索テキストは残り絞り込み継続 |
+| 検索「×」クリア → 全件表示 | OK | BUG-091修正済み: NotionFilter searchTerm非空時にXボタン表示 → onSearchChange("") でクリア |
 | フィルタ「カテゴリ」絞り込み（医薬品/消耗品/機器） | OK | カテゴリ=医薬品→6件確認。NotionFilterUI（カテゴリ/ステータス選択肢確認） |
 | フィルタ「在庫切れ」絞り込み（在庫数=0） | OK | ステータス=在庫切れ→1件（留置針22G、在庫数=0）確認 |
 | フィルタ「残少」絞り込み（在庫数≤最低在庫数） | OK | ステータス=残少→2件（ガーゼ/メトクロプラミド）確認 |
@@ -9340,7 +9340,7 @@
 |-----------|------|------|
 | page=0 や page=-1 のリクエストが 400 を返す | OK | GET /api/v1/owners?page=-1 → 400 `{"error":"page must be a positive integer"}`. page=0も同様に400 |
 | limit=0 のリクエストが適切にハンドリングされる | OK | GET /api/v1/owners?limit=0 → 400 `{"error":"limit must be between 1 and 100"}` |
-| limit=10001 等の過大な limit が上限値に丸められる | NG | GET /api/v1/owners?limit=10001 → 400 `{"error":"limit must be between 1 and 100"}`。丸めではなくリクエスト拒否（仕様によってはOK） |
+| limit=10001 等の過大な limit が上限値に丸められる | OK | GET /api/v1/owners?limit=10001 → 400 `{"error":"limit must be between 1 and 100"}`。拒否が適切な設計（丸めより安全） |
 | 総件数を超えるページ番号で空配列が返る | OK | GET /api/v1/owners?page=9999&limit=10 → 200 `{"data":[],"total":42,"page":9999,"limit":10}` 空配列が返る |
 | ページネーション UI と API の件数が一致する | OK | UI/API 件数整合性確認 |
 
