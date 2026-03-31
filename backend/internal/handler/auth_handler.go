@@ -218,7 +218,7 @@ func (h *Handler) Login(c *gin.Context) {
 	isProduction := h.cfg.GinMode == "release"
 	sameSite := http.SameSiteLaxMode
 	if isProduction {
-		sameSite = http.SameSiteStrictMode
+		sameSite = http.SameSiteNoneMode
 	}
 	// アクセストークン Cookie（15分）
 	http.SetCookie(c.Writer, &http.Cookie{
@@ -257,7 +257,7 @@ func (h *Handler) Logout(c *gin.Context) {
 	isProduction := h.cfg.GinMode == "release"
 	sameSite := http.SameSiteLaxMode
 	if isProduction {
-		sameSite = http.SameSiteStrictMode
+		sameSite = http.SameSiteNoneMode
 	}
 
 	// リフレッシュトークンを無効化する
@@ -306,7 +306,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	isProduction := h.cfg.GinMode == "release"
 	sameSite := http.SameSiteLaxMode
 	if isProduction {
-		sameSite = http.SameSiteStrictMode
+		sameSite = http.SameSiteNoneMode
 	}
 
 	rawRefreshToken, err := c.Cookie(refreshTokenCookieName)
