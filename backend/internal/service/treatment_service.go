@@ -75,20 +75,18 @@ type TreatmentService interface {
 // ─── Implementation ───────────────────────────────────────────────────────────
 
 type treatmentService struct {
-	repo          repository.TreatmentRepository
-	inventoryRepo repository.InventoryRepository
+	repos *repository.Repositories
 }
 
 // NewTreatmentService はTreatmentServiceを初期化して返す
-func NewTreatmentService(repo repository.TreatmentRepository, inventoryRepo repository.InventoryRepository) TreatmentService {
+func NewTreatmentService(repos *repository.Repositories) TreatmentService {
 	return &treatmentService{
-		repo:          repo,
-		inventoryRepo: inventoryRepo,
+		repos: repos,
 	}
 }
 
 func (s *treatmentService) List(ctx context.Context, medicalRecordID uint64) ([]model.Treatment, error) {
-	return s.repo.ListByMedicalRecordID(ctx, medicalRecordID)
+	return s.repos.Treatment.ListByMedicalRecordID(ctx, medicalRecordID)
 }
 
 func (s *treatmentService) Create(ctx context.Context, medicalRecordID uint64, input *CreateTreatmentInput) (*model.Treatment, error) {
@@ -114,51 +112,58 @@ func (s *treatmentService) Create(ctx context.Context, medicalRecordID uint64, i
 		status = s
 	}
 
-	treatment := &model.Treatment{
-		MedicalRecordID: medicalRecordID,
-		ItemType:        input.ItemType,
-		ConsultationID:  input.ConsultationID,
-		ProcedureID:     input.ProcedureID,
-		MedicineID:      input.MedicineID,
-		InventoryID:     input.InventoryID,
-		UnitPrice:       input.UnitPrice,
-		Quantity:        input.Quantity,
-		Selected:        input.Selected,
-		Status:          status,
-		Content:         input.Content,
-		Memo:            input.Memo,
-		Insurance:       input.Insurance,
-		DiscountRate:    input.DiscountRate,
-		DiscountAmount:  input.DiscountAmount,
-		SortOrder:       input.SortOrder,
-	}
+	var treatment *model.Treatment
 
-	// ─── 在庫連動 (Inventory Integration) ───
-	// MedicineID または InventoryID がある場合は在庫を減らす
-	// ※ 本来はトランザクションで囲むべきだが、リポジトリ層でのアトミック更新を期待するか、
-	// Service層主導のトランザクションを導入する。
-	if input.MedicineID != nil || input.InventoryID != nil {
-		var targetInvID uint64
-		if input.InventoryID != nil {
-			targetInvID = *input.InventoryID
-		} else {
-			// MedicineID から InventoryID を引く (簡略化のため今回はMedicineに紐づくInventoryがある前提)
-			// 本来はマッピングが必要
-			targetInvID = *input.MedicineID 
+	// ─── Transaction ───
+	err := s.repos.Transaction(func(txRepos *repository.Repositories) error {
+		treatment = &model.Treatment{
+			MedicalRecordID: medicalRecordID,
+			ItemType:        input.ItemType,
+			ConsultationID:  input.ConsultationID,
+			ProcedureID:     input.ProcedureID,
+			MedicineID:      input.MedicineID,
+			InventoryID:     input.InventoryID,
+			UnitPrice:       input.UnitPrice,
+			Quantity:        input.Quantity,
+			Selected:        input.Selected,
+			Status:          status,
+			Content:         input.Content,
+			Memo:            input.Memo,
+			Insurance:       input.Insurance,
+			DiscountRate:    input.DiscountRate,
+			DiscountAmount:  input.DiscountAmount,
+			SortOrder:       input.SortOrder,
 		}
 
-		if targetInvID > 0 {
-			if err := s.inventoryRepo.DecreaseStock(ctx, targetInvID, input.Quantity); err != nil {
-				return nil, apperrors.Wrap(err, "在庫の減算に失敗しました")
+		// 1. Create Treatment
+		if err := txRepos.Treatment.Create(ctx, treatment); err != nil {
+			return apperrors.Wrap(err, "failed to create treatment")
+		}
+
+		// 2. Decrease Stock (if applicable)
+		if input.MedicineID != nil || input.InventoryID != nil {
+			var targetInvID uint64
+			if input.InventoryID != nil {
+				targetInvID = *input.InventoryID
+			} else {
+				targetInvID = *input.MedicineID
+			}
+
+			if targetInvID > 0 {
+				if err := txRepos.Inventory.DecreaseStock(ctx, targetInvID, input.Quantity); err != nil {
+					return apperrors.Wrap(err, "在庫の減算に失敗しました")
+				}
 			}
 		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
-	if err := s.repo.Create(ctx, treatment); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create treatment")
-	}
-
-	slog.InfoContext(ctx, "treatment created with inventory sync",
+	slog.InfoContext(ctx, "treatment created with atomic inventory sync",
 		slog.Uint64("treatment_id", treatment.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 
@@ -167,7 +172,7 @@ func (s *treatmentService) Create(ctx context.Context, medicalRecordID uint64, i
 
 func (s *treatmentService) Update(ctx context.Context, medicalRecordID, treatmentID uint64, input *UpdateTreatmentInput) (*model.Treatment, error) {
 	// 所属確認
-	existing, err := s.repo.FindByID(ctx, treatmentID)
+	existing, err := s.repos.Treatment.FindByID(ctx, treatmentID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get treatment")
 	}
@@ -200,7 +205,7 @@ func (s *treatmentService) Update(ctx context.Context, medicalRecordID, treatmen
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 
-	if err := s.repo.Update(ctx, treatmentID, fields); err != nil {
+	if err := s.repos.Treatment.Update(ctx, treatmentID, fields); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update treatment")
 	}
 
@@ -208,11 +213,11 @@ func (s *treatmentService) Update(ctx context.Context, medicalRecordID, treatmen
 		slog.Uint64("treatment_id", treatmentID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 
-	return s.repo.FindByID(ctx, treatmentID)
+	return s.repos.Treatment.FindByID(ctx, treatmentID)
 }
 
 func (s *treatmentService) Delete(ctx context.Context, medicalRecordID, treatmentID uint64) error {
-	existing, err := s.repo.FindByID(ctx, treatmentID)
+	existing, err := s.repos.Treatment.FindByID(ctx, treatmentID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get treatment")
 	}
@@ -220,7 +225,7 @@ func (s *treatmentService) Delete(ctx context.Context, medicalRecordID, treatmen
 		return apperrors.WrapNotFound("treatment", strconv.FormatUint(treatmentID, 10))
 	}
 
-	if err := s.repo.Delete(ctx, treatmentID); err != nil {
+	if err := s.repos.Treatment.Delete(ctx, treatmentID); err != nil {
 		return apperrors.Wrap(err, "failed to delete treatment")
 	}
 
@@ -240,7 +245,7 @@ func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, medicalRecor
 		})
 	}
 
-	if err := s.repo.BulkUpdateSortOrder(ctx, updates); err != nil {
+	if err := s.repos.Treatment.BulkUpdateSortOrder(ctx, updates); err != nil {
 		return apperrors.Wrap(err, "failed to bulk update treatment sort order")
 	}
 
