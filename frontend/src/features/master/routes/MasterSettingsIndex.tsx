@@ -96,7 +96,8 @@ const MASTER_SECTIONS: SectionDef[] = [
   { title: "診療関連マスタ", keys: ["serviceType"] },
   { title: "入院・ケージ管理", keys: ["hospitalization", "cage"] },
   { title: "トリミング関連", keys: ["trimmingGroup"] },
-  { title: "スタッフ・保険", keys: ["staff", "job_title", "insurance"] },
+  { title: "会計・商品", keys: ["merchandise_item", "insurance"] },
+  { title: "スタッフ・権限", keys: ["staff", "job_title", "permission_group", "user_account"] },
 ];
 
 // ─────────────────────────────────────────────────

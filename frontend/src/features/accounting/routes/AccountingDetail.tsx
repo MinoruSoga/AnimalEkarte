@@ -804,31 +804,24 @@ export function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetail
   const calculation = useMemo(() => {
     if (!accounting) return null;
 
-    // 1. 保険適用対象の抽出
-    const insuranceTargetTotal = accounting.items
-      .filter((item) => item.isInsuranceApplicable)
-      .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+    // 共通ユーティリティによる計算
+    const billingResult = calculateBillingTotals(
+      accounting.items,
+      0, // ownerDiscountRate (accounting detail supports specific line discounts instead)
+      0, // globalDiscountAmount
+      0.10, // taxRate
+      hasInsurance ? parseFloat(insuranceRatio) : 0
+    );
 
-    // 2. 共通ユーティリティによる基本計算
-    const billingResult = calculateBillingTotals(accounting.items, 0, 0);
-
-    // 3. 保険負担額の計算（負数として返却）
-    let insuranceAmount = 0;
-    if (hasInsurance) {
-      const ratio = parseFloat(insuranceRatio);
-      insuranceAmount = Math.floor(insuranceTargetTotal * ratio) * -1;
-    }
-
-    const billingAmount = Math.max(0, billingResult.total + insuranceAmount);
     const received = parseInt(receivedAmount || "0", 10);
-    const changeAmount = received > billingAmount ? received - billingAmount : 0;
+    const changeAmount = received > billingResult.billingAmount ? received - billingResult.billingAmount : 0;
 
     return {
       subtotal: billingResult.subtotal,
       taxTotal: billingResult.tax,
       totalAmount: billingResult.total,
-      insuranceAmount,
-      billingAmount,
+      insuranceAmount: billingResult.insuranceAmount,
+      billingAmount: billingResult.billingAmount,
       received,
       changeAmount,
     };
