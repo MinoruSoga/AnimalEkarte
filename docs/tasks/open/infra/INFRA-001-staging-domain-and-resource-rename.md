@@ -503,9 +503,11 @@ vercel deploy --target=staging
 - [ ] ACM 証明書リクエスト (`us-east-1`)
 - [ ] DNS バリデーション CNAME 追加 → `ISSUED` 確認
 - [ ] CloudFront に `api.stg.noah-karte.com` CNAME + ACM 証明書設定
-- [x] Vercel プロジェクト名を `noah-karte` にリネーム ✅
-- [x] Vercel Custom Environment `staging` を作成（Branch Tracking: `main`）✅
-- [x] `stg.noah-karte.com` を staging Custom Environment に Attach ✅
+- [x] Vercel プロジェクト名を `noah-karte.com` にリネーム ✅
+- [x] Vercel Custom Environment `Staging` を作成（Branch Tracking: `staging` ブランチ）✅
+- [x] `stg.noah-karte.com` を Staging Custom Environment に Attach ✅
+- [x] Vercel Production ブランチを `production` に変更 ✅
+- [x] GitHub に `production` / `staging` ブランチ作成 ✅
 
 ### Phase 3
 - [ ] Terraform state のバックアップ (S3 コピー)
