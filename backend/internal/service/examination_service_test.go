@@ -332,6 +332,12 @@ func TestExaminationService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExaminationRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
+					if tt.wantNF {
+						return nil, tt.repoErr
+					}
+					return &model.Examination{ID: 1, Status: model.ExaminationStatusPending}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr

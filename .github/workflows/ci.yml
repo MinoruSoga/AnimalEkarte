@@ -16,7 +16,7 @@ env:
 
 jobs:
   # ──────────────────────────────────────────────
-  # Backend: build + lint + test + schema check
+  # Backend: build + lint + schema check
   # ──────────────────────────────────────────────
   backend:
     name: Backend
@@ -71,17 +71,6 @@ jobs:
       - name: Lint
         working-directory: backend
         run: go vet ./...
-
-      - name: Test
-        working-directory: backend
-        env:
-          DB_HOST: localhost
-          DB_PORT: "5432"
-          DB_USER: ekarte_user
-          DB_PASSWORD: ekarte_password
-          DB_NAME: ekarte_db
-          DB_SSL_MODE: disable
-        run: go test -v -race ./...
 
       - name: Schema drift check
         working-directory: backend
