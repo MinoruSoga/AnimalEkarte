@@ -16,7 +16,7 @@
         { "name": "DB_HOST", "value": "animalekarte-test-db.cqbe28s44fta.us-east-1.rds.amazonaws.com" },
         { "name": "DB_PORT", "value": "5432" },
         { "name": "DB_SSL_MODE", "value": "require" },
-        { "name": "DB_RESET", "value": "false" }
+        { "name": "DB_RESET", "value": "true" }
       ],
       "secrets": [
         { "name": "DB_NAME", "valueFrom": "arn:aws:ssm:us-east-1:698109622668:parameter/animalekarte/test/db/name" },
