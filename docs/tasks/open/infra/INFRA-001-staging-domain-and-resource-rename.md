@@ -36,7 +36,7 @@ Phase 1: DNS + ACM (リードタイム: 数分〜数時間)
     ↓
 Phase 2: CloudFront + Vercel カスタムドメイン
     ↓
-Phase 3: Terraform name_prefix 変更 + RDS スナップショット移行
+Phase 3: Terraform name_prefix 変更 + RDS in-place リネーム
     ↓
 Phase 4: ECS/ALB/IAM/SSM 切り替え + GitHub Actions 更新
     ↓
@@ -114,7 +114,26 @@ Vercel ダッシュボード → Project (animalekarte-frontend) → Settings �
 
 ---
 
-## Phase 3: Terraform name_prefix 変更 + RDS 移行
+## AWS リソース リネーム可否一覧
+
+`name_prefix` 変更に伴う各リソースの対応方法を整理する。
+
+| リソース | リネーム方法 | 備考 |
+|---------|------------|------|
+| **RDS インスタンス** | **in-place リネーム可** (`modify-db-instance`) | データ保持したままリネーム |
+| VPC / Subnet / SG / NAT | Name タグ更新のみ | ID は変わらない |
+| SSM パラメータ | 新パス作成 → 旧削除 | コピーで移行 |
+| ECS Cluster | **destroy + create 必須** | 不変 ID リソース |
+| ECS Service | **destroy + create 必須** | 不変 ID リソース |
+| ALB / Target Group | **destroy + create 必須** | 不変 ID リソース |
+| IAM Role | **destroy + create 必須** | 不変 ID リソース |
+| ECR リポジトリ | **destroy + create 必須** (または継続使用) | 後述 Option A/B |
+| CloudWatch Log Group | **destroy + create 必須** | 不変 ID リソース |
+| ECS Task Definition | **destroy + create 必須** | Family 名が固定 |
+
+---
+
+## Phase 3: Terraform name_prefix 変更 + RDS in-place リネーム
 
 ### 3-1. Terraform state key 変更
 
@@ -154,40 +173,50 @@ name_prefix             = "animalekarte-stg"
 cors_allowed_origin     = "https://stg.noah-karte.com,https://api.stg.noah-karte.com"
 ```
 
-### 3-3. RDS スナップショット取得 → 新インスタンス作成
+### 3-3. RDS in-place リネーム
 
-RDS インスタンスは in-place でのリネームが不可。スナップショット経由で移行する。
+RDS は `modify-db-instance --new-db-instance-identifier` で**データを保持したままリネーム**できる。スナップショット移行は不要。
 
 ```bash
 export AWS_PROFILE=AnimalEkarte
 
-# Step 1: スナップショット取得
-aws rds create-db-snapshot \
+# Step 1: in-place リネーム（ダウンタイムなし）
+aws rds modify-db-instance \
   --db-instance-identifier animalekarte-test-db \
-  --db-snapshot-identifier animalekarte-stg-migration-$(date +%Y%m%d) \
+  --new-db-instance-identifier animalekarte-stg-db \
+  --apply-immediately \
   --region us-east-1
 
-# Step 2: スナップショット完了まで待機
-aws rds wait db-snapshot-completed \
-  --db-snapshot-identifier animalekarte-stg-migration-$(date +%Y%m%d) \
+# Step 2: リネーム完了まで待機（数分）
+aws rds wait db-instance-available \
+  --db-instance-identifier animalekarte-stg-db \
   --region us-east-1
 
-# Step 3: 新 RDS インスタンス作成（Terraform apply で実施 or 手動）
-# → name_prefix 変更後に terraform apply することで
-#   animalekarte-stg-db が作成される
+# Step 3: 新エンドポイント確認
+aws rds describe-db-instances \
+  --db-instance-identifier animalekarte-stg-db \
+  --query 'DBInstances[0].Endpoint.Address' \
+  --region us-east-1
 ```
 
-**⚠️ リスク:** terraform apply 時に旧 RDS (`animalekarte-test-db`) の destroy → 新 RDS 作成となる場合、データが失われる。
-**対策:** `-target` オプションで RDS 以外を先に apply し、RDS は snapshot からの restore を手動で行ってから Terraform に import する。
+**Step 4: Terraform state を新しい識別子に対応させる**
+
+リネーム後、Terraform は state の `animalekarte-test-db` と実態の `animalekarte-stg-db` が乖離するため、`moved` ブロックか `terraform state mv` で対応する。
 
 ```bash
-# RDS 以外を先に適用
-terraform apply -target=module.vpc -target=module.security \
-                -target=module.ecr -target=module.ecs
+# terraform state mv で対応（推奨）
+terraform state mv \
+  module.rds.aws_db_instance.main \
+  module.rds.aws_db_instance.main
+# ※ ただし identifier が変わるため、state 内の db_instance_identifier を手動パッチするか
+# 一度 state から remove → import し直す方が確実
 
-# RDS は snapshot から手動復元後に import
+# あるいは state から一時 remove → 新 identifier で import
+terraform state rm module.rds.aws_db_instance.main
 terraform import module.rds.aws_db_instance.main animalekarte-stg-db
 ```
+
+> **注意:** `terraform apply` 前に RDS の state 整合を取ること。整合が取れていないと Terraform が destroy + create しようとする。
 
 ### 3-4. terraform plan 実施・変更内容確認
 
@@ -199,21 +228,21 @@ terraform plan -out=stg-migration.tfplan
 
 **plan で確認すべき変更一覧:**
 
-| リソース | 変更種別 |
-|---------|---------|
-| `aws_ecs_cluster` | destroy + create (animalekarte-test → stg) |
-| `aws_ecs_service` | destroy + create |
-| `aws_lb` (ALB) | destroy + create |
-| `aws_lb_target_group` | destroy + create |
-| `aws_db_instance` | ⚠️ destroy + create (RDS は手動移行推奨) |
-| `aws_iam_role` (4個) | destroy + create |
-| `aws_cloudwatch_log_group` | destroy + create |
-| `aws_ssm_parameter` (3個) | destroy + create |
-| `aws_security_group` (3個) | update (Name tag のみ) or destroy + create |
-| `aws_vpc` | update (Name tag) |
-| `aws_subnet` (4個) | update (Name tag) |
-| `aws_nat_gateway` | update (Name tag) |
-| `aws_ecr_repository` | ⚠️ ECR はリネーム不可（後述） |
+| リソース | 変更種別 | 備考 |
+|---------|---------|------|
+| `aws_ecs_cluster` | destroy + create | 不変 ID のため |
+| `aws_ecs_service` | destroy + create | 不変 ID のため |
+| `aws_lb` (ALB) | destroy + create | 不変 ID のため |
+| `aws_lb_target_group` | destroy + create | 不変 ID のため |
+| `aws_db_instance` | **update のみ** (3-3 で事前リネーム済み) | データ保持 |
+| `aws_iam_role` (4個) | destroy + create | 不変 ID のため |
+| `aws_cloudwatch_log_group` | destroy + create | 不変 ID のため |
+| `aws_ssm_parameter` (3個) | destroy + create | 4-2 で事前コピー済みなら安全 |
+| `aws_security_group` (3個) | Name タグ更新のみ | ID 変更なし |
+| `aws_vpc` | Name タグ更新のみ | ID 変更なし |
+| `aws_subnet` (4個) | Name タグ更新のみ | ID 変更なし |
+| `aws_nat_gateway` | Name タグ更新のみ | ID 変更なし |
+| `aws_ecr_repository` | ⚠️ リネーム不可（後述 Option A/B） | |
 
 ---
 
@@ -346,7 +375,7 @@ VITE_API_URL=https://api.stg.noah-karte.com/api
 
 | リスク | 影響 | 対策 |
 |--------|------|------|
-| RDS destroy による本番データ消失 | **最大** | 必ずスナップショット取得後に terraform apply。RDS は `-target` で除外して手動 import を使う |
+| RDS の state 乖離 → terraform apply が destroy しようとする | **最大** | 3-3 で in-place リネーム後、`terraform state rm` → `terraform import` で state を同期してから apply |
 | IAM Role ARN 変更 → GitHub Actions 認証エラー | High | role-to-assume を backend-deploy.yml に更新してから旧 Role を削除 |
 | ECS Security Group ID 変更 → backend-deploy.yml の ECS_SECURITY_GROUPS が古い | High | terraform apply 後に新 SG ID を workflow に反映 |
 | CloudFront CNAME 追加前に DNS を向けると SSL エラー | Medium | Phase 2 の順序を厳守（ACM 発行 → CF 設定 → DNS 向け） |
@@ -371,13 +400,14 @@ VITE_API_URL=https://api.stg.noah-karte.com/api
 - [ ] Terraform state のバックアップ (S3 コピー)
 - [ ] `backend.tf` の state key 変更 → `terraform init -reconfigure`
 - [ ] `terraform.tfvars` の `name_prefix` 変更
-- [ ] RDS スナップショット取得
-- [ ] `terraform plan` で変更内容確認
+- [ ] RDS in-place リネーム: `modify-db-instance --new-db-instance-identifier animalekarte-stg-db`
+- [ ] RDS リネーム完了待機: `aws rds wait db-instance-available`
+- [ ] Terraform state 同期: `state rm` → `terraform import` で `animalekarte-stg-db` を登録
+- [ ] `terraform plan` で変更内容確認（RDS が update のみになっていること）
 
 ### Phase 4
 - [ ] ECR 対応方針決定 (Option A / B)
-- [ ] `terraform apply` (RDS は -target 除外して段階適用)
-- [ ] RDS: スナップショットから新インスタンス作成 → terraform import
+- [ ] `terraform apply`（RDS は事前リネーム + state import 済みのため安全）
 - [ ] SSM パラメータ移行 (test → stg パス)
 - [ ] `backend/.env.production` 更新 (CORS_ALLOWED_ORIGIN)
 - [ ] `backend-deploy.yml` 更新 (ECS リソース名・IAM Role ARN・SG ID・ログ名)
