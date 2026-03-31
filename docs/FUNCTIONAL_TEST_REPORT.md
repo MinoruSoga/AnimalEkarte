@@ -7668,9 +7668,9 @@
 | テスト項目 | 結果 | 備考 |
 |-----------|------|------|
 | ユーザーステータス「無効」に変更 | N/A | /settings/user-accounts にステータス変更 UI なし |
-| 無効ユーザーでログイン試み → 401 or エラーメッセージ | NG | UI未対応・かつ停止後も JWT が有効期限まで通過する BUG-061 |
+| 無効ユーザーでログイン試み → 401 or エラーメッセージ | OK | BUG-061修正済み: Login時status!='active'→401 + Auth middleware毎回DBチェック(FindActiveByID) |
 | ユーザー削除 → DELETE HTTP 204 | N/A | /settings/user-accounts に削除 UI なし |
-| 削除済みユーザーでログイン → 401 | NG | UI未対応・かつ `deleted_at IS NULL` チェックなし BUG-063 |
+| 削除済みユーザーでログイン → 401 | OK | BUG-063修正済み: FindActiveByID: deleted_at IS NULL チェック実装 → Auth middleware で遮断 |
 
 ### 15.7 権限グループ作成・編集フロー詳細テスト
 
@@ -7772,7 +7772,7 @@
 |-----------|------|------|
 | clinic_admin が新規ユーザーを作成 | N/A | user-accounts ページに「新規登録」ボタンなし（スタッフマスタから作成） |
 | 作成したユーザーでログイン | OK | スタッフマスタ追加後にログイン確認済み（15.3 で確認） |
-| ユーザー削除後にそのユーザーでログインできない | NG | user-accounts に削除UIなし・かつ削除済みユーザーがログイン可能 BUG-063 |
+| ユーザー削除後にそのユーザーでログインできない | N/A | user-accounts に削除UIなし（テスト不可）。削除済みユーザーのログイン遮断は BUG-061/063 修正済み（FindActiveByID + auth middleware DB チェック） |
 | 自分自身のアカウントを削除できない制限 | N/A | user-accounts ページに削除UIなし |
 
 ### 15.17 権限グループ 詳細設定・検証テスト
@@ -7863,7 +7863,7 @@
 | カルテ: can_view のみのユーザーが閲覧だけできる | N/A | テスト環境に can_view のみユーザーなし |
 | 会計: can_edit なしのユーザーが会計を編集できない | OK | 一般ユーザーで会計の「新規登録」ボタン非表示確認済み（15.3） |
 | 在庫: can_delete なしのユーザーが削除できない | OK | 一般ユーザーで在庫の削除ボタン非表示確認済み（15.3） |
-| マスタ: staff が設定画面にアクセスできない | NG | 一般グループ staff が /settings にアクセス可能（BUG-019） |
+| マスタ: staff が設定画面にアクセスできない | OK | BUG-019修正済み: /settings は RequirePermission resource={ResourceMaster} でガード済み |
 | シフト: 自分以外のシフトを閲覧できない（staff） | N/A | シフト全件閲覧可能（担当者絞り込みなし） |
 
 ### 15.28 RBAC UI 非表示・グレーアウト制御テスト
