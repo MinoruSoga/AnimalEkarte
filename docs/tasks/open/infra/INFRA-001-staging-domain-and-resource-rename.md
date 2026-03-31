@@ -298,17 +298,74 @@ done
 GitHub Actions の OIDC Role は ARN が変わるため、`backend-deploy.yml` の更新が必要。
 また、新 IAM Role の trust policy のリポジトリ名は `MinoruSoga/AnimalEkarte` のまま維持する。
 
-### 4-4. `backend/.env.production` 更新
+### 4-4. `backend/.env.production` → `backend/.env.staging` にリネーム・更新
+
+**ファイル名を変更する。** GitHub Actions workflow が `backend/.env.production` をハードコードで読んでいるため、ファイルリネームと同時に workflow も更新する。
 
 ```bash
-# 変更箇所
-CORS_ALLOWED_ORIGIN=https://stg.noah-karte.com,https://api.stg.noah-karte.com
-
-# CloudWatch ログ参照（workflow 内で使用）
-# /ecs/animalekarte-test → /ecs/animalekarte-stg
+# ファイルリネーム
+git mv backend/.env.production backend/.env.staging
 ```
 
-### 4-5. `.github/workflows/backend-deploy.yml` 更新
+**`.env.staging` で変更が必要な環境変数:**
+
+```bash
+# RDS リネーム後の新エンドポイント（3-3 完了後に確認して更新）
+DB_HOST=animalekarte-stg-db.<新フィンガープリント>.us-east-1.rds.amazonaws.com
+
+# CORS 許可オリジン（旧 Vercel URL を削除、新ドメインを追加）
+CORS_ALLOWED_ORIGIN=https://stg.noah-karte.com,https://api.stg.noah-karte.com
+```
+
+> **DB_HOST 確認コマンド（RDS リネーム後）:**
+> ```bash
+> aws rds describe-db-instances \
+>   --db-instance-identifier animalekarte-stg-db \
+>   --query 'DBInstances[0].Endpoint.Address' \
+>   --output text \
+>   --region us-east-1 \
+>   --profile AnimalEkarte
+> ```
+
+### 4-5. CloudFront Origin を新 ALB DNS に更新
+
+**⚠️ 重要:** ALB は destroy + create のため DNS 名が変わる。
+CloudFront のオリジン設定が旧 ALB (`animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com`) を
+指したままだと API が到達不能になる。`terraform apply` で新 ALB が作成された後に更新する。
+
+```bash
+# Step 1: 新 ALB の DNS 名を取得
+NEW_ALB_DNS=$(aws elbv2 describe-load-balancers \
+  --names animalekarte-stg-alb \
+  --query 'LoadBalancers[0].DNSName' \
+  --output text \
+  --region us-east-1 \
+  --profile AnimalEkarte)
+
+# Step 2: CloudFront Distribution の設定を取得
+aws cloudfront get-distribution-config \
+  --id ERCVR5P0IAJKS \
+  --region us-east-1 > /tmp/cf-config.json
+
+# Step 3: Origins[0].DomainName を新 ALB DNS に書き換え
+jq --arg dns "$NEW_ALB_DNS" \
+  '.DistributionConfig.Origins.Items[0].DomainName = $dns' \
+  /tmp/cf-config.json > /tmp/cf-config-updated.json
+
+# Step 4: ETag を取得して update
+ETAG=$(jq -r '.ETag' /tmp/cf-config.json)
+jq '.DistributionConfig' /tmp/cf-config-updated.json > /tmp/cf-dist-config.json
+aws cloudfront update-distribution \
+  --id ERCVR5P0IAJKS \
+  --if-match "$ETAG" \
+  --distribution-config file:///tmp/cf-dist-config.json \
+  --region us-east-1
+
+# Step 5: デプロイ完了待機
+aws cloudfront wait distribution-deployed --id ERCVR5P0IAJKS
+```
+
+### 4-6. `.github/workflows/backend-deploy.yml` 更新
 
 ```yaml
 env:
@@ -318,17 +375,25 @@ env:
   ECS_SERVICE: animalekarte-stg-service     # ← 変更
   ECS_TASK_DEFINITION_FAMILY: animalekarte-stg-api    # ← 変更
   ECS_MIGRATE_TASK_FAMILY: animalekarte-stg-migrate   # ← 変更
-  ECS_SUBNETS: <新 SG 再作成の場合は更新>
-  ECS_SECURITY_GROUPS: <新 SG ID に更新>
+  ECS_SUBNETS: <subnet ID は変わらないため確認のみ>
+  ECS_SECURITY_GROUPS: <terraform apply 後に新 SG ID を反映>
 
 # L47: role-to-assume
 role-to-assume: arn:aws:iam::698109622668:role/animalekarte-stg-github-ecs-deploy-role  # ← 変更
 
-# L229: ログ参照
+# L72-77: .env.production → .env.staging に変更
+- name: Parse .env.staging                    # ← 変更
+  run: |
+    python3 -c "
+    ...
+    with open('backend/.env.staging') as f:   # ← 変更
+    ...
+
+# ログ参照
 --log-group-name /ecs/animalekarte-stg   # ← 変更
 ```
 
-### 4-6. Vercel 環境変数 `VITE_API_URL` 更新
+### 4-7. Vercel 環境変数 `VITE_API_URL` 更新
 
 Vercel ダッシュボード → Project Settings → Environment Variables (Production):
 
@@ -376,11 +441,13 @@ VITE_API_URL=https://api.stg.noah-karte.com/api
 | リスク | 影響 | 対策 |
 |--------|------|------|
 | RDS の state 乖離 → terraform apply が destroy しようとする | **最大** | 3-3 で in-place リネーム後、`terraform state rm` → `terraform import` で state を同期してから apply |
+| ALB 再作成後 CloudFront Origin が旧 ALB を向いたまま → API 到達不能 | **最大** | terraform apply で新 ALB 作成後、4-5 の手順で CloudFront Origin を即時更新 |
+| DB_HOST が旧エンドポイントのまま → API が DB に接続できない | High | RDS リネーム後の新エンドポイントを 4-4 で `.env.staging` に反映してから deploy |
 | IAM Role ARN 変更 → GitHub Actions 認証エラー | High | role-to-assume を backend-deploy.yml に更新してから旧 Role を削除 |
 | ECS Security Group ID 変更 → backend-deploy.yml の ECS_SECURITY_GROUPS が古い | High | terraform apply 後に新 SG ID を workflow に反映 |
 | CloudFront CNAME 追加前に DNS を向けると SSL エラー | Medium | Phase 2 の順序を厳守（ACM 発行 → CF 設定 → DNS 向け） |
 | Terraform state key 変更後に init 忘れ | Medium | `terraform init -reconfigure` を必ず実行 |
-| 旧 Vercel URL が残ったままで CORS_ALLOWED_ORIGIN から外れる | Low | `.env.production` 更新後に ECR push → ECS deploy を実行 |
+| 旧 Vercel URL が残ったままで CORS_ALLOWED_ORIGIN から外れる | Low | `.env.staging` 更新後に ECR push → ECS deploy を実行 |
 
 ---
 
@@ -408,9 +475,11 @@ VITE_API_URL=https://api.stg.noah-karte.com/api
 ### Phase 4
 - [ ] ECR 対応方針決定 (Option A / B)
 - [ ] `terraform apply`（RDS は事前リネーム + state import 済みのため安全）
+- [ ] **terraform apply 直後: CloudFront Origin を新 ALB DNS に更新** (4-5)
 - [ ] SSM パラメータ移行 (test → stg パス)
-- [ ] `backend/.env.production` 更新 (CORS_ALLOWED_ORIGIN)
-- [ ] `backend-deploy.yml` 更新 (ECS リソース名・IAM Role ARN・SG ID・ログ名)
+- [ ] `backend/.env.production` → `backend/.env.staging` にリネーム (`git mv`)
+- [ ] `.env.staging` 更新: `DB_HOST`（RDS 新エンドポイント）・`CORS_ALLOWED_ORIGIN`（新ドメイン）
+- [ ] `backend-deploy.yml` 更新 (ECS リソース名・IAM Role ARN・SG ID・ログ名・**.env.staging** パス)
 - [ ] Vercel `VITE_API_URL` を `https://api.stg.noah-karte.com/api` に更新
 - [ ] `git push origin main` → GitHub Actions デプロイ確認
 
