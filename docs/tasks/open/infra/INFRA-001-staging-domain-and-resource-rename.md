@@ -511,33 +511,36 @@ vercel deploy --target=staging
 - [x] GitHub に `production` / `staging` ブランチ作成 ✅
 
 ### Phase 3
-- [ ] Terraform state のバックアップ (S3 コピー)
-- [ ] `backend.tf` の state key 変更 → `terraform init -reconfigure`
-- [ ] `terraform.tfvars` の `name_prefix` 変更
-- [ ] RDS in-place リネーム: `modify-db-instance --new-db-instance-identifier animalekarte-stg-db`
-- [ ] RDS リネーム完了待機: `aws rds wait db-instance-available`
-- [ ] Terraform state 同期: `state rm` → `terraform import` で `animalekarte-stg-db` を登録
-- [ ] `terraform plan` で変更内容確認（RDS が update のみになっていること）
+- [x] Terraform state のバックアップ (S3 コピー) ✅
+- [x] `backend.tf` の state key 変更 → `terraform init -reconfigure` ✅
+- [x] `terraform.tfvars` の `name_prefix` 変更 ✅
+- [x] RDS in-place リネーム: `modify-db-instance --new-db-instance-identifier animalekarte-stg-db` ✅
+- [x] RDS リネーム完了待機: `aws rds wait db-instance-available` ✅
+- [x] Terraform state 同期: `state rm` → `terraform import` で `animalekarte-stg-db` を登録 ✅
+- [x] `terraform plan` で変更内容確認 → `No changes.` ✅
 
 ### Phase 4
-- [ ] ECR 対応方針決定 (Option A / B)
-- [ ] `terraform apply`（RDS は事前リネーム + state import 済みのため安全）
-- [ ] **terraform apply 直後: CloudFront Origin を新 ALB DNS に更新** (4-5)
-- [ ] SSM パラメータ移行 (test → stg パス)
-- [ ] `backend/.env.production` → `backend/.env.staging` にリネーム (`git mv`)
-- [ ] `.env.staging` 更新: `DB_HOST`（RDS 新エンドポイント）・`CORS_ALLOWED_ORIGIN`（新ドメイン）
-- [ ] `backend-deploy.yml` 更新 (ECS リソース名・IAM Role ARN・SG ID・ログ名・**.env.staging** パス)
+- [x] ECR 対応方針: **Option A** (既存 `animalekarte-api` を継続使用) ✅
+- [x] `terraform apply` 完了 ✅
+  - SG module: `name_prefix` + `create_before_destroy` に変更
+  - RDS module: `ignore_changes = [db_subnet_group_name, identifier]` 追加
+- [x] CloudFront Origin を新 ALB DNS に更新 (`animalekarte-stg-alb-1915768826`) ✅
+- [x] SSM パラメータ作成: `/animalekarte/stg/db/{name,user,password}` ✅
+- [x] `backend/.env.production` → `backend/.env.staging` にリネーム ✅
+- [x] `.env.staging` 更新: `DB_HOST`・`CORS_ALLOWED_ORIGIN` ✅
+- [x] `backend-deploy.yml` 更新 (branch: staging, ECS stg リソース名, IAM Role, SG, ログ名) ✅
 - [x] Vercel 旧 `VITE_API_URL` (Production/Preview/Development) を削除 ✅
 - [x] Vercel `VITE_API_URL` (staging) = `https://api.stg.noah-karte.com/api` に設定 ✅
-- [ ] `vercel deploy --target=staging` で反映確認（DNS + API 準備完了後）
-- [ ] `git push origin main` → GitHub Actions デプロイ確認
+- [ ] `vercel deploy --target=staging` で反映確認
+- [ ] `git push origin staging` → GitHub Actions バックエンドデプロイ確認
 
 ### Phase 5
-- [ ] `https://stg.noah-karte.com/login` でログイン動作確認
+- [ ] `https://stg.noah-karte.com` フロントエンド表示確認
 - [ ] `https://api.stg.noah-karte.com/health` が 200 確認
 - [ ] CloudWatch Logs `/ecs/animalekarte-stg` にログ確認
-- [ ] 旧リソース削除 (ECS cluster, Log Group 等)
-- [ ] ドキュメント 12ファイル更新
+- [ ] ログイン動作確認
+- [ ] 旧リソース削除: `/animalekarte/test/db/*` SSM params, `/ecs/animalekarte-test` log group
+- [ ] ドキュメント更新: `infra/docs/architecture.md`, `docs/infra/` 配下 (7ファイル)
 
 ---
 
