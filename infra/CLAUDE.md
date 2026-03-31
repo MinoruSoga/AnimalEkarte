@@ -1,13 +1,13 @@
 # Infra - デプロイ & インフラ構成
 
-## テスト環境エンドポイント
+## ステージング環境エンドポイント
 
 | サービス | URL |
 |---------|-----|
-| Frontend | https://frontend-eta-six-20.vercel.app |
-| Backend API | https://dcqico6azu5w2.cloudfront.net/api |
-| ALB（直接） | http://animalekarte-test-alb-1778215308.us-east-1.elb.amazonaws.com |
-| RDS | animalekarte-test-db.cqbe28s44fta.us-east-1.rds.amazonaws.com:5432 |
+| Frontend | https://stg.noah-karte.com |
+| Backend API | https://api.stg.noah-karte.com/api (または https://dcqico6azu5w2.cloudfront.net/api) |
+| ALB（直接） | http://animalekarte-stg-alb-1915768826.us-east-1.elb.amazonaws.com |
+| RDS | animalekarte-stg-db.cqbe28s44fta.us-east-1.rds.amazonaws.com:5432 |
 
 ---
 
@@ -67,7 +67,7 @@ main ブランチへ Push (backend/**)
     ↓
 GitHub Actions トリガー
     ↓
-AWS OIDC 認証（animalekarte-test-github-ecs-deploy-role）
+AWS OIDC 認証（animalekarte-stg-github-ecs-deploy-role）
     ↓
 Docker Build (linux/amd64) & ECR Push
   → タグ: ${github.sha} + latest
@@ -83,8 +83,8 @@ HealthCheck 確認 (/health)
 
 | ロール | 用途 | 権限 |
 |--------|------|------|
-| `animalekarte-test-github-terraform-role` | Terraform 実行 | AdministratorAccess（テスト環境限定） |
-| `animalekarte-test-github-ecs-deploy-role` | ECS デプロイ | ECR Push + ECS Update + IAM PassRole |
+| `animalekarte-stg-github-terraform-role` | Terraform 実行 | AdministratorAccess（テスト環境限定） |
+| `animalekarte-stg-github-ecs-deploy-role` | ECS デプロイ | ECR Push + ECS Update + IAM PassRole |
 
 ---
 
@@ -118,7 +118,7 @@ infra/
 
 ```
 S3: animalekarte-tfstate-698109622668
-Key: env/test/terraform.tfstate
+Key: env/stg/terraform.tfstate
 Lock: DynamoDB animalekarte-terraform-lock
 Encryption: enabled
 ```
@@ -127,7 +127,7 @@ Encryption: enabled
 
 | 変数 | デフォルト値 | 説明 |
 |------|-------------|------|
-| `name_prefix` | `animalekarte-test` | リソース名プレフィックス |
+| `name_prefix` | `animalekarte-stg` | リソース名プレフィックス |
 | `rds_instance_class` | `db.t4g.micro` | RDS インスタンスタイプ |
 | `ecs_task_cpu` | `256` | ECS タスク CPU |
 | `ecs_task_memory` | `512` | ECS タスクメモリ (MB) |
